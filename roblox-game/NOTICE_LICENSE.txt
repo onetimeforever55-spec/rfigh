@@ -1,0 +1,9 @@
+NOTICE: Licensing and assets
+
+- The original OpenFront project is licensed under the GNU Affero General Public License v3 (AGPL-3.0). That license is a copyleft license that requires that if you modify and deploy the software (especially as a network service), you must make the modified source available under the same license.
+
+- This conversion copies the structure and logic into Roblox Lua, and includes a visible attribution string "© OpenFront and Contributors" in the UI to satisfy the repository's additional terms.
+
+- The original repository contains a "proprietary" folder with assets that are NOT included in this conversion. Do not copy those assets into your Roblox project unless you have explicit permission.
+
+- When publishing or distributing the converted code, ensure you comply with AGPL-3.0. If you want, I can add the full AGPL-3.0 license text in this folder as LICENSE_AGPL.txt.
