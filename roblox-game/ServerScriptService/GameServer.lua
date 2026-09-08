@@ -1,99 +1,150 @@
--- GameServer (Server)
--- Path: ServerScriptService/GameServer
--- Gestiona el ciclo de la partida: spawn, tiempo de partida, scoring y pickups
+-- Enhanced GameServer (Server)
+-- Replaces earlier GameServer to add combat handling and purchase hooks
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
-local GameCore = require(ReplicatedStorage:WaitForChild("GameModules"):WaitForChild("GameCore"))
-local Leaderboard = require(ReplicatedStorage:WaitForChild("GameModules"):WaitForChild("Leaderboard"))
-local GameEvents = ReplicatedStorage:FindFirstChild("GameEvent") or Instance.new("RemoteEvent", ReplicatedStorage); GameEvents.Name = "GameEvent"
+local MarketplaceService = game:GetService("MarketplaceService")
+local RunService = game:GetService("RunService")
 
-local activeMatches = {} -- id -> { players = {...}, endsAt = tick(), state = "running" }
+-- Require modules
+local RSmodules = ReplicatedStorage:WaitForChild("GameModules")
+local GameCore = require(RSmodules:WaitForChild("GameCore"))
+local Leaderboard = require(RSmodules:WaitForChild("Leaderboard"))
+local Weapon = require(RSmodules:WaitForChild("Weapon"))
+local DataStoreModule = require(RSmodules:WaitForChild("DataStoreModule"))
+local Shop = require(RSmodules:WaitForChild("Shop"))
+
+-- Remote events
+local GameEvents = ReplicatedStorage:FindFirstChild("GameEvent") or Instance.new("RemoteEvent", ReplicatedStorage); GameEvents.Name = "GameEvent"
+local ActionEvent = ReplicatedStorage:FindFirstChild("GameAction") or Instance.new("RemoteEvent", ReplicatedStorage); ActionEvent.Name = "GameAction"
 
 local MATCH_DURATION = 180 -- seconds
-local PICKUP_TAG = GameCore.PickupTag
+local activeMatches = {}
 
-local function bindPickupTouch(part)
-    if not part then return end
-    if not part:IsA("BasePart") then return end
-    part.Touched:Connect(function(hit)
-        local character = hit.Parent
-        if character and character:FindFirstChild("Humanoid") then
-            local player = Players:GetPlayerFromCharacter(character)
-            if player then
-                GameCore.OnPickupCollected(part, player)
-                -- award points
-                Leaderboard.AddScore(player, 10)
-                GameEvents:FireClient(player, "pickupCollected", { id = part:GetAttribute("pickupId") })
+local function validateAndApplyHit(shooter, originPos, direction, range, weaponCfg)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    -- don't hit shooter's character
+    if shooter.Character then
+        rayParams.FilterDescendantsInstances = { shooter.Character }
+    end
+    local result = workspace:Raycast(originPos, direction.Unit * range, rayParams)
+    if result and result.Instance then
+        local part = result.Instance
+        local hitChar = part:FindFirstAncestorOfClass("Model")
+        if hitChar and hitChar:FindFirstChild("Humanoid") then
+            local victim = Players:GetPlayerFromCharacter(hitChar)
+            if victim and victim ~= shooter then
+                -- apply damage
+                local humanoid = hitChar:FindFirstChild("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    humanoid:TakeDamage(weaponCfg.damage)
+                    -- if killed, award kill and score
+                    if humanoid.Health - weaponCfg.damage <= 0 then
+                        Leaderboard.AddKill(shooter,1)
+                        Leaderboard.AddScore(shooter,100)
+                    else
+                        Leaderboard.AddScore(shooter,10)
+                    end
+                    return { hit=true, victim=victim }
+                end
             end
         end
-    end)
-end
-
--- attach pickup handlers on server start and when map created
-local function setupPickupHandlers()
-    local pickups = GameCore.GetPickups()
-    for _,p in ipairs(pickups) do
-        bindPickupTouch(p)
     end
+    return { hit=false }
 end
 
-setupPickupHandlers()
+-- Bind server-side handler for fire actions
+ActionEvent.OnServerEvent:Connect(function(player, action, payload)
+    if action == "fire" then
+        -- payload: { origin = Vector3, target = Vector3, weapon = "pistol" }
+        if not payload or type(payload) ~= "table" then return end
+        local weaponName = payload.weapon or "pistol"
+        local cfg = Weapon.Get(weaponName)
+        if not cfg then return end
+        -- validate positions are Vector3
+        local origin = payload.origin
+        local target = payload.target
+        if typeof(origin) ~= "Vector3" or typeof(target) ~= "Vector3" then return end
+        local direction = target - origin
+        -- basic anti-cheat: check distance between origin and player's root
+        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        if (root.Position - origin).Magnitude > 5 then
+            -- origin too far from player
+            return
+        end
+        local res = validateAndApplyHit(player, origin, direction, cfg.range, cfg)
+        if res.hit then
+            -- notify shooter and victim
+            GameEvents:FireClient(player, "hitConfirmed", { victim = res.victim.Name, weapon = weaponName })
+            GameEvents:FireClient(res.victim, "youWereHit", { by = player.Name, weapon = weaponName })
+        end
+    end
+end)
 
-local GameServer = {}
+-- Marketplace purchase handling (DevProducts)
+local function processReceipt(receiptInfo)
+    local playerId = receiptInfo.PlayerId
+    local productId = receiptInfo.ProductId
+    local player = Players:GetPlayerByUserId(playerId)
+    if player then
+        -- grant item according to Shop mapping
+        local ok = Shop.GrantProductToPlayer(player, productId)
+        if ok then
+            -- update attribute for persistence
+            local data = player:GetAttribute("_openfront_data") or DataStoreModule.Load(player)
+            DataStoreModule.Save(player, data)
+        end
+    else
+        -- player not online, still grant via DataStore later or skip
+    end
+    return Enum.ProductPurchaseDecision.PurchaseGranted
+end
 
--- Start a match with lobby info
-function GameServer.StartMatch(id, lobby)
+MarketplaceService.ProcessReceipt = processReceipt
+
+-- Match lifecycle (keep previous implementation)
+function StartMatch(id, lobby)
     if activeMatches[id] then return end
     local players = lobby.players or {}
-    -- set up leaderboards for players
     for _,p in ipairs(players) do
         Leaderboard.SetupPlayer(p)
+        -- load data into player attribute for quick access
+        local data = DataStoreModule.Load(p)
+        p:SetAttribute("_openfront_data", data)
     end
-
     GameCore.CreateMap()
     GameCore.SpawnPlayers(players)
-
-    local match = {
-        players = players,
-        endsAt = tick() + MATCH_DURATION,
-        state = "running"
-    }
-    activeMatches[id] = match
-
-    -- notify players periodically and end after duration
+    activeMatches[id] = { players = players, endsAt = tick() + MATCH_DURATION }
     spawn(function()
-        while activeMatches[id] and activeMatches[id].state == "running" and tick() < activeMatches[id].endsAt do
-            wait(1)
-        end
+        while activeMatches[id] and tick() < activeMatches[id].endsAt do wait(1) end
         if activeMatches[id] then
-            GameServer.EndMatch(id)
+            -- compute winner
+            local winner
+            local high = -math.huge
+            for _,p in ipairs(activeMatches[id].players) do
+                local sc = 0
+                if p and p:FindFirstChild("leaderstats") and p.leaderstats:FindFirstChild("Score") then
+                    sc = p.leaderstats.Score.Value
+                end
+                if sc > high then high = sc; winner = p end
+            end
+            for _,p in ipairs(activeMatches[id].players) do
+                if p and p.Parent then
+                    GameEvents:FireClient(p, "matchEnded", { winner = (winner and winner.Name) or "None" })
+                    -- persist player data
+                    local data = p:GetAttribute("_openfront_data")
+                    if data then DataStoreModule.Save(p, data) end
+                    p:SetAttribute("lobbyId", nil)
+                end
+            end
+            activeMatches[id] = nil
         end
     end)
 end
 
-function GameServer.EndMatch(id)
-    local match = activeMatches[id]
-    if not match then return end
-    -- compute winner
-    local winner
-    local high = -math.huge
-    for _,p in ipairs(match.players) do
-        local score = 0
-        if p and p:FindFirstChild("leaderstats") and p.leaderstats:FindFirstChild("Score") then
-            score = p.leaderstats.Score.Value
-        end
-        if score > high then high = score; winner = p end
-    end
-    -- notify clients
-    for _,p in ipairs(match.players) do
-        if p and p.Parent then
-            GameEvents:FireClient(p, "matchEnded", { winner = (winner and winner.Name) or "None" })
-            p:SetAttribute("lobbyId", nil)
-        end
-    end
-    activeMatches[id] = nil
-end
-
-return GameServer
+return {
+    StartMatch = StartMatch
+}
