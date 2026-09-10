@@ -1,0 +1,95 @@
+# memebot configuration.
+# Copy to config.yaml and edit. Secrets do NOT go here — see .env.example.
+#
+# Every value below is the built-in default, shown so you can see what exists.
+
+database_path: data/memebot.db
+log_level: INFO
+log_file: logs/memebot.log
+
+execution:
+  # "paper" simulates fills against live prices. Run it for at least a few
+  # days before even thinking about "live".
+  mode: paper
+  slippage_bps: 300          # 3% max slippage on a swap
+  priority_fee_lamports: 200000
+  max_price_impact_pct: 4.0  # refuse a trade that would move the price more
+  paper_fee_pct: 0.35        # simulated round-trip cost in paper mode
+  paper_slippage_pct: 1.0    # simulated base slippage, before size impact
+  confirm_timeout_s: 90
+  max_swap_retries: 3
+
+risk:
+  starting_equity_usd: 1000   # paper mode only; live reads the real wallet
+  position_size_usd: 25       # target size per trade
+  position_size_pct_equity: 3 # never risk more than this share of equity
+  max_open_positions: 5
+  max_daily_loss_usd: 150     # hit this and the bot stops opening trades
+  max_daily_trades: 40
+  min_cash_reserve_usd: 0
+  rebuy_cooldown_minutes: 120 # do not immediately re-buy something you sold
+
+screener:
+  # Hard safety gates. A token failing ANY of these is never bought.
+  min_liquidity_usd: 20000
+  max_liquidity_usd: 3000000
+  min_volume_h1_usd: 25000
+  min_volume_h24_usd: 100000
+  min_txns_h1: 75
+  min_volume_liquidity_ratio: 0.5
+  max_volume_liquidity_ratio: 60      # higher usually means wash trading
+  min_age_minutes: 20                 # skip the first minutes, that is rug hour
+  max_age_hours: 96
+  min_market_cap_usd: 50000
+  max_market_cap_usd: 30000000
+  max_mcap_liquidity_ratio: 150       # thin float relative to valuation
+  chain_id: solana
+  allowed_quote_mints:
+    - So11111111111111111111111111111111111111112   # SOL
+    - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v   # USDC
+  blocked_dex_ids: []
+  blocked_mints: []
+  blocked_symbol_keywords: [test, scam, rug]
+  # On-chain checks. These are the ones that actually stop rugs — keep them on.
+  require_mint_authority_revoked: true
+  require_freeze_authority_revoked: true
+  max_top_holder_pct: 25              # excludes the AMM pool vault
+  max_top10_holder_pct: 60
+  use_rugcheck: true
+  max_rugcheck_score: 40
+  require_socials: false
+
+strategy:
+  min_entry_score: 60          # composite score 0-100 needed to buy
+  min_price_change_m5: 1.0
+  min_price_change_h1: 5.0
+  max_price_change_h1: 250.0   # do not chase a vertical candle
+  max_price_change_h24: 900.0
+  min_buy_sell_ratio_m5: 1.0
+  min_buy_sell_ratio_h1: 1.15
+  # Relative weights of the score components.
+  weight_momentum: 30
+  weight_buy_pressure: 25
+  weight_volume: 25
+  weight_liquidity: 10
+  weight_age: 10
+
+exits:
+  stop_loss_pct: -25.0
+  max_hold_minutes: 240
+  # [gain %, fraction of the ORIGINAL position to sell at that gain]
+  take_profit_ladder:
+    - [40.0, 0.4]
+    - [100.0, 0.3]
+    - [250.0, 0.2]
+  trailing_activation_pct: 30.0   # arm the trailing stop once up this much
+  trailing_stop_pct: 18.0         # then exit on this drawdown from the peak
+  max_liquidity_drop_pct: 45.0    # liquidity being pulled -> emergency exit
+  volume_collapse_pct: 85.0       # momentum gone -> exit
+  volume_collapse_grace_minutes: 45
+
+engine:
+  poll_interval_s: 20          # how often open positions are re-checked
+  discovery_interval_s: 60     # how often new candidates are scanned
+  max_candidates_per_scan: 40
+  discovery_queries: [SOL, USDC]

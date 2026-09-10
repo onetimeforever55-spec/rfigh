@@ -1,0 +1,5 @@
+# Only needed for `mode: live` on Solana (real swaps signed locally).
+-r requirements.txt
+solders>=0.21
+solana>=0.34
+base58>=2.1

@@ -1,0 +1,30 @@
+# Secrets — NEVER commit these
+.env
+*.key
+keypair.json
+wallet*.json
+config.yaml
+config.local.yaml
+
+# Runtime state
+*.db
+*.db-journal
+*.sqlite3
+data/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
