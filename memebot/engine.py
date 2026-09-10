@@ -25,7 +25,9 @@ from .datasources.solana_rpc import SolanaRPC
 from .execution import build_executor
 from .execution.base import Executor
 from .http import HttpClient
+from .model import ProbabilityModel, load_for_trading
 from .models import Position, ScreenResult, Signal, TokenSnapshot
+from .observations import observation_row
 from .notifier import Notifier
 from .portfolio import Portfolio
 from .risk import RiskManager
@@ -102,6 +104,21 @@ class TradingEngine:
         )
         self._running = False
         self._last_discovery = 0.0
+        self._last_prune = 0.0
+
+        # Loaded once, at startup. If probability mode is on and the model is
+        # not fit to trade on, this raises rather than quietly falling back to
+        # the heuristic: a bot silently trading a different strategy than the
+        # one you configured is the worst of both.
+        self.model: ProbabilityModel | None = None
+        if cfg.probability.enabled:
+            self.model = load_for_trading(cfg.probability)
+            log.info(
+                "probability mode: model from %s, held-out AUC %.3f on %d rows",
+                cfg.probability.model_path,
+                self.model.test_metrics.get("auc", float("nan")),
+                self.model.n_train,
+            )
 
     # --- lifecycle -------------------------------------------------------
     async def start(self) -> None:
@@ -267,12 +284,60 @@ class TradingEngine:
             return []
         return await self.dex.pairs_for_tokens(mints)
 
+    def _score(self, snap: TokenSnapshot) -> Signal:
+        """One entry point for scoring, so `scan` and the live loop can never
+        disagree about what the bot would do."""
+        return score_token(
+            snap,
+            self.cfg.strategy,
+            model=self.model,
+            prob_cfg=self.cfg.probability if self.model else None,
+        )
+
+    def _record(self, observed: list[tuple[TokenSnapshot, bool, float]]) -> None:
+        """Persist this cycle's candidates as future training data.
+
+        Best-effort by design: a recording failure must never stop the bot
+        from trading or, more importantly, from exiting.
+        """
+        if not self.cfg.probability.record or not observed:
+            return
+        try:
+            rows = [
+                observation_row(snap, passed_screen=passed, score=score)
+                for snap, passed, score in observed
+            ]
+            self.storage.save_observations(rows)
+        except Exception:  # noqa: BLE001
+            log.exception("recording observations failed; continuing")
+
+    def _prune_observations(self) -> None:
+        """Drop history past the retention window, at most once an hour."""
+        if not self.cfg.probability.record:
+            return
+        now = time.monotonic()
+        if self._last_prune and now - self._last_prune < 3_600:
+            return
+        self._last_prune = now
+        try:
+            cutoff = int(
+                (time.time() - self.cfg.probability.retention_days * 86_400) * 1000
+            )
+            dropped = self.storage.prune_observations(cutoff)
+            if dropped:
+                log.info("pruned %d observation(s) past retention", dropped)
+        except Exception:  # noqa: BLE001
+            log.exception("pruning observations failed; continuing")
+
     async def scan(self) -> CycleReport:
         """Screen and score candidates without trading. Used by `memebot scan`."""
         report = CycleReport()
         candidates = await self.discover_candidates()
         report.scanned = len(candidates)
 
+        # Deliberately does NOT record: `scan` is an inspection command, and
+        # running it alongside the bot would write near-duplicate rows for the
+        # same mint seconds apart, over-weighting those moments at fit time.
         for snap in candidates:
             screen = await self._screen_candidate(snap)
             if not screen.passed:
@@ -281,7 +346,7 @@ class TradingEngine:
                 )
                 continue
             report.passed_screen += 1
-            report.signals.append(score_token(snap, self.cfg.strategy))
+            report.signals.append(self._score(snap))
 
         report.signals.sort(key=lambda s: s.score, reverse=True)
         return report
@@ -292,10 +357,31 @@ class TradingEngine:
         report.scanned = len(candidates)
 
         equity, cash = await self._equity_and_cash()
+        observed: list[tuple[TokenSnapshot, bool, float]] = []
 
         for snap in candidates:
+            # Every candidate is recorded, whatever happens next: a full
+            # portfolio would otherwise punch a hole in the dataset exactly
+            # when the market was busiest.
+            #
+            # `passed_screen` always means the cheap market screen, never the
+            # pump.fun gate behind it. That gate depends on a rate-limited API
+            # whose answer may be missing, so including it would make the
+            # column mean different things on different rows.
+            market = screen_market(snap, self.cfg.screener)
+            signal = self._score(snap)
+            observed.append((snap, market.passed, signal.score))
+
+            if not market.passed:
+                report.rejected.append(
+                    Rejection(snap.symbol, market.reasons, market.codes)
+                )
+                continue
+
+            # Nothing can be bought, so stop before the API-backed gate rather
+            # than spending rate limit on a token we cannot act on.
             if self.portfolio.open_count >= self.cfg.risk.max_open_positions:
-                break
+                continue
 
             screen = await self._screen_candidate(snap)
             if not screen.passed:
@@ -304,9 +390,8 @@ class TradingEngine:
                 )
                 continue
             report.passed_screen += 1
-
-            signal = score_token(snap, self.cfg.strategy)
             report.signals.append(signal)
+
             if not signal.should_buy:
                 continue
 
@@ -345,6 +430,8 @@ class TradingEngine:
             if await self._enter(snap, signal, decision.size_usd):
                 cash -= decision.size_usd
 
+        self._record(observed)
+        self._prune_observations()
         report.signals.sort(key=lambda s: s.score, reverse=True)
         return report
 

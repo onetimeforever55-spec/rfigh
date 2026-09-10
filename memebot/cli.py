@@ -6,6 +6,9 @@
     memebot report     show closed trades and overall performance
     memebot panic      sell every open position immediately
     memebot wallet     check which wallet the bot would trade with
+    memebot dataset    label what was recorded and report the base rates
+    memebot fit        fit the probability model and report its honesty
+    memebot backtest   replay the recorded history through a decision rule
 """
 
 from __future__ import annotations
@@ -26,7 +29,9 @@ from .datasources.solana_rpc import SolanaRPC
 from .engine import TradingEngine
 from .http import HttpClient
 from .logging_setup import setup_logging
+from .model import ModelError, ProbabilityModel, expected_value_pct, fit
 from .models import PositionStatus, Side
+from .observations import build_dataset
 from .storage import Storage
 
 log = logging.getLogger(__name__)
@@ -315,6 +320,316 @@ def cmd_report(cfg: Config, args: argparse.Namespace) -> int:
         storage.close()
 
 
+
+
+# --- probability -------------------------------------------------------
+def _dataset_for(cfg: Config, args: argparse.Namespace):
+    """Build the labelled dataset, and print what it is made of."""
+    p = cfg.probability
+    storage = Storage(cfg.database_path)
+    try:
+        stats = storage.observation_stats()
+        if not stats["rows"]:
+            console.print(
+                "[yellow]No observations recorded yet.[/yellow]\n"
+                "Run the bot (paper mode is enough) with "
+                "[bold]probability.record: true[/bold] and come back once it has "
+                "watched the market for a while."
+            )
+            return None, None
+
+        hours = (stats["last_ms"] - stats["first_ms"]) / 3_600_000
+        console.print(
+            f"\n[bold]{stats['rows']:,} observations[/bold] of "
+            f"{stats['mints']:,} token(s) over {hours:.1f}h"
+        )
+
+        dataset = build_dataset(
+            storage,
+            take_profit_pct=p.take_profit_pct,
+            stop_loss_pct=p.stop_loss_pct,
+            horizon_minutes=p.horizon_minutes,
+            max_gap_minutes=p.max_gap_minutes,
+            screened_only=getattr(args, "screened_only", False),
+        )
+    finally:
+        storage.close()
+
+    console.print(
+        f"Labelled for: reach [green]{p.take_profit_pct:+.0f}%[/green] before "
+        f"[red]{p.stop_loss_pct:+.0f}%[/red], within {p.horizon_minutes:.0f}m\n"
+    )
+
+    table = Table(header_style="bold cyan", show_header=False)
+    table.add_column("")
+    table.add_column("", justify="right")
+    table.add_row("Labelled examples", f"{len(dataset):,}")
+    table.add_row("Winners", f"{dataset.positives:,}")
+    table.add_row(
+        "[bold]Base rate[/bold]", f"[bold]{dataset.base_rate:.1%}[/bold]"
+    )
+    table.add_row("Unresolved (censored)", f"{dataset.censored:,}")
+    table.add_row("Unusable rows", f"{dataset.skipped:,}")
+    table.add_row("Span", f"{dataset.span_hours:.1f}h")
+    console.print(table)
+
+    total = len(dataset) + dataset.censored
+    if total and dataset.censored / total > 0.5:
+        console.print(
+            f"\n[yellow]{dataset.censored / total:.0%} of decision points never "
+            "resolved[/yellow] — the token stopped appearing before the horizon "
+            "closed. What is left describes tokens that stayed visible, which is "
+            "a narrower thing than 'all tokens'."
+        )
+
+    return dataset, p
+
+
+def cmd_dataset(cfg: Config, args: argparse.Namespace) -> int:
+    dataset, p = _dataset_for(cfg, args)
+    if dataset is None:
+        return 1
+
+    if not dataset.examples:
+        console.print("[yellow]Nothing resolved yet — record for longer.[/yellow]")
+        return 1
+
+    # The base rate is the number to beat. Spelling out what it implies stops
+    # a 12% win rate from looking like a disaster when the payoff is 3:1.
+    ev = expected_value_pct(
+        dataset.base_rate, p.take_profit_pct, p.stop_loss_pct, p.round_trip_cost_pct
+    )
+    verdict = "[green]positive[/green]" if ev > 0 else "[red]negative[/red]"
+    console.print(
+        f"\nBuying [bold]blindly[/bold] at this base rate returns {ev:+.2f}% per "
+        f"trade after {p.round_trip_cost_pct:.1f}% costs — {verdict}.\n"
+        "A model only earns its place by beating that."
+    )
+
+    passed = [e for e in dataset.examples if e.passed_screen]
+    if passed and len(passed) != len(dataset.examples):
+        rate = sum(e.y for e in passed) / len(passed)
+        console.print(
+            f"\nAmong the {len(passed):,} that passed the screen, the win rate is "
+            f"[bold]{rate:.1%}[/bold] vs {dataset.base_rate:.1%} overall — "
+            + ("the screen is helping." if rate > dataset.base_rate
+               else "[yellow]the screen is not helping.[/yellow]")
+        )
+    return 0
+
+
+def _print_metrics(title: str, metrics: dict) -> None:
+    if not metrics or not metrics.get("n"):
+        return
+    console.print(
+        f"\n[bold]{title}[/bold]  n={metrics['n']:,}  "
+        f"base={metrics['base_rate']:.1%}  "
+        f"AUC={metrics['auc']:.3f}  Brier={metrics['brier']:.4f}  "
+        f"skill={metrics['brier_skill']:+.3f}"
+    )
+
+
+def cmd_fit(cfg: Config, args: argparse.Namespace) -> int:
+    dataset, p = _dataset_for(cfg, args)
+    if dataset is None:
+        return 1
+
+    try:
+        model = fit(
+            dataset,
+            test_fraction=args.test_fraction,
+            l2=args.l2,
+            epochs=args.epochs,
+            min_examples=p.min_train_rows,
+        )
+    except ModelError as exc:
+        console.print(f"\n[bold red]Cannot fit:[/bold red] {exc}")
+        return 1
+
+    model.take_profit_pct = p.take_profit_pct
+    model.stop_loss_pct = p.stop_loss_pct
+    model.horizon_minutes = p.horizon_minutes
+
+    _print_metrics("TRAIN (older slice)", model.train_metrics)
+    _print_metrics("TEST  (newer slice)", model.test_metrics)
+
+    test = model.test_metrics
+    reliability = test.get("reliability") or []
+    if reliability:
+        table = Table(
+            title="Calibration on held-out data", header_style="bold cyan"
+        )
+        table.add_column("Predicted")
+        table.add_column("n", justify="right")
+        table.add_column("Said", justify="right")
+        table.add_column("Happened", justify="right")
+        for row in reliability:
+            table.add_row(
+                row["bin"], f"{row['n']:,}",
+                f"{row['predicted']:.1%}", f"{row['actual']:.1%}",
+            )
+        console.print()
+        console.print(table)
+        console.print(
+            "[dim]'Said' and 'Happened' should track each other. Where they "
+            "diverge, the probability is not one you can multiply by a "
+            "payoff.[/dim]"
+        )
+
+    table = Table(title="What the bot now believes", header_style="bold cyan")
+    table.add_column("Feature")
+    table.add_column("Weight", justify="right")
+    table.add_column("Direction")
+    for name, weight in model.coefficients():
+        table.add_row(
+            name, f"{weight:+.3f}",
+            "[green]raises[/green]" if weight > 0 else "[red]lowers[/red]",
+        )
+    console.print()
+    console.print(table)
+    console.print(
+        "[dim]Weights act on standardised features, so they are directly "
+        "comparable — unlike the hand-set weights they replace.[/dim]"
+    )
+
+    auc = test.get("auc", 0.0)
+    if auc < p.min_test_auc:
+        console.print(
+            f"\n[bold red]Held-out AUC {auc:.3f} is below the configured "
+            f"minimum {p.min_test_auc:.3f}.[/bold red]\n"
+            "This model has not learnt anything that generalises. It is saved "
+            "so you can inspect it, but the bot will refuse to trade on it."
+        )
+    elif test.get("brier_skill", 0.0) <= 0:
+        console.print(
+            "\n[yellow]Negative Brier skill: the model is worse than always "
+            "predicting the base rate.[/yellow] Do not trade on it."
+        )
+    else:
+        console.print(
+            f"\n[green]Held-out AUC {auc:.3f}, "
+            f"skill {test.get('brier_skill', 0):+.3f}.[/green] "
+            "Better than chance on data it never saw."
+        )
+
+    model.save(p.model_path)
+    console.print(f"\nSaved to [bold]{p.model_path}[/bold]")
+    console.print(
+        "Enable it with [bold]probability.enabled: true[/bold]. Run it in paper "
+        "mode first — a good backtest and a good live result are different "
+        "things."
+    )
+    return 0
+
+
+def cmd_backtest(cfg: Config, args: argparse.Namespace) -> int:
+    dataset, p = _dataset_for(cfg, args)
+    if dataset is None:
+        return 1
+    if not dataset.examples:
+        console.print("[yellow]Nothing resolved yet.[/yellow]")
+        return 1
+
+    model = None
+    if not args.heuristic:
+        try:
+            model = ProbabilityModel.load(p.model_path)
+        except ModelError as exc:
+            console.print(f"[bold red]{exc}[/bold red]")
+            return 1
+
+    min_probability = (
+        args.min_probability if args.min_probability is not None
+        else p.min_probability
+    )
+
+    examples = dataset.sorted_by_time()
+    if args.test_only:
+        split = int(len(examples) * (1.0 - args.test_fraction))
+        examples = examples[split:]
+        console.print(
+            f"[dim]Replaying only the newest {len(examples):,} examples — the "
+            "slice the model was not fitted on.[/dim]"
+        )
+
+    horizon_ms = p.horizon_minutes * 60_000
+    busy_until: dict[str, int] = {}
+    taken: list = []
+
+    for e in examples:
+        # One position per mint at a time, exactly like the live bot. Without
+        # this, a single 3-hour run gets counted as dozens of winning trades
+        # and every number below turns into fiction.
+        if e.ts_ms < busy_until.get(e.mint, 0):
+            continue
+        if args.heuristic:
+            enter = e.passed_screen and e.score >= cfg.strategy.min_entry_score
+        else:
+            probability = model.predict(e.x)
+            ev = expected_value_pct(
+                probability, p.take_profit_pct, p.stop_loss_pct, p.round_trip_cost_pct
+            )
+            enter = (
+                e.passed_screen
+                and probability >= min_probability
+                and ev >= p.min_expected_value_pct
+            )
+        if not enter:
+            continue
+        busy_until[e.mint] = e.ts_ms + int(horizon_ms)
+        taken.append(e)
+
+    if not taken:
+        console.print("\n[yellow]This rule would not have taken a single trade.[/yellow]")
+        return 0
+
+    wins = sum(e.y for e in taken)
+    win_rate = wins / len(taken)
+    # Each trade pays the take-profit or the stop, which is exactly what the
+    # label encodes — no extra assumption smuggled in here.
+    per_trade = expected_value_pct(
+        win_rate, p.take_profit_pct, p.stop_loss_pct, p.round_trip_cost_pct
+    )
+
+    rule = "heuristic score" if args.heuristic else f"P(win) >= {min_probability:.0%}"
+    table = Table(title=f"Replay: {rule}", header_style="bold cyan", show_header=False)
+    table.add_column("")
+    table.add_column("", justify="right")
+    table.add_row("Decision points", f"{len(examples):,}")
+    table.add_row("Trades taken", f"{len(taken):,}")
+    table.add_row("Winners", f"{wins:,}")
+    table.add_row("Win rate", f"{win_rate:.1%}")
+    table.add_row("Base rate (all)", f"{dataset.base_rate:.1%}")
+    table.add_row(
+        "Return per trade",
+        f"[{'green' if per_trade > 0 else 'red'}]{per_trade:+.2f}%[/]",
+    )
+    # Deliberately NOT compounded. Chaining these returns would assume the
+    # whole account rides on each trade in sequence, which produces a
+    # spectacular number that describes nothing: the trades overlap in time
+    # and the bot risks a fixed size per position.
+    table.add_row(
+        "Total at fixed size",
+        f"{per_trade / 100 * len(taken):+.1f}x one position",
+    )
+    console.print()
+    console.print(table)
+
+    console.print(
+        "\n[yellow]What this replay does NOT model:[/yellow] the price you would "
+        "actually have been filled at, partial take-profit rungs, the trailing "
+        "stop, position limits, daily loss caps, or the fact that your own buy "
+        "moves a thin pool. It is an upper bound on a strategy, not a forecast "
+        "of your PnL."
+    )
+    if len(taken) < 30:
+        console.print(
+            f"[yellow]{len(taken)} trades is far too few to conclude "
+            "anything.[/yellow]"
+        )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="memebot", description="Automated memecoin trading bot for Solana."
@@ -348,6 +663,45 @@ def build_parser() -> argparse.ArgumentParser:
     p_panic = sub.add_parser("panic", help="market-sell every open position")
     p_panic.add_argument("--force", action="store_true", help="skip the confirmation")
 
+    p_dataset = sub.add_parser(
+        "dataset", help="label the recorded history and report the base rates"
+    )
+    p_dataset.add_argument(
+        "--screened-only", action="store_true",
+        help="only count candidates that passed the screen",
+    )
+
+    p_fit = sub.add_parser(
+        "fit", help="fit the probability model on the recorded history"
+    )
+    p_fit.add_argument("--screened-only", action="store_true")
+    p_fit.add_argument(
+        "--test-fraction", type=float, default=0.25,
+        help="newest share of the data held out for evaluation (default 0.25)",
+    )
+    p_fit.add_argument(
+        "--l2", type=float, default=0.01, help="regularisation strength"
+    )
+    p_fit.add_argument("--epochs", type=int, default=400)
+
+    p_bt = sub.add_parser(
+        "backtest", help="replay the recorded history through a decision rule"
+    )
+    p_bt.add_argument("--screened-only", action="store_true")
+    p_bt.add_argument(
+        "--heuristic", action="store_true",
+        help="replay the hand-set score instead of the model, to compare",
+    )
+    p_bt.add_argument(
+        "--min-probability", type=float, default=None,
+        help="entry threshold (defaults to probability.min_probability)",
+    )
+    p_bt.add_argument(
+        "--test-only", action="store_true",
+        help="replay only the slice the model was not fitted on",
+    )
+    p_bt.add_argument("--test-fraction", type=float, default=0.25)
+
     return parser
 
 
@@ -367,6 +721,13 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_positions(cfg, args)
     if args.command == "report":
         return cmd_report(cfg, args)
+    # These read the recorded history and never touch the network.
+    if args.command == "dataset":
+        return cmd_dataset(cfg, args)
+    if args.command == "fit":
+        return cmd_fit(cfg, args)
+    if args.command == "backtest":
+        return cmd_backtest(cfg, args)
 
     handlers = {
         "scan": cmd_scan, "run": cmd_run, "panic": cmd_panic, "wallet": cmd_wallet,

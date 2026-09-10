@@ -55,6 +55,42 @@ CREATE TABLE IF NOT EXISTS state (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- Every candidate seen during discovery, whether or not it was bought.
+-- This is the raw material the probability model is fitted on: recording only
+-- what we bought would make it impossible to ever learn that a filter is
+-- wrong, because the rejected tokens would have no outcome on record.
+--
+-- Only fields observable AT THAT INSTANT are stored. Nothing here is ever
+-- back-filled, so a row cannot be contaminated by hindsight.
+CREATE TABLE IF NOT EXISTS observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts_ms INTEGER NOT NULL,
+    mint TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    price_usd REAL NOT NULL,
+    liquidity_usd REAL NOT NULL,
+    market_cap_usd REAL NOT NULL,
+    age_minutes REAL NOT NULL,
+    vol_m5_usd REAL NOT NULL,
+    vol_h1_usd REAL NOT NULL,
+    vol_h24_usd REAL NOT NULL,
+    chg_m5_pct REAL NOT NULL,
+    chg_h1_pct REAL NOT NULL,
+    chg_h24_pct REAL NOT NULL,
+    buys_m5 INTEGER NOT NULL,
+    sells_m5 INTEGER NOT NULL,
+    buys_h1 INTEGER NOT NULL,
+    sells_h1 INTEGER NOT NULL,
+    has_socials INTEGER NOT NULL,
+    dex_id TEXT NOT NULL,
+    passed_screen INTEGER NOT NULL,
+    score REAL NOT NULL
+);
+-- Labelling walks one mint's history forward in time, so this is the index
+-- that matters.
+CREATE INDEX IF NOT EXISTS idx_obs_mint_ts ON observations(mint, ts_ms);
+CREATE INDEX IF NOT EXISTS idx_obs_ts ON observations(ts_ms);
 """
 
 _POSITION_COLUMNS = (
@@ -62,6 +98,14 @@ _POSITION_COLUMNS = (
     "entry_volume_h1_usd", "qty", "original_qty", "cost_usd", "realized_pnl_usd",
     "fees_usd", "peak_price_usd", "last_price_usd", "ladder_steps_done",
     "opened_at_ms", "closed_at_ms", "status", "close_reason", "entry_score",
+)
+
+
+OBSERVATION_COLUMNS = (
+    "ts_ms", "mint", "symbol", "price_usd", "liquidity_usd", "market_cap_usd",
+    "age_minutes", "vol_m5_usd", "vol_h1_usd", "vol_h24_usd", "chg_m5_pct",
+    "chg_h1_pct", "chg_h24_pct", "buys_m5", "sells_m5", "buys_h1", "sells_h1",
+    "has_socials", "dex_id", "passed_screen", "score",
 )
 
 
@@ -169,6 +213,51 @@ class Storage:
             )
             for row in rows
         ]
+
+    # --- observations ----------------------------------------------------
+    def save_observations(self, rows: list[tuple]) -> int:
+        """Bulk-insert one discovery cycle's worth of observations."""
+        if not rows:
+            return 0
+        self.conn.executemany(
+            f"INSERT INTO observations ({', '.join(OBSERVATION_COLUMNS)}) "
+            f"VALUES ({', '.join('?' * len(OBSERVATION_COLUMNS))})",
+            rows,
+        )
+        self.conn.commit()
+        return len(rows)
+
+    def observation_mints(self) -> list[str]:
+        rows = self.conn.execute(
+            "SELECT DISTINCT mint FROM observations ORDER BY mint"
+        ).fetchall()
+        return [row["mint"] for row in rows]
+
+    def observations_for(self, mint: str) -> list[sqlite3.Row]:
+        """One mint's full history, oldest first — the order labelling needs."""
+        return self.conn.execute(
+            "SELECT * FROM observations WHERE mint = ? ORDER BY ts_ms", (mint,)
+        ).fetchall()
+
+    def observation_stats(self) -> dict[str, float]:
+        row = self.conn.execute(
+            "SELECT COUNT(*) AS rows, COUNT(DISTINCT mint) AS mints, "
+            "MIN(ts_ms) AS first_ms, MAX(ts_ms) AS last_ms FROM observations"
+        ).fetchone()
+        return {
+            "rows": row["rows"] or 0,
+            "mints": row["mints"] or 0,
+            "first_ms": row["first_ms"] or 0,
+            "last_ms": row["last_ms"] or 0,
+        }
+
+    def prune_observations(self, older_than_ms: int) -> int:
+        """Drop history past the retention window, so the DB stops growing."""
+        cur = self.conn.execute(
+            "DELETE FROM observations WHERE ts_ms < ?", (older_than_ms,)
+        )
+        self.conn.commit()
+        return cur.rowcount
 
     # --- key/value state -------------------------------------------------
     def get_state(self, key: str, default: str | None = None) -> str | None:

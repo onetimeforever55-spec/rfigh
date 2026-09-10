@@ -239,6 +239,54 @@ class Secrets:
 
 
 @dataclass
+class ProbabilityConfig:
+    """Trading on measured frequencies instead of hand-set weights.
+
+    `record` is independent of `enabled` on purpose: recording is what builds
+    the dataset, so it runs from day one, while `enabled` stays off until
+    there is a fitted model worth trusting.
+    """
+
+    # Write one row per candidate seen, every discovery cycle. Cheap, and the
+    # only source of training data there is.
+    record: bool = True
+    # Drop observations older than this so the DB does not grow forever.
+    retention_days: float = 30.0
+
+    # Use the model to decide entries. Requires a fitted model on disk.
+    enabled: bool = False
+    model_path: str = "data/model.json"
+
+    # The question the model answers: from here, does the price reach
+    # +take_profit_pct before -stop_loss_pct, within horizon_minutes?
+    take_profit_pct: float = 40.0
+    stop_loss_pct: float = -25.0
+    horizon_minutes: float = 240.0
+    # A longer break in the data means the horizon is not really covered.
+    max_gap_minutes: float = 15.0
+
+    # Entry gates. A trade needs BOTH: enough probability to be worth the
+    # slot, and a positive expectation after costs.
+    min_probability: float = 0.0
+    min_expected_value_pct: float = 0.0
+    # Round-trip cost estimate: fees + slippage + priority fee, in percent.
+    # Subtracted from every expected value, so an edge has to clear reality.
+    round_trip_cost_pct: float = 3.0
+
+    # Refuse a model whose held-out AUC is below this. 0.5 is a coin flip;
+    # trading on a model that learnt nothing is worse than the heuristic,
+    # because it looks principled.
+    min_test_auc: float = 0.55
+    # Refuse a model fitted on fewer than this many examples.
+    min_train_rows: int = 500
+
+    # Escape hatch for deliberately answering a different question than the
+    # one the exit rules ask. Off, because that mismatch is almost always a
+    # mistake.
+    allow_target_mismatch: bool = False
+
+
+@dataclass
 class Config:
     screener: ScreenerConfig = field(default_factory=ScreenerConfig)
     pumpfun: PumpFunConfig = field(default_factory=PumpFunConfig)
@@ -247,6 +295,7 @@ class Config:
     risk: RiskConfig = field(default_factory=RiskConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     engine: EngineConfig = field(default_factory=EngineConfig)
+    probability: ProbabilityConfig = field(default_factory=ProbabilityConfig)
     secrets: Secrets = field(default_factory=Secrets.from_env)
 
     database_path: str = "data/memebot.db"
@@ -382,3 +431,46 @@ def validate(cfg: Config) -> None:
 
     if cfg.engine.poll_interval_s < 1:
         raise ConfigError("engine.poll_interval_s must be >= 1")
+
+    p = cfg.probability
+    if p.stop_loss_pct >= 0:
+        raise ConfigError("probability.stop_loss_pct must be negative (e.g. -25)")
+    if p.take_profit_pct <= 0:
+        raise ConfigError("probability.take_profit_pct must be positive")
+    if p.horizon_minutes <= 0:
+        raise ConfigError("probability.horizon_minutes must be > 0")
+    if not 0.0 <= p.min_probability <= 1.0:
+        raise ConfigError("probability.min_probability must be between 0 and 1")
+    if p.retention_days <= 0:
+        raise ConfigError("probability.retention_days must be > 0")
+
+    # The model must answer the question the exit rules actually ask. A model
+    # fitted on "+40% before -25% within 4h" says nothing useful about a bot
+    # that sells at +30% and stops out at -35%, and the mismatch is invisible
+    # at runtime: every probability still looks perfectly reasonable.
+    if p.enabled and not p.allow_target_mismatch:
+        first_rung = float(x.take_profit_ladder[0][0]) if x.take_profit_ladder else None
+        mismatches = []
+        if first_rung is not None and abs(p.take_profit_pct - first_rung) > 1e-6:
+            mismatches.append(
+                f"probability.take_profit_pct={p.take_profit_pct:g} but the first "
+                f"take-profit rung is {first_rung:g}"
+            )
+        if abs(p.stop_loss_pct - x.stop_loss_pct) > 1e-6:
+            mismatches.append(
+                f"probability.stop_loss_pct={p.stop_loss_pct:g} but "
+                f"exits.stop_loss_pct={x.stop_loss_pct:g}"
+            )
+        if abs(p.horizon_minutes - x.max_hold_minutes) > 1e-6:
+            mismatches.append(
+                f"probability.horizon_minutes={p.horizon_minutes:g} but "
+                f"exits.max_hold_minutes={x.max_hold_minutes:g}"
+            )
+        if mismatches:
+            raise ConfigError(
+                "the probability targets do not match the exit rules, so the "
+                "model would be answering a different question than the bot "
+                "trades:\n  - " + "\n  - ".join(mismatches)
+                + "\nAlign them, or set probability.allow_target_mismatch: true "
+                "if the difference is deliberate."
+            )

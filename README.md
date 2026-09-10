@@ -61,6 +61,11 @@ python -m memebot -c config.yaml panic
 
 # Ver con qué wallet operaría el bot (no firma nada)
 python -m memebot -c config.yaml wallet
+
+# Probabilidades medidas sobre lo que el bot ya ha visto
+python -m memebot -c config.yaml dataset    # tasa base del histórico grabado
+python -m memebot -c config.yaml fit        # ajustar el modelo y evaluarlo
+python -m memebot -c config.yaml backtest --test-only
 ```
 
 `Ctrl-C` termina el ciclo en curso y para de forma limpia. Las posiciones
@@ -89,7 +94,15 @@ docker compose run --rm memebot -c config.yaml wallet
 docker compose run --rm memebot -c config.yaml positions
 docker compose run --rm memebot -c config.yaml report
 docker compose run --rm memebot -c config.yaml panic
+
+# Sobre el histórico grabado (no tocan la red)
+docker compose run --rm memebot -c config.yaml dataset
+docker compose run --rm memebot -c config.yaml fit
+docker compose run --rm memebot -c config.yaml backtest --test-only
 ```
+
+El modelo se guarda en `./data`, que ya está montado, así que `fit` desde el
+contenedor deja el `model.json` donde el bot lo va a buscar.
 
 Para parar, `docker compose stop`: manda SIGTERM, el bot termina el ciclo en
 curso y cierra la base de datos limpiamente. Hay 120s de margen antes del
@@ -163,6 +176,131 @@ Si pones `phase: curve` junto a un `min_age_minutes` alto, el bot **se niega a
 arrancar**: esa combinación no compraría nunca nada y desde fuera parecería que
 está funcionando.
 
+## Probabilidades medidas
+
+Los pesos de la puntuación de entrada (momentum 30, presión compradora 25,
+volumen 25…) están **puestos a mano**. Nadie midió nunca que el momentum valga
+30. Esta parte los sustituye por frecuencias observadas.
+
+No hay ningún sitio de donde descargar "las probabilidades del trading" que
+sirvan aquí. Lo que el bot necesita saber es `P(resultado | lo que ve en el
+momento de decidir)`, y eso solo se mide grabando **exactamente esas features**
+y viendo qué pasó después. Un modelo entrenado con velas de otra fuente aprende
+de features que no coinciden con las que ve en vivo, y entonces la probabilidad
+que da es mentira aunque el backtest salga precioso.
+
+### El ciclo
+
+```bash
+# 1. Grabar. Va activo por defecto, también en paper. Días, no horas.
+python -m memebot -c config.yaml run
+
+# 2. ¿Qué hay en el histórico? Empieza SIEMPRE por aquí.
+python -m memebot -c config.yaml dataset
+
+# 3. Ajustar el modelo y ver si generaliza.
+python -m memebot -c config.yaml fit
+
+# 4. Replay sobre el trozo que el modelo no vio al entrenar.
+python -m memebot -c config.yaml backtest --test-only
+python -m memebot -c config.yaml backtest --test-only --heuristic   # comparar
+
+# 5. Si supera a la heurística: probability.enabled: true, y otra vez a paper.
+```
+
+### Qué pregunta responde
+
+Una sola, la única que paga:
+
+> Comprando **aquí**, ¿el precio llega a `take_profit_pct` **antes** de tocar
+> `stop_loss_pct`, dentro de `horizon_minutes`?
+
+Esos tres valores tienen que coincidir con tus reglas de salida. Si no, el bot
+**no arranca**: un modelo ajustado para "+40% antes de −25% en 4h" no dice nada
+útil sobre un bot que vende a +30% y corta a −35%, y el desajuste es invisible
+en marcha — todas las probabilidades siguen pareciendo razonables.
+
+### Por qué probabilidad y no puntuación
+
+Una puntuación 0-100 no se puede multiplicar por nada. Una probabilidad sí:
+
+| Acierto | Gana | Pierde | Valor esperado |
+|---------|------|--------|----------------|
+| 30% | +100% | −25% | **+12.5%** por operación |
+| 60% | +20% | −40% | **−4%** por operación |
+
+Ganar 6 de cada 10 puede arruinarte y ganar 3 de cada 10 puede pagar muy bien.
+`min_expected_value_pct` es la puerta que la puntuación no sabía expresar.
+
+### Los sesgos, y qué se hace con cada uno
+
+Un backtest de memecoins es trivial de falsear sin querer. Los cuatro sitios por
+donde se cuela la mentira están tratados de forma explícita:
+
+- **Look-ahead.** Las features salen de una única fila, escrita una vez y nunca
+  rellenada después. Ninguna información del futuro puede llegar a ella.
+- **Train/serve skew.** Decidir en vivo y entrenar pasan por la *misma* función
+  `features()`, sobre el mismo dict. Una feature no puede significar una cosa al
+  ajustar y otra al decidir. Hay un test que lo comprueba haciendo el viaje de
+  ida y vuelta por SQLite.
+- **Censura.** Si un token deja de aparecer antes de que cierre la ventana, no
+  hay resultado. Esas filas se **descartan**, no se cuentan como pérdidas —
+  contarlas sería una suposición disfrazada de dato. Se reportan aparte, porque
+  si son muchas el dataset describe algo más estrecho de lo que parece: tokens
+  que siguieron siendo visibles.
+- **Huecos.** Si el bot estuvo parado, la ventana no está cubierta. Un salto
+  mayor que `max_gap_minutes` corta la cobertura en vez de fingir que el precio
+  no se movió.
+
+Además, el empate se resuelve **en tu contra**: si dentro del mismo intervalo de
+sondeo se tocaron los dos niveles, cuenta como pérdida. No se puede saber cuál
+llegó primero, y suponer el bueno infla todos los números de ahí para abajo.
+
+### Cuándo NO fiarte del modelo
+
+El bot se niega a operar con un modelo que no se lo haya ganado, y falla al
+arrancar en vez de volver en silencio a la heurística:
+
+| Se rechaza si… | Por qué |
+|----------------|---------|
+| AUC fuera de muestra < `min_test_auc` | No aprendió nada que generalice. Operar con eso es peor que la heurística, porque *parece* fundamentado |
+| Se ajustó para otros objetivos | Responde a otra pregunta |
+| Menos de `min_train_rows` filas | Es ruido con formato de modelo |
+| No tiene evaluación fuera de muestra | No hay ninguna evidencia de que funcione |
+| Cambió el conjunto de features | Los valores caerían sobre los pesos equivocados |
+
+`fit` imprime además la **tabla de calibración**: lo que el modelo dijo contra
+lo que pasó de verdad. Si en la fila del 60% pasó el 30% de las veces, esa
+probabilidad no es multiplicable por un payoff, por muy bueno que sea el AUC.
+
+Los vetos duros (blow-off top, presión vendedora, sobreextensión) **siguen
+activos** en modo probabilidad. Un modelo con unos miles de filas casi no ha
+visto techos parabólicos, así que no tiene una opinión informada sobre ellos —
+y "los datos no protestaron" no es lo mismo que "esto es seguro".
+
+### Lo que el replay no modela
+
+`backtest` es una **cota superior**, no una previsión de tu PnL. No modela el
+precio al que te habrían llenado de verdad, ni los escalones parciales de
+take-profit, ni el trailing stop, ni los límites de posiciones, ni el tope de
+pérdida diaria, ni que tu propia compra mueve un pool fino. Sí evita el error
+más gordo: una posición por mint a la vez, como el bot real. Sin eso, una subida
+de tres horas se cuenta como decenas de operaciones ganadoras y todo lo demás
+pasa a ser ficción.
+
+El total se da como `+10.8x una posición`, nunca compuesto. Encadenar retornos
+supondría que toda la cuenta va en cada operación en secuencia, que produce un
+número espectacular que no describe nada.
+
+### Coste
+
+Grabar añade unas 40 filas por ciclo de descubrimiento — del orden de 75k
+filas al día, unos pocos MB. `retention_days` las poda. `fit` tarda unos 25s
+por cada 40k filas de entrenamiento: es Python puro a propósito, para no meter
+numpy ni sklearn por un ajuste que se lanza a mano de vez en cuando.
+
+---
+
 ## Cómo decide
 
 ```
@@ -178,10 +316,12 @@ está funcionando.
       fase (curva / graduado), sufijo `pump` del mint,
       progreso de la curva, tiempo desde el lanzamiento
                         │
+                        ├──────────────► se graba TODO lo visto aquí,
+                        │                pasara el filtro o no
                         ▼
-   2. score_token    ── puntuación 0-100 con vetos duros
-      momentum (30) · presión compradora (25) · volumen (25)
-      liquidez (10) · edad (10)
+   2. score_token    ── vetos duros, y después una de dos:
+      · por defecto: puntuación 0-100 con pesos puestos a mano
+      · con modelo:  P(acierto) medida + valor esperado tras costes
                         │
                         ▼
    3. RiskManager    ── ¿podemos permitirnos esta operación?
@@ -372,6 +512,8 @@ memebot/
 ├── http.py              cliente async con reintentos y rate limiting
 ├── screener.py          filtros de seguridad (mercado + on-chain)
 ├── strategy.py          puntuación de entrada y reglas de salida
+├── observations.py      grabado, features y etiquetado del histórico
+├── model.py             regresión logística calibrada + métricas
 ├── risk.py              tamaño de posición y límites globales
 ├── portfolio.py         contabilidad de posiciones y PnL
 ├── storage.py           persistencia SQLite
@@ -388,7 +530,7 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-101 tests, todos offline: el `FakeHttp` de `tests/test_engine.py` sirve
+164 tests, todos offline: el `FakeHttp` de `tests/test_engine.py` sirve
 respuestas simuladas de DexScreener y del RPC, así que la suite cubre el ciclo
 completo (descubrir → filtrar → comprar → gestionar → salir) sin tocar la red ni
 mover un céntimo.

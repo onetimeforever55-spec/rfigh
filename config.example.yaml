@@ -93,3 +93,42 @@ engine:
   discovery_interval_s: 60     # how often new candidates are scanned
   max_candidates_per_scan: 40
   discovery_queries: [SOL, USDC]
+
+# Trading on measured frequencies instead of the hand-set weights above.
+#
+# `record` is independent of `enabled`: recording is what builds the dataset,
+# so it runs from day one, while `enabled` stays off until there is a fitted
+# model worth trusting. Workflow:
+#
+#   1. run the bot in paper mode for days   (it records every candidate)
+#   2. memebot dataset                      (what is the base rate?)
+#   3. memebot fit                          (does anything generalise?)
+#   4. memebot backtest --test-only         (would the rule have paid?)
+#   5. set enabled: true, back to paper mode
+probability:
+  record: true
+  retention_days: 30.0
+
+  enabled: false
+  model_path: data/model.json
+
+  # The question the model answers. These must match the exit rules above, or
+  # the bot refuses to start: a model fitted on "+40% before -25% within 4h"
+  # says nothing useful about a bot that sells at +30% and stops out at -35%.
+  take_profit_pct: 40.0        # = first take_profit_ladder rung
+  stop_loss_pct: -25.0         # = exits.stop_loss_pct
+  horizon_minutes: 240.0       # = exits.max_hold_minutes
+  max_gap_minutes: 15.0        # a longer break means the horizon is uncovered
+
+  # A trade needs BOTH: enough probability to be worth the slot, and a
+  # positive expectation once costs are paid.
+  min_probability: 0.0
+  min_expected_value_pct: 0.0
+  round_trip_cost_pct: 3.0     # fees + slippage + priority fee, per round trip
+
+  # Refuse a model that has not earned the right to trade. 0.5 AUC is a coin
+  # flip; trading on a model that learnt nothing is worse than the heuristic,
+  # because it looks principled.
+  min_test_auc: 0.55
+  min_train_rows: 500
+  allow_target_mismatch: false

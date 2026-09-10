@@ -138,3 +138,41 @@ engine:
 # El bot rechaza arrancar si pones phase "curve" con un min_age_minutes alto,
 # porque esa combinación no compraría nunca nada y parecería que funciona.
 # ---------------------------------------------------------------------------
+
+# Probabilidades medidas en vez de los pesos puestos a mano.
+#
+# Grabar es gratis y es lo único que construye el dataset, así que va activo
+# desde el primer día. `enabled` se queda en false hasta que tengas un modelo
+# ajustado que se haya ganado la confianza:
+#
+#   1. bot en modo paper durante días    (graba todos los candidatos)
+#   2. memebot dataset                   (¿cuál es la tasa base?)
+#   3. memebot fit                       (¿generaliza algo?)
+#   4. memebot backtest --test-only      (¿habría pagado la regla?)
+#   5. enabled: true, y otra vez a paper
+#
+# En pump.fun hace falta MENOS tiempo para juntar datos que en el perfil
+# genérico — hay lanzamientos constantes — pero la tasa base es mucho peor.
+# Que salga baja no es un fallo: es el dato.
+probability:
+  record: true
+  retention_days: 14.0            # aquí el histórico envejece rápido
+
+  enabled: false
+  model_path: data/model.json
+
+  # Alineados con las salidas de arriba. Si no coinciden, el bot no arranca.
+  take_profit_pct: 30.0           # = primer escalón de take_profit_ladder
+  stop_loss_pct: -35.0            # = exits.stop_loss_pct
+  horizon_minutes: 120.0          # = exits.max_hold_minutes
+  max_gap_minutes: 10.0
+
+  min_probability: 0.0
+  min_expected_value_pct: 0.0
+  # Más alto que en el perfil genérico: pools finos, slippage real y prioridad
+  # de transacción se comen bastante más de lo que parece.
+  round_trip_cost_pct: 5.0
+
+  min_test_auc: 0.55
+  min_train_rows: 500
+  allow_target_mismatch: false

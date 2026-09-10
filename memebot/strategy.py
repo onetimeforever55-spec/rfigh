@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import logging
 
-from .config import ExitConfig, StrategyConfig
+from .config import ExitConfig, ProbabilityConfig, StrategyConfig
+from .model import ProbabilityModel, expected_value_pct
 from .models import ExitDecision, Position, Signal, TokenSnapshot
+from .observations import features_from_snapshot
 
 log = logging.getLogger(__name__)
 
@@ -19,12 +21,16 @@ def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, value))
 
 
-def score_token(snap: TokenSnapshot, cfg: StrategyConfig) -> Signal:
-    """Score a candidate 0-100 and decide whether it is a buy."""
+def _vetoes(snap: TokenSnapshot, cfg: StrategyConfig) -> list[str]:
+    """Shapes we never enter, whatever any score or model says.
+
+    These stay in force in probability mode too. A model fitted on a few
+    thousand rows has seen very few blow-off tops, so it has no informed
+    opinion about them — and "the data did not object" is not the same as
+    "this is safe".
+    """
     m5, h1, h24 = snap.window("m5"), snap.window("h1"), snap.window("h24")
     reasons: list[str] = []
-
-    # --- Hard vetoes: shapes we never want to enter, whatever the score. ---
     if h1.price_change_pct > cfg.max_price_change_h1:
         reasons.append(f"1h move +{h1.price_change_pct:.0f}% is a blow-off top")
     if h24.price_change_pct > cfg.max_price_change_h24:
@@ -38,6 +44,25 @@ def score_token(snap: TokenSnapshot, cfg: StrategyConfig) -> Signal:
     if m5.buy_sell_ratio < cfg.min_buy_sell_ratio_m5:
         reasons.append(f"5m buy/sell {m5.buy_sell_ratio:.2f} below {cfg.min_buy_sell_ratio_m5:.2f}")
 
+    return reasons
+
+
+def score_token(
+    snap: TokenSnapshot,
+    cfg: StrategyConfig,
+    *,
+    model: ProbabilityModel | None = None,
+    prob_cfg: ProbabilityConfig | None = None,
+) -> Signal:
+    """Score a candidate and decide whether it is a buy.
+
+    With no model, the score is the hand-weighted composite and the gate is
+    `min_entry_score`. With a model, the gate becomes a measured probability
+    and the expected value it implies — the composite is still computed and
+    reported, so you can see where the two disagree.
+    """
+    m5, h1 = snap.window("m5"), snap.window("h1")
+    reasons = _vetoes(snap, cfg)
     vetoed = bool(reasons)
 
     # --- Components, each 0-1. ---
@@ -89,6 +114,47 @@ def score_token(snap: TokenSnapshot, cfg: StrategyConfig) -> Signal:
     total_weight = sum(weights.values()) or 1.0
     score = sum(components[k] * weights[k] for k in components) / total_weight * 100.0
 
+    reported = {k: round(v, 3) for k, v in components.items()}
+
+    if model is not None and prob_cfg is not None:
+        probability = model.predict(features_from_snapshot(snap))
+        ev = expected_value_pct(
+            probability,
+            prob_cfg.take_profit_pct,
+            prob_cfg.stop_loss_pct,
+            prob_cfg.round_trip_cost_pct,
+        )
+        reported["heuristic_score"] = round(score, 1)
+        reported["probability"] = round(probability, 4)
+        reported["expected_value_pct"] = round(ev, 2)
+
+        should_buy = not vetoed
+        if should_buy and probability < prob_cfg.min_probability:
+            reasons.append(
+                f"P(win) {probability:.1%} below {prob_cfg.min_probability:.1%}"
+            )
+            should_buy = False
+        if should_buy and ev < prob_cfg.min_expected_value_pct:
+            # A high win rate can still lose money, and a low one can print:
+            # this is the gate the composite score could never express.
+            reasons.append(
+                f"expected value {ev:+.1f}% below "
+                f"{prob_cfg.min_expected_value_pct:+.1f}% after "
+                f"{prob_cfg.round_trip_cost_pct:.1f}% costs"
+            )
+            should_buy = False
+
+        # Ranking switches to the probability so the best candidate by the
+        # model wins the slot, not the best by the weights it replaced.
+        return Signal(
+            mint=snap.mint,
+            symbol=snap.symbol,
+            score=probability * 100.0,
+            should_buy=should_buy,
+            reasons=reasons,
+            components=reported,
+        )
+
     should_buy = not vetoed and score >= cfg.min_entry_score
     if not vetoed and not should_buy:
         reasons.append(f"score {score:.1f} below threshold {cfg.min_entry_score:.1f}")
@@ -99,7 +165,7 @@ def score_token(snap: TokenSnapshot, cfg: StrategyConfig) -> Signal:
         score=score,
         should_buy=should_buy,
         reasons=reasons,
-        components={k: round(v, 3) for k, v in components.items()},
+        components=reported,
     )
 
 
