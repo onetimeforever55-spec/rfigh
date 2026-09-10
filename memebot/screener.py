@@ -114,11 +114,33 @@ async def screen_onchain(
         if cfg.require_freeze_authority_revoked and not info.freeze_authority_revoked:
             result.fail(f"freeze authority still active ({info.freeze_authority})", "freeze_authority")
 
+        # This check used to fail OPEN: an RPC error skipped it and the token
+        # passed. On a free RPC that is a 429 away, which meant the advertised
+        # holder-concentration protection silently never ran. A safety filter
+        # that disappears when the network hiccups is worse than none, because
+        # you believe you have it.
         try:
             dist = await rpc.get_holder_distribution(snap.mint)
         except Exception as exc:  # noqa: BLE001
-            log.warning("holder distribution unavailable for %s: %s", snap.symbol, exc)
+            if cfg.require_holder_data:
+                return result.fail(
+                    f"holder distribution unavailable ({exc}); refusing to buy "
+                    "without it — use a paid RPC, or set "
+                    "screener.require_holder_data: false to accept the risk",
+                    "rpc_error",
+                )
+            log.warning(
+                "holder distribution unavailable for %s: %s — buying anyway "
+                "because screener.require_holder_data is false",
+                snap.symbol, exc,
+            )
             dist = None
+
+        if dist is None and cfg.require_holder_data:
+            return result.fail(
+                "holder distribution came back empty; refusing to buy without it",
+                "rpc_error",
+            )
 
         if dist is not None:
             if dist.top_holder_pct > cfg.max_top_holder_pct:

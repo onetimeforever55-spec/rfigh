@@ -9,6 +9,7 @@
     memebot dataset    label what was recorded and report the base rates
     memebot fit        fit the probability model and report its honesty
     memebot backtest   replay the recorded history through a decision rule
+    memebot dashboard  serve the read-only phone dashboard
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import secrets
 import signal
 import sys
 
@@ -630,6 +632,49 @@ def cmd_backtest(cfg: Config, args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_dashboard(cfg: Config, args: argparse.Namespace) -> int:
+    """Serve the dashboard. Reads the database, never trades."""
+    import socket
+
+    from aiohttp import web as aioweb
+
+    from .web import LOOPBACK, make_app
+
+    token = args.token or None      # an unset compose env var arrives as ""
+    exposed = args.host not in LOOPBACK
+    if exposed and not token:
+        # Binding beyond loopback puts the page on the network. Rather than
+        # refuse (you asked for the phone) or expose it bare, mint a token —
+        # there is no way to end up with an open dashboard by accident.
+        token = secrets.token_urlsafe(16)
+        console.print(
+            "[yellow]Binding beyond localhost, so a token was generated.[/yellow]"
+        )
+
+    app = make_app(cfg, token)
+
+    suffix = f"?t={token}" if token else ""
+    console.print(f"\n[bold]memebot dashboard[/bold]  ({cfg.execution.mode} mode)")
+    console.print(f"Reading [dim]{cfg.database_path}[/dim] — read-only, no wallet access.\n")
+    console.print(f"  http://{args.host}:{args.port}/{suffix}")
+    if exposed:
+        try:
+            lan = socket.gethostbyname(socket.gethostname())
+            console.print(f"  http://{lan}:{args.port}/{suffix}   [dim]<- desde el móvil[/dim]")
+        except OSError:
+            pass
+        console.print(
+            "\n[yellow]Anyone on this network who has the link can read your "
+            "positions.[/yellow] It cannot trade, but it is your PnL."
+        )
+    console.print("\n[dim]Ctrl-C to stop.[/dim]\n")
+
+    aioweb.run_app(
+        app, host=args.host, port=args.port, print=None, access_log=None
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="memebot", description="Automated memecoin trading bot for Solana."
@@ -702,6 +747,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_bt.add_argument("--test-fraction", type=float, default=0.25)
 
+    p_web = sub.add_parser(
+        "dashboard", help="serve the read-only phone dashboard"
+    )
+    p_web.add_argument(
+        "--host", default="127.0.0.1",
+        help="0.0.0.0 to reach it from your phone on the same network",
+    )
+    p_web.add_argument("--port", type=int, default=8730)
+    p_web.add_argument(
+        "--token", default=None,
+        help="required when binding beyond localhost; generated if omitted",
+    )
+
     return parser
 
 
@@ -728,6 +786,9 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_fit(cfg, args)
     if args.command == "backtest":
         return cmd_backtest(cfg, args)
+    # run_app owns the event loop, so this cannot go through asyncio.run below.
+    if args.command == "dashboard":
+        return cmd_dashboard(cfg, args)
 
     handlers = {
         "scan": cmd_scan, "run": cmd_run, "panic": cmd_panic, "wallet": cmd_wallet,

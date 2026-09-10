@@ -69,6 +69,11 @@ class ScreenerConfig:
     require_freeze_authority_revoked: bool = True
     max_top_holder_pct: float = 25.0
     max_top10_holder_pct: float = 60.0
+    # Reject when the holder distribution cannot be read at all, instead of
+    # letting the token through unchecked. Free RPCs rate-limit hard, so on
+    # one of those this will reject a lot — that is the honest outcome: the
+    # check either ran or it did not.
+    require_holder_data: bool = True
     # Share of supply the token's creator may still hold. The main rug vector
     # on a launchpad: 100 disables the check (the creator is often unknown).
     max_dev_holding_pct: float = 100.0

@@ -55,6 +55,11 @@ screener:
   require_freeze_authority_revoked: true
   max_top_holder_pct: 25              # excludes the AMM pool vault
   max_top10_holder_pct: 60
+  # Reject when the holder distribution cannot be read at all, rather than
+  # letting the token through unchecked. Free RPCs rate-limit hard: on one
+  # of those this rejects a lot, which is the honest outcome — the check
+  # either ran or it did not.
+  require_holder_data: true
   use_rugcheck: true
   max_rugcheck_score: 40
   require_socials: false

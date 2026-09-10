@@ -46,3 +46,45 @@ services:
     # Nothing listens on a port; the process only makes outbound calls.
     security_opt:
       - no-new-privileges:true
+
+  # Read-only phone dashboard. A separate container because it must not be
+  # able to trade: no wallet key is read here, and it opens the database
+  # read-only, so exposing it cannot cost you money or corrupt bot state.
+  dashboard:
+    build: .
+    image: memebot:latest
+    depends_on:
+      - memebot
+
+    env_file:
+      - path: .env
+        required: false
+
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      # Read-only even at the mount, on top of the read-only SQLite handle.
+      - ./data:/app/data:ro
+
+    # Binds to 0.0.0.0 inside the container because that is the only way the
+    # host can reach it; what limits exposure is the port mapping below.
+    command: >
+      -c config.yaml dashboard --host 0.0.0.0 --port 8730
+      --token ${MEMEBOT_WEB_TOKEN:-}
+
+    # Localhost only by default. To open it to your phone, change this to
+    # "8730:8730" and set MEMEBOT_WEB_TOKEN in .env first.
+    ports:
+      - "127.0.0.1:8730:8730"
+
+    user: "${MEMEBOT_UID:-1000}:${MEMEBOT_GID:-1000}"
+    restart: unless-stopped
+    init: true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    security_opt:
+      - no-new-privileges:true

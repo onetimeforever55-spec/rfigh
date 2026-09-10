@@ -77,3 +77,71 @@ def test_requires_socials_when_configured(cfg: Config) -> None:
     cfg.screener.require_socials = True
     assert not screen_market(make_snapshot(socials=False), cfg.screener).passed
     assert screen_market(make_snapshot(socials=True), cfg.screener).passed
+
+
+# --- on-chain checks that cannot be reached --------------------------------
+class _RPC:
+    """Minimal SolanaRPC stand-in whose holder lookup can be made to fail."""
+
+    def __init__(self, *, holders_raise=None, holders=None):
+        self.holders_raise = holders_raise
+        self.holders = holders
+
+    async def get_mint_info(self, mint):
+        from memebot.datasources.solana_rpc import MintInfo
+
+        return MintInfo(
+            mint=mint, decimals=6, supply=1_000_000_000,
+            mint_authority=None, freeze_authority=None,
+        )
+
+    async def get_holder_distribution(self, mint):
+        if self.holders_raise is not None:
+            raise self.holders_raise
+        return self.holders
+
+
+async def test_unreadable_holder_data_blocks_the_buy(cfg, snap):
+    """Regression: this used to fail OPEN.
+
+    A rate-limited RPC skipped the holder-concentration check entirely and the
+    token passed, so the advertised protection silently never ran. Observed on
+    every buy of a live paper session against the public RPC.
+    """
+    from memebot.screener import screen_onchain
+
+    rpc = _RPC(holders_raise=RuntimeError("429 Too many requests"))
+    result = await screen_onchain(snap, cfg.screener, rpc, None)
+
+    assert not result.passed
+    assert "rpc_error" in result.codes
+    assert "429" in result.reasons[0]
+
+
+async def test_empty_holder_data_blocks_the_buy(cfg, snap):
+    from memebot.screener import screen_onchain
+
+    result = await screen_onchain(snap, cfg.screener, _RPC(holders=None), None)
+    assert not result.passed
+    assert "rpc_error" in result.codes
+
+
+async def test_the_holder_requirement_can_be_waived_deliberately(cfg, snap):
+    from memebot.screener import screen_onchain
+
+    cfg.screener.require_holder_data = False
+    cfg.screener.use_rugcheck = False
+    rpc = _RPC(holders_raise=RuntimeError("429 Too many requests"))
+    result = await screen_onchain(snap, cfg.screener, rpc, None)
+    assert result.passed
+
+
+async def test_readable_holder_data_still_applies_the_limits(cfg, snap):
+    from memebot.datasources.solana_rpc import HolderDistribution
+    from memebot.screener import screen_onchain
+
+    cfg.screener.use_rugcheck = False
+    rpc = _RPC(holders=HolderDistribution(top_holder_pct=80.0, top10_pct=95.0, holders=[80.0, 15.0]))
+    result = await screen_onchain(snap, cfg.screener, rpc, None)
+    assert not result.passed
+    assert "holder_concentration" in result.codes

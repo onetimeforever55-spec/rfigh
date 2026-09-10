@@ -66,6 +66,9 @@ python -m memebot -c config.yaml wallet
 python -m memebot -c config.yaml dataset    # tasa base del histórico grabado
 python -m memebot -c config.yaml fit        # ajustar el modelo y evaluarlo
 python -m memebot -c config.yaml backtest --test-only
+
+# Panel para el móvil (solo lectura, no opera)
+python -m memebot -c config.yaml dashboard
 ```
 
 `Ctrl-C` termina el ciclo en curso y para de forma limpia. Las posiciones
@@ -175,6 +178,70 @@ Qué cambia respecto al perfil genérico:
 Si pones `phase: curve` junto a un `min_age_minutes` alto, el bot **se niega a
 arrancar**: esa combinación no compraría nunca nada y desde fuera parecería que
 está funcionando.
+
+## Panel para el móvil
+
+Un servidor local que lee la misma base de datos que el bot y la pinta para una
+pantalla de teléfono. Posiciones abiertas con su PnL, historial de operaciones
+con el motivo de cada salida, y el estado de la grabación.
+
+```bash
+python -m memebot -c config.yaml dashboard
+# http://127.0.0.1:8730/
+```
+
+Para verlo desde el móvil en tu misma red:
+
+```bash
+python -m memebot -c config.yaml dashboard --host 0.0.0.0
+```
+
+Al salir de localhost genera un token solo y te imprime la URL con él. No hay
+forma de dejar el panel abierto sin querer.
+
+### Lo que NO puede hacer
+
+Es un proceso aparte del bot y comparte solo el fichero SQLite. Esa separación
+es el diseño:
+
+- **No puede operar.** Aquí no hay executor ni se lee nunca la clave privada,
+  así que exponerlo no te puede costar dinero. Hay un test que comprueba que
+  ningún secreto llega a la respuesta.
+- **No puede interferir.** Abre la base de datos en modo solo lectura (`mode=ro`),
+  así que un fallo del panel no toca las posiciones ni impide que el bot venda.
+  En Docker, además, el volumen se monta en `:ro`.
+
+Lo que sí puede hacer cualquiera con el enlace es **leer tu PnL**. Si lo sacas
+de localhost, el token no es opcional.
+
+### Desde Docker
+
+Ya viene como servicio y arranca con el resto:
+
+```bash
+docker compose up -d
+# http://127.0.0.1:8730/
+```
+
+Está publicado solo en localhost. Para llegar desde el móvil, pon primero un
+token en `.env`:
+
+```ini
+MEMEBOT_WEB_TOKEN=...   # python -c "import secrets; print(secrets.token_urlsafe(16))"
+```
+
+y cambia el mapeo de puerto en `docker-compose.yml` de `127.0.0.1:8730:8730` a
+`8730:8730`.
+
+### Detalles
+
+Los precios salen de `last_price_usd`, que el motor refresca en cada ciclo: el
+panel no hace ni una llamada extra a ninguna API, así que tenerlo abierto en el
+móvil no te gasta rate limit. El punto verde junto al nombre indica si el bot
+sigue vivo, deducido de si hay filas nuevas: si el motor se cae, el panel lo
+dice en vez de seguir enseñando posiciones viejas como si fueran actuales.
+
+---
 
 ## Probabilidades medidas
 
@@ -352,6 +419,19 @@ Las salidas se evalúan en cada ciclo, por orden de prioridad:
 Una salida *urgente* se salta el límite de impacto de precio: cuando están
 retirando la liquidez, salir importa más que el precio de salida.
 
+Los filtros on-chain **fallan cerrados**: si el RPC no responde, el token se
+rechaza en vez de pasar sin comprobar. Esto importa más de lo que parece —
+antes, la distribución de holders se saltaba en silencio ante un error de red,
+y con un RPC gratuito eso es un 429 de distancia. En una sesión de prueba real
+las 5 compras se hicieron con ese filtro sin ejecutar. Un control de seguridad
+que desaparece cuando la red tose es peor que no tenerlo, porque crees que lo
+tienes.
+
+Con un RPC gratuito esto rechazará mucho. Es el resultado honesto: el filtro
+corrió o no corrió. Si aceptas el riesgo a conciencia,
+`screener.require_holder_data: false` vuelve al comportamiento anterior, ahora
+con un aviso en el log en cada compra.
+
 ## Controles de riesgo
 
 Configurables en `risk:`:
@@ -514,6 +594,7 @@ memebot/
 ├── strategy.py          puntuación de entrada y reglas de salida
 ├── observations.py      grabado, features y etiquetado del histórico
 ├── model.py             regresión logística calibrada + métricas
+├── web.py               panel solo lectura para el móvil
 ├── risk.py              tamaño de posición y límites globales
 ├── portfolio.py         contabilidad de posiciones y PnL
 ├── storage.py           persistencia SQLite
@@ -530,7 +611,7 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-164 tests, todos offline: el `FakeHttp` de `tests/test_engine.py` sirve
+181 tests, todos offline: el `FakeHttp` de `tests/test_engine.py` sirve
 respuestas simuladas de DexScreener y del RPC, así que la suite cubre el ciclo
 completo (descubrir → filtrar → comprar → gestionar → salir) sin tocar la red ni
 mover un céntimo.
