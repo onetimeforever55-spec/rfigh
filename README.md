@@ -39,7 +39,8 @@ cp config.example.yaml config.yaml
 cp .env.example .env                     # solo si vas a operar en real
 ```
 
-Requiere Python 3.10 o superior.
+Requiere Python 3.10 o superior. Si prefieres no instalar nada en el host,
+salta a [Docker](#docker).
 
 ## Uso
 
@@ -64,6 +65,56 @@ python -m memebot -c config.yaml wallet
 
 `Ctrl-C` termina el ciclo en curso y para de forma limpia. Las posiciones
 abiertas se guardan en SQLite y se recuperan al reiniciar.
+
+## Docker
+
+Alternativa a la instalación local. El estado (SQLite y logs) vive en `./data` y
+`./logs` del host, así que las posiciones abiertas sobreviven a un
+`docker compose down`.
+
+```bash
+cp config.pumpfun.yaml config.yaml       # o config.example.yaml
+mkdir -p data logs                       # deben existir y ser tuyos, no de root
+cp .env.example .env && chmod 600 .env   # solo si vas a operar en real
+
+docker compose up -d --build
+docker compose logs -f
+```
+
+Comandos puntuales, sin molestar al bot que ya está corriendo:
+
+```bash
+docker compose run --rm memebot -c config.yaml scan --show-rejected
+docker compose run --rm memebot -c config.yaml wallet
+docker compose run --rm memebot -c config.yaml positions
+docker compose run --rm memebot -c config.yaml report
+docker compose run --rm memebot -c config.yaml panic
+```
+
+Para parar, `docker compose stop`: manda SIGTERM, el bot termina el ciclo en
+curso y cierra la base de datos limpiamente. Hay 120s de margen antes del
+SIGKILL, de sobra para una confirmación en vuelo.
+
+Lo que conviene saber:
+
+- **La imagen se construye con `requirements-live.txt`**, así que la misma sirve
+  para paper y para live sin reconstruir nada.
+- **Corre como usuario 1000, no como root.** Si tu `id -u` no es 1000, ponlo en
+  `.env` (`MEMEBOT_UID=...`, `MEMEBOT_GID=...`) o el contenedor no podrá
+  escribir en `./data`.
+- **`config.yaml` se monta en solo lectura** y no se recarga en caliente: tras
+  cambiarlo, `docker compose restart`.
+- **Los secretos entran por `.env`**, nunca en la imagen: `.dockerignore`
+  excluye `.env`, `config.yaml`, `data/` y `*.key`. Aun así, no publiques la
+  imagen en un registro público.
+- **Para live** hacen falta las dos cosas de siempre: `execution.mode: live` en
+  `config.yaml` **y** descomentar en `docker-compose.yml` la línea de `command`
+  que lleva `--yes-really-trade-live`.
+- **`restart: unless-stopped` significa que el bot vuelve solo** tras reiniciar
+  el host o si el proceso muere. Con dinero real, decide a conciencia si eso es
+  lo que quieres: un bot que resucita sin que estés mirando sigue operando.
+
+---
 
 ## pump.fun
 

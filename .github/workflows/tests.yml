@@ -19,3 +19,27 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: memebot:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # Proves the entrypoint runs and the live extras imported correctly —
+      # a broken Dockerfile otherwise only shows up on the trading host.
+      - name: Smoke-test the entrypoint
+        run: |
+          docker run --rm memebot:ci --help
+          docker run --rm --entrypoint python memebot:ci \
+            -c "import solders, memebot; print('live extras ok')"
+      - name: Validate the compose file
+        run: docker compose config --quiet

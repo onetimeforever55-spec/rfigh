@@ -1,0 +1,48 @@
+services:
+  memebot:
+    build: .
+    image: memebot:latest
+
+    # Secrets come from the environment only, never from config.yaml.
+    # Optional, because paper mode needs no keys at all.
+    env_file:
+      - path: .env
+        required: false
+
+    # config.yaml is read-only inside the container: the bot never writes it,
+    # and a mistake in here should not be able to rewrite your strategy.
+    # data/ holds the SQLite state, so open positions survive a restart.
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+
+    # Paper mode. For live trading, swap in the line below it — the flag is
+    # required on top of `execution.mode: live` in config.yaml, on purpose.
+    command: ["-c", "config.yaml", "run"]
+    # command: ["-c", "config.yaml", "run", "--yes-really-trade-live"]
+
+    # Your UID must own ./data and ./logs. 1000 is the first user on most
+    # Linux hosts; override with MEMEBOT_UID/MEMEBOT_GID (see `id -u`) if not.
+    user: "${MEMEBOT_UID:-1000}:${MEMEBOT_GID:-1000}"
+
+    restart: unless-stopped
+
+    # SIGTERM makes the bot finish the current cycle and close the DB cleanly.
+    # Generous enough to cover a full poll cycle plus in-flight confirmations,
+    # so a restart never kills it mid-swap.
+    stop_grace_period: 120s
+
+    # Reaps zombies and forwards signals when the bot is PID 1.
+    init: true
+
+    # A bot left running for days will otherwise fill the disk with logs.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Nothing listens on a port; the process only makes outbound calls.
+    security_opt:
+      - no-new-privileges:true
