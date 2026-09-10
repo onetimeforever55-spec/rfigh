@@ -12,6 +12,7 @@ the API is down, the bot still exits its trades.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from collections import Counter
@@ -311,6 +312,33 @@ class TradingEngine:
         except Exception:  # noqa: BLE001
             log.exception("recording observations failed; continuing")
 
+    def _save_cycle_summary(self, report: "CycleReport") -> None:
+        """Persist why this cycle bought nothing, for the dashboard to show.
+
+        An idle bot and a broken bot look identical from the outside — both
+        show an empty position list. The gate counts are what separate "the
+        market had nothing" from "the RPC is refusing every call", and that
+        distinction is the whole difference between waiting and fixing.
+        """
+        try:
+            summary = {
+                "ts_ms": int(time.time() * 1000),
+                "scanned": report.scanned,
+                "passed_screen": report.passed_screen,
+                "gates": dict(report.rejections_by_gate()),
+                # The code carries the translatable label, the text carries
+                # the numbers. Sending both means the UI can be in Spanish
+                # without translating every message the screener can produce.
+                "near_misses": [
+                    {"symbol": r.symbol, "code": r.codes[0] if r.codes else "",
+                     "reason": r.reason}
+                    for r in report.near_misses()[:5]
+                ],
+            }
+            self.storage.set_state("last_cycle", json.dumps(summary))
+        except Exception:  # noqa: BLE001 - reporting must never break trading
+            log.exception("saving the cycle summary failed; continuing")
+
     def _prune_observations(self) -> None:
         """Drop history past the retention window, at most once an hour."""
         if not self.cfg.probability.record:
@@ -431,6 +459,7 @@ class TradingEngine:
                 cash -= decision.size_usd
 
         self._record(observed)
+        self._save_cycle_summary(report)
         self._prune_observations()
         report.signals.sort(key=lambda s: s.score, reverse=True)
         return report

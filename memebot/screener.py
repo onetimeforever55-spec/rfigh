@@ -9,6 +9,7 @@ Two tiers:
 from __future__ import annotations
 
 import logging
+import re
 
 from .config import PumpFunConfig, ScreenerConfig
 from .datasources.pumpfun import (
@@ -92,6 +93,22 @@ def screen_market(snap: TokenSnapshot, cfg: ScreenerConfig) -> ScreenResult:
     return result
 
 
+def _brief(exc: Exception, limit: int = 60) -> str:
+    """A one-line version of an error, for a message a human will read.
+
+    An HTTP failure carries the whole response body — a JSON-RPC 429 is
+    several hundred characters of nesting. The full text still goes to the
+    log; what surfaces in a rejection reason has to fit on a phone.
+    """
+    text = " ".join(str(exc).split())
+    # For an HTTP failure the status is the whole story and the URL is noise,
+    # so truncating from the left would throw away the useful half.
+    status = re.search(r"->\s*(\d{3})\b", text)
+    if status:
+        return f"HTTP {status.group(1)}"
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
 async def screen_onchain(
     snap: TokenSnapshot,
     cfg: ScreenerConfig,
@@ -105,7 +122,7 @@ async def screen_onchain(
         try:
             info = await rpc.get_mint_info(snap.mint)
         except Exception as exc:  # noqa: BLE001 - never let a bad RPC buy a rug
-            return result.fail(f"mint info unavailable ({exc})", "rpc_error")
+            return result.fail(f"mint info unavailable ({_brief(exc)})", "rpc_error")
 
         if info is None:
             return result.fail("mint account not found", "rpc_error")
@@ -123,10 +140,13 @@ async def screen_onchain(
             dist = await rpc.get_holder_distribution(snap.mint)
         except Exception as exc:  # noqa: BLE001
             if cfg.require_holder_data:
+                # The full error is logged by the caller's log line; this
+                # text ends up in the dashboard and the scan table.
+                log.warning(
+                    "holder distribution unavailable for %s: %s", snap.symbol, exc
+                )
                 return result.fail(
-                    f"holder distribution unavailable ({exc}); refusing to buy "
-                    "without it — use a paid RPC, or set "
-                    "screener.require_holder_data: false to accept the risk",
+                    f"holder data unreadable ({_brief(exc, 40)}) — needs a paid RPC",
                     "rpc_error",
                 )
             log.warning(

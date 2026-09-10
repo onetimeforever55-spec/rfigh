@@ -233,6 +233,22 @@ MEMEBOT_WEB_TOKEN=...   # python -c "import secrets; print(secrets.token_urlsafe
 y cambia el mapeo de puerto en `docker-compose.yml` de `127.0.0.1:8730:8730` a
 `8730:8730`.
 
+### Por qué no está comprando
+
+La pestaña más útil, y la razón por la que existe: un bot parado y un bot roto
+se ven exactamente igual desde fuera — los dos enseñan una lista de posiciones
+vacía. Lo que los distingue es qué filtro está descartando.
+
+El motor guarda, en cada ciclo, cuántos candidatos miró, cuántos pasaron y qué
+puerta descartó a cada uno. El panel lo pinta ordenado, con los que se quedaron
+a un solo filtro de pasar y el número concreto que les faltó
+(`mcap $10.510 < $20.000`).
+
+Si el RPC está rechazando las llamadas, sale un aviso explícito en vez de
+dejarte pensando que el mercado está flojo. Esa diferencia —"no hay nada que
+comprar" contra "tu RPC no responde"— es la que decide entre esperar y
+arreglar algo.
+
 ### Detalles
 
 Los precios salen de `last_price_usd`, que el motor refresca en cada ciclo: el

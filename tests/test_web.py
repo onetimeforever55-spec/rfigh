@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pathlib
 import sqlite3
 import time
 
@@ -177,3 +178,81 @@ class TestPage:
             # the only absolute URLs allowed are inside the inline SVG favicon
             for chunk in html.split(remote)[1:]:
                 assert chunk.startswith("www.w3.org/2000/svg"), chunk[:60]
+
+
+class TestWhyItIsNotBuying:
+    """An idle bot and a broken bot both show an empty position list. What
+    separates them is the gate breakdown, so it has to survive the round trip
+    from the engine to the page."""
+
+    async def test_the_engine_records_what_blocked_each_cycle(self, tmp_path):
+        import json
+
+        from memebot.engine import TradingEngine
+        from memebot.execution.paper import PaperExecutor
+
+        from .conftest import make_pair
+        from .test_engine import FakeHttp
+
+        cfg = Config()
+        cfg.engine.discovery_queries = ["SOL"]
+        cfg.database_path = str(tmp_path / "cycle.db")
+        http = FakeHttp()
+        http.pairs = [
+            make_pair(mint="Thin", symbol="THIN", liquidity_usd=100),
+            make_pair(mint="Quiet", symbol="QUIET", vol_h1=1.0, buys_h1=1, sells_h1=1),
+        ]
+        storage = Storage(cfg.database_path)
+        engine = TradingEngine(cfg, http=http, storage=storage,
+                               executor=PaperExecutor(cfg))
+        await engine.discover_and_trade()
+
+        summary = json.loads(storage.get_state("last_cycle"))
+        assert summary["scanned"] == 2
+        assert summary["gates"]                       # something did the blocking
+        assert sum(summary["gates"].values()) > 0
+        storage.close()
+
+    def test_the_payload_carries_it_to_the_page(self, cfg, db):
+        import json
+
+        storage = Storage(db)
+        storage.set_state("last_cycle", json.dumps({
+            "ts_ms": 1_700_000_000_000, "scanned": 40, "passed_screen": 2,
+            "gates": {"rpc_error": 2, "min_liquidity": 30},
+            "near_misses": [
+                {"symbol": "TK", "code": "rpc_error",
+                 "reason": "holder data unreadable (HTTP 429) — needs a paid RPC"},
+            ],
+        }))
+        storage.close()
+
+        cycle = build_state(cfg.database_path, cfg)["last_cycle"]
+        assert cycle["gates"]["rpc_error"] == 2
+        assert cycle["near_misses"][0]["code"] == "rpc_error"
+
+    def test_a_bot_that_never_ran_reports_no_cycle(self, cfg):
+        assert build_state(cfg.database_path, cfg)["last_cycle"] is None
+
+    def test_corrupt_state_does_not_break_the_page(self, cfg, db):
+        """Better a page with one section missing than a 500 on your phone."""
+        storage = Storage(db)
+        storage.set_state("last_cycle", "{not json")
+        storage.close()
+        assert build_state(cfg.database_path, cfg)["last_cycle"] is None
+
+    def test_every_gate_code_the_screener_emits_has_a_label(self):
+        """A new gate must not surface on the page as a raw snake_case code."""
+        import re
+
+        from memebot import web
+
+        source = (
+            pathlib.Path("memebot/screener.py").read_text()
+            + pathlib.Path("memebot/engine.py").read_text()
+        )
+        emitted = set(re.findall(r'\.fail\(\s*[^)]*?"([a-z0-9_]+)"\s*\)', source, re.S))
+        block = web.PAGE.split("const GATES = {", 1)[1].split("};", 1)[0]
+        labelled = set(re.findall(r'([a-z0-9_]+):"', block))
+        missing = emitted - labelled - {"other"}
+        assert not missing, f"gate codes with no Spanish label: {sorted(missing)}"
