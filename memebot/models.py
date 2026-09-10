@@ -242,10 +242,14 @@ class OrderResult:
 class ScreenResult:
     passed: bool
     reasons: list[str] = field(default_factory=list)
+    # Machine-readable tag per failure, so `scan` can report which gate is the
+    # binding constraint instead of leaving you to guess which knob to turn.
+    codes: list[str] = field(default_factory=list)
 
-    def fail(self, reason: str) -> "ScreenResult":
+    def fail(self, reason: str, code: str = "other") -> "ScreenResult":
         self.passed = False
         self.reasons.append(reason)
+        self.codes.append(code)
         return self
 
 

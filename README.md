@@ -278,6 +278,30 @@ errata en el YAML falla de inmediato en vez de ignorarse en silencio.
 Los secretos **solo** se leen del entorno; el bot rechaza un config que
 contenga una sección `secrets`.
 
+### Qué filtro te está bloqueando
+
+`scan` te dice qué puerta descarta más candidatos y cuáles se quedan a **un
+solo filtro** de pasar, que son los que desbloquearías aflojando una cosa:
+
+```
+     Rejections by gate
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━┓
+┃ Gate           ┃ Rejected ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━┩
+│ min_liquidity  │        2 │
+│ wash_trading   │        2 │
+│ min_age        │        1 │
+└────────────────┴──────────┘
+2 token(s) failed exactly one gate — loosening it would let them through:
+  YOUNG: pair is 3m old < 20m
+  QUIET: 24h volume $50,000 < $100,000
+```
+
+Úsalo antes de tocar nada: si el bot no compra, casi siempre es una puerta
+concreta la que bloquea, y aflojar otra no cambia nada. Un token que falla
+varias puertas cuenta en cada una — la tabla mide qué filtro bloquea, no
+reparte tokens.
+
 Ajustes según tu tolerancia:
 
 | Quiero… | Cambia |
@@ -313,7 +337,7 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-99 tests, todos offline: el `FakeHttp` de `tests/test_engine.py` sirve
+101 tests, todos offline: el `FakeHttp` de `tests/test_engine.py` sirve
 respuestas simuladas de DexScreener y del RPC, así que la suite cubre el ciclo
 completo (descubrir → filtrar → comprar → gestionar → salir) sin tocar la red ni
 mover un céntimo.

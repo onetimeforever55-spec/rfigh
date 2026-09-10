@@ -371,3 +371,51 @@ async def test_pumpfun_curve_mode_respects_the_progress_window(cfg: Config) -> N
 
     assert engine.portfolio.open_count == 1
     assert engine.portfolio.get("Rising1pump") is not None
+
+
+# --- rejection diagnostics -------------------------------------------------
+async def test_scan_reports_which_gate_is_blocking(cfg: Config) -> None:
+    http = FakeHttp()
+    http.pairs = [
+        # Three tokens too thin to trade, one of them also too young.
+        make_pair(mint="Thin1", symbol="T1", liquidity_usd=1_000),
+        make_pair(mint="Thin2", symbol="T2", liquidity_usd=1_500),
+        make_pair(mint="Thin3", symbol="T3", liquidity_usd=900, age_minutes=2),
+        # Healthy on every gate except the 24h volume floor. The 1h volume and
+        # the volume/liquidity ratio have to stay inside their own limits, or
+        # this stops being a single-gate failure.
+        make_pair(mint="Quiet", symbol="QUIET", vol_h1=30_000, vol_h24=50_000),
+    ]
+    engine = build_engine(cfg, http)
+
+    report = await engine.scan()
+
+    ranked = report.rejections_by_gate()
+    gates = dict(ranked)
+    assert gates["min_liquidity"] == 3
+    assert gates["min_age"] == 1
+    assert gates["min_volume_h24"] == 1
+    counts = [count for _, count in ranked]
+    assert counts == sorted(counts, reverse=True)  # busiest gate first
+
+    # QUIET failed only the volume gate, so it is the one worth loosening for.
+    near = report.near_misses()
+    assert [r.symbol for r in near] == ["QUIET"]
+    assert near[0].codes == ["min_volume_h24"]
+
+
+async def test_rejection_records_every_failed_gate(cfg: Config) -> None:
+    http = FakeHttp()
+    http.pairs = [make_pair(mint="Bad", symbol="BAD", liquidity_usd=500,
+                            vol_h1=10, vol_h24=50, buys_h1=1, sells_h1=1)]
+    engine = build_engine(cfg, http)
+
+    report = await engine.scan()
+
+    rejection = report.rejected[0]
+    assert rejection.symbol == "BAD"
+    assert len(rejection.codes) > 1
+    assert not rejection.near_miss
+    assert "min_liquidity" in rejection.codes
+    # Every failure carries a real tag, never the fallback.
+    assert "other" not in rejection.codes

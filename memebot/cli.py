@@ -78,12 +78,31 @@ async def cmd_scan(cfg: Config, args: argparse.Namespace) -> int:
     else:
         console.print("[yellow]No candidate passed the safety screen.[/yellow]")
 
+    if report.rejected:
+        # Which gate is actually doing the blocking. Without this, tuning the
+        # config is guesswork: you loosen a filter that was never the problem.
+        table = Table(title="Rejections by gate", header_style="bold yellow")
+        table.add_column("Gate")
+        table.add_column("Rejected", justify="right")
+        for code, count in report.rejections_by_gate()[:10]:
+            table.add_row(code, str(count))
+        console.print(table)
+
+        near = report.near_misses()
+        if near:
+            console.print(
+                f"[dim]{len(near)} token(s) failed exactly one gate — "
+                "loosening it would let them through:[/dim]"
+            )
+            for rejection in near[:5]:
+                console.print(f"  [dim]{rejection.symbol}: {rejection.reason}[/dim]")
+
     if args.show_rejected and report.rejected:
         table = Table(title="Rejected", header_style="bold red")
         table.add_column("Symbol")
-        table.add_column("Reason", overflow="fold")
-        for symbol, reason in report.rejected[: args.limit]:
-            table.add_row(symbol, reason)
+        table.add_column("Reasons", overflow="fold")
+        for rejection in report.rejected[: args.limit]:
+            table.add_row(rejection.symbol, "; ".join(rejection.reasons))
         console.print(table)
 
     return 0

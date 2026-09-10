@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 
 from .config import Config
@@ -38,13 +39,41 @@ log = logging.getLogger(__name__)
 
 
 @dataclass
+class Rejection:
+    symbol: str
+    reasons: list[str]
+    codes: list[str]
+
+    @property
+    def reason(self) -> str:
+        return self.reasons[0] if self.reasons else ""
+
+    @property
+    def near_miss(self) -> bool:
+        """Failed exactly one gate — loosening that one would let it through."""
+        return len(self.codes) == 1
+
+
+@dataclass
 class CycleReport:
     """What one discovery pass looked at. Used by `scan` and the tests."""
 
     scanned: int = 0
     passed_screen: int = 0
     signals: list[Signal] = field(default_factory=list)
-    rejected: list[tuple[str, str]] = field(default_factory=list)  # (symbol, reason)
+    rejected: list[Rejection] = field(default_factory=list)
+
+    def rejections_by_gate(self) -> list[tuple[str, int]]:
+        """How many candidates each gate rejected, most active gate first.
+
+        A candidate failing several gates counts once per gate: the point is to
+        show which filter is doing the blocking, not to partition the tokens.
+        """
+        counts = Counter(code for r in self.rejected for code in r.codes)
+        return counts.most_common()
+
+    def near_misses(self) -> list[Rejection]:
+        return [r for r in self.rejected if r.near_miss]
 
 
 class TradingEngine:
@@ -247,7 +276,9 @@ class TradingEngine:
         for snap in candidates:
             screen = await self._screen_candidate(snap)
             if not screen.passed:
-                report.rejected.append((snap.symbol, screen.reasons[0]))
+                report.rejected.append(
+                    Rejection(snap.symbol, screen.reasons, screen.codes)
+                )
                 continue
             report.passed_screen += 1
             report.signals.append(score_token(snap, self.cfg.strategy))
@@ -268,7 +299,9 @@ class TradingEngine:
 
             screen = await self._screen_candidate(snap)
             if not screen.passed:
-                report.rejected.append((snap.symbol, screen.reasons[0]))
+                report.rejected.append(
+                    Rejection(snap.symbol, screen.reasons, screen.codes)
+                )
                 continue
             report.passed_screen += 1
 
@@ -294,7 +327,9 @@ class TradingEngine:
             )
             if not onchain.passed:
                 log.info("REJECT %s: %s", snap.symbol, "; ".join(onchain.reasons))
-                report.rejected.append((snap.symbol, onchain.reasons[0]))
+                report.rejected.append(
+                    Rejection(snap.symbol, onchain.reasons, onchain.codes)
+                )
                 continue
 
             dev = await screen_dev_holdings(
@@ -302,7 +337,9 @@ class TradingEngine:
             )
             if not dev.passed:
                 log.info("REJECT %s: %s", snap.symbol, "; ".join(dev.reasons))
-                report.rejected.append((snap.symbol, dev.reasons[0]))
+                report.rejected.append(
+                    Rejection(snap.symbol, dev.reasons, dev.codes)
+                )
                 continue
 
             if await self._enter(snap, signal, decision.size_usd):
