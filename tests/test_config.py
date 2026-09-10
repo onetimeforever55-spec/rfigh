@@ -24,6 +24,15 @@ def test_example_config_loads() -> None:
     assert cfg.screener.require_mint_authority_revoked
 
 
+def test_pumpfun_profile_loads() -> None:
+    cfg = load_config("config.pumpfun.yaml")
+    assert cfg.pumpfun.enabled
+    assert cfg.pumpfun.phase == "graduated"
+    assert cfg.execution.mode == "paper"          # ships safe
+    assert "pumpfun" not in cfg.screener.allowed_dex_ids
+    assert cfg.exits.stop_loss_pct == -35.0
+
+
 def test_nested_sections_are_parsed(tmp_path: Path) -> None:
     path = write(tmp_path, """
         risk:

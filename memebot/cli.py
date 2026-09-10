@@ -5,6 +5,7 @@
     memebot positions  show open positions and PnL
     memebot report     show closed trades and overall performance
     memebot panic      sell every open position immediately
+    memebot wallet     check which wallet the bot would trade with
 """
 
 from __future__ import annotations
@@ -20,7 +21,10 @@ from rich.console import Console
 from rich.table import Table
 
 from .config import Config, ConfigError, load_config
+from .datasources.jupiter import Jupiter
+from .datasources.solana_rpc import SolanaRPC
 from .engine import TradingEngine
+from .http import HttpClient
 from .logging_setup import setup_logging
 from .models import PositionStatus, Side
 from .storage import Storage
@@ -112,6 +116,73 @@ async def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
         await task
     finally:
         await engine.close()
+    return 0
+
+
+async def cmd_wallet(cfg: Config, args: argparse.Namespace) -> int:
+    """Verify wallet access without trading: derive the address, read balances."""
+    from .config import SOL_MINT
+
+    if not cfg.secrets.wallet_private_key:
+        console.print(
+            "[bold red]No wallet configured.[/bold red]\n"
+            "Set WALLET_PRIVATE_KEY in your .env file — see .env.example."
+        )
+        return 2
+
+    try:
+        from .execution.solana import _load_keypair
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"[bold red]{exc}[/bold red]")
+        return 2
+
+    try:
+        keypair = _load_keypair(cfg.secrets.wallet_private_key)
+    except Exception as exc:  # noqa: BLE001
+        console.print(
+            f"[bold red]Could not read the private key:[/bold red] {exc}\n"
+            "Expected a base58 string (Phantom export) or a JSON byte array."
+        )
+        return 2
+
+    pubkey = str(keypair.pubkey())
+    console.print(f"\nWallet address : [bold]{pubkey}[/bold]")
+
+    http = HttpClient()
+    rpc = SolanaRPC(http, cfg.secrets.solana_rpc_url)
+    jupiter = Jupiter(http, cfg.secrets.jupiter_api_key)
+    try:
+        sol = await rpc.get_sol_balance(pubkey)
+        console.print(f"RPC endpoint   : {cfg.secrets.solana_rpc_url}")
+        console.print(f"SOL balance    : [bold]{sol:.4f} SOL[/bold]")
+        try:
+            price = (await jupiter.price_usd([SOL_MINT])).get(SOL_MINT, 0.0)
+            if price:
+                console.print(f"Value          : {_fmt_usd(sol * price)}")
+        except Exception:  # noqa: BLE001 - the balance is the point, not the price
+            pass
+
+        size = cfg.risk.position_size_usd
+        console.print(
+            f"\nMode           : [bold]{cfg.execution.mode}[/bold]"
+            + ("  [dim](no real funds are spent)[/dim]"
+               if cfg.execution.mode == "paper" else "")
+        )
+        if sol < 0.02:
+            console.print(
+                "[yellow]Balance is below the 0.02 SOL fee buffer — the bot "
+                "would not be able to trade.[/yellow]"
+            )
+        else:
+            console.print(
+                f"Position size  : {_fmt_usd(size)} per trade, "
+                f"max {cfg.risk.max_open_positions} open"
+            )
+    except Exception as exc:  # noqa: BLE001
+        console.print(f"[bold red]Could not reach the RPC:[/bold red] {exc}")
+        return 1
+    finally:
+        await http.close()
     return 0
 
 
@@ -248,6 +319,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("positions", help="show open positions")
 
+    sub.add_parser(
+        "wallet", help="show the bot's wallet address and balance, trade nothing"
+    )
+
     p_report = sub.add_parser("report", help="show performance of closed trades")
     p_report.add_argument("--limit", type=int, default=50)
 
@@ -274,7 +349,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "report":
         return cmd_report(cfg, args)
 
-    handlers = {"scan": cmd_scan, "run": cmd_run, "panic": cmd_panic}
+    handlers = {
+        "scan": cmd_scan, "run": cmd_run, "panic": cmd_panic, "wallet": cmd_wallet,
+    }
     try:
         return asyncio.run(handlers[args.command](cfg, args))
     except KeyboardInterrupt:

@@ -1,0 +1,140 @@
+# ---------------------------------------------------------------------------
+# Perfil para pump.fun — fase "graduated" (tokens que completaron la curva).
+#
+#   cp config.pumpfun.yaml config.yaml
+#   python -m memebot -c config.yaml scan --show-rejected
+#
+# Por qué "graduated" y no la curva: de los tokens que se lanzan en pump.fun,
+# una fracción muy pequeña llega a graduarse. Graduarse significa que hubo
+# demanda real, que la liquidez pasó a un AMM y que el LP está quemado. Es el
+# único punto del ciclo de vida de un token de pump.fun donde la probabilidad
+# está algo menos en tu contra.
+#
+# Para operar en la curva, ve al final del archivo.
+# ---------------------------------------------------------------------------
+
+database_path: data/memebot.db
+log_level: INFO
+log_file: logs/memebot.log
+
+pumpfun:
+  enabled: true
+  phase: graduated
+  require_pump_suffix: true       # los mints de pump.fun terminan en "pump"
+  graduation_market_cap_usd: 69000
+  max_minutes_since_launch: 2880  # 48h: pasado eso el movimiento ya ocurrió
+  use_api: true                   # enriquecido opcional; el bot va sin él
+
+execution:
+  mode: paper                     # NO lo cambies hasta llevar días en paper
+  slippage_bps: 500               # 5%: pump.fun se mueve entre bloques
+  priority_fee_lamports: 500000   # pagar por entrar en el bloque, no en el siguiente
+  max_price_impact_pct: 5.0
+  paper_fee_pct: 0.5              # pump.fun cobra más que un AMM normal
+  paper_slippage_pct: 1.5
+
+risk:
+  starting_equity_usd: 500
+  position_size_usd: 10           # pequeño a propósito: aquí se pierde a menudo
+  position_size_pct_equity: 2
+  max_open_positions: 3
+  max_daily_loss_usd: 60
+  max_daily_trades: 30
+  rebuy_cooldown_minutes: 60
+
+screener:
+  # Un pool recién graduado arranca con bastante menos fondo que un par
+  # establecido, así que estos mínimos son más bajos que los genéricos.
+  min_liquidity_usd: 15000
+  max_liquidity_usd: 2000000
+  min_volume_h1_usd: 15000
+  min_volume_h24_usd: 30000
+  min_txns_h1: 50
+  min_volume_liquidity_ratio: 0.5
+  max_volume_liquidity_ratio: 80
+  min_age_minutes: 10             # los graduados son jóvenes por definición
+  max_age_hours: 48
+  min_market_cap_usd: 60000       # la graduación ocurre cerca de 69k
+  max_market_cap_usd: 20000000
+  max_mcap_liquidity_ratio: 200
+  chain_id: solana
+  # Sin "pumpfun": en fase graduated no queremos pares de la curva.
+  allowed_dex_ids: [pumpswap, raydium]
+  blocked_symbol_keywords: [test, scam, rug]
+  # pump.fun revoca ambas autoridades al crear el token, así que estas dos
+  # comprobaciones no descartan casi nada aquí. Se dejan activas porque son
+  # gratis y protegen si algún día el par no venía de pump.fun.
+  require_mint_authority_revoked: true
+  require_freeze_authority_revoked: true
+  max_top_holder_pct: 20          # excluye el vault del pool
+  max_top10_holder_pct: 55
+  max_dev_holding_pct: 15         # el rug real de un launchpad: el dev vendiendo
+  use_rugcheck: true
+  max_rugcheck_score: 40
+
+strategy:
+  min_entry_score: 60
+  # Los movimientos aquí son de otro orden: un +60% en 1h es normal, no señal.
+  momentum_scale_h1: 150
+  momentum_scale_m5: 30
+  min_price_change_m5: 1.0
+  min_price_change_h1: 5.0
+  max_price_change_h1: 400.0
+  max_price_change_h24: 2000.0
+  min_buy_sell_ratio_m5: 1.0
+  min_buy_sell_ratio_h1: 1.15
+  # Ventana de edad en minutos: el recorrido de un graduado se juega en horas.
+  age_ramp_minutes: 15
+  age_peak_until_minutes: 240
+  age_decay_minutes: 1440
+  weight_momentum: 30
+  weight_buy_pressure: 30         # más peso: en pump.fun el flujo lo es todo
+  weight_volume: 25
+  weight_liquidity: 10
+  weight_age: 5
+
+exits:
+  # Más ancho que el perfil genérico: un -25% en pump.fun es ruido normal y te
+  # sacaría de casi todo. Se compensa con posiciones más pequeñas.
+  stop_loss_pct: -35.0
+  max_hold_minutes: 120           # estos movimientos duran minutos, no días
+  # Escalera más temprana: la reversión llega antes y es más violenta.
+  take_profit_ladder:
+    - [30.0, 0.4]
+    - [80.0, 0.3]
+    - [200.0, 0.2]
+  trailing_activation_pct: 25.0
+  trailing_stop_pct: 20.0
+  max_liquidity_drop_pct: 40.0
+  volume_collapse_pct: 85.0
+  volume_collapse_grace_minutes: 30
+
+engine:
+  poll_interval_s: 15             # salidas más rápidas: aquí importa
+  discovery_interval_s: 45
+  max_candidates_per_scan: 50
+  discovery_queries: [SOL, pump]
+
+# ---------------------------------------------------------------------------
+# Operar en la curva (mucho más arriesgado)
+#
+# La mayoría de tokens en la curva no llegan a nada. Si aun así quieres:
+#
+#   pumpfun:
+#     phase: curve                  # o "both"
+#     min_curve_progress_pct: 40    # ignora lo que nadie está comprando
+#     max_curve_progress_pct: 95    # y lo que los bots ya se llevaron
+#   screener:
+#     allowed_dex_ids: [pumpfun]    # o [pumpfun, pumpswap, raydium] con "both"
+#     min_age_minutes: 3
+#     min_liquidity_usd: 5000
+#     min_volume_h24_usd: 10000
+#     min_market_cap_usd: 15000
+#     max_mcap_liquidity_ratio: 500
+#   risk:
+#     position_size_usd: 5
+#     max_open_positions: 2
+#
+# El bot rechaza arrancar si pones phase "curve" con un min_age_minutes alto,
+# porque esa combinación no compraría nunca nada y parecería que funciona.
+# ---------------------------------------------------------------------------

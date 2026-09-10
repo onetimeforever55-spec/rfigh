@@ -18,16 +18,19 @@ from dataclasses import dataclass, field
 
 from .config import Config
 from .datasources.dexscreener import DexScreener
+from .datasources.pumpfun import PumpFun
 from .datasources.rugcheck import RugCheck
 from .datasources.solana_rpc import SolanaRPC
 from .execution import build_executor
 from .execution.base import Executor
 from .http import HttpClient
-from .models import Position, Signal, TokenSnapshot
+from .models import Position, ScreenResult, Signal, TokenSnapshot
 from .notifier import Notifier
 from .portfolio import Portfolio
 from .risk import RiskManager
-from .screener import screen_market, screen_onchain
+from .screener import (
+    screen_dev_holdings, screen_market, screen_onchain, screen_pumpfun,
+)
 from .storage import Storage
 from .strategy import evaluate_exit, score_token
 
@@ -58,6 +61,9 @@ class TradingEngine:
         self.storage = storage or Storage(cfg.database_path)
         self.dex = DexScreener(self.http, cfg.screener.chain_id)
         self.rugcheck = RugCheck(self.http) if cfg.screener.use_rugcheck else None
+        self.pumpfun = (
+            PumpFun(self.http) if cfg.pumpfun.enabled and cfg.pumpfun.use_api else None
+        )
         self.rpc = SolanaRPC(self.http, cfg.secrets.solana_rpc_url)
         self.executor = executor or build_executor(cfg, self.http, self.dex, cfg.secrets)
         self.portfolio = Portfolio(self.storage, cfg.risk.starting_equity_usd)
@@ -210,6 +216,19 @@ class TradingEngine:
         )
         return candidates[: self.cfg.engine.max_candidates_per_scan]
 
+    async def _screen_candidate(self, snap: TokenSnapshot) -> ScreenResult:
+        """Cheap screening: the generic market filters plus the pump.fun gate."""
+        screen = screen_market(snap, self.cfg.screener)
+        if not screen.passed:
+            return screen
+        if not self.cfg.pumpfun.enabled:
+            return screen
+
+        # The API lookup is skipped entirely when it is disabled; the gate then
+        # works off the DexScreener venue and market cap alone.
+        coin = await self.pumpfun.coin(snap.mint) if self.pumpfun else None
+        return screen_pumpfun(snap, self.cfg.pumpfun, coin)
+
     async def _snapshots_from_feeds(self) -> list[TokenSnapshot]:
         boosted, profiles = await asyncio.gather(
             self.dex.boosted_mints(), self.dex.latest_profile_mints(),
@@ -226,7 +245,7 @@ class TradingEngine:
         report.scanned = len(candidates)
 
         for snap in candidates:
-            screen = screen_market(snap, self.cfg.screener)
+            screen = await self._screen_candidate(snap)
             if not screen.passed:
                 report.rejected.append((snap.symbol, screen.reasons[0]))
                 continue
@@ -247,7 +266,7 @@ class TradingEngine:
             if self.portfolio.open_count >= self.cfg.risk.max_open_positions:
                 break
 
-            screen = screen_market(snap, self.cfg.screener)
+            screen = await self._screen_candidate(snap)
             if not screen.passed:
                 report.rejected.append((snap.symbol, screen.reasons[0]))
                 continue
@@ -276,6 +295,14 @@ class TradingEngine:
             if not onchain.passed:
                 log.info("REJECT %s: %s", snap.symbol, "; ".join(onchain.reasons))
                 report.rejected.append((snap.symbol, onchain.reasons[0]))
+                continue
+
+            dev = await screen_dev_holdings(
+                snap, self.cfg.screener, self.rpc, self.pumpfun
+            )
+            if not dev.passed:
+                log.info("REJECT %s: %s", snap.symbol, "; ".join(dev.reasons))
+                report.rejected.append((snap.symbol, dev.reasons[0]))
                 continue
 
             if await self._enter(snap, signal, decision.size_usd):

@@ -54,6 +54,9 @@ class ScreenerConfig:
     allowed_quote_mints: list[str] = field(
         default_factory=lambda: [SOL_MINT, USDC_MINT]
     )
+    # Empty means "any venue". Set to ["pumpfun", "pumpswap"] to trade only
+    # pump.fun tokens.
+    allowed_dex_ids: list[str] = field(default_factory=list)
     blocked_dex_ids: list[str] = field(default_factory=list)
     blocked_mints: list[str] = field(default_factory=list)
     blocked_symbol_keywords: list[str] = field(
@@ -66,6 +69,9 @@ class ScreenerConfig:
     require_freeze_authority_revoked: bool = True
     max_top_holder_pct: float = 25.0
     max_top10_holder_pct: float = 60.0
+    # Share of supply the token's creator may still hold. The main rug vector
+    # on a launchpad: 100 disables the check (the creator is often unknown).
+    max_dev_holding_pct: float = 100.0
 
     # Optional third-party risk report.
     use_rugcheck: bool = True
@@ -91,6 +97,19 @@ class StrategyConfig:
     # Buy pressure: buys / sells over the window.
     min_buy_sell_ratio_m5: float = 1.0
     min_buy_sell_ratio_h1: float = 1.15
+
+    # Normalisation of the momentum component: the move, in percent, that
+    # scores full marks for that window. Memecoins on a launchpad move far
+    # harder than established pairs, so this has to be venue-specific.
+    momentum_scale_h1: float = 60.0
+    momentum_scale_m5: float = 12.0
+
+    # Shape of the age component, in minutes: the score ramps up until
+    # `age_ramp_minutes`, sits at 1.0 until `age_peak_until_minutes`, then
+    # decays to 0 over `age_decay_minutes`.
+    age_ramp_minutes: float = 60.0
+    age_peak_until_minutes: float = 720.0
+    age_decay_minutes: float = 3_600.0
 
     # Relative weights of each scored component.
     weight_momentum: float = 30.0
@@ -120,6 +139,43 @@ class ExitConfig:
     max_liquidity_drop_pct: float = 45.0   # liquidity pulled -> rug in progress
     volume_collapse_pct: float = 85.0      # h1 volume vs. entry -> momentum dead
     volume_collapse_grace_minutes: float = 45.0
+
+
+@dataclass
+class PumpFunConfig:
+    """pump.fun-specific gating. Inert unless `enabled` is true."""
+
+    enabled: bool = False
+
+    # Which launch phase to trade:
+    #   "graduated" — only tokens that completed the bonding curve. Far fewer
+    #                 candidates, far better survival odds. Start here.
+    #   "curve"     — only tokens still on the curve. This is the lottery end.
+    #   "both"
+    phase: str = "graduated"
+
+    # pump.fun mints are vanity addresses ending in "pump". Requiring the
+    # suffix is how a graduated pump.fun token is told apart from any other
+    # token on the same AMM without an extra request.
+    require_pump_suffix: bool = True
+
+    # Market cap at which the curve fills. Used to estimate curve progress
+    # when the pump.fun API is unreachable.
+    graduation_market_cap_usd: float = 69_000.0
+
+    # Curve phase only: how full the curve must be. Below the floor there is
+    # no demand yet; above the ceiling you are buying the last few percent
+    # before graduation, where the sniper bots already are.
+    min_curve_progress_pct: float = 40.0
+    max_curve_progress_pct: float = 95.0
+
+    # Graduated phase only: skip tokens whose run is already long over.
+    max_minutes_since_launch: float = 2_880.0
+
+    # Best-effort enrichment (creator address, exact curve reserves). The
+    # endpoint is Cloudflare-protected and rate-limits hard, so the bot works
+    # without it — this only decides whether it is worth trying.
+    use_api: bool = True
 
 
 @dataclass
@@ -185,6 +241,7 @@ class Secrets:
 @dataclass
 class Config:
     screener: ScreenerConfig = field(default_factory=ScreenerConfig)
+    pumpfun: PumpFunConfig = field(default_factory=PumpFunConfig)
     strategy: StrategyConfig = field(default_factory=StrategyConfig)
     exits: ExitConfig = field(default_factory=ExitConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
@@ -306,6 +363,22 @@ def validate(cfg: Config) -> None:
         raise ConfigError("screener.min_liquidity_usd must be < max_liquidity_usd")
     if s.min_age_minutes < 0:
         raise ConfigError("screener.min_age_minutes must be >= 0")
+
+    pf = cfg.pumpfun
+    if pf.phase not in ("curve", "graduated", "both"):
+        raise ConfigError(
+            f"pumpfun.phase must be 'curve', 'graduated' or 'both', got {pf.phase!r}"
+        )
+    if pf.min_curve_progress_pct >= pf.max_curve_progress_pct:
+        raise ConfigError(
+            "pumpfun.min_curve_progress_pct must be < max_curve_progress_pct"
+        )
+    if pf.enabled and pf.phase in ("curve", "both") and s.min_age_minutes > 30:
+        raise ConfigError(
+            f"pumpfun.phase includes the bonding curve but "
+            f"screener.min_age_minutes is {s.min_age_minutes:.0f}: almost every "
+            "curve token is younger than that, so nothing would ever be bought"
+        )
 
     if cfg.engine.poll_interval_s < 1:
         raise ConfigError("engine.poll_interval_s must be >= 1")

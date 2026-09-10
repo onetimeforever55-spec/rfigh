@@ -10,7 +10,11 @@ from __future__ import annotations
 
 import logging
 
-from .config import ScreenerConfig
+from .config import PumpFunConfig, ScreenerConfig
+from .datasources.pumpfun import (
+    PumpCoin, PumpFun, PumpPhase, estimate_curve_progress_pct, is_pumpfun_mint,
+    phase_from_snapshot,
+)
 from .datasources.rugcheck import RugCheck
 from .datasources.solana_rpc import SolanaRPC
 from .models import ScreenResult, TokenSnapshot
@@ -28,6 +32,8 @@ def screen_market(snap: TokenSnapshot, cfg: ScreenerConfig) -> ScreenResult:
         return result.fail("mint is blocklisted")
     if snap.dex_id in cfg.blocked_dex_ids:
         return result.fail(f"dex {snap.dex_id} is blocklisted")
+    if cfg.allowed_dex_ids and snap.dex_id not in cfg.allowed_dex_ids:
+        return result.fail(f"dex {snap.dex_id} is not in the allowed venues")
     if cfg.allowed_quote_mints and snap.quote_mint not in cfg.allowed_quote_mints:
         return result.fail(f"quote token {snap.quote_symbol} not allowed")
 
@@ -129,4 +135,100 @@ async def screen_onchain(
             detail = ", ".join(report.risks[:3]) or "no detail"
             result.fail(f"rugcheck score {report.score:.0f} > {cfg.max_rugcheck_score:.0f} ({detail})")
 
+    return result
+
+
+def screen_pumpfun(
+    snap: TokenSnapshot,
+    cfg: PumpFunConfig,
+    coin: PumpCoin | None = None,
+) -> ScreenResult:
+    """pump.fun phase gating. Cheap: works off the DexScreener snapshot.
+
+    `coin` is optional enrichment from the pump.fun API; when it is missing or
+    unavailable the phase and curve progress are derived from the snapshot.
+    """
+    result = ScreenResult(passed=True)
+    if not cfg.enabled:
+        return result
+
+    if cfg.require_pump_suffix and not is_pumpfun_mint(snap.mint):
+        return result.fail("not a pump.fun mint (no `pump` suffix)")
+
+    # Prefer the API's answer, fall back to the venue the pair trades on.
+    phase = coin.phase if coin is not None and coin.available else PumpPhase.UNKNOWN
+    if phase is PumpPhase.UNKNOWN:
+        phase = phase_from_snapshot(snap)
+
+    if phase is PumpPhase.UNKNOWN:
+        return result.fail(f"cannot tell the launch phase from dex {snap.dex_id!r}")
+
+    if cfg.phase != "both" and phase.value != cfg.phase:
+        return result.fail(f"token is {phase.value}, wanted {cfg.phase}")
+
+    if phase is PumpPhase.CURVE:
+        progress = (
+            coin.curve_progress_pct
+            if coin is not None and coin.curve_progress_pct is not None
+            else estimate_curve_progress_pct(snap, cfg.graduation_market_cap_usd)
+        )
+        if progress < cfg.min_curve_progress_pct:
+            result.fail(
+                f"bonding curve only {progress:.0f}% full "
+                f"(need {cfg.min_curve_progress_pct:.0f}%)"
+            )
+        if progress > cfg.max_curve_progress_pct:
+            result.fail(
+                f"bonding curve {progress:.0f}% full, too close to graduation "
+                f"(max {cfg.max_curve_progress_pct:.0f}%)"
+            )
+
+    if snap.age_minutes > cfg.max_minutes_since_launch:
+        result.fail(
+            f"launched {snap.age_minutes / 60:.0f}h ago, past "
+            f"{cfg.max_minutes_since_launch / 60:.0f}h"
+        )
+
+    return result
+
+
+async def screen_dev_holdings(
+    snap: TokenSnapshot,
+    cfg: ScreenerConfig,
+    rpc: SolanaRPC | None,
+    pumpfun: PumpFun | None,
+) -> ScreenResult:
+    """Reject a token whose creator still holds too much of the supply.
+
+    On a launchpad this is the rug that actually happens: there is no LP to
+    pull, so the dev dumps their own allocation into your bid. Needs the
+    creator address, which only the pump.fun API knows — when it is
+    unavailable the check is skipped, and `screen_onchain`'s top-holder
+    concentration limit is what remains.
+    """
+    result = ScreenResult(passed=True)
+    if cfg.max_dev_holding_pct >= 100 or rpc is None or pumpfun is None:
+        return result
+
+    coin = await pumpfun.coin(snap.mint)
+    if not coin.available or not coin.creator:
+        log.debug("creator unknown for %s, skipping the dev-holding check", snap.symbol)
+        return result
+
+    try:
+        info = await rpc.get_mint_info(snap.mint)
+        balance = await rpc.get_token_balance(coin.creator, snap.mint)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dev-holding check failed for %s: %s", snap.symbol, exc)
+        return result
+
+    if info is None or info.supply <= 0:
+        return result
+
+    held_pct = balance / info.supply * 100.0
+    if held_pct > cfg.max_dev_holding_pct:
+        result.fail(
+            f"creator still holds {held_pct:.1f}% of supply "
+            f"(max {cfg.max_dev_holding_pct:.0f}%)"
+        )
     return result

@@ -313,3 +313,61 @@ async def test_panic_liquidates_everything(cfg: Config) -> None:
 
     assert sold == 3
     assert engine.portfolio.open_count == 0
+
+
+# --- pump.fun mode ---------------------------------------------------------
+async def test_pumpfun_mode_only_buys_graduated_pump_tokens(cfg: Config) -> None:
+    cfg.pumpfun.enabled = True
+    cfg.pumpfun.phase = "graduated"
+    cfg.pumpfun.use_api = False        # rely on the venue, no API calls
+    cfg.risk.max_open_positions = 5
+
+    strong = dict(change_m5=6, change_h1=45, buys_h1=900, sells_h1=300,
+                  vol_h1=120_000, liquidity_usd=150_000)
+    http = FakeHttp()
+    http.pairs = [
+        # Graduated pump.fun token — the only one that should be bought.
+        make_pair(mint="Graduated1pump", symbol="GRAD", dex_id="pumpswap", **strong),
+        # Still on the bonding curve.
+        make_pair(mint="OnCurve1pump", symbol="CURVE", dex_id="pumpfun", **strong),
+        # Ordinary Raydium token that never touched pump.fun.
+        make_pair(mint="NotAPumpToken", symbol="OTHER", dex_id="raydium", **strong),
+    ]
+    engine = build_engine(cfg, http)
+
+    await engine.discover_and_trade()
+
+    assert engine.portfolio.open_count == 1
+    assert engine.portfolio.get("Graduated1pump") is not None
+
+
+async def test_pumpfun_curve_mode_respects_the_progress_window(cfg: Config) -> None:
+    cfg.pumpfun.enabled = True
+    cfg.pumpfun.phase = "curve"
+    cfg.pumpfun.use_api = False
+    cfg.screener.min_age_minutes = 3
+    cfg.screener.min_liquidity_usd = 5_000
+    cfg.screener.min_volume_h24_usd = 20_000
+    cfg.screener.min_market_cap_usd = 10_000
+    cfg.screener.max_mcap_liquidity_ratio = 500
+
+    strong = dict(change_m5=6, change_h1=45, buys_h1=900, sells_h1=300,
+                  vol_h1=120_000, liquidity_usd=30_000, age_minutes=25)
+    http = FakeHttp()
+    http.pairs = [
+        # ~65% of the way to graduation: in the window.
+        make_pair(mint="Rising1pump", symbol="RISE", dex_id="pumpfun",
+                  market_cap_usd=45_000, **strong),
+        # ~9% full: no demand yet.
+        make_pair(mint="Empty1pump", symbol="EMPTY", dex_id="pumpfun",
+                  market_cap_usd=6_000, **strong),
+        # ~99% full: the snipers already own this one.
+        make_pair(mint="Late1pump", symbol="LATE", dex_id="pumpfun",
+                  market_cap_usd=68_500, **strong),
+    ]
+    engine = build_engine(cfg, http)
+
+    await engine.discover_and_trade()
+
+    assert engine.portfolio.open_count == 1
+    assert engine.portfolio.get("Rising1pump") is not None

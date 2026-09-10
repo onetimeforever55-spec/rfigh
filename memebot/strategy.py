@@ -42,7 +42,10 @@ def score_token(snap: TokenSnapshot, cfg: StrategyConfig) -> Signal:
 
     # --- Components, each 0-1. ---
     # Momentum: reward a steady climb, with the recent window weighted higher.
-    momentum = _clamp01(h1.price_change_pct / 60.0) * 0.6 + _clamp01(m5.price_change_pct / 12.0) * 0.4
+    momentum = (
+        _clamp01(h1.price_change_pct / cfg.momentum_scale_h1) * 0.6
+        + _clamp01(m5.price_change_pct / cfg.momentum_scale_m5) * 0.4
+    )
 
     # Buy pressure: 1.0 buys/sell scores 0, 2.5 or better scores 1.
     pressure_h1 = _clamp01((h1.buy_sell_ratio - 1.0) / 1.5)
@@ -56,15 +59,18 @@ def score_token(snap: TokenSnapshot, cfg: StrategyConfig) -> Signal:
     # Liquidity: deeper is safer to size into, with diminishing returns.
     liquidity = _clamp01(snap.liquidity_usd / 250_000.0)
 
-    # Age: the sweet spot is roughly 1-12 hours old. Younger is unproven,
-    # older has usually already had its run.
-    age_h = snap.age_minutes / 60.0
-    if age_h < 1:
-        age = _clamp01(age_h)
-    elif age_h <= 12:
+    # Age: ramp up to the sweet spot, hold, then decay. Where that window
+    # sits is venue-specific — a pump.fun runner peaks in minutes, an
+    # established pair takes hours — so the shape comes from the config.
+    age_min = snap.age_minutes
+    if age_min < cfg.age_ramp_minutes:
+        age = _clamp01(age_min / cfg.age_ramp_minutes) if cfg.age_ramp_minutes > 0 else 1.0
+    elif age_min <= cfg.age_peak_until_minutes:
         age = 1.0
+    elif cfg.age_decay_minutes > 0:
+        age = _clamp01(1.0 - (age_min - cfg.age_peak_until_minutes) / cfg.age_decay_minutes)
     else:
-        age = _clamp01(1.0 - (age_h - 12) / 60.0)
+        age = 0.0
 
     components = {
         "momentum": momentum,
