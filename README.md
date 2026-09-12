@@ -443,10 +443,45 @@ las 5 compras se hicieron con ese filtro sin ejecutar. Un control de seguridad
 que desaparece cuando la red tose es peor que no tenerlo, porque crees que lo
 tienes.
 
-Con un RPC gratuito esto rechazará mucho. Es el resultado honesto: el filtro
-corrió o no corrió. Si aceptas el riesgo a conciencia,
-`screener.require_holder_data: false` vuelve al comportamiento anterior, ahora
-con un aviso en el log en cada compra.
+### De dónde salen los datos de holders
+
+Aquí hay un problema real que conviene entender antes de tocar nada.
+
+Preguntarle a la cadena "quién tiene este token" (`getTokenLargestAccounts`) es
+caro de servir: el nodo tiene que escanear y ordenar un montón de estado. Por eso
+**los RPC gratuitos lo rechazan directamente**. Medido contra el endpoint público
+de Solana:
+
+| Llamada | Coste para el nodo | Resultado |
+|---------|--------------------|-----------|
+| `getAccountInfo` | barata | 12 de 12 OK |
+| `getTokenLargestAccounts` | cara | **0 de 12** — 429 siempre |
+
+Como el filtro falla cerrado, sin una segunda fuente el bot no compraría nunca
+nada con un RPC gratuito. Por eso `holder_data_source: auto` pide primero la
+cadena y, si rechaza, tira de **RugCheck**, que publica los mayores holders
+gratis y sin clave. El mismo informe trae el score de riesgo, así que no cuesta
+ni una petición extra.
+
+| Valor | Qué hace |
+|-------|----------|
+| `auto` *(por defecto)* | Cadena primero, RugCheck si rechaza. Funciona gratis |
+| `rpc` | Solo datos de primera mano. Necesitas un RPC de pago |
+| `rugcheck` | Se salta la llamada que tu endpoint va a rechazar igualmente |
+
+Se prefiere la cadena porque es la fuente de la verdad; RugCheck es un tercero
+que puede caerse, ir con retraso o equivocarse. Si es tu única fuente y se cae,
+vuelves al bloqueo — que es lo correcto, pero conviene saberlo. En los mensajes
+de rechazo sale `(via RPC)` o `(via RugCheck)` para que sepas de dónde salió el
+dato que te bloqueó.
+
+Y ojo: esto resuelve **filtrar**, no **operar en real**. Para enviar
+transacciones el endpoint público sigue siendo lento y descarta transacciones
+cuando va cargado, y en memecoins una transacción perdida es una entrada peor o
+un stop que no sale. Ahí un RPC decente no tiene sustituto.
+
+Si aceptas el riesgo a conciencia, `screener.require_holder_data: false` vuelve
+al comportamiento anterior, ahora con un aviso en el log en cada compra.
 
 ## Controles de riesgo
 
@@ -627,7 +662,7 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-181 tests, todos offline: el `FakeHttp` de `tests/test_engine.py` sirve
+194 tests, todos offline: el `FakeHttp` de `tests/test_engine.py` sirve
 respuestas simuladas de DexScreener y del RPC, así que la suite cubre el ciclo
 completo (descubrir → filtrar → comprar → gestionar → salir) sin tocar la red ni
 mover un céntimo.
@@ -638,6 +673,7 @@ mover un céntimo.
 |----------|----------|-------|
 | DexScreener | Descubrimiento, precios y fase de pump.fun | No |
 | pump.fun | Creador del token y reservas exactas de la curva | No (best-effort) |
+| RugCheck | Score de riesgo **y holders** cuando el RPC no puede | No |
 | Solana RPC | Autoridades del mint, holders, saldos, envío de tx | Recomendada para live |
 | RugCheck | Informe de riesgo adicional | No |
 | Jupiter | Cotización y swaps (solo live) | Opcional (tier de pago) |

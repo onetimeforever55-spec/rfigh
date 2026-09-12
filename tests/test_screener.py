@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from memebot.config import Config
 from memebot.screener import screen_market
 
@@ -115,7 +117,7 @@ async def test_unreadable_holder_data_blocks_the_buy(cfg, snap):
 
     assert not result.passed
     assert "rpc_error" in result.codes
-    assert "429" in result.reasons[0]
+    assert "refusing to buy" in result.reasons[0]
 
 
 async def test_empty_holder_data_blocks_the_buy(cfg, snap):
@@ -145,3 +147,118 @@ async def test_readable_holder_data_still_applies_the_limits(cfg, snap):
     result = await screen_onchain(snap, cfg.screener, rpc, None)
     assert not result.passed
     assert "holder_concentration" in result.codes
+
+
+# --- the free fallback for holder data -------------------------------------
+class _Rug:
+    """RugCheck stand-in. `holders` is what the free path is really for."""
+
+    def __init__(self, *, score=5.0, holders=None, available=True):
+        self.score = score
+        self.holders = holders
+        self.available = available
+        self.calls = 0
+
+    async def report(self, mint):
+        from memebot.datasources.rugcheck import RiskReport
+
+        self.calls += 1
+        return RiskReport(mint=mint, score=self.score, risks=[],
+                          available=self.available, holders=self.holders)
+
+
+def _dist(top, top10):
+    from memebot.datasources.solana_rpc import HolderDistribution
+
+    return HolderDistribution(top_holder_pct=top, top10_pct=top10, holders=[top])
+
+
+async def test_rugcheck_answers_when_the_rpc_refuses(cfg, snap):
+    """The whole point: on a free RPC `getTokenLargestAccounts` always 429s,
+    and without a second source the bot could never buy anything."""
+    from memebot.screener import screen_onchain
+
+    rpc = _RPC(holders_raise=RuntimeError("429 Too many requests"))
+    rug = _Rug(holders=_dist(4.0, 20.0))
+    result = await screen_onchain(snap, cfg.screener, rpc, rug)
+
+    assert result.passed
+    assert rug.calls == 1
+
+
+async def test_rugcheck_data_still_enforces_the_limits(cfg, snap):
+    """A fallback that waves everything through would be worse than useless."""
+    from memebot.screener import screen_onchain
+
+    rpc = _RPC(holders_raise=RuntimeError("429 Too many requests"))
+    result = await screen_onchain(
+        cfg=cfg.screener, snap=snap, rpc=rpc, rugcheck=_Rug(holders=_dist(90.0, 99.0))
+    )
+    assert not result.passed
+    assert "holder_concentration" in result.codes
+    assert "RugCheck" in result.reasons[0]
+
+
+async def test_the_chain_wins_when_both_can_answer(cfg, snap):
+    """RugCheck is a third party; first-party data is preferred when available."""
+    from memebot.screener import screen_onchain
+
+    rpc = _RPC(holders=_dist(90.0, 99.0))      # chain says: concentrated
+    rug = _Rug(holders=_dist(1.0, 5.0))        # third party says: fine
+    result = await screen_onchain(snap, cfg.screener, rpc, rug)
+
+    assert not result.passed
+    assert "via RPC" in result.reasons[0]
+
+
+async def test_both_sources_failing_still_blocks_the_buy(cfg, snap):
+    from memebot.screener import screen_onchain
+
+    rpc = _RPC(holders_raise=RuntimeError("429"))
+    result = await screen_onchain(
+        snap, cfg.screener, rpc, _Rug(available=False, holders=None)
+    )
+    assert not result.passed
+    assert "rpc_error" in result.codes
+
+
+async def test_rugcheck_only_mode_skips_the_doomed_rpc_call(cfg, snap):
+    """When you know your endpoint will refuse, do not spend a request and a
+    log line on it every single cycle."""
+    from memebot.screener import screen_onchain
+
+    cfg.screener.holder_data_source = "rugcheck"
+    rpc = _RPC(holders_raise=AssertionError("the RPC must not be asked"))
+    result = await screen_onchain(snap, cfg.screener, rpc, _Rug(holders=_dist(3.0, 15.0)))
+    assert result.passed
+
+
+async def test_rpc_only_mode_does_not_fall_back(cfg, snap):
+    """The opposite guarantee: 'rpc' means first-party data or nothing."""
+    from memebot.screener import screen_onchain
+
+    cfg.screener.holder_data_source = "rpc"
+    rpc = _RPC(holders_raise=RuntimeError("429"))
+    result = await screen_onchain(snap, cfg.screener, rpc, _Rug(holders=_dist(3.0, 15.0)))
+    assert not result.passed
+    assert "rpc_error" in result.codes
+
+
+def test_holder_percentages_drop_the_pool_vault():
+    """On a graduated token the biggest account is the AMM pool. Counting it
+    would flag every healthy token as dangerously concentrated."""
+    from memebot.datasources.rugcheck import _holders_from_report
+
+    dist = _holders_from_report({"topHolders": [
+        {"pct": 92.04}, {"pct": 0.83}, {"pct": 0.50}, {"pct": 0.42},
+    ]})
+    assert dist.top_holder_pct == pytest.approx(0.83)
+    assert dist.top10_pct == pytest.approx(1.75)
+
+
+def test_a_report_with_no_holders_yields_nothing_rather_than_zero():
+    """Returning 0% would read as 'perfectly distributed' and pass every limit."""
+    from memebot.datasources.rugcheck import _holders_from_report
+
+    assert _holders_from_report({}) is None
+    assert _holders_from_report({"topHolders": []}) is None

@@ -74,6 +74,10 @@ class ScreenerConfig:
     # one of those this will reject a lot — that is the honest outcome: the
     # check either ran or it did not.
     require_holder_data: bool = True
+    # Where the holder distribution comes from: "auto" tries the chain first
+    # and falls back to RugCheck, "rpc" only the chain, "rugcheck" only
+    # RugCheck (skips a call your endpoint is going to refuse anyway).
+    holder_data_source: str = "auto"
     # Share of supply the token's creator may still hold. The main rug vector
     # on a launchpad: 100 disables the check (the creator is often unknown).
     max_dev_holding_pct: float = 100.0
@@ -413,6 +417,16 @@ def validate(cfg: Config) -> None:
         )
 
     s = cfg.screener
+    if s.holder_data_source not in ("auto", "rpc", "rugcheck"):
+        raise ConfigError(
+            "screener.holder_data_source must be 'auto', 'rpc' or 'rugcheck', "
+            f"got {s.holder_data_source!r}"
+        )
+    if s.holder_data_source == "rugcheck" and not s.use_rugcheck:
+        raise ConfigError(
+            "screener.holder_data_source is 'rugcheck' but screener.use_rugcheck "
+            "is false, so there would be no holder data at all"
+        )
     if s.min_liquidity_usd >= s.max_liquidity_usd:
         raise ConfigError("screener.min_liquidity_usd must be < max_liquidity_usd")
     if s.min_age_minutes < 0:

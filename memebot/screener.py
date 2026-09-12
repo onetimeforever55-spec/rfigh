@@ -16,8 +16,8 @@ from .datasources.pumpfun import (
     PumpCoin, PumpFun, PumpPhase, estimate_curve_progress_pct, is_pumpfun_mint,
     phase_from_snapshot,
 )
-from .datasources.rugcheck import RugCheck
-from .datasources.solana_rpc import SolanaRPC
+from .datasources.rugcheck import RiskReport, RugCheck
+from .datasources.solana_rpc import HolderDistribution, SolanaRPC
 from .models import ScreenResult, TokenSnapshot
 
 log = logging.getLogger(__name__)
@@ -118,6 +118,12 @@ async def screen_onchain(
     """Expensive filters. Run only on candidates about to be bought."""
     result = ScreenResult(passed=True)
 
+    # Fetched up front, because it answers two questions: the risk score, and
+    # who holds the supply when the RPC will not say.
+    report = None
+    if cfg.use_rugcheck and rugcheck is not None:
+        report = await rugcheck.report(snap.mint)
+
     if rpc is not None:
         try:
             info = await rpc.get_mint_info(snap.mint)
@@ -131,57 +137,87 @@ async def screen_onchain(
         if cfg.require_freeze_authority_revoked and not info.freeze_authority_revoked:
             result.fail(f"freeze authority still active ({info.freeze_authority})", "freeze_authority")
 
-        # This check used to fail OPEN: an RPC error skipped it and the token
-        # passed. On a free RPC that is a 429 away, which meant the advertised
-        # holder-concentration protection silently never ran. A safety filter
-        # that disappears when the network hiccups is worse than none, because
-        # you believe you have it.
-        try:
-            dist = await rpc.get_holder_distribution(snap.mint)
-        except Exception as exc:  # noqa: BLE001
+        dist, source = await _holder_distribution(snap, cfg, rpc, report)
+
+        # This check used to fail OPEN: any RPC error skipped it and the token
+        # passed unchecked. A safety filter that disappears when the network
+        # hiccups is worse than none, because you believe you have it.
+        if dist is None:
             if cfg.require_holder_data:
-                # The full error is logged by the caller's log line; this
-                # text ends up in the dashboard and the scan table.
-                log.warning(
-                    "holder distribution unavailable for %s: %s", snap.symbol, exc
-                )
                 return result.fail(
-                    f"holder data unreadable ({_brief(exc, 40)}) — needs a paid RPC",
+                    "could not read who holds this token from any source "
+                    "(RPC nor RugCheck); refusing to buy without it",
                     "rpc_error",
                 )
             log.warning(
-                "holder distribution unavailable for %s: %s — buying anyway "
-                "because screener.require_holder_data is false",
-                snap.symbol, exc,
+                "no holder data for %s — buying anyway because "
+                "screener.require_holder_data is false", snap.symbol,
             )
-            dist = None
-
-        if dist is None and cfg.require_holder_data:
-            return result.fail(
-                "holder distribution came back empty; refusing to buy without it",
-                "rpc_error",
-            )
-
-        if dist is not None:
+        else:
+            # Which source answered goes in the message: a limit tripped on
+            # third-party data deserves a different amount of trust than one
+            # tripped on the chain itself.
             if dist.top_holder_pct > cfg.max_top_holder_pct:
                 result.fail(
-                    f"top holder owns {dist.top_holder_pct:.1f}% > {cfg.max_top_holder_pct:.0f}%",
+                    f"top holder owns {dist.top_holder_pct:.1f}% > "
+                    f"{cfg.max_top_holder_pct:.0f}% (via {source})",
                     "holder_concentration",
                 )
             if dist.top10_pct > cfg.max_top10_holder_pct:
                 result.fail(
-                    f"top 10 own {dist.top10_pct:.1f}% > {cfg.max_top10_holder_pct:.0f}%",
+                    f"top 10 own {dist.top10_pct:.1f}% > "
+                    f"{cfg.max_top10_holder_pct:.0f}% (via {source})",
                     "holder_concentration",
                 )
 
-    if cfg.use_rugcheck and rugcheck is not None:
-        report = await rugcheck.report(snap.mint)
-        if report.available and report.score > cfg.max_rugcheck_score:
-            detail = ", ".join(report.risks[:3]) or "no detail"
-            result.fail(f"rugcheck score {report.score:.0f} > {cfg.max_rugcheck_score:.0f} ({detail})", "rugcheck")
+    if report is not None and report.available and report.score > cfg.max_rugcheck_score:
+        detail = ", ".join(report.risks[:3]) or "no detail"
+        result.fail(
+            f"rugcheck score {report.score:.0f} > {cfg.max_rugcheck_score:.0f} ({detail})",
+            "rugcheck",
+        )
 
     return result
 
+
+async def _holder_distribution(
+    snap: TokenSnapshot,
+    cfg: ScreenerConfig,
+    rpc: SolanaRPC,
+    report: "RiskReport | None",
+) -> tuple["HolderDistribution | None", str]:
+    """Who holds the supply, from whichever source can actually answer.
+
+    The chain is the source of truth, so it goes first — but a free RPC
+    refuses `getTokenLargestAccounts` outright (measured: 0 of 12 calls on the
+    public endpoint), and then RugCheck is the difference between a bot that
+    screens and a bot that never buys anything.
+
+    `holder_data_source` exists for the case where you know your RPC will
+    refuse: "rugcheck" skips the doomed call instead of spending a request
+    and a log line on it every cycle.
+    """
+    preference = cfg.holder_data_source
+
+    if preference in ("auto", "rpc"):
+        try:
+            dist = await rpc.get_holder_distribution(snap.mint)
+            if dist is not None:
+                return dist, "RPC"
+        except Exception as exc:  # noqa: BLE001
+            log.debug("holder distribution via RPC failed for %s: %s", snap.symbol, exc)
+            if preference == "rpc":
+                log.warning(
+                    "holder distribution unavailable for %s: %s", snap.symbol, exc
+                )
+        if preference == "rpc":
+            return None, "RPC"
+
+    if preference in ("auto", "rugcheck") and report is not None:
+        if report.available and report.holders is not None:
+            return report.holders, "RugCheck"
+
+    return None, "none"
 
 def screen_pumpfun(
     snap: TokenSnapshot,

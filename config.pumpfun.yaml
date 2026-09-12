@@ -71,6 +71,10 @@ screener:
   # comprar a ciegas. Con un RPC gratuito esto descarta mucho: es el
   # resultado honesto, el filtro corrió o no corrió.
   require_holder_data: true
+  # "auto": primero la cadena, y si el RPC rechaza (los gratuitos rechazan
+  # getTokenLargestAccounts), tira de RugCheck. Con "rugcheck" te ahorras la
+  # llamada condenada si sabes que tu endpoint no la sirve.
+  holder_data_source: auto
   max_top10_holder_pct: 55
   max_dev_holding_pct: 15         # el rug real de un launchpad: el dev vendiendo
   use_rugcheck: true

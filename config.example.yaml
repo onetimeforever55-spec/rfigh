@@ -60,6 +60,11 @@ screener:
   # of those this rejects a lot, which is the honest outcome — the check
   # either ran or it did not.
   require_holder_data: true
+  # Where the holder distribution comes from. "auto" asks the chain first and
+  # falls back to RugCheck when it refuses — which free RPCs do, because
+  # getTokenLargestAccounts is expensive to serve. "rpc" = first-party only.
+  # "rugcheck" = skip a call you know your endpoint will refuse.
+  holder_data_source: auto
   use_rugcheck: true
   max_rugcheck_score: 40
   require_socials: false
