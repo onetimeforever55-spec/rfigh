@@ -1,0 +1,268 @@
+/*
+ * EL PODER
+ *  - Instituciones del régimen (escuadrón, milicias, espías, partido, propaganda): se crean, actúan cada día y se disuelven.
+ *  - Personas: puedes eliminar, encarcelar, exiliar, destituir, premiar o liberar a ministros, gente de a pie,
+ *    al líder de la oposición o al embajador. Los ministros caídos se reemplazan por sucesores.
+ */
+(function (RF) {
+  'use strict';
+  const T = RF.texto;
+
+  const NOMINAL = {
+    matar: 'la eliminación de {nombre}', encarcelar: 'el encarcelamiento de {nombre}', exiliar: 'el exilio de {nombre}',
+    destituir: 'la destitución de {nombre}', premiar: 'la condecoración de {nombre}', liberar: 'la liberación de {nombre}'
+  };
+
+  function iniciar(e) {
+    if (!e.instituciones) e.instituciones = {};
+    if (!e.gabinete) {
+      e.gabinete = {};
+      for (const [id, m] of Object.entries(RF.GABINETE)) e.gabinete[id] = { nombre: m.nombre, corto: m.corto, caidos: [], sucesor: 0 };
+    }
+    if (!e.personas) e.personas = { valiente: 'libre', embajador: 'libre' };
+    for (const c of Object.values(e.ciudadanos || {})) if (!c.estado) c.estado = 'libre';
+    actualizarNombres(e);
+    return e;
+  }
+
+  // Los textos usan {garrote}, {n_garrote}... para nombrar a quien ocupa hoy cada cargo.
+  function actualizarNombres(e) {
+    RF.VARS = RF.VARS || {};
+    for (const [id, g] of Object.entries(e.gabinete || {})) {
+      RF.VARS[id] = g.corto;
+      RF.VARS['n_' + id] = g.nombre;
+    }
+    RF.VARS.lider = 'Su Excelencia';
+  }
+
+  function ministro(e, id) { iniciar(e); return e.gabinete[id]; }
+
+  // ---------- Instituciones ----------
+  const CREAN = ['CREAR', 'INVERTIR', 'OBLIGAR', 'GLORIFICAR', 'SUBSIDIAR', 'LEGALIZAR'];
+  const DISUELVEN = ['PROHIBIR', 'RECORTAR', 'CASTIGAR', 'PRIVATIZAR'];
+
+  // Devuelve { efectos, texto, notas } si el decreto va sobre una institución; si no, null.
+  function aplicarInstitucion(e, accion, objId) {
+    const def = RF.INSTITUCIONES[objId];
+    if (!def) return null;
+    iniciar(e);
+    const actual = e.instituciones[objId];
+    const out = { efectos: {}, notas: [], texto: null };
+    if (CREAN.includes(accion)) {
+      if (actual) {
+        if (actual.nivel >= 3) { out.notas.push(T.mayus(def.corto) + ' ya está a pleno rendimiento. No se puede ampliar más.'); return out; }
+        actual.nivel++;
+        e.ingresos = Math.max(-6, e.ingresos - def.coste);
+        for (const [k, v] of Object.entries(def.crear)) out.efectos[k] = Math.round(v / 2);
+        out.texto = T.mayus(def.corto) + ' se amplía: más gente, más presupuesto, más alcance. Ahora es de nivel ' + actual.nivel + '.';
+      } else {
+        e.instituciones[objId] = { desde: e.dia, nivel: 1 };
+        e.ingresos = Math.max(-6, e.ingresos - def.coste);
+        Object.assign(out.efectos, def.crear);
+        out.texto = T.expandir(def.texto);
+      }
+      out.notas.push('Coste: ' + def.coste + ' valdos al día por nivel. Seguirá actuando cada día mientras exista.');
+    } else if (DISUELVEN.includes(accion)) {
+      if (!actual) { out.notas.push(T.mayus(def.corto) + ' no existe. No hay nada que disolver.'); return out; }
+      e.ingresos = Math.min(6, e.ingresos + def.coste * actual.nivel);
+      delete e.instituciones[objId];
+      Object.assign(out.efectos, def.disolver);
+      out.texto = T.mayus(def.corto) + ' queda disuelto por decreto. Sus miembros vuelven a casa... o eso dicen.';
+    } else return null;
+    return out;
+  }
+
+  function dia(e, res) {
+    iniciar(e);
+    const ef = {};
+    for (const [id, inst] of Object.entries(e.instituciones)) {
+      const def = RF.INSTITUCIONES[id];
+      for (const [k, v] of Object.entries(def.diario)) ef[k] = (ef[k] || 0) + v * inst.nivel;
+      if (def.vigila) {
+        if (e.stats.ejercito < 35) ef.ejercito = (ef.ejercito || 0) + 0.5;
+        if (e.stats.cupula < 35) ef.cupula = (ef.cupula || 0) + 0.5;
+      }
+      if (e.dia - inst.desde === 3) res.sucesos.push({ tipo: 'institucion', titulo: def.corto, texto: T.expandir(def.diarioTexto), deltas: {} });
+    }
+    const reg = {};
+    RF.economia.acumular(e, ef, reg);
+    return reg;
+  }
+
+  // ---------- Personas ----------
+  function nombrePersona(e, id) {
+    const p = RF.PERSONAS[id];
+    if (p.tipo === 'ministro') return ministro(e, id).nombre;
+    if (p.tipo === 'ciudadano') return RF.CIUDADANOS[id].nombre;
+    return p.nombre;
+  }
+
+  // Claves con las que se reconoce a cada persona (incluye el apellido de quien ocupa hoy el cargo).
+  function claves(e, id) {
+    const p = RF.PERSONAS[id];
+    const out = p.claves.slice();
+    if (!e) return out;
+    if (p.tipo === 'ministro') {
+      const g = ministro(e, id);
+      out.unshift(T.normalizar(g.corto));
+      for (const c of g.caidos) out.push(T.normalizar(c.corto));
+    }
+    return out;
+  }
+
+  // Busca a una persona nombrada en el texto. Devuelve { id, viejo } (viejo = un ministro que ya cayó).
+  function buscar(e, textoNorm) {
+    if (e) iniciar(e);
+    let mejor = null, largo = 0;
+    for (const id of Object.keys(RF.PERSONAS)) {
+      for (const k of claves(e, id)) {
+        if (k.length > largo && new RegExp('\\b' + k + '\\b').test(textoNorm)) {
+          const g = e && RF.PERSONAS[id].tipo === 'ministro' ? ministro(e, id) : null;
+          const caido = g && g.caidos.find(c => T.normalizar(c.corto) === k);
+          mejor = { id, caido: caido || null };
+          largo = k.length;
+        }
+      }
+    }
+    return mejor;
+  }
+
+  function detectarTrato(textoNorm) {
+    for (const t of RF.TRATOS) if (t.re.test(textoNorm)) return t.id;
+    return null;
+  }
+
+  function estadoPersona(e, id) {
+    const p = RF.PERSONAS[id];
+    if (p.tipo === 'ciudadano') return e.ciudadanos[id].estado || 'libre';
+    if (p.tipo === 'ministro') return 'libre';
+    return e.personas[id] || 'libre';
+  }
+
+  const DESTINO = { matar: 'muerto', encarcelar: 'preso', exiliar: 'exiliado', destituir: 'fuera' };
+
+  /*
+   * Aplica un trato a una persona. Devuelve { medida, texto, efectos, notas, cadena, objetivo }.
+   * No aplica los efectos: lo hace el Consejero, para contarlos en el decreto.
+   */
+  function tratar(e, id, trato, caido) {
+    iniciar(e);
+    const p = RF.PERSONAS[id];
+    const out = { efectos: {}, notas: [], texto: '', animo: {}, cadena: null };
+    const nombre = caido ? caido.nombre : nombrePersona(e, id);
+    const vars = { nombre, Nombre: T.mayus(nombre), oa: p.oa || 'o', le: 'le' };
+    out.nombre = nombre;
+    out.medida = T.expandir(NOMINAL[trato], vars);
+
+    // Un ministro que ya cayó: solo se le puede liberar o, si está vivo, poco más.
+    if (caido) {
+      if (caido.destino === 'muerto') { out.nulo = T.expandir(RF.TEXTO_YA.muerto, vars); return out; }
+      if (trato === 'liberar' && caido.destino === 'preso') {
+        caido.destino = 'libre';
+        out.texto = T.expandir(T.azar(RF.TEXTOS_TRATO.ministro.liberar), vars);
+        out.efectos = { mundo: 2, cupula: 2 };
+        return out;
+      }
+      if (trato === 'matar' && caido.destino !== 'exiliado') {
+        caido.destino = 'muerto';
+        out.texto = T.expandir(T.azar(RF.TEXTOS_TRATO.ministro.matar), vars);
+        out.efectos = { mundo: -6, cupula: -6, orden: 2 };
+        return out;
+      }
+      out.nulo = T.expandir(RF.TEXTO_YA.fuera, vars) + ' Ahora el cargo lo ocupa ' + nombrePersona(e, id) + '.';
+      return out;
+    }
+
+    const actual = estadoPersona(e, id);
+    if (actual === 'muerto') { out.nulo = T.expandir(RF.TEXTO_YA.muerto, vars); return out; }
+    if (actual === 'exiliado' && trato !== 'liberar') { out.nulo = T.expandir(RF.TEXTO_YA.exiliado, vars); return out; }
+    if (actual === 'preso' && trato === 'encarcelar') { out.nulo = T.expandir(RF.TEXTO_YA.preso, vars); return out; }
+    if (trato === 'liberar' && actual === 'libre') { out.nulo = T.expandir(RF.TEXTO_YA.libre, vars); return out; }
+
+    const tabla = RF.EFECTOS_TRATO[p.tipo][trato];
+    for (const [k, v] of Object.entries(tabla)) out.efectos[k === 'stat' ? p.stat : k] = (out.efectos[k === 'stat' ? p.stat : k] || 0) + v;
+
+    const textos = RF.TEXTOS_TRATO[p.tipo][trato];
+    out.texto = T.expandir(Array.isArray(textos) ? T.azar(textos) : textos[id], vars);
+
+    if (p.tipo === 'ministro') {
+      if (DESTINO[trato]) {
+        const g = ministro(e, id);
+        g.caidos.push({ nombre: g.nombre, corto: g.corto, destino: DESTINO[trato], dia: e.dia });
+        const lista = RF.SUCESORES[id];
+        const nuevo = lista[g.sucesor % lista.length];
+        g.sucesor++;
+        g.nombre = nuevo.nombre; g.corto = nuevo.corto;
+        actualizarNombres(e);
+        out.texto += ' ' + T.expandir(T.azar(RF.TEXTO_SUCESOR), { sucesor: nuevo.nombre, Sucesor: nuevo.nombre });
+        out.sucesor = nuevo.nombre;
+      }
+    } else if (p.tipo === 'ciudadano') {
+      const c = e.ciudadanos[id];
+      const familia = { carmen: 'nico', nico: 'carmen' }[id];
+      const mueve = (quien, v) => { out.animo[quien] = (out.animo[quien] || 0) + v; };
+      if (trato === 'matar') {
+        c.estado = 'muerto';
+        for (const otro of Object.keys(e.ciudadanos)) if (otro !== id) mueve(otro, -20);
+        if (familia) mueve(familia, -60);
+        out.cadena = { id: 'luto_' + id, en: 2 };
+      } else if (trato === 'encarcelar') {
+        c.estado = 'preso'; mueve(id, -40); if (familia) mueve(familia, -35);
+      } else if (trato === 'exiliar') {
+        c.estado = 'exiliado'; if (familia) mueve(familia, -25);
+      } else if (trato === 'liberar') {
+        c.estado = 'libre'; mueve(id, 20); if (familia) mueve(familia, 25);
+      } else if (trato === 'destituir') {
+        mueve(id, -30);
+      } else if (trato === 'premiar') {
+        mueve(id, 30); if (familia) mueve(familia, 10);
+      }
+      for (const [quien, v] of Object.entries(out.animo)) {
+        const cc = e.ciudadanos[quien];
+        cc.animo = Math.max(-100, Math.min(100, cc.animo + v));
+      }
+    } else if (p.tipo === 'opositor') {
+      const destino = { matar: 'muerto', encarcelar: 'preso', exiliar: 'exiliado', destituir: 'exiliado', premiar: 'aliado', liberar: 'libre' }[trato];
+      e.personas[id] = destino;
+      out.cadena = { matar: { id: 'funeral_valiente', en: 1 }, encarcelar: { id: 'huelga_hambre', en: 3 }, exiliar: { id: 'gobierno_exilio', en: 4 }, destituir: { id: 'gobierno_exilio', en: 4 } }[trato] || null;
+    } else if (p.tipo === 'extranjero') {
+      e.personas[id] = { matar: 'muerto', encarcelar: 'preso', exiliar: 'exiliado', destituir: 'exiliado' }[trato] || e.personas[id];
+      if (trato === 'matar' || trato === 'encarcelar') out.cadena = { id: 'represalias', en: 1 };
+      if (trato === 'exiliar' || trato === 'destituir') out.notas.push('La Unión Atlántica enviará un nuevo embajador. Más frío que el anterior.');
+      if (trato === 'exiliar' || trato === 'destituir') e.personas[id] = 'libre';
+    }
+    return out;
+  }
+
+  // Qué tratos ofrecer cuando el jugador nombra a alguien sin decir qué hacer.
+  function tratosPosibles(e, id) {
+    const p = RF.PERSONAS[id];
+    const est = estadoPersona(e, id);
+    if (est === 'preso') return ['liberar', 'matar', 'exiliar'];
+    if (p.tipo === 'ministro') return ['destituir', 'premiar', 'encarcelar'];
+    if (p.tipo === 'ciudadano') return ['premiar', 'encarcelar', 'exiliar'];
+    return ['premiar', 'encarcelar', 'exiliar'];
+  }
+
+  // Pone a alguien concreto en un cargo (por un evento): el anterior queda fuera.
+  function nombrar(e, cargo, nombre, corto) {
+    const g = ministro(e, cargo);
+    g.caidos.push({ nombre: g.nombre, corto: g.corto, destino: 'fuera', dia: e.dia });
+    g.nombre = nombre; g.corto = corto;
+    actualizarNombres(e);
+  }
+
+  // Disuelve una institución por un evento. Devuelve true si existía.
+  function disolver(e, id, registro) {
+    iniciar(e);
+    const actual = e.instituciones[id];
+    if (!actual) return false;
+    e.ingresos = Math.min(6, e.ingresos + RF.INSTITUCIONES[id].coste * actual.nivel);
+    delete e.instituciones[id];
+    return true;
+  }
+
+  function nombreTrato(id) { return RF.TRATOS.find(t => t.id === id).nombre; }
+
+  RF.poder = { iniciar, actualizarNombres, aplicarInstitucion, dia, buscar, detectarTrato, tratar, tratosPosibles, nombrePersona, nombreTrato, estadoPersona, ministro, nombrar, disolver, NOMINAL };
+})(globalThis.RF = globalThis.RF || {});

@@ -12,9 +12,10 @@
   const ATAJOS = [
     ['Prohibir…', 'Prohibir '], ['Vender…', 'Vender '], ['Regalar…', 'Regalar '],
     ['Impuestos a…', 'Subir impuestos a '], ['Mano dura…', 'Mano dura contra '], ['Legalizar…', 'Legalizar '],
-    ['Invertir en…', 'Invertir en '], ['Recortar…', 'Recortar '], ['Obligar…', 'Obligar a todos a '],
-    ['Estatua de mí', 'Estatua de mí'],
-    ['estado', 'estado', true], ['gabinete', 'gabinete', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+    ['Invertir en…', 'Invertir en '], ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '],
+    ['Destituir a…', 'Destituir a '], ['Encarcelar a…', 'Encarcelar a '], ['Recortar…', 'Recortar '],
+    ['Obligar…', 'Obligar a todos a '], ['Estatua de mí', 'Estatua de mí'],
+    ['estado', 'estado', true], ['economía', 'economía', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -59,6 +60,10 @@
       }
     }
     $('dia').textContent = 'DÍA ' + Math.min(estado.dia, RF.PAIS.dias) + '/' + RF.PAIS.dias;
+    const r = RF.economia.resumen(estado);
+    const flecha = r.tendencia > 0.5 ? '▲' : r.tendencia < -0.5 ? '▼' : '';
+    $('ticker').textContent = 'PIB ' + r.pib + flecha + ' · PARO ' + r.paro + '% · INFLACIÓN ' + r.inflacion + '% · CO₂ ' + r.contaminacion;
+    $('ticker').classList.toggle('alerta', r.paro >= 24 || r.inflacion >= 40 || r.contaminacion >= 60);
   }
 
   // ---------- Registro (la historia) ----------
@@ -87,7 +92,8 @@
     let p = null, texto = null;
     if (b.tipo === 'efectos') {
       const cont = listaDeltas(b.deltas, 'b-efectos');
-      if (!cont.childNodes.length && !b.economia) cont.appendChild(el('span', 'efecto neutro', 'Sin cambios visibles'));
+      if (b.rotulo) cont.insertBefore(el('span', 'efecto neutro', b.rotulo), cont.firstChild);
+      if (!cont.childNodes.length && !b.economia && !b.rotulo) cont.appendChild(el('span', 'efecto neutro', 'Sin cambios visibles'));
       if (b.economia) cont.appendChild(el('span', 'efecto ' + (b.economia > 0 ? 'sube' : 'baja'), 'Caja del día ' + (b.economia > 0 ? '+' : '−') + Math.abs(b.economia)));
       if (b.cambioIngresos) cont.appendChild(el('span', 'efecto ' + (b.cambioIngresos > 0 ? 'sube' : 'baja'), 'Ingresos diarios ' + (b.cambioIngresos > 0 ? '+' : '−') + Math.abs(b.cambioIngresos)));
       n.className = 'bloque';
@@ -215,12 +221,20 @@
     const antes = Object.assign({}, estado.stats);
     const bloques = [];
     if (lista.length > 1) bloques.push({ tipo: 'nota', texto: 'Firmas ' + lista.length + ' decretos de una sentada. El secretario se masajea la muñeca.' });
-    let ultimo = null;
+    let ultimo = null, validos = 0, avanzado = false;
     lista.forEach((interp, k) => {
       const esUltimo = k === lista.length - 1;
-      ultimo = RF.consejero.decretar(estado, interp, { avanzar: esUltimo, secundario: k > 0 });
-      bloques.push(...RF.narrador.decreto(estado, interp, ultimo));
+      const op = { avanzar: esUltimo, secundario: validos > 0 };
+      const res = interp.tipo === 'persona' ? RF.consejero.decretarPersona(estado, interp, op) : RF.consejero.decretar(estado, interp, op);
+      // Una orden imposible ("matar a alguien que ya está muerto") no cuenta como decreto.
+      if (res.nulo) { bloques.push({ tipo: 'nota', texto: res.nulo }); return; }
+      validos++;
+      ultimo = res;
+      if (esUltimo) avanzado = true;
+      bloques.push(...RF.narrador.decreto(estado, interp, res));
     });
+    if (!ultimo) { mostrar(bloques, false); guardar(); return; }
+    if (!avanzado) RF.consejero.avanzarDia(estado, ultimo);
     bloques.push(...RF.narrador.cierreDia(estado, ultimo));
     const d = RF.director.pendiente(estado);
     if (d && ultimo.dilema) bloques.push(RF.narrador.dilema(estado, d));
@@ -239,7 +253,7 @@
     tarjetaAbierta = null;
     const antes = Object.assign({}, estado.stats);
     const r = RF.director.resolver(estado, i);
-    mostrar([{ tipo: 'eco', texto: LETRAS[i] + ') ' + d.opciones[i].texto }], false);
+    mostrar([{ tipo: 'eco', texto: LETRAS[i] + ') ' + RF.texto.expandir(d.opciones[i].texto) }], false);
     mostrar(RF.narrador.decision(estado, r), true);
     pintarStats(cambios(antes));
     actualizarConsola();
@@ -285,7 +299,8 @@
     }
     if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
     if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
-    if (/^(gabinete|ministros)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
+    if (/^(gabinete|ministros|poder|instituciones)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
+    if (/^(economia|mercado|informe economico)$/.test(orden)) { mostrar(RF.narrador.economia(estado), false); return; }
     if (/^(historial|decretos|archivo)$/.test(orden)) { mostrar(RF.narrador.historial(estado), false); return; }
 
     if (estado.fin) {
@@ -301,7 +316,7 @@
       return;
     }
 
-    const lista = RF.interprete.interpretarVarios(texto);
+    const lista = RF.interprete.interpretarVarios(texto, estado);
     if (lista.length > 1) { firmar(lista); return; }
     const interp = lista[0];
     if (interp.estado === 'ok') { firmar([interp]); return; }
@@ -337,6 +352,9 @@
     const guardada = cargar();
     if (guardada) {
       estado = guardada.estado;
+      // Partidas guardadas con versiones anteriores: se completan con lo nuevo.
+      if (!estado.eco) estado.eco = RF.economia.nueva();
+      RF.poder.iniciar(estado);
       registro = [];
       mostrar(guardada.registro, false);
       mostrar([{ tipo: 'nota', texto: 'Partida recuperada. Bienvenido de vuelta a Palacio, Excelencia.' }], false);
@@ -359,6 +377,7 @@
     });
     // Tocar la historia acelera el texto.
     $('registro').addEventListener('click', (e) => { if (!e.target.closest('button')) saltar = true; });
+    $('ticker').addEventListener('click', () => { vaciar(); procesar('economía'); });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);

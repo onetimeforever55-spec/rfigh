@@ -27,12 +27,12 @@
       texto: 'El aire pasa a ser propiedad del Estado. De momento es gratis. La palabra "de momento" preocupa a todo el mundo.'
     },
     'PRIVATIZAR:AGUA': {
-      texto: 'Una empresa del cuñado de Cifuentes gana la concesión del agua. Casualidad.',
+      texto: 'Una empresa del cuñado de {cifuentes} gana la concesión del agua. Casualidad.',
       programar: [{ en: 3, titulo: 'Pozos clandestinos', texto: 'En los barrios pobres se cavan pozos a escondidas. El agua sale turbia. Los niños enferman.', efectos: { salud: -6, orden: -3 } }]
     },
     'PRIVATIZAR:RECURSOS': {
       efectos: { pueblo: -3 },
-      texto: 'Una multinacional compra la concesión por una fracción de su valor. Cifuentes estrena reloj.',
+      texto: 'Una multinacional compra la concesión por una fracción de su valor. {cifuentes} estrena reloj.',
       programar: [{ en: 3, titulo: 'Ríos de colores', texto: 'Los ríos cerca de las minas bajan naranjas. Los pescadores protestan con peces muertos frente a Palacio.', efectos: { salud: -5, pueblo: -4, mundo: -3 } }]
     },
     'PRIVATIZAR:SALUD': {
@@ -41,7 +41,7 @@
     'PROHIBIR:INTERNET': {
       efectos: { orden: 4, mundo: -6, tesoro: -4 },
       texto: 'Se apagan las antenas a medianoche. En los cibercafés, la gente mira pantallas negras como quien mira un pozo.',
-      programar: [{ en: 3, titulo: 'Antenas piratas', texto: 'Aparecen antenas piratas en las azoteas. Sombra calcula que hay una cada tres manzanas.', efectos: { orden: -5, pueblo: -2 } }]
+      programar: [{ en: 3, titulo: 'Antenas piratas', texto: 'Aparecen antenas piratas en las azoteas. {sombra} calcula que hay una cada tres manzanas.', efectos: { orden: -5, pueblo: -2 } }]
     },
     'PROHIBIR:DIVERSION': {
       texto: 'El Estadio Nacional se cierra con candado. Los niños juegan con latas en la calle, mirando a los lados.',
@@ -78,7 +78,7 @@
       programar: [{ en: 2, titulo: 'Fuga de capitales', texto: 'Los millonarios huyen con maletas llenas. En el aeropuerto hay tanto tráfico de jets privados que se forma un atasco en el aire.', efectos: { tesoro: -6, mundo: -4 } }]
     },
     'NACIONALIZAR:RECURSOS': {
-      programar: [{ en: 2, titulo: 'Ofertas misteriosas', texto: 'Tres potencias extranjeras ofrecen "ayuda técnica" para explotar tu petróleo. Montiel dice que la ayuda viene con portaaviones.', efectos: { mundo: -4, tesoro: 4 } }]
+      programar: [{ en: 2, titulo: 'Ofertas misteriosas', texto: 'Tres potencias extranjeras ofrecen "ayuda técnica" para explotar tu petróleo. {montiel} dice que la ayuda viene con portaaviones.', efectos: { mundo: -4, tesoro: 4 } }]
     },
     'NACIONALIZAR:EXTRANJEROS': {
       efectos: { mundo: 8, pueblo: 2 },
@@ -126,7 +126,7 @@
   // Cuando una estadística cae por debajo de 25 ocurre esto (una vez, hasta que se recupere).
   RF.UMBRALES = {
     pueblo: { titulo: 'Cacerolazo', texto: 'A las nueve de la noche, toda la ciudad golpea cacerolas. El ruido llega hasta tu dormitorio en Palacio.', efectos: { orden: -5 } },
-    ejercito: { titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a misa con Garrote. En el ejército eso significa algo.', efectos: { orden: -2 } },
+    ejercito: { titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a misa con {garrote}. En el ejército eso significa algo.', efectos: { orden: -2 } },
     cupula: { titulo: 'Cena secreta', texto: 'Las familias más ricas del país cenan juntas sin invitarte. El menú: tu sucesor.', efectos: { tesoro: -3 } },
     tesoro: { titulo: 'Arcas vacías', texto: 'Hacienda no puede pagar los sueldos de los funcionarios este mes. Los maestros cobran en vales de gasolina.', efectos: { pueblo: -4 } },
     salud: { titulo: 'Epidemia', texto: 'Un brote de fiebre se extiende por los barrios pobres. Los hospitales cuelgan el cartel de "completo".', efectos: { pueblo: -4, orden: -2 } },
@@ -143,25 +143,25 @@
     { tono: 1, titulo: 'Visita estelar', texto: 'Un cantante famoso da un concierto en la capital y se hace una foto contigo. No sabía quién eras.', efectos: { pueblo: 3, mundo: 3 } },
     { tono: -1, titulo: 'Sequía', texto: 'No llueve desde hace dos meses. Las cosechas se secan y el precio del maíz se dispara.', efectos: { salud: -3, tesoro: -4, pueblo: -2 } },
     { tono: -1, titulo: 'Filtración', texto: 'Unos hackers publican tus mensajes privados. Lo peor no son los secretos de Estado: son tus audios cantando boleros.', efectos: { mundo: -4, pueblo: -3 } },
-    { tono: 1, titulo: 'Cumbre internacional', texto: 'Valdoria es elegida sede de una cumbre regional. Montiel está feliz. Los presidentes vecinos alaban tu buffet.', efectos: { mundo: 6 } },
-    { tono: -1, titulo: 'Plaga de palomas', texto: 'Una plaga de palomas invade la capital. Rolo culpa a un país vecino. El país vecino dice que no tiene palomas.', efectos: { salud: -2, orden: -2 } },
+    { tono: 1, titulo: 'Cumbre internacional', texto: 'Valdoria es elegida sede de una cumbre regional. {montiel} está feliz. Los presidentes vecinos alaban tu buffet.', efectos: { mundo: 6 } },
+    { tono: -1, titulo: 'Plaga de palomas', texto: 'Una plaga de palomas invade la capital. {paredes} culpa a un país vecino. El país vecino dice que no tiene palomas.', efectos: { salud: -2, orden: -2 } },
     { tono: -1, titulo: 'Crisis del plátano', texto: 'El precio internacional del plátano se desploma. Tu principal exportación ya no vale nada.', efectos: { tesoro: -6 } },
     { tono: 1, titulo: 'Remesas récord', texto: 'Los valdorianos que emigraron envían más dinero que nunca. Irónicamente, tu mejor política económica es que la gente se vaya.', efectos: { tesoro: 6 } },
     { tono: 1, titulo: 'Rumor de tu muerte', texto: 'Corre el rumor de que has muerto. Sales al balcón a saludar y la gente, por la sorpresa, aplaude.', efectos: { pueblo: 3, orden: 2 } },
     { tono: -1, titulo: 'Huracán', texto: 'Un huracán arrasa la costa. La ayuda internacional llega, pero la mitad desaparece en el puerto.', efectos: { salud: -4, tesoro: -5, cupula: 3 } },
-    { tono: 1, titulo: 'Premio inesperado', texto: 'Una revista extranjera te nombra "Líder más fotogénico del año". Rolo lo manda imprimir en todas las escuelas.', efectos: { mundo: 3, pueblo: 1 } }
+    { tono: 1, titulo: 'Premio inesperado', texto: 'Una revista extranjera te nombra "Líder más fotogénico del año". {paredes} lo manda imprimir en todas las escuelas.', efectos: { mundo: 3, pueblo: 1 } }
   ];
 
   RF.FINALES = {
     pueblo: { titulo: 'REVOLUCIÓN', texto: 'La plaza se llena, luego las calles, luego los pasillos de Palacio. Escapas por un túnel secreto que resulta llevar a la cocina. Te reconoce un cocinero. Tu gobierno termina con un delantal puesto y las manos en alto.' },
-    ejercito: { titulo: 'GOLPE DE ESTADO', texto: 'A las cuatro de la madrugada, los tanques rodean Palacio. El General Garrote aparece en la televisión con tu banda presidencial puesta. Le queda un poco grande.' },
-    cupula: { titulo: 'TRAICIÓN EN PALACIO', texto: 'La cena de gala tenía un postre especial solo para ti. Leonor Cifuentes brinda "por la estabilidad" mientras te desplomas sobre la tarta.' },
+    ejercito: { titulo: 'GOLPE DE ESTADO', texto: 'A las cuatro de la madrugada, los tanques rodean Palacio. El {n_garrote} aparece en la televisión con tu banda presidencial puesta. Le queda un poco grande.' },
+    cupula: { titulo: 'TRAICIÓN EN PALACIO', texto: 'La cena de gala tenía un postre especial solo para ti. {n_cifuentes} brinda "por la estabilidad" mientras te desplomas sobre la tarta.' },
     tesoro: { titulo: 'BANCARROTA', texto: 'Valdoria no puede pagar ni la luz del Palacio. Los acreedores internacionales toman el control del país. Te ofrecen un puesto de asesor, sin sueldo.' },
     salud: { titulo: 'COLAPSO SANITARIO', texto: 'La epidemia llega a Palacio. Tus ministros huyen. Pasas tus últimos días de gobierno en cuarentena, hablando con tu propio retrato.' },
     orden: { titulo: 'ANARQUÍA', texto: 'Nadie obedece a nadie. Cada barrio tiene su propio presidente. En tu despacho han montado un mercadillo. Alguien vende tu sillón.' },
     mundo: { titulo: 'INTERVENCIÓN EXTRANJERA', texto: 'Una coalición internacional desembarca "para restaurar la democracia". Te detienen en pijama. La foto da la vuelta al mundo.' },
     elecciones_ganadas: { titulo: 'REELECCIÓN LIMPIA', texto: 'Al final de tu mandato convocas elecciones. Nadie se lo cree, pero ganas. Limpiamente. La oposición pide un recuento y, para su sorpresa, vuelves a ganar.' },
-    elecciones_amanadas: { titulo: 'REELECCIÓN CON EL 99,7%', texto: 'Convocas elecciones. Sombra se encarga del conteo. Ganas con el 99,7% de los votos, incluidos los de varios muertos y un perro. El mundo protesta un rato y luego se olvida.' },
+    elecciones_amanadas: { titulo: 'REELECCIÓN CON EL 99,7%', texto: 'Convocas elecciones. {sombra} se encarga del conteo. Ganas con el 99,7% de los votos, incluidos los de varios muertos y un perro. El mundo protesta un rato y luego se olvida.' },
     elecciones_perdidas: { titulo: 'DERROTA EN LAS URNAS', texto: 'Convocas elecciones convencido de ganar. Pierdes por goleada. Te vas al exilio con tres maletas y la estatua de 30 metros, que no cabe en el avión.' }
   };
 })(globalThis.RF = globalThis.RF || {});

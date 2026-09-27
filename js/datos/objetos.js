@@ -60,7 +60,7 @@
     },
     EMPRESAS: {
       nombre: 'las empresas', rentable: 3, faccion: 'cupula', gente: 1,
-      formas: ['las empresas', 'los ricos', 'los empresarios', 'los bancos', 'los millonarios', 'las multinacionales', 'las fabricas', 'la bolsa', 'los oligarcas']
+      formas: ['las empresas', 'los ricos', 'los empresarios', 'los bancos', 'los millonarios', 'las multinacionales', 'la bolsa', 'los oligarcas']
     },
     TRABAJADORES: {
       nombre: 'los trabajadores', esencial: 2, faccion: 'pueblo', gente: 1,
@@ -88,7 +88,7 @@
     },
     EXTRANJEROS: {
       nombre: 'los extranjeros', libertad: 1, afecta: 'mundo', gente: 1,
-      formas: ['los extranjeros', 'los inmigrantes', 'los turistas', 'la frontera', 'las fronteras', 'viajar', 'las importaciones', 'los visados']
+      formas: ['los extranjeros', 'los inmigrantes', 'la frontera', 'las fronteras', 'viajar', 'las importaciones', 'los visados']
     },
     ARMAS: {
       nombre: 'las armas', afecta: 'orden', rentable: 1,
@@ -122,6 +122,54 @@
       nombre: 'el medio ambiente', esencial: 1, afecta: 'salud', rentable: 1,
       formas: ['el medio ambiente', 'la contaminación', 'el plástico', 'los árboles', 'la basura', 'el reciclaje', 'las playas', 'la naturaleza', 'las bolsas de plástico']
     },
+    // ---------- Sectores de la economía ----------
+    AGRO: {
+      nombre: 'la agricultura', esencial: 1, rentable: 2, sector: 'agro',
+      formas: ['la agricultura', 'el campo', 'el platano', 'los platanos', 'el cafe', 'el cacao', 'las cosechas', 'la ganaderia', 'las plantaciones', 'el azucar']
+    },
+    CARBON: {
+      nombre: 'el carbón', rentable: 2, afecta: 'salud', sector: 'carbon',
+      formas: ['el carbón', 'las minas de carbón', 'las centrales de carbón', 'las carboneras', 'las termoeléctricas', 'la minería de carbón']
+    },
+    INDUSTRIA: {
+      nombre: 'la industria', rentable: 2, esencial: 1, sector: 'industria',
+      formas: ['la industria', 'las fábricas', 'la manufactura', 'el acero', 'las maquilas', 'la industria pesada', 'las fundiciones', 'los astilleros']
+    },
+    TURISMO: {
+      nombre: 'el turismo', rentable: 2, popular: 1, sector: 'turismo',
+      formas: ['el turismo', 'los turistas', 'los hoteles', 'los cruceros', 'los resorts', 'el turismo de lujo']
+    },
+    NARCO: {
+      nombre: 'el narcotráfico', rentable: 3, vicio: 1, afecta: 'orden', sector: 'narco',
+      formas: ['el narcotráfico', 'el narco', 'la cocaína', 'los cárteles', 'la coca', 'las plantaciones de coca', 'el tráfico de drogas', 'narcotraficar']
+    },
+    DINERO: {
+      nombre: 'el valdo', rentable: 1,
+      formas: ['el dinero', 'los billetes', 'la moneda', 'el valdo', 'la moneda nacional', 'dinero nuevo']
+    },
+
+    // ---------- Instituciones del régimen (se crean y siguen actuando cada día) ----------
+    ESCUADRON: {
+      nombre: 'el Escuadrón de Orden Patriótico', institucion: 1, gente: 1, afecta: 'orden',
+      formas: ['una escuadra de represión', 'un escuadrón de la muerte', 'un grupo de choque', 'los paramilitares', 'una policía secreta', 'una brigada de represión', 'la guardia pretoriana', 'una fuerza de represión', 'el escuadrón', 'los encapuchados']
+    },
+    MILICIA: {
+      nombre: 'las Milicias Populares', institucion: 1, gente: 1,
+      formas: ['las milicias', 'las milicias populares', 'los colectivos', 'la guardia revolucionaria', 'milicianos', 'el pueblo en armas']
+    },
+    ESPIAS: {
+      nombre: 'la Dirección de Inteligencia', institucion: 1, gente: 1,
+      formas: ['una red de espías', 'el servicio de inteligencia', 'los espías', 'los soplones', 'los informantes', 'los chivatos', 'la inteligencia', 'el espionaje']
+    },
+    PARTIDO: {
+      nombre: 'el Partido de la Patria', institucion: 1, gente: 1,
+      formas: ['un partido único', 'el partido', 'el partido del gobierno', 'las juventudes del partido', 'un movimiento patriótico', 'el partido oficial']
+    },
+    PROPAGANDA: {
+      nombre: 'el Ministerio de la Verdad', institucion: 1,
+      formas: ['un ministerio de propaganda', 'el ministerio de la verdad', 'la propaganda', 'el aparato de propaganda', 'una agencia de noticias oficial', 'los trolls', 'granjas de bots']
+    },
+
     // Sin formas: el Intérprete lo usa cuando el decreto es para todos ("subir impuestos").
     GENERAL: {
       nombre: 'todo el mundo', esencial: 1, faccion: 'pueblo', gente: 1,

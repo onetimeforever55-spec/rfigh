@@ -81,6 +81,13 @@
     [/^basta de\b/, 'prohibir'],
     [/^abajo (con )?/, 'prohibir '],
     [/^viva\b/, 'homenaje a'],
-    [/^muerte a\b/, 'ejecutar a']
+    [/^muerte a\b/, 'ejecutar a'],
+    [/\bnarco ?(estado|pais|republica|gobierno)\b/g, 'economia basada en el narcotrafico'],
+    [/\bestado narco\b/g, 'economia basada en el narcotrafico'],
+    [/\bescuadrones? de la muerte\b/g, 'escuadron de la muerte'],
+    [/\bescuadra de represion\b/g, 'escuadra de represion'],
+    [/\bdolarizar\b/g, 'prohibir el valdo'],
+    [/\bdevaluar\b/g, 'recortar'],
+    [/\bimprimir (mas )?(dinero|billetes|plata)\b/g, 'imprimir dinero nuevo']
   ];
 })(globalThis.RF = globalThis.RF || {});

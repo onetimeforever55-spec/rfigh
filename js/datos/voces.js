@@ -84,7 +84,7 @@
   // Cómo amanece el país. Se elige por la estadística más baja (si es preocupante) o por el ánimo general.
   RF.AMBIENTE = {
     pueblo: ['Amanece con pintadas nuevas en las paredes del centro. Los barrenderos ya no se molestan en borrarlas.', 'En los mercados se habla bajito y se mira mucho al Palacio.', 'Las cacerolas de anoche aún resuenan en la cabeza de los vecinos.'],
-    ejercito: ['Hay más movimiento del habitual en los cuarteles. Nadie da explicaciones.', 'Un tanque aparca frente al Palacio "por mantenimiento". Nadie se lo cree.', 'Garrote ha cancelado el desayuno semanal contigo. Por segunda vez.'],
+    ejercito: ['Hay más movimiento del habitual en los cuarteles. Nadie da explicaciones.', 'Un tanque aparca frente al Palacio "por mantenimiento". Nadie se lo cree.', '{garrote} ha cancelado el desayuno semanal contigo. Por segunda vez.'],
     cupula: ['Los coches de lujo del Club Náutico salen de madrugada rumbo al aeropuerto.', 'En Palacio, los ministros se callan cuando entras en la sala.', 'Alguien ha cambiado la cerradura de tu despacho. Dicen que fue el conserje.'],
     tesoro: ['Los funcionarios hacen cola frente a Hacienda para cobrar. La cola no avanza.', 'El valdo amanece otra vez por los suelos. Las casas de cambio cierran antes de abrir.', 'En Palacio se ha cortado el aire acondicionado para ahorrar. Hace un calor insoportable.'],
     salud: ['En la puerta del Hospital Central, la fila empieza de madrugada.', 'Las farmacias cuelgan el cartel de "no hay". Otra vez.', 'Se oye toser en todas las colas del país.'],
@@ -114,7 +114,7 @@
   RF.ECOS = [
     'En el mercado todavía se habla de {anterior}.',
     'Algunos dicen que esto es peor que {anterior}. Otros, que es la continuación.',
-    'Rolo intenta que la gente olvide {anterior} con este nuevo decreto. No funciona del todo.',
+    '{paredes} intenta que la gente olvide {anterior} con este nuevo decreto. No funciona del todo.',
     'Hay quien guarda los recortes de prensa de {anterior}, "para cuando haya juicio".',
     'Los vendedores de camisetas ya estampan {anterior} y esto en la misma prenda: "Yo sobreviví a los dos".'
   ];

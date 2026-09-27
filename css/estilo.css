@@ -99,6 +99,31 @@ body {
 
 @keyframes parpadeo { 50% { opacity: 0.45; } }
 
+/* Línea del mercado bajo las barras: se pulsa para ver la economía. */
+.ticker {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 3px 0 0;
+  border: 0;
+  border-top: 1px dashed var(--linea);
+  background: none;
+  color: var(--fosforo-tenue);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.ticker:hover { color: var(--fosforo); }
+.ticker.alerta { color: var(--aviso); }
+.b-suceso.mercado .etiqueta { color: var(--bien); }
+.b-suceso.institucion { border-style: dashed; }
+
 /* ---------- Historia ---------- */
 .registro {
   flex: 1 1 auto;

@@ -18,102 +18,102 @@
     garrote: {
       nombre: 'General Bruno Garrote', corto: 'Garrote', cargo: 'Ministro de Defensa', stats: ['ejercito'],
       pos: [
-        'El General Garrote golpea la mesa con el puño. "[Por fin|Al fin|Ya era hora], {lider}. Así se gobierna." Esa noche los cuarteles brindan en su nombre.',
-        'Garrote se ajusta las medallas. "El ejército aprueba {medida}." No sonríe, pero tampoco hace falta.',
-        'En el cuartel central, los oficiales comentan {medida} con aprobación. Garrote manda una caja de puros a Palacio.'
+        'El {n_garrote} golpea la mesa con el puño. "[Por fin|Al fin|Ya era hora], {lider}. Así se gobierna." Esa noche los cuarteles brindan en su nombre.',
+        '{garrote} se ajusta las medallas. "El ejército aprueba {medida}." No sonríe, pero tampoco hace falta.',
+        'En el cuartel central, los oficiales comentan {medida} con aprobación. {garrote} manda una caja de puros a Palacio.'
       ],
       neg: [
-        'El General Garrote escucha el anuncio sin parpadear. Después pide su coche y no vuelve a Palacio en todo el día.',
-        '"Con todo respeto, {lider}," dice Garrote, "{medida} no le gusta a mis muchachos." Lo de "con todo respeto" suena a amenaza.',
-        'Garrote convoca a los coroneles a una reunión "de rutina". Nadie en Palacio sabe de qué hablaron.'
+        'El {n_garrote} escucha el anuncio sin parpadear. Después pide su coche y no vuelve a Palacio en todo el día.',
+        '"Con todo respeto, {lider}," dice {garrote}, "{medida} no le gusta a mis muchachos." Lo de "con todo respeto" suena a amenaza.',
+        '{garrote} convoca a los coroneles a una reunión "de rutina". Nadie en Palacio sabe de qué hablaron.'
       ],
       bajo: [
-        'Se ven luces encendidas de madrugada en el Estado Mayor. Garrote ya no contesta sus llamadas a la primera.',
+        'Se ven luces encendidas de madrugada en el Estado Mayor. {garrote} ya no contesta sus llamadas a la primera.',
         'Un coronel joven le susurra a tu secretaria: "Cuide a Su Excelencia. Hay gente contando tanques."'
       ]
     },
     cifuentes: {
       nombre: 'Leonor Cifuentes', corto: 'Cifuentes', cargo: 'Ministra de Hacienda', stats: ['tesoro', 'cupula'],
       pos: [
-        'Leonor Cifuentes repasa las cuentas y sonríe con los labios, no con los ojos. "Las familias importantes están contentas, {lider}."',
-        'Cifuentes brinda con champán importado en el Club Náutico. Los empresarios la llaman "la ministra razonable".',
-        '"Excelente decisión," dice Cifuentes mientras anota algo en una libreta que nunca deja ver a nadie.'
+        '{n_cifuentes} repasa las cuentas y sonríe con los labios, no con los ojos. "Las familias importantes están contentas, {lider}."',
+        '{cifuentes} brinda con champán importado en el Club Náutico. Los empresarios la llaman "la ministra razonable".',
+        '"Excelente decisión," dice {cifuentes} mientras anota algo en una libreta que nunca deja ver a nadie.'
       ],
       neg: [
-        'Cifuentes cierra la carpeta de golpe. "¿Sabe cuánto nos cuesta {medida}? No, claro que no lo sabe."',
-        'Esa noche, Leonor Cifuentes cena con tres banqueros. En la mesa de al lado, un periodista extranjero toma notas.',
-        'La ministra Cifuentes pide ver los libros contables "por si acaso". Nadie sabe qué significa ese "por si acaso".'
+        '{cifuentes} cierra la carpeta de golpe. "¿Sabe cuánto nos cuesta {medida}? No, claro que no lo sabe."',
+        'Esa noche, {n_cifuentes} cena con tres banqueros. En la mesa de al lado, un periodista extranjero toma notas.',
+        '{n_cifuentes} pide ver los libros contables "por si acaso". Nadie sabe qué significa ese "por si acaso".'
       ],
       bajo: [
-        'Cifuentes ha abierto una cuenta en un banco suizo. Tus espías lo saben. Ella sabe que tú lo sabes.',
+        '{cifuentes} ha abierto una cuenta en un banco suizo. Tus espías lo saben. Ella sabe que tú lo sabes.',
         'En el Club Náutico ya no se brinda por ti. Se brinda por "lo que venga después".'
       ]
     },
     sombra: {
       nombre: 'Octavio Sombra', corto: 'Sombra', cargo: 'Ministro del Interior', stats: ['orden'],
       pos: [
-        'Octavio Sombra deja una carpeta sobre tu escritorio: calles tranquilas, archivos llenos. "Todo bajo control, {lider}."',
-        'Sombra asiente despacio. "La gente obedece mejor cuando sabe que la estamos mirando."',
-        'En el sótano del Ministerio del Interior, las máquinas de escribir no paran. Sombra está de buen humor.'
+        '{n_sombra} deja una carpeta sobre tu escritorio: calles tranquilas, archivos llenos. "Todo bajo control, {lider}."',
+        '{sombra} asiente despacio. "La gente obedece mejor cuando sabe que la estamos mirando."',
+        'En el sótano del Ministerio del Interior, las máquinas de escribir no paran. {sombra} está de buen humor.'
       ],
       neg: [
-        'Sombra frunce el ceño. "Con {medida} las calles se van a calentar. Mis hombres no son suficientes."',
-        '"Voy a necesitar más agentes," dice Sombra. "Y más celdas. Y más paciencia, {lider}."',
-        'Octavio Sombra enciende un cigarro en la ventana y mira la plaza. "Esto va a traer problemas."'
+        '{sombra} frunce el ceño. "Con {medida} las calles se van a calentar. Mis hombres no son suficientes."',
+        '"Voy a necesitar más agentes," dice {sombra}. "Y más celdas. Y más paciencia, {lider}."',
+        '{n_sombra} enciende un cigarro en la ventana y mira la plaza. "Esto va a traer problemas."'
       ],
       bajo: [
-        'Sombra ya no te cuenta todo. Sus informes llegan tarde y con páginas arrancadas.',
+        '{sombra} ya no te cuenta todo. Sus informes llegan tarde y con páginas arrancadas.',
         'Hay pintadas contra ti en la pared del propio Ministerio del Interior. Nadie vio nada.'
       ]
     },
     paredes: {
       nombre: 'Rolando "Rolo" Paredes', corto: 'Rolo', cargo: 'Jefe de Propaganda', stats: ['pueblo'],
       pos: [
-        'Rolo Paredes ya tiene el eslogan: "¡{Medida}, la Patria lo agradece!" Los carteles se imprimen esa misma noche.',
-        'En la televisión estatal, Rolo presenta {medida} con música épica y niños sonriendo. Esta vez la gente sonríe de verdad.',
-        '"Esto se vende solo, {lider}," dice Rolo. Por primera vez en semanas no tiene que inventar nada.'
+        '{n_paredes} ya tiene el eslogan: "¡{Medida}, la Patria lo agradece!" Los carteles se imprimen esa misma noche.',
+        'En la televisión estatal, {paredes} presenta {medida} con música épica y niños sonriendo. Esta vez la gente sonríe de verdad.',
+        '"Esto se vende solo, {lider}," dice {paredes}. Por primera vez en semanas no tiene que inventar nada.'
       ],
       neg: [
-        'Rolo Paredes suda. "Puedo venderlo, {lider}. Todo se puede vender. Pero {medida} me lo pone difícil."',
+        '{n_paredes} suda. "Puedo venderlo, {lider}. Todo se puede vender. Pero {medida} me lo pone difícil."',
         'La televisión estatal dedica tres horas a un documental sobre patos para no hablar de {medida}.',
-        'Rolo manda imprimir carteles que dicen "Sacrificio es Patriotismo". Alguien les pinta bigotes antes del amanecer.'
+        '{paredes} manda imprimir carteles que dicen "Sacrificio es Patriotismo". Alguien les pinta bigotes antes del amanecer.'
       ],
       bajo: [
-        'Ya ni la televisión estatal logra tapar los abucheos. Rolo ha empezado a hablar de ti en pasado.',
-        'Rolo Paredes pide vacaciones "por salud". Tiene el pasaporte en el bolsillo.'
+        'Ya ni la televisión estatal logra tapar los abucheos. {paredes} ha empezado a hablar de ti en pasado.',
+        '{n_paredes} pide vacaciones "por salud". Tiene el pasaporte en el bolsillo.'
       ]
     },
     montiel: {
       nombre: 'Isabela Montiel', corto: 'Montiel', cargo: 'Canciller', stats: ['mundo'],
       pos: [
-        'La canciller Montiel recibe llamadas de felicitación de tres embajadas. "El mundo nos mira con otros ojos, {lider}."',
-        'Montiel sonríe en la cumbre regional. Por una vez nadie le pregunta por los derechos humanos.',
-        'Un periódico extranjero publica: "Valdoria sorprende". Montiel lo enmarca.'
+        'La canciller {montiel} recibe llamadas de felicitación de tres embajadas. "El mundo nos mira con otros ojos, {lider}."',
+        '{montiel} sonríe en la cumbre regional. Por una vez nadie le pregunta por los derechos humanos.',
+        'Un periódico extranjero publica: "Valdoria sorprende". {montiel} lo enmarca.'
       ],
       neg: [
-        'Isabela Montiel cuelga el teléfono, pálida. "Era el embajador. Dice que {medida} es un escándalo internacional."',
+        '{n_montiel} cuelga el teléfono, pálida. "Era el embajador. Dice que {medida} es un escándalo internacional."',
         'La prensa extranjera se burla de {medida}. En un programa de humor americano ya te imitan.',
-        'Montiel cancela su viaje a la cumbre. "No quiero que me tiren tomates, {lider}."'
+        '{montiel} cancela su viaje a la cumbre. "No quiero que me tiren tomates, {lider}."'
       ],
       bajo: [
-        'Varios embajadores han "llamado a consultas" a sus diplomáticos. Montiel teme que la próxima llamada sea un ultimátum.',
-        'Montiel te enseña un mapa con barcos de guerra. No son los tuyos.'
+        'Varios embajadores han "llamado a consultas" a sus diplomáticos. {montiel} teme que la próxima llamada sea un ultimátum.',
+        '{montiel} te enseña un mapa con barcos de guerra. No son los tuyos.'
       ]
     },
     ventura: {
       nombre: 'Dr. Aurelio Ventura', corto: 'Ventura', cargo: 'Ministro de Salud', stats: ['salud'],
       pos: [
-        'El Dr. Ventura se quita las gafas y respira hondo. "Esto va a salvar vidas, {lider}. Gracias."',
-        'Ventura visita el Hospital Central y por primera vez nadie le grita en el pasillo.'
+        '{n_ventura} se quita las gafas y respira hondo. "Esto va a salvar vidas, {lider}. Gracias."',
+        '{ventura} visita el Hospital Central y por primera vez nadie le grita en el pasillo.'
       ],
       neg: [
-        'El Dr. Ventura lee el decreto dos veces. "¿Sabe cuánta gente va a enfermar con {medida}?" No espera respuesta.',
-        'Ventura firma su parte de {medida} con la mano temblando. Luego va al baño a vomitar.',
-        '"Voy a necesitar más camas," dice Ventura. "Y más ataúdes."'
+        '{n_ventura} lee el decreto dos veces. "¿Sabe cuánta gente va a enfermar con {medida}?" No espera respuesta.',
+        '{ventura} firma su parte de {medida} con la mano temblando. Luego va al baño a vomitar.',
+        '"Voy a necesitar más camas," dice {ventura}. "Y más ataúdes."'
       ],
       bajo: [
-        'Los hospitales atienden en los pasillos. Ventura ha dejado de dormir y ha empezado a beber.',
-        'Ventura presenta su dimisión. La rompes. Él la vuelve a escribir.'
+        'Los hospitales atienden en los pasillos. {ventura} ha dejado de dormir y ha empezado a beber.',
+        '{ventura} presenta su dimisión. La rompes. Él la vuelve a escribir.'
       ]
     }
   };
@@ -173,7 +173,7 @@
         'A Nico le da igual {medida}. Esta semana tiene exámenes.'
       ],
       hitos: [
-        { id: 'nico_resistencia', bajo: -40, texto: 'Nico ha dejado la universidad. Su abuela dice que "se fue al campo". Los informes de Sombra dicen que se unió a la resistencia.', efectos: { orden: -4 } },
+        { id: 'nico_resistencia', bajo: -40, texto: 'Nico ha dejado la universidad. Su abuela dice que "se fue al campo". Los informes de {sombra} dicen que se unió a la resistencia.', efectos: { orden: -4 } },
         { id: 'nico_juventudes', alto: 40, texto: 'Nico se ha unido a las Juventudes Patrióticas. Su abuela no sabe si alegrarse o preocuparse.', efectos: { pueblo: 2, orden: 2 } }
       ],
       finales: {

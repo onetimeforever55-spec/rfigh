@@ -16,7 +16,7 @@
         'nadie puede tener {o}', 'no se permite {o}', 'no se puede usar {o}', 'eliminar {o}', 'abolir {o}',
         'vetar {o}', '{o} es ilegal', 'ilegalizar {o}', 'quiero que desaparezca {o}', 'fuera {o}',
         'se acabo {o}', 'clausurar {o}', 'cerrar {o}', 'bloquear {o}', 'censurar {o}', 'nadie puede usar {o}',
-        'queda terminantemente prohibido {o}', 'nada de {o}', 'erradicar {o}', 'suprimir {o}', 'prohiban {o}', 'que cierren {o}', 'eliminen {o}', 'quitar {o}', 'se acabo {o} para siempre', 'mandar a cerrar {o}', 'que no exista {o}', 'desaparecer {o}', 'nadie puede {o}', 'queda vetado {o}', 'restringir {o}', 'limitar {o}'
+        'queda terminantemente prohibido {o}', 'nada de {o}', 'erradicar {o}', 'suprimir {o}', 'prohiban {o}', 'que cierren {o}', 'eliminen {o}', 'quitar {o}', 'se acabo {o} para siempre', 'mandar a cerrar {o}', 'que no exista {o}', 'desaparecer {o}', 'nadie puede {o}', 'queda vetado {o}', 'restringir {o}', 'limitar {o}', 'disolver {o}', 'desmantelar {o}', 'acabar con {o}'
       ]
     },
     OBLIGAR: {
@@ -133,6 +133,29 @@
         'quitar fondos a {o}', 'desfinanciar {o}', 'congelar el presupuesto de {o}', 'austeridad en {o}',
         'reducir {o}', 'despedir a {o}', 'bajar el sueldo a {o}', 'eliminar ayudas a {o}', 'quitar subsidios a {o}',
         'menos {o}', 'ajuste en {o}', 'tijeretazo a {o}', 'reducir el gasto en {o}', 'recorten {o}', 'despidan a {o}', 'reducir a la mitad {o}', 'menos presupuesto para {o}', 'privar de fondos a {o}', 'reducir personal de {o}', 'ahorrar en {o}'
+      ]
+    },
+    ENFOCAR: {
+      nombre: 'Reconvertir la economía',
+      nominal: 'la reconversión de la economía hacia {o}',
+      inversa: null,
+      frases: [
+        'que toda la economia sea {o}', 'economia basada en {o}', 'toda la economia al {o}', 'economia del {o}',
+        'convertir el pais en potencia de {o}', 'apostar todo al {o}', 'vivir del {o}', 'el pais vivira de {o}',
+        'modelo economico de {o}', 'centrar la economia en {o}', 'reconvertir la economia hacia {o}',
+        'que el pais produzca solo {o}', 'hacer de valdoria un pais de {o}', 'economia centrada en {o}',
+        'que la economia dependa de {o}', 'potencia mundial del {o}', 'la economia sera de {o}', 'giro economico hacia {o}',
+        'cambiar la economia a {o}', 'reorientar la economia al {o}', 'exportar solo {o}', 'hacer un pais de {o}'
+      ]
+    },
+    CREAR: {
+      nombre: 'Crear',
+      nominal: 'la creación {de}',
+      inversa: 'PROHIBIR',
+      frases: [
+        'crear {o}', 'fundar {o}', 'formar {o}', 'organizar {o}', 'montar {o}', 'establecer {o}', 'armar {o}',
+        'crear un {o}', 'crear una {o}', 'fundar un {o}', 'instaurar {o}', 'inaugurar {o}', 'poner en marcha {o}',
+        'crear un cuerpo de {o}', 'formar una unidad de {o}', 'entrenar {o}', 'reclutar {o}', 'imprimir {o}', 'emitir {o}'
       ]
     },
     GLORIFICAR: {

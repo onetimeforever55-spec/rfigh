@@ -68,7 +68,7 @@
   // Corrige una palabra desconocida con la más parecida del vocabulario.
   function corregir(p, vocab) {
     if (p.length < 4 || vocab.has(p) || VACIAS.has(p) || NEGACIONES.has(p) || /\d/.test(p)) return p;
-    const max = p.length <= 5 ? 1 : 2;
+    const max = p.length <= 6 ? 1 : 2;
     let mejor = p, mejorD = max + 1;
     for (const v of vocab) {
       if (v[0] !== p[0]) continue; // las faltas reales casi nunca cambian la primera letra
@@ -88,12 +88,20 @@
     while ((m = re.exec(t)) && guardia++ < 200) {
       t = t.slice(0, m.index) + azar(m[1].split('|')) + t.slice(m.index + m[0].length);
     }
-    return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : '{' + k + '}'));
+    // Variables globales (nombres de los ministros actuales) + las de esta llamada.
+    const todas = Object.assign({}, RF.VARS || {}, vars || {});
+    return t.replace(/\{(\w+)\}/g, (_, k) => (todas[k] != null ? todas[k] : '{' + k + '}'));
   }
 
   function de(nombre) { return /^el /i.test(nombre) ? 'del ' + nombre.slice(3) : 'de ' + nombre; }
   function a(nombre) { return /^el /i.test(nombre) ? 'al ' + nombre.slice(3) : 'a ' + nombre; }
   function mayus(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+
+  RF.VARS = RF.VARS || {
+    garrote: 'Garrote', n_garrote: 'General Bruno Garrote', cifuentes: 'Cifuentes', n_cifuentes: 'Leonor Cifuentes',
+    sombra: 'Sombra', n_sombra: 'Octavio Sombra', paredes: 'Rolo', n_paredes: 'Rolo Paredes',
+    montiel: 'Montiel', n_montiel: 'Isabela Montiel', ventura: 'Ventura', n_ventura: 'Dr. Aurelio Ventura', lider: 'Su Excelencia'
+  };
 
   RF.texto = { VACIAS, NEGACIONES, normalizar, palabras, raiz, distancia, corregir, azar, expandir, de, a, mayus };
 })(globalThis.RF = globalThis.RF || {});

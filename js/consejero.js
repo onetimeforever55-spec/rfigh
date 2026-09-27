@@ -18,6 +18,13 @@
   ];
 
   function nuevoEstado() {
+    const e = estadoInicial();
+    e.eco = RF.economia.nueva();
+    RF.poder.iniciar(e);
+    return e;
+  }
+
+  function estadoInicial() {
     const ciudadanos = {};
     for (const id of Object.keys(RF.CIUDADANOS)) ciudadanos[id] = { animo: 0, hitos: [], ultimaVez: -99 };
     return {
@@ -130,6 +137,9 @@
         sumar(d, 'orden', o.vicio ? -3 : -1);
         if (o.vicio) { sumar(d, 'tesoro', 5); sumar(d, 'salud', -3); ingresos += 1; }
         break;
+      case 'ENFOCAR':
+        break; // la reconversión la calcula la economía
+      case 'CREAR':
       case 'INVERTIR':
         sumar(d, 'tesoro', -(8 + 2 * E));
         sumar(d, 'pueblo', 2);
@@ -166,7 +176,7 @@
       p.push({ en: 3, titulo: 'Mercado negro', texto: 'Surge un mercado negro de {objeto}. Quien puede pagar, paga dos veces. Quien no, se las arregla como puede.', efectos: { orden: -4, salud: o.afecta === 'salud' ? -3 : 0 } });
     if (accion === 'PROHIBIR' && (P >= 2 || o.vicio))
       p.push({ en: 3, titulo: 'Clandestinidad', texto: 'Lo de {objeto} pasa a la clandestinidad. Lo que antes era normal ahora se hace en sótanos, y los sótanos cobran entrada.', efectos: { orden: -4, cupula: 2 } });
-    if (accion === 'INVERTIR')
+    if (accion === 'INVERTIR' || accion === 'CREAR')
       p.push({ en: 4, titulo: 'Los frutos de la inversión', texto: 'Empiezan a notarse los resultados de {medida}. Hasta los más críticos lo reconocen en voz baja.', efectos: { pueblo: 3 + 2 * E, [o.afecta || 'tesoro']: o.afecta ? 6 : 4 }, ingresos: R >= 1 ? 1 : 0 });
     if (accion === 'RECORTAR')
       p.push({ en: 4, titulo: 'La factura del recorte', texto: 'Los efectos de {medida} llegan a la calle: servicios cerrados, colas más largas, gente más cansada.', efectos: { pueblo: -3, [o.afecta || 'orden']: -5 } });
@@ -190,7 +200,8 @@
 
   // El personaje de a pie que protagoniza la escena: alguien a quien le importa el tema.
   function elegirCiudadano(estado, objId) {
-    const ids = Object.keys(RF.CIUDADANOS);
+    const ids = Object.keys(RF.CIUDADANOS).filter(id => !estado.ciudadanos[id].estado || estado.ciudadanos[id].estado === 'libre');
+    if (!ids.length) return null;
     const interesados = ids.filter(id => RF.CIUDADANOS[id].intereses.includes(objId));
     const pool = interesados.length ? interesados : ids;
     pool.sort((a, b) => estado.ciudadanos[a].ultimaVez - estado.ciudadanos[b].ultimaVez);
@@ -237,10 +248,15 @@
     const especial = RF.ESPECIALES[clave];
     const res = { dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, medida: laMedida, vars, deltas: {}, sucesos: [], notas: [] };
 
-    // 1. Efectos del decreto.
-    const base = efectosBase(accion, o);
+    // 1. Efectos del decreto: los de una institución sustituyen a los generales.
+    const inst = RF.poder.aplicarInstitucion(estado, accion, objId);
+    const base = inst ? { d: inst.efectos, ingresos: 0 } : efectosBase(accion, o);
     const efectos = Object.assign({}, base.d);
     if (especial && especial.efectos) for (const [k, v] of Object.entries(especial.efectos)) sumar(efectos, k, v);
+    const eco = RF.economia.aplicarDecreto(estado, accion, objId, nombre);
+    for (const [k, v] of Object.entries(eco.efectos)) sumar(efectos, k, v);
+    if (inst) res.notas.push(...inst.notas);
+    res.notas.push(...eco.notas);
 
     // Repetir el mismo decreto cansa: cada vez hace la mitad de efecto.
     // Y lo que ya se vendió (o expropió) no se puede volver a vender.
@@ -267,9 +283,10 @@
     estado.ingresos = Math.max(-6, Math.min(6, estado.ingresos + Math.round(base.ingresos * Math.min(1, factor))));
     res.cambioIngresos = estado.ingresos - ingresosAntes;
     if (especial && especial.texto) res.especial = T.expandir(especial.texto, vars);
+    if (inst && inst.texto) res.especial = inst.texto;
 
     // 2. Consecuencias con retraso.
-    const programadas = (especial && especial.programar)
+    const programadas = inst ? [] : (especial && especial.programar)
       ? especial.programar.map(p => Object.assign({}, p, { texto: T.expandir(p.texto, vars) }))
       : programarGenericas(accion, o, vars);
     for (const p of programadas) estado.pendientes.push(Object.assign({}, p, { dia: estado.dia + p.en }));
@@ -279,18 +296,48 @@
     res.numero = estado.historial.length;
 
     // 3. Reacciones: un ministro y una persona de la calle.
-    res.ministro = elegirMinistro(res.deltas);
-    const cid = elegirCiudadano(estado, objId);
-    const interesado = RF.CIUDADANOS[cid].intereses.includes(objId);
-    let impacto = (res.deltas.pueblo || 0) + (interesado ? 0.5 * ((res.deltas.salud || 0) + (o.faccion === 'pueblo' ? res.deltas.pueblo || 0 : 0)) : 0);
-    for (const [id, c] of Object.entries(estado.ciudadanos)) {
-      c.animo = Math.max(-100, Math.min(100, c.animo + (res.deltas.pueblo || 0) * 0.35));
-      if (id === cid) c.animo = Math.max(-100, Math.min(100, c.animo + impacto * 0.4 + (interesado ? Math.sign(impacto) * 4 : 0)));
-    }
-    estado.ciudadanos[cid].ultimaVez = estado.dia;
-    res.ciudadano = { id: cid, sentimiento: impacto > 2 ? 'pos' : impacto < -2 ? 'neg' : 'neu' };
+    reacciones(estado, res, objId, o);
 
     // 4. Pasa el día (si es el último decreto de la jornada).
+    if (op.avanzar !== false) avanzarDia(estado, res);
+    return res;
+  }
+
+  function reacciones(estado, res, objId, o) {
+    res.ministro = elegirMinistro(res.deltas);
+    const cid = elegirCiudadano(estado, objId);
+    for (const c of Object.values(estado.ciudadanos)) c.animo = Math.max(-100, Math.min(100, c.animo + (res.deltas.pueblo || 0) * 0.35));
+    if (!cid) { res.ciudadano = null; return; }
+    const interesado = RF.CIUDADANOS[cid].intereses.includes(objId);
+    const impacto = (res.deltas.pueblo || 0) + (interesado ? 0.5 * ((res.deltas.salud || 0) + (o && o.faccion === 'pueblo' ? res.deltas.pueblo || 0 : 0)) : 0);
+    const c = estado.ciudadanos[cid];
+    c.animo = Math.max(-100, Math.min(100, c.animo + impacto * 0.4 + (interesado ? Math.sign(impacto) * 4 : 0)));
+    c.ultimaVez = estado.dia;
+    res.ciudadano = { id: cid, sentimiento: impacto > 2 ? 'pos' : impacto < -2 ? 'neg' : 'neu' };
+  }
+
+  /*
+   * Decreto sobre una persona: "matar a Garrote", "encarcelar a Nico", "premiar a la canciller".
+   */
+  function decretarPersona(estado, interp, op) {
+    op = op || {};
+    const t = RF.poder.tratar(estado, interp.persona, interp.trato, interp.caido);
+    const res = { dia: estado.dia, tipo: 'persona', persona: interp.persona, trato: interp.trato, deltas: {}, sucesos: [], notas: t.notas.slice(), vars: { lider: 'Su Excelencia' } };
+    if (t.nulo) { res.nulo = t.nulo; return res; }
+    res.medida = t.medida;
+    res.nombreObjeto = t.nombre;
+    res.vars = { objeto: t.nombre, Objeto: t.nombre, medida: t.medida, Medida: T.mayus(t.medida), lider: 'Su Excelencia' };
+    res.especial = t.texto;
+    res.sucesor = t.sucesor || null;
+    const factor = op.secundario ? 0.75 : 1;
+    const efectos = {};
+    for (const [k, v] of Object.entries(t.efectos)) efectos[k] = Math.round(v * factor);
+    aplicarEfectos(estado, efectos, res.deltas);
+    if (t.cadena) estado.dilemas.cadena.push({ id: t.cadena.id, dia: estado.dia + t.cadena.en });
+    estado.historial.push({ dia: estado.dia, accion: 'PERSONA', objeto: interp.persona, nombreObjeto: t.nombre, medida: t.medida, texto: interp.texto });
+    res.numero = estado.historial.length;
+    const tipo = RF.PERSONAS[interp.persona].tipo;
+    reacciones(estado, res, tipo === 'opositor' ? 'OPOSICION' : tipo === 'extranjero' ? 'EXTRANJEROS' : 'LIDER', null);
     if (op.avanzar !== false) avanzarDia(estado, res);
     return res;
   }
@@ -306,6 +353,15 @@
     for (const [k, v] of Object.entries(estado.stats)) if (v > 75) sumar(desgaste, k, -2);
     aplicarEfectos(estado, desgaste);
 
+    // Economía (mercado, reconversión, paro, inflación...) e instituciones del régimen.
+    const diario = {};
+    const eco = RF.economia.dia(estado, res);
+    const inst = RF.poder.dia(estado, res);
+    for (const r of [eco, inst]) for (const [k, v] of Object.entries(r)) diario[k] = (diario[k] || 0) + v;
+    res.economia += diario.tesoro || 0;
+    delete diario.tesoro;
+    res.diario = diario;
+
     // Consecuencias que tocan hoy.
     const hoy = estado.pendientes.filter(p => p.dia <= estado.dia);
     estado.pendientes = estado.pendientes.filter(p => p.dia > estado.dia);
@@ -318,13 +374,14 @@
 
     // Hitos de la gente de a pie.
     for (const [id, c] of Object.entries(estado.ciudadanos)) {
+      if (c.estado && c.estado !== 'libre') continue;
       for (const h of RF.CIUDADANOS[id].hitos) {
         if (c.hitos.includes(h.id)) continue;
         if ((h.bajo != null && c.animo <= h.bajo) || (h.alto != null && c.animo >= h.alto)) {
           c.hitos.push(h.id);
           const reg = {};
           aplicarEfectos(estado, h.efectos, reg);
-          res.sucesos.push({ tipo: 'hito', titulo: RF.CIUDADANOS[id].nombre, texto: h.texto, deltas: reg });
+          res.sucesos.push({ tipo: 'hito', titulo: RF.CIUDADANOS[id].nombre, texto: T.expandir(h.texto), deltas: reg });
         }
       }
     }
@@ -336,7 +393,7 @@
         const reg = {};
         aplicarEfectos(estado, u.efectos, reg);
         if (u.ingresos) estado.ingresos = Math.max(-6, estado.ingresos + u.ingresos);
-        res.sucesos.push({ tipo: 'umbral', titulo: u.titulo, texto: u.texto, deltas: reg });
+        res.sucesos.push({ tipo: 'umbral', titulo: u.titulo, texto: T.expandir(u.texto), deltas: reg });
       } else if (estado.stats[k] >= 35) {
         estado.umbrales[k] = false;
       }
@@ -356,18 +413,18 @@
       const ev = T.azar(pool);
       const reg = {};
       aplicarEfectos(estado, ev.efectos, reg);
-      res.sucesos.push({ tipo: 'azar', titulo: ev.titulo, texto: ev.texto, deltas: reg });
+      res.sucesos.push({ tipo: 'azar', titulo: ev.titulo, texto: T.expandir(ev.texto), deltas: reg });
       estado.diasSinEvento = 0;
     }
 
     estado.diasEnQuiebra = estado.stats.tesoro <= 0 ? estado.diasEnQuiebra + 1 : 0;
     if (estado.stats.tesoro <= 0 && estado.diasEnQuiebra === 1) {
-      res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: 'Cifuentes entra sin llamar: "No queda un valdo. Si mañana seguimos así, el país quiebra."', deltas: {} });
+      res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: T.expandir('{cifuentes} entra sin llamar: "No queda un valdo. Si mañana seguimos así, el país quiebra."'), deltas: {} });
     }
 
     const fin = comprobarFin(estado);
     if (fin) { estado.fin = fin; res.fin = fin; }
   }
 
-  RF.consejero = { nuevoEstado, decretar, avanzarDia, aplicarEfectos, medida, objetoDe, comprobarFin };
+  RF.consejero = { nuevoEstado, decretar, decretarPersona, avanzarDia, aplicarEfectos, medida, objetoDe, comprobarFin };
 })(globalThis.RF = globalThis.RF || {});

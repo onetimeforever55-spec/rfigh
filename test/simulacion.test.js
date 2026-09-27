@@ -11,7 +11,14 @@ const DECRETOS = [
   'vender el agua', 'subir el sueldo a los soldados', 'legalizar robar', 'cerrar las fronteras', 'construir escuelas',
   'prohibir el aire', 'deportar a los inmigrantes', 'que todos usen sombrero', 'homenaje a la policía', 'ya no se vende el agua',
   'prohibir el fútbol y la música', 'subir impuestos a los ricos y regalar comida a los pobres', 'banear a los tombos',
-  'birras gratis para los chamos', 'recortar los hospitales', 'prohibir los lunes', 'subir impuestos'
+  'birras gratis para los chamos', 'recortar los hospitales', 'prohibir los lunes', 'subir impuestos',
+  // Economía, instituciones y personas
+  'quiero hacer un narco estado', 'toda la economía al carbón', 'economía basada en el turismo', 'que toda la economía sea de calcetines',
+  'imprimir dinero', 'dolarizar', 'devaluar el valdo', 'invertir en la industria', 'nacionalizar el petróleo', 'prohibir el narcotráfico',
+  'crear una escuadra de represión', 'fundar un partido único', 'crear una red de espías', 'crear milicias populares',
+  'crear un ministerio de propaganda', 'disolver el escuadrón', 'matar al general', 'encarcelar a Nico', 'liberar a Nico',
+  'destituir a la ministra de hacienda', 'premiar a la canciller', 'exiliar al líder de la oposición', 'matar a Valiente',
+  'expulsar al embajador', 'matar al embajador', 'fusilar a Doña Carmen', 'regalarle un taxi a Ramiro', 'matar a Garrote y a Sombra'
 ];
 
 const finales = {};
@@ -27,6 +34,7 @@ const revisar = bloques => {
 const PARTIDAS = 400;
 for (let partida = 0; partida < PARTIDAS; partida++) {
   const estado = RF.consejero.nuevoEstado();
+  let nulos = 0;
   revisar(RF.narrador.intro(estado));
   while (!estado.fin) {
     const pend = RF.director.pendiente(estado);
@@ -38,19 +46,28 @@ for (let partida = 0; partida < PARTIDAS; partida++) {
       dilemasVistos[pend.id] = (dilemasVistos[pend.id] || 0) + 1;
       continue;
     }
-    const lista = RF.interprete.interpretarVarios(DECRETOS[Math.floor(Math.random() * DECRETOS.length)]).filter(i => i.estado === 'ok');
+    const lista = RF.interprete.interpretarVarios(DECRETOS[Math.floor(Math.random() * DECRETOS.length)], estado).filter(i => i.estado === 'ok');
     if (!lista.length) continue;
+    let ultimo = null, avanzado = false;
     lista.forEach((i, k) => {
-      const res = RF.consejero.decretar(estado, i, { avanzar: k === lista.length - 1, secundario: k > 0 });
+      const op = { avanzar: k === lista.length - 1, secundario: k > 0 };
+      const res = i.tipo === 'persona' ? RF.consejero.decretarPersona(estado, i, op) : RF.consejero.decretar(estado, i, op);
+      if (res.nulo) { revisar([{ texto: res.nulo }]); return; }
+      ultimo = res;
+      if (op.avanzar) avanzado = true;
       revisar(RF.narrador.decreto(estado, i, res));
-      if (k === lista.length - 1) revisar(RF.narrador.cierreDia(estado, res));
     });
+    if (!ultimo) { nulos++; if (nulos > 50) break; continue; }
+    if (!avanzado) RF.consejero.avanzarDia(estado, ultimo);
+    revisar(RF.narrador.cierreDia(estado, ultimo));
+    revisar(RF.narrador.economia(estado).concat(RF.narrador.gabinete(estado), RF.narrador.estadoPais(estado)));
     turnos++;
     for (const v of Object.values(estado.stats)) if (!(v >= 0 && v <= 100)) { errores++; console.log('Stat fuera de rango', estado.stats); }
   }
-  finales[estado.fin] = (finales[estado.fin] || 0) + 1;
+  finales[estado.fin || 'sin terminar'] = (finales[estado.fin || 'sin terminar'] || 0) + 1;
 }
 const nunca = RF.DILEMAS.filter(d => !dilemasVistos[d.id]).map(d => d.id);
+console.log('Eventos distintos vistos:', Object.keys(dilemasVistos).length + '/' + RF.DILEMAS.length);
 console.log('Días simulados:', turnos, '· media por partida:', (turnos / PARTIDAS).toFixed(1), '· eventos por partida:', (dilemas / PARTIDAS).toFixed(1));
 console.log('Finales:', finales);
 console.log('Eventos que nunca salieron:', nunca.join(', ') || 'ninguno');

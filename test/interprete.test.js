@@ -68,6 +68,35 @@ const CASOS = [
   ['prohivir el alcojol', 'PROHIBIR', 'VICIOS']
 ];
 
+// Economía, instituciones y personas.
+const ESTADO = RF.consejero.nuevoEstado();
+const ESPECIALES = [
+  ['quiero hacer un narco estado', 'ENFOCAR', 'NARCO'],
+  ['hacer que toda la economía sea al carbón', 'ENFOCAR', 'CARBON'],
+  ['economía basada en el turismo', 'ENFOCAR', 'TURISMO'],
+  ['crear una escuadra de represión', 'CREAR', 'ESCUADRON'],
+  ['fundar un partido único', 'CREAR', 'PARTIDO'],
+  ['crear una red de espías', 'CREAR', 'ESPIAS'],
+  ['disolver el escuadrón', 'PROHIBIR', 'ESCUADRON'],
+  ['imprimir dinero', 'CREAR', 'DINERO'],
+  ['dolarizar', 'PROHIBIR', 'DINERO'],
+  ['legalizar el narcotráfico', 'LEGALIZAR', 'NARCO'],
+  ['matar al general Garrote', 'matar', 'garrote'],
+  ['encarcelar a Nico', 'encarcelar', 'nico'],
+  ['premiar a la canciller', 'premiar', 'montiel'],
+  ['expulsar al embajador', 'exiliar', 'embajador'],
+  ['que desaparezca el líder de la oposición', 'matar', 'valiente'],
+  ['destituir a Cifuentes', 'destituir', 'cifuentes'],
+  ['regalarle un taxi nuevo a Ramiro', 'premiar', 'ramiro']
+];
+let espOk = 0;
+for (const [frase, accion, objeto] of ESPECIALES) {
+  const r = RF.interprete.interpretar(frase, ESTADO);
+  const bien = r.estado === 'ok' && (r.tipo === 'persona' ? r.trato === accion && r.persona === objeto : r.accion === accion && r.objeto === objeto);
+  if (bien) espOk++; else console.log(`  ✗ "${frase}" → ${r.estado} ${r.trato || r.accion} ${r.persona || r.objeto} (esperado ${accion} ${objeto})`);
+}
+console.log(`Economía, instituciones y personas: ${espOk}/${ESPECIALES.length}`);
+
 // Varios decretos en una frase.
 const MULTIPLES = [
   ['prohibir el fútbol y la música', [['PROHIBIR', 'DIVERSION'], ['PROHIBIR', 'DIVERSION']]],
@@ -105,4 +134,4 @@ for (const [frase, estado] of dudas) {
   if (r.estado === estado) dudasOk++; else console.log(`  ✗ "${frase}" → ${r.estado} (esperado ${estado})`);
 }
 console.log(`Dudas: ${dudasOk}/${dudas.length}`);
-process.exit(pct >= 85 && dudasOk === dudas.length && multOk === MULTIPLES.length ? 0 : 1);
+process.exit(pct >= 85 && dudasOk === dudas.length && multOk === MULTIPLES.length && espOk === ESPECIALES.length ? 0 : 1);

@@ -123,7 +123,6 @@
         entrenarEjemplo(obj, id, rasgos(ps));
       }
     }
-    for (const k of Object.keys(RF.SINONIMOS || {})) vocabPalabras.add(k);
     calcularEvidencias(acc);
     calcularEvidencias(obj);
     modelo = { acc, obj, vocabPalabras };
@@ -156,6 +155,7 @@
   function formaMostrada(objId, raicesTexto) {
     const o = RF.OBJETOS[objId];
     if (objId === 'LIDER') return 'Su Excelencia';
+    if (o.institucion) return o.nombre;
     let mejor = o.nombre, mejorN = 0;
     for (const f of o.formas) {
       const rf = T.palabras(f).filter(p => !T.VACIAS.has(p)).map(T.raiz);
@@ -197,7 +197,28 @@
    *  estado: 'ok' | 'preguntar_accion' | 'preguntar_objeto' | 'confuso'
    *  accion, objeto, nombreObjeto, intensidad, confianza, negado, opciones
    */
-  function interpretar(texto) {
+  // Qué hacer con una persona según la acción que entendió el clasificador.
+  const TRATO_DE_ACCION = { CASTIGAR: 'encarcelar', PROHIBIR: 'exiliar', RECORTAR: 'destituir', GLORIFICAR: 'premiar', SUBSIDIAR: 'premiar', INVERTIR: 'premiar', LEGALIZAR: 'liberar' };
+
+  // ¿El decreto va sobre una persona concreta? ("matar a Garrote", "premiar a la canciller")
+  function interpretarPersona(texto, crudas, ra, estado, corregidas, k) {
+    if (!RF.poder) return null;
+    const norm = crudas.join(' ');
+    const persona = RF.poder.buscar(estado, norm);
+    if (!persona) return null;
+    let trato = RF.poder.detectarTrato(T.normalizar(texto) + ' ' + norm);
+    const accion = ra.ranking[0].clase;
+    if (!trato && ra.evidencias[accion] && TRATO_DE_ACCION[accion]) trato = accion === 'CASTIGAR' && k > 1 ? 'matar' : TRATO_DE_ACCION[accion];
+    const base = { texto, corregidas, tipo: 'persona', persona: persona.id, caido: persona.caido, intensidad: 1, opciones: [], confianza: 90 };
+    const nombre = persona.caido ? persona.caido.nombre : estado ? RF.poder.nombrePersona(estado, persona.id) : persona.id;
+    if (trato) return Object.assign(base, { estado: 'ok', trato, nombreObjeto: nombre });
+    // Nombrado, pero sin decir qué hacer: si hay otra acción clara, no era un decreto sobre la persona.
+    if (ra.evidencias[accion]) return null;
+    const tratos = estado ? RF.poder.tratosPosibles(estado, persona.id) : ['destituir', 'premiar', 'encarcelar'];
+    return Object.assign(base, { estado: 'preguntar_trato', nombreObjeto: nombre, opciones: tratos.map(t => Object.assign({}, base, { estado: 'ok', trato: t, nombreObjeto: nombre })) });
+  }
+
+  function interpretar(texto, estado) {
     if (!modelo) entrenar();
     const { acc, obj, vocabPalabras } = modelo;
     const crudas = traducir(texto);
@@ -207,6 +228,8 @@
     const corregidas = T.palabras(texto).map(p => [p, T.corregir(p, vocabPalabras)]).filter(([a, b]) => a !== b && !sinonimo(a));
 
     const ra = clasificar(acc, rs);
+    const personal = interpretarPersona(texto, crudas, ra, estado, corregidas, intensidad(ps, T.normalizar(texto)));
+    if (personal) return personal;
     const ro = clasificar(obj, rs);
 
     let accion = ra.ranking[0].clase;
@@ -286,23 +309,26 @@
   const SEPARADOR = /\s*[,;]\s*|\s+(?:y|e|ademas|además|tambien|también|luego|despues|después)\s+/i;
   const RELLENO = /^(y|e|ademas|además|tambien|también|luego|despues|después|que)\s+/i;
 
-  function interpretarVarios(texto) {
+  function interpretarVarios(texto, estado) {
     const partes = texto.split(SEPARADOR).map(p => p.replace(RELLENO, '').trim()).filter(Boolean);
-    if (partes.length <= 1) return [interpretar(texto)];
+    if (partes.length <= 1) return [interpretar(texto, estado)];
     const grupos = [];
     for (const parte of partes) {
-      const r = interpretar(parte);
+      const r = interpretar(parte, estado);
       const previo = grupos[grupos.length - 1];
       if (r.estado === 'ok') grupos.push({ texto: parte, r });
+      else if (r.estado === 'preguntar_trato' && previo && previo.r.tipo === 'persona') {
+        grupos.push({ texto: parte, r: Object.assign({}, r, { estado: 'ok', trato: previo.r.trato, heredada: true, opciones: [] }) });
+      }
       else if (r.sinAccion && previo && previo.r.estado === 'ok') {
         grupos.push({ texto: parte, r: Object.assign({}, r, { estado: 'ok', accion: previo.r.accion, intensidad: previo.r.intensidad, negado: previo.r.negado, heredada: true, opciones: [] }) });
       } else if (previo) {
         previo.texto += ' y ' + parte;
-        previo.r = interpretar(previo.texto);
+        previo.r = interpretar(previo.texto, estado);
       } else grupos.push({ texto: parte, r });
     }
     if (grupos.length === 1) return [grupos[0].r];
-    if (grupos.some(g => g.r.estado !== 'ok')) return [interpretar(texto)];
+    if (grupos.some(g => g.r.estado !== 'ok')) return [interpretar(texto, estado)];
     return grupos.slice(0, 3).map(g => Object.assign(g.r, { texto: g.texto }));
   }
 
