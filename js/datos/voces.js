@@ -24,6 +24,7 @@
       absurdo: ['«{Medida}: una idea adelantada a su tiempo»', '«Otros países ya estudian copiar {medida}»', '«Científicos aplauden {medida}, aunque no saben por qué»'],
       economia: ['«{Medida} traerá prosperidad, afirma el gobierno»', '«Los mercados celebran {medida}»', '«{Medida}: Valdoria entra en el siglo XXI»'],
       obra: ['«{Medida}: la patria construye su futuro»', '«Primera piedra de una nueva era»', '«{Medida}: obra histórica del líder»'],
+      secreto: ['«Trágico suceso: {Objeto} nos deja»', '«El Gobierno lamenta profundamente lo ocurrido y pide respeto para las familias»', '«Las autoridades descartan cualquier indicio de delito»'],
       general: ['«Su Excelencia decreta y el país avanza»', '«{Medida}: otro acierto del gobierno»', '«Un decreto histórico: {medida}»']
     },
     extranjera: {
@@ -37,6 +38,7 @@
       absurdo: ['"Los decretos más extraños del año: Valdoria gana otra vez"', '"¿Qué está pasando en Valdoria? Ahora: {medida}"', '"Humor involuntario: {medida}"'],
       economia: ['"Valdoria cambia las reglas del juego: {medida}"', '"Los mercados reaccionan a {medida}"', '"Giro económico en Valdoria"'],
       obra: ['"Valdoria invierte: ¿propaganda o progreso?"', '"Obras en Valdoria: a ver cuánto dura"', '"Un raro acierto en Valdoria"'],
+      secreto: ['"Extrañas circunstancias en Valdoria: ¿accidente o algo más?"', '"Organizaciones internacionales piden una investigación independiente en Valdoria"', '"Demasiadas casualidades en Valdoria"'],
       general: ['"Otro día, otro decreto en Valdoria"', '"Valdoria: {medida}"', '"El impredecible líder de Valdoria vuelve a sorprender"']
     },
     pirata: {
@@ -50,6 +52,7 @@
       absurdo: ['"El loco del Palacio ataca de nuevo: {medida}."', '"Ni nosotros podríamos inventar esto: {medida}."', '"Última hora: el gobierno ha perdido la cabeza. Otra vez."'],
       economia: ['"Venden la patria a trozos. Hoy tocó {objeto}."', '"{Medida}: los de siempre se hacen más ricos."', '"Que alguien le explique al Palacio para qué sirve un país."'],
       obra: ['"Prometen obras. Ya veremos el cartel y la primera piedra, como siempre."', '"{Medida}: ojalá sea verdad. No nos lo creemos."', '"Mucha foto, poca obra."'],
+      secreto: ['"¿Accidente? En este país nadie se cree ya los accidentes."', '"Si nos pasa algo, que conste: no fue un accidente."', '"Otro que molestaba. Otro que ya no está."'],
       general: ['"Otro decreto, otra excusa."', '"{Medida}. Seguimos resistiendo."', '"El Palacio decide, el pueblo sufre."']
     }
   };

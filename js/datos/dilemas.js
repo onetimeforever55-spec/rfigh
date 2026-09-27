@@ -548,6 +548,97 @@
         { texto: 'Subir el sueldo a las enfermeras', efectos: { tesoro: -6, salud: 5, pueblo: 3 }, resultado: 'Suben los sueldos. Nadie da las gracias. Las batas siguen colgadas.' },
         { texto: 'Descontarles la hora del sueldo', efectos: { salud: -6, pueblo: -6 }, resultado: 'Esa noche, doscientas enfermeras piden el visado para irse del país.' }
       ]
+        },
+
+    // ---------- El sistema político ----------
+    {
+      id: 'congreso_bloquea', titulo: 'El Congreso se planta', soloCadena: true,
+      texto: 'El Congreso rechaza {medida}. Solo cuentas con el {apoyo} de apoyo y los diputados no quieren cargar con una ley así. El presidente de la cámara te llama: "Excelencia, o negociamos, o esto no sale."',
+      opciones: [
+        { texto: 'Negociar votos con los diputados', efectos: { dinero: -15 }, apoyo: 5, aprobar: true, resultado: 'Una noche de cafés, promesas de carreteras y algún sobre. La ley sale adelante por dos votos.' },
+        { texto: 'Aprobarla por decreto de urgencia', efectos: { estabilidad: -3 }, apoyo: -15, aprobar: true, resultado: 'Te saltas al Congreso con un decreto de urgencia. La ley entra en vigor. Los diputados no olvidarán la humillación.' },
+        { texto: 'Retirar la ley', efectos: {}, apoyo: 3, resultado: 'Retiras la ley "para mejorarla". La oposición lo celebra como una victoria. Tus diputados, aliviados, te invitan a comer.' }
+      ]
+    },
+    {
+      id: 'juicio_politico', titulo: 'Juicio político', soloCadena: true,
+      texto: 'La oposición presenta una moción de destitución contra ti. Los jueces han abierto una investigación y el Congreso votará en unos días. Tienes el {apoyo} de los diputados. Si baja del 40%, caes.',
+      opciones: [
+        { texto: 'Defenderte ante el Congreso', efectos: {}, juicio: true, resultado: 'Das un discurso de tres horas sobre tu inocencia, tu infancia y la patria.' },
+        { texto: 'Dimitir con dignidad', efectos: {}, fin: 'dimision', resultado: 'Anuncias tu dimisión "por el bien del país". Nadie te cree, pero se agradece.' },
+        { texto: 'Disolver el Congreso antes de la votación', efectos: { estabilidad: -4, felicidad: -6 }, sistema: 'DICTADURA', resultado: 'Mandas cerrar el Congreso la noche antes de la votación.' }
+      ]
+    },
+    {
+      id: 'autogolpe_ejercito', titulo: 'El ejército decide', soloCadena: true,
+      texto: 'Tras el cierre del Congreso, {n_garrote} pide verte a solas. "El ejército ha garantizado el orden, {lider}. Ahora el ejército quiere saber qué gana con esto." Tres coroneles esperan fuera, sin quitarse la gorra.',
+      opciones: [
+        { texto: 'Duplicar los sueldos militares', efectos: { dinero: -20, estabilidad: 8 }, ingresos: -2, resultado: 'Los cuarteles celebran. Ahora tienes el ejército más caro y más leal del continente.' },
+        { texto: 'Dar ministerios a los generales', efectos: { estabilidad: 5, felicidad: -3 }, sistema: 'JUNTA', resultado: 'Los generales entran en el gobierno. Ya no eres un dictador civil: presides una junta militar.' },
+        { texto: 'Recordarle quién manda', efectos: { estabilidad: -9 }, resultado: '{garrote} se cuadra, saluda y se va. Esa noche se reúne con los coroneles hasta el amanecer.' }
+      ]
+    },
+    {
+      id: 'presion_democratica', titulo: 'La calle exige elecciones', urgente: true,
+      texto: 'Cientos de miles de personas marchan hacia el Palacio con un solo grito: "¡Elecciones ya!". Las embajadas piden "una transición ordenada". Algunos policías se han quitado el casco y marchan con ellos.',
+      opciones: [
+        { texto: 'Convocar elecciones libres', efectos: {}, sistema: 'DEMOCRACIA', resultado: 'Anuncias elecciones libres por televisión. La plaza estalla en aplausos.' },
+        { texto: 'Reprimir las marchas', efectos: { estabilidad: 7, felicidad: -9, dinero: -8 }, resultado: 'Gases, porras y detenciones. La marcha se disuelve. La rabia, no.' },
+        { texto: 'Prometer elecciones "pronto"', efectos: { felicidad: 3, estabilidad: -2 }, programar: [{ en: 4, titulo: 'La promesa incumplida', texto: 'Pasan los días y no hay fecha de elecciones. La gente empieza a entender qué significaba "pronto".', efectos: { felicidad: -6, estabilidad: -3 } }], resultado: 'Prometes elecciones "en cuanto se den las condiciones". La gente vuelve a casa, desconfiada.' }
+      ]
+    },
+    {
+      id: 'comision_verdad', titulo: 'La Comisión de la Verdad', soloCadena: true,
+      texto: 'Con la justicia libre de nuevo, una Comisión de la Verdad empieza a investigar lo que pasó durante tu gobierno: desaparecidos, sobornos, muertes "accidentales". Los testigos hacen cola para declarar.',
+      opciones: [
+        { texto: 'Colaborar y pedir perdón', efectos: { felicidad: 7, estabilidad: -6, dinero: 5 }, resultado: 'Pides perdón en televisión. Es el discurso más visto de la historia de Valdoria. Algunos lloran; otros te escupen en la pantalla.' },
+        { texto: 'Aprobar una amnistía para ti mismo', efectos: { felicidad: -8, estabilidad: 2 }, apoyo: -15, resultado: 'Te amnistías a ti mismo y a tus colaboradores. Es legal. Nadie lo considera justo.' },
+        { texto: 'Cerrar la comisión', efectos: { felicidad: -6, estabilidad: -3 }, resultado: 'Cierras la comisión "por falta de presupuesto". Los testigos siguen hablando, ahora en la prensa extranjera.' }
+      ]
+    },
+    {
+      id: 'sanciones', titulo: 'Sanciones internacionales', unaVez: true,
+      texto: 'La Unión Atlántica anuncia sanciones contra Valdoria "hasta que se restablezca el orden democrático". Tus cuentas en el extranjero aparecen congeladas y dos navieras dejan de parar en el puerto.',
+      opciones: [
+        { texto: 'Buscar un aliado autoritario', efectos: { dinero: 15, estabilidad: -2 }, resultado: 'Un país lejano y poco preguntón te ofrece créditos, armas y asesores. Ya tienes amigos. Qué amigos.' },
+        { texto: 'Prometer reformas', efectos: { dinero: 6, felicidad: 2 }, resultado: 'Anuncias una "hoja de ruta democrática" con muchas fechas y ninguna garantía. Levantan la mitad de las sanciones.' },
+        { texto: 'Apostar por la autarquía', efectos: { dinero: -6, felicidad: -3, estabilidad: 4 }, resultado: '"¡Valdoria se basta a sí misma!" Lo repites en cada discurso. En los mercados empiezan a faltar cosas.' }
+      ]
+    },
+    {
+      id: 'heredero', titulo: 'La cuestión sucesoria', unaVez: true,
+      texto: 'La corte murmura: toda monarquía necesita un heredero. Los nobles recién nombrados (tus primos, sobre todo) quieren saber quién llevará la corona cuando Su Majestad falte.',
+      opciones: [
+        { texto: 'Nombrar heredero a tu sobrino', efectos: { estabilidad: 3, felicidad: -3 }, resultado: 'Tu sobrino, el del coche en la fuente, es ahora Príncipe de Valdoria. La gente no sabe si reír o emigrar.' },
+        { texto: 'Casarte con una princesa extranjera', efectos: { dinero: 20, estabilidad: 3, felicidad: 2 }, resultado: 'La boda real dura tres días y la retransmite media Europa. La dote salva las cuentas del reino.' },
+        { texto: 'Declararte inmortal', efectos: { felicidad: -4, estabilidad: 2 }, resultado: '{paredes} anuncia que Su Majestad no necesita heredero porque no piensa morirse. Los astrólogos de la corte lo confirman.' }
+      ]
+    },
+    {
+      id: 'herejes', titulo: 'La policía de la fe', unaVez: true,
+      texto: 'Los curas más duros piden una policía religiosa: vigilar la ropa, la música y las misas. Los más moderados temen que el país se vacíe de jóvenes.',
+      opciones: [
+        { texto: 'Crear la policía de la fe', efectos: { estabilidad: 4, felicidad: -7 }, animo: { nico: -15 }, resultado: 'Hombres con brazalete recorren las calles midiendo faldas y apagando radios.' },
+        { texto: 'Una fe amable y sin policía', efectos: { felicidad: 3, estabilidad: -2 }, resultado: 'Pides a los curas "más misericordia y menos vigilancia". Los duros te acusan de tibio.' }
+      ]
+    },
+    {
+      id: 'generales_ambicion', titulo: 'Los generales quieren más', unaVez: true,
+      texto: 'Los generales de la Junta exigen más presupuesto, más poder y un avión privado cada uno. {n_garrote} te recuerda con una sonrisa quién tiene los tanques.',
+      opciones: [
+        { texto: 'Dárselo todo', efectos: { dinero: -25, estabilidad: 6 }, ingresos: -1, resultado: 'Cada general tiene su avión. Ninguno sabe pilotarlo, pero todos están contentos.' },
+        { texto: 'Purgar a los más ambiciosos', efectos: { estabilidad: -6, felicidad: 1 }, resultado: 'Tres generales son "jubilados" de madrugada. Los demás entienden el mensaje... o empiezan a conspirar mejor.' },
+        { texto: 'Devolver el poder a los civiles', efectos: {}, sistema: 'DICTADURA', resultado: 'Sacas a los generales del gobierno. Vuelves a mandar solo, pero con enemigos de uniforme.' }
+      ]
+    },
+    {
+      id: 'diputado_valiente', titulo: 'El diputado incómodo', unaVez: true,
+      texto: 'Un joven diputado de la oposición denuncia en el Congreso tus leyes con datos, gráficos y mucho humor. Su discurso se hace viral. {sombra} pregunta si "hay que hacer algo".',
+      opciones: [
+        { texto: 'Responderle en el Congreso', efectos: { felicidad: 2, estabilidad: -1 }, apoyo: 3, resultado: 'Le respondes con datos (algunos inventados). El debate es tan bueno que sube la audiencia del canal parlamentario.' },
+        { texto: 'Comprar su silencio', efectos: { dinero: -8 }, apoyo: 5, programar: [{ en: 5, titulo: 'El diputado habla', texto: 'El diputado cuenta en una entrevista que intentaste comprarlo. Muestra el sobre. Todavía tiene el dinero dentro.', efectos: { felicidad: -4, estabilidad: -3 } }], resultado: 'El diputado acepta el sobre y deja de hablar. Por ahora.' },
+        { texto: 'Que sufra un "accidente"', efectos: { estabilidad: 1 }, apoyo: -10, programar: [{ en: 3, titulo: 'Preguntas incómodas', texto: 'El joven diputado aparece con las dos piernas rotas "tras caerse por una escalera". Nadie en el Congreso se cree lo de la escalera.', efectos: { felicidad: -5, estabilidad: -4 } }], resultado: '{sombra} asiente y se va sin decir nada.' }
+      ]
     }
   ];
 
@@ -556,6 +647,7 @@
    * Sustituyen a las de arriba cuando existen.
    */
   const S = e => e.stats;
+  const regimen = e => (e.politica ? e.politica.regimen : 'DEMOCRACIA');
   const ley = (e, clave, accion) => (e.leyes || []).find(l => l.clave === clave && (!accion || l.accion === accion));
   const edad = (e, clave) => { const l = ley(e, clave); return l ? e.dia - l.desde : -1; };
   const modelo = (e, m) => (e.leyes || []).find(l => l.clave === 'MODELO' && l.modelo === m);
@@ -600,7 +692,13 @@
     escuadron_excesos: e => edad(e, 'ESCUADRON') >= 2,
     tigre: e => edad(e, 'ESCUADRON') >= 6,
     milicias_ejercito: e => !!ley(e, 'MILICIA') && S(e).estabilidad < 55,
-    complot: e => !!ley(e, 'ESPIAS') && S(e).estabilidad < 40
+    complot: e => !!ley(e, 'ESPIAS') && S(e).estabilidad < 40,
+    presion_democratica: e => ['DICTADURA', 'JUNTA', 'MONARQUIA', 'TEOCRACIA'].includes(regimen(e)) && S(e).estabilidad < 42 && e.dia > 6,
+    sanciones: e => regimen(e) !== 'DEMOCRACIA' && regimen(e) !== 'ILIBERAL' && e.dia - (e.politica.desde || 0) >= 2,
+    heredero: e => regimen(e) === 'MONARQUIA' && e.dia - e.politica.desde >= 2,
+    herejes: e => regimen(e) === 'TEOCRACIA' && e.dia - e.politica.desde >= 2,
+    generales_ambicion: e => regimen(e) === 'JUNTA' && e.dia - e.politica.desde >= 3,
+    diputado_valiente: e => e.politica && e.politica.congreso === 'libre' && e.dia > 4 && e.politica.apoyo < 55
   };
   for (const d of RF.DILEMAS) if (CONDICIONES[d.id]) d.si = CONDICIONES[d.id];
 })(globalThis.RF = globalThis.RF || {});

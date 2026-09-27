@@ -177,6 +177,22 @@
     }
   };
 
+  // Lo que se cuenta cuando se hace en secreto.
+  RF.TEXTOS_SECRETO = {
+    matar: [
+      '{Nombre} muere en un extraño accidente de tráfico: los frenos, dicen, fallaron en la única curva peligrosa de la carretera. {paredes} lamenta "la trágica pérdida" en televisión.',
+      'Encuentran a {nombre} sin vida en su casa. El informe oficial habla de "un infarto fulminante". El forense que firmó el informe se ha ido de vacaciones de forma indefinida.',
+      '{Nombre} cae desde el balcón de un hotel. La policía lo archiva como accidente en menos de una hora. Demasiado rápido, piensan algunos.'
+    ],
+    encarcelar: [
+      '{Nombre} sale de casa por la mañana y no vuelve. No hay orden de detención, ni registro, ni nada. Oficialmente, nadie sabe dónde está.',
+      'Una furgoneta sin matrícula, dos hombres sin placa y ningún testigo dispuesto a hablar. {Nombre} ha desaparecido.'
+    ],
+    exiliar: [
+      '{Nombre} recibe una visita nocturna y un billete de avión. A la mañana siguiente ya no está en el país. Oficialmente, "se fue por voluntad propia".'
+    ]
+  };
+
   RF.TEXTO_SUCESOR = [
     'Su puesto lo ocupa {sucesor}. En su primer día jura lealtad eterna. Todos saben cuánto duran esas cosas en Valdoria.',
     'Nombras a {sucesor} en su lugar. Su primera decisión es cambiar la cerradura de su despacho.',

@@ -54,12 +54,36 @@
     profes: 'profesores', profe: 'profesor', maestras: 'maestros', doctores: 'medicos', doctoras: 'medicos',
     hospis: 'hospitales', perritos: 'perros', gatitos: 'gatos', michis: 'gatos', lomitos: 'perros', firulais: 'perros',
     mascota: 'mascotas', iglesia: 'iglesias', pastores: 'curas', evangelicos: 'religion',
-    mio: 'mi', mia: 'mi', conmigo: 'mi'
+    mio: 'mi', mia: 'mi', conmigo: 'mi',
+    // Política
+    contrincantes: 'opositores', rivales: 'opositores', adversarios: 'opositores', competidores: 'opositores', contrincante: 'opositor',
+    coronarme: 'proclamarme rey', autoproclamarme: 'proclamarme', parlamentarios: 'diputados', congresistas: 'diputados',
+    magistrados: 'jueces', asesino: 'asesinar', asesinen: 'asesinar', asesinemos: 'asesinar', secretamente: 'en secreto',
+    // Primera persona ("disuelvo el congreso", "vendo el agua")
+    disuelvo: 'disolver', prohibo: 'prohibir', vendo: 'vender', cierro: 'cerrar', suspendo: 'suspender', privatizo: 'privatizar',
+    nacionalizo: 'nacionalizar', expropio: 'expropiar', encarcelo: 'encarcelar', mato: 'matar', ejecuto: 'ejecutar', fusilo: 'fusilar',
+    compro: 'comprar', subo: 'subir', invierto: 'invertir', recorto: 'recortar', obligo: 'obligar', legalizo: 'legalizar',
+    derogo: 'derogar', fundo: 'fundar', proclamo: 'proclamar', controlo: 'controlar', imprimo: 'imprimir', cobro: 'cobrar',
+    persigo: 'perseguir', destituyo: 'destituir', deporto: 'deportar', libero: 'liberar', convoco: 'convocar', restauro: 'restaurar',
+    instauro: 'instaurar', disuelve: 'disolver', disuelvan: 'disolver', sobornamos: 'sobornar', amano: 'amañar', subvenciono: 'subvencionar'
   };
 
   // Expresiones de varias palabras (se aplican antes que las palabras sueltas).
   RF.SINONIMOS_FRASES = [
     [/\bpena capital\b/g, 'pena de muerte'],
+    [/\b(dar un |hacer un )?auto ?golpe( de estado)?\b/g, 'disolver el congreso'],
+    [/\bdar un golpe de estado\b/g, 'disolver el congreso'],
+    [/\bcerrar el congreso\b/g, 'disolver el congreso'],
+    [/\breeleccion indefinida\b/g, 'controlar la constitucion'],
+    [/\bfraude electoral\b/g, 'amañar las elecciones'],
+    [/\bestado de excepcion\b/g, 'suspender la constitucion'],
+    [/\bley marcial\b/g, 'instaurar la junta'],
+    [/\b(una |la )?junta militar\b/g, 'la junta'],
+    [/\b(un )?gobierno militar\b/g, 'la junta'],
+    [/\bdar el poder a los militares\b/g, 'instaurar la junta'],
+    [/\blos militares al poder\b/g, 'instaurar la junta'],
+    [/\bdevolver el poder al pueblo\b/g, 'restaurar la democracia'],
+    [/\belecciones libres\b/g, 'la democracia'],
     [/\bmano de obra\b/g, 'trabajadores'],
     [/\bclase (obrera|trabajadora)\b/g, 'trabajadores'],
     [/\bclase alta\b/g, 'ricos'],

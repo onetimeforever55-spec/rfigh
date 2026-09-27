@@ -45,6 +45,7 @@
     if (cadena) {
       D.cadena = D.cadena.filter(c => c !== cadena);
       d = porId(cadena.id);
+      if (d) D.datosCadena = cadena.datos || null;
       // Una continuación que ya no tiene sentido (la persona murió, salió de la cárcel...) no salta.
       try { if (d && d.si && !d.si(e)) d = null; } catch (err) { d = null; }
     } else if (e.dia >= PRIMER_DIA) {
@@ -55,7 +56,8 @@
       else if (candidatos.length && (desde >= INTERVALO || (desde === INTERVALO - 1 && Math.random() < 0.25))) d = elegir(candidatos);
     }
     if (!d) return null;
-    D.pendiente = { id: d.id, dia: e.dia };
+    D.pendiente = { id: d.id, dia: e.dia, datos: D.datosCadena || null };
+    D.datosCadena = null;
     D.ultimo = e.dia;
     D.vistos[d.id] = e.dia;
     return d;
@@ -92,6 +94,11 @@
       if (a.sectores) partes.push({ texto: 'Frena la reconversión', tono: 'aviso' });
       if (a.cancelarModelo) partes.push({ texto: 'Cancela la reconversión', tono: 'aviso' });
     }
+    if (op.apoyo) partes.push({ texto: 'Apoyo en el Congreso ' + (op.apoyo > 0 ? '▲' : '▼'), tono: op.apoyo > 0 ? 'sube' : 'baja' });
+    if (op.aprobar) partes.push({ texto: 'La ley se aprueba', tono: 'aviso' });
+    if (op.sistema) partes.push({ texto: 'Régimen: ' + RF.REGIMENES[op.sistema].nombre, tono: 'aviso' });
+    if (op.juicio) partes.push({ texto: 'Necesitas un 40% de apoyo o caes', tono: 'aviso' });
+    if (op.fin) partes.push({ texto: 'Fin de tu gobierno', tono: 'baja' });
     if (op.programar || op.cadena) partes.push({ texto: '⚠ Traerá consecuencias', tono: 'aviso' });
     return partes;
   }
@@ -111,7 +118,22 @@
     if (a.cancelarModelo) RF.leyes.derogar(e, 'MODELO');
   }
 
-  function texto(d) { return T.expandir(d.texto, { lider: 'Su Excelencia' }); }
+  // Un evento que salta ya mismo por lo que acaba de pasar (el Congreso bloquea una ley, un juicio político...).
+  function forzar(e, id, datosEvento) {
+    const D = datos(e);
+    if (D.pendiente) { if (D.pendiente.id !== id && !D.cadena.some(c => c.id === id)) D.cadena.push({ id, dia: e.dia, datos: datosEvento }); return; }
+    D.pendiente = { id, dia: e.dia, datos: datosEvento || null };
+    D.ultimo = e.dia;
+    D.vistos[id] = e.dia;
+  }
+
+  function varsEvento(e) {
+    const p = e && e.dilemas && e.dilemas.pendiente;
+    const extra = (p && p.datos) || {};
+    return { lider: 'Su Excelencia', medida: extra.medida || 'la ley', apoyo: e && e.politica ? Math.round(e.politica.apoyo) + '%' : '' };
+  }
+
+  function texto(d, e) { return T.expandir(d.texto, varsEvento(e)); }
 
   // Aplica la opción elegida. Devuelve lo que pasó para que el Narrador lo cuente.
   function resolver(e, indice) {
@@ -121,7 +143,8 @@
     const op = d.opciones[indice];
     if (!op) return null;
     // El resultado se escribe antes de aplicar cambios de personas (para nombrar a quien estaba).
-    let resultado = T.expandir(op.resultado || '', { lider: 'Su Excelencia' });
+    let resultado = T.expandir(op.resultado || '', varsEvento(e));
+    const datosEvento = (D.pendiente && D.pendiente.datos) || {};
     const textoOpcion = T.expandir(op.texto);
     const deltas = {};
     RF.consejero.aplicarEfectos(e, op.efectos, deltas);
@@ -150,11 +173,43 @@
     for (const p of op.programar || []) e.pendientes.push(Object.assign({}, p, { dia: e.dia + p.en, texto: T.expandir(p.texto) }));
     if (op.cadena) D.cadena.push({ id: op.cadena.id, dia: e.dia + op.cadena.en });
     D.pendiente = null;
+
+    // El sistema político.
+    const pol = RF.politica.iniciar(e);
+    if (op.apoyo) pol.apoyo = Math.max(0, Math.min(100, pol.apoyo + op.apoyo));
+    let decreto = null;
+    if (op.aprobar && datosEvento.interp) {
+      // La ley que había bloqueado el Congreso sale adelante.
+      decreto = RF.consejero.decretar(e, datosEvento.interp, { avanzar: false, forzar: true });
+      for (const [k, v] of Object.entries(decreto.deltas)) deltas[k] = (deltas[k] || 0) + v;
+    }
+    let cambio = null;
+    if (op.sistema) {
+      const r = RF.politica.instaurar(e, op.sistema);
+      if (!r.nulo) {
+        RF.consejero.aplicarEfectos(e, r.efectos, deltas);
+        resultado += ' ' + r.texto;
+        cambio = r.cambio;
+        if (r.cadena) D.cadena.push({ id: r.cadena.id, dia: e.dia + r.cadena.en });
+      }
+    }
+    if (op.juicio) {
+      // El Congreso vota. Con menos del 40% de apoyo, te destituye.
+      if (pol.apoyo >= 40) {
+        resultado += ' El Congreso vota: ' + Math.round(pol.apoyo) + '% te apoya. Sobrevives al juicio político, tocado pero en pie.';
+        RF.consejero.aplicarEfectos(e, { estabilidad: -4 }, deltas);
+        pol.apoyo = Math.max(0, pol.apoyo - 10);
+      } else {
+        resultado += ' El Congreso vota: solo un ' + Math.round(pol.apoyo) + '% te apoya. Quedas destituido.';
+        e.fin = 'destituido';
+      }
+    }
+    if (op.fin) e.fin = op.fin;
     e.decisiones = (e.decisiones || 0) + 1;
     const fin = RF.consejero.comprobarFin(e);
     if (fin) e.fin = fin;
-    return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado };
+    return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado, decreto, cambio };
   }
 
-  RF.director = { comprobar, pendiente, resolver, resumen, texto, porId };
+  RF.director = { comprobar, pendiente, resolver, resumen, texto, porId, forzar };
 })(globalThis.RF = globalThis.RF || {});

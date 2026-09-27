@@ -27,7 +27,9 @@
         'Para quitar una ley: "dejar de regalar comida", "derogar la ley del aire" o "derogar el último decreto".\n' +
         'Puedes firmar hasta 3 decretos a la vez: "prohibir el fútbol y subir impuestos a los ricos".\n' +
         'Cada pocos turnos surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
-        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
+        'El SISTEMA POLÍTICO también se cambia con decretos: "disuelvo el congreso", "comprar a los diputados", "controlar los jueces", "suspender las elecciones", "proclamarme rey", "restaurar la democracia". Cada régimen recauda, invierte y reprime distinto.\n' +
+        'En democracia, el Congreso puede bloquear leyes polémicas. Lo que haces "en secreto" no pasa por el Congreso, pero puede descubrirse.\n' +
+        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
         'Sobrevive ' + RF.PAIS.dias + ' turnos hasta las elecciones.'
     }];
   }
@@ -37,8 +39,9 @@
       { tipo: 'titulo', texto: RF.PAIS.nombre.toUpperCase() },
       {
         tipo: 'gaceta', titulo: 'GACETA OFICIAL · TURNO 1',
-        texto: 'Anoche, tras "un proceso democrático muy rápido", te convertiste en el Líder Supremo de ' + RF.PAIS.nombre + '. ' +
-          'Tienes una consola, un sello y ' + RF.PAIS.dias + ' turnos hasta las elecciones prometidas. Todo lo que escribas aquí se convierte en ley, y las leyes se acumulan.'
+        texto: 'Anoche ganaste las elecciones por un margen mínimo y hoy juras como Presidente de ' + RF.PAIS.nombre + ', una democracia joven y frágil. ' +
+          'Tienes una consola, un sello y ' + RF.PAIS.dias + ' turnos hasta las próximas elecciones. Todo lo que escribas aquí se convierte en ley, y las leyes se acumulan. ' +
+          'El Congreso, los jueces y la prensa te vigilan... de momento.'
       },
       {
         tipo: 'cupula', titulo: 'TU GABINETE',
@@ -83,6 +86,8 @@
     if (accion === 'GLORIFICAR') return 'culto';
     if (accion === 'ENFOCAR' || objId === 'DINERO') return 'economia';
     if (o.institucion) return ['ESCUADRON', 'MILICIA', 'ESPIAS'].includes(objId) ? 'represion' : 'culto';
+    if (o.regimen) return o.regimen === 'DEMOCRACIA' || ['PROHIBIR', 'DEROGAR'].includes(accion) ? 'regalo' : 'libertad';
+    if (o.politico) return ['LEGALIZAR', 'CREAR', 'INVERTIR'].includes(accion) ? 'regalo' : 'libertad';
     if (accion === 'CASTIGAR' && o.gente) return 'represion';
     if ((accion === 'PROHIBIR' || accion === 'OBLIGAR' || accion === 'CASTIGAR') && L >= 1) return 'libertad';
     if (['PRIVATIZAR', 'RECORTAR', 'PROHIBIR'].includes(accion) && E >= 2) return 'esencial';
@@ -140,10 +145,10 @@
     const partes = ['INTÉRPRETE › ' + RF.poder.nombreTrato(res.trato).toUpperCase() + ' + ' + res.nombreObjeto.toUpperCase()];
     if (interp.heredada) partes.push('orden heredada de la frase anterior');
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
-    bloques.push({ tipo: 'gaceta', titulo: 'ORDEN EJECUTIVA Nº ' + res.numero + ' · TURNO ' + res.dia, texto: T.mayus(res.medida) + '. ' + res.especial });
+    bloques.push({ tipo: 'gaceta', titulo: (res.secreto ? 'ORDEN RESERVADA Nº ' : 'ORDEN EJECUTIVA Nº ') + res.numero + ' · TURNO ' + res.dia, texto: T.mayus(res.medida) + '. ' + res.especial });
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
-    const tipo = TIPO_TRATO[res.trato] || 'general';
+    const tipo = res.secreto ? 'secreto' : TIPO_TRATO[res.trato] || 'general';
     bloques.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares(res, tipo) });
     const lm = lineaMinistro(estado, res);
     bloques.push({ tipo: 'cupula', titulo: lm.titulo, texto: lm.texto });
@@ -164,11 +169,13 @@
     if (interp.corregidas && interp.corregidas.length) partes.push('corregí ' + interp.corregidas.map(([a, b]) => a + '→' + b).join(', '));
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
 
-    const tipo = tipoDecreto(res.accion, res.objeto);
+    const tipo = res.secreto ? 'secreto' : tipoDecreto(res.accion, res.objeto);
     let gaceta = T.mayus(res.medida) + '.';
     if (res.especial) gaceta += ' ' + res.especial;
     else if (res.objeto === 'OTRO') gaceta += ' ' + T.expandir(T.azar(RF.ABSURDO.gaceta), res.vars);
-    bloques.push({ tipo: 'gaceta', titulo: 'DECRETO Nº ' + res.numero + ' · TURNO ' + res.dia, texto: gaceta });
+    const cabecera = res.bloqueada ? 'PROYECTO DE LEY Nº ' : res.secreto ? 'ORDEN RESERVADA Nº ' : 'DECRETO Nº ';
+    if (res.bloqueada) gaceta += ' El proyecto llega al Congreso... y se atasca.';
+    bloques.push({ tipo: 'gaceta', titulo: cabecera + res.numero + ' · TURNO ' + res.dia, texto: gaceta });
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.ley && res.ley.nivel });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
 
@@ -182,6 +189,7 @@
       bloques.push({ tipo: 'calle', titulo: lc.titulo, texto: calle });
     }
     if (Math.random() < 0.3) { const e = eco(estado, res); if (e) bloques.push({ tipo: 'nota', texto: e }); }
+    if (res.cambioRegimen) bloques.push(bloqueRegimen(res.cambioRegimen));
     return bloques;
   }
 
@@ -206,7 +214,7 @@
     bloques.push({ tipo: 'efectos', rotulo: 'Resultado del turno', deltas: res.cambioTurno || {} });
     for (const c of res.causas || []) bloques.push({ tipo: 'nota', texto: c });
     for (const s of res.sucesos) {
-      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA' }[s.tipo] || 'NOTICIA';
+      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA', escandalo: 'ESCÁNDALO', politica: 'POLÍTICA' }[s.tipo] || 'NOTICIA';
       bloques.push({ tipo: 'suceso', clase: s.tipo, titulo: etiqueta + ' · ' + s.titulo.toUpperCase(), texto: s.texto, deltas: s.deltas });
     }
     if (res.fin) return bloques.concat(final(estado));
@@ -222,15 +230,26 @@
   // Tarjeta de un dilema: el juego la dibuja con botones.
   function dilema(estado, d) {
     return {
-      tipo: 'dilema', id: d.id, titulo: 'EVENTO · ' + d.titulo.toUpperCase(), texto: RF.director.texto(d),
+      tipo: 'dilema', id: d.id, titulo: 'EVENTO · ' + d.titulo.toUpperCase(), texto: RF.director.texto(d, estado),
       opciones: d.opciones.map(op => ({ texto: T.expandir(op.texto), resumen: RF.director.resumen(op) }))
     };
   }
 
+  function bloqueRegimen(cambio) {
+    const a = RF.REGIMENES[cambio.a];
+    return { tipo: 'regimen', titulo: 'CAMBIO DE RÉGIMEN · ' + RF.REGIMENES[cambio.de].corto + ' → ' + a.corto, texto: a.descripcion };
+  }
+
   function decision(estado, r) {
     const bloques = [{ tipo: 'suceso', clase: 'decision', titulo: 'DECISIÓN · ' + (r.textoOpcion || T.expandir(r.opcion.texto)).toUpperCase(), texto: r.resultado, deltas: r.deltas }];
+    if (r.decreto && r.decreto.porTurno) bloques.push({ tipo: 'efectos', rotulo: 'Ley aprobada', deltas: {}, porTurno: r.decreto.porTurno, curvas: r.decreto.curvas });
+    if (r.cambio) bloques.push(bloqueRegimen(r.cambio));
     if (r.fin) bloques.push(...final(estado));
     return bloques;
+  }
+
+  function sistema(estado) {
+    return [{ tipo: 'sistema', titulo: 'EL SISTEMA POLÍTICO', texto: RF.politica.resumen(estado) }];
   }
 
   function confuso(interp) {
@@ -278,6 +297,7 @@
   function estadoPais(estado) {
     const s = estado.stats;
     const lineas = [
+      'Régimen      ' + RF.politica.mods(estado).nombre + (estado.politica.congreso === 'libre' ? ' · Congreso: ' + Math.round(estado.politica.apoyo) + '% de apoyo' : ''),
       'Dinero       ' + formatoStat('dinero', s.dinero),
       'Inflación    ' + formatoStat('inflacion', s.inflacion),
       'Estabilidad  ' + String(s.estabilidad).padStart(3) + '  ' + barra(s.estabilidad),
@@ -356,5 +376,5 @@
     ];
   }
 
-  RF.narrador = { intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, historial, ayuda, final, formatoStat, EJEMPLOS };
+  RF.narrador = { intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});

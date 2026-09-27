@@ -207,9 +207,11 @@
     const persona = RF.poder.buscar(estado, norm);
     if (!persona) return null;
     let trato = RF.poder.detectarTrato(T.normalizar(texto) + ' ' + norm);
+    const secreto = RF.SECRETO ? RF.SECRETO.test(T.normalizar(texto)) : false;
+    if (!trato && secreto && /accidente|desaparec/.test(T.normalizar(texto))) trato = 'matar';
     const accion = ra.ranking[0].clase;
     if (!trato && ra.evidencias[accion] && TRATO_DE_ACCION[accion]) trato = accion === 'CASTIGAR' && k > 1 ? 'matar' : TRATO_DE_ACCION[accion];
-    const base = { texto, corregidas, tipo: 'persona', persona: persona.id, caido: persona.caido, intensidad: 1, opciones: [], confianza: 90 };
+    const base = { texto, corregidas, tipo: 'persona', persona: persona.id, caido: persona.caido, intensidad: 1, opciones: [], confianza: 90, secreto };
     const nombre = persona.caido ? persona.caido.nombre : estado ? RF.poder.nombrePersona(estado, persona.id) : persona.id;
     if (trato) return Object.assign(base, { estado: 'ok', trato, nombreObjeto: nombre });
     // Nombrado, pero sin decir qué hacer: si hay otra acción clara, no era un decreto sobre la persona.
@@ -253,6 +255,7 @@
 
     const res = {
       texto, corregidas, intensidad: intensidad(ps, T.normalizar(texto)),
+      secreto: RF.SECRETO ? RF.SECRETO.test(T.normalizar(texto)) : false,
       negado: false, opciones: [],
       confianza: confianza(ra, ro)
     };

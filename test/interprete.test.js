@@ -92,7 +92,23 @@ const ESPECIALES = [
   ['expulsar al embajador', 'exiliar', 'embajador'],
   ['que desaparezca el líder de la oposición', 'matar', 'valiente'],
   ['destituir a Cifuentes', 'destituir', 'cifuentes'],
-  ['regalarle un taxi nuevo a Ramiro', 'premiar', 'ramiro']
+  ['regalarle un taxi nuevo a Ramiro', 'premiar', 'ramiro'],
+  // Sistema político
+  ['disuelvo el congreso', 'PROHIBIR', 'CONGRESO'],
+  ['dar un autogolpe', 'PROHIBIR', 'CONGRESO'],
+  ['comprar a los diputados', 'CONTROLAR', 'CONGRESO'],
+  ['controlar los jueces', 'CONTROLAR', 'TRIBUNALES'],
+  ['suspender las elecciones', 'DEROGAR', 'ELECCIONES'],
+  ['amañar las elecciones', 'CONTROLAR', 'ELECCIONES'],
+  ['reelección indefinida', 'CONTROLAR', 'CONSTITUCION'],
+  ['proclamarme rey', 'CREAR', 'MONARQUIA'],
+  ['instaurar una teocracia', 'CREAR', 'TEOCRACIA'],
+  ['ley marcial', 'CREAR', 'JUNTA'],
+  ['restaurar la democracia', 'CREAR', 'DEMOCRACIA'],
+  ['convocar elecciones libres', 'CREAR', 'DEMOCRACIA'],
+  ['asesino contrincantes secretamente', 'CASTIGAR', 'OPOSICION'],
+  ['matar en secreto a Valiente', 'matar', 'valiente'],
+  ['que parezca un accidente lo de Cifuentes', 'matar', 'cifuentes']
 ];
 let espOk = 0;
 for (const [frase, accion, objeto] of ESPECIALES) {

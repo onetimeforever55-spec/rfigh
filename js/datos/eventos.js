@@ -161,6 +161,9 @@
     elecciones_ganadas: { titulo: 'REELECCIÓN LIMPIA', texto: 'Al final de tu mandato convocas elecciones. Nadie se lo cree, pero ganas. Limpiamente. La oposición pide un recuento y, para su sorpresa, vuelves a ganar.' },
     elecciones_amanadas: { titulo: 'REELECCIÓN CON EL 99,7%', texto: 'Convocas elecciones. {sombra} se encarga del conteo. Ganas con el 99,7% de los votos, incluidos los de varios muertos y un perro. El mundo protesta un rato y luego se olvida.' },
     hiperinflacion: { titulo: 'COLAPSO DEL VALDO', texto: 'La inflación supera el mil por ciento. Nadie acepta valdos: ni los soldados, ni los panaderos, ni tu cocinero. Una mañana llegas a Palacio y la guardia se ha ido a trabajar a otra parte. Tu gobierno termina sin un solo disparo, simplemente porque ya nadie cobra por obedecerte.' },
+    destituido: { titulo: 'DESTITUIDO', texto: 'El Congreso vota tu destitución. {n_sombra} te acompaña hasta la puerta del Palacio con una caja de cartón con tus cosas: la banda presidencial no entra. Una semana después, un juez te cita a declarar. Luego otro. Luego todos.' },
+    dimision: { titulo: 'DIMISIÓN', texto: 'Dimites en un mensaje de tres minutos, sin mirar a cámara. Te vas a una casa de campo con vistas al mar y un abogado muy caro. En Valdoria, algunos te echarán de menos. La mayoría, no.' },
+    perpetuo: { titulo: 'EL PODER SIN FIN', texto: 'Treinta turnos después sigues en el Palacio. No hubo elecciones, ni nadie se atreve ya a pedirlas. Los niños que nacieron con tu llegada no conocen otra cara en los billetes. Has ganado, si a esto se le puede llamar ganar.' },
     elecciones_perdidas: { titulo: 'DERROTA EN LAS URNAS', texto: 'Convocas elecciones convencido de ganar. Pierdes por goleada. Te vas al exilio con tres maletas y la estatua de 30 metros, que no cabe en el avión.' }
   };
 })(globalThis.RF = globalThis.RF || {});

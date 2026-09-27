@@ -56,6 +56,25 @@ body {
   justify-content: space-between;
   gap: 12px;
 }
+/* Etiqueta del régimen junto al nombre del país: se pulsa para ver el sistema político. */
+.regimen {
+  font: inherit;
+  font-family: var(--f-texto);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  vertical-align: middle;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--fosforo-oscuro);
+  background: none;
+  color: var(--fosforo-tenue);
+  cursor: pointer;
+  text-shadow: none;
+}
+.regimen:hover { color: var(--fosforo); border-color: var(--fosforo); }
+.regimen.r-iliberal { color: var(--aviso); border-color: var(--aviso); }
+.regimen.r-dictadura, .regimen.r-junta, .regimen.r-monarquia, .regimen.r-teocracia { color: var(--mal); border-color: var(--mal); }
+
 .marca {
   font-family: var(--f-terminal);
   font-size: 26px;
@@ -66,6 +85,7 @@ body {
   text-shadow: 0 0 8px var(--brillo);
 }
 .dia {
+  white-space: nowrap;
   font-family: var(--f-terminal);
   font-size: 22px;
   line-height: 1;
@@ -176,6 +196,7 @@ body {
   overflow: hidden;
 }
 .b-gaceta .etiqueta {
+  padding-right: 110px;
   color: var(--tinta);
   opacity: 0.7;
   border-bottom: 1px dashed rgba(31, 38, 29, 0.4);
@@ -251,6 +272,12 @@ body {
 .b-amanecer p { font-style: italic; color: var(--fosforo-tenue); font-size: 14px; }
 
 .b-suceso.decision { border-color: var(--fosforo-oscuro); border-left: 3px solid var(--fosforo); }
+
+/* Cambio de régimen: un aviso solemne entre el decreto y la calle. */
+.b-regimen { border-top: 3px double var(--mal); border-bottom: 3px double var(--mal); padding: 10px 0; }
+.b-regimen .etiqueta { font-family: var(--f-terminal); font-size: 22px; line-height: 1.15; letter-spacing: 0.06em; color: var(--mal); margin-bottom: 6px; }
+.b-suceso.escandalo { border-color: var(--mal); background: rgba(255, 107, 82, 0.06); }
+.b-suceso.escandalo .etiqueta { color: var(--mal); }
 
 /* Evento con decisión (estilo Victoria 2): marco doble y opciones con sus efectos. */
 .b-dilema {

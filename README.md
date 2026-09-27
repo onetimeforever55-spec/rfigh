@@ -37,9 +37,16 @@ No usa ninguna IA externa: funciona sin internet, gratis y al instante.
 - Para quitar una ley: `dejar de imprimir dinero`, `derogar la ley del aire`, `derogar el último decreto`. Quitar algo bueno duele y quitar algo malo alivia.
 - `esperar` pasa el turno sin firmar nada: tus leyes siguen trabajando.
 - Todo se conecta: la inflación encarece los gastos, se come los ingresos y amarga a la gente. La gente harta resta estabilidad. Sin estabilidad se recauda menos. La deuda se paga imprimiendo, lo que trae más inflación.
+- **Sistema político:** empiezas en una democracia frágil, y el régimen también se cambia con decretos:
+  - `disuelvo el congreso` (autogolpe → dictadura), `comprar a los diputados`, `controlar los jueces`, `amañar las elecciones`, `reelección indefinida` (→ democracia iliberal), `suspender las elecciones`, `proclamarme rey`, `instaurar una teocracia`, `ley marcial`, `restaurar la democracia`.
+  - Cada régimen cambia la recaudación, la inversión, la felicidad y la estabilidad de base, lo que rinde la represión y las sanciones o ayudas internacionales.
+  - En democracia, el Congreso puede **bloquear leyes polémicas** si no tienes apoyo: negocias (pagando), gobiernas por decreto o la retiras.
+  - Lo que haces **en secreto** (`matar en secreto a Valiente`, `asesino contrincantes secretamente`) no pasa por el Congreso y parece un accidente, pero cada turno puede salir a la luz: escándalo y, en democracia, juicio político.
+  - Al final: en democracia hay elecciones limpias, en democracia iliberal se pueden amañar, y en dictadura, monarquía, teocracia o junta solo cuenta seguir en el poder.
+  - Escribe `sistema` o toca la etiqueta del régimen para ver el Congreso, los jueces, la prensa, las elecciones y la Constitución.
 - También puedes decretar sobre personas (`destituir a Cifuentes`, `encarcelar a Nico`, `matar a Valiente`) y firmar hasta 3 decretos a la vez.
 - **Eventos:** cada pocos turnos, o cuando tus leyes lo provocan, salta un evento con opciones (estilo Victoria 2).
-- Comandos: `esperar`, `estado`, `leyes`, `poder`, `historial`, `ayuda`, `reiniciar`.
+- Comandos: `esperar`, `estado`, `sistema`, `leyes`, `poder`, `historial`, `ayuda`, `reiniciar`.
 - Sobrevive 30 turnos hasta las elecciones. La partida se guarda sola en el celular.
 
 ### Publicarlo gratis con GitHub Pages
@@ -55,6 +62,7 @@ El juego tiene su propio "bot", con tres piezas:
 | **Intérprete** | `js/interprete.js` | Entiende el decreto: jerga, faltas, negaciones ("dejar de…" = derogar), intensidad, personas y varios decretos en una frase. Si duda, pregunta. |
 | **Leyes** | `js/leyes.js` | La lógica de cada decreto: qué hace al firmarse, qué hace cada turno y cómo cambia con el tiempo (la gente se acostumbra, la represión se desgasta, las inversiones maduran). |
 | **Consejero** | `js/consejero.js` | Los cuatro indicadores y cómo se afectan entre sí cada turno (impuestos, gastos, inflación, deuda, protestas), alertas y finales. |
+| **Política** | `js/politica.js` | El régimen (democracia, iliberal, dictadura, junta, monarquía, teocracia), las instituciones del Estado, el apoyo en el Congreso, los secretos y los escándalos. |
 | **Poder** | `js/poder.js` | Decretos sobre personas: ministros con sucesores, gente de a pie, el líder de la oposición y el embajador. |
 | **Director** | `js/director.js` | Decide cuándo salta un evento y aplica la opción elegida. |
 | **Narrador** | `js/narrador.js` | Cuenta la historia: Gaceta Oficial, el parte de leyes de cada turno, titulares, gabinete, calle y ambiente. |
@@ -65,6 +73,7 @@ Los datos (lo que más se puede ampliar) están separados del código:
 - `js/datos/objetos.js`: los temas (aire, agua, comida, cocaína, escuadrón...) con sus propiedades.
 - `js/datos/mercado.js`: los modelos económicos para reconvertir la economía (narco, carbón, turismo...).
 - `js/datos/sinonimos.js`: jerga y sinónimos.
+- `js/datos/regimenes.js`: los regímenes y sus efectos, y los textos de cada cambio de régimen.
 - `js/datos/personajes.js`, `js/datos/poder.js`: gabinete, gente de a pie, instituciones y personas.
 - `js/datos/eventos.js`, `js/datos/dilemas.js`, `js/datos/voces.js`: alertas, eventos con decisiones, noticias, titulares y voces.
 

@@ -99,7 +99,7 @@
         'mano dura contra {o}', 'perseguir a {o}', 'arrestar a {o}', 'multar a {o}', 'desterrar a {o}',
         'exiliar a {o}', 'pena de muerte para {o}', 'reprimir a {o}', 'purgar a {o}', 'detener a {o}',
         'deportar a {o}', 'meter presos a {o}', 'encerrar a {o}', 'aplastar a {o}', 'cazar a {o}',
-        'mano de hierro con {o}', 'eliminar a {o}', 'matar a {o}', 'fusilen a {o}', 'encierren a {o}', 'arresten a {o}', 'maten a {o}', 'castiguen a {o}', 'que encarcelen a {o}', 'vigilar a {o}', 'espiar a {o}', 'investigar a {o}', 'hacer una limpieza de {o}', 'torturar a {o}', 'palizas a {o}', 'meter a la carcel a {o}', 'juicio sumario a {o}'
+        'mano de hierro con {o}', 'eliminar a {o}', 'matar a {o}', 'asesinar a {o}', 'asesino a {o}', 'purgar {o}', 'fusilen a {o}', 'encierren a {o}', 'arresten a {o}', 'maten a {o}', 'castiguen a {o}', 'que encarcelen a {o}', 'vigilar a {o}', 'espiar a {o}', 'investigar a {o}', 'hacer una limpieza de {o}', 'torturar a {o}', 'palizas a {o}', 'meter a la carcel a {o}', 'juicio sumario a {o}'
       ]
     },
     LEGALIZAR: {
@@ -155,7 +155,19 @@
       frases: [
         'crear {o}', 'fundar {o}', 'formar {o}', 'organizar {o}', 'montar {o}', 'establecer {o}', 'armar {o}',
         'crear un {o}', 'crear una {o}', 'fundar un {o}', 'instaurar {o}', 'inaugurar {o}', 'poner en marcha {o}',
-        'crear un cuerpo de {o}', 'formar una unidad de {o}', 'entrenar {o}', 'reclutar {o}', 'imprimir {o}', 'emitir {o}'
+        'crear un cuerpo de {o}', 'formar una unidad de {o}', 'entrenar {o}', 'reclutar {o}', 'imprimir {o}', 'emitir {o}',
+        'proclamar {o}', 'proclamarme {o}', 'instaurar {o}', 'declarar {o}', 'hacerme {o}', 'convocar {o}', 'restaurar {o}', 'establecer {o} en el pais', 'implantar {o}'
+      ]
+    },
+    CONTROLAR: {
+      nombre: 'Controlar',
+      nominal: 'el control {de}',
+      inversa: 'DEROGAR',
+      frases: [
+        'controlar {o}', 'comprar {o}', 'comprar a {o}', 'sobornar a {o}', 'intervenir {o}', 'llenar {o} de leales',
+        'poner gente leal en {o}', 'cooptar {o}', 'tomar el control de {o}', 'amañar {o}', 'manipular {o}', 'fraude en {o}',
+        'meter jueces afines en {o}', 'reformar {o}', 'cambiar {o} para seguir en el poder', 'domesticar {o}', 'someter {o}',
+        'poner {o} a mi servicio', 'que {o} obedezca', 'hacer trampa en {o}', 'untar a {o}', 'maquillar {o}'
       ]
     },
     DEROGAR: {

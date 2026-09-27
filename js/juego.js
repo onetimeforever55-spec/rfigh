@@ -14,7 +14,8 @@
     ['Subir impuestos a…', 'Subir impuestos a '], ['Bajar impuestos a…', 'Bajar impuestos a '], ['Invertir en…', 'Invertir en '],
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
-    ['esperar', 'esperar', true], ['estado', 'estado', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+    ['Disolver…', 'Disolver '], ['Controlar…', 'Controlar '], ['En secreto…', 'En secreto '],
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -78,6 +79,9 @@
       }
     }
     $('dia').textContent = 'TURNO ' + Math.min(estado.dia, RF.PAIS.dias) + '/' + RF.PAIS.dias;
+    const reg = RF.politica.regimen(estado);
+    $('regimen').textContent = RF.REGIMENES[reg].corto;
+    $('regimen').className = 'regimen r-' + reg.toLowerCase();
     const n = RF.leyes.lista(estado).length;
     const bal = Math.round(estado.balance || 0);
     $('ticker').textContent = 'BALANCE ' + (bal >= 0 ? '+' : '−') + Math.abs(bal) + 'M POR TURNO · ' + n + (n === 1 ? ' LEY VIGENTE' : ' LEYES VIGENTES') + ' ›';
@@ -139,7 +143,10 @@
     }
     if (b.tipo === 'dilema') return crearDilema(b, n);
     if (b.titulo) n.appendChild(el('span', 'etiqueta', b.titulo));
-    if (b.tipo === 'gaceta' && b.titulo && b.titulo.indexOf('DECRETO') === 0) n.appendChild(el('span', 'sello', 'DECRETADO'));
+    if (b.tipo === 'gaceta' && b.titulo) {
+      const sello = b.titulo.indexOf('DECRETO') === 0 ? 'DECRETADO' : b.titulo.indexOf('ORDEN RESERVADA') === 0 ? 'SECRETO' : b.titulo.indexOf('PROYECTO') === 0 ? 'BLOQUEADO' : null;
+      if (sello) n.appendChild(el('span', 'sello', sello));
+    }
     if (b.texto != null) {
       p = el('p');
       n.appendChild(p);
@@ -178,7 +185,7 @@
     return { nodo: n, parrafo: p, texto: b.texto };
   }
 
-  const ANIMADOS = new Set(['gaceta', 'cupula', 'calle', 'suceso', 'fin', 'dilema', 'amanecer', 'prensa']);
+  const ANIMADOS = new Set(['gaceta', 'cupula', 'calle', 'suceso', 'fin', 'dilema', 'amanecer', 'prensa', 'regimen']);
 
   function mostrar(bloques, animar) {
     for (const b of bloques) {
@@ -273,8 +280,9 @@
     if (!ultimo) { mostrar(bloques, false); guardar(); return; }
     if (!avanzado) RF.consejero.avanzarDia(estado, ultimo);
     bloques.push(...RF.narrador.cierreDia(estado, ultimo));
+    // Si ha saltado un evento (o el Congreso ha bloqueado la ley), su tarjeta va al final.
     const d = RF.director.pendiente(estado);
-    if (d && ultimo.dilema) bloques.push(RF.narrador.dilema(estado, d));
+    if (d) bloques.push(RF.narrador.dilema(estado, d));
     mostrar(bloques, true);
     pintarStats(cambios(antes));
     actualizarConsola();
@@ -349,6 +357,7 @@
     }
     if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
     if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
+    if (/^(sistema|regimen|politica|congreso|sistema politico)$/.test(orden)) { mostrar(RF.narrador.sistema(estado), false); return; }
     if (/^(gabinete|ministros|poder|instituciones)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
     if (/^(leyes|ley|leyes vigentes|economia|mercado|balance)$/.test(orden)) { mostrar(RF.narrador.leyes(estado), false); return; }
     if (/^(historial|decretos|archivo)$/.test(orden)) { mostrar(RF.narrador.historial(estado), false); return; }
@@ -428,6 +437,7 @@
     // Tocar la historia acelera el texto.
     $('registro').addEventListener('click', (e) => { if (!e.target.closest('button')) saltar = true; });
     $('ticker').addEventListener('click', () => { vaciar(); procesar('leyes'); });
+    $('regimen').addEventListener('click', () => { vaciar(); procesar('sistema'); });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);

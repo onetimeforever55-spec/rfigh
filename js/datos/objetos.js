@@ -170,6 +170,44 @@
       formas: ['un ministerio de propaganda', 'el ministerio de la verdad', 'la propaganda', 'el aparato de propaganda', 'una agencia de noticias oficial', 'los trolls', 'granjas de bots']
     },
 
+    // ---------- El sistema político: instituciones del Estado y regímenes ----------
+    CONGRESO: {
+      nombre: 'el Congreso', politico: 'congreso', libertad: 2,
+      formas: ['el congreso', 'el parlamento', 'la asamblea', 'los diputados', 'los senadores', 'el senado', 'la asamblea nacional', 'los legisladores', 'las cortes']
+    },
+    TRIBUNALES: {
+      nombre: 'los tribunales', politico: 'tribunales', libertad: 2,
+      formas: ['los tribunales', 'la corte suprema', 'los jueces', 'el poder judicial', 'la justicia', 'el tribunal supremo', 'la fiscalía', 'el tribunal constitucional', 'los fiscales']
+    },
+    ELECCIONES: {
+      nombre: 'las elecciones', politico: 'elecciones', libertad: 2,
+      formas: ['las elecciones', 'los votos', 'el voto', 'las urnas', 'el sufragio', 'los comicios', 'el consejo electoral', 'votar', 'el recuento']
+    },
+    CONSTITUCION: {
+      nombre: 'la Constitución', politico: 'constitucion', libertad: 2,
+      formas: ['la constitución', 'la carta magna', 'la reelección', 'los límites de mandato', 'las garantías constitucionales']
+    },
+    DEMOCRACIA: {
+      nombre: 'la democracia', regimen: 'DEMOCRACIA', libertad: 2,
+      formas: ['la democracia', 'un sistema democrático', 'la república', 'el estado de derecho', 'democracia']
+    },
+    DICTADURA: {
+      nombre: 'la dictadura', regimen: 'DICTADURA',
+      formas: ['la dictadura', 'una dictadura', 'el poder absoluto', 'un régimen autoritario', 'el autoritarismo', 'plenos poderes', 'dictador']
+    },
+    MONARQUIA: {
+      nombre: 'la monarquía', regimen: 'MONARQUIA',
+      formas: ['la monarquía', 'un reino', 'rey', 'reina', 'emperador', 'un imperio', 'la corona', 'monarca', 'majestad']
+    },
+    TEOCRACIA: {
+      nombre: 'la teocracia', regimen: 'TEOCRACIA',
+      formas: ['la teocracia', 'un estado religioso', 'la ley de dios', 'un gobierno religioso', 'la sharía', 'un estado confesional']
+    },
+    JUNTA: {
+      nombre: 'la junta militar', regimen: 'JUNTA',
+      formas: ['la junta', 'una junta de gobierno', 'un gobierno de facto', 'una junta de generales', 'la junta castrense']
+    },
+
     // Sin formas: el Intérprete lo usa cuando el decreto es para todos ("subir impuestos").
     GENERAL: {
       nombre: 'todo el mundo', esencial: 1, faccion: 'pueblo', gente: 1,

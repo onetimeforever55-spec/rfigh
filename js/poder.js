@@ -92,7 +92,7 @@
    * Aplica un trato a una persona. Devuelve { medida, texto, efectos, notas, cadena, objetivo }.
    * No aplica los efectos: lo hace el Consejero, para contarlos en el decreto.
    */
-  function tratar(e, id, trato, caido) {
+  function tratar(e, id, trato, caido, secreto) {
     iniciar(e);
     const p = RF.PERSONAS[id];
     const out = { efectos: {}, notas: [], texto: '', animo: {}, cadena: null };
@@ -131,6 +131,19 @@
 
     const textos = RF.TEXTOS_TRATO[p.tipo][trato];
     out.texto = T.expandir(Array.isArray(textos) ? T.azar(textos) : textos[id], vars);
+
+    // En secreto: parece un accidente o una desaparición. Duele menos ahora... si nadie lo descubre.
+    const oculto = secreto && ['matar', 'encarcelar', 'exiliar'].includes(trato);
+    if (oculto) {
+      for (const k of Object.keys(out.efectos)) out.efectos[k] *= 0.3;
+      out.texto = T.expandir(T.azar(RF.TEXTOS_SECRETO[trato]), vars);
+      out.medida = trato === 'matar' ? 'la muerte "accidental" de ' + nombre : 'la desaparición de ' + nombre;
+      out.secreto = {
+        tipo: trato === 'matar' ? 'asesinato' : 'desaparicion', persona: id,
+        descripcion: trato === 'matar' ? 'la muerte de ' + nombre : 'la desaparición de ' + nombre,
+        gravedad: { opositor: 3, extranjero: 4, ministro: 2, ciudadano: 2 }[p.tipo] || 2
+      };
+    }
 
     if (p.tipo === 'ministro') {
       if (DESTINO[trato]) {
@@ -177,13 +190,14 @@
       if (trato === 'encarcelar') out.ley = { clave: 'PRESO_POLITICO', nombre: 'Valiente entre rejas', porTurno: { estabilidad: -0.5, felicidad: -0.3 }, duracion: 12 };
       if (trato === 'liberar' || trato === 'matar' || trato === 'exiliar') out.derogar = ['PRESO_POLITICO'];
       out.cadena = { matar: { id: 'funeral_valiente', en: 1 }, encarcelar: { id: 'huelga_hambre', en: 3 }, exiliar: { id: 'gobierno_exilio', en: 4 }, destituir: { id: 'gobierno_exilio', en: 4 } }[trato] || null;
-    } else if (p.tipo === 'extranjero') {
+    } else if (p.tipo === 'extranjero' && !oculto) {
       e.personas[id] = { matar: 'muerto', encarcelar: 'preso', exiliar: 'exiliado', destituir: 'exiliado' }[trato] || e.personas[id];
       if (trato === 'matar' || trato === 'encarcelar') out.cadena = { id: 'represalias', en: 1 };
       if (trato === 'matar' || trato === 'encarcelar') out.ley = { clave: 'AISLAMIENTO', nombre: 'el aislamiento internacional', porTurno: { dinero: -8, estabilidad: -0.8 }, duracion: 12 };
       if (trato === 'exiliar' || trato === 'destituir') out.notas.push('La Unión Atlántica enviará un nuevo embajador. Más frío que el anterior.');
       if (trato === 'exiliar' || trato === 'destituir') e.personas[id] = 'libre';
     }
+    if (oculto && p.tipo === 'opositor') { out.ley = null; out.cadena = null; }
     return out;
   }
 

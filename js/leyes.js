@@ -254,7 +254,7 @@
     const nueva = {
       clave: ley.clave, accion, nombre, desde: e.dia, nivel: 1, factor: 1,
       porTurno: ley.porTurno, curvas: ley.curvas || {}, duracion: ley.duracion || null,
-      imprime: !!ley.imprime, dolariza: !!ley.dolariza, modelo: ley.modelo || null, institucion: !!ley.institucion
+      imprime: !!ley.imprime, dolariza: !!ley.dolariza, modelo: ley.modelo || null, institucion: !!ley.institucion, secreta: !!ley.secreta
     };
     // Dolarizar impide imprimir; imprimir con el dólar es imposible.
     if (nueva.dolariza) { const imp = leyes.find(l => l.imprime); if (imp) leyes.splice(leyes.indexOf(imp), 1); }
@@ -278,6 +278,8 @@
   }
 
   // Efecto de una ley en este turno, con su nivel, su edad y la situación del país.
+  function esRepresion(ley) { return ley.accion === 'CASTIGAR' || ['ESCUADRON', 'MILICIA', 'ESPIAS'].includes(ley.clave); }
+
   function efectoActual(e, ley) {
     const edad = e.dia - ley.desde;
     const out = {};
@@ -289,6 +291,15 @@
       if (k === 'dinero') {
         if (v < 0) v *= 1 + e.stats.inflacion / 100; // la inflación encarece los gastos
         else if (!ley.imprime) v *= Math.max(0.5, Math.min(1.2, 0.5 + e.stats.estabilidad / 120)) * Math.max(0.4, 1 - e.stats.inflacion / 250); // el caos y la inflación se comen los ingresos
+      }
+      // El régimen político: cómo se recauda, cuánto se invierte y cuánto rinde la represión.
+      const m = RF.politica && e.politica ? RF.politica.mods(e) : null;
+      if (m) {
+        if (k === 'dinero' && v > 0 && !ley.imprime) v *= ley.accion === 'SUBIR_IMPUESTO' ? m.recaudacion : m.inversion;
+        if (esRepresion(ley)) {
+          if (k === 'estabilidad' && v > 0) v *= m.represionEstab;
+          if (k === 'felicidad' && v < 0) v *= m.represionFel;
+        }
       }
       out[k] = v;
     }

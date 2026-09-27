@@ -68,6 +68,25 @@ body {
   justify-content: space-between;
   gap: 12px;
 }
+/* Etiqueta del régimen junto al nombre del país: se pulsa para ver el sistema político. */
+.regimen {
+  font: inherit;
+  font-family: var(--f-texto);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  vertical-align: middle;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--fosforo-oscuro);
+  background: none;
+  color: var(--fosforo-tenue);
+  cursor: pointer;
+  text-shadow: none;
+}
+.regimen:hover { color: var(--fosforo); border-color: var(--fosforo); }
+.regimen.r-iliberal { color: var(--aviso); border-color: var(--aviso); }
+.regimen.r-dictadura, .regimen.r-junta, .regimen.r-monarquia, .regimen.r-teocracia { color: var(--mal); border-color: var(--mal); }
+
 .marca {
   font-family: var(--f-terminal);
   font-size: 26px;
@@ -78,6 +97,7 @@ body {
   text-shadow: 0 0 8px var(--brillo);
 }
 .dia {
+  white-space: nowrap;
   font-family: var(--f-terminal);
   font-size: 22px;
   line-height: 1;
@@ -188,6 +208,7 @@ body {
   overflow: hidden;
 }
 .b-gaceta .etiqueta {
+  padding-right: 110px;
   color: var(--tinta);
   opacity: 0.7;
   border-bottom: 1px dashed rgba(31, 38, 29, 0.4);
@@ -263,6 +284,12 @@ body {
 .b-amanecer p { font-style: italic; color: var(--fosforo-tenue); font-size: 14px; }
 
 .b-suceso.decision { border-color: var(--fosforo-oscuro); border-left: 3px solid var(--fosforo); }
+
+/* Cambio de régimen: un aviso solemne entre el decreto y la calle. */
+.b-regimen { border-top: 3px double var(--mal); border-bottom: 3px double var(--mal); padding: 10px 0; }
+.b-regimen .etiqueta { font-family: var(--f-terminal); font-size: 22px; line-height: 1.15; letter-spacing: 0.06em; color: var(--mal); margin-bottom: 6px; }
+.b-suceso.escandalo { border-color: var(--mal); background: rgba(255, 107, 82, 0.06); }
+.b-suceso.escandalo .etiqueta { color: var(--mal); }
 
 /* Evento con decisión (estilo Victoria 2): marco doble y opciones con sus efectos. */
 .b-dilema {
@@ -392,7 +419,7 @@ body {
 <div class="app">
   <header class="cabecera">
     <div class="cabecera-fila">
-      <h1 class="marca">VALDORIA</h1>
+      <h1 class="marca">VALDORIA <button type="button" class="regimen r-democracia" id="regimen" title="Ver el sistema político">DEMOCRACIA</button></h1>
       <span class="dia" id="dia">TURNO 1/30</span>
     </div>
     <ul class="stats" id="stats" aria-label="Estado del país"></ul>
@@ -580,12 +607,36 @@ body {
     profes: 'profesores', profe: 'profesor', maestras: 'maestros', doctores: 'medicos', doctoras: 'medicos',
     hospis: 'hospitales', perritos: 'perros', gatitos: 'gatos', michis: 'gatos', lomitos: 'perros', firulais: 'perros',
     mascota: 'mascotas', iglesia: 'iglesias', pastores: 'curas', evangelicos: 'religion',
-    mio: 'mi', mia: 'mi', conmigo: 'mi'
+    mio: 'mi', mia: 'mi', conmigo: 'mi',
+    // Política
+    contrincantes: 'opositores', rivales: 'opositores', adversarios: 'opositores', competidores: 'opositores', contrincante: 'opositor',
+    coronarme: 'proclamarme rey', autoproclamarme: 'proclamarme', parlamentarios: 'diputados', congresistas: 'diputados',
+    magistrados: 'jueces', asesino: 'asesinar', asesinen: 'asesinar', asesinemos: 'asesinar', secretamente: 'en secreto',
+    // Primera persona ("disuelvo el congreso", "vendo el agua")
+    disuelvo: 'disolver', prohibo: 'prohibir', vendo: 'vender', cierro: 'cerrar', suspendo: 'suspender', privatizo: 'privatizar',
+    nacionalizo: 'nacionalizar', expropio: 'expropiar', encarcelo: 'encarcelar', mato: 'matar', ejecuto: 'ejecutar', fusilo: 'fusilar',
+    compro: 'comprar', subo: 'subir', invierto: 'invertir', recorto: 'recortar', obligo: 'obligar', legalizo: 'legalizar',
+    derogo: 'derogar', fundo: 'fundar', proclamo: 'proclamar', controlo: 'controlar', imprimo: 'imprimir', cobro: 'cobrar',
+    persigo: 'perseguir', destituyo: 'destituir', deporto: 'deportar', libero: 'liberar', convoco: 'convocar', restauro: 'restaurar',
+    instauro: 'instaurar', disuelve: 'disolver', disuelvan: 'disolver', sobornamos: 'sobornar', amano: 'amañar', subvenciono: 'subvencionar'
   };
 
   // Expresiones de varias palabras (se aplican antes que las palabras sueltas).
   RF.SINONIMOS_FRASES = [
     [/\bpena capital\b/g, 'pena de muerte'],
+    [/\b(dar un |hacer un )?auto ?golpe( de estado)?\b/g, 'disolver el congreso'],
+    [/\bdar un golpe de estado\b/g, 'disolver el congreso'],
+    [/\bcerrar el congreso\b/g, 'disolver el congreso'],
+    [/\breeleccion indefinida\b/g, 'controlar la constitucion'],
+    [/\bfraude electoral\b/g, 'amañar las elecciones'],
+    [/\bestado de excepcion\b/g, 'suspender la constitucion'],
+    [/\bley marcial\b/g, 'instaurar la junta'],
+    [/\b(una |la )?junta militar\b/g, 'la junta'],
+    [/\b(un )?gobierno militar\b/g, 'la junta'],
+    [/\bdar el poder a los militares\b/g, 'instaurar la junta'],
+    [/\blos militares al poder\b/g, 'instaurar la junta'],
+    [/\bdevolver el poder al pueblo\b/g, 'restaurar la democracia'],
+    [/\belecciones libres\b/g, 'la democracia'],
     [/\bmano de obra\b/g, 'trabajadores'],
     [/\bclase (obrera|trabajadora)\b/g, 'trabajadores'],
     [/\bclase alta\b/g, 'ricos'],
@@ -720,7 +771,7 @@ body {
         'mano dura contra {o}', 'perseguir a {o}', 'arrestar a {o}', 'multar a {o}', 'desterrar a {o}',
         'exiliar a {o}', 'pena de muerte para {o}', 'reprimir a {o}', 'purgar a {o}', 'detener a {o}',
         'deportar a {o}', 'meter presos a {o}', 'encerrar a {o}', 'aplastar a {o}', 'cazar a {o}',
-        'mano de hierro con {o}', 'eliminar a {o}', 'matar a {o}', 'fusilen a {o}', 'encierren a {o}', 'arresten a {o}', 'maten a {o}', 'castiguen a {o}', 'que encarcelen a {o}', 'vigilar a {o}', 'espiar a {o}', 'investigar a {o}', 'hacer una limpieza de {o}', 'torturar a {o}', 'palizas a {o}', 'meter a la carcel a {o}', 'juicio sumario a {o}'
+        'mano de hierro con {o}', 'eliminar a {o}', 'matar a {o}', 'asesinar a {o}', 'asesino a {o}', 'purgar {o}', 'fusilen a {o}', 'encierren a {o}', 'arresten a {o}', 'maten a {o}', 'castiguen a {o}', 'que encarcelen a {o}', 'vigilar a {o}', 'espiar a {o}', 'investigar a {o}', 'hacer una limpieza de {o}', 'torturar a {o}', 'palizas a {o}', 'meter a la carcel a {o}', 'juicio sumario a {o}'
       ]
     },
     LEGALIZAR: {
@@ -776,7 +827,19 @@ body {
       frases: [
         'crear {o}', 'fundar {o}', 'formar {o}', 'organizar {o}', 'montar {o}', 'establecer {o}', 'armar {o}',
         'crear un {o}', 'crear una {o}', 'fundar un {o}', 'instaurar {o}', 'inaugurar {o}', 'poner en marcha {o}',
-        'crear un cuerpo de {o}', 'formar una unidad de {o}', 'entrenar {o}', 'reclutar {o}', 'imprimir {o}', 'emitir {o}'
+        'crear un cuerpo de {o}', 'formar una unidad de {o}', 'entrenar {o}', 'reclutar {o}', 'imprimir {o}', 'emitir {o}',
+        'proclamar {o}', 'proclamarme {o}', 'instaurar {o}', 'declarar {o}', 'hacerme {o}', 'convocar {o}', 'restaurar {o}', 'establecer {o} en el pais', 'implantar {o}'
+      ]
+    },
+    CONTROLAR: {
+      nombre: 'Controlar',
+      nominal: 'el control {de}',
+      inversa: 'DEROGAR',
+      frases: [
+        'controlar {o}', 'comprar {o}', 'comprar a {o}', 'sobornar a {o}', 'intervenir {o}', 'llenar {o} de leales',
+        'poner gente leal en {o}', 'cooptar {o}', 'tomar el control de {o}', 'amañar {o}', 'manipular {o}', 'fraude en {o}',
+        'meter jueces afines en {o}', 'reformar {o}', 'cambiar {o} para seguir en el poder', 'domesticar {o}', 'someter {o}',
+        'poner {o} a mi servicio', 'que {o} obedezca', 'hacer trampa en {o}', 'untar a {o}', 'maquillar {o}'
       ]
     },
     DEROGAR: {
@@ -976,6 +1039,44 @@ body {
     PROPAGANDA: {
       nombre: 'el Ministerio de la Verdad', institucion: 1,
       formas: ['un ministerio de propaganda', 'el ministerio de la verdad', 'la propaganda', 'el aparato de propaganda', 'una agencia de noticias oficial', 'los trolls', 'granjas de bots']
+    },
+
+    // ---------- El sistema político: instituciones del Estado y regímenes ----------
+    CONGRESO: {
+      nombre: 'el Congreso', politico: 'congreso', libertad: 2,
+      formas: ['el congreso', 'el parlamento', 'la asamblea', 'los diputados', 'los senadores', 'el senado', 'la asamblea nacional', 'los legisladores', 'las cortes']
+    },
+    TRIBUNALES: {
+      nombre: 'los tribunales', politico: 'tribunales', libertad: 2,
+      formas: ['los tribunales', 'la corte suprema', 'los jueces', 'el poder judicial', 'la justicia', 'el tribunal supremo', 'la fiscalía', 'el tribunal constitucional', 'los fiscales']
+    },
+    ELECCIONES: {
+      nombre: 'las elecciones', politico: 'elecciones', libertad: 2,
+      formas: ['las elecciones', 'los votos', 'el voto', 'las urnas', 'el sufragio', 'los comicios', 'el consejo electoral', 'votar', 'el recuento']
+    },
+    CONSTITUCION: {
+      nombre: 'la Constitución', politico: 'constitucion', libertad: 2,
+      formas: ['la constitución', 'la carta magna', 'la reelección', 'los límites de mandato', 'las garantías constitucionales']
+    },
+    DEMOCRACIA: {
+      nombre: 'la democracia', regimen: 'DEMOCRACIA', libertad: 2,
+      formas: ['la democracia', 'un sistema democrático', 'la república', 'el estado de derecho', 'democracia']
+    },
+    DICTADURA: {
+      nombre: 'la dictadura', regimen: 'DICTADURA',
+      formas: ['la dictadura', 'una dictadura', 'el poder absoluto', 'un régimen autoritario', 'el autoritarismo', 'plenos poderes', 'dictador']
+    },
+    MONARQUIA: {
+      nombre: 'la monarquía', regimen: 'MONARQUIA',
+      formas: ['la monarquía', 'un reino', 'rey', 'reina', 'emperador', 'un imperio', 'la corona', 'monarca', 'majestad']
+    },
+    TEOCRACIA: {
+      nombre: 'la teocracia', regimen: 'TEOCRACIA',
+      formas: ['la teocracia', 'un estado religioso', 'la ley de dios', 'un gobierno religioso', 'la sharía', 'un estado confesional']
+    },
+    JUNTA: {
+      nombre: 'la junta militar', regimen: 'JUNTA',
+      formas: ['la junta', 'una junta de gobierno', 'un gobierno de facto', 'una junta de generales', 'la junta castrense']
     },
 
     // Sin formas: el Intérprete lo usa cuando el decreto es para todos ("subir impuestos").
@@ -1403,6 +1504,9 @@ body {
     elecciones_ganadas: { titulo: 'REELECCIÓN LIMPIA', texto: 'Al final de tu mandato convocas elecciones. Nadie se lo cree, pero ganas. Limpiamente. La oposición pide un recuento y, para su sorpresa, vuelves a ganar.' },
     elecciones_amanadas: { titulo: 'REELECCIÓN CON EL 99,7%', texto: 'Convocas elecciones. {sombra} se encarga del conteo. Ganas con el 99,7% de los votos, incluidos los de varios muertos y un perro. El mundo protesta un rato y luego se olvida.' },
     hiperinflacion: { titulo: 'COLAPSO DEL VALDO', texto: 'La inflación supera el mil por ciento. Nadie acepta valdos: ni los soldados, ni los panaderos, ni tu cocinero. Una mañana llegas a Palacio y la guardia se ha ido a trabajar a otra parte. Tu gobierno termina sin un solo disparo, simplemente porque ya nadie cobra por obedecerte.' },
+    destituido: { titulo: 'DESTITUIDO', texto: 'El Congreso vota tu destitución. {n_sombra} te acompaña hasta la puerta del Palacio con una caja de cartón con tus cosas: la banda presidencial no entra. Una semana después, un juez te cita a declarar. Luego otro. Luego todos.' },
+    dimision: { titulo: 'DIMISIÓN', texto: 'Dimites en un mensaje de tres minutos, sin mirar a cámara. Te vas a una casa de campo con vistas al mar y un abogado muy caro. En Valdoria, algunos te echarán de menos. La mayoría, no.' },
+    perpetuo: { titulo: 'EL PODER SIN FIN', texto: 'Treinta turnos después sigues en el Palacio. No hubo elecciones, ni nadie se atreve ya a pedirlas. Los niños que nacieron con tu llegada no conocen otra cara en los billetes. Has ganado, si a esto se le puede llamar ganar.' },
     elecciones_perdidas: { titulo: 'DERROTA EN LAS URNAS', texto: 'Convocas elecciones convencido de ganar. Pierdes por goleada. Te vas al exilio con tres maletas y la estatua de 30 metros, que no cabe en el avión.' }
   };
 })(globalThis.RF = globalThis.RF || {});
@@ -1958,6 +2062,97 @@ body {
         { texto: 'Subir el sueldo a las enfermeras', efectos: { tesoro: -6, salud: 5, pueblo: 3 }, resultado: 'Suben los sueldos. Nadie da las gracias. Las batas siguen colgadas.' },
         { texto: 'Descontarles la hora del sueldo', efectos: { salud: -6, pueblo: -6 }, resultado: 'Esa noche, doscientas enfermeras piden el visado para irse del país.' }
       ]
+        },
+
+    // ---------- El sistema político ----------
+    {
+      id: 'congreso_bloquea', titulo: 'El Congreso se planta', soloCadena: true,
+      texto: 'El Congreso rechaza {medida}. Solo cuentas con el {apoyo} de apoyo y los diputados no quieren cargar con una ley así. El presidente de la cámara te llama: "Excelencia, o negociamos, o esto no sale."',
+      opciones: [
+        { texto: 'Negociar votos con los diputados', efectos: { dinero: -15 }, apoyo: 5, aprobar: true, resultado: 'Una noche de cafés, promesas de carreteras y algún sobre. La ley sale adelante por dos votos.' },
+        { texto: 'Aprobarla por decreto de urgencia', efectos: { estabilidad: -3 }, apoyo: -15, aprobar: true, resultado: 'Te saltas al Congreso con un decreto de urgencia. La ley entra en vigor. Los diputados no olvidarán la humillación.' },
+        { texto: 'Retirar la ley', efectos: {}, apoyo: 3, resultado: 'Retiras la ley "para mejorarla". La oposición lo celebra como una victoria. Tus diputados, aliviados, te invitan a comer.' }
+      ]
+    },
+    {
+      id: 'juicio_politico', titulo: 'Juicio político', soloCadena: true,
+      texto: 'La oposición presenta una moción de destitución contra ti. Los jueces han abierto una investigación y el Congreso votará en unos días. Tienes el {apoyo} de los diputados. Si baja del 40%, caes.',
+      opciones: [
+        { texto: 'Defenderte ante el Congreso', efectos: {}, juicio: true, resultado: 'Das un discurso de tres horas sobre tu inocencia, tu infancia y la patria.' },
+        { texto: 'Dimitir con dignidad', efectos: {}, fin: 'dimision', resultado: 'Anuncias tu dimisión "por el bien del país". Nadie te cree, pero se agradece.' },
+        { texto: 'Disolver el Congreso antes de la votación', efectos: { estabilidad: -4, felicidad: -6 }, sistema: 'DICTADURA', resultado: 'Mandas cerrar el Congreso la noche antes de la votación.' }
+      ]
+    },
+    {
+      id: 'autogolpe_ejercito', titulo: 'El ejército decide', soloCadena: true,
+      texto: 'Tras el cierre del Congreso, {n_garrote} pide verte a solas. "El ejército ha garantizado el orden, {lider}. Ahora el ejército quiere saber qué gana con esto." Tres coroneles esperan fuera, sin quitarse la gorra.',
+      opciones: [
+        { texto: 'Duplicar los sueldos militares', efectos: { dinero: -20, estabilidad: 8 }, ingresos: -2, resultado: 'Los cuarteles celebran. Ahora tienes el ejército más caro y más leal del continente.' },
+        { texto: 'Dar ministerios a los generales', efectos: { estabilidad: 5, felicidad: -3 }, sistema: 'JUNTA', resultado: 'Los generales entran en el gobierno. Ya no eres un dictador civil: presides una junta militar.' },
+        { texto: 'Recordarle quién manda', efectos: { estabilidad: -9 }, resultado: '{garrote} se cuadra, saluda y se va. Esa noche se reúne con los coroneles hasta el amanecer.' }
+      ]
+    },
+    {
+      id: 'presion_democratica', titulo: 'La calle exige elecciones', urgente: true,
+      texto: 'Cientos de miles de personas marchan hacia el Palacio con un solo grito: "¡Elecciones ya!". Las embajadas piden "una transición ordenada". Algunos policías se han quitado el casco y marchan con ellos.',
+      opciones: [
+        { texto: 'Convocar elecciones libres', efectos: {}, sistema: 'DEMOCRACIA', resultado: 'Anuncias elecciones libres por televisión. La plaza estalla en aplausos.' },
+        { texto: 'Reprimir las marchas', efectos: { estabilidad: 7, felicidad: -9, dinero: -8 }, resultado: 'Gases, porras y detenciones. La marcha se disuelve. La rabia, no.' },
+        { texto: 'Prometer elecciones "pronto"', efectos: { felicidad: 3, estabilidad: -2 }, programar: [{ en: 4, titulo: 'La promesa incumplida', texto: 'Pasan los días y no hay fecha de elecciones. La gente empieza a entender qué significaba "pronto".', efectos: { felicidad: -6, estabilidad: -3 } }], resultado: 'Prometes elecciones "en cuanto se den las condiciones". La gente vuelve a casa, desconfiada.' }
+      ]
+    },
+    {
+      id: 'comision_verdad', titulo: 'La Comisión de la Verdad', soloCadena: true,
+      texto: 'Con la justicia libre de nuevo, una Comisión de la Verdad empieza a investigar lo que pasó durante tu gobierno: desaparecidos, sobornos, muertes "accidentales". Los testigos hacen cola para declarar.',
+      opciones: [
+        { texto: 'Colaborar y pedir perdón', efectos: { felicidad: 7, estabilidad: -6, dinero: 5 }, resultado: 'Pides perdón en televisión. Es el discurso más visto de la historia de Valdoria. Algunos lloran; otros te escupen en la pantalla.' },
+        { texto: 'Aprobar una amnistía para ti mismo', efectos: { felicidad: -8, estabilidad: 2 }, apoyo: -15, resultado: 'Te amnistías a ti mismo y a tus colaboradores. Es legal. Nadie lo considera justo.' },
+        { texto: 'Cerrar la comisión', efectos: { felicidad: -6, estabilidad: -3 }, resultado: 'Cierras la comisión "por falta de presupuesto". Los testigos siguen hablando, ahora en la prensa extranjera.' }
+      ]
+    },
+    {
+      id: 'sanciones', titulo: 'Sanciones internacionales', unaVez: true,
+      texto: 'La Unión Atlántica anuncia sanciones contra Valdoria "hasta que se restablezca el orden democrático". Tus cuentas en el extranjero aparecen congeladas y dos navieras dejan de parar en el puerto.',
+      opciones: [
+        { texto: 'Buscar un aliado autoritario', efectos: { dinero: 15, estabilidad: -2 }, resultado: 'Un país lejano y poco preguntón te ofrece créditos, armas y asesores. Ya tienes amigos. Qué amigos.' },
+        { texto: 'Prometer reformas', efectos: { dinero: 6, felicidad: 2 }, resultado: 'Anuncias una "hoja de ruta democrática" con muchas fechas y ninguna garantía. Levantan la mitad de las sanciones.' },
+        { texto: 'Apostar por la autarquía', efectos: { dinero: -6, felicidad: -3, estabilidad: 4 }, resultado: '"¡Valdoria se basta a sí misma!" Lo repites en cada discurso. En los mercados empiezan a faltar cosas.' }
+      ]
+    },
+    {
+      id: 'heredero', titulo: 'La cuestión sucesoria', unaVez: true,
+      texto: 'La corte murmura: toda monarquía necesita un heredero. Los nobles recién nombrados (tus primos, sobre todo) quieren saber quién llevará la corona cuando Su Majestad falte.',
+      opciones: [
+        { texto: 'Nombrar heredero a tu sobrino', efectos: { estabilidad: 3, felicidad: -3 }, resultado: 'Tu sobrino, el del coche en la fuente, es ahora Príncipe de Valdoria. La gente no sabe si reír o emigrar.' },
+        { texto: 'Casarte con una princesa extranjera', efectos: { dinero: 20, estabilidad: 3, felicidad: 2 }, resultado: 'La boda real dura tres días y la retransmite media Europa. La dote salva las cuentas del reino.' },
+        { texto: 'Declararte inmortal', efectos: { felicidad: -4, estabilidad: 2 }, resultado: '{paredes} anuncia que Su Majestad no necesita heredero porque no piensa morirse. Los astrólogos de la corte lo confirman.' }
+      ]
+    },
+    {
+      id: 'herejes', titulo: 'La policía de la fe', unaVez: true,
+      texto: 'Los curas más duros piden una policía religiosa: vigilar la ropa, la música y las misas. Los más moderados temen que el país se vacíe de jóvenes.',
+      opciones: [
+        { texto: 'Crear la policía de la fe', efectos: { estabilidad: 4, felicidad: -7 }, animo: { nico: -15 }, resultado: 'Hombres con brazalete recorren las calles midiendo faldas y apagando radios.' },
+        { texto: 'Una fe amable y sin policía', efectos: { felicidad: 3, estabilidad: -2 }, resultado: 'Pides a los curas "más misericordia y menos vigilancia". Los duros te acusan de tibio.' }
+      ]
+    },
+    {
+      id: 'generales_ambicion', titulo: 'Los generales quieren más', unaVez: true,
+      texto: 'Los generales de la Junta exigen más presupuesto, más poder y un avión privado cada uno. {n_garrote} te recuerda con una sonrisa quién tiene los tanques.',
+      opciones: [
+        { texto: 'Dárselo todo', efectos: { dinero: -25, estabilidad: 6 }, ingresos: -1, resultado: 'Cada general tiene su avión. Ninguno sabe pilotarlo, pero todos están contentos.' },
+        { texto: 'Purgar a los más ambiciosos', efectos: { estabilidad: -6, felicidad: 1 }, resultado: 'Tres generales son "jubilados" de madrugada. Los demás entienden el mensaje... o empiezan a conspirar mejor.' },
+        { texto: 'Devolver el poder a los civiles', efectos: {}, sistema: 'DICTADURA', resultado: 'Sacas a los generales del gobierno. Vuelves a mandar solo, pero con enemigos de uniforme.' }
+      ]
+    },
+    {
+      id: 'diputado_valiente', titulo: 'El diputado incómodo', unaVez: true,
+      texto: 'Un joven diputado de la oposición denuncia en el Congreso tus leyes con datos, gráficos y mucho humor. Su discurso se hace viral. {sombra} pregunta si "hay que hacer algo".',
+      opciones: [
+        { texto: 'Responderle en el Congreso', efectos: { felicidad: 2, estabilidad: -1 }, apoyo: 3, resultado: 'Le respondes con datos (algunos inventados). El debate es tan bueno que sube la audiencia del canal parlamentario.' },
+        { texto: 'Comprar su silencio', efectos: { dinero: -8 }, apoyo: 5, programar: [{ en: 5, titulo: 'El diputado habla', texto: 'El diputado cuenta en una entrevista que intentaste comprarlo. Muestra el sobre. Todavía tiene el dinero dentro.', efectos: { felicidad: -4, estabilidad: -3 } }], resultado: 'El diputado acepta el sobre y deja de hablar. Por ahora.' },
+        { texto: 'Que sufra un "accidente"', efectos: { estabilidad: 1 }, apoyo: -10, programar: [{ en: 3, titulo: 'Preguntas incómodas', texto: 'El joven diputado aparece con las dos piernas rotas "tras caerse por una escalera". Nadie en el Congreso se cree lo de la escalera.', efectos: { felicidad: -5, estabilidad: -4 } }], resultado: '{sombra} asiente y se va sin decir nada.' }
+      ]
     }
   ];
 
@@ -1966,6 +2161,7 @@ body {
    * Sustituyen a las de arriba cuando existen.
    */
   const S = e => e.stats;
+  const regimen = e => (e.politica ? e.politica.regimen : 'DEMOCRACIA');
   const ley = (e, clave, accion) => (e.leyes || []).find(l => l.clave === clave && (!accion || l.accion === accion));
   const edad = (e, clave) => { const l = ley(e, clave); return l ? e.dia - l.desde : -1; };
   const modelo = (e, m) => (e.leyes || []).find(l => l.clave === 'MODELO' && l.modelo === m);
@@ -2010,7 +2206,13 @@ body {
     escuadron_excesos: e => edad(e, 'ESCUADRON') >= 2,
     tigre: e => edad(e, 'ESCUADRON') >= 6,
     milicias_ejercito: e => !!ley(e, 'MILICIA') && S(e).estabilidad < 55,
-    complot: e => !!ley(e, 'ESPIAS') && S(e).estabilidad < 40
+    complot: e => !!ley(e, 'ESPIAS') && S(e).estabilidad < 40,
+    presion_democratica: e => ['DICTADURA', 'JUNTA', 'MONARQUIA', 'TEOCRACIA'].includes(regimen(e)) && S(e).estabilidad < 42 && e.dia > 6,
+    sanciones: e => regimen(e) !== 'DEMOCRACIA' && regimen(e) !== 'ILIBERAL' && e.dia - (e.politica.desde || 0) >= 2,
+    heredero: e => regimen(e) === 'MONARQUIA' && e.dia - e.politica.desde >= 2,
+    herejes: e => regimen(e) === 'TEOCRACIA' && e.dia - e.politica.desde >= 2,
+    generales_ambicion: e => regimen(e) === 'JUNTA' && e.dia - e.politica.desde >= 3,
+    diputado_valiente: e => e.politica && e.politica.congreso === 'libre' && e.dia > 4 && e.politica.apoyo < 55
   };
   for (const d of RF.DILEMAS) if (CONDICIONES[d.id]) d.si = CONDICIONES[d.id];
 })(globalThis.RF = globalThis.RF || {});
@@ -2042,6 +2244,7 @@ body {
       absurdo: ['«{Medida}: una idea adelantada a su tiempo»', '«Otros países ya estudian copiar {medida}»', '«Científicos aplauden {medida}, aunque no saben por qué»'],
       economia: ['«{Medida} traerá prosperidad, afirma el gobierno»', '«Los mercados celebran {medida}»', '«{Medida}: Valdoria entra en el siglo XXI»'],
       obra: ['«{Medida}: la patria construye su futuro»', '«Primera piedra de una nueva era»', '«{Medida}: obra histórica del líder»'],
+      secreto: ['«Trágico suceso: {Objeto} nos deja»', '«El Gobierno lamenta profundamente lo ocurrido y pide respeto para las familias»', '«Las autoridades descartan cualquier indicio de delito»'],
       general: ['«Su Excelencia decreta y el país avanza»', '«{Medida}: otro acierto del gobierno»', '«Un decreto histórico: {medida}»']
     },
     extranjera: {
@@ -2055,6 +2258,7 @@ body {
       absurdo: ['"Los decretos más extraños del año: Valdoria gana otra vez"', '"¿Qué está pasando en Valdoria? Ahora: {medida}"', '"Humor involuntario: {medida}"'],
       economia: ['"Valdoria cambia las reglas del juego: {medida}"', '"Los mercados reaccionan a {medida}"', '"Giro económico en Valdoria"'],
       obra: ['"Valdoria invierte: ¿propaganda o progreso?"', '"Obras en Valdoria: a ver cuánto dura"', '"Un raro acierto en Valdoria"'],
+      secreto: ['"Extrañas circunstancias en Valdoria: ¿accidente o algo más?"', '"Organizaciones internacionales piden una investigación independiente en Valdoria"', '"Demasiadas casualidades en Valdoria"'],
       general: ['"Otro día, otro decreto en Valdoria"', '"Valdoria: {medida}"', '"El impredecible líder de Valdoria vuelve a sorprender"']
     },
     pirata: {
@@ -2068,6 +2272,7 @@ body {
       absurdo: ['"El loco del Palacio ataca de nuevo: {medida}."', '"Ni nosotros podríamos inventar esto: {medida}."', '"Última hora: el gobierno ha perdido la cabeza. Otra vez."'],
       economia: ['"Venden la patria a trozos. Hoy tocó {objeto}."', '"{Medida}: los de siempre se hacen más ricos."', '"Que alguien le explique al Palacio para qué sirve un país."'],
       obra: ['"Prometen obras. Ya veremos el cartel y la primera piedra, como siempre."', '"{Medida}: ojalá sea verdad. No nos lo creemos."', '"Mucha foto, poca obra."'],
+      secreto: ['"¿Accidente? En este país nadie se cree ya los accidentes."', '"Si nos pasa algo, que conste: no fue un accidente."', '"Otro que molestaba. Otro que ya no está."'],
       general: ['"Otro decreto, otra excusa."', '"{Medida}. Seguimos resistiendo."', '"El Palacio decide, el pueblo sufre."']
     }
   };
@@ -2376,6 +2581,22 @@ body {
     }
   };
 
+  // Lo que se cuenta cuando se hace en secreto.
+  RF.TEXTOS_SECRETO = {
+    matar: [
+      '{Nombre} muere en un extraño accidente de tráfico: los frenos, dicen, fallaron en la única curva peligrosa de la carretera. {paredes} lamenta "la trágica pérdida" en televisión.',
+      'Encuentran a {nombre} sin vida en su casa. El informe oficial habla de "un infarto fulminante". El forense que firmó el informe se ha ido de vacaciones de forma indefinida.',
+      '{Nombre} cae desde el balcón de un hotel. La policía lo archiva como accidente en menos de una hora. Demasiado rápido, piensan algunos.'
+    ],
+    encarcelar: [
+      '{Nombre} sale de casa por la mañana y no vuelve. No hay orden de detención, ni registro, ni nada. Oficialmente, nadie sabe dónde está.',
+      'Una furgoneta sin matrícula, dos hombres sin placa y ningún testigo dispuesto a hablar. {Nombre} ha desaparecido.'
+    ],
+    exiliar: [
+      '{Nombre} recibe una visita nocturna y un billete de avión. A la mañana siguiente ya no está en el país. Oficialmente, "se fue por voluntad propia".'
+    ]
+  };
+
   RF.TEXTO_SUCESOR = [
     'Su puesto lo ocupa {sucesor}. En su primer día jura lealtad eterna. Todos saben cuánto duran esas cosas en Valdoria.',
     'Nombras a {sucesor} en su lugar. Su primera decisión es cambiar la cerradura de su despacho.',
@@ -2389,6 +2610,102 @@ body {
     libre: '{Nombre} no está preso: no hay a quién liberar.',
     fuera: '{Nombre} ya no ocupa ningún cargo.'
   };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/datos/regimenes.js
+/*
+ * REGÍMENES POLÍTICOS
+ * Cada régimen cambia cómo funciona el país cada turno:
+ *   recaudacion     multiplica los impuestos (en una dictadura se evade y se roba más)
+ *   inversion       multiplica los ingresos productivos de tus leyes (la confianza de empresas y extranjeros)
+ *   felicidadTurno  lo que pesan (o alivian) las libertades cada turno
+ *   estabilidadBase hacia dónde tiende la estabilidad sola
+ *   represionEstab  cuánto rinde la represión en estabilidad
+ *   represionFel    cuánta felicidad cuesta la represión
+ *   dineroTurno     ayuda o sanciones internacionales y gastos propios del régimen (corte, cuarteles...)
+ *   elecciones      'libres' | 'amanables' | null (no hay)
+ */
+(function (RF) {
+  'use strict';
+
+  RF.REGIMENES = {
+    DEMOCRACIA: {
+      nombre: 'Democracia', corto: 'DEMOCRACIA',
+      descripcion: 'Congreso, jueces y prensa libres. Recaudas bien y llega inversión, pero el Congreso puede bloquear tus leyes y los escándalos pueden tumbarte.',
+      recaudacion: 1.0, inversion: 1.1, felicidadTurno: 0.3, estabilidadBase: 55, represionEstab: 0.8, represionFel: 1.5, dineroTurno: 2,
+      elecciones: 'libres'
+    },
+    ILIBERAL: {
+      nombre: 'Democracia iliberal', corto: 'DEM. ILIBERAL',
+      descripcion: 'Sigue habiendo elecciones, pero controlas parte del juego: jueces, prensa o Congreso. El mundo empieza a mirarte con desconfianza.',
+      recaudacion: 0.95, inversion: 1.0, felicidadTurno: 0, estabilidadBase: 52, represionEstab: 1.0, represionFel: 1.2, dineroTurno: 0,
+      elecciones: 'amanables'
+    },
+    DICTADURA: {
+      nombre: 'Dictadura', corto: 'DICTADURA',
+      descripcion: 'Gobiernas sin Congreso ni elecciones. Nadie bloquea tus decretos, pero la gente evade impuestos, los inversores huyen y el mundo te sanciona. La represión rinde más.',
+      recaudacion: 0.85, inversion: 0.85, felicidadTurno: -0.4, estabilidadBase: 45, represionEstab: 1.3, represionFel: 0.9, dineroTurno: -3,
+      elecciones: null
+    },
+    JUNTA: {
+      nombre: 'Junta militar', corto: 'JUNTA MILITAR',
+      descripcion: 'Gobiernas rodeado de generales. El orden es de hierro y los cuarteles cuestan caros. La economía se resiente y la gente vive con miedo.',
+      recaudacion: 0.8, inversion: 0.8, felicidadTurno: -0.5, estabilidadBase: 52, represionEstab: 1.4, represionFel: 0.9, dineroTurno: -7,
+      elecciones: null
+    },
+    MONARQUIA: {
+      nombre: 'Monarquía absoluta', corto: 'MONARQUÍA',
+      descripcion: 'Su Excelencia es ahora Su Majestad. La corona da cierta legitimidad tradicional, pero la corte cuesta un dineral y el mundo se ríe un poco.',
+      recaudacion: 0.9, inversion: 0.9, felicidadTurno: -0.2, estabilidadBase: 50, represionEstab: 1.2, represionFel: 1.0, dineroTurno: -4,
+      elecciones: null
+    },
+    TEOCRACIA: {
+      nombre: 'Teocracia', corto: 'TEOCRACIA',
+      descripcion: 'La ley de Dios manda, y los curas con ella. Los creyentes se sienten en paz; los demás, vigilados. Las iglesias se quedan su diezmo.',
+      recaudacion: 0.9, inversion: 0.85, felicidadTurno: -0.1, estabilidadBase: 53, represionEstab: 1.2, represionFel: 1.0, dineroTurno: -2,
+      elecciones: null
+    }
+  };
+
+  // Lo que se cuenta al cambiar de régimen.
+  RF.TEXTOS_REGIMEN = {
+    DICTADURA: [
+      'A las cinco de la mañana, los tanques rodean el Congreso. Los diputados que llegan a trabajar encuentran las puertas cerradas con cadenas y un cartel: "Cerrado por reformas patrióticas". Desde hoy, tu palabra es la ley.',
+      'Lees el decreto en televisión, con la bandera detrás y {n_garrote} a tu lado. Se suspenden las garantías constitucionales "de forma temporal". Nadie en Valdoria sabe cuánto dura lo temporal.'
+    ],
+    ILIBERAL: [
+      'Nada cambia en apariencia: el Congreso se reúne, los jueces juzgan, los periódicos salen cada mañana. Pero las decisiones importantes ya se toman en tu despacho.',
+      'La democracia sigue en pie, como un decorado. Detrás, cada vez hay más gente tuya moviendo los hilos.'
+    ],
+    DEMOCRACIA: [
+      'Se reabren las puertas del Congreso. Los diputados entran despacio, mirando el techo como quien vuelve a una casa después de un incendio. Las embajadas celebran; tus ministros, no tanto.',
+      'Convocas elecciones libres y devuelves las llaves del Congreso. En la calle, la gente llora y se abraza. En Palacio, alguien empieza a destruir documentos.'
+    ],
+    JUNTA: [
+      'Firmas el decreto rodeado de generales. Desde hoy, Valdoria la gobierna una Junta Militar presidida por ti. {n_garrote} sonríe por primera vez en años.',
+      'Los militares ocupan los ministerios. Donde había un funcionario, ahora hay un coronel. El país se despierta con toque de queda.'
+    ],
+    MONARQUIA: [
+      'En una ceremonia de cuatro horas, te colocas tú mismo la corona. Es de latón dorado y pesa demasiado. Desde hoy, Su Excelencia es Su Majestad Primero de Valdoria.',
+      'Se proclama la monarquía. {paredes} ya ha encargado el retrato oficial con armiño. Los niños tienen que aprender un nuevo himno, con más estrofas.'
+    ],
+    TEOCRACIA: [
+      'El arzobispo bendice el nuevo orden desde el balcón del Palacio. Las leyes se revisarán "a la luz de las Escrituras". Los bares cierran los domingos. Y los lunes, por si acaso.',
+      'Valdoria se proclama Estado confesional. Los curas entran en las escuelas, en los tribunales y en los ministerios. {sombra} se compra un rosario.'
+    ]
+  };
+
+  // Estado de cada institución del Estado, para contarlo.
+  RF.ESTADOS_INSTITUCION = {
+    congreso: { libre: 'libre', controlado: 'comprado', disuelto: 'disuelto' },
+    tribunales: { libre: 'independientes', controlado: 'controlados', disuelto: 'disueltos' },
+    prensa: { libre: 'libre', controlado: 'censurada', disuelto: 'cerrada' },
+    elecciones: { libre: 'libres', controlado: 'amañadas', disuelto: 'suspendidas' },
+    constitucion: { libre: 'vigente', controlado: 'reformada a tu medida', disuelto: 'abolida' }
+  };
+
+  // Palabras que convierten una orden en secreta.
+  RF.SECRETO = /\b(secret|a escondidas|discretamente|sin que (nadie )?se (sepa|entere)|que parezca (un )?accidente|accidente|en silencio|encubiert|sin dejar rastro|por debajo de la mesa|clandestin)/;
 })(globalThis.RF = globalThis.RF || {});
 
 // js/interprete.js
@@ -2601,9 +2918,11 @@ body {
     const persona = RF.poder.buscar(estado, norm);
     if (!persona) return null;
     let trato = RF.poder.detectarTrato(T.normalizar(texto) + ' ' + norm);
+    const secreto = RF.SECRETO ? RF.SECRETO.test(T.normalizar(texto)) : false;
+    if (!trato && secreto && /accidente|desaparec/.test(T.normalizar(texto))) trato = 'matar';
     const accion = ra.ranking[0].clase;
     if (!trato && ra.evidencias[accion] && TRATO_DE_ACCION[accion]) trato = accion === 'CASTIGAR' && k > 1 ? 'matar' : TRATO_DE_ACCION[accion];
-    const base = { texto, corregidas, tipo: 'persona', persona: persona.id, caido: persona.caido, intensidad: 1, opciones: [], confianza: 90 };
+    const base = { texto, corregidas, tipo: 'persona', persona: persona.id, caido: persona.caido, intensidad: 1, opciones: [], confianza: 90, secreto };
     const nombre = persona.caido ? persona.caido.nombre : estado ? RF.poder.nombrePersona(estado, persona.id) : persona.id;
     if (trato) return Object.assign(base, { estado: 'ok', trato, nombreObjeto: nombre });
     // Nombrado, pero sin decir qué hacer: si hay otra acción clara, no era un decreto sobre la persona.
@@ -2647,6 +2966,7 @@ body {
 
     const res = {
       texto, corregidas, intensidad: intensidad(ps, T.normalizar(texto)),
+      secreto: RF.SECRETO ? RF.SECRETO.test(T.normalizar(texto)) : false,
       negado: false, opciones: [],
       confianza: confianza(ra, ro)
     };
@@ -2995,7 +3315,7 @@ body {
     const nueva = {
       clave: ley.clave, accion, nombre, desde: e.dia, nivel: 1, factor: 1,
       porTurno: ley.porTurno, curvas: ley.curvas || {}, duracion: ley.duracion || null,
-      imprime: !!ley.imprime, dolariza: !!ley.dolariza, modelo: ley.modelo || null, institucion: !!ley.institucion
+      imprime: !!ley.imprime, dolariza: !!ley.dolariza, modelo: ley.modelo || null, institucion: !!ley.institucion, secreta: !!ley.secreta
     };
     // Dolarizar impide imprimir; imprimir con el dólar es imposible.
     if (nueva.dolariza) { const imp = leyes.find(l => l.imprime); if (imp) leyes.splice(leyes.indexOf(imp), 1); }
@@ -3019,6 +3339,8 @@ body {
   }
 
   // Efecto de una ley en este turno, con su nivel, su edad y la situación del país.
+  function esRepresion(ley) { return ley.accion === 'CASTIGAR' || ['ESCUADRON', 'MILICIA', 'ESPIAS'].includes(ley.clave); }
+
   function efectoActual(e, ley) {
     const edad = e.dia - ley.desde;
     const out = {};
@@ -3030,6 +3352,15 @@ body {
       if (k === 'dinero') {
         if (v < 0) v *= 1 + e.stats.inflacion / 100; // la inflación encarece los gastos
         else if (!ley.imprime) v *= Math.max(0.5, Math.min(1.2, 0.5 + e.stats.estabilidad / 120)) * Math.max(0.4, 1 - e.stats.inflacion / 250); // el caos y la inflación se comen los ingresos
+      }
+      // El régimen político: cómo se recauda, cuánto se invierte y cuánto rinde la represión.
+      const m = RF.politica && e.politica ? RF.politica.mods(e) : null;
+      if (m) {
+        if (k === 'dinero' && v > 0 && !ley.imprime) v *= ley.accion === 'SUBIR_IMPUESTO' ? m.recaudacion : m.inversion;
+        if (esRepresion(ley)) {
+          if (k === 'estabilidad' && v > 0) v *= m.represionEstab;
+          if (k === 'felicidad' && v < 0) v *= m.represionFel;
+        }
       }
       out[k] = v;
     }
@@ -3125,6 +3456,7 @@ body {
       fin: null
     };
     RF.poder.iniciar(e);
+    RF.politica.iniciar(e);
     return e;
   }
 
@@ -3242,9 +3574,27 @@ body {
     const res = { tipo: 'decreto', dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, deltas: {}, porTurno: null, sucesos: [], notas: [] };
     const inicial = {};
 
-    const def = RF.leyes.definir(accion, objId, nombre);
-    if (def && def.nombre) laMedida = def.nombre;
-    if (!def) {
+    // El sistema político: disolver el Congreso, comprar jueces, proclamarse rey...
+    const pol = RF.politica.decreto(estado, accion, objId, nombre);
+    let def = null;
+    if (pol) {
+      if (pol.nulo) { res.nulo = pol.nulo; return res; }
+      laMedida = pol.medida;
+      Object.assign(inicial, pol.efectos);
+      res.especial = pol.texto;
+      res.notas.push(...(pol.notas || []));
+      res.cambioRegimen = pol.cambio || null;
+      res.politico = true;
+      if (pol.ley) { const pl = RF.leyes.promulgar(estado, pol.ley, 'POLITICA', pol.ley.nombre); res.ley = pl.ley; res.porTurno = RF.leyes.efectoNominal(pl.ley); }
+      if (pol.secreto) RF.politica.registrarSecreto(estado, pol.secreto);
+      if (pol.cadena) estado.dilemas.cadena.push({ id: pol.cadena.id, dia: estado.dia + pol.cadena.en });
+    } else {
+      def = RF.leyes.definir(accion, objId, nombre);
+      if (def && def.nombre) laMedida = def.nombre;
+    }
+    if (pol) {
+      res.politico = true;
+    } else if (!def) {
       res.notas.push('Este decreto no cambia nada que se pueda medir. Queda en la Gaceta como curiosidad.');
     } else if (def.derogar) {
       const r = RF.leyes.derogar(estado, def.derogar);
@@ -3254,10 +3604,28 @@ body {
       res.derogada = r.ley.nombre;
       if (r.choque.felicidad < 0) res.notas.push('Quitar lo que se había dado duele: la gente lo vive como una pérdida.');
       if (r.choque.felicidad > 0) res.notas.push('La gente respira aliviada.');
+      const lat = RF.politica.efectoLateral(estado, 'DEROGAR', r.ley.clave);
+      if (lat) res.cambioRegimen = lat;
     } else if (def.unaVez) {
       Object.assign(inicial, def.inicial);
       res.notas.push(...def.notas);
+    } else if (!op.forzar && RF.politica.bloquea(estado, def, accion, objId, interp)) {
+      // En democracia, el Congreso puede tumbar una ley polémica si no tienes votos.
+      res.bloqueada = true;
+      RF.director.forzar(estado, 'congreso_bloquea', { interp: Object.assign({}, interp), medida: laMedida });
+      res.dilema = 'congreso_bloquea';
+      res.notas.push('La ley necesita pasar por el Congreso y no tienes votos: solo cuentas con el ' + Math.round(estado.politica.apoyo) + '% de apoyo.');
     } else {
+      // Represión en secreto: la gente no sabe lo que pasa (todavía).
+      if (interp.secreto && accion === 'CASTIGAR' && o.gente) {
+        if (def.porTurno.felicidad) def.porTurno.felicidad *= 0.4;
+        if (def.inicial.felicidad) def.inicial.felicidad *= 0.3;
+        def.secreta = true;
+        laMedida = 'la persecución secreta ' + T.de(nombre);
+        RF.politica.registrarSecreto(estado, { tipo: 'represion', descripcion: laMedida, gravedad: 3, clave: def.clave });
+        res.secreto = true;
+        res.notas.push('Nadie lo sabe... todavía. Cada turno existe la posibilidad de que salga a la luz.');
+      }
       const p = RF.leyes.promulgar(estado, def, accion, laMedida);
       Object.assign(inicial, p.inicial);
       res.ley = p.ley;
@@ -3266,6 +3634,9 @@ body {
       res.notas.push(...p.notas, ...def.notas);
       if (p.sustituye && RF.ACCIONES[accion].inversa === p.sustituye.accion) sumar(inicial, 'estabilidad', -1);
       if (def.texto) res.especial = def.texto;
+      RF.politica.tras(estado, def, accion, objId);
+      const lat = RF.politica.efectoLateral(estado, accion, objId);
+      if (lat) res.cambioRegimen = lat;
     }
     res.medida = laMedida;
     res.vars = { objeto: nombre, Objeto: T.mayus(nombre), medida: laMedida, Medida: T.mayus(laMedida), lider: 'Su Excelencia' };
@@ -3296,7 +3667,7 @@ body {
    */
   function decretarPersona(estado, interp, op) {
     op = op || {};
-    const t = RF.poder.tratar(estado, interp.persona, interp.trato, interp.caido);
+    const t = RF.poder.tratar(estado, interp.persona, interp.trato, interp.caido, interp.secreto);
     const res = { dia: estado.dia, tipo: 'persona', persona: interp.persona, trato: interp.trato, deltas: {}, sucesos: [], notas: t.notas.slice(), vars: { lider: 'Su Excelencia' } };
     if (t.nulo) { res.nulo = t.nulo; return res; }
     res.medida = t.medida;
@@ -3304,7 +3675,10 @@ body {
     res.vars = { objeto: t.nombre, Objeto: t.nombre, medida: t.medida, Medida: T.mayus(t.medida), lider: 'Su Excelencia' };
     res.especial = t.texto;
     res.sucesor = t.sucesor || null;
-    const factor = op.secundario ? 0.75 : 1;
+    // En democracia, un crimen a la vista de todos pesa más.
+    const tipoPersona = RF.PERSONAS[interp.persona].tipo;
+    const publico = !t.secreto && (interp.trato === 'matar' || (['encarcelar', 'exiliar'].includes(interp.trato) && tipoPersona !== 'ciudadano'));
+    const factor = (op.secundario ? 0.75 : 1) * (publico && RF.politica.esDemocracia(estado) ? 1.3 : 1);
     const efectos = convertir(t.efectos);
     for (const k of Object.keys(efectos)) efectos[k] *= factor;
     aplicarEfectos(estado, efectos, res.deltas);
@@ -3315,6 +3689,17 @@ body {
       res.notas.push('Esto dejará huella durante ' + t.ley.duracion + ' turnos: ' + t.ley.nombre + '.');
     }
     for (const clave of t.derogar || []) RF.leyes.derogar(estado, clave);
+    if (t.secreto) {
+      RF.politica.registrarSecreto(estado, t.secreto);
+      res.secreto = true;
+      res.notas.push('Oficialmente fue un accidente. Cada turno existe la posibilidad de que se descubra la verdad.');
+    } else if (publico) {
+      const gravedad = { opositor: 3, extranjero: 3, ministro: 2, ciudadano: 2 }[tipoPersona] || 2;
+      if (RF.politica.crimenPublico(estado, gravedad)) {
+        res.dilema = 'juicio_politico';
+        res.notas.push('En una democracia, hacer esto a la vista de todos tiene un precio: el Congreso abre un juicio político contra ti.');
+      }
+    }
     if (t.cadena) estado.dilemas.cadena.push({ id: t.cadena.id, dia: estado.dia + t.cadena.en });
     estado.historial.push({ dia: estado.dia, accion: 'PERSONA', objeto: interp.persona, nombreObjeto: t.nombre, medida: t.medida, texto: interp.texto });
     res.numero = estado.historial.length;
@@ -3334,15 +3719,16 @@ body {
     res.leyesTurno = L.detalle;
 
     // 2. La economía de fondo y cómo se afectan las cuatro cosas entre sí.
-    const ingresos = INGRESOS_BASE * Math.max(0.5, Math.min(1.3, 0.6 + s.estabilidad / 150)) * Math.max(0.4, 1 - s.inflacion / 250);
+    const m = RF.politica.mods(estado);
+    const ingresos = INGRESOS_BASE * m.recaudacion * Math.max(0.5, Math.min(1.3, 0.6 + s.estabilidad / 150)) * Math.max(0.4, 1 - s.inflacion / 250);
     const gastos = GASTOS_BASE * (1 + s.inflacion / 100);
     const deuda = s.dinero < 0;
     const presion = L.total.inflacion + (deuda ? Math.min(12, -s.dinero / 15) : 0) + Math.max(0, s.inflacion - 40) * 0.12;
     const nuevaInflacion = Math.max(0, s.inflacion * 0.8 + 0.8 + presion);
     const fondo = {
-      dinero: ingresos - gastos,
-      felicidad: -Math.max(0, s.inflacion - 8) / 18 + (50 - s.felicidad) * 0.04,
-      estabilidad: (50 - s.estabilidad) * 0.03
+      dinero: ingresos - gastos + m.dineroTurno,
+      felicidad: -Math.max(0, s.inflacion - 8) / 18 + (50 - s.felicidad) * 0.04 + m.felicidadTurno,
+      estabilidad: (m.estabilidadBase - s.estabilidad) * 0.03
         + (s.felicidad < 40 ? -(40 - s.felicidad) / 8 : s.felicidad > 70 ? 0.5 : 0)
         + (s.inflacion > 30 ? -(s.inflacion - 30) / 20 : 0)
         + (deuda ? -1 : 0) + (s.dinero < -100 ? -2 : 0)
@@ -3365,6 +3751,11 @@ body {
     res.balance = cambio.dinero;
     estado.balance = cambio.dinero;
     for (const c of Object.values(estado.ciudadanos)) c.animo = Math.max(-100, Math.min(100, c.animo + (res.cambioTurno.felicidad || 0) * 0.8));
+
+    if (estado.politica.regimen !== 'DEMOCRACIA') res.causas.push(m.nombre + ': recaudación ' + Math.round(m.recaudacion * 100) + '%, ' + (m.dineroTurno < 0 ? 'sanciones y gastos del régimen ' + m.dineroTurno + 'M' : 'sin ayudas del exterior') + ', felicidad ' + (m.felicidadTurno >= 0 ? '+' : '') + m.felicidadTurno + ' por turno.');
+
+    // El sistema político: el Congreso, los secretos que salen a la luz, las legislativas.
+    RF.politica.turno(estado, res);
 
     // 3. Consecuencias programadas que tocan hoy.
     const hoy = estado.pendientes.filter(p => p.dia <= estado.dia);
@@ -3405,6 +3796,7 @@ body {
     // 6. Eventos con decisiones y noticias sueltas.
     const dilema = !comprobarFin(estado) && RF.director ? RF.director.comprobar(estado) : null;
     if (dilema) res.dilema = dilema.id;
+    else if (RF.director.pendiente(estado)) res.dilema = RF.director.pendiente(estado).id;
     if (res.sucesos.length || dilema) estado.diasSinEvento = 0;
     else estado.diasSinEvento++;
     if (!dilema && estado.diasSinEvento >= 4 && Math.random() < 0.4) {
@@ -3433,14 +3825,23 @@ body {
 
   function comprobarFin(estado) {
     const s = estado.stats;
+    if (estado.fin) return estado.fin;
     if (s.estabilidad <= 0) return s.felicidad < 30 ? 'pueblo' : 'ejercito';
     if (s.felicidad <= 0) return 'pueblo';
     if (s.inflacion >= 1000) return 'hiperinflacion';
     if (estado.diasEnQuiebra >= 2) return 'tesoro';
     if (estado.dia > RF.PAIS.dias) {
-      if (s.felicidad >= 55) return 'elecciones_ganadas';
-      if (s.estabilidad >= 60) return 'elecciones_amanadas';
-      return 'elecciones_perdidas';
+      // Al final del mandato: depende del régimen.
+      const m = RF.politica.mods(estado);
+      const p = estado.politica;
+      if (m.elecciones === 'libres') return s.felicidad >= 55 ? 'elecciones_ganadas' : 'elecciones_perdidas';
+      if (m.elecciones === 'amanables') {
+        if (s.felicidad >= 50) return 'elecciones_ganadas';
+        if (p.elecciones === 'controlado' || s.estabilidad >= 55) return 'elecciones_amanadas';
+        return 'elecciones_perdidas';
+      }
+      if (s.estabilidad >= 35) return 'perpetuo';
+      return s.felicidad < 30 ? 'pueblo' : 'ejercito';
     }
     return null;
   }
@@ -3496,6 +3897,7 @@ body {
     if (cadena) {
       D.cadena = D.cadena.filter(c => c !== cadena);
       d = porId(cadena.id);
+      if (d) D.datosCadena = cadena.datos || null;
       // Una continuación que ya no tiene sentido (la persona murió, salió de la cárcel...) no salta.
       try { if (d && d.si && !d.si(e)) d = null; } catch (err) { d = null; }
     } else if (e.dia >= PRIMER_DIA) {
@@ -3506,7 +3908,8 @@ body {
       else if (candidatos.length && (desde >= INTERVALO || (desde === INTERVALO - 1 && Math.random() < 0.25))) d = elegir(candidatos);
     }
     if (!d) return null;
-    D.pendiente = { id: d.id, dia: e.dia };
+    D.pendiente = { id: d.id, dia: e.dia, datos: D.datosCadena || null };
+    D.datosCadena = null;
     D.ultimo = e.dia;
     D.vistos[d.id] = e.dia;
     return d;
@@ -3543,6 +3946,11 @@ body {
       if (a.sectores) partes.push({ texto: 'Frena la reconversión', tono: 'aviso' });
       if (a.cancelarModelo) partes.push({ texto: 'Cancela la reconversión', tono: 'aviso' });
     }
+    if (op.apoyo) partes.push({ texto: 'Apoyo en el Congreso ' + (op.apoyo > 0 ? '▲' : '▼'), tono: op.apoyo > 0 ? 'sube' : 'baja' });
+    if (op.aprobar) partes.push({ texto: 'La ley se aprueba', tono: 'aviso' });
+    if (op.sistema) partes.push({ texto: 'Régimen: ' + RF.REGIMENES[op.sistema].nombre, tono: 'aviso' });
+    if (op.juicio) partes.push({ texto: 'Necesitas un 40% de apoyo o caes', tono: 'aviso' });
+    if (op.fin) partes.push({ texto: 'Fin de tu gobierno', tono: 'baja' });
     if (op.programar || op.cadena) partes.push({ texto: '⚠ Traerá consecuencias', tono: 'aviso' });
     return partes;
   }
@@ -3562,7 +3970,22 @@ body {
     if (a.cancelarModelo) RF.leyes.derogar(e, 'MODELO');
   }
 
-  function texto(d) { return T.expandir(d.texto, { lider: 'Su Excelencia' }); }
+  // Un evento que salta ya mismo por lo que acaba de pasar (el Congreso bloquea una ley, un juicio político...).
+  function forzar(e, id, datosEvento) {
+    const D = datos(e);
+    if (D.pendiente) { if (D.pendiente.id !== id && !D.cadena.some(c => c.id === id)) D.cadena.push({ id, dia: e.dia, datos: datosEvento }); return; }
+    D.pendiente = { id, dia: e.dia, datos: datosEvento || null };
+    D.ultimo = e.dia;
+    D.vistos[id] = e.dia;
+  }
+
+  function varsEvento(e) {
+    const p = e && e.dilemas && e.dilemas.pendiente;
+    const extra = (p && p.datos) || {};
+    return { lider: 'Su Excelencia', medida: extra.medida || 'la ley', apoyo: e && e.politica ? Math.round(e.politica.apoyo) + '%' : '' };
+  }
+
+  function texto(d, e) { return T.expandir(d.texto, varsEvento(e)); }
 
   // Aplica la opción elegida. Devuelve lo que pasó para que el Narrador lo cuente.
   function resolver(e, indice) {
@@ -3572,7 +3995,8 @@ body {
     const op = d.opciones[indice];
     if (!op) return null;
     // El resultado se escribe antes de aplicar cambios de personas (para nombrar a quien estaba).
-    let resultado = T.expandir(op.resultado || '', { lider: 'Su Excelencia' });
+    let resultado = T.expandir(op.resultado || '', varsEvento(e));
+    const datosEvento = (D.pendiente && D.pendiente.datos) || {};
     const textoOpcion = T.expandir(op.texto);
     const deltas = {};
     RF.consejero.aplicarEfectos(e, op.efectos, deltas);
@@ -3601,13 +4025,45 @@ body {
     for (const p of op.programar || []) e.pendientes.push(Object.assign({}, p, { dia: e.dia + p.en, texto: T.expandir(p.texto) }));
     if (op.cadena) D.cadena.push({ id: op.cadena.id, dia: e.dia + op.cadena.en });
     D.pendiente = null;
+
+    // El sistema político.
+    const pol = RF.politica.iniciar(e);
+    if (op.apoyo) pol.apoyo = Math.max(0, Math.min(100, pol.apoyo + op.apoyo));
+    let decreto = null;
+    if (op.aprobar && datosEvento.interp) {
+      // La ley que había bloqueado el Congreso sale adelante.
+      decreto = RF.consejero.decretar(e, datosEvento.interp, { avanzar: false, forzar: true });
+      for (const [k, v] of Object.entries(decreto.deltas)) deltas[k] = (deltas[k] || 0) + v;
+    }
+    let cambio = null;
+    if (op.sistema) {
+      const r = RF.politica.instaurar(e, op.sistema);
+      if (!r.nulo) {
+        RF.consejero.aplicarEfectos(e, r.efectos, deltas);
+        resultado += ' ' + r.texto;
+        cambio = r.cambio;
+        if (r.cadena) D.cadena.push({ id: r.cadena.id, dia: e.dia + r.cadena.en });
+      }
+    }
+    if (op.juicio) {
+      // El Congreso vota. Con menos del 40% de apoyo, te destituye.
+      if (pol.apoyo >= 40) {
+        resultado += ' El Congreso vota: ' + Math.round(pol.apoyo) + '% te apoya. Sobrevives al juicio político, tocado pero en pie.';
+        RF.consejero.aplicarEfectos(e, { estabilidad: -4 }, deltas);
+        pol.apoyo = Math.max(0, pol.apoyo - 10);
+      } else {
+        resultado += ' El Congreso vota: solo un ' + Math.round(pol.apoyo) + '% te apoya. Quedas destituido.';
+        e.fin = 'destituido';
+      }
+    }
+    if (op.fin) e.fin = op.fin;
     e.decisiones = (e.decisiones || 0) + 1;
     const fin = RF.consejero.comprobarFin(e);
     if (fin) e.fin = fin;
-    return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado };
+    return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado, decreto, cambio };
   }
 
-  RF.director = { comprobar, pendiente, resolver, resumen, texto, porId };
+  RF.director = { comprobar, pendiente, resolver, resumen, texto, porId, forzar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/poder.js
@@ -3705,7 +4161,7 @@ body {
    * Aplica un trato a una persona. Devuelve { medida, texto, efectos, notas, cadena, objetivo }.
    * No aplica los efectos: lo hace el Consejero, para contarlos en el decreto.
    */
-  function tratar(e, id, trato, caido) {
+  function tratar(e, id, trato, caido, secreto) {
     iniciar(e);
     const p = RF.PERSONAS[id];
     const out = { efectos: {}, notas: [], texto: '', animo: {}, cadena: null };
@@ -3744,6 +4200,19 @@ body {
 
     const textos = RF.TEXTOS_TRATO[p.tipo][trato];
     out.texto = T.expandir(Array.isArray(textos) ? T.azar(textos) : textos[id], vars);
+
+    // En secreto: parece un accidente o una desaparición. Duele menos ahora... si nadie lo descubre.
+    const oculto = secreto && ['matar', 'encarcelar', 'exiliar'].includes(trato);
+    if (oculto) {
+      for (const k of Object.keys(out.efectos)) out.efectos[k] *= 0.3;
+      out.texto = T.expandir(T.azar(RF.TEXTOS_SECRETO[trato]), vars);
+      out.medida = trato === 'matar' ? 'la muerte "accidental" de ' + nombre : 'la desaparición de ' + nombre;
+      out.secreto = {
+        tipo: trato === 'matar' ? 'asesinato' : 'desaparicion', persona: id,
+        descripcion: trato === 'matar' ? 'la muerte de ' + nombre : 'la desaparición de ' + nombre,
+        gravedad: { opositor: 3, extranjero: 4, ministro: 2, ciudadano: 2 }[p.tipo] || 2
+      };
+    }
 
     if (p.tipo === 'ministro') {
       if (DESTINO[trato]) {
@@ -3790,13 +4259,14 @@ body {
       if (trato === 'encarcelar') out.ley = { clave: 'PRESO_POLITICO', nombre: 'Valiente entre rejas', porTurno: { estabilidad: -0.5, felicidad: -0.3 }, duracion: 12 };
       if (trato === 'liberar' || trato === 'matar' || trato === 'exiliar') out.derogar = ['PRESO_POLITICO'];
       out.cadena = { matar: { id: 'funeral_valiente', en: 1 }, encarcelar: { id: 'huelga_hambre', en: 3 }, exiliar: { id: 'gobierno_exilio', en: 4 }, destituir: { id: 'gobierno_exilio', en: 4 } }[trato] || null;
-    } else if (p.tipo === 'extranjero') {
+    } else if (p.tipo === 'extranjero' && !oculto) {
       e.personas[id] = { matar: 'muerto', encarcelar: 'preso', exiliar: 'exiliado', destituir: 'exiliado' }[trato] || e.personas[id];
       if (trato === 'matar' || trato === 'encarcelar') out.cadena = { id: 'represalias', en: 1 };
       if (trato === 'matar' || trato === 'encarcelar') out.ley = { clave: 'AISLAMIENTO', nombre: 'el aislamiento internacional', porTurno: { dinero: -8, estabilidad: -0.8 }, duracion: 12 };
       if (trato === 'exiliar' || trato === 'destituir') out.notas.push('La Unión Atlántica enviará un nuevo embajador. Más frío que el anterior.');
       if (trato === 'exiliar' || trato === 'destituir') e.personas[id] = 'libre';
     }
+    if (oculto && p.tipo === 'opositor') { out.ley = null; out.cadena = null; }
     return out;
   }
 
@@ -3826,6 +4296,325 @@ body {
   function nombreTrato(id) { return RF.TRATOS.find(t => t.id === id).nombre; }
 
   RF.poder = { iniciar, actualizarNombres, buscar, detectarTrato, tratar, tratosPosibles, nombrePersona, nombreTrato, estadoPersona, ministro, nombrar, disolver, NOMINAL };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/politica.js
+/*
+ * EL SISTEMA POLÍTICO
+ *
+ * El régimen se deduce del estado de cinco instituciones: Congreso, tribunales, prensa, elecciones y Constitución.
+ *   - Todas libres                               → Democracia
+ *   - Alguna controlada (comprada, amañada...)   → Democracia iliberal
+ *   - Congreso disuelto, elecciones suspendidas
+ *     o Constitución abolida                     → Dictadura
+ *   - Monarquía, teocracia y junta militar se proclaman con un decreto.
+ *
+ * En democracia el Congreso puede bloquear leyes polémicas si no tienes apoyo suficiente.
+ * Lo que se hace en secreto no pasa por el Congreso, pero cada turno puede salir a la luz
+ * (más probable con prensa y jueces libres). Un escándalo en democracia puede acabar en juicio político.
+ */
+(function (RF) {
+  'use strict';
+  const T = RF.texto;
+  const INSTITUCIONES = ['congreso', 'tribunales', 'prensa', 'elecciones', 'constitucion'];
+  const POSITIVAS = ['CREAR', 'INVERTIR', 'GLORIFICAR', 'OBLIGAR', 'LEGALIZAR', 'SUBSIDIAR', 'ENFOCAR', 'NACIONALIZAR'];
+  const ABOLIR = ['PROHIBIR', 'DEROGAR'];
+  const SOMETER = ['CONTROLAR', 'CASTIGAR', 'RECORTAR', 'PRIVATIZAR'];
+
+  function iniciar(e) {
+    if (!e.politica) {
+      e.politica = {
+        regimen: 'DEMOCRACIA', proclamado: null, desde: 1,
+        congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre',
+        apoyo: 55, secretos: [], escandalos: 0, crimenes: 0, legislativas: false, historia: ['DEMOCRACIA']
+      };
+    }
+    return e.politica;
+  }
+
+  function calcular(p) {
+    if (p.proclamado) return p.proclamado;
+    if (p.congreso === 'disuelto' || p.elecciones === 'disuelto' || p.constitucion === 'disuelto') return 'DICTADURA';
+    if (INSTITUCIONES.some(k => p[k] !== 'libre')) return 'ILIBERAL';
+    return 'DEMOCRACIA';
+  }
+
+  function regimen(e) { return iniciar(e).regimen; }
+  function mods(e) { return RF.REGIMENES[regimen(e)]; }
+  function esDemocracia(e) { const r = regimen(e); return r === 'DEMOCRACIA' || r === 'ILIBERAL'; }
+
+  // Recalcula el régimen. Devuelve { de, a } si ha cambiado.
+  function actualizar(e) {
+    const p = iniciar(e);
+    const nuevo = calcular(p);
+    if (nuevo === p.regimen) return null;
+    const cambio = { de: p.regimen, a: nuevo };
+    p.regimen = nuevo;
+    p.desde = e.dia;
+    p.historia.push(nuevo);
+    return cambio;
+  }
+
+  function textoCambio(a) { return T.expandir(T.azar(RF.TEXTOS_REGIMEN[a])); }
+
+  // ---------- Decretos sobre el sistema político ----------
+
+  const EFECTOS_INSTITUCION = {
+    congreso: {
+      disuelto: { efectos: { estabilidad: -8, felicidad: -10, dinero: -15 }, texto: 'Disuelves el Congreso. Los diputados se enteran por la radio.' },
+      controlado: { efectos: { dinero: -30 }, texto: 'Maletines, cenas y promesas de embajadas. En una sola noche, cuarenta diputados descubren que siempre estuvieron de acuerdo contigo.' },
+      libre: { efectos: { felicidad: 6, estabilidad: -3, dinero: 8 }, texto: 'El Congreso vuelve a reunirse con libertad. Su primer acto es pedirte explicaciones.' }
+    },
+    tribunales: {
+      disuelto: { efectos: { estabilidad: -4, felicidad: -6, dinero: -5 }, texto: 'Cierras el Tribunal Supremo. Los jueces salen con sus togas en bolsas de plástico. A partir de hoy, la justicia la imparte tu despacho.' },
+      controlado: { efectos: { dinero: -10, felicidad: -3 }, texto: 'Jubilas por sorpresa a los jueces del Supremo y nombras a tu antiguo abogado, a tu cuñado y a un señor que te cae bien.' },
+      libre: { efectos: { felicidad: 4, estabilidad: -2 }, texto: 'Devuelves la independencia a los jueces. Algunos ya están abriendo carpetas con tu nombre.' }
+    },
+    prensa: {
+      disuelto: { efectos: { felicidad: -6, estabilidad: 1 }, texto: 'Cierras los periódicos independientes. Los quioscos solo venden la prensa oficial y crucigramas.' },
+      controlado: { efectos: { dinero: -12, felicidad: -2 }, texto: 'Tus amigos empresarios compran los principales periódicos y canales. Los editoriales se vuelven sorprendentemente amables contigo.' },
+      libre: { efectos: { felicidad: 4, estabilidad: -2 }, texto: 'La prensa vuelve a ser libre. Al día siguiente, todas las portadas hablan de ti. Ninguna bien.' }
+    },
+    elecciones: {
+      disuelto: { efectos: { felicidad: -10, estabilidad: -5, dinero: -10 }, texto: 'Suspendes las elecciones "hasta que se den las condiciones". Las urnas se guardan en un almacén del ejército.' },
+      controlado: { efectos: { dinero: -8 }, texto: 'El consejo electoral recibe instrucciones discretas: censos creativos, colegios que abren tarde en los barrios críticos y un programa informático muy obediente.' },
+      libre: { efectos: { felicidad: 6, estabilidad: -2 }, texto: 'Garantizas elecciones libres, con observadores internacionales. Nadie sabe si lo haces por convicción o por miedo.' }
+    },
+    constitucion: {
+      disuelto: { efectos: { felicidad: -8, estabilidad: -4, dinero: -10 }, texto: 'Suspendes la Constitución. Las garantías ciudadanas quedan "en pausa". Nadie te explica dónde está el botón para quitar la pausa.' },
+      controlado: { efectos: { felicidad: -4, estabilidad: 2 }, texto: 'Reformas la Constitución: reelección indefinida y un par de artículos que solo entiende tu abogado.' },
+      libre: { efectos: { felicidad: 4 }, texto: 'Restauras la Constitución original, con todas sus garantías. Los estudiantes de Derecho lo celebran con una fiesta muy aburrida.' }
+    }
+  };
+
+  // Efectos al instaurar un régimen de golpe.
+  const INSTAURAR = {
+    DEMOCRACIA: { efectos: { felicidad: 8, estabilidad: -4, dinero: 10 }, instituciones: { congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre' } },
+    DICTADURA: { efectos: { estabilidad: -8, felicidad: -10, dinero: -15 }, instituciones: { congreso: 'disuelto', elecciones: 'disuelto' } },
+    JUNTA: { efectos: { estabilidad: 6, felicidad: -8, dinero: -10 }, instituciones: { congreso: 'disuelto', elecciones: 'disuelto', prensa: 'controlado' } },
+    MONARQUIA: { efectos: { dinero: -25, felicidad: -4, estabilidad: 2 }, instituciones: { congreso: 'disuelto', elecciones: 'disuelto' } },
+    TEOCRACIA: { efectos: { dinero: -8, felicidad: -3, estabilidad: 4 }, instituciones: { congreso: 'controlado', tribunales: 'controlado', elecciones: 'disuelto' } }
+  };
+
+  // Cambia de régimen por decreto o por un evento. Devuelve lo que pasó.
+  function instaurar(e, destino) {
+    const p = iniciar(e);
+    if (p.regimen === destino) return { nulo: 'Valdoria ya es una ' + RF.REGIMENES[destino].nombre.toLowerCase() + '.' };
+    const d = INSTAURAR[destino];
+    const de = p.regimen;
+    p.proclamado = ['JUNTA', 'MONARQUIA', 'TEOCRACIA'].includes(destino) ? destino : null;
+    Object.assign(p, d.instituciones);
+    if (destino === 'DEMOCRACIA') { p.apoyo = e.stats.felicidad; RF.leyes.derogar(e, 'SOBORNOS'); }
+    const cambio = actualizar(e) || { de, a: destino };
+    const out = { efectos: Object.assign({}, d.efectos), texto: textoCambio(destino), cambio, notas: [] };
+    if (destino === 'DEMOCRACIA' && (p.crimenes > 0 || p.secretos.length)) out.cadena = { id: 'comision_verdad', en: 3 };
+    if ((destino === 'DICTADURA' || destino === 'JUNTA') && (de === 'DEMOCRACIA' || de === 'ILIBERAL')) out.cadena = { id: 'autogolpe_ejercito', en: 1 };
+    out.notas.push(RF.REGIMENES[destino].descripcion);
+    return out;
+  }
+
+  /*
+   * Decretos sobre el sistema: "disuelvo el Congreso", "comprar a los diputados", "proclamarme rey"...
+   * Devuelve null si el decreto no es político.
+   */
+  function decreto(e, accion, objId, nombre) {
+    const o = RF.OBJETOS[objId];
+    if (!o) return null;
+    const p = iniciar(e);
+
+    // Regímenes: instaurar o abolir.
+    if (o.regimen) {
+      let destino;
+      if (ABOLIR.includes(accion) || accion === 'CASTIGAR' || accion === 'RECORTAR') destino = o.regimen === 'DEMOCRACIA' ? 'DICTADURA' : 'DEMOCRACIA';
+      else destino = o.regimen;
+      const r = instaurar(e, destino);
+      r.medida = destino === 'DEMOCRACIA' ? 'la restauración de la democracia' : 'la instauración de ' + (destino === 'DICTADURA' ? 'la dictadura' : RF.OBJETOS[destino].nombre);
+      return r;
+    }
+
+    // Prensa: solo "controlar/comprar la prensa" es político; prohibirla o perseguirla sigue siendo una ley.
+    const clave = o.politico || (objId === 'PRENSA' && accion === 'CONTROLAR' ? 'prensa' : null);
+    if (!clave) return null;
+
+    let nuevo;
+    if (ABOLIR.includes(accion)) nuevo = 'disuelto';
+    else if (SOMETER.includes(accion)) nuevo = 'controlado';
+    else if (POSITIVAS.includes(accion)) nuevo = 'libre';
+    else return null;
+
+    const verbos = { disuelto: { congreso: 'la disolución', tribunales: 'el cierre', prensa: 'el cierre', elecciones: 'la suspensión', constitucion: 'la suspensión' }, controlado: { congreso: 'la compra', tribunales: 'el control', prensa: 'la compra', elecciones: 'el amaño', constitucion: 'la reforma' }, libre: { congreso: 'la restauración', tribunales: 'la independencia', prensa: 'la libertad', elecciones: 'la garantía', constitucion: 'la restauración' } };
+    const medida = verbos[nuevo][clave] + ' ' + T.de(RF.OBJETOS[{ congreso: 'CONGRESO', tribunales: 'TRIBUNALES', prensa: 'PRENSA', elecciones: 'ELECCIONES', constitucion: 'CONSTITUCION' }[clave]].nombre);
+    if (p[clave] === nuevo) return { nulo: T.mayus(nombre) + ' ya está así: ' + RF.ESTADOS_INSTITUCION[clave][nuevo] + '.', medida };
+
+    const def = EFECTOS_INSTITUCION[clave][nuevo];
+    p[clave] = nuevo;
+    const out = { medida, efectos: Object.assign({}, def.efectos), texto: def.texto, notas: [] };
+
+    if (clave === 'congreso' && nuevo === 'controlado') {
+      p.apoyo = 85;
+      out.ley = { clave: 'SOBORNOS', nombre: 'los sobornos a los diputados', porTurno: { dinero: -4 } };
+      out.secreto = { tipo: 'soborno', descripcion: 'los sobornos a los diputados', gravedad: 2 };
+      out.notas.push('Ahora el Congreso aprueba todo. Mantenerlo contento cuesta 4 millones cada turno, y el secreto puede salir a la luz.');
+    }
+    if (clave === 'congreso' && nuevo === 'libre') { p.apoyo = e.stats.felicidad; RF.leyes.derogar(e, 'SOBORNOS'); }
+    if (clave === 'elecciones' && nuevo === 'controlado') out.secreto = { tipo: 'fraude', descripcion: 'el amaño del sistema electoral', gravedad: 2 };
+    if (clave === 'tribunales' && nuevo === 'libre' && (p.crimenes > 0 || p.secretos.length)) out.cadena = { id: 'comision_verdad', en: 3 };
+
+    const cambio = actualizar(e);
+    if (cambio) {
+      out.cambio = cambio;
+      out.texto += ' ' + textoCambio(cambio.a);
+      out.notas.push(RF.REGIMENES[cambio.a].descripcion);
+      if ((cambio.a === 'DICTADURA') && (cambio.de === 'DEMOCRACIA' || cambio.de === 'ILIBERAL')) out.cadena = { id: 'autogolpe_ejercito', en: 1 };
+      if (cambio.a === 'DEMOCRACIA' && (p.crimenes > 0 || p.secretos.length)) out.cadena = { id: 'comision_verdad', en: 3 };
+    }
+    return out;
+  }
+
+  // Prohibir o perseguir a la prensa también cambia su estado (además de la ley).
+  function efectoLateral(e, accion, objId) {
+    if (objId !== 'PRENSA') return null;
+    const p = iniciar(e);
+    if (accion === 'PROHIBIR' || accion === 'CASTIGAR') p.prensa = accion === 'PROHIBIR' ? 'disuelto' : 'controlado';
+    else if (accion === 'LEGALIZAR' || accion === 'DEROGAR' || accion === 'INVERTIR') p.prensa = 'libre';
+    else return null;
+    return actualizar(e);
+  }
+
+  // ---------- El Congreso ----------
+
+  // Qué polémica es una ley (0 = nada, 3 = mucho).
+  function controversia(def, accion, objId) {
+    const o = RF.OBJETOS[objId] || RF.OBJETO_OTRO;
+    if (['ESCUADRON', 'ESPIAS', 'MILICIA'].includes(objId)) return 3;
+    if (objId === 'NARCO' || (accion === 'ENFOCAR' && RF.SECTOR_AMPLIO[objId] === 'narco')) return 3;
+    if (accion === 'CASTIGAR' && o.gente && o.afecta !== 'orden') return 3;
+    if (accion === 'PROHIBIR' && (o.libertad || 0) >= 2) return 2;
+    const pt = def.porTurno || {}, ini = def.inicial || {};
+    if ((pt.felicidad || 0) <= -1.5 || (ini.felicidad || 0) <= -8) return 2;
+    if (def.imprime || (accion === 'SUBIR_IMPUESTO' && objId === 'GENERAL') || ['PARTIDO', 'PROPAGANDA'].includes(objId)) return 1;
+    return 0;
+  }
+
+  // ¿El Congreso bloquea esta ley? Solo si es libre, la ley es polémica y no tienes votos. Lo secreto no pasa por el Congreso.
+  function bloquea(e, def, accion, objId, interp) {
+    const p = iniciar(e);
+    if (p.congreso !== 'libre' || (interp && interp.secreto) || !def || def.derogar || def.unaVez) return false;
+    const c = controversia(def, accion, objId);
+    return c > 0 && p.apoyo < 35 + 10 * c;
+  }
+
+  // Cada ley aprobada mueve el apoyo en el Congreso.
+  function tras(e, def, accion, objId) {
+    const p = iniciar(e);
+    if (p.congreso !== 'libre' || !def) return;
+    const c = controversia(def, accion, objId);
+    const fel = ((def.porTurno || {}).felicidad || 0) * 3 + ((def.inicial || {}).felicidad || 0);
+    p.apoyo = Math.max(0, Math.min(100, p.apoyo - 3 * c + (fel > 2 ? 3 : 0)));
+  }
+
+  // ---------- Secretos y escándalos ----------
+
+  function registrarSecreto(e, s) {
+    iniciar(e).secretos.push(Object.assign({ dia: e.dia }, s));
+  }
+
+  // Probabilidad de que un secreto salga a la luz este turno.
+  function riesgo(e) {
+    const p = iniciar(e);
+    const prensa = { libre: 1.6, controlado: 0.6, disuelto: 0.3 }[p.prensa];
+    const jueces = { libre: 1.4, controlado: 0.6, disuelto: 0.4 }[p.tribunales];
+    const espias = RF.leyes.lista(e).some(l => l.clave === 'ESPIAS') ? 0.6 : 1;
+    return 0.07 * prensa * jueces * espias;
+  }
+
+  const TEXTO_ESCANDALO = {
+    asesinato: ['Un periodista publica pruebas: {descripcion} no fue un accidente. Hay grabaciones, transferencias y un testigo protegido. El país entero sabe ya quién dio la orden.', 'Un policía arrepentido lo cuenta todo en televisión: {descripcion} fue una ejecución ordenada desde Palacio.'],
+    desaparicion: ['Aparecen documentos que prueban que {descripcion} fue obra de tus agentes. Las madres de los desaparecidos llenan la plaza.'],
+    represion: ['Unos campesinos encuentran una fosa común en las afueras de la capital. Los cuerpos son de opositores "desaparecidos". Las fotos dan la vuelta al mundo.'],
+    soborno: ['Se filtran vídeos de diputados contando fajos de billetes en un hotel. En todos aparece el mismo maletín. El maletín es tuyo.'],
+    fraude: ['Un informático del consejo electoral confiesa el fraude y entrega los registros a la prensa extranjera.']
+  };
+
+  function escandalo(e, s, res) {
+    const p = iniciar(e);
+    const g = s.gravedad || 2;
+    const reg = {};
+    RF.consejero.aplicarEfectos(e, { estabilidad: -4 * g, felicidad: -3 * g, dinero: -4 * g }, reg);
+    p.apoyo = Math.max(0, p.apoyo - 15 * g);
+    p.escandalos++;
+    // La represión secreta pasa a doler lo que tenía que doler.
+    if (s.clave) { const ley = RF.leyes.lista(e).find(l => l.clave === s.clave); if (ley && ley.secreta) { ley.secreta = false; ley.porTurno.felicidad = (ley.porTurno.felicidad || 0) / 0.4; } }
+    if (s.persona === 'valiente') {
+      RF.leyes.promulgar(e, { clave: 'MARTIR', porTurno: { estabilidad: -1.2, felicidad: -0.5 }, duracion: 8 }, 'PERSONA', 'el recuerdo del mártir Valiente');
+    }
+    res.sucesos.push({ tipo: 'escandalo', titulo: 'Escándalo', texto: T.expandir(T.azar(TEXTO_ESCANDALO[s.tipo] || TEXTO_ESCANDALO.asesinato), { descripcion: s.descripcion }), deltas: reg });
+    if (p.congreso === 'libre' && p.tribunales !== 'controlado' && esDemocracia(e)) RF.director.forzar(e, 'juicio_politico', {});
+  }
+
+  // Un crimen a la vista de todos, en democracia, también es un escándalo (aunque sin sorpresa).
+  function crimenPublico(e, gravedad) {
+    const p = iniciar(e);
+    p.crimenes++;
+    if (!esDemocracia(e)) return false;
+    p.apoyo = Math.max(0, p.apoyo - 15 * gravedad);
+    if (p.congreso === 'libre' && p.tribunales !== 'controlado') { RF.director.forzar(e, 'juicio_politico', {}); return true; }
+    return false;
+  }
+
+  // ---------- Cada turno ----------
+  function turno(e, res) {
+    const p = iniciar(e);
+    // El Congreso se mueve con el humor de la calle.
+    if (p.congreso === 'libre') p.apoyo += (e.stats.felicidad - p.apoyo) * 0.15;
+
+    // Los secretos pueden salir a la luz. A los 8 turnos quedan enterrados.
+    const r = riesgo(e);
+    for (const s of p.secretos.slice()) {
+      if (e.dia - s.dia > 8) { p.secretos.splice(p.secretos.indexOf(s), 1); continue; }
+      if (Math.random() < r) { p.secretos.splice(p.secretos.indexOf(s), 1); p.crimenes++; escandalo(e, s, res); }
+    }
+
+    // Elecciones legislativas a mitad de mandato.
+    if (!p.legislativas && e.dia >= 15 && p.congreso !== 'disuelto' && esDemocracia(e)) {
+      p.legislativas = true;
+      const amanadas = p.elecciones === 'controlado';
+      const apoyo = Math.round(Math.min(95, e.stats.felicidad + (amanadas ? 20 : 0)));
+      if (p.congreso === 'libre') p.apoyo = apoyo;
+      res.sucesos.push({
+        tipo: 'politica', titulo: 'Elecciones legislativas',
+        texto: 'Valdoria renueva el Congreso a mitad de mandato. ' + (amanadas ? 'Con el sistema electoral "ajustado", tu partido' : 'Tu partido') + ' obtiene el ' + apoyo + '% de los escaños. ' + (apoyo >= 50 ? 'Tienes mayoría para gobernar.' : 'Sin mayoría, el Congreso te lo pondrá difícil.'),
+        deltas: {}
+      });
+    }
+  }
+
+  function resumen(e) {
+    const p = iniciar(e);
+    const m = mods(e);
+    const f = v => (v >= 1 ? '+' : '−') + Math.round(Math.abs(v - 1) * 100) + '%';
+    const lineas = [
+      'Régimen: ' + m.nombre + ' (desde el turno ' + p.desde + ')',
+      m.descripcion,
+      '',
+      'Congreso      ' + RF.ESTADOS_INSTITUCION.congreso[p.congreso] + (p.congreso === 'libre' ? ' · tu apoyo: ' + Math.round(p.apoyo) + '%' : ''),
+      'Tribunales    ' + RF.ESTADOS_INSTITUCION.tribunales[p.tribunales],
+      'Prensa        ' + RF.ESTADOS_INSTITUCION.prensa[p.prensa],
+      'Elecciones    ' + RF.ESTADOS_INSTITUCION.elecciones[p.elecciones],
+      'Constitución  ' + RF.ESTADOS_INSTITUCION.constitucion[p.constitucion],
+      '',
+      'Efectos del régimen:',
+      '  Recaudación ' + f(m.recaudacion) + ' · Inversión ' + f(m.inversion),
+      '  Felicidad ' + (m.felicidadTurno >= 0 ? '+' : '−') + Math.abs(m.felicidadTurno) + '/turno · Exterior ' + (m.dineroTurno >= 0 ? '+' : '−') + Math.abs(m.dineroTurno) + 'M/turno',
+      '  Represión: estabilidad ×' + m.represionEstab + ', felicidad ×' + m.represionFel,
+      '  Elecciones al final: ' + (m.elecciones === 'libres' ? 'libres (tienes que ganarlas)' : m.elecciones === 'amanables' ? 'sí, pero se pueden amañar' : 'no hay: solo tienes que seguir en el poder')
+    ];
+    if (p.secretos.length) lineas.push('', 'Secretos que podrían salir a la luz: ' + p.secretos.length + ' (riesgo por turno: ' + Math.round(riesgo(e) * 100) + '% cada uno)');
+    if (p.escandalos) lineas.push('Escándalos que ya estallaron: ' + p.escandalos);
+    return lineas.join('\n');
+  }
+
+  RF.politica = { iniciar, regimen, mods, esDemocracia, decreto, efectoLateral, instaurar, bloquea, tras, controversia, registrarSecreto, crimenPublico, turno, riesgo, resumen, actualizar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/narrador.js
@@ -3858,7 +4647,9 @@ body {
         'Para quitar una ley: "dejar de regalar comida", "derogar la ley del aire" o "derogar el último decreto".\n' +
         'Puedes firmar hasta 3 decretos a la vez: "prohibir el fútbol y subir impuestos a los ricos".\n' +
         'Cada pocos turnos surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
-        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
+        'El SISTEMA POLÍTICO también se cambia con decretos: "disuelvo el congreso", "comprar a los diputados", "controlar los jueces", "suspender las elecciones", "proclamarme rey", "restaurar la democracia". Cada régimen recauda, invierte y reprime distinto.\n' +
+        'En democracia, el Congreso puede bloquear leyes polémicas. Lo que haces "en secreto" no pasa por el Congreso, pero puede descubrirse.\n' +
+        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
         'Sobrevive ' + RF.PAIS.dias + ' turnos hasta las elecciones.'
     }];
   }
@@ -3868,8 +4659,9 @@ body {
       { tipo: 'titulo', texto: RF.PAIS.nombre.toUpperCase() },
       {
         tipo: 'gaceta', titulo: 'GACETA OFICIAL · TURNO 1',
-        texto: 'Anoche, tras "un proceso democrático muy rápido", te convertiste en el Líder Supremo de ' + RF.PAIS.nombre + '. ' +
-          'Tienes una consola, un sello y ' + RF.PAIS.dias + ' turnos hasta las elecciones prometidas. Todo lo que escribas aquí se convierte en ley, y las leyes se acumulan.'
+        texto: 'Anoche ganaste las elecciones por un margen mínimo y hoy juras como Presidente de ' + RF.PAIS.nombre + ', una democracia joven y frágil. ' +
+          'Tienes una consola, un sello y ' + RF.PAIS.dias + ' turnos hasta las próximas elecciones. Todo lo que escribas aquí se convierte en ley, y las leyes se acumulan. ' +
+          'El Congreso, los jueces y la prensa te vigilan... de momento.'
       },
       {
         tipo: 'cupula', titulo: 'TU GABINETE',
@@ -3914,6 +4706,8 @@ body {
     if (accion === 'GLORIFICAR') return 'culto';
     if (accion === 'ENFOCAR' || objId === 'DINERO') return 'economia';
     if (o.institucion) return ['ESCUADRON', 'MILICIA', 'ESPIAS'].includes(objId) ? 'represion' : 'culto';
+    if (o.regimen) return o.regimen === 'DEMOCRACIA' || ['PROHIBIR', 'DEROGAR'].includes(accion) ? 'regalo' : 'libertad';
+    if (o.politico) return ['LEGALIZAR', 'CREAR', 'INVERTIR'].includes(accion) ? 'regalo' : 'libertad';
     if (accion === 'CASTIGAR' && o.gente) return 'represion';
     if ((accion === 'PROHIBIR' || accion === 'OBLIGAR' || accion === 'CASTIGAR') && L >= 1) return 'libertad';
     if (['PRIVATIZAR', 'RECORTAR', 'PROHIBIR'].includes(accion) && E >= 2) return 'esencial';
@@ -3971,10 +4765,10 @@ body {
     const partes = ['INTÉRPRETE › ' + RF.poder.nombreTrato(res.trato).toUpperCase() + ' + ' + res.nombreObjeto.toUpperCase()];
     if (interp.heredada) partes.push('orden heredada de la frase anterior');
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
-    bloques.push({ tipo: 'gaceta', titulo: 'ORDEN EJECUTIVA Nº ' + res.numero + ' · TURNO ' + res.dia, texto: T.mayus(res.medida) + '. ' + res.especial });
+    bloques.push({ tipo: 'gaceta', titulo: (res.secreto ? 'ORDEN RESERVADA Nº ' : 'ORDEN EJECUTIVA Nº ') + res.numero + ' · TURNO ' + res.dia, texto: T.mayus(res.medida) + '. ' + res.especial });
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
-    const tipo = TIPO_TRATO[res.trato] || 'general';
+    const tipo = res.secreto ? 'secreto' : TIPO_TRATO[res.trato] || 'general';
     bloques.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares(res, tipo) });
     const lm = lineaMinistro(estado, res);
     bloques.push({ tipo: 'cupula', titulo: lm.titulo, texto: lm.texto });
@@ -3995,11 +4789,13 @@ body {
     if (interp.corregidas && interp.corregidas.length) partes.push('corregí ' + interp.corregidas.map(([a, b]) => a + '→' + b).join(', '));
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
 
-    const tipo = tipoDecreto(res.accion, res.objeto);
+    const tipo = res.secreto ? 'secreto' : tipoDecreto(res.accion, res.objeto);
     let gaceta = T.mayus(res.medida) + '.';
     if (res.especial) gaceta += ' ' + res.especial;
     else if (res.objeto === 'OTRO') gaceta += ' ' + T.expandir(T.azar(RF.ABSURDO.gaceta), res.vars);
-    bloques.push({ tipo: 'gaceta', titulo: 'DECRETO Nº ' + res.numero + ' · TURNO ' + res.dia, texto: gaceta });
+    const cabecera = res.bloqueada ? 'PROYECTO DE LEY Nº ' : res.secreto ? 'ORDEN RESERVADA Nº ' : 'DECRETO Nº ';
+    if (res.bloqueada) gaceta += ' El proyecto llega al Congreso... y se atasca.';
+    bloques.push({ tipo: 'gaceta', titulo: cabecera + res.numero + ' · TURNO ' + res.dia, texto: gaceta });
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.ley && res.ley.nivel });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
 
@@ -4013,6 +4809,7 @@ body {
       bloques.push({ tipo: 'calle', titulo: lc.titulo, texto: calle });
     }
     if (Math.random() < 0.3) { const e = eco(estado, res); if (e) bloques.push({ tipo: 'nota', texto: e }); }
+    if (res.cambioRegimen) bloques.push(bloqueRegimen(res.cambioRegimen));
     return bloques;
   }
 
@@ -4037,7 +4834,7 @@ body {
     bloques.push({ tipo: 'efectos', rotulo: 'Resultado del turno', deltas: res.cambioTurno || {} });
     for (const c of res.causas || []) bloques.push({ tipo: 'nota', texto: c });
     for (const s of res.sucesos) {
-      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA' }[s.tipo] || 'NOTICIA';
+      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA', escandalo: 'ESCÁNDALO', politica: 'POLÍTICA' }[s.tipo] || 'NOTICIA';
       bloques.push({ tipo: 'suceso', clase: s.tipo, titulo: etiqueta + ' · ' + s.titulo.toUpperCase(), texto: s.texto, deltas: s.deltas });
     }
     if (res.fin) return bloques.concat(final(estado));
@@ -4053,15 +4850,26 @@ body {
   // Tarjeta de un dilema: el juego la dibuja con botones.
   function dilema(estado, d) {
     return {
-      tipo: 'dilema', id: d.id, titulo: 'EVENTO · ' + d.titulo.toUpperCase(), texto: RF.director.texto(d),
+      tipo: 'dilema', id: d.id, titulo: 'EVENTO · ' + d.titulo.toUpperCase(), texto: RF.director.texto(d, estado),
       opciones: d.opciones.map(op => ({ texto: T.expandir(op.texto), resumen: RF.director.resumen(op) }))
     };
   }
 
+  function bloqueRegimen(cambio) {
+    const a = RF.REGIMENES[cambio.a];
+    return { tipo: 'regimen', titulo: 'CAMBIO DE RÉGIMEN · ' + RF.REGIMENES[cambio.de].corto + ' → ' + a.corto, texto: a.descripcion };
+  }
+
   function decision(estado, r) {
     const bloques = [{ tipo: 'suceso', clase: 'decision', titulo: 'DECISIÓN · ' + (r.textoOpcion || T.expandir(r.opcion.texto)).toUpperCase(), texto: r.resultado, deltas: r.deltas }];
+    if (r.decreto && r.decreto.porTurno) bloques.push({ tipo: 'efectos', rotulo: 'Ley aprobada', deltas: {}, porTurno: r.decreto.porTurno, curvas: r.decreto.curvas });
+    if (r.cambio) bloques.push(bloqueRegimen(r.cambio));
     if (r.fin) bloques.push(...final(estado));
     return bloques;
+  }
+
+  function sistema(estado) {
+    return [{ tipo: 'sistema', titulo: 'EL SISTEMA POLÍTICO', texto: RF.politica.resumen(estado) }];
   }
 
   function confuso(interp) {
@@ -4109,6 +4917,7 @@ body {
   function estadoPais(estado) {
     const s = estado.stats;
     const lineas = [
+      'Régimen      ' + RF.politica.mods(estado).nombre + (estado.politica.congreso === 'libre' ? ' · Congreso: ' + Math.round(estado.politica.apoyo) + '% de apoyo' : ''),
       'Dinero       ' + formatoStat('dinero', s.dinero),
       'Inflación    ' + formatoStat('inflacion', s.inflacion),
       'Estabilidad  ' + String(s.estabilidad).padStart(3) + '  ' + barra(s.estabilidad),
@@ -4187,7 +4996,7 @@ body {
     ];
   }
 
-  RF.narrador = { intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, historial, ayuda, final, formatoStat, EJEMPLOS };
+  RF.narrador = { intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/juego.js
@@ -4207,7 +5016,8 @@ body {
     ['Subir impuestos a…', 'Subir impuestos a '], ['Bajar impuestos a…', 'Bajar impuestos a '], ['Invertir en…', 'Invertir en '],
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
-    ['esperar', 'esperar', true], ['estado', 'estado', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+    ['Disolver…', 'Disolver '], ['Controlar…', 'Controlar '], ['En secreto…', 'En secreto '],
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -4271,6 +5081,9 @@ body {
       }
     }
     $('dia').textContent = 'TURNO ' + Math.min(estado.dia, RF.PAIS.dias) + '/' + RF.PAIS.dias;
+    const reg = RF.politica.regimen(estado);
+    $('regimen').textContent = RF.REGIMENES[reg].corto;
+    $('regimen').className = 'regimen r-' + reg.toLowerCase();
     const n = RF.leyes.lista(estado).length;
     const bal = Math.round(estado.balance || 0);
     $('ticker').textContent = 'BALANCE ' + (bal >= 0 ? '+' : '−') + Math.abs(bal) + 'M POR TURNO · ' + n + (n === 1 ? ' LEY VIGENTE' : ' LEYES VIGENTES') + ' ›';
@@ -4332,7 +5145,10 @@ body {
     }
     if (b.tipo === 'dilema') return crearDilema(b, n);
     if (b.titulo) n.appendChild(el('span', 'etiqueta', b.titulo));
-    if (b.tipo === 'gaceta' && b.titulo && b.titulo.indexOf('DECRETO') === 0) n.appendChild(el('span', 'sello', 'DECRETADO'));
+    if (b.tipo === 'gaceta' && b.titulo) {
+      const sello = b.titulo.indexOf('DECRETO') === 0 ? 'DECRETADO' : b.titulo.indexOf('ORDEN RESERVADA') === 0 ? 'SECRETO' : b.titulo.indexOf('PROYECTO') === 0 ? 'BLOQUEADO' : null;
+      if (sello) n.appendChild(el('span', 'sello', sello));
+    }
     if (b.texto != null) {
       p = el('p');
       n.appendChild(p);
@@ -4371,7 +5187,7 @@ body {
     return { nodo: n, parrafo: p, texto: b.texto };
   }
 
-  const ANIMADOS = new Set(['gaceta', 'cupula', 'calle', 'suceso', 'fin', 'dilema', 'amanecer', 'prensa']);
+  const ANIMADOS = new Set(['gaceta', 'cupula', 'calle', 'suceso', 'fin', 'dilema', 'amanecer', 'prensa', 'regimen']);
 
   function mostrar(bloques, animar) {
     for (const b of bloques) {
@@ -4466,8 +5282,9 @@ body {
     if (!ultimo) { mostrar(bloques, false); guardar(); return; }
     if (!avanzado) RF.consejero.avanzarDia(estado, ultimo);
     bloques.push(...RF.narrador.cierreDia(estado, ultimo));
+    // Si ha saltado un evento (o el Congreso ha bloqueado la ley), su tarjeta va al final.
     const d = RF.director.pendiente(estado);
-    if (d && ultimo.dilema) bloques.push(RF.narrador.dilema(estado, d));
+    if (d) bloques.push(RF.narrador.dilema(estado, d));
     mostrar(bloques, true);
     pintarStats(cambios(antes));
     actualizarConsola();
@@ -4542,6 +5359,7 @@ body {
     }
     if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
     if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
+    if (/^(sistema|regimen|politica|congreso|sistema politico)$/.test(orden)) { mostrar(RF.narrador.sistema(estado), false); return; }
     if (/^(gabinete|ministros|poder|instituciones)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
     if (/^(leyes|ley|leyes vigentes|economia|mercado|balance)$/.test(orden)) { mostrar(RF.narrador.leyes(estado), false); return; }
     if (/^(historial|decretos|archivo)$/.test(orden)) { mostrar(RF.narrador.historial(estado), false); return; }
@@ -4621,6 +5439,7 @@ body {
     // Tocar la historia acelera el texto.
     $('registro').addEventListener('click', (e) => { if (!e.target.closest('button')) saltar = true; });
     $('ticker').addEventListener('click', () => { vaciar(); procesar('leyes'); });
+    $('regimen').addEventListener('click', () => { vaciar(); procesar('sistema'); });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
