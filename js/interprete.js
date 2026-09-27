@@ -88,6 +88,22 @@
 
   let modelo = null;
 
+  // Traduce jerga y sinónimos ("tombos" → "policias") a palabras que el bot conoce.
+  function sinonimo(p) {
+    return RF.SINONIMOS && Object.prototype.hasOwnProperty.call(RF.SINONIMOS, p) ? RF.SINONIMOS[p] : null;
+  }
+
+  function traducir(texto) {
+    let n = T.normalizar(texto);
+    for (const [re, rep] of RF.SINONIMOS_FRASES || []) n = n.replace(re, rep);
+    const out = [];
+    for (const p of n.split(' ')) {
+      const s = sinonimo(p);
+      if (s) out.push(...T.palabras(s)); else if (p) out.push(p);
+    }
+    return out;
+  }
+
   function entrenar() {
     const acc = crearClasificador();
     const obj = crearClasificador();
@@ -95,18 +111,19 @@
 
     for (const [id, a] of Object.entries(RF.ACCIONES)) {
       for (const f of a.frases) {
-        const ps = T.palabras(f.replace('{o}', ' '));
+        const ps = traducir(f.replace('{o}', ' '));
         ps.forEach(p => vocabPalabras.add(p));
         entrenarEjemplo(acc, id, rasgos(ps));
       }
     }
     for (const [id, o] of Object.entries(RF.OBJETOS)) {
       for (const f of o.formas) {
-        const ps = T.palabras(f);
+        const ps = traducir(f);
         ps.forEach(p => vocabPalabras.add(p));
         entrenarEjemplo(obj, id, rasgos(ps));
       }
     }
+    for (const k of Object.keys(RF.SINONIMOS || {})) vocabPalabras.add(k);
     calcularEvidencias(acc);
     calcularEvidencias(obj);
     modelo = { acc, obj, vocabPalabras };
@@ -150,8 +167,11 @@
 
   // Si el objeto es desconocido ("los calcetines"), rescatamos el texto original.
   function extraerOtro(original, acc, accion) {
-    const orig = original.replace(/[.,;:!¡?¿"«»()]/g, ' ').split(/\s+/).filter(Boolean);
-    const norm = orig.map(T.normalizar);
+    // Trabajamos sobre el texto traducido, pero recuperamos las tildes que escribió el jugador.
+    const conTildes = {};
+    for (const w of original.replace(/[.,;:!¡?¿"«»()]/g, ' ').split(/\s+/).filter(Boolean)) conTildes[T.normalizar(w)] = w.toLowerCase();
+    const norm = traducir(original);
+    const orig = norm.map(p => conTildes[p] || p);
     const esAccion = norm.map(p => {
       const r = T.raiz(p);
       return !!acc.evidencia[r] || (accion && acc.cuentas[accion][r] > 0 && !T.VACIAS.has(p) && !NEGACIONES_FUERA.has(p));
@@ -160,6 +180,8 @@
       const basura = /^(que|a|de|se|y|ya|no|ahora|es|sea|sera|son|esta|estan|queda|quedan|para|por|en|hoy|todos|todas|mi|decreto|ordeno)$/;
       while (ns.length && basura.test(ns[0])) { ws.shift(); ns.shift(); }
       while (ns.length && basura.test(ns[ns.length - 1])) { ws.pop(); ns.pop(); }
+      // Si solo quedan palabras vacías ("la gente"), no hay objeto propio.
+      if (ns.every(p => T.VACIAS.has(p))) return '';
       return ws.slice(0, 6).join(' ');
     };
     const ultimo = esAccion.lastIndexOf(true);
@@ -167,7 +189,7 @@
     if (ultimo === -1) return '';
     let t = limpiar(orig.slice(ultimo + 1), norm.slice(ultimo + 1));
     if (!t && primero > 0) t = limpiar(orig.slice(0, primero), norm.slice(0, primero));
-    return t.toLowerCase();
+    return t;
   }
 
   /*
@@ -178,11 +200,11 @@
   function interpretar(texto) {
     if (!modelo) entrenar();
     const { acc, obj, vocabPalabras } = modelo;
-    const crudas = T.palabras(texto);
-    const ps = crudas.map(p => T.corregir(p, vocabPalabras));
+    const crudas = traducir(texto);
+    const ps = crudas.map(p => T.corregir(p, vocabPalabras)).flatMap(p => (sinonimo(p) ? T.palabras(sinonimo(p)) : [p]));
     const rs = rasgos(ps);
     const raicesTexto = new Set(ps.map(T.raiz));
-    const corregidas = crudas.map((p, i) => (p !== ps[i] ? [p, ps[i]] : null)).filter(Boolean);
+    const corregidas = T.palabras(texto).map(p => [p, T.corregir(p, vocabPalabras)]).filter(([a, b]) => a !== b && !sinonimo(a));
 
     const ra = clasificar(acc, rs);
     const ro = clasificar(obj, rs);
@@ -210,6 +232,7 @@
 
     if (!hayAccion && !accionDudosa) {
       res.estado = 'preguntar_accion';
+      res.sinAccion = true;
       res.objeto = objeto;
       res.nombreObjeto = formaMostrada(objeto, raicesTexto);
       res.opciones = ['PRIVATIZAR', 'SUBSIDIAR', 'PROHIBIR', 'INVERTIR'].map(a => ({ accion: a, objeto, nombreObjeto: res.nombreObjeto }));
@@ -232,13 +255,19 @@
       res.objeto = objeto;
       res.nombreObjeto = formaMostrada(objeto, raicesTexto);
     } else {
+      // Objeto desconocido ("los calcetines"), para todos ("subir impuestos") o falta el objeto.
       const otro = extraerOtro(texto, acc, ra.ranking[0].clase);
-      if (!otro) {
+      const paraTodos = /\b(todos|todo el mundo|gente|pueblo|poblacion|ciudadanos|valdorianos|nadie)\b/.test(T.normalizar(texto));
+      if (otro) {
+        res.objeto = 'OTRO';
+        res.nombreObjeto = otro;
+      } else if (accion === 'SUBIR_IMPUESTO' || accion === 'BAJAR_IMPUESTO' || paraTodos) {
+        res.objeto = 'GENERAL';
+        res.nombreObjeto = RF.OBJETOS.GENERAL.nombre;
+      } else {
         res.estado = 'preguntar_objeto';
         return res;
       }
-      res.objeto = 'OTRO';
-      res.nombreObjeto = otro;
     }
 
     if (res.estado === 'preguntar_accion') {
@@ -249,5 +278,33 @@
     return res;
   }
 
-  RF.interprete = { entrenar, interpretar };
+  /*
+   * Varios decretos en una frase: "prohibir el fútbol y subir impuestos a los ricos".
+   * Si una parte solo nombra un objeto ("prohibir el fútbol y la música"), hereda la acción anterior.
+   * Devuelve una lista de interpretaciones (máximo 3).
+   */
+  const SEPARADOR = /\s*[,;]\s*|\s+(?:y|e|ademas|además|tambien|también|luego|despues|después)\s+/i;
+  const RELLENO = /^(y|e|ademas|además|tambien|también|luego|despues|después|que)\s+/i;
+
+  function interpretarVarios(texto) {
+    const partes = texto.split(SEPARADOR).map(p => p.replace(RELLENO, '').trim()).filter(Boolean);
+    if (partes.length <= 1) return [interpretar(texto)];
+    const grupos = [];
+    for (const parte of partes) {
+      const r = interpretar(parte);
+      const previo = grupos[grupos.length - 1];
+      if (r.estado === 'ok') grupos.push({ texto: parte, r });
+      else if (r.sinAccion && previo && previo.r.estado === 'ok') {
+        grupos.push({ texto: parte, r: Object.assign({}, r, { estado: 'ok', accion: previo.r.accion, intensidad: previo.r.intensidad, negado: previo.r.negado, heredada: true, opciones: [] }) });
+      } else if (previo) {
+        previo.texto += ' y ' + parte;
+        previo.r = interpretar(previo.texto);
+      } else grupos.push({ texto: parte, r });
+    }
+    if (grupos.length === 1) return [grupos[0].r];
+    if (grupos.some(g => g.r.estado !== 'ok')) return [interpretar(texto)];
+    return grupos.slice(0, 3).map(g => Object.assign(g.r, { texto: g.texto }));
+  }
+
+  RF.interprete = { entrenar, interpretar, interpretarVarios };
 })(globalThis.RF = globalThis.RF || {});

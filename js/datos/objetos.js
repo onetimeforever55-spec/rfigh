@@ -32,7 +32,7 @@
     },
     EDUCACION: {
       nombre: 'las escuelas', esencial: 2, libertad: 1,
-      formas: ['las escuelas', 'la educación', 'las universidades', 'los maestros', 'los profesores', 'los colegios', 'estudiar', 'los libros', 'los estudiantes']
+      formas: ['las escuelas', 'la educación', 'las universidades', 'los maestros', 'los profesores', 'los colegios', 'estudiar', 'los libros', 'los estudiantes', 'los jóvenes', 'los exámenes', 'las tareas']
     },
     PRENSA: {
       nombre: 'la prensa', libertad: 3, afecta: 'mundo',
@@ -40,7 +40,7 @@
     },
     INTERNET: {
       nombre: 'internet', libertad: 2, popular: 3, rentable: 1,
-      formas: ['internet', 'las redes sociales', 'el wifi', 'los celulares', 'WhatsApp', 'TikTok', 'los teléfonos', 'Instagram', 'YouTube', 'los móviles']
+      formas: ['internet', 'las redes sociales', 'el wifi', 'los celulares', 'WhatsApp', 'TikTok', 'los teléfonos', 'Instagram', 'YouTube', 'los móviles', 'Facebook', 'los memes', 'los influencers']
     },
     RELIGION: {
       nombre: 'la religión', libertad: 2, popular: 2,
@@ -105,6 +105,27 @@
     MASCOTAS: {
       nombre: 'las mascotas', popular: 2,
       formas: ['las mascotas', 'los perros', 'los gatos', 'los animales', 'los loros', 'las palomas']
+    },
+    CALENDARIO: {
+      nombre: 'los feriados', popular: 2, rentable: 1,
+      formas: ['los lunes', 'los domingos', 'las vacaciones', 'los feriados', 'los festivos', 'el horario', 'la siesta', 'la navidad', 'los fines de semana', 'el horario laboral']
+    },
+    ROPA: {
+      nombre: 'la ropa', popular: 1, libertad: 1, rentable: 1,
+      formas: ['la ropa', 'los sombreros', 'las corbatas', 'los pantalones cortos', 'las faldas', 'la moda', 'el uniforme', 'las chanclas', 'los tatuajes', 'la barba', 'el pelo largo', 'los zapatos']
+    },
+    TECNOLOGIA: {
+      nombre: 'la tecnología', rentable: 2, libertad: 1,
+      formas: ['la ciencia', 'los científicos', 'la tecnología', 'los robots', 'la inteligencia artificial', 'las computadoras', 'los satélites', 'las criptomonedas', 'el bitcoin']
+    },
+    AMBIENTE: {
+      nombre: 'el medio ambiente', esencial: 1, afecta: 'salud', rentable: 1,
+      formas: ['el medio ambiente', 'la contaminación', 'el plástico', 'los árboles', 'la basura', 'el reciclaje', 'las playas', 'la naturaleza', 'las bolsas de plástico']
+    },
+    // Sin formas: el Intérprete lo usa cuando el decreto es para todos ("subir impuestos").
+    GENERAL: {
+      nombre: 'todo el mundo', esencial: 1, faccion: 'pueblo', gente: 1,
+      formas: []
     },
     LIDER: {
       nombre: 'el Líder',

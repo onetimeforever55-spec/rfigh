@@ -32,6 +32,9 @@ No usa ninguna IA externa: funciona sin internet, gratis y al instante.
 
 - Abre `index.html` en el navegador (o `dist/valdoria.html`, que es el juego entero en un solo archivo).
 - Escribe un decreto y pulsa **DECRETAR**. Los botones de abajo te ayudan a empezar frases.
+- Puedes firmar hasta 3 decretos a la vez: `prohibir el fútbol y subir impuestos a los ricos`.
+- El bot entiende jerga y faltas: `banear a los tombos`, `birras gratis para los chamos`, `prohivir el alcojol`.
+- **Eventos:** más o menos cada 4 días (o antes, si pasa algo grave) salta un evento con 2 o 3 opciones, al estilo Victoria 2. Cada opción muestra sus efectos. Algunas traen consecuencias más adelante o abren otro evento.
 - Comandos: `estado`, `gabinete`, `historial`, `ayuda`, `reiniciar`.
 - Sobrevive 30 días hasta las elecciones. Si alguna barra llega a 0, caes (revolución, golpe de estado, bancarrota...).
 - La partida se guarda sola en el celular.
@@ -46,23 +49,27 @@ El juego tiene su propio "bot", con tres piezas:
 
 | Pieza | Archivo | Qué hace |
 |---|---|---|
-| **Intérprete** | `js/interprete.js` | Entiende el decreto. Dos clasificadores Naive Bayes (acción y objeto) entrenados con las frases de `js/datos/`. Corrige faltas ("prohivir" → "prohibir"), detecta negaciones ("ya no se vende el agua"), intensidad ("subir *mucho*") y objetos desconocidos ("prohibir los calcetines"). Si duda, pregunta. |
+| **Intérprete** | `js/interprete.js` | Entiende el decreto. Traduce jerga (`js/datos/sinonimos.js`), corrige faltas, y usa dos clasificadores Naive Bayes (acción y objeto) entrenados con las frases de `js/datos/`. Detecta negaciones ("ya no se vende el agua"), intensidad ("subir *mucho*"), objetos desconocidos ("prohibir los calcetines") y varios decretos en una frase. Si duda, pregunta. |
 | **Consejero** | `js/consejero.js` | Calcula las consecuencias: 7 estadísticas, economía diaria, consecuencias con retraso, contradicciones, desgaste del poder, personajes con memoria y finales. |
-| **Narrador** | `js/narrador.js` | Cuenta la historia: Gaceta Oficial, reacción del gabinete, la vida de la gente de a pie y los sucesos del día. Usa plantillas con variaciones `[a\|b\|c]`. |
+| **Director** | `js/director.js` | Decide cuándo salta un evento con decisiones: continuaciones de eventos anteriores, urgencias (huelgas, rumores de golpe, epidemias...) o, si no, uno cada ~4 días según la situación. |
+| **Narrador** | `js/narrador.js` | Cuenta la historia: Gaceta Oficial, titulares de prensa (oficial, extranjera y radio pirata), el gabinete, la gente de a pie, voces anónimas, recuerdos de decretos anteriores y cómo amanece el país cada día. |
 
 Los datos (lo que más se puede ampliar) están separados del código:
 
 - `js/datos/acciones.js`: 12 acciones (prohibir, privatizar, castigar...) con sus frases de ejemplo.
-- `js/datos/objetos.js`: 24 temas (aire, agua, fútbol, ejército...) con sus propiedades.
+- `js/datos/objetos.js`: 28 temas (aire, agua, fútbol, ejército, los lunes, la ropa...) con sus propiedades.
+- `js/datos/sinonimos.js`: jerga y sinónimos ("tombos" → policías, "birras" → cervezas).
 - `js/datos/personajes.js`: el gabinete y la gente de a pie (Doña Carmen, Nico, Ramiro, Lucía).
-- `js/datos/eventos.js`: combinaciones especiales, alertas, sucesos al azar y finales.
+- `js/datos/eventos.js`: combinaciones especiales, alertas, noticias al azar y finales.
+- `js/datos/dilemas.js`: 33 eventos con decisiones, sus condiciones y sus cadenas.
+- `js/datos/voces.js`: titulares, voces de la calle, ambiente de cada día y reacciones a lo absurdo.
 
 **Para que el bot entienda más:** añade frases a `frases` (acciones) o a `formas` (objetos). Se reentrena solo al cargar la página.
 
 ## Desarrollo
 
 ```bash
-npm test            # prueba el Intérprete, simula 400 partidas y comprueba el equilibrio
+npm test            # prueba el Intérprete, simula 400 partidas (con eventos) y comprueba el equilibrio
 npm run empaquetar  # genera dist/valdoria.html (todo en un archivo)
 ```
 

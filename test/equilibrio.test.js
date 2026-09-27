@@ -15,6 +15,18 @@ const finales = {};
 for (let p = 0; p < 100; p++) {
   const estado = RF.consejero.nuevoEstado();
   while (!estado.fin) {
+    const pend = RF.director.pendiente(estado);
+    if (pend) {
+      let mejorI = 0, mejorPD = -Infinity;
+      pend.opciones.forEach((_, i) => {
+        const prueba = clonar(estado);
+        RF.director.resolver(prueba, i);
+        const pt = prueba.fin ? -1000 : puntuar(prueba);
+        if (pt > mejorPD) { mejorPD = pt; mejorI = i; }
+      });
+      RF.director.resolver(estado, mejorI);
+      continue;
+    }
     let mejor = null, mejorP = -Infinity;
     for (const d of DECRETOS) {
       const prueba = clonar(estado);

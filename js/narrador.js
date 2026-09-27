@@ -22,6 +22,8 @@
       tipo: 'sistema', titulo: 'CÓMO GOBERNAR',
       texto: 'Escribe un decreto con tus palabras y pulsa Decretar. El Intérprete intentará entenderlo.\n' +
         'Ejemplos: ' + EJEMPLOS.map(e => '"' + e + '"').join(', ') + '.\n' +
+        'Puedes firmar hasta 3 decretos a la vez: "prohibir el fútbol y subir impuestos a los ricos".\n' +
+        'Cada pocos días surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
         'Comandos: "estado" (cómo va el país), "gabinete" (tus ministros), "historial" (tus decretos), "reiniciar" (empezar de cero).\n' +
         'Sobrevive ' + RF.PAIS.dias + ' días. Si alguna barra llega a 0, caes.'
     }];
@@ -64,34 +66,116 @@
     return { titulo: 'LA CALLE · ' + c.nombre.toUpperCase(), texto };
   }
 
-  function turno(estado, interp, res) {
-    const n = estado.historial.length;
+  // Tipo de decreto, para elegir titulares y voces que encajen.
+  function tipoDecreto(accion, objId) {
+    const o = RF.consejero.objetoDe(objId);
+    const E = o.esencial || 0, L = o.libertad || 0;
+    if (objId === 'OTRO' || ((accion === 'PROHIBIR' || accion === 'OBLIGAR') && ['CALENDARIO', 'ROPA', 'MASCOTAS', 'AIRE'].includes(objId))) return 'absurdo';
+    if (accion === 'GLORIFICAR') return 'culto';
+    if (accion === 'CASTIGAR' && o.gente) return 'represion';
+    if ((accion === 'PROHIBIR' || accion === 'OBLIGAR' || accion === 'CASTIGAR') && L >= 1) return 'libertad';
+    if (['PRIVATIZAR', 'RECORTAR', 'PROHIBIR'].includes(accion) && E >= 2) return 'esencial';
+    if (accion === 'SUBSIDIAR' || (accion === 'BAJAR_IMPUESTO' && o.faccion !== 'cupula') || accion === 'LEGALIZAR') return 'regalo';
+    if (accion === 'SUBIR_IMPUESTO') return 'impuesto';
+    if (accion === 'INVERTIR') return 'obra';
+    if (accion === 'PRIVATIZAR' || accion === 'NACIONALIZAR' || accion === 'BAJAR_IMPUESTO') return 'economia';
+    return 'general';
+  }
+
+  function deFuente(fuente, tipo) {
+    const f = RF.PRENSA[fuente];
+    return f[tipo] || f.general;
+  }
+
+  function titulares(res, tipo) {
+    const lineas = [RF.PRENSA.oficial.nombre + ': ' + T.expandir(T.azar(deFuente('oficial', tipo)), res.vars)];
+    const d = res.deltas;
+    if (Math.abs(d.mundo || 0) >= 2 || Math.random() < 0.5) lineas.push(RF.PRENSA.extranjera.nombre + ': ' + T.expandir(T.azar(deFuente('extranjera', tipo)), res.vars));
+    if ((d.pueblo || 0) < 0 || tipo === 'culto' || tipo === 'absurdo' || Math.random() < 0.3) lineas.push(RF.PRENSA.pirata.nombre + ': ' + T.expandir(T.azar(deFuente('pirata', tipo)), res.vars));
+    return lineas.join('\n');
+  }
+
+  function vozDeLaCalle(res, tipo) {
+    if (tipo === 'absurdo' && Math.random() < 0.5) return T.expandir(T.azar(RF.ABSURDO.calle), res.vars);
+    const sent = (res.deltas.pueblo || 0) >= 2 ? 'pos' : 'neg';
+    const pool = RF.VOCES[sent][tipo] || RF.VOCES[sent].general;
+    return '—' + T.expandir(T.azar(pool), res.vars) + ' — dice ' + T.azar(RF.VOCES_QUIEN) + '.';
+  }
+
+  function eco(estado, res) {
+    const previos = estado.historial.slice(0, -1).slice(-6).filter(h => h.medida !== res.medida);
+    if (!previos.length) return null;
+    return T.expandir(T.azar(RF.ECOS), { anterior: T.azar(previos).medida });
+  }
+
+  function ambiente(estado) {
+    const s = estado.stats;
+    const peor = RF.STATS.map(x => x.id).sort((a, b) => s[a] - s[b])[0];
+    const media = RF.STATS.reduce((t, x) => t + s[x.id], 0) / RF.STATS.length;
+    const pool = s[peor] < 30 ? RF.AMBIENTE[peor] : media > 60 ? RF.AMBIENTE.bien : RF.AMBIENTE.normal;
+    return T.azar(pool);
+  }
+
+  // Todo lo que cuenta un decreto: Gaceta, números, prensa, gabinete y calle.
+  function decreto(estado, interp, res) {
     const bloques = [];
     const partes = ['INTÉRPRETE › ' + RF.ACCIONES[res.accion].nombre.toUpperCase() + ' + ' + (res.objeto === 'OTRO' ? '"' + res.nombreObjeto + '" (desconocido)' : res.nombreObjeto.toUpperCase())];
     if (interp.confianza != null) partes.push(interp.confianza + '% seguro');
+    if (interp.heredada) partes.push('acción heredada de la frase anterior');
     if (interp.negado) partes.push('negación detectada');
     if (interp.intensidad > 1) partes.push('intensidad alta');
     if (interp.intensidad < 1) partes.push('intensidad baja');
     if (interp.corregidas && interp.corregidas.length) partes.push('corregí ' + interp.corregidas.map(([a, b]) => a + '→' + b).join(', '));
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
 
+    const tipo = tipoDecreto(res.accion, res.objeto);
     let gaceta = T.mayus(res.medida) + '.';
     if (res.especial) gaceta += ' ' + res.especial;
-    bloques.push({ tipo: 'gaceta', titulo: 'DECRETO Nº ' + n + ' · DÍA ' + res.dia, texto: gaceta });
-    bloques.push({ tipo: 'efectos', deltas: res.deltas, economia: res.economia, cambioIngresos: res.cambioIngresos, ingresos: estado.ingresos });
+    else if (res.objeto === 'OTRO') gaceta += ' ' + T.expandir(T.azar(RF.ABSURDO.gaceta), res.vars);
+    bloques.push({ tipo: 'gaceta', titulo: 'DECRETO Nº ' + res.numero + ' · DÍA ' + res.dia, texto: gaceta });
+    bloques.push({ tipo: 'efectos', deltas: res.deltas, cambioIngresos: res.cambioIngresos });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
 
+    bloques.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares(res, tipo) });
     const lm = lineaMinistro(estado, res);
     bloques.push({ tipo: 'cupula', titulo: lm.titulo, texto: lm.texto });
     const lc = lineaCiudadano(estado, res);
-    bloques.push({ tipo: 'calle', titulo: lc.titulo, texto: lc.texto });
+    let calle = lc.texto;
+    if (Math.random() < 0.6) calle += '\n\n' + vozDeLaCalle(res, tipo);
+    bloques.push({ tipo: 'calle', titulo: lc.titulo, texto: calle });
+    if (Math.random() < 0.3) { const e = eco(estado, res); if (e) bloques.push({ tipo: 'nota', texto: e }); }
+    return bloques;
+  }
 
+  // Lo que pasa al terminar el día: caja, consecuencias, sucesos y cómo amanece mañana.
+  function cierreDia(estado, res) {
+    const bloques = [];
+    if (res.economia) bloques.push({ tipo: 'efectos', deltas: {}, economia: res.economia, ingresos: estado.ingresos });
     for (const s of res.sucesos) {
       const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA' }[s.tipo];
       bloques.push({ tipo: 'suceso', clase: s.tipo, titulo: etiqueta + ' · ' + s.titulo.toUpperCase(), texto: s.texto, deltas: s.deltas });
     }
-    if (res.fin) bloques.push(...final(estado));
-    else if (res.programadas) bloques.push({ tipo: 'nota', texto: 'Radio Pasillo: dicen que esto todavía va a traer cola.' });
+    if (res.fin) return bloques.concat(final(estado));
+    if (res.programadas && !res.sucesos.length) bloques.push({ tipo: 'nota', texto: 'Radio Pasillo: dicen que esto todavía va a traer cola.' });
+    bloques.push({ tipo: 'amanecer', titulo: 'DÍA ' + estado.dia, texto: ambiente(estado) });
+    return bloques;
+  }
+
+  function turno(estado, interp, res) {
+    return decreto(estado, interp, res).concat(cierreDia(estado, res));
+  }
+
+  // Tarjeta de un dilema: el juego la dibuja con botones.
+  function dilema(estado, d) {
+    return {
+      tipo: 'dilema', id: d.id, titulo: 'EVENTO · ' + d.titulo.toUpperCase(), texto: RF.director.texto(d),
+      opciones: d.opciones.map(op => ({ texto: op.texto, resumen: RF.director.resumen(op) }))
+    };
+  }
+
+  function decision(estado, r) {
+    const bloques = [{ tipo: 'suceso', clase: 'decision', titulo: 'DECISIÓN · ' + r.opcion.texto.toUpperCase(), texto: r.resultado, deltas: r.deltas }];
+    if (r.fin) bloques.push(...final(estado));
     return bloques;
   }
 
@@ -169,5 +253,5 @@
     ];
   }
 
-  RF.narrador = { intro, turno, confuso, pregunta, estadoPais, gabinete, historial, ayuda, final, EJEMPLOS };
+  RF.narrador = { intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, historial, ayuda, final, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});

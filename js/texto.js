@@ -71,6 +71,7 @@
     const max = p.length <= 5 ? 1 : 2;
     let mejor = p, mejorD = max + 1;
     for (const v of vocab) {
+      if (v[0] !== p[0]) continue; // las faltas reales casi nunca cambian la primera letra
       const d = distancia(p, v, max);
       if (d < mejorD) { mejor = v; mejorD = d; if (d === 1 && max === 1) break; }
     }

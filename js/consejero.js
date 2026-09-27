@@ -33,6 +33,7 @@
       umbrales: {},
       diasSinEvento: 0,
       diasEnQuiebra: 0,
+      dilemas: { ultimo: 0, vistos: {}, cadena: [], pendiente: null },
       fin: null
     };
   }
@@ -224,7 +225,8 @@
   /*
    * Aplica un decreto ya interpretado. Devuelve todo lo que pasó para que el Narrador lo cuente.
    */
-  function decretar(estado, interp) {
+  function decretar(estado, interp, op) {
+    op = op || {};
     const accion = interp.accion;
     const objId = interp.objeto;
     const o = objetoDe(objId);
@@ -245,7 +247,8 @@
     const rep = estado.repeticiones[clave] || 0;
     estado.repeticiones[clave] = rep + 1;
     const yaHecho = (accion === 'PRIVATIZAR' || accion === 'NACIONALIZAR') && estado.politicas[objId] === accion;
-    const factor = interp.intensidad * (yaHecho ? 0.1 : Math.pow(0.5, rep));
+    // Varios decretos el mismo día: cada uno extra reparte la atención y pesa menos.
+    const factor = interp.intensidad * (yaHecho ? 0.1 : Math.pow(0.5, rep)) * (op.secundario ? 0.75 : 1);
     for (const k of Object.keys(efectos)) efectos[k] = Math.round(efectos[k] * factor);
     if (yaHecho) res.notas.push('Eso ya estaba hecho. El decreto se archiva junto al anterior y apenas cambia nada.');
     else if (rep > 0) res.notas.push(rep === 1 ? 'Ya habías decretado algo así. La gente lo nota menos.' : 'Otra vez lo mismo. Ya casi nadie presta atención.');
@@ -273,6 +276,7 @@
     res.programadas = programadas.length;
 
     estado.historial.push({ dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, medida: laMedida, texto: interp.texto });
+    res.numero = estado.historial.length;
 
     // 3. Reacciones: un ministro y una persona de la calle.
     res.ministro = elegirMinistro(res.deltas);
@@ -286,8 +290,8 @@
     estado.ciudadanos[cid].ultimaVez = estado.dia;
     res.ciudadano = { id: cid, sentimiento: impacto > 2 ? 'pos' : impacto < -2 ? 'neg' : 'neu' };
 
-    // 4. Pasa el día.
-    avanzarDia(estado, res);
+    // 4. Pasa el día (si es el último decreto de la jornada).
+    if (op.avanzar !== false) avanzarDia(estado, res);
     return res;
   }
 
@@ -338,10 +342,14 @@
       }
     }
 
-    // Director de Historia: si lleva días tranquilo, mete un suceso.
-    if (res.sucesos.length) estado.diasSinEvento = 0;
+    // Dilemas (eventos con decisiones): el Director decide si hoy salta uno.
+    const dilema = !comprobarFin(estado) && RF.director ? RF.director.comprobar(estado) : null;
+    if (dilema) res.dilema = dilema.id;
+
+    // Noticias sueltas: si lleva días tranquilo y hoy no hay dilema, mete un suceso.
+    if (res.sucesos.length || dilema) estado.diasSinEvento = 0;
     else estado.diasSinEvento++;
-    if (estado.diasSinEvento >= 3 && Math.random() < 0.6) {
+    if (!dilema && estado.diasSinEvento >= 3 && Math.random() < 0.45) {
       const media = RF.STATS.reduce((s, x) => s + estado.stats[x.id], 0) / RF.STATS.length;
       const tono = media < 35 ? 1 : media > 60 ? -1 : 0;
       const pool = tono ? RF.AZAR.filter(e => e.tono === tono) : RF.AZAR;
@@ -361,5 +369,5 @@
     if (fin) { estado.fin = fin; res.fin = fin; }
   }
 
-  RF.consejero = { nuevoEstado, decretar, medida, objetoDe, comprobarFin };
+  RF.consejero = { nuevoEstado, decretar, avanzarDia, aplicarEfectos, medida, objetoDe, comprobarFin };
 })(globalThis.RF = globalThis.RF || {});
