@@ -18,7 +18,10 @@ const DECRETOS = [
   'crear una escuadra de represión', 'fundar un partido único', 'crear una red de espías', 'crear milicias populares',
   'crear un ministerio de propaganda', 'disolver el escuadrón', 'matar al general', 'encarcelar a Nico', 'liberar a Nico',
   'destituir a la ministra de hacienda', 'premiar a la canciller', 'exiliar al líder de la oposición', 'matar a Valiente',
-  'expulsar al embajador', 'matar al embajador', 'fusilar a Doña Carmen', 'regalarle un taxi a Ramiro', 'matar a Garrote y a Sombra'
+  'expulsar al embajador', 'matar al embajador', 'fusilar a Doña Carmen', 'regalarle un taxi a Ramiro', 'matar a Garrote y a Sombra',
+  // Leyes que se acumulan y se derogan
+  'vender cocaína', 'dejar de imprimir dinero', 'ya no se regala comida', 'derogar el último decreto', 'derogar la ley del aire',
+  'esperar', 'esperar', 'esperar'
 ];
 
 const finales = {};
@@ -46,7 +49,14 @@ for (let partida = 0; partida < PARTIDAS; partida++) {
       dilemasVistos[pend.id] = (dilemasVistos[pend.id] || 0) + 1;
       continue;
     }
-    const lista = RF.interprete.interpretarVarios(DECRETOS[Math.floor(Math.random() * DECRETOS.length)], estado).filter(i => i.estado === 'ok');
+    const elegido = DECRETOS[Math.floor(Math.random() * DECRETOS.length)];
+    if (elegido === 'esperar') {
+      const res = RF.consejero.pasarTurno(estado);
+      revisar(RF.narrador.cierreDia(estado, res));
+      turnos++;
+      continue;
+    }
+    const lista = RF.interprete.interpretarVarios(elegido, estado).filter(i => i.estado === 'ok');
     if (!lista.length) continue;
     let ultimo = null, avanzado = false;
     lista.forEach((i, k) => {
@@ -60,9 +70,10 @@ for (let partida = 0; partida < PARTIDAS; partida++) {
     if (!ultimo) { nulos++; if (nulos > 50) break; continue; }
     if (!avanzado) RF.consejero.avanzarDia(estado, ultimo);
     revisar(RF.narrador.cierreDia(estado, ultimo));
-    revisar(RF.narrador.economia(estado).concat(RF.narrador.gabinete(estado), RF.narrador.estadoPais(estado)));
+    revisar(RF.narrador.leyes(estado).concat(RF.narrador.gabinete(estado), RF.narrador.estadoPais(estado)));
     turnos++;
-    for (const v of Object.values(estado.stats)) if (!(v >= 0 && v <= 100)) { errores++; console.log('Stat fuera de rango', estado.stats); }
+    const st = estado.stats;
+    if (!(st.estabilidad >= 0 && st.estabilidad <= 100 && st.felicidad >= 0 && st.felicidad <= 100 && st.inflacion >= 0 && Number.isFinite(st.dinero))) { errores++; console.log('Indicador fuera de rango', st); }
   }
   finales[estado.fin || 'sin terminar'] = (finales[estado.fin || 'sin terminar'] || 0) + 1;
 }

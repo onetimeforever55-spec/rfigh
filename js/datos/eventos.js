@@ -123,16 +123,14 @@
     }
   };
 
-  // Cuando una estadística cae por debajo de 25 ocurre esto (una vez, hasta que se recupere).
-  RF.UMBRALES = {
-    pueblo: { titulo: 'Cacerolazo', texto: 'A las nueve de la noche, toda la ciudad golpea cacerolas. El ruido llega hasta tu dormitorio en Palacio.', efectos: { orden: -5 } },
-    ejercito: { titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a misa con {garrote}. En el ejército eso significa algo.', efectos: { orden: -2 } },
-    cupula: { titulo: 'Cena secreta', texto: 'Las familias más ricas del país cenan juntas sin invitarte. El menú: tu sucesor.', efectos: { tesoro: -3 } },
-    tesoro: { titulo: 'Arcas vacías', texto: 'Hacienda no puede pagar los sueldos de los funcionarios este mes. Los maestros cobran en vales de gasolina.', efectos: { pueblo: -4 } },
-    salud: { titulo: 'Epidemia', texto: 'Un brote de fiebre se extiende por los barrios pobres. Los hospitales cuelgan el cartel de "completo".', efectos: { pueblo: -4, orden: -2 } },
-    orden: { titulo: 'Saqueos', texto: 'Saqueos en el centro de Puerto Esperanza. Se llevan televisores, colchones y, por algún motivo, todos los maniquíes.', efectos: { tesoro: -4, pueblo: -3 } },
-    mundo: { titulo: 'Sanciones', texto: 'Las potencias extranjeras aprueban sanciones contra Valdoria. Tus cuentas en el extranjero aparecen congeladas.', efectos: { tesoro: -6 }, ingresos: -1 }
-  };
+  // Alertas: cuando algo cruza una línea roja ocurre esto (una vez, hasta que se recupere).
+  RF.UMBRALES = [
+    { id: 'cacerolazo', stat: 'felicidad', bajo: 25, titulo: 'Cacerolazo', texto: 'A las nueve de la noche, toda la ciudad golpea cacerolas. El ruido llega hasta tu dormitorio en Palacio.', efectos: { estabilidad: -4 } },
+    { id: 'sables', stat: 'estabilidad', bajo: 25, titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a misa con {garrote}. En el ejército, eso significa algo. Los tanques cambian de sitio por las noches.', efectos: { estabilidad: -2 } },
+    { id: 'arcas', stat: 'dinero', bajo: 0, titulo: 'Arcas vacías', texto: 'Hacienda no puede pagar los sueldos de los funcionarios. Los maestros cobran en vales de gasolina y los policías, en promesas.', efectos: { felicidad: -3, estabilidad: -2 } },
+    { id: 'precios', stat: 'inflacion', alto: 25, titulo: 'Precios por las nubes', texto: 'El pan cuesta cada semana más. Las etiquetas de los supermercados se cambian a diario. La gente compra por miedo a que mañana cueste más.', efectos: { felicidad: -3 } },
+    { id: 'hiper', stat: 'inflacion', alto: 100, titulo: 'Hiperinflación', texto: 'Los billetes ya no valen el papel en el que están impresos. La gente paga el café con huevos y el alquiler con gallinas. Los niños juegan con fajos de valdos.', efectos: { felicidad: -6, estabilidad: -5 } }
+  ];
 
   // Eventos del Director de Historia. tono: +1 bueno para ti, -1 malo.
   RF.AZAR = [
@@ -162,6 +160,7 @@
     mundo: { titulo: 'INTERVENCIÓN EXTRANJERA', texto: 'Una coalición internacional desembarca "para restaurar la democracia". Te detienen en pijama. La foto da la vuelta al mundo.' },
     elecciones_ganadas: { titulo: 'REELECCIÓN LIMPIA', texto: 'Al final de tu mandato convocas elecciones. Nadie se lo cree, pero ganas. Limpiamente. La oposición pide un recuento y, para su sorpresa, vuelves a ganar.' },
     elecciones_amanadas: { titulo: 'REELECCIÓN CON EL 99,7%', texto: 'Convocas elecciones. {sombra} se encarga del conteo. Ganas con el 99,7% de los votos, incluidos los de varios muertos y un perro. El mundo protesta un rato y luego se olvida.' },
+    hiperinflacion: { titulo: 'COLAPSO DEL VALDO', texto: 'La inflación supera el mil por ciento. Nadie acepta valdos: ni los soldados, ni los panaderos, ni tu cocinero. Una mañana llegas a Palacio y la guardia se ha ido a trabajar a otra parte. Tu gobierno termina sin un solo disparo, simplemente porque ya nadie cobra por obedecerte.' },
     elecciones_perdidas: { titulo: 'DERROTA EN LAS URNAS', texto: 'Convocas elecciones convencido de ganar. Pierdes por goleada. Te vas al exilio con tres maletas y la estatua de 30 metros, que no cabe en el avión.' }
   };
 })(globalThis.RF = globalThis.RF || {});

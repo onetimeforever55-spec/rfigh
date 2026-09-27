@@ -4,18 +4,17 @@
  */
 (function (RF) {
   'use strict';
-  const CLAVE = 'valdoria.partida.v1';
+  const CLAVE = 'valdoria.partida.v2';
   const MAX_REGISTRO = 160;
   const $ = (id) => document.getElementById(id);
   const reducirMovimiento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const ATAJOS = [
-    ['Prohibir…', 'Prohibir '], ['Vender…', 'Vender '], ['Regalar…', 'Regalar '],
-    ['Impuestos a…', 'Subir impuestos a '], ['Mano dura…', 'Mano dura contra '], ['Legalizar…', 'Legalizar '],
-    ['Invertir en…', 'Invertir en '], ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '],
-    ['Destituir a…', 'Destituir a '], ['Encarcelar a…', 'Encarcelar a '], ['Recortar…', 'Recortar '],
-    ['Obligar…', 'Obligar a todos a '], ['Estatua de mí', 'Estatua de mí'],
-    ['estado', 'estado', true], ['economía', 'economía', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+    ['Imprimir dinero', 'imprimir dinero'], ['Regalar…', 'Regalar '], ['Vender…', 'Vender '],
+    ['Subir impuestos a…', 'Subir impuestos a '], ['Bajar impuestos a…', 'Bajar impuestos a '], ['Invertir en…', 'Invertir en '],
+    ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
+    ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -27,16 +26,34 @@
   function cargar() {
     try {
       const d = JSON.parse(localStorage.getItem(CLAVE) || 'null');
-      if (d && d.estado && d.estado.version === 1) return d;
+      if (d && d.estado && d.estado.version === 2) return d;
     } catch (e) { /* partida corrupta o sin acceso */ }
     return null;
   }
 
-  // ---------- Barras del país ----------
+  // ---------- Los cuatro indicadores ----------
+  // Dinero puede ser negativo (deuda); en la inflación, subir es malo.
+  function nivelStat(id, v) {
+    if (id === 'dinero') return v < 0 ? 'bajo' : v < 40 ? 'medio' : '';
+    if (id === 'inflacion') return v > 30 ? 'bajo' : v > 12 ? 'medio' : '';
+    return v < 25 ? 'bajo' : v < 45 ? 'medio' : '';
+  }
+  function anchoBarra(id, v) {
+    if (id === 'dinero') return Math.max(0, Math.min(100, (v / 300) * 100));
+    if (id === 'inflacion') return Math.max(0, Math.min(100, v));
+    return v;
+  }
+  function textoDelta(id, d) {
+    const n = (d > 0 ? '+' : '−') + Math.abs(d);
+    return id === 'dinero' ? n + 'M' : id === 'inflacion' ? n + '%' : n;
+  }
+  function esBueno(id, d) { return id === 'inflacion' ? d < 0 : d > 0; }
+
   function montarStats() {
     $('stats').innerHTML = RF.STATS.map(s =>
       `<li class="stat" id="st-${s.id}" title="${s.nombre}">
-        <div class="stat-cab"><span class="stat-nombre">${s.corto}</span><span class="stat-valor">0</span></div>
+        <span class="stat-nombre">${s.corto}</span>
+        <span class="stat-valor">0</span>
         <div class="stat-barra"><div class="stat-relleno"></div></div>
         <div class="cambio"></div>
       </li>`).join('');
@@ -45,25 +62,26 @@
     for (const s of RF.STATS) {
       const v = estado.stats[s.id];
       const li = $('st-' + s.id);
-      li.querySelector('.stat-valor').textContent = v;
-      li.querySelector('.stat-relleno').style.width = v + '%';
-      li.classList.toggle('bajo', v < 25);
-      li.classList.toggle('medio', v >= 25 && v < 45);
-      li.setAttribute('aria-label', s.nombre + ' ' + v);
+      li.querySelector('.stat-valor').textContent = RF.narrador.formatoStat(s.id, v);
+      li.querySelector('.stat-relleno').style.width = anchoBarra(s.id, v) + '%';
+      const nivel = nivelStat(s.id, v);
+      li.classList.toggle('bajo', nivel === 'bajo');
+      li.classList.toggle('medio', nivel === 'medio');
+      li.setAttribute('aria-label', s.nombre + ' ' + RF.narrador.formatoStat(s.id, v));
       const c = li.querySelector('.cambio');
       const d = deltas && deltas[s.id];
       if (d) {
-        c.textContent = (d > 0 ? '+' : '') + d;
-        c.className = 'cambio visible ' + (d > 0 ? 'sube' : 'baja');
+        c.textContent = textoDelta(s.id, d);
+        c.className = 'cambio visible ' + (esBueno(s.id, d) ? 'sube' : 'baja');
         clearTimeout(c._t);
         c._t = setTimeout(() => c.classList.remove('visible'), 4000);
       }
     }
-    $('dia').textContent = 'DÍA ' + Math.min(estado.dia, RF.PAIS.dias) + '/' + RF.PAIS.dias;
-    const r = RF.economia.resumen(estado);
-    const flecha = r.tendencia > 0.5 ? '▲' : r.tendencia < -0.5 ? '▼' : '';
-    $('ticker').textContent = 'PIB ' + r.pib + flecha + ' · PARO ' + r.paro + '% · INFLACIÓN ' + r.inflacion + '% · CO₂ ' + r.contaminacion;
-    $('ticker').classList.toggle('alerta', r.paro >= 24 || r.inflacion >= 40 || r.contaminacion >= 60);
+    $('dia').textContent = 'TURNO ' + Math.min(estado.dia, RF.PAIS.dias) + '/' + RF.PAIS.dias;
+    const n = RF.leyes.lista(estado).length;
+    const bal = Math.round(estado.balance || 0);
+    $('ticker').textContent = 'BALANCE ' + (bal >= 0 ? '+' : '−') + Math.abs(bal) + 'M POR TURNO · ' + n + (n === 1 ? ' LEY VIGENTE' : ' LEYES VIGENTES') + ' ›';
+    $('ticker').classList.toggle('alerta', bal < 0);
   }
 
   // ---------- Registro (la historia) ----------
@@ -81,23 +99,42 @@
     const orden = RF.STATS.map(s => s.id).filter(k => deltas && deltas[k]);
     for (const k of orden) {
       const v = deltas[k];
-      cont.appendChild(el('span', (clase === 'mini' ? '' : 'efecto ') + (v > 0 ? 'sube' : 'baja'), nombreStat(k) + ' ' + (v > 0 ? '+' : '−') + Math.abs(v)));
+      cont.appendChild(el('span', (clase === 'mini' ? '' : 'efecto ') + (esBueno(k, v) ? 'sube' : 'baja'), nombreStat(k) + ' ' + textoDelta(k, v)));
     }
     return cont;
   }
+
+  // "Cada turno: +15M · Felicidad −3.1": lo que la ley seguirá haciendo.
+  function filaPorTurno(pt, curvas, nivel) {
+    const fila = el('div', 'b-efectos por-turno');
+    fila.appendChild(el('span', 'efecto neutro', nivel > 1 ? 'Cada turno (nivel ' + nivel + ')' : 'Cada turno'));
+    for (const s of RF.STATS) {
+      const v = pt[s.id];
+      if (!v || Math.abs(v) < 0.05) continue;
+      const n = s.id === 'dinero' ? Math.round(v) : Math.round(v * 10) / 10;
+      if (!n) continue;
+      const txt = (n > 0 ? '+' : '−') + Math.abs(n) + (s.id === 'dinero' ? 'M' : '');
+      cont(fila, el('span', 'efecto ' + (esBueno(s.id, n) ? 'sube' : 'baja'), s.nombre + ' ' + txt));
+    }
+    const c = curvas || {};
+    if (Object.values(c).includes('madura') || Object.values(c).includes('lenta')) cont(fila, el('span', 'efecto neutro', 'tarda unos turnos en rendir'));
+    if (c.felicidad === 'acostumbra') cont(fila, el('span', 'efecto neutro', 'la gente se acostumbrará'));
+    if (c.estabilidad === 'desgasta') cont(fila, el('span', 'efecto neutro', 'rinde menos con el tiempo'));
+    return fila;
+  }
+  function cont(padre, hijo) { padre.appendChild(hijo); }
 
   // Crea el elemento de un bloque. Devuelve {nodo, parrafo, texto} para el efecto máquina de escribir.
   function crearBloque(b) {
     const n = el('section', 'bloque b-' + b.tipo + (b.clase ? ' ' + b.clase : '') + (b.mono ? ' mono' : ''));
     let p = null, texto = null;
     if (b.tipo === 'efectos') {
-      const cont = listaDeltas(b.deltas, 'b-efectos');
-      if (b.rotulo) cont.insertBefore(el('span', 'efecto neutro', b.rotulo), cont.firstChild);
-      if (!cont.childNodes.length && !b.economia && !b.rotulo) cont.appendChild(el('span', 'efecto neutro', 'Sin cambios visibles'));
-      if (b.economia) cont.appendChild(el('span', 'efecto ' + (b.economia > 0 ? 'sube' : 'baja'), 'Caja del día ' + (b.economia > 0 ? '+' : '−') + Math.abs(b.economia)));
-      if (b.cambioIngresos) cont.appendChild(el('span', 'efecto ' + (b.cambioIngresos > 0 ? 'sube' : 'baja'), 'Ingresos diarios ' + (b.cambioIngresos > 0 ? '+' : '−') + Math.abs(b.cambioIngresos)));
-      n.className = 'bloque';
-      n.appendChild(cont);
+      const fila = listaDeltas(b.deltas, 'b-efectos');
+      fila.insertBefore(el('span', 'efecto neutro', b.rotulo || 'Ahora'), fila.firstChild);
+      if (fila.childNodes.length === 1) fila.appendChild(el('span', 'efecto neutro', 'sin cambios'));
+      n.className = 'bloque b-efectos-grupo';
+      n.appendChild(fila);
+      if (b.porTurno && Object.values(b.porTurno).some(v => Math.abs(v) >= 0.05)) n.appendChild(filaPorTurno(b.porTurno, b.curvas, b.nivel));
       return { nodo: n };
     }
     if (b.tipo === 'dilema') return crearDilema(b, n);
@@ -244,6 +281,19 @@
     guardar();
   }
 
+  // Un turno sin decretos nuevos: las leyes vigentes siguen actuando.
+  function esperar() {
+    const antes = Object.assign({}, estado.stats);
+    const res = RF.consejero.pasarTurno(estado);
+    const bloques = [{ tipo: 'nota', texto: 'No firmas nada este turno. Dejas que tus leyes trabajen.' }].concat(RF.narrador.cierreDia(estado, res));
+    const d = RF.director.pendiente(estado);
+    if (d && res.dilema) bloques.push(RF.narrador.dilema(estado, d));
+    mostrar(bloques, true);
+    pintarStats(cambios(antes));
+    actualizarConsola();
+    guardar();
+  }
+
   function elegirOpcion(i) {
     const d = RF.director.pendiente(estado);
     if (!d || !d.opciones[i] || !tarjetaAbierta) return;
@@ -300,7 +350,7 @@
     if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
     if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
     if (/^(gabinete|ministros|poder|instituciones)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
-    if (/^(economia|mercado|informe economico)$/.test(orden)) { mostrar(RF.narrador.economia(estado), false); return; }
+    if (/^(leyes|ley|leyes vigentes|economia|mercado|balance)$/.test(orden)) { mostrar(RF.narrador.leyes(estado), false); return; }
     if (/^(historial|decretos|archivo)$/.test(orden)) { mostrar(RF.narrador.historial(estado), false); return; }
 
     if (estado.fin) {
@@ -315,6 +365,8 @@
       mostrar([{ tipo: 'nota', texto: 'Antes de firmar nada más, decide qué hacer con el evento "' + pend.titulo + '". Pulsa una opción o escribe A, B o C.' }], false);
       return;
     }
+
+    if (/^(esperar|espera|pasar|pasar turno|siguiente turno|siguiente|no hacer nada|nada)$/.test(orden)) { esperar(); return; }
 
     const lista = RF.interprete.interpretarVarios(texto, estado);
     if (lista.length > 1) { firmar(lista); return; }
@@ -352,8 +404,6 @@
     const guardada = cargar();
     if (guardada) {
       estado = guardada.estado;
-      // Partidas guardadas con versiones anteriores: se completan con lo nuevo.
-      if (!estado.eco) estado.eco = RF.economia.nueva();
       RF.poder.iniciar(estado);
       registro = [];
       mostrar(guardada.registro, false);
@@ -377,7 +427,7 @@
     });
     // Tocar la historia acelera el texto.
     $('registro').addEventListener('click', (e) => { if (!e.target.closest('button')) saltar = true; });
-    $('ticker').addEventListener('click', () => { vaciar(); procesar('economía'); });
+    $('ticker').addEventListener('click', () => { vaciar(); procesar('leyes'); });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);

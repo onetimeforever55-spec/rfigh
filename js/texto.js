@@ -90,7 +90,8 @@
     }
     // Variables globales (nombres de los ministros actuales) + las de esta llamada.
     const todas = Object.assign({}, RF.VARS || {}, vars || {});
-    return t.replace(/\{(\w+)\}/g, (_, k) => (todas[k] != null ? todas[k] : '{' + k + '}'));
+    return t.replace(/\{(\w+)\}/g, (_, k) => (todas[k] != null ? todas[k] : '{' + k + '}'))
+      .replace(/\b([Aa]) el\b/g, '$1l').replace(/\b([Dd])e el\b/g, '$1el'); // "a el aire" -> "al aire"
   }
 
   function de(nombre) { return /^el /i.test(nombre) ? 'del ' + nombre.slice(3) : 'de ' + nombre; }

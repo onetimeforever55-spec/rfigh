@@ -19,7 +19,7 @@
     birras: 'cervezas', birra: 'cerveza', chelas: 'cervezas', chela: 'cerveza', pola: 'cerveza', polas: 'cervezas',
     guaro: 'alcohol', trago: 'alcohol', tragos: 'alcohol', copas: 'alcohol', pucho: 'cigarro', puchos: 'cigarros',
     faso: 'cigarro', porro: 'marihuana', porros: 'marihuana', mota: 'marihuana', hierba: 'marihuana', weed: 'marihuana',
-    cannabis: 'marihuana', cocaina: 'drogas', perico: 'drogas', vapeo: 'tabaco', vapear: 'fumar', vapers: 'tabaco',
+    cannabis: 'marihuana', perico: 'cocaina', coca: 'cocaina', vapeo: 'tabaco', vapear: 'fumar', vapers: 'tabaco',
     // Tecnología
     celu: 'celular', celus: 'celulares', cel: 'celular', movil: 'moviles', compu: 'computadoras', compus: 'computadoras',
     ordenadores: 'computadoras', pc: 'computadoras', redes: 'redes sociales', insta: 'instagram', face: 'facebook',

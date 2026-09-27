@@ -10,7 +10,7 @@
     PROHIBIR: {
       nombre: 'Prohibir',
       nominal: 'la prohibición {de}',
-      inversa: 'LEGALIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'prohibir {o}', 'se prohibe {o}', '{o} queda prohibido', '{o} esta prohibido', 'prohibido {o}',
         'nadie puede tener {o}', 'no se permite {o}', 'no se puede usar {o}', 'eliminar {o}', 'abolir {o}',
@@ -22,7 +22,7 @@
     OBLIGAR: {
       nombre: 'Obligar',
       nominal: 'la obligatoriedad {de}',
-      inversa: 'LEGALIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'obligar a todos a {o}', '{o} es obligatorio', '{o} sera obligatorio', 'todos deben {o}',
         'todos tienen que {o}', 'es obligatorio {o}', 'imponer {o}', 'exigir {o}', 'cada ciudadano debe tener {o}',
@@ -35,7 +35,7 @@
     PRIVATIZAR: {
       nombre: 'Privatizar',
       nominal: 'la privatización {de}',
-      inversa: 'NACIONALIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'privatizar {o}', 'vender {o}', '{o} se vende', '{o} ahora se vende', 'cobrar por {o}',
         'hay que pagar por {o}', '{o} cuesta dinero', '{o} sera de pago', 'poner precio a {o}', 'subastar {o}',
@@ -48,7 +48,7 @@
     NACIONALIZAR: {
       nombre: 'Nacionalizar',
       nominal: 'la nacionalización {de}',
-      inversa: 'PRIVATIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'nacionalizar {o}', 'expropiar {o}', '{o} pasa a ser del estado', '{o} es del estado',
         'el estado controla {o}', 'estatizar {o}', 'confiscar {o}', 'quitarle {o} a los privados',
@@ -59,7 +59,7 @@
     SUBIR_IMPUESTO: {
       nombre: 'Subir impuestos',
       nominal: 'el nuevo impuesto {a}',
-      inversa: 'BAJAR_IMPUESTO',
+      inversa: 'DEROGAR',
       frases: [
         'subir impuestos a {o}', 'mas impuestos a {o}', 'gravar {o}', 'impuesto a {o}', 'nuevo impuesto sobre {o}',
         'cobrar impuestos a {o}', 'aumentar los impuestos de {o}', 'tasa especial a {o}', '{o} paga mas impuestos',
@@ -70,7 +70,7 @@
     BAJAR_IMPUESTO: {
       nombre: 'Bajar impuestos',
       nominal: 'la rebaja de impuestos {a}',
-      inversa: 'SUBIR_IMPUESTO',
+      inversa: 'DEROGAR',
       frases: [
         'bajar impuestos a {o}', 'menos impuestos a {o}', 'quitar impuestos a {o}', '{o} no paga impuestos',
         'rebaja fiscal para {o}', 'reducir impuestos de {o}', 'exentar de impuestos a {o}', 'eliminar el impuesto a {o}',
@@ -81,7 +81,7 @@
     SUBSIDIAR: {
       nombre: 'Regalar',
       nominal: 'los subsidios {a}',
-      inversa: 'RECORTAR',
+      inversa: 'DEROGAR',
       frases: [
         '{o} gratis', '{o} gratis para todos', 'subsidiar {o}', 'regalar {o}', 'repartir {o} gratis',
         'el estado paga {o}', 'ayudas para {o}', 'subvencionar {o}', 'bono para {o}', '{o} gratuito',
@@ -93,7 +93,7 @@
     CASTIGAR: {
       nombre: 'Mano dura',
       nominal: 'la mano dura contra {o}',
-      inversa: 'LEGALIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'castigar {o}', 'encarcelar a {o}', 'ejecutar a {o}', 'fusilar a {o}', 'carcel para {o}',
         'mano dura contra {o}', 'perseguir a {o}', 'arrestar a {o}', 'multar a {o}', 'desterrar a {o}',
@@ -116,7 +116,7 @@
     INVERTIR: {
       nombre: 'Invertir',
       nominal: 'la inversión en {o}',
-      inversa: 'RECORTAR',
+      inversa: 'DEROGAR',
       frases: [
         'invertir en {o}', 'construir {o}', 'mas dinero para {o}', 'financiar {o}', 'mejorar {o}',
         'modernizar {o}', 'ampliar {o}', 'crear {o}', 'fortalecer {o}', 'presupuesto para {o}',
@@ -127,7 +127,7 @@
     RECORTAR: {
       nombre: 'Recortar',
       nominal: 'los recortes en {o}',
-      inversa: 'INVERTIR',
+      inversa: 'DEROGAR',
       frases: [
         'recortar {o}', 'recortes en {o}', 'menos dinero para {o}', 'reducir el presupuesto de {o}',
         'quitar fondos a {o}', 'desfinanciar {o}', 'congelar el presupuesto de {o}', 'austeridad en {o}',
@@ -138,7 +138,7 @@
     ENFOCAR: {
       nombre: 'Reconvertir la economía',
       nominal: 'la reconversión de la economía hacia {o}',
-      inversa: null,
+      inversa: 'DEROGAR',
       frases: [
         'que toda la economia sea {o}', 'economia basada en {o}', 'toda la economia al {o}', 'economia del {o}',
         'convertir el pais en potencia de {o}', 'apostar todo al {o}', 'vivir del {o}', 'el pais vivira de {o}',
@@ -151,11 +151,22 @@
     CREAR: {
       nombre: 'Crear',
       nominal: 'la creación {de}',
-      inversa: 'PROHIBIR',
+      inversa: 'DEROGAR',
       frases: [
         'crear {o}', 'fundar {o}', 'formar {o}', 'organizar {o}', 'montar {o}', 'establecer {o}', 'armar {o}',
         'crear un {o}', 'crear una {o}', 'fundar un {o}', 'instaurar {o}', 'inaugurar {o}', 'poner en marcha {o}',
         'crear un cuerpo de {o}', 'formar una unidad de {o}', 'entrenar {o}', 'reclutar {o}', 'imprimir {o}', 'emitir {o}'
+      ]
+    },
+    DEROGAR: {
+      nombre: 'Derogar',
+      nominal: 'la derogación de la ley sobre {o}',
+      inversa: null,
+      frases: [
+        'derogar {o}', 'derogar la ley de {o}', 'anular {o}', 'anular el decreto de {o}', 'quitar la ley de {o}',
+        'dejar de {o}', 'parar de {o}', 'revocar {o}', 'revocar la ley de {o}', 'suspender {o}', 'suspender la ley de {o}',
+        'terminar con la ley de {o}', 'eliminar el decreto de {o}', 'volver atras con {o}', 'dar marcha atras con {o}',
+        'derogar el ultimo decreto', 'anular el ultimo decreto', 'deshacer el ultimo decreto', 'derogar la ultima ley', 'marcha atras'
       ]
     },
     GLORIFICAR: {

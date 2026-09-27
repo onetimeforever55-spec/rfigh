@@ -19,16 +19,12 @@
   const pol = (e, obj) => e.politicas[obj];
   const hito = (e, id) => Object.values(e.ciudadanos).some(c => c.hitos.includes(id));
   const vivo = (e, id) => !e.ciudadanos[id].estado || e.ciudadanos[id].estado === 'libre';
-  const sector = (e, id) => (e.eco && e.eco.sectores[id]) || { peso: 0 };
-  const eco = e => e.eco || { paro: 0, inflacion: 0, contaminacion: 0, pib: 100, pibBase: 100 };
-  const inst = (e, id) => e.instituciones && e.instituciones[id];
   const persona = (e, id) => (e.personas || {})[id] || 'libre';
 
   RF.DILEMAS = [
     // ---------- Provocados por el estado del país ----------
     {
       id: 'huelga_general', titulo: 'Huelga general', urgente: true,
-      si: e => e.stats.pueblo < 38,
       texto: 'Los sindicatos han paralizado el país. No hay autobuses, no hay pan en las panaderías y en el puerto se pudren tres barcos de plátanos. En la plaza, miles de personas corean tu nombre, y no precisamente para alabarte.',
       opciones: [
         { texto: 'Negociar y subir los salarios', efectos: { tesoro: -8, pueblo: 10, cupula: -4 }, ingresos: -1, animo: { ramiro: 10, carmen: 8 }, resultado: 'Los sindicatos cantan victoria. {cifuentes} dice que el país no puede permitírselo, pero las panaderías vuelven a abrir.' },
@@ -38,7 +34,6 @@
     },
     {
       id: 'garrote_tanques', titulo: 'El General pide un favor', urgente: true,
-      si: e => e.stats.ejercito < 45,
       texto: 'El {n_garrote} entra en tu despacho sin llamar. Deja sobre la mesa un catálogo de tanques con varias páginas dobladas. "Mis muchachos están desmoralizados, {lider}. Un ejército sin juguetes nuevos es un ejército que piensa demasiado."',
       opciones: [
         { texto: 'Comprarle los tanques', efectos: { tesoro: -10, ejercito: 12, mundo: -2 }, resultado: 'Llegan veinte tanques de segunda mano. {garrote} los prueba personalmente atropellando un quiosco. Está feliz.' },
@@ -48,7 +43,6 @@
     },
     {
       id: 'rumor_golpe', titulo: 'Ruido de botas', urgente: true, unaVez: true,
-      si: e => e.stats.ejercito < 30,
       texto: '{sombra} te despierta a las tres de la madrugada. Tres coroneles se han reunido en secreto en una finca del norte. Llevaban mapas del Palacio. "Puede ser una fiesta de cumpleaños," dice {sombra}. "O puede que no."',
       opciones: [
         { texto: 'Purgar a los coroneles', efectos: { ejercito: -4, orden: 6, mundo: -4 }, resultado: 'Los tres coroneles son "trasladados" a una base antártica que Valdoria no tiene. El resto del ejército toma nota.' },
@@ -66,7 +60,6 @@
     },
     {
       id: 'desfalco', titulo: 'Números que no cuadran',
-      si: e => e.stats.cupula > 55 && e.dia > 4,
       texto: 'Un contable joven del Ministerio de Hacienda pide verte a solas. Ha encontrado un agujero de tres millones de valdos. Todas las firmas son de {n_cifuentes}. El contable tiembla. Sabe que se ha metido en algo grande.',
       opciones: [
         { texto: 'Destituir a {cifuentes}', efectos: { cupula: -12, tesoro: 6, pueblo: 4 }, resultado: '{cifuentes} sale del Palacio escoltada, con la cabeza alta. Sus amigos del Club Náutico ya no te invitan a sus fiestas.' },
@@ -76,7 +69,6 @@
     },
     {
       id: 'cifuentes_conspira', titulo: 'La ministra conspira', urgente: true,
-      si: e => e.stats.cupula < 35,
       texto: 'Tus espías han grabado a {n_cifuentes} en una cena con los banqueros. Hablaba de "el día después" y de "una transición ordenada". Brindaron. Tú no estabas invitado.',
       opciones: [
         { texto: 'Destituirla', efectos: { cupula: -8, orden: 3, tesoro: 3 }, resultado: '{cifuentes} se va dando un portazo. Los banqueros la contratan esa misma semana como asesora. De tus enemigos.' },
@@ -86,7 +78,6 @@
     },
     {
       id: 'periodista', titulo: 'Una periodista extranjera',
-      si: e => e.stats.mundo < 50,
       texto: 'Una famosa periodista extranjera ha llegado a Puerto Esperanza y pide una entrevista contigo. Su último reportaje terminó con un dictador en la cárcel. {montiel} cree que es una oportunidad. {sombra} cree que es una espía.',
       opciones: [
         { texto: 'Conceder la entrevista y ser encantador', efectos: { mundo: 7, orden: -2 }, resultado: 'Hablas dos horas de tu infancia humilde y tu amor por los gatitos. El reportaje se titula "El dictador que llora con los atardeceres". Funciona.' },
@@ -96,7 +87,6 @@
     },
     {
       id: 'fmi', titulo: 'Oferta del Fondo Monetario', urgente: true, unaVez: true,
-      si: e => e.stats.tesoro < 30,
       texto: 'Una delegación del Fondo Monetario Internacional aterriza con maletines y trajes grises. Te ofrecen un préstamo enorme. A cambio quieren "reformas": recortes, privatizaciones y que dejes de llamarlos "buitres" en televisión.',
       opciones: [
         { texto: 'Aceptar el préstamo con sus condiciones', efectos: { tesoro: 22, pueblo: -8, mundo: 6 }, ingresos: 1, cadena: { id: 'fmi_inspectores', en: 5 }, resultado: 'El dinero llega en 48 horas. Los recortes, en 24. Doña Carmen ve cómo cierran el centro de salud de su barrio.' },
@@ -114,7 +104,6 @@
     },
     {
       id: 'ultimatum', titulo: 'Ultimátum internacional', urgente: true, unaVez: true,
-      si: e => e.stats.mundo < 28,
       texto: 'Los embajadores de las grandes potencias te entregan una carta conjunta. Tienes una semana para liberar a los presos políticos y convocar elecciones anticipadas. Si no, "todas las opciones están sobre la mesa". {montiel} dice que en la mesa hay portaaviones.',
       opciones: [
         { texto: 'Ceder y liberar a los presos', efectos: { mundo: 12, orden: -6, ejercito: -3 }, animo: { nico: 15 }, resultado: 'Las cárceles se abren. Los liberados salen haciendo la V de victoria. Tu popularidad fuera sube; dentro, tus enemigos salen a la calle.' },
@@ -124,7 +113,6 @@
     },
     {
       id: 'epidemia', titulo: 'Brote de fiebre', urgente: true,
-      si: e => e.stats.salud < 35,
       texto: '{n_ventura} trae malas noticias: una fiebre desconocida se extiende por los barrios del sur. Ya hay 300 casos. Si se sabe, habrá pánico. Si no se sabe, habrá más casos.',
       opciones: [
         { texto: 'Cuarentena total', efectos: { salud: 10, tesoro: -8, pueblo: -4 }, animo: { lucia: 10 }, resultado: 'Los barrios del sur se cierran con vallas. Lucía trabaja 20 horas al día, pero los casos empiezan a bajar.' },
@@ -134,7 +122,6 @@
     },
     {
       id: 'plaza_ocupada', titulo: 'La plaza ocupada', urgente: true,
-      si: e => e.stats.orden < 40,
       texto: 'Miles de manifestantes han acampado en la Plaza Mayor, justo debajo de tu balcón. Tienen tiendas de campaña, una cocina comunitaria y un grupo de percusión que no para nunca. Tú no has dormido en tres días.',
       opciones: [
         { texto: 'Dialogar con los líderes', efectos: { pueblo: 5, orden: -3, cupula: -3 }, animo: { nico: 10 }, resultado: 'Te sientas con ellos en el suelo de la plaza. Son jóvenes, están cansados y tienen razón en la mitad de las cosas. Se van al día siguiente.' },
@@ -144,7 +131,6 @@
     },
     {
       id: 'aniversario', titulo: 'Aniversario del régimen',
-      si: e => e.stats.pueblo > 55 && e.dia > 8, unaVez: true,
       texto: 'Se cumple un mes de tu llegada al poder (en Valdoria, un mes es mucho). {paredes} quiere celebrarlo por todo lo alto. {garrote} quiere un desfile. {cifuentes} quiere que no gastes nada.',
       opciones: [
         { texto: 'Gran desfile militar', efectos: { tesoro: -6, ejercito: 7, pueblo: 2 }, resultado: 'Pasan 60 tanques, 3 aviones y un pelotón de soldados cantando tu canción favorita. Uno de los aviones se estrella contra una estatua, pero nadie lo comenta.' },
@@ -156,7 +142,6 @@
     // ---------- Provocados por tus decretos ----------
     {
       id: 'contrabando_aire', titulo: 'Los contrabandistas de aire', urgente: true, unaVez: true,
-      si: e => pol(e, 'AIRE') === 'PRIVATIZAR',
       texto: 'El aire embotellado se vende en cada esquina. Los contrabandistas lo traen de las montañas en camiones. {sombra} dice que ya mueve más dinero que el plátano.',
       opciones: [
         { texto: 'Legalizarlo y cobrarle impuestos', efectos: { tesoro: 7, salud: -3, cupula: 3 }, ingresos: 1, resultado: 'El aire de contrabando ahora lleva un sello oficial. Cuesta el doble, pero es legal.' },
@@ -166,7 +151,6 @@
     },
     {
       id: 'hackers', titulo: 'Hackers de la resistencia', urgente: true, unaVez: true,
-      si: e => pol(e, 'INTERNET') === 'PROHIBIR' || pol(e, 'PRENSA') === 'PROHIBIR' || pol(e, 'PRENSA') === 'CASTIGAR',
       texto: 'En mitad del noticiero de la noche, la señal de la televisión estatal se corta. Aparece un dibujo tuyo con orejas de burro y el mensaje: "LA VERDAD NO SE APAGA". Lo ha visto medio país.',
       opciones: [
         { texto: 'Devolver la libertad de comunicación', efectos: { pueblo: 6, orden: -3, mundo: 4 }, politica: { INTERNET: 'LEGALIZAR' }, animo: { nico: 15 }, resultado: 'Las antenas vuelven a encenderse. Lo primero que se hace viral es el dibujo de las orejas de burro.' },
@@ -176,7 +160,6 @@
     },
     {
       id: 'multinacional', titulo: 'La multinacional contraataca', urgente: true, unaVez: true,
-      si: e => pol(e, 'RECURSOS') === 'NACIONALIZAR' || pol(e, 'EMPRESAS') === 'NACIONALIZAR',
       texto: 'La multinacional que explotaba tus recursos ha demandado a Valdoria en un tribunal internacional. Exigen 800 millones. Su abogado principal fue compañero de universidad de tres presidentes extranjeros.',
       opciones: [
         { texto: 'Pagar una indemnización', efectos: { tesoro: -12, mundo: 7, cupula: 3 }, resultado: 'Pagas a plazos. {cifuentes} llora al firmar el cheque. La multinacional te manda una tarjeta de Navidad.' },
@@ -186,7 +169,6 @@
     },
     {
       id: 'madre_plaza', titulo: 'Una madre en la plaza', urgente: true, unaVez: true,
-      si: e => pol(e, 'OPOSICION') === 'CASTIGAR' || pol(e, 'PRENSA') === 'CASTIGAR',
       texto: 'Una mujer lleva nueve días sentada frente al Palacio con la foto de su hijo, detenido por tu policía. No grita ni insulta. Solo está ahí. Cada día se sientan más mujeres a su lado. Hoy son doscientas.',
       opciones: [
         { texto: 'Liberar a su hijo', efectos: { pueblo: 5, orden: -3, mundo: 4 }, resultado: 'El chico sale de la cárcel con diez kilos menos. Su madre lo abraza frente a las cámaras. Por primera vez, la gente dice tu nombre sin rabia.' },
@@ -204,7 +186,6 @@
     },
     {
       id: 'rey_contrabando', titulo: 'El rey del contrabando',
-      si: e => pol(e, 'VICIOS') === 'PROHIBIR' || pol(e, 'DIVERSION') === 'PROHIBIR', unaVez: true,
       texto: 'Un hombre con gafas de sol y un traje blanco espera en tu antesala. Controla todo el contrabando del país desde que prohibiste lo que prohibiste. Trae un maletín. "Un regalo, {lider}. Para que todo siga como está."',
       opciones: [
         { texto: 'Aceptar el maletín', efectos: { tesoro: 8, cupula: 3, orden: -5 }, resultado: 'El maletín tiene más dinero del que Hacienda recauda en un mes. El hombre de blanco se va silbando.' },
@@ -214,7 +195,6 @@
     },
     {
       id: 'estatua_rota', titulo: 'La estatua amanece rota',
-      si: e => pol(e, 'LIDER') === 'GLORIFICAR' && e.stats.pueblo < 55, unaVez: true,
       texto: 'Alguien ha serrado la nariz de tu estatua de 30 metros durante la noche. La nariz, de dos toneladas, ha aparecido en la puerta de la embajada de un país vecino. Nadie sabe cómo.',
       opciones: [
         { texto: 'Detener a todo el barrio', efectos: { orden: 5, pueblo: -7, mundo: -3 }, animo: { carmen: -12, nico: -12 }, resultado: 'Detienen a 300 personas. Ninguna tiene una sierra de dos toneladas. La nariz sigue en la embajada.' },
@@ -224,7 +204,6 @@
     },
     {
       id: 'motin_soldados', titulo: 'Soldados sin sueldo', urgente: true, unaVez: true,
-      si: e => pol(e, 'EJERCITO') === 'RECORTAR' || pol(e, 'EJERCITO') === 'CASTIGAR',
       texto: 'Una compañía entera se ha encerrado en el cuartel de San Blas. No han cobrado este mes. Exigen su sueldo "y una disculpa por escrito". Tienen dos tanques y una máquina de café.',
       opciones: [
         { texto: 'Pagarles y pedir perdón', efectos: { tesoro: -6, ejercito: 8 }, resultado: 'Firmas la disculpa. Los soldados la enmarcan. {garrote} la lee en voz alta en el comedor, con retintín.' },
@@ -233,7 +212,6 @@
     },
     {
       id: 'medicos_huyen', titulo: 'Los médicos se van', urgente: true, unaVez: true,
-      si: e => pol(e, 'SALUD') === 'RECORTAR' || pol(e, 'SALUD') === 'PRIVATIZAR',
       texto: 'Cien médicos han pedido el visado para irse del país este mes. {n_ventura} te enseña la lista. En ella está Lucía, del Hospital Central.',
       opciones: [
         { texto: 'Subirles el sueldo', efectos: { tesoro: -8, salud: 8 }, ingresos: -1, animo: { lucia: 20 }, resultado: 'La mitad se queda. Lucía rompe su formulario de emigración. Por ahora.' },
@@ -275,7 +253,6 @@
     },
     {
       id: 'lucia_carta', titulo: 'Carta de una enfermera', unaVez: true, urgente: true,
-      si: e => e.stats.salud < 42 && e.dia > 4 && vivo(e, 'lucia'),
       texto: 'Entre la correspondencia hay una carta escrita a mano. La firma Lucía, enfermera del Hospital Central. "Excelencia: ayer murió un niño porque no teníamos oxígeno. No le pido nada para mí. Solo que venga a verlo usted mismo."',
       opciones: [
         { texto: 'Visitar el hospital y aumentar su presupuesto', efectos: { tesoro: -8, salud: 9, pueblo: 3 }, animo: { lucia: 25 }, resultado: 'Recorres los pasillos del Hospital Central. Nadie aplaude. Lucía te enseña cada cama vacía de sábanas. Firmas el presupuesto allí mismo.' },
@@ -296,7 +273,6 @@
     },
     {
       id: 'resort', titulo: 'Un casino en la playa',
-      si: e => e.stats.cupula > 45,
       texto: 'Un magnate extranjero quiere construir un casino-hotel de lujo en la Playa del Pueblo, la única playa pública de la capital. Promete empleo, turismo y "un pequeño porcentaje" para ti.',
       opciones: [
         { texto: 'Aceptar', efectos: { tesoro: 10, cupula: 5, pueblo: -6 }, ingresos: 1, resultado: 'La playa se cierra con una valla. Los niños de La Esperanza ven el mar a través de los barrotes. Los turistas, desde la piscina.' },
@@ -306,7 +282,6 @@
     },
     {
       id: 'cumbre', titulo: 'Invitación a una cumbre',
-      si: e => e.stats.mundo > 45,
       texto: 'Te invitan a una cumbre de presidentes en el extranjero. Estarán los más poderosos del mundo. Es una oportunidad. También es la primera vez que saldrías del país desde que llegaste al poder.',
       opciones: [
         { texto: 'Ir y dar un discurso', efectos: { mundo: 7, tesoro: -3, ejercito: -2 }, resultado: 'Tu discurso sobre "la soberanía de los pueblos pequeños" recibe una ovación. Al volver, compruebas que el Palacio sigue siendo tuyo. Suspiras aliviado.' },
@@ -356,7 +331,6 @@
     // ---------- Economía y mercado ----------
     {
       id: 'dea', titulo: 'Visita de la agencia antidroga', urgente: true, unaVez: true,
-      si: e => sector(e, 'narco').peso >= 8,
       texto: 'Tres agentes de la agencia antidroga de la Unión Atlántica aterrizan sin avisar. Traen fotos de pistas clandestinas, de barcos cargados y de un ministro tuyo saludando a un capo en una boda. Quieren nombres.',
       opciones: [
         { texto: 'Extraditar a los grandes capos', efectos: { mundo: 9, cupula: -7, orden: -3 }, economia: { multiplicar: { narco: 0.6 } }, resultado: 'Los capos salen esposados en un avión militar. Los que se quedan juran venganza. El negocio cae, pero no desaparece.' },
@@ -366,7 +340,6 @@
     },
     {
       id: 'guerra_carteles', titulo: 'Guerra de cárteles', urgente: true,
-      si: e => sector(e, 'narco').peso >= 6 && sector(e, 'narco').dueno === 'carteles',
       texto: 'Dos cárteles se disputan las rutas del puerto. Anoche hubo tiroteos en tres barrios. En La Esperanza, los niños ya no salen a jugar a la calle.',
       opciones: [
         { texto: 'Apoyar al cártel más fuerte', efectos: { orden: 5, cupula: 4, mundo: -5 }, resultado: 'Con tu ayuda, el Cártel del Puerto se impone en una semana. Los tiroteos paran. Ahora hay un solo jefe, y te debe un favor.' },
@@ -376,7 +349,6 @@
     },
     {
       id: 'bloqueo_naval', titulo: 'Bloqueo naval', urgente: true, unaVez: true,
-      si: e => sector(e, 'narco').peso >= 22 && e.stats.mundo < 35,
       texto: 'La flota de la Unión Atlántica bloquea tus puertos. Ningún barco entra ni sale. El comunicado es claro: "Hasta que Valdoria deje de ser un narcoestado".',
       opciones: [
         { texto: 'Rendirse y desmantelar el negocio', efectos: { mundo: 15, tesoro: -10, cupula: -8 }, economia: { multiplicar: { narco: 0.2 }, cancelarModelo: true, paro: 6 }, resultado: 'Quemas los laboratorios delante de las cámaras. El humo se ve desde los barcos. El bloqueo se levanta; la economía, no.' },
@@ -386,7 +358,6 @@
     },
     {
       id: 'adiccion', titulo: 'La epidemia silenciosa', unaVez: true, urgente: true,
-      si: e => sector(e, 'narco').peso >= 14,
       texto: 'La droga que exportas también se queda. En los barrios pobres hay jóvenes consumidos en cada portal. {ventura} te trae los datos: se han triplicado las muertes por sobredosis.',
       opciones: [
         { texto: 'Abrir clínicas de desintoxicación', efectos: { tesoro: -6, salud: 6, pueblo: 2 }, animo: { lucia: 8 }, resultado: 'Las clínicas se llenan el primer día. {ventura} dice que harían falta diez veces más.' },
@@ -396,7 +367,6 @@
     },
     {
       id: 'derrumbe_mina', titulo: 'Derrumbe en la mina', urgente: true, unaVez: true,
-      si: e => sector(e, 'carbon').peso >= 14,
       texto: 'Se ha derrumbado una galería en la mina de carbón de El Hoyo. Hay 43 mineros atrapados a 300 metros de profundidad. Las familias esperan en la boca de la mina con linternas.',
       opciones: [
         { texto: 'Rescate a cualquier precio', efectos: { tesoro: -7, pueblo: 6, mundo: 3 }, resultado: 'Tras seis días sacan a 41 mineros con vida. Las imágenes dan la vuelta al mundo. Te fotografías abrazando al último.' },
@@ -406,7 +376,6 @@
     },
     {
       id: 'cumbre_clima', titulo: 'Acusado en la cumbre del clima', urgente: true,
-      si: e => eco(e).contaminacion >= 52, unaVez: true,
       texto: 'En la cumbre mundial del clima, Valdoria aparece en la lista de los diez países más contaminantes por habitante. Una activista de quince años te señala con el dedo desde el escenario.',
       opciones: [
         { texto: 'Prometer una transición verde', efectos: { mundo: 7, cupula: -4, tesoro: -3 }, economia: { sectores: { carbon: -3, tecnologia: 2 } }, resultado: 'Anuncias un plan verde con mucha foto y poco presupuesto. El mundo aplaude, con reservas.' },
@@ -416,7 +385,6 @@
     },
     {
       id: 'paro_masivo', titulo: 'Las colas del paro', urgente: true,
-      si: e => eco(e).paro >= 24,
       texto: 'Uno de cada cuatro valdorianos no tiene trabajo. Las colas de la oficina de empleo dan la vuelta a la manzana desde la madrugada. Alguien vende sitios en la cola.',
       opciones: [
         { texto: 'Gran plan de obras públicas', efectos: { tesoro: -9, pueblo: 4 }, economia: { paro: -7 }, ingresos: -1, resultado: 'Carreteras, puentes y una rotonda con tu estatua en medio. Hay trabajo para todos durante un tiempo.' },
@@ -426,7 +394,6 @@
     },
     {
       id: 'hiperinflacion', titulo: 'Hiperinflación', urgente: true,
-      si: e => eco(e).inflacion >= 45,
       texto: 'Los precios suben cada día. Un café cuesta por la tarde el doble que por la mañana. La gente cobra el sueldo y corre al supermercado antes de que valga menos.',
       opciones: [
         { texto: 'Crear una moneda nueva', efectos: { tesoro: -5, mundo: 2, pueblo: -2 }, economia: { inflacion: -40 }, resultado: 'Nace el "nuevo valdo", que vale mil valdos viejos. Tiene tu cara. La gente lo acepta con resignación.' },
@@ -436,7 +403,6 @@
     },
     {
       id: 'boom', titulo: 'Boom económico', unaVez: true,
-      si: e => eco(e).pib >= eco(e).pibBase * 1.15,
       texto: 'La economía crece como nunca. Hay grúas en cada barrio, los restaurantes están llenos y {cifuentes} sonríe en las reuniones. La pregunta es qué hacer con tanto dinero.',
       opciones: [
         { texto: 'Ahorrarlo para tiempos peores', efectos: { tesoro: 10, pueblo: -2 }, resultado: '{cifuentes} guarda el dinero en un fondo soberano. Los economistas te felicitan. La gente pregunta dónde está su parte.' },
@@ -446,7 +412,6 @@
     },
     {
       id: 'reconversion_protestas', titulo: 'Los perdedores de la reconversión', unaVez: true,
-      si: e => e.eco && e.eco.modelo && !e.eco.modelo.completado && e.dia - e.eco.modelo.desde >= 3,
       texto: 'La reconversión económica avanza y deja atrás a miles de trabajadores de los sectores que encogen. Los sindicatos marchan hacia el Palacio con sus herramientas en alto.',
       opciones: [
         { texto: 'Pagar indemnizaciones', efectos: { tesoro: -8, pueblo: 5 }, economia: { paro: -3 }, resultado: 'Los cheques llegan tarde, pero llegan. Los sindicatos aceptan, a regañadientes.' },
@@ -458,7 +423,6 @@
     // ---------- Instituciones del régimen ----------
     {
       id: 'escuadron_excesos', titulo: 'El Escuadrón se pasa de la raya', urgente: true, unaVez: true,
-      si: e => inst(e, 'ESCUADRON') && e.dia - inst(e, 'ESCUADRON').desde >= 2,
       texto: 'Anoche, una camioneta del Escuadrón disparó contra un coche que no se detuvo en un control. Dentro iban un estudiante de medicina y su madre. Solo ella sobrevivió. El video está en todas partes.',
       opciones: [
         { texto: 'Encubrirlo: "Eran terroristas"', efectos: { orden: 2, pueblo: -7, mundo: -7 }, animo: { lucia: -15, nico: -15 }, resultado: '{paredes} lo intenta en televisión. La madre sale en la radio pirata con la foto de su hijo con la bata blanca. Nadie cree a {paredes}.' },
@@ -468,7 +432,6 @@
     },
     {
       id: 'tigre', titulo: 'El Tigre quiere más', unaVez: true,
-      si: e => inst(e, 'ESCUADRON') && e.dia - inst(e, 'ESCUADRON').desde >= 6,
       texto: 'El jefe del Escuadrón, un comandante al que todos llaman "El Tigre", pide audiencia. Quiere ser ministro del Interior. "{sombra} es blando, {lider}. Yo no."',
       opciones: [
         { texto: 'Darle el ministerio', efectos: { orden: 7, mundo: -6, cupula: -4 }, nombrar: { cargo: 'sombra', nombre: 'Comandante "El Tigre" Robles', corto: 'Robles' }, resultado: '{sombra} recoge sus cosas en silencio. El Tigre se sienta en su silla antes de que termine.' },
@@ -478,7 +441,6 @@
     },
     {
       id: 'milicias_ejercito', titulo: 'Milicias contra soldados', urgente: true, unaVez: true,
-      si: e => inst(e, 'MILICIA') && e.stats.ejercito < 50,
       texto: 'Una patrulla de las Milicias y otra del ejército se han enfrentado a tiros en un control de carretera. Hay dos muertos. {n_garrote} exige que desarmes a "esos aficionados con brazalete".',
       opciones: [
         { texto: 'Desarmar a las Milicias', efectos: { ejercito: 8, pueblo: -3 }, institucion: { MILICIA: 'disolver' }, resultado: 'Las Milicias entregan los fusiles. Algunos milicianos lloran. {garrote} ni los mira.' },
@@ -488,7 +450,6 @@
     },
     {
       id: 'complot', titulo: 'Tus espías descubren un complot', urgente: true, unaVez: true,
-      si: e => inst(e, 'ESPIAS') && (e.stats.ejercito < 38 || e.stats.cupula < 38),
       texto: 'La Dirección de Inteligencia te entrega una carpeta roja: grabaciones, fotos y una lista de doce nombres que planean "sustituirte". Tres de ellos se sientan a tu mesa cada lunes.',
       opciones: [
         { texto: 'Detenerlos a todos esta noche', efectos: { ejercito: 6, cupula: 6, orden: 3, mundo: -5 }, resultado: 'Doce detenciones antes del amanecer. El resto del poder entiende el mensaje. Nadie vuelve a conspirar. Durante un tiempo.' },
@@ -589,4 +550,57 @@
       ]
     }
   ];
+
+  /*
+   * CONDICIONES con los cuatro indicadores (dinero, inflación, estabilidad, felicidad) y las leyes vigentes.
+   * Sustituyen a las de arriba cuando existen.
+   */
+  const S = e => e.stats;
+  const ley = (e, clave, accion) => (e.leyes || []).find(l => l.clave === clave && (!accion || l.accion === accion));
+  const edad = (e, clave) => { const l = ley(e, clave); return l ? e.dia - l.desde : -1; };
+  const modelo = (e, m) => (e.leyes || []).find(l => l.clave === 'MODELO' && l.modelo === m);
+  const narco = e => ley(e, 'NARCO', 'PRIVATIZAR') || ley(e, 'NARCO', 'LEGALIZAR') || ley(e, 'NARCO', 'NACIONALIZAR') || modelo(e, 'narco');
+  const edadNarco = e => { const l = narco(e); return l ? e.dia - l.desde : -1; };
+  const represion = e => (e.leyes || []).filter(l => l.accion === 'CASTIGAR' || ['ESCUADRON', 'MILICIA', 'ESPIAS'].includes(l.clave)).length;
+  const recortes = e => (e.leyes || []).filter(l => l.accion === 'RECORTAR').length;
+
+  const CONDICIONES = {
+    huelga_general: e => S(e).felicidad < 38,
+    garrote_tanques: e => S(e).estabilidad < 45,
+    rumor_golpe: e => S(e).estabilidad < 30,
+    desfalco: e => S(e).dinero > 140 && e.dia > 4,
+    cifuentes_conspira: e => S(e).dinero < 20 && S(e).estabilidad < 45,
+    periodista: e => e.dia > 3 && represion(e) >= 1,
+    fmi: e => S(e).dinero < 0,
+    ultimatum: e => represion(e) >= 2 && S(e).estabilidad < 50,
+    epidemia: e => !!(ley(e, 'SALUD', 'RECORTAR') || ley(e, 'SALUD', 'PRIVATIZAR') || ley(e, 'AGUA', 'PRIVATIZAR') || ley(e, 'AIRE', 'PRIVATIZAR')) && S(e).felicidad < 45,
+    plaza_ocupada: e => S(e).estabilidad < 40,
+    aniversario: e => S(e).felicidad > 60 && e.dia > 8,
+    contrabando_aire: e => !!ley(e, 'AIRE', 'PRIVATIZAR'),
+    hackers: e => !!(ley(e, 'INTERNET', 'PROHIBIR') || ley(e, 'PRENSA', 'PROHIBIR') || ley(e, 'PRENSA', 'CASTIGAR')),
+    multinacional: e => !!(ley(e, 'RECURSOS', 'NACIONALIZAR') || ley(e, 'EMPRESAS', 'NACIONALIZAR') || ley(e, 'ENERGIA', 'NACIONALIZAR')),
+    madre_plaza: e => !!(ley(e, 'OPOSICION', 'CASTIGAR') || ley(e, 'PRENSA', 'CASTIGAR')),
+    rey_contrabando: e => !!(ley(e, 'VICIOS', 'PROHIBIR') || ley(e, 'DIVERSION', 'PROHIBIR')),
+    estatua_rota: e => !!ley(e, 'LIDER', 'GLORIFICAR') && S(e).felicidad < 55,
+    motin_soldados: e => !!(ley(e, 'EJERCITO', 'RECORTAR') || ley(e, 'EJERCITO', 'CASTIGAR')),
+    medicos_huyen: e => !!(ley(e, 'SALUD', 'RECORTAR') || ley(e, 'SALUD', 'PRIVATIZAR')),
+    lucia_carta: e => S(e).felicidad < 42 && e.dia > 4 && vivo(e, 'lucia'),
+    resort: e => S(e).dinero < 90,
+    cumbre: e => S(e).estabilidad > 50,
+    dea: e => edadNarco(e) >= 2,
+    guerra_carteles: e => !!ley(e, 'NARCO', 'PROHIBIR') || (!!narco(e) && S(e).estabilidad < 50),
+    bloqueo_naval: e => edadNarco(e) >= 6 && S(e).estabilidad < 45,
+    adiccion: e => edadNarco(e) >= 4,
+    derrumbe_mina: e => !!(modelo(e, 'carbon') || ley(e, 'CARBON')),
+    cumbre_clima: e => (!!modelo(e, 'carbon') && edad(e, 'MODELO') >= 3) || (!!modelo(e, 'industria') && edad(e, 'MODELO') >= 5),
+    paro_masivo: e => recortes(e) >= 2,
+    hiperinflacion: e => S(e).inflacion >= 45,
+    boom: e => S(e).dinero >= 280,
+    reconversion_protestas: e => edad(e, 'MODELO') >= 2 && edad(e, 'MODELO') <= 6,
+    escuadron_excesos: e => edad(e, 'ESCUADRON') >= 2,
+    tigre: e => edad(e, 'ESCUADRON') >= 6,
+    milicias_ejercito: e => !!ley(e, 'MILICIA') && S(e).estabilidad < 55,
+    complot: e => !!ley(e, 'ESPIAS') && S(e).estabilidad < 40
+  };
+  for (const d of RF.DILEMAS) if (CONDICIONES[d.id]) d.si = CONDICIONES[d.id];
 })(globalThis.RF = globalThis.RF || {});

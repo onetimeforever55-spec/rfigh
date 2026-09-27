@@ -232,6 +232,12 @@
     if (personal) return personal;
     const ro = clasificar(obj, rs);
 
+    // Si la favorita no tiene ninguna palabra clara pero otra sí ("ya no se regala comida"), gana la que la tiene.
+    const conPalabras = ra.ranking.find(p => ra.evidencias[p.clase]);
+    if (!ra.evidencias[ra.ranking[0].clase] && conPalabras) {
+      ra.ranking.splice(ra.ranking.indexOf(conPalabras), 1);
+      ra.ranking.unshift(conPalabras);
+    }
     let accion = ra.ranking[0].clase;
     const hayAccion = !!ra.evidencias[accion] || ra.ranking[0].prob >= 0.6;
     const accionDudosa = !hayAccion && ra.conocidos > 0 && ra.ranking[0].prob >= 0.3;
@@ -284,6 +290,9 @@
       if (otro) {
         res.objeto = 'OTRO';
         res.nombreObjeto = otro;
+      } else if (accion === 'DEROGAR') {
+        res.objeto = 'ULTIMA';
+        res.nombreObjeto = 'el último decreto';
       } else if (accion === 'SUBIR_IMPUESTO' || accion === 'BAJAR_IMPUESTO' || paraTodos) {
         res.objeto = 'GENERAL';
         res.nombreObjeto = RF.OBJETOS.GENERAL.nombre;

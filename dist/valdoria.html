@@ -89,16 +89,16 @@ body {
   margin: 10px 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 .stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.stat-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 2px; }
-.stat-nombre { font-size: 10px; letter-spacing: 0.08em; color: var(--fosforo-tenue); }
-.stat-valor { font-family: var(--f-terminal); font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat-nombre { font-size: 10px; letter-spacing: 0.08em; color: var(--fosforo-tenue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-valor { font-family: var(--f-terminal); font-size: 28px; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stat-barra { height: 4px; background: var(--linea); position: relative; overflow: hidden; }
 .stat-relleno { position: absolute; inset: 0 auto 0 0; background: var(--fosforo); transition: width 0.6s ease; }
 .stat.medio .stat-relleno { background: var(--aviso); }
+.stat.medio .stat-valor { color: var(--aviso); }
 .stat.bajo .stat-relleno { background: var(--mal); }
 .stat.bajo .stat-valor { color: var(--mal); animation: parpadeo 1.2s steps(2) infinite; }
 .stat .cambio {
@@ -219,6 +219,12 @@ body {
 }
 
 .b-efectos { display: flex; flex-wrap: wrap; gap: 6px 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.b-efectos-grupo { display: flex; flex-direction: column; gap: 6px; }
+.por-turno .efecto { border-style: dashed; }
+
+/* Parte de las leyes vigentes: la lista de lo que cada ley ha hecho este turno. */
+.b-leyes { font-size: 12.5px; padding: 8px 10px; border-left: 2px solid var(--fosforo-oscuro); background: var(--fondo-2); }
+.b-leyes p { color: var(--fosforo-tenue); font-variant-numeric: tabular-nums; }
 .efecto { padding: 1px 7px; border: 1px solid var(--linea); background: var(--fondo-2); white-space: nowrap; }
 .efecto.sube { color: var(--bien); }
 .efecto.baja { color: var(--mal); }
@@ -370,9 +376,9 @@ body {
 #decreto:focus-visible { outline-offset: 0; }
 
 @media (max-width: 420px) {
-  .stat-nombre { font-size: 9px; letter-spacing: 0.04em; }
-  .stat-valor { font-size: 18px; }
-  .stats { gap: 4px; }
+  .stat-nombre { font-size: 9px; letter-spacing: 0.02em; }
+  .stat-valor { font-size: 24px; }
+  .stats { gap: 8px; }
   .b-titulo { font-size: 34px; }
 }
 
@@ -387,10 +393,10 @@ body {
   <header class="cabecera">
     <div class="cabecera-fila">
       <h1 class="marca">VALDORIA</h1>
-      <span class="dia" id="dia">DÍA 1/30</span>
+      <span class="dia" id="dia">TURNO 1/30</span>
     </div>
     <ul class="stats" id="stats" aria-label="Estado del país"></ul>
-    <button type="button" class="ticker" id="ticker" title="Ver el mercado">PIB 100 · PARO 12% · INFLACIÓN 5%</button>
+    <button type="button" class="ticker" id="ticker" title="Ver las leyes vigentes">BALANCE +0M POR TURNO · 0 LEYES VIGENTES</button>
   </header>
 
   <main class="registro" id="registro" aria-live="polite"></main>
@@ -500,7 +506,8 @@ body {
     }
     // Variables globales (nombres de los ministros actuales) + las de esta llamada.
     const todas = Object.assign({}, RF.VARS || {}, vars || {});
-    return t.replace(/\{(\w+)\}/g, (_, k) => (todas[k] != null ? todas[k] : '{' + k + '}'));
+    return t.replace(/\{(\w+)\}/g, (_, k) => (todas[k] != null ? todas[k] : '{' + k + '}'))
+      .replace(/\b([Aa]) el\b/g, '$1l').replace(/\b([Dd])e el\b/g, '$1el'); // "a el aire" -> "al aire"
   }
 
   function de(nombre) { return /^el /i.test(nombre) ? 'del ' + nombre.slice(3) : 'de ' + nombre; }
@@ -538,7 +545,7 @@ body {
     birras: 'cervezas', birra: 'cerveza', chelas: 'cervezas', chela: 'cerveza', pola: 'cerveza', polas: 'cervezas',
     guaro: 'alcohol', trago: 'alcohol', tragos: 'alcohol', copas: 'alcohol', pucho: 'cigarro', puchos: 'cigarros',
     faso: 'cigarro', porro: 'marihuana', porros: 'marihuana', mota: 'marihuana', hierba: 'marihuana', weed: 'marihuana',
-    cannabis: 'marihuana', cocaina: 'drogas', perico: 'drogas', vapeo: 'tabaco', vapear: 'fumar', vapers: 'tabaco',
+    cannabis: 'marihuana', perico: 'cocaina', coca: 'cocaina', vapeo: 'tabaco', vapear: 'fumar', vapers: 'tabaco',
     // Tecnología
     celu: 'celular', celus: 'celulares', cel: 'celular', movil: 'moviles', compu: 'computadoras', compus: 'computadoras',
     ordenadores: 'computadoras', pc: 'computadoras', redes: 'redes sociales', insta: 'instagram', face: 'facebook',
@@ -624,7 +631,7 @@ body {
     PROHIBIR: {
       nombre: 'Prohibir',
       nominal: 'la prohibición {de}',
-      inversa: 'LEGALIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'prohibir {o}', 'se prohibe {o}', '{o} queda prohibido', '{o} esta prohibido', 'prohibido {o}',
         'nadie puede tener {o}', 'no se permite {o}', 'no se puede usar {o}', 'eliminar {o}', 'abolir {o}',
@@ -636,7 +643,7 @@ body {
     OBLIGAR: {
       nombre: 'Obligar',
       nominal: 'la obligatoriedad {de}',
-      inversa: 'LEGALIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'obligar a todos a {o}', '{o} es obligatorio', '{o} sera obligatorio', 'todos deben {o}',
         'todos tienen que {o}', 'es obligatorio {o}', 'imponer {o}', 'exigir {o}', 'cada ciudadano debe tener {o}',
@@ -649,7 +656,7 @@ body {
     PRIVATIZAR: {
       nombre: 'Privatizar',
       nominal: 'la privatización {de}',
-      inversa: 'NACIONALIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'privatizar {o}', 'vender {o}', '{o} se vende', '{o} ahora se vende', 'cobrar por {o}',
         'hay que pagar por {o}', '{o} cuesta dinero', '{o} sera de pago', 'poner precio a {o}', 'subastar {o}',
@@ -662,7 +669,7 @@ body {
     NACIONALIZAR: {
       nombre: 'Nacionalizar',
       nominal: 'la nacionalización {de}',
-      inversa: 'PRIVATIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'nacionalizar {o}', 'expropiar {o}', '{o} pasa a ser del estado', '{o} es del estado',
         'el estado controla {o}', 'estatizar {o}', 'confiscar {o}', 'quitarle {o} a los privados',
@@ -673,7 +680,7 @@ body {
     SUBIR_IMPUESTO: {
       nombre: 'Subir impuestos',
       nominal: 'el nuevo impuesto {a}',
-      inversa: 'BAJAR_IMPUESTO',
+      inversa: 'DEROGAR',
       frases: [
         'subir impuestos a {o}', 'mas impuestos a {o}', 'gravar {o}', 'impuesto a {o}', 'nuevo impuesto sobre {o}',
         'cobrar impuestos a {o}', 'aumentar los impuestos de {o}', 'tasa especial a {o}', '{o} paga mas impuestos',
@@ -684,7 +691,7 @@ body {
     BAJAR_IMPUESTO: {
       nombre: 'Bajar impuestos',
       nominal: 'la rebaja de impuestos {a}',
-      inversa: 'SUBIR_IMPUESTO',
+      inversa: 'DEROGAR',
       frases: [
         'bajar impuestos a {o}', 'menos impuestos a {o}', 'quitar impuestos a {o}', '{o} no paga impuestos',
         'rebaja fiscal para {o}', 'reducir impuestos de {o}', 'exentar de impuestos a {o}', 'eliminar el impuesto a {o}',
@@ -695,7 +702,7 @@ body {
     SUBSIDIAR: {
       nombre: 'Regalar',
       nominal: 'los subsidios {a}',
-      inversa: 'RECORTAR',
+      inversa: 'DEROGAR',
       frases: [
         '{o} gratis', '{o} gratis para todos', 'subsidiar {o}', 'regalar {o}', 'repartir {o} gratis',
         'el estado paga {o}', 'ayudas para {o}', 'subvencionar {o}', 'bono para {o}', '{o} gratuito',
@@ -707,7 +714,7 @@ body {
     CASTIGAR: {
       nombre: 'Mano dura',
       nominal: 'la mano dura contra {o}',
-      inversa: 'LEGALIZAR',
+      inversa: 'DEROGAR',
       frases: [
         'castigar {o}', 'encarcelar a {o}', 'ejecutar a {o}', 'fusilar a {o}', 'carcel para {o}',
         'mano dura contra {o}', 'perseguir a {o}', 'arrestar a {o}', 'multar a {o}', 'desterrar a {o}',
@@ -730,7 +737,7 @@ body {
     INVERTIR: {
       nombre: 'Invertir',
       nominal: 'la inversión en {o}',
-      inversa: 'RECORTAR',
+      inversa: 'DEROGAR',
       frases: [
         'invertir en {o}', 'construir {o}', 'mas dinero para {o}', 'financiar {o}', 'mejorar {o}',
         'modernizar {o}', 'ampliar {o}', 'crear {o}', 'fortalecer {o}', 'presupuesto para {o}',
@@ -741,7 +748,7 @@ body {
     RECORTAR: {
       nombre: 'Recortar',
       nominal: 'los recortes en {o}',
-      inversa: 'INVERTIR',
+      inversa: 'DEROGAR',
       frases: [
         'recortar {o}', 'recortes en {o}', 'menos dinero para {o}', 'reducir el presupuesto de {o}',
         'quitar fondos a {o}', 'desfinanciar {o}', 'congelar el presupuesto de {o}', 'austeridad en {o}',
@@ -752,7 +759,7 @@ body {
     ENFOCAR: {
       nombre: 'Reconvertir la economía',
       nominal: 'la reconversión de la economía hacia {o}',
-      inversa: null,
+      inversa: 'DEROGAR',
       frases: [
         'que toda la economia sea {o}', 'economia basada en {o}', 'toda la economia al {o}', 'economia del {o}',
         'convertir el pais en potencia de {o}', 'apostar todo al {o}', 'vivir del {o}', 'el pais vivira de {o}',
@@ -765,11 +772,22 @@ body {
     CREAR: {
       nombre: 'Crear',
       nominal: 'la creación {de}',
-      inversa: 'PROHIBIR',
+      inversa: 'DEROGAR',
       frases: [
         'crear {o}', 'fundar {o}', 'formar {o}', 'organizar {o}', 'montar {o}', 'establecer {o}', 'armar {o}',
         'crear un {o}', 'crear una {o}', 'fundar un {o}', 'instaurar {o}', 'inaugurar {o}', 'poner en marcha {o}',
         'crear un cuerpo de {o}', 'formar una unidad de {o}', 'entrenar {o}', 'reclutar {o}', 'imprimir {o}', 'emitir {o}'
+      ]
+    },
+    DEROGAR: {
+      nombre: 'Derogar',
+      nominal: 'la derogación de la ley sobre {o}',
+      inversa: null,
+      frases: [
+        'derogar {o}', 'derogar la ley de {o}', 'anular {o}', 'anular el decreto de {o}', 'quitar la ley de {o}',
+        'dejar de {o}', 'parar de {o}', 'revocar {o}', 'revocar la ley de {o}', 'suspender {o}', 'suspender la ley de {o}',
+        'terminar con la ley de {o}', 'eliminar el decreto de {o}', 'volver atras con {o}', 'dar marcha atras con {o}',
+        'derogar el ultimo decreto', 'anular el ultimo decreto', 'deshacer el ultimo decreto', 'derogar la ultima ley', 'marcha atras'
       ]
     },
     GLORIFICAR: {
@@ -994,7 +1012,7 @@ body {
   // Cada ministro vigila una estadística y reacciona cuando cambia.
   RF.GABINETE = {
     garrote: {
-      nombre: 'General Bruno Garrote', corto: 'Garrote', cargo: 'Ministro de Defensa', stats: ['ejercito'],
+      nombre: 'General Bruno Garrote', corto: 'Garrote', cargo: 'Ministro de Defensa',
       pos: [
         'El {n_garrote} golpea la mesa con el puño. "[Por fin|Al fin|Ya era hora], {lider}. Así se gobierna." Esa noche los cuarteles brindan en su nombre.',
         '{garrote} se ajusta las medallas. "El ejército aprueba {medida}." No sonríe, pero tampoco hace falta.',
@@ -1011,7 +1029,7 @@ body {
       ]
     },
     cifuentes: {
-      nombre: 'Leonor Cifuentes', corto: 'Cifuentes', cargo: 'Ministra de Hacienda', stats: ['tesoro', 'cupula'],
+      nombre: 'Leonor Cifuentes', corto: 'Cifuentes', cargo: 'Ministra de Hacienda',
       pos: [
         '{n_cifuentes} repasa las cuentas y sonríe con los labios, no con los ojos. "Las familias importantes están contentas, {lider}."',
         '{cifuentes} brinda con champán importado en el Club Náutico. Los empresarios la llaman "la ministra razonable".',
@@ -1028,7 +1046,7 @@ body {
       ]
     },
     sombra: {
-      nombre: 'Octavio Sombra', corto: 'Sombra', cargo: 'Ministro del Interior', stats: ['orden'],
+      nombre: 'Octavio Sombra', corto: 'Sombra', cargo: 'Ministro del Interior',
       pos: [
         '{n_sombra} deja una carpeta sobre tu escritorio: calles tranquilas, archivos llenos. "Todo bajo control, {lider}."',
         '{sombra} asiente despacio. "La gente obedece mejor cuando sabe que la estamos mirando."',
@@ -1045,7 +1063,7 @@ body {
       ]
     },
     paredes: {
-      nombre: 'Rolando "Rolo" Paredes', corto: 'Rolo', cargo: 'Jefe de Propaganda', stats: ['pueblo'],
+      nombre: 'Rolando "Rolo" Paredes', corto: 'Rolo', cargo: 'Jefe de Propaganda',
       pos: [
         '{n_paredes} ya tiene el eslogan: "¡{Medida}, la Patria lo agradece!" Los carteles se imprimen esa misma noche.',
         'En la televisión estatal, {paredes} presenta {medida} con música épica y niños sonriendo. Esta vez la gente sonríe de verdad.',
@@ -1062,7 +1080,7 @@ body {
       ]
     },
     montiel: {
-      nombre: 'Isabela Montiel', corto: 'Montiel', cargo: 'Canciller', stats: ['mundo'],
+      nombre: 'Isabela Montiel', corto: 'Montiel', cargo: 'Canciller',
       pos: [
         'La canciller {montiel} recibe llamadas de felicitación de tres embajadas. "El mundo nos mira con otros ojos, {lider}."',
         '{montiel} sonríe en la cumbre regional. Por una vez nadie le pregunta por los derechos humanos.',
@@ -1079,7 +1097,7 @@ body {
       ]
     },
     ventura: {
-      nombre: 'Dr. Aurelio Ventura', corto: 'Ventura', cargo: 'Ministro de Salud', stats: ['salud'],
+      nombre: 'Dr. Aurelio Ventura', corto: 'Ventura', cargo: 'Ministro de Salud',
       pos: [
         '{n_ventura} se quita las gafas y respira hondo. "Esto va a salvar vidas, {lider}. Gracias."',
         '{ventura} visita el Hospital Central y por primera vez nadie le grita en el pasillo.'
@@ -1347,16 +1365,14 @@ body {
     }
   };
 
-  // Cuando una estadística cae por debajo de 25 ocurre esto (una vez, hasta que se recupere).
-  RF.UMBRALES = {
-    pueblo: { titulo: 'Cacerolazo', texto: 'A las nueve de la noche, toda la ciudad golpea cacerolas. El ruido llega hasta tu dormitorio en Palacio.', efectos: { orden: -5 } },
-    ejercito: { titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a misa con {garrote}. En el ejército eso significa algo.', efectos: { orden: -2 } },
-    cupula: { titulo: 'Cena secreta', texto: 'Las familias más ricas del país cenan juntas sin invitarte. El menú: tu sucesor.', efectos: { tesoro: -3 } },
-    tesoro: { titulo: 'Arcas vacías', texto: 'Hacienda no puede pagar los sueldos de los funcionarios este mes. Los maestros cobran en vales de gasolina.', efectos: { pueblo: -4 } },
-    salud: { titulo: 'Epidemia', texto: 'Un brote de fiebre se extiende por los barrios pobres. Los hospitales cuelgan el cartel de "completo".', efectos: { pueblo: -4, orden: -2 } },
-    orden: { titulo: 'Saqueos', texto: 'Saqueos en el centro de Puerto Esperanza. Se llevan televisores, colchones y, por algún motivo, todos los maniquíes.', efectos: { tesoro: -4, pueblo: -3 } },
-    mundo: { titulo: 'Sanciones', texto: 'Las potencias extranjeras aprueban sanciones contra Valdoria. Tus cuentas en el extranjero aparecen congeladas.', efectos: { tesoro: -6 }, ingresos: -1 }
-  };
+  // Alertas: cuando algo cruza una línea roja ocurre esto (una vez, hasta que se recupere).
+  RF.UMBRALES = [
+    { id: 'cacerolazo', stat: 'felicidad', bajo: 25, titulo: 'Cacerolazo', texto: 'A las nueve de la noche, toda la ciudad golpea cacerolas. El ruido llega hasta tu dormitorio en Palacio.', efectos: { estabilidad: -4 } },
+    { id: 'sables', stat: 'estabilidad', bajo: 25, titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a misa con {garrote}. En el ejército, eso significa algo. Los tanques cambian de sitio por las noches.', efectos: { estabilidad: -2 } },
+    { id: 'arcas', stat: 'dinero', bajo: 0, titulo: 'Arcas vacías', texto: 'Hacienda no puede pagar los sueldos de los funcionarios. Los maestros cobran en vales de gasolina y los policías, en promesas.', efectos: { felicidad: -3, estabilidad: -2 } },
+    { id: 'precios', stat: 'inflacion', alto: 25, titulo: 'Precios por las nubes', texto: 'El pan cuesta cada semana más. Las etiquetas de los supermercados se cambian a diario. La gente compra por miedo a que mañana cueste más.', efectos: { felicidad: -3 } },
+    { id: 'hiper', stat: 'inflacion', alto: 100, titulo: 'Hiperinflación', texto: 'Los billetes ya no valen el papel en el que están impresos. La gente paga el café con huevos y el alquiler con gallinas. Los niños juegan con fajos de valdos.', efectos: { felicidad: -6, estabilidad: -5 } }
+  ];
 
   // Eventos del Director de Historia. tono: +1 bueno para ti, -1 malo.
   RF.AZAR = [
@@ -1386,6 +1402,7 @@ body {
     mundo: { titulo: 'INTERVENCIÓN EXTRANJERA', texto: 'Una coalición internacional desembarca "para restaurar la democracia". Te detienen en pijama. La foto da la vuelta al mundo.' },
     elecciones_ganadas: { titulo: 'REELECCIÓN LIMPIA', texto: 'Al final de tu mandato convocas elecciones. Nadie se lo cree, pero ganas. Limpiamente. La oposición pide un recuento y, para su sorpresa, vuelves a ganar.' },
     elecciones_amanadas: { titulo: 'REELECCIÓN CON EL 99,7%', texto: 'Convocas elecciones. {sombra} se encarga del conteo. Ganas con el 99,7% de los votos, incluidos los de varios muertos y un perro. El mundo protesta un rato y luego se olvida.' },
+    hiperinflacion: { titulo: 'COLAPSO DEL VALDO', texto: 'La inflación supera el mil por ciento. Nadie acepta valdos: ni los soldados, ni los panaderos, ni tu cocinero. Una mañana llegas a Palacio y la guardia se ha ido a trabajar a otra parte. Tu gobierno termina sin un solo disparo, simplemente porque ya nadie cobra por obedecerte.' },
     elecciones_perdidas: { titulo: 'DERROTA EN LAS URNAS', texto: 'Convocas elecciones convencido de ganar. Pierdes por goleada. Te vas al exilio con tres maletas y la estatua de 30 metros, que no cabe en el avión.' }
   };
 })(globalThis.RF = globalThis.RF || {});
@@ -1412,16 +1429,12 @@ body {
   const pol = (e, obj) => e.politicas[obj];
   const hito = (e, id) => Object.values(e.ciudadanos).some(c => c.hitos.includes(id));
   const vivo = (e, id) => !e.ciudadanos[id].estado || e.ciudadanos[id].estado === 'libre';
-  const sector = (e, id) => (e.eco && e.eco.sectores[id]) || { peso: 0 };
-  const eco = e => e.eco || { paro: 0, inflacion: 0, contaminacion: 0, pib: 100, pibBase: 100 };
-  const inst = (e, id) => e.instituciones && e.instituciones[id];
   const persona = (e, id) => (e.personas || {})[id] || 'libre';
 
   RF.DILEMAS = [
     // ---------- Provocados por el estado del país ----------
     {
       id: 'huelga_general', titulo: 'Huelga general', urgente: true,
-      si: e => e.stats.pueblo < 38,
       texto: 'Los sindicatos han paralizado el país. No hay autobuses, no hay pan en las panaderías y en el puerto se pudren tres barcos de plátanos. En la plaza, miles de personas corean tu nombre, y no precisamente para alabarte.',
       opciones: [
         { texto: 'Negociar y subir los salarios', efectos: { tesoro: -8, pueblo: 10, cupula: -4 }, ingresos: -1, animo: { ramiro: 10, carmen: 8 }, resultado: 'Los sindicatos cantan victoria. {cifuentes} dice que el país no puede permitírselo, pero las panaderías vuelven a abrir.' },
@@ -1431,7 +1444,6 @@ body {
     },
     {
       id: 'garrote_tanques', titulo: 'El General pide un favor', urgente: true,
-      si: e => e.stats.ejercito < 45,
       texto: 'El {n_garrote} entra en tu despacho sin llamar. Deja sobre la mesa un catálogo de tanques con varias páginas dobladas. "Mis muchachos están desmoralizados, {lider}. Un ejército sin juguetes nuevos es un ejército que piensa demasiado."',
       opciones: [
         { texto: 'Comprarle los tanques', efectos: { tesoro: -10, ejercito: 12, mundo: -2 }, resultado: 'Llegan veinte tanques de segunda mano. {garrote} los prueba personalmente atropellando un quiosco. Está feliz.' },
@@ -1441,7 +1453,6 @@ body {
     },
     {
       id: 'rumor_golpe', titulo: 'Ruido de botas', urgente: true, unaVez: true,
-      si: e => e.stats.ejercito < 30,
       texto: '{sombra} te despierta a las tres de la madrugada. Tres coroneles se han reunido en secreto en una finca del norte. Llevaban mapas del Palacio. "Puede ser una fiesta de cumpleaños," dice {sombra}. "O puede que no."',
       opciones: [
         { texto: 'Purgar a los coroneles', efectos: { ejercito: -4, orden: 6, mundo: -4 }, resultado: 'Los tres coroneles son "trasladados" a una base antártica que Valdoria no tiene. El resto del ejército toma nota.' },
@@ -1459,7 +1470,6 @@ body {
     },
     {
       id: 'desfalco', titulo: 'Números que no cuadran',
-      si: e => e.stats.cupula > 55 && e.dia > 4,
       texto: 'Un contable joven del Ministerio de Hacienda pide verte a solas. Ha encontrado un agujero de tres millones de valdos. Todas las firmas son de {n_cifuentes}. El contable tiembla. Sabe que se ha metido en algo grande.',
       opciones: [
         { texto: 'Destituir a {cifuentes}', efectos: { cupula: -12, tesoro: 6, pueblo: 4 }, resultado: '{cifuentes} sale del Palacio escoltada, con la cabeza alta. Sus amigos del Club Náutico ya no te invitan a sus fiestas.' },
@@ -1469,7 +1479,6 @@ body {
     },
     {
       id: 'cifuentes_conspira', titulo: 'La ministra conspira', urgente: true,
-      si: e => e.stats.cupula < 35,
       texto: 'Tus espías han grabado a {n_cifuentes} en una cena con los banqueros. Hablaba de "el día después" y de "una transición ordenada". Brindaron. Tú no estabas invitado.',
       opciones: [
         { texto: 'Destituirla', efectos: { cupula: -8, orden: 3, tesoro: 3 }, resultado: '{cifuentes} se va dando un portazo. Los banqueros la contratan esa misma semana como asesora. De tus enemigos.' },
@@ -1479,7 +1488,6 @@ body {
     },
     {
       id: 'periodista', titulo: 'Una periodista extranjera',
-      si: e => e.stats.mundo < 50,
       texto: 'Una famosa periodista extranjera ha llegado a Puerto Esperanza y pide una entrevista contigo. Su último reportaje terminó con un dictador en la cárcel. {montiel} cree que es una oportunidad. {sombra} cree que es una espía.',
       opciones: [
         { texto: 'Conceder la entrevista y ser encantador', efectos: { mundo: 7, orden: -2 }, resultado: 'Hablas dos horas de tu infancia humilde y tu amor por los gatitos. El reportaje se titula "El dictador que llora con los atardeceres". Funciona.' },
@@ -1489,7 +1497,6 @@ body {
     },
     {
       id: 'fmi', titulo: 'Oferta del Fondo Monetario', urgente: true, unaVez: true,
-      si: e => e.stats.tesoro < 30,
       texto: 'Una delegación del Fondo Monetario Internacional aterriza con maletines y trajes grises. Te ofrecen un préstamo enorme. A cambio quieren "reformas": recortes, privatizaciones y que dejes de llamarlos "buitres" en televisión.',
       opciones: [
         { texto: 'Aceptar el préstamo con sus condiciones', efectos: { tesoro: 22, pueblo: -8, mundo: 6 }, ingresos: 1, cadena: { id: 'fmi_inspectores', en: 5 }, resultado: 'El dinero llega en 48 horas. Los recortes, en 24. Doña Carmen ve cómo cierran el centro de salud de su barrio.' },
@@ -1507,7 +1514,6 @@ body {
     },
     {
       id: 'ultimatum', titulo: 'Ultimátum internacional', urgente: true, unaVez: true,
-      si: e => e.stats.mundo < 28,
       texto: 'Los embajadores de las grandes potencias te entregan una carta conjunta. Tienes una semana para liberar a los presos políticos y convocar elecciones anticipadas. Si no, "todas las opciones están sobre la mesa". {montiel} dice que en la mesa hay portaaviones.',
       opciones: [
         { texto: 'Ceder y liberar a los presos', efectos: { mundo: 12, orden: -6, ejercito: -3 }, animo: { nico: 15 }, resultado: 'Las cárceles se abren. Los liberados salen haciendo la V de victoria. Tu popularidad fuera sube; dentro, tus enemigos salen a la calle.' },
@@ -1517,7 +1523,6 @@ body {
     },
     {
       id: 'epidemia', titulo: 'Brote de fiebre', urgente: true,
-      si: e => e.stats.salud < 35,
       texto: '{n_ventura} trae malas noticias: una fiebre desconocida se extiende por los barrios del sur. Ya hay 300 casos. Si se sabe, habrá pánico. Si no se sabe, habrá más casos.',
       opciones: [
         { texto: 'Cuarentena total', efectos: { salud: 10, tesoro: -8, pueblo: -4 }, animo: { lucia: 10 }, resultado: 'Los barrios del sur se cierran con vallas. Lucía trabaja 20 horas al día, pero los casos empiezan a bajar.' },
@@ -1527,7 +1532,6 @@ body {
     },
     {
       id: 'plaza_ocupada', titulo: 'La plaza ocupada', urgente: true,
-      si: e => e.stats.orden < 40,
       texto: 'Miles de manifestantes han acampado en la Plaza Mayor, justo debajo de tu balcón. Tienen tiendas de campaña, una cocina comunitaria y un grupo de percusión que no para nunca. Tú no has dormido en tres días.',
       opciones: [
         { texto: 'Dialogar con los líderes', efectos: { pueblo: 5, orden: -3, cupula: -3 }, animo: { nico: 10 }, resultado: 'Te sientas con ellos en el suelo de la plaza. Son jóvenes, están cansados y tienen razón en la mitad de las cosas. Se van al día siguiente.' },
@@ -1537,7 +1541,6 @@ body {
     },
     {
       id: 'aniversario', titulo: 'Aniversario del régimen',
-      si: e => e.stats.pueblo > 55 && e.dia > 8, unaVez: true,
       texto: 'Se cumple un mes de tu llegada al poder (en Valdoria, un mes es mucho). {paredes} quiere celebrarlo por todo lo alto. {garrote} quiere un desfile. {cifuentes} quiere que no gastes nada.',
       opciones: [
         { texto: 'Gran desfile militar', efectos: { tesoro: -6, ejercito: 7, pueblo: 2 }, resultado: 'Pasan 60 tanques, 3 aviones y un pelotón de soldados cantando tu canción favorita. Uno de los aviones se estrella contra una estatua, pero nadie lo comenta.' },
@@ -1549,7 +1552,6 @@ body {
     // ---------- Provocados por tus decretos ----------
     {
       id: 'contrabando_aire', titulo: 'Los contrabandistas de aire', urgente: true, unaVez: true,
-      si: e => pol(e, 'AIRE') === 'PRIVATIZAR',
       texto: 'El aire embotellado se vende en cada esquina. Los contrabandistas lo traen de las montañas en camiones. {sombra} dice que ya mueve más dinero que el plátano.',
       opciones: [
         { texto: 'Legalizarlo y cobrarle impuestos', efectos: { tesoro: 7, salud: -3, cupula: 3 }, ingresos: 1, resultado: 'El aire de contrabando ahora lleva un sello oficial. Cuesta el doble, pero es legal.' },
@@ -1559,7 +1561,6 @@ body {
     },
     {
       id: 'hackers', titulo: 'Hackers de la resistencia', urgente: true, unaVez: true,
-      si: e => pol(e, 'INTERNET') === 'PROHIBIR' || pol(e, 'PRENSA') === 'PROHIBIR' || pol(e, 'PRENSA') === 'CASTIGAR',
       texto: 'En mitad del noticiero de la noche, la señal de la televisión estatal se corta. Aparece un dibujo tuyo con orejas de burro y el mensaje: "LA VERDAD NO SE APAGA". Lo ha visto medio país.',
       opciones: [
         { texto: 'Devolver la libertad de comunicación', efectos: { pueblo: 6, orden: -3, mundo: 4 }, politica: { INTERNET: 'LEGALIZAR' }, animo: { nico: 15 }, resultado: 'Las antenas vuelven a encenderse. Lo primero que se hace viral es el dibujo de las orejas de burro.' },
@@ -1569,7 +1570,6 @@ body {
     },
     {
       id: 'multinacional', titulo: 'La multinacional contraataca', urgente: true, unaVez: true,
-      si: e => pol(e, 'RECURSOS') === 'NACIONALIZAR' || pol(e, 'EMPRESAS') === 'NACIONALIZAR',
       texto: 'La multinacional que explotaba tus recursos ha demandado a Valdoria en un tribunal internacional. Exigen 800 millones. Su abogado principal fue compañero de universidad de tres presidentes extranjeros.',
       opciones: [
         { texto: 'Pagar una indemnización', efectos: { tesoro: -12, mundo: 7, cupula: 3 }, resultado: 'Pagas a plazos. {cifuentes} llora al firmar el cheque. La multinacional te manda una tarjeta de Navidad.' },
@@ -1579,7 +1579,6 @@ body {
     },
     {
       id: 'madre_plaza', titulo: 'Una madre en la plaza', urgente: true, unaVez: true,
-      si: e => pol(e, 'OPOSICION') === 'CASTIGAR' || pol(e, 'PRENSA') === 'CASTIGAR',
       texto: 'Una mujer lleva nueve días sentada frente al Palacio con la foto de su hijo, detenido por tu policía. No grita ni insulta. Solo está ahí. Cada día se sientan más mujeres a su lado. Hoy son doscientas.',
       opciones: [
         { texto: 'Liberar a su hijo', efectos: { pueblo: 5, orden: -3, mundo: 4 }, resultado: 'El chico sale de la cárcel con diez kilos menos. Su madre lo abraza frente a las cámaras. Por primera vez, la gente dice tu nombre sin rabia.' },
@@ -1597,7 +1596,6 @@ body {
     },
     {
       id: 'rey_contrabando', titulo: 'El rey del contrabando',
-      si: e => pol(e, 'VICIOS') === 'PROHIBIR' || pol(e, 'DIVERSION') === 'PROHIBIR', unaVez: true,
       texto: 'Un hombre con gafas de sol y un traje blanco espera en tu antesala. Controla todo el contrabando del país desde que prohibiste lo que prohibiste. Trae un maletín. "Un regalo, {lider}. Para que todo siga como está."',
       opciones: [
         { texto: 'Aceptar el maletín', efectos: { tesoro: 8, cupula: 3, orden: -5 }, resultado: 'El maletín tiene más dinero del que Hacienda recauda en un mes. El hombre de blanco se va silbando.' },
@@ -1607,7 +1605,6 @@ body {
     },
     {
       id: 'estatua_rota', titulo: 'La estatua amanece rota',
-      si: e => pol(e, 'LIDER') === 'GLORIFICAR' && e.stats.pueblo < 55, unaVez: true,
       texto: 'Alguien ha serrado la nariz de tu estatua de 30 metros durante la noche. La nariz, de dos toneladas, ha aparecido en la puerta de la embajada de un país vecino. Nadie sabe cómo.',
       opciones: [
         { texto: 'Detener a todo el barrio', efectos: { orden: 5, pueblo: -7, mundo: -3 }, animo: { carmen: -12, nico: -12 }, resultado: 'Detienen a 300 personas. Ninguna tiene una sierra de dos toneladas. La nariz sigue en la embajada.' },
@@ -1617,7 +1614,6 @@ body {
     },
     {
       id: 'motin_soldados', titulo: 'Soldados sin sueldo', urgente: true, unaVez: true,
-      si: e => pol(e, 'EJERCITO') === 'RECORTAR' || pol(e, 'EJERCITO') === 'CASTIGAR',
       texto: 'Una compañía entera se ha encerrado en el cuartel de San Blas. No han cobrado este mes. Exigen su sueldo "y una disculpa por escrito". Tienen dos tanques y una máquina de café.',
       opciones: [
         { texto: 'Pagarles y pedir perdón', efectos: { tesoro: -6, ejercito: 8 }, resultado: 'Firmas la disculpa. Los soldados la enmarcan. {garrote} la lee en voz alta en el comedor, con retintín.' },
@@ -1626,7 +1622,6 @@ body {
     },
     {
       id: 'medicos_huyen', titulo: 'Los médicos se van', urgente: true, unaVez: true,
-      si: e => pol(e, 'SALUD') === 'RECORTAR' || pol(e, 'SALUD') === 'PRIVATIZAR',
       texto: 'Cien médicos han pedido el visado para irse del país este mes. {n_ventura} te enseña la lista. En ella está Lucía, del Hospital Central.',
       opciones: [
         { texto: 'Subirles el sueldo', efectos: { tesoro: -8, salud: 8 }, ingresos: -1, animo: { lucia: 20 }, resultado: 'La mitad se queda. Lucía rompe su formulario de emigración. Por ahora.' },
@@ -1668,7 +1663,6 @@ body {
     },
     {
       id: 'lucia_carta', titulo: 'Carta de una enfermera', unaVez: true, urgente: true,
-      si: e => e.stats.salud < 42 && e.dia > 4 && vivo(e, 'lucia'),
       texto: 'Entre la correspondencia hay una carta escrita a mano. La firma Lucía, enfermera del Hospital Central. "Excelencia: ayer murió un niño porque no teníamos oxígeno. No le pido nada para mí. Solo que venga a verlo usted mismo."',
       opciones: [
         { texto: 'Visitar el hospital y aumentar su presupuesto', efectos: { tesoro: -8, salud: 9, pueblo: 3 }, animo: { lucia: 25 }, resultado: 'Recorres los pasillos del Hospital Central. Nadie aplaude. Lucía te enseña cada cama vacía de sábanas. Firmas el presupuesto allí mismo.' },
@@ -1689,7 +1683,6 @@ body {
     },
     {
       id: 'resort', titulo: 'Un casino en la playa',
-      si: e => e.stats.cupula > 45,
       texto: 'Un magnate extranjero quiere construir un casino-hotel de lujo en la Playa del Pueblo, la única playa pública de la capital. Promete empleo, turismo y "un pequeño porcentaje" para ti.',
       opciones: [
         { texto: 'Aceptar', efectos: { tesoro: 10, cupula: 5, pueblo: -6 }, ingresos: 1, resultado: 'La playa se cierra con una valla. Los niños de La Esperanza ven el mar a través de los barrotes. Los turistas, desde la piscina.' },
@@ -1699,7 +1692,6 @@ body {
     },
     {
       id: 'cumbre', titulo: 'Invitación a una cumbre',
-      si: e => e.stats.mundo > 45,
       texto: 'Te invitan a una cumbre de presidentes en el extranjero. Estarán los más poderosos del mundo. Es una oportunidad. También es la primera vez que saldrías del país desde que llegaste al poder.',
       opciones: [
         { texto: 'Ir y dar un discurso', efectos: { mundo: 7, tesoro: -3, ejercito: -2 }, resultado: 'Tu discurso sobre "la soberanía de los pueblos pequeños" recibe una ovación. Al volver, compruebas que el Palacio sigue siendo tuyo. Suspiras aliviado.' },
@@ -1749,7 +1741,6 @@ body {
     // ---------- Economía y mercado ----------
     {
       id: 'dea', titulo: 'Visita de la agencia antidroga', urgente: true, unaVez: true,
-      si: e => sector(e, 'narco').peso >= 8,
       texto: 'Tres agentes de la agencia antidroga de la Unión Atlántica aterrizan sin avisar. Traen fotos de pistas clandestinas, de barcos cargados y de un ministro tuyo saludando a un capo en una boda. Quieren nombres.',
       opciones: [
         { texto: 'Extraditar a los grandes capos', efectos: { mundo: 9, cupula: -7, orden: -3 }, economia: { multiplicar: { narco: 0.6 } }, resultado: 'Los capos salen esposados en un avión militar. Los que se quedan juran venganza. El negocio cae, pero no desaparece.' },
@@ -1759,7 +1750,6 @@ body {
     },
     {
       id: 'guerra_carteles', titulo: 'Guerra de cárteles', urgente: true,
-      si: e => sector(e, 'narco').peso >= 6 && sector(e, 'narco').dueno === 'carteles',
       texto: 'Dos cárteles se disputan las rutas del puerto. Anoche hubo tiroteos en tres barrios. En La Esperanza, los niños ya no salen a jugar a la calle.',
       opciones: [
         { texto: 'Apoyar al cártel más fuerte', efectos: { orden: 5, cupula: 4, mundo: -5 }, resultado: 'Con tu ayuda, el Cártel del Puerto se impone en una semana. Los tiroteos paran. Ahora hay un solo jefe, y te debe un favor.' },
@@ -1769,7 +1759,6 @@ body {
     },
     {
       id: 'bloqueo_naval', titulo: 'Bloqueo naval', urgente: true, unaVez: true,
-      si: e => sector(e, 'narco').peso >= 22 && e.stats.mundo < 35,
       texto: 'La flota de la Unión Atlántica bloquea tus puertos. Ningún barco entra ni sale. El comunicado es claro: "Hasta que Valdoria deje de ser un narcoestado".',
       opciones: [
         { texto: 'Rendirse y desmantelar el negocio', efectos: { mundo: 15, tesoro: -10, cupula: -8 }, economia: { multiplicar: { narco: 0.2 }, cancelarModelo: true, paro: 6 }, resultado: 'Quemas los laboratorios delante de las cámaras. El humo se ve desde los barcos. El bloqueo se levanta; la economía, no.' },
@@ -1779,7 +1768,6 @@ body {
     },
     {
       id: 'adiccion', titulo: 'La epidemia silenciosa', unaVez: true, urgente: true,
-      si: e => sector(e, 'narco').peso >= 14,
       texto: 'La droga que exportas también se queda. En los barrios pobres hay jóvenes consumidos en cada portal. {ventura} te trae los datos: se han triplicado las muertes por sobredosis.',
       opciones: [
         { texto: 'Abrir clínicas de desintoxicación', efectos: { tesoro: -6, salud: 6, pueblo: 2 }, animo: { lucia: 8 }, resultado: 'Las clínicas se llenan el primer día. {ventura} dice que harían falta diez veces más.' },
@@ -1789,7 +1777,6 @@ body {
     },
     {
       id: 'derrumbe_mina', titulo: 'Derrumbe en la mina', urgente: true, unaVez: true,
-      si: e => sector(e, 'carbon').peso >= 14,
       texto: 'Se ha derrumbado una galería en la mina de carbón de El Hoyo. Hay 43 mineros atrapados a 300 metros de profundidad. Las familias esperan en la boca de la mina con linternas.',
       opciones: [
         { texto: 'Rescate a cualquier precio', efectos: { tesoro: -7, pueblo: 6, mundo: 3 }, resultado: 'Tras seis días sacan a 41 mineros con vida. Las imágenes dan la vuelta al mundo. Te fotografías abrazando al último.' },
@@ -1799,7 +1786,6 @@ body {
     },
     {
       id: 'cumbre_clima', titulo: 'Acusado en la cumbre del clima', urgente: true,
-      si: e => eco(e).contaminacion >= 52, unaVez: true,
       texto: 'En la cumbre mundial del clima, Valdoria aparece en la lista de los diez países más contaminantes por habitante. Una activista de quince años te señala con el dedo desde el escenario.',
       opciones: [
         { texto: 'Prometer una transición verde', efectos: { mundo: 7, cupula: -4, tesoro: -3 }, economia: { sectores: { carbon: -3, tecnologia: 2 } }, resultado: 'Anuncias un plan verde con mucha foto y poco presupuesto. El mundo aplaude, con reservas.' },
@@ -1809,7 +1795,6 @@ body {
     },
     {
       id: 'paro_masivo', titulo: 'Las colas del paro', urgente: true,
-      si: e => eco(e).paro >= 24,
       texto: 'Uno de cada cuatro valdorianos no tiene trabajo. Las colas de la oficina de empleo dan la vuelta a la manzana desde la madrugada. Alguien vende sitios en la cola.',
       opciones: [
         { texto: 'Gran plan de obras públicas', efectos: { tesoro: -9, pueblo: 4 }, economia: { paro: -7 }, ingresos: -1, resultado: 'Carreteras, puentes y una rotonda con tu estatua en medio. Hay trabajo para todos durante un tiempo.' },
@@ -1819,7 +1804,6 @@ body {
     },
     {
       id: 'hiperinflacion', titulo: 'Hiperinflación', urgente: true,
-      si: e => eco(e).inflacion >= 45,
       texto: 'Los precios suben cada día. Un café cuesta por la tarde el doble que por la mañana. La gente cobra el sueldo y corre al supermercado antes de que valga menos.',
       opciones: [
         { texto: 'Crear una moneda nueva', efectos: { tesoro: -5, mundo: 2, pueblo: -2 }, economia: { inflacion: -40 }, resultado: 'Nace el "nuevo valdo", que vale mil valdos viejos. Tiene tu cara. La gente lo acepta con resignación.' },
@@ -1829,7 +1813,6 @@ body {
     },
     {
       id: 'boom', titulo: 'Boom económico', unaVez: true,
-      si: e => eco(e).pib >= eco(e).pibBase * 1.15,
       texto: 'La economía crece como nunca. Hay grúas en cada barrio, los restaurantes están llenos y {cifuentes} sonríe en las reuniones. La pregunta es qué hacer con tanto dinero.',
       opciones: [
         { texto: 'Ahorrarlo para tiempos peores', efectos: { tesoro: 10, pueblo: -2 }, resultado: '{cifuentes} guarda el dinero en un fondo soberano. Los economistas te felicitan. La gente pregunta dónde está su parte.' },
@@ -1839,7 +1822,6 @@ body {
     },
     {
       id: 'reconversion_protestas', titulo: 'Los perdedores de la reconversión', unaVez: true,
-      si: e => e.eco && e.eco.modelo && !e.eco.modelo.completado && e.dia - e.eco.modelo.desde >= 3,
       texto: 'La reconversión económica avanza y deja atrás a miles de trabajadores de los sectores que encogen. Los sindicatos marchan hacia el Palacio con sus herramientas en alto.',
       opciones: [
         { texto: 'Pagar indemnizaciones', efectos: { tesoro: -8, pueblo: 5 }, economia: { paro: -3 }, resultado: 'Los cheques llegan tarde, pero llegan. Los sindicatos aceptan, a regañadientes.' },
@@ -1851,7 +1833,6 @@ body {
     // ---------- Instituciones del régimen ----------
     {
       id: 'escuadron_excesos', titulo: 'El Escuadrón se pasa de la raya', urgente: true, unaVez: true,
-      si: e => inst(e, 'ESCUADRON') && e.dia - inst(e, 'ESCUADRON').desde >= 2,
       texto: 'Anoche, una camioneta del Escuadrón disparó contra un coche que no se detuvo en un control. Dentro iban un estudiante de medicina y su madre. Solo ella sobrevivió. El video está en todas partes.',
       opciones: [
         { texto: 'Encubrirlo: "Eran terroristas"', efectos: { orden: 2, pueblo: -7, mundo: -7 }, animo: { lucia: -15, nico: -15 }, resultado: '{paredes} lo intenta en televisión. La madre sale en la radio pirata con la foto de su hijo con la bata blanca. Nadie cree a {paredes}.' },
@@ -1861,7 +1842,6 @@ body {
     },
     {
       id: 'tigre', titulo: 'El Tigre quiere más', unaVez: true,
-      si: e => inst(e, 'ESCUADRON') && e.dia - inst(e, 'ESCUADRON').desde >= 6,
       texto: 'El jefe del Escuadrón, un comandante al que todos llaman "El Tigre", pide audiencia. Quiere ser ministro del Interior. "{sombra} es blando, {lider}. Yo no."',
       opciones: [
         { texto: 'Darle el ministerio', efectos: { orden: 7, mundo: -6, cupula: -4 }, nombrar: { cargo: 'sombra', nombre: 'Comandante "El Tigre" Robles', corto: 'Robles' }, resultado: '{sombra} recoge sus cosas en silencio. El Tigre se sienta en su silla antes de que termine.' },
@@ -1871,7 +1851,6 @@ body {
     },
     {
       id: 'milicias_ejercito', titulo: 'Milicias contra soldados', urgente: true, unaVez: true,
-      si: e => inst(e, 'MILICIA') && e.stats.ejercito < 50,
       texto: 'Una patrulla de las Milicias y otra del ejército se han enfrentado a tiros en un control de carretera. Hay dos muertos. {n_garrote} exige que desarmes a "esos aficionados con brazalete".',
       opciones: [
         { texto: 'Desarmar a las Milicias', efectos: { ejercito: 8, pueblo: -3 }, institucion: { MILICIA: 'disolver' }, resultado: 'Las Milicias entregan los fusiles. Algunos milicianos lloran. {garrote} ni los mira.' },
@@ -1881,7 +1860,6 @@ body {
     },
     {
       id: 'complot', titulo: 'Tus espías descubren un complot', urgente: true, unaVez: true,
-      si: e => inst(e, 'ESPIAS') && (e.stats.ejercito < 38 || e.stats.cupula < 38),
       texto: 'La Dirección de Inteligencia te entrega una carpeta roja: grabaciones, fotos y una lista de doce nombres que planean "sustituirte". Tres de ellos se sientan a tu mesa cada lunes.',
       opciones: [
         { texto: 'Detenerlos a todos esta noche', efectos: { ejercito: 6, cupula: 6, orden: 3, mundo: -5 }, resultado: 'Doce detenciones antes del amanecer. El resto del poder entiende el mensaje. Nadie vuelve a conspirar. Durante un tiempo.' },
@@ -1982,6 +1960,59 @@ body {
       ]
     }
   ];
+
+  /*
+   * CONDICIONES con los cuatro indicadores (dinero, inflación, estabilidad, felicidad) y las leyes vigentes.
+   * Sustituyen a las de arriba cuando existen.
+   */
+  const S = e => e.stats;
+  const ley = (e, clave, accion) => (e.leyes || []).find(l => l.clave === clave && (!accion || l.accion === accion));
+  const edad = (e, clave) => { const l = ley(e, clave); return l ? e.dia - l.desde : -1; };
+  const modelo = (e, m) => (e.leyes || []).find(l => l.clave === 'MODELO' && l.modelo === m);
+  const narco = e => ley(e, 'NARCO', 'PRIVATIZAR') || ley(e, 'NARCO', 'LEGALIZAR') || ley(e, 'NARCO', 'NACIONALIZAR') || modelo(e, 'narco');
+  const edadNarco = e => { const l = narco(e); return l ? e.dia - l.desde : -1; };
+  const represion = e => (e.leyes || []).filter(l => l.accion === 'CASTIGAR' || ['ESCUADRON', 'MILICIA', 'ESPIAS'].includes(l.clave)).length;
+  const recortes = e => (e.leyes || []).filter(l => l.accion === 'RECORTAR').length;
+
+  const CONDICIONES = {
+    huelga_general: e => S(e).felicidad < 38,
+    garrote_tanques: e => S(e).estabilidad < 45,
+    rumor_golpe: e => S(e).estabilidad < 30,
+    desfalco: e => S(e).dinero > 140 && e.dia > 4,
+    cifuentes_conspira: e => S(e).dinero < 20 && S(e).estabilidad < 45,
+    periodista: e => e.dia > 3 && represion(e) >= 1,
+    fmi: e => S(e).dinero < 0,
+    ultimatum: e => represion(e) >= 2 && S(e).estabilidad < 50,
+    epidemia: e => !!(ley(e, 'SALUD', 'RECORTAR') || ley(e, 'SALUD', 'PRIVATIZAR') || ley(e, 'AGUA', 'PRIVATIZAR') || ley(e, 'AIRE', 'PRIVATIZAR')) && S(e).felicidad < 45,
+    plaza_ocupada: e => S(e).estabilidad < 40,
+    aniversario: e => S(e).felicidad > 60 && e.dia > 8,
+    contrabando_aire: e => !!ley(e, 'AIRE', 'PRIVATIZAR'),
+    hackers: e => !!(ley(e, 'INTERNET', 'PROHIBIR') || ley(e, 'PRENSA', 'PROHIBIR') || ley(e, 'PRENSA', 'CASTIGAR')),
+    multinacional: e => !!(ley(e, 'RECURSOS', 'NACIONALIZAR') || ley(e, 'EMPRESAS', 'NACIONALIZAR') || ley(e, 'ENERGIA', 'NACIONALIZAR')),
+    madre_plaza: e => !!(ley(e, 'OPOSICION', 'CASTIGAR') || ley(e, 'PRENSA', 'CASTIGAR')),
+    rey_contrabando: e => !!(ley(e, 'VICIOS', 'PROHIBIR') || ley(e, 'DIVERSION', 'PROHIBIR')),
+    estatua_rota: e => !!ley(e, 'LIDER', 'GLORIFICAR') && S(e).felicidad < 55,
+    motin_soldados: e => !!(ley(e, 'EJERCITO', 'RECORTAR') || ley(e, 'EJERCITO', 'CASTIGAR')),
+    medicos_huyen: e => !!(ley(e, 'SALUD', 'RECORTAR') || ley(e, 'SALUD', 'PRIVATIZAR')),
+    lucia_carta: e => S(e).felicidad < 42 && e.dia > 4 && vivo(e, 'lucia'),
+    resort: e => S(e).dinero < 90,
+    cumbre: e => S(e).estabilidad > 50,
+    dea: e => edadNarco(e) >= 2,
+    guerra_carteles: e => !!ley(e, 'NARCO', 'PROHIBIR') || (!!narco(e) && S(e).estabilidad < 50),
+    bloqueo_naval: e => edadNarco(e) >= 6 && S(e).estabilidad < 45,
+    adiccion: e => edadNarco(e) >= 4,
+    derrumbe_mina: e => !!(modelo(e, 'carbon') || ley(e, 'CARBON')),
+    cumbre_clima: e => (!!modelo(e, 'carbon') && edad(e, 'MODELO') >= 3) || (!!modelo(e, 'industria') && edad(e, 'MODELO') >= 5),
+    paro_masivo: e => recortes(e) >= 2,
+    hiperinflacion: e => S(e).inflacion >= 45,
+    boom: e => S(e).dinero >= 280,
+    reconversion_protestas: e => edad(e, 'MODELO') >= 2 && edad(e, 'MODELO') <= 6,
+    escuadron_excesos: e => edad(e, 'ESCUADRON') >= 2,
+    tigre: e => edad(e, 'ESCUADRON') >= 6,
+    milicias_ejercito: e => !!ley(e, 'MILICIA') && S(e).estabilidad < 55,
+    complot: e => !!ley(e, 'ESPIAS') && S(e).estabilidad < 40
+  };
+  for (const d of RF.DILEMAS) if (CONDICIONES[d.id]) d.si = CONDICIONES[d.id];
 })(globalThis.RF = globalThis.RF || {});
 
 // js/datos/voces.js
@@ -2077,6 +2108,7 @@ body {
     salud: ['En la puerta del Hospital Central, la fila empieza de madrugada.', 'Las farmacias cuelgan el cartel de "no hay". Otra vez.', 'Se oye toser en todas las colas del país.'],
     orden: ['Anoche ardieron dos contenedores y una patrulla de policía. Nadie vio nada.', 'Las tiendas del centro amanecen con rejas nuevas.', 'En los barrios del sur mandan otros, y todo el mundo lo sabe.'],
     mundo: ['Otra embajada anuncia que reduce su personal "por precaución".', 'Los vuelos internacionales llegan casi vacíos.', 'En el puerto, los barcos extranjeros pasan de largo.'],
+    inflacion: ['Los precios de las pizarras de los mercados se borran y se reescriben antes del mediodía.', 'En la cola del pan, alguien paga con un fajo de billetes atado con una goma. Nadie se sorprende.', 'Las tiendas cierran a la hora de comer para cambiar las etiquetas.'],
     bien: ['Amanece soleado en Puerto Esperanza. Los vendedores cantan mientras montan sus puestos.', 'Hay niños jugando en la plaza y nadie los manda a casa.', 'Un día tranquilo. En Valdoria, eso ya es noticia.'],
     normal: ['Amanece en Puerto Esperanza. El país sigue, como siempre, esperando al siguiente decreto.', 'Otro día en Valdoria. El café está caro y los rumores, baratos.', 'Los periódicos del día llegan al Palacio. Nadie en la calle los lee.']
   };
@@ -2109,54 +2141,58 @@ body {
 
 // js/datos/mercado.js
 /*
- * MERCADO: los sectores de la economía de Valdoria.
- *   peso    parte de la economía (todos suman 100 al empezar)
- *   base    precio mundial "normal" (1 = normal; el narcotráfico paga mucho más)
- *   vol     cuánto se mueve el precio cada día
- *   sucio   cuánto contamina cada punto de peso
- *   empleo  cuánta gente emplea cada punto de peso
- *   dueno   privado | estado | extranjero | carteles
+ * MODELOS ECONÓMICOS: qué pasa cuando reconviertes toda la economía hacia algo
+ * ("quiero hacer un narcoestado", "toda la economía al carbón").
+ * Efectos por turno cuando la reconversión ya está completa (tarda unos turnos en madurar).
+ *   dinero       millones que entran cada turno
+ *   estabilidad  puntos por turno
+ *   felicidad    puntos por turno
+ *   inflacion    presión sobre los precios por turno
  */
 (function (RF) {
   'use strict';
 
-  RF.SECTORES = {
-    agro: { nombre: 'Agricultura', detalle: 'plátano, café y cacao', peso: 26, base: 1, vol: 0.035, sucio: 0.5, empleo: 1.6, dueno: 'privado' },
-    mineria: { nombre: 'Petróleo/minas', detalle: 'petróleo, oro y litio', peso: 14, base: 1, vol: 0.05, sucio: 2, empleo: 0.6, dueno: 'extranjero' },
-    carbon: { nombre: 'Carbón', detalle: 'minas y centrales de carbón', peso: 4, base: 1.15, vol: 0.07, sucio: 3.2, empleo: 1.3, dueno: 'privado' },
-    industria: { nombre: 'Industria', detalle: 'fábricas, acero y maquilas', peso: 14, base: 1, vol: 0.025, sucio: 1.5, empleo: 1.3, dueno: 'privado' },
-    turismo: { nombre: 'Turismo', detalle: 'playas, hoteles y cruceros', peso: 10, base: 1, vol: 0.02, sucio: 0.3, empleo: 1.3, dueno: 'privado' },
-    tecnologia: { nombre: 'Tecnología', detalle: 'software y centros de datos', peso: 3, base: 1.1, vol: 0.045, sucio: 0.2, empleo: 0.5, dueno: 'privado' },
-    servicios: { nombre: 'Comercio', detalle: 'tiendas, bancos y mercados', peso: 29, base: 1, vol: 0.012, sucio: 0.2, empleo: 1.1, dueno: 'privado' },
-    narco: { nombre: 'Narcotráfico', detalle: 'coca, rutas y lavado de dinero', peso: 0, base: 2.4, vol: 0.04, sucio: 0.6, empleo: 0.9, dueno: 'carteles', ilegal: true }
+  // Qué modelo económico corresponde a cada tema.
+  RF.SECTOR_AMPLIO = {
+    AGRO: 'agro', COMIDA: 'agro', RECURSOS: 'mineria', ENERGIA: 'mineria', CARBON: 'carbon', INDUSTRIA: 'industria',
+    EMPRESAS: 'industria', TRABAJADORES: 'industria', TURISMO: 'turismo', DIVERSION: 'turismo', AMBIENTE: 'turismo',
+    CALENDARIO: 'turismo', TECNOLOGIA: 'tecnologia', INTERNET: 'tecnologia', EDUCACION: 'tecnologia',
+    NARCO: 'narco', VICIOS: 'narco', CRIMEN: 'narco'
   };
 
-  // Qué sector toca cada tema cuando decretas directamente sobre él ("invertir en la industria").
-  RF.SECTOR_DIRECTO = { AGRO: 'agro', RECURSOS: 'mineria', CARBON: 'carbon', INDUSTRIA: 'industria', TURISMO: 'turismo', TECNOLOGIA: 'tecnologia', NARCO: 'narco' };
-  // Para reconvertir la economía se aceptan también temas cercanos ("economía basada en el fútbol" = turismo).
-  RF.SECTOR_AMPLIO = Object.assign({}, RF.SECTOR_DIRECTO, {
-    COMIDA: 'agro', ENERGIA: 'mineria', EMPRESAS: 'industria', TRABAJADORES: 'industria', DIVERSION: 'turismo',
-    AMBIENTE: 'turismo', CALENDARIO: 'turismo', INTERNET: 'tecnologia', EDUCACION: 'tecnologia', VICIOS: 'narco', CRIMEN: 'narco'
-  });
-
-  RF.DUENOS = { privado: 'privado', estado: 'estatal', extranjero: 'extranjero', carteles: 'cárteles' };
-
-  // Noticias del mercado cuando un precio se dispara o se hunde.
-  RF.NOTICIAS_MERCADO = {
-    baja: [
-      'El precio internacional de {sector} se desploma. En {capital}, los empresarios del sector se miran las manos.',
-      'Crac en {sector}: los compradores extranjeros cancelan pedidos. Los almacenes se llenan de cosas que nadie quiere.',
-      'Los mercados castigan {sector}. {cifuentes} llama tres veces a Palacio antes del desayuno.'
-    ],
-    sube: [
-      'El precio de {sector} se dispara en los mercados internacionales. En Valdoria, los del sector abren champán.',
-      'Bonanza en {sector}: los compradores hacen cola en el puerto. Por una vez, el mundo necesita algo de Valdoria.',
-      'Récord histórico en {sector}. {paredes} ya prepara el titular: "El milagro valdoriano".'
-    ],
-    modelo: [
-      'Valdoria ya es, oficialmente, un país de {sector}: más de la mitad de la economía gira alrededor de ello.',
-      'La reconversión ha terminado. {Sector} domina la economía. El resto del país se adapta como puede.'
-    ]
+  RF.MODELOS = {
+    narco: {
+      nombre: 'el narcotráfico', porTurno: { dinero: 30, estabilidad: -2, felicidad: -0.8 },
+      nota: 'El Estado se convierte en el mayor cártel del país. Dinero a raudales; a cambio, violencia, adicción y presión extranjera cada turno.'
+    },
+    carbon: {
+      nombre: 'el carbón', porTurno: { dinero: 16, felicidad: -1, estabilidad: 0.2 },
+      nota: 'Minas y centrales por todo el país: empleo y dinero, pero el humo baja la felicidad cada turno.'
+    },
+    mineria: {
+      nombre: 'el petróleo y las minas', porTurno: { dinero: 18, estabilidad: -0.5, felicidad: -0.3 },
+      nota: 'El petróleo da mucho dinero, pero atrae a potencias extranjeras con sus propios intereses.'
+    },
+    industria: {
+      nombre: 'la industria', porTurno: { dinero: 13, estabilidad: 0.3, felicidad: -0.2 },
+      nota: 'Las fábricas dan trabajo estable. Crecimiento lento pero sólido.'
+    },
+    turismo: {
+      nombre: 'el turismo', porTurno: { dinero: 15, felicidad: 0.2 },
+      nota: 'El turismo da dinero y alegría, pero depende mucho de la estabilidad: con el país en llamas no viene nadie.'
+    },
+    tecnologia: {
+      nombre: 'la tecnología', porTurno: { dinero: 16, felicidad: 0.3 }, lenta: true,
+      nota: 'La tecnología tarda en arrancar, pero es la apuesta más limpia a largo plazo.'
+    },
+    agro: {
+      nombre: 'la agricultura', porTurno: { dinero: 9, felicidad: 0.3, estabilidad: 0.2 },
+      nota: 'Plátano, café y cacao: poco dinero, pero el campo trabaja y come.'
+    },
+    exotico: {
+      nombre: null, porTurno: { dinero: 2, felicidad: -0.3, estabilidad: -0.5 },
+      nota: 'Ningún economista del mundo había contemplado este modelo. Da muy poco dinero y bastante vergüenza.'
+    }
   };
 })(globalThis.RF = globalThis.RF || {});
 
@@ -2590,6 +2626,12 @@ body {
     if (personal) return personal;
     const ro = clasificar(obj, rs);
 
+    // Si la favorita no tiene ninguna palabra clara pero otra sí ("ya no se regala comida"), gana la que la tiene.
+    const conPalabras = ra.ranking.find(p => ra.evidencias[p.clase]);
+    if (!ra.evidencias[ra.ranking[0].clase] && conPalabras) {
+      ra.ranking.splice(ra.ranking.indexOf(conPalabras), 1);
+      ra.ranking.unshift(conPalabras);
+    }
     let accion = ra.ranking[0].clase;
     const hayAccion = !!ra.evidencias[accion] || ra.ranking[0].prob >= 0.6;
     const accionDudosa = !hayAccion && ra.conocidos > 0 && ra.ranking[0].prob >= 0.3;
@@ -2642,6 +2684,9 @@ body {
       if (otro) {
         res.objeto = 'OTRO';
         res.nombreObjeto = otro;
+      } else if (accion === 'DEROGAR') {
+        res.objeto = 'ULTIMA';
+        res.nombreObjeto = 'el último decreto';
       } else if (accion === 'SUBIR_IMPUESTO' || accion === 'BAJAR_IMPUESTO' || paraTodos) {
         res.objeto = 'GENERAL';
         res.nombreObjeto = RF.OBJETOS.GENERAL.nombre;
@@ -2693,45 +2738,385 @@ body {
   RF.interprete = { entrenar, interpretar, interpretarVarios };
 })(globalThis.RF = globalThis.RF || {});
 
+// js/leyes.js
+/*
+ * LAS LEYES VIGENTES
+ * Cada decreto se convierte en una ley que sigue actuando TODOS los turnos hasta que se derogue.
+ * Así los decretos se acumulan: si vendes el aire y además vendes cocaína, cada turno cobras las dos cosas
+ * y pagas las consecuencias de las dos.
+ *
+ * Una ley tiene:
+ *   inicial    efectos de una sola vez al firmarla
+ *   porTurno   efectos cada turno: dinero (millones), estabilidad, felicidad e inflacion (presión sobre los precios)
+ *   curvas     cómo cambia cada efecto con el tiempo:
+ *                acostumbra  lo bueno se nota cada vez menos (la gente se acostumbra a los regalos)
+ *                desgasta    la represión rinde cada vez menos y el rencor que provoca crece
+ *                madura      las inversiones tardan unos turnos en dar fruto
+ *   nivel      repetir el mismo decreto lo refuerza (máximo 3), con rendimientos decrecientes
+ */
+(function (RF) {
+  'use strict';
+  const T = RF.texto;
+  const NIVEL = [0, 1, 1.7, 2.2];
+
+  const CURVAS = {
+    acostumbra: (v, edad) => (v > 0 ? Math.max(0.35, 1 - 0.08 * edad) : 1),
+    desgasta: (v, edad) => (v > 0 ? Math.max(0.4, 1 - 0.07 * edad) : Math.min(1.6, 1 + 0.05 * edad)),
+    madura: (v, edad) => (v > 0 ? (edad < 2 ? 0 : Math.min(1, (edad - 1) / 3)) : 1),
+    lenta: (v, edad) => (v > 0 ? (edad < 3 ? 0 : Math.min(1, (edad - 2) / 6)) : 1)
+  };
+
+  const CREAN = ['CREAR', 'INVERTIR', 'OBLIGAR', 'GLORIFICAR', 'SUBSIDIAR', 'LEGALIZAR', 'ENFOCAR'];
+  const DISUELVEN = ['PROHIBIR', 'RECORTAR', 'CASTIGAR', 'PRIVATIZAR'];
+
+  function objeto(objId) { return objId === 'OTRO' ? RF.OBJETO_OTRO : RF.OBJETOS[objId] || RF.OBJETO_OTRO; }
+
+  /*
+   * La lógica de cada decreto. Devuelve la ley que crea, o { derogar: clave } si el decreto quita una ley,
+   * o { unaVez: true } si solo tiene efectos inmediatos.
+   */
+  function definir(accion, objId, nombre) {
+    const o = objeto(objId);
+    const E = o.esencial || 0, R = o.rentable || 0, L = o.libertad || 0, P = o.popular || 0;
+    const V = o.vicio ? 1 : 0, G = o.gente ? 1 : 0;
+    const ley = { clave: objId === 'OTRO' ? 'OTRO:' + nombre : objId, porTurno: {}, inicial: {}, curvas: {}, notas: [] };
+    const pt = (k, v) => { if (v) ley.porTurno[k] = (ley.porTurno[k] || 0) + v; };
+    const ini = (k, v) => { if (v) ley.inicial[k] = (ley.inicial[k] || 0) + v; };
+
+    if (accion === 'DEROGAR') return { derogar: objId === 'ULTIMA' ? 'ULTIMA' : ley.clave };
+
+    // Instituciones del régimen: se crean o se disuelven.
+    if (o.institucion) {
+      const inst = RF.INSTITUCIONES[objId];
+      if (DISUELVEN.includes(accion)) return { derogar: ley.clave };
+      if (!CREAN.includes(accion)) return null;
+      const c = RF.consejero.convertir(inst.crear);
+      const d = RF.consejero.convertir(inst.diario);
+      Object.assign(ley.inicial, c);
+      Object.assign(ley.porTurno, d);
+      pt('dinero', -3 * inst.coste);
+      ley.curvas = { estabilidad: 'desgasta', felicidad: 'desgasta' };
+      ley.texto = T.expandir(inst.texto);
+      ley.institucion = true;
+      return ley;
+    }
+
+    // El dinero: imprimir, dolarizar, devaluar.
+    if (objId === 'DINERO') {
+      if (['CREAR', 'SUBSIDIAR', 'INVERTIR', 'OBLIGAR'].includes(accion)) {
+        ini('dinero', 10);
+        pt('dinero', 25); pt('inflacion', 6);
+        ley.imprime = true;
+        ley.nombre = 'la impresión de dinero';
+        ley.notas.push('Cada turno entrarán 25 millones recién impresos... y los precios subirán.');
+        return ley;
+      }
+      if (accion === 'PROHIBIR' || accion === 'PRIVATIZAR') {
+        ini('felicidad', -3); ini('estabilidad', 2);
+        pt('inflacion', -4); pt('dinero', -3); pt('felicidad', -0.2);
+        ley.notas.push('Adiós al valdo: la inflación irá bajando, pero ya no podrás imprimir dinero.');
+        ley.dolariza = true;
+        ley.nombre = 'la dolarización';
+        return ley;
+      }
+      if (accion === 'RECORTAR' || accion === 'BAJAR_IMPUESTO') {
+        return { unaVez: true, nombre: 'la devaluación del valdo', inicial: { dinero: 25, inflacion: 12, felicidad: -3 }, notas: ['El valdo pierde un tercio de su valor: entra dinero ahora, pero todo cuesta más.'] };
+      }
+    }
+
+    // Reconvertir toda la economía: solo puede haber un modelo a la vez.
+    if (accion === 'ENFOCAR') {
+      const sector = RF.SECTOR_AMPLIO[objId] || 'exotico';
+      const m = RF.MODELOS[sector];
+      ley.clave = 'MODELO';
+      ley.modelo = sector;
+      ley.nombre = 'la economía basada en ' + (m.nombre || nombre);
+      ini('dinero', -20); ini('felicidad', -3); ini('estabilidad', -2);
+      Object.assign(ley.porTurno, m.porTurno);
+      ley.curvas = { dinero: m.lenta ? 'lenta' : 'madura' };
+      ley.notas.push(m.nota);
+      return ley;
+    }
+
+    switch (accion) {
+      case 'PRIVATIZAR': // vender o cobrar por algo
+        if (objId === 'NARCO') {
+          ini('dinero', 10);
+          pt('dinero', 18); pt('estabilidad', -1.5); pt('felicidad', -0.5);
+          break;
+        }
+        ini('dinero', 15 + 10 * R); ini('felicidad', -(2 + 2 * E));
+        pt('dinero', 2 + 3 * E + 2 * R);
+        pt('felicidad', -(0.3 + 0.6 * E));
+        pt('estabilidad', -0.3 * E);
+        break;
+
+      case 'NACIONALIZAR':
+        ini('dinero', -(10 + 5 * R)); ini('estabilidad', -(1 + R));
+        pt('dinero', 2 + 3 * R); pt('felicidad', 0.3); pt('estabilidad', -0.2 * R);
+        ley.curvas = { dinero: 'madura' };
+        break;
+
+      case 'PROHIBIR':
+        if (objId === 'NARCO') {
+          ini('estabilidad', -3);
+          pt('estabilidad', -0.8); pt('felicidad', 0.3);
+          ley.curvas = { estabilidad: 'acostumbra' };
+          ley.notas.push('Los cárteles no se rinden sin pelear: la violencia tardará en bajar.');
+          break;
+        }
+        ini('estabilidad', 1); ini('felicidad', -(2 + 3 * P + 2 * L));
+        pt('felicidad', -(0.3 + 0.6 * P + 0.5 * L));
+        pt('estabilidad', -(0.4 * P + 0.5 * V) + (L >= 2 ? 0.3 : 0));
+        pt('dinero', -(1.5 * R + 2 * V));
+        if (V || P >= 2) ley.notas.push('Lo prohibido no desaparece: se va a la clandestinidad.');
+        break;
+
+      case 'OBLIGAR':
+        if (objId === 'EJERCITO') { ini('felicidad', -4); pt('estabilidad', 0.8); pt('felicidad', -0.8); pt('dinero', -3); break; }
+        ini('felicidad', -(3 + 2 * L));
+        pt('felicidad', -(0.4 + 0.4 * L)); pt('estabilidad', 0.3); pt('dinero', R);
+        break;
+
+      case 'SUBSIDIAR': // regalar, subvencionar, subir sueldos
+        if (o.faccion === 'ejercito') { ini('estabilidad', 3); pt('estabilidad', 0.8); pt('dinero', -6); ley.curvas = { estabilidad: 'acostumbra' }; break; }
+        ini('felicidad', 3 + 2 * E + P);
+        pt('dinero', -(2 + 2.5 * E + 2 * G));
+        pt('felicidad', 0.8 + 0.6 * E + 0.3 * P);
+        pt('estabilidad', 0.2);
+        pt('inflacion', 0.3 * E);
+        ley.curvas = { felicidad: 'acostumbra' };
+        break;
+
+      case 'SUBIR_IMPUESTO':
+        if (o.faccion === 'cupula') {
+          ini('felicidad', 2);
+          pt('dinero', 8 + 2 * R); pt('felicidad', 0.2); pt('estabilidad', -0.6);
+        } else if (objId === 'GENERAL') {
+          ini('felicidad', -3);
+          pt('dinero', 12); pt('felicidad', -1.2); pt('estabilidad', -0.3);
+        } else {
+          ini('felicidad', -(1 + E));
+          pt('dinero', 4 + 3 * R); pt('felicidad', -(0.3 + 0.6 * E + 0.3 * P)); pt('estabilidad', -0.2);
+        }
+        pt('inflacion', -0.3);
+        break;
+
+      case 'BAJAR_IMPUESTO':
+        if (o.faccion === 'cupula') {
+          pt('dinero', -(8 + 2 * R)); pt('estabilidad', 0.6); pt('felicidad', -0.2);
+        } else if (objId === 'GENERAL') {
+          ini('felicidad', 3);
+          pt('dinero', -12); pt('felicidad', 1.2);
+        } else {
+          ini('felicidad', 1 + E);
+          pt('dinero', -(4 + 3 * R)); pt('felicidad', 0.4 + 0.5 * E);
+        }
+        pt('inflacion', 0.3);
+        ley.curvas = { felicidad: 'acostumbra' };
+        break;
+
+      case 'CASTIGAR': // represión o mano dura
+        if (!G) { ini('felicidad', -2); pt('felicidad', -0.4); pt('estabilidad', 0.2); break; }
+        if (o.afecta === 'orden') { // contra el crimen: la gente lo aplaude al principio
+          ini('estabilidad', 3); ini('felicidad', 2);
+          pt('estabilidad', 1); pt('felicidad', 0.3); pt('dinero', -3);
+        } else {
+          ini('estabilidad', 3); ini('felicidad', -3);
+          pt('estabilidad', 1.2); pt('felicidad', -(0.6 + 0.4 * L)); pt('dinero', -2);
+        }
+        ley.curvas = { estabilidad: 'desgasta', felicidad: 'desgasta' };
+        break;
+
+      case 'LEGALIZAR':
+        if (objId === 'NARCO') { ini('dinero', 5); pt('dinero', 10); pt('estabilidad', -0.6); pt('felicidad', -0.3); break; }
+        if (o.afecta === 'orden' && G) { ini('felicidad', -4); pt('estabilidad', -2); pt('felicidad', -1); break; }
+        if (G) { ini('felicidad', 3); ini('estabilidad', -2); pt('felicidad', 0.3); pt('estabilidad', 0.2); ley.curvas = { felicidad: 'acostumbra' }; break; }
+        ini('felicidad', 2 + 2 * P + L);
+        pt('felicidad', 0.3 + 0.3 * P);
+        if (V) { pt('dinero', 4); pt('estabilidad', 0.3); }
+        ley.curvas = { felicidad: 'acostumbra' };
+        break;
+
+      case 'CREAR':
+      case 'INVERTIR':
+        if (o.faccion === 'ejercito') { ini('dinero', -20); ini('estabilidad', 3); pt('estabilidad', 0.6); pt('dinero', -3); break; }
+        ini('dinero', -(25 + 10 * E));
+        pt('dinero', 3 + 2 * R + E); pt('felicidad', 0.4 + 0.3 * E); pt('estabilidad', 0.2);
+        ley.curvas = { dinero: 'madura', felicidad: 'madura', estabilidad: 'madura' };
+        ley.notas.push('Las obras tardan: los beneficios llegarán dentro de unos turnos.');
+        break;
+
+      case 'RECORTAR':
+        if (o.faccion === 'ejercito') { ini('estabilidad', -4); pt('dinero', 6); pt('estabilidad', -1.2); break; }
+        pt('dinero', 4 + 3 * E); pt('felicidad', -(0.4 + 0.7 * E)); pt('estabilidad', -(0.2 + 0.3 * E));
+        pt('inflacion', -0.4);
+        break;
+
+      case 'GLORIFICAR':
+        ini('dinero', -15); ini('felicidad', -1);
+        pt('dinero', -1);
+        pt('estabilidad', o.faccion === 'ejercito' || o.afecta === 'orden' ? 0.6 : 0.4);
+        pt('felicidad', -0.2);
+        break;
+
+      default:
+        return null;
+    }
+    return ley;
+  }
+
+  function lista(e) { if (!e.leyes) e.leyes = []; return e.leyes; }
+
+  // Firma una ley: si ya había una sobre lo mismo, la refuerza (misma acción) o la sustituye (otra acción).
+  function promulgar(e, ley, accion, nombre) {
+    const leyes = lista(e);
+    const previa = leyes.find(l => l.clave === ley.clave);
+    const out = { notas: [], inicial: Object.assign({}, ley.inicial), sustituye: null, refuerza: false };
+    if (previa && previa.accion === accion && previa.nombre === nombre) {
+      if (previa.nivel >= 3) {
+        out.notas.push('Esa ley ya está al máximo. Repetirla no cambia nada.');
+        for (const k of Object.keys(out.inicial)) out.inicial[k] = 0;
+        out.ley = previa;
+        return out;
+      }
+      previa.nivel++;
+      for (const k of Object.keys(out.inicial)) out.inicial[k] = out.inicial[k] / 2;
+      out.notas.push('Refuerzas una ley que ya existía (nivel ' + previa.nivel + '). Cada refuerzo rinde menos que el anterior.');
+      out.refuerza = true;
+      out.ley = previa;
+      return out;
+    }
+    if (previa) {
+      leyes.splice(leyes.indexOf(previa), 1);
+      out.sustituye = previa;
+      out.notas.push('Esta ley sustituye a la anterior: ' + previa.nombre + '.');
+    }
+    const nueva = {
+      clave: ley.clave, accion, nombre, desde: e.dia, nivel: 1, factor: 1,
+      porTurno: ley.porTurno, curvas: ley.curvas || {}, duracion: ley.duracion || null,
+      imprime: !!ley.imprime, dolariza: !!ley.dolariza, modelo: ley.modelo || null, institucion: !!ley.institucion
+    };
+    // Dolarizar impide imprimir; imprimir con el dólar es imposible.
+    if (nueva.dolariza) { const imp = leyes.find(l => l.imprime); if (imp) leyes.splice(leyes.indexOf(imp), 1); }
+    leyes.push(nueva);
+    out.ley = nueva;
+    return out;
+  }
+
+  // Quita una ley. Retirar algo bueno duele; retirar algo malo alivia.
+  function derogar(e, clave) {
+    const leyes = lista(e);
+    const ley = clave === 'ULTIMA' ? leyes[leyes.length - 1] : leyes.find(l => l.clave === clave);
+    if (!ley) return null;
+    leyes.splice(leyes.indexOf(ley), 1);
+    const fel = efectoActual(e, ley).felicidad || 0;
+    const est = efectoActual(e, ley).estabilidad || 0;
+    const choque = {};
+    if (fel > 0) choque.felicidad = -Math.round(fel * 3); else if (fel < 0) choque.felicidad = Math.round(-fel * 2);
+    if (est > 0 && ley.accion === 'CASTIGAR') choque.estabilidad = -Math.round(est * 2);
+    return { ley, choque };
+  }
+
+  // Efecto de una ley en este turno, con su nivel, su edad y la situación del país.
+  function efectoActual(e, ley) {
+    const edad = e.dia - ley.desde;
+    const out = {};
+    for (const [k, base] of Object.entries(ley.porTurno)) {
+      let v = base * NIVEL[ley.nivel] * (ley.factor || 1);
+      if (k === 'inflacion' && ley.imprime && ley.nivel > 1) v *= 1 + 0.4 * (ley.nivel - 1); // imprimir más dispara los precios más que proporcionalmente
+      const curva = ley.curvas[k];
+      if (curva) v *= CURVAS[curva](v, edad);
+      if (k === 'dinero') {
+        if (v < 0) v *= 1 + e.stats.inflacion / 100; // la inflación encarece los gastos
+        else if (!ley.imprime) v *= Math.max(0.5, Math.min(1.2, 0.5 + e.stats.estabilidad / 120)) * Math.max(0.4, 1 - e.stats.inflacion / 250); // el caos y la inflación se comen los ingresos
+      }
+      out[k] = v;
+    }
+    return out;
+  }
+
+  // Lo que hará una ley cada turno "en régimen": sin curvas ni situación del país (para contárselo al jugador).
+  function efectoNominal(ley) {
+    const out = {};
+    for (const [k, base] of Object.entries(ley.porTurno)) {
+      let v = base * NIVEL[ley.nivel] * (ley.factor || 1);
+      if (k === 'inflacion' && ley.imprime && ley.nivel > 1) v *= 1 + 0.4 * (ley.nivel - 1);
+      out[k] = v;
+    }
+    return out;
+  }
+
+  // Los efectos de todas las leyes en un turno. Devuelve la lista detallada y los totales.
+  function turno(e) {
+    const leyes = lista(e);
+    const detalle = [];
+    const total = { dinero: 0, estabilidad: 0, felicidad: 0, inflacion: 0 };
+    for (const ley of leyes.slice()) {
+      const ef = efectoActual(e, ley);
+      detalle.push({ nombre: ley.nombre, clave: ley.clave, nivel: ley.nivel, efectos: ef });
+      for (const [k, v] of Object.entries(ef)) total[k] += v;
+      if (ley.duracion && e.dia - ley.desde >= ley.duracion) leyes.splice(leyes.indexOf(ley), 1);
+    }
+    return { detalle, total };
+  }
+
+  function resumenLey(ef) {
+    const f = (v, suf) => (v > 0 ? '+' : '−') + Math.abs(v).toFixed(Math.abs(v) < 10 && suf !== 'M' ? 1 : 0) + suf;
+    const partes = [];
+    if (Math.abs(ef.dinero || 0) >= 0.5) partes.push(f(ef.dinero, 'M'));
+    if (Math.abs(ef.estabilidad || 0) >= 0.05) partes.push('estab ' + f(ef.estabilidad, ''));
+    if (Math.abs(ef.felicidad || 0) >= 0.05) partes.push('felic ' + f(ef.felicidad, ''));
+    if (Math.abs(ef.inflacion || 0) >= 0.05) partes.push('infl ' + f(ef.inflacion, ''));
+    return partes.join('  ') || 'sin efecto este turno';
+  }
+
+  RF.leyes = { definir, promulgar, derogar, turno, efectoActual, efectoNominal, resumenLey, lista, CURVAS };
+})(globalThis.RF = globalThis.RF || {});
+
 // js/consejero.js
 /*
  * EL CONSEJERO
- * Toma el decreto que entendió el Intérprete, calcula sus consecuencias sobre el país,
- * programa efectos para más adelante, mueve a los personajes y decide si el juego termina.
+ * El país se mide con cuatro cosas:
+ *   DINERO       millones de valdos en las arcas (puede quedar en negativo: deuda)
+ *   INFLACIÓN    cuánto suben los precios (%)
+ *   ESTABILIDAD  si el régimen aguanta (0 = caes)
+ *   FELICIDAD    cómo vive la gente (0 = revolución)
+ *
+ * Cada decreto se convierte en una ley vigente que actúa todos los turnos (ver leyes.js).
+ * Además, cada turno, las cuatro cosas se afectan entre sí con una lógica realista:
+ *   - El Estado cobra impuestos y paga sueldos. Sin estabilidad se recauda menos.
+ *   - La inflación encarece los gastos, se come los ingresos y amarga a la gente.
+ *   - Si hay deuda, se paga imprimiendo: más inflación. Y los funcionarios sin cobrar desestabilizan.
+ *   - La inflación alta se retroalimenta (la gente espera que suba y sube).
+ *   - Con poca felicidad hay protestas: baja la estabilidad.
+ *   - Sin leyes que lo empujen, todo tiende poco a poco a la normalidad.
  */
 (function (RF) {
   'use strict';
   const T = RF.texto;
 
   RF.STATS = [
-    { id: 'tesoro', nombre: 'Tesoro', corto: 'TES' },
-    { id: 'pueblo', nombre: 'Pueblo', corto: 'PUE' },
-    { id: 'ejercito', nombre: 'Ejército', corto: 'EJÉ' },
-    { id: 'cupula', nombre: 'Cúpula', corto: 'CÚP' },
-    { id: 'salud', nombre: 'Salud', corto: 'SAL' },
-    { id: 'orden', nombre: 'Orden', corto: 'ORD' },
-    { id: 'mundo', nombre: 'Mundo', corto: 'MUN' }
+    { id: 'dinero', nombre: 'Dinero', corto: 'DINERO', formato: 'dinero' },
+    { id: 'inflacion', nombre: 'Inflación', corto: 'INFLACIÓN', formato: 'pct' },
+    { id: 'estabilidad', nombre: 'Estabilidad', corto: 'ESTABILIDAD', formato: 'barra' },
+    { id: 'felicidad', nombre: 'Felicidad', corto: 'FELICIDAD', formato: 'barra' }
   ];
 
-  function nuevoEstado() {
-    const e = estadoInicial();
-    e.eco = RF.economia.nueva();
-    RF.poder.iniciar(e);
-    return e;
-  }
+  const INGRESOS_BASE = 20; // impuestos normales por turno (millones)
+  const GASTOS_BASE = 20;   // sueldos y servicios del Estado por turno (millones)
 
-  function estadoInicial() {
+  function nuevoEstado() {
     const ciudadanos = {};
-    for (const id of Object.keys(RF.CIUDADANOS)) ciudadanos[id] = { animo: 0, hitos: [], ultimaVez: -99 };
-    return {
-      version: 1,
+    for (const id of Object.keys(RF.CIUDADANOS)) ciudadanos[id] = { animo: 0, hitos: [], ultimaVez: -99, estado: 'libre' };
+    const e = {
+      version: 2,
       dia: 1,
-      stats: { tesoro: 60, pueblo: 55, ejercito: 60, cupula: 60, salud: 60, orden: 60, mundo: 50 },
-      ingresos: 0,
+      stats: { dinero: 100, inflacion: 4, estabilidad: 60, felicidad: 55 },
+      acum: {},
+      leyes: [],
       pendientes: [],
       historial: [],
-      politicas: {},
-      repeticiones: {},
       ciudadanos,
       umbrales: {},
       diasSinEvento: 0,
@@ -2739,9 +3124,11 @@ body {
       dilemas: { ultimo: 0, vistos: {}, cadena: [], pendiente: null },
       fin: null
     };
+    RF.poder.iniciar(e);
+    return e;
   }
 
-  function objetoDe(id) { return id === 'OTRO' ? RF.OBJETO_OTRO : RF.OBJETOS[id]; }
+  function objetoDe(id) { return id === 'OTRO' || !RF.OBJETOS[id] ? RF.OBJETO_OTRO : RF.OBJETOS[id]; }
 
   // "la privatización del aire", "el nuevo impuesto a los ricos"...
   function medida(accion, nombreObjeto) {
@@ -2750,187 +3137,100 @@ body {
 
   function sumar(d, k, v) { if (v) d[k] = (d[k] || 0) + v; }
 
-  // Consecuencias generales según el tipo de acción y cómo es el objeto.
-  function efectosBase(accion, o) {
-    const E = o.esencial || 0, R = o.rentable || 0, L = o.libertad || 0, P = o.popular || 0;
+  /*
+   * Traduce efectos escritos con las estadísticas antiguas (eventos, sucesos, personas) a las cuatro nuevas.
+   * tesoro → dinero · pueblo y salud → felicidad · orden, ejército, cúpula y mundo → estabilidad (el mundo también cuesta dinero)
+   */
+  function convertir(ef) {
     const d = {};
-    let ingresos = 0;
-    const af = (v) => { if (o.afecta) sumar(d, o.afecta, v); };
-    const fac = (v) => { if (o.faccion) sumar(d, o.faccion, v); };
-
-    switch (accion) {
-      case 'PROHIBIR':
-        sumar(d, 'pueblo', -(3 + 3 * E + 3 * P + 2 * L));
-        sumar(d, 'mundo', -(1 + 3 * L));
-        sumar(d, 'orden', 2 - 2 * Math.max(E, P));
-        sumar(d, 'cupula', -2 * R); sumar(d, 'tesoro', -2 * R);
-        if (o.vicio) sumar(d, 'salud', 5);
-        if (o.afecta === 'salud') af(-3 * E);
-        if (o.afecta === 'orden') af(4);
-        fac(-20);
-        break;
-      case 'OBLIGAR':
-        sumar(d, 'pueblo', -(4 + 3 * L) + P);
-        sumar(d, 'mundo', -(2 + 2 * L));
-        sumar(d, 'orden', 3);
-        sumar(d, 'cupula', 2 * R); sumar(d, 'tesoro', R);
-        if (o.afecta === 'salud') af(3);
-        break;
-      case 'PRIVATIZAR':
-        sumar(d, 'tesoro', 6 + 6 * R);
-        sumar(d, 'pueblo', -(3 + 6 * E));
-        sumar(d, 'cupula', 6 + 3 * R);
-        sumar(d, 'mundo', 3);
-        if (o.afecta === 'salud') af(-4 * E);
-        if (R >= 2) ingresos -= 1;
-        fac(-10);
-        break;
-      case 'NACIONALIZAR':
-        sumar(d, 'tesoro', -(4 + 2 * R));
-        sumar(d, 'pueblo', 2 + 3 * E);
-        sumar(d, 'cupula', -(6 + 5 * R));
-        sumar(d, 'mundo', -(3 + 3 * R));
-        ingresos += R;
-        break;
-      case 'SUBIR_IMPUESTO':
-        ingresos += 1 + Math.ceil(R / 2);
-        sumar(d, 'tesoro', 3 + 2 * R);
-        if (o.faccion === 'cupula') { sumar(d, 'cupula', -15); sumar(d, 'pueblo', 6); }
-        else if (o.vicio) { sumar(d, 'salud', 3); sumar(d, 'pueblo', -4); }
-        else { sumar(d, 'pueblo', -(3 + 3 * E + 2 * P)); fac(-8); }
-        if (R >= 2) sumar(d, 'mundo', -1);
-        break;
-      case 'BAJAR_IMPUESTO':
-        ingresos -= 1 + Math.ceil(R / 2);
-        sumar(d, 'tesoro', -(2 + R));
-        if (o.faccion === 'cupula') { sumar(d, 'cupula', 12); sumar(d, 'pueblo', -5); sumar(d, 'mundo', 2); }
-        else { sumar(d, 'pueblo', 3 + 2 * E + P); sumar(d, 'cupula', 2); fac(6); }
-        break;
-      case 'SUBSIDIAR':
-        ingresos -= 1 + Math.ceil(E / 2);
-        sumar(d, 'tesoro', -(3 + 2 * E));
-        sumar(d, 'pueblo', 4 + 3 * E + 2 * P);
-        sumar(d, 'cupula', -2);
-        if (o.afecta === 'salud') af(3 * E);
-        fac(15);
-        break;
-      case 'CASTIGAR':
-        if (!o.gente) { // "castigar el alcohol" = una prohibición con porra
-          sumar(d, 'pueblo', -(2 + 2 * P)); sumar(d, 'orden', 3); sumar(d, 'mundo', -2);
-          break;
-        }
-        sumar(d, 'orden', 6);
-        sumar(d, 'mundo', -(3 + 3 * L));
-        if (o.afecta === 'orden') { sumar(d, 'pueblo', 6); sumar(d, 'mundo', -2); }
-        else if (o.faccion) { fac(-25); sumar(d, 'pueblo', -4); }
-        else sumar(d, 'pueblo', -(4 + 2 * L));
-        if (o.faccion !== 'ejercito') sumar(d, 'ejercito', 3);
-        break;
-      case 'LEGALIZAR':
-        if (o.gente) { sumar(d, 'pueblo', 2); sumar(d, 'orden', -4); sumar(d, 'mundo', 3 + L); fac(8); break; }
-        sumar(d, 'pueblo', 2 + 3 * P + 2 * L);
-        sumar(d, 'mundo', 1 + 2 * L);
-        sumar(d, 'orden', o.vicio ? -3 : -1);
-        if (o.vicio) { sumar(d, 'tesoro', 5); sumar(d, 'salud', -3); ingresos += 1; }
-        break;
-      case 'ENFOCAR':
-        break; // la reconversión la calcula la economía
-      case 'CREAR':
-      case 'INVERTIR':
-        sumar(d, 'tesoro', -(8 + 2 * E));
-        sumar(d, 'pueblo', 2);
-        sumar(d, 'mundo', 1);
-        if (o.afecta === 'salud') af(3);
-        if (o.faccion === 'ejercito') { fac(12); sumar(d, 'mundo', -4); }
-        else fac(8);
-        break;
-      case 'RECORTAR':
-        sumar(d, 'tesoro', 5 + 2 * E);
-        ingresos += 1;
-        sumar(d, 'pueblo', -(3 + 4 * E));
-        sumar(d, 'mundo', 2);
-        af(-(4 + 2 * E));
-        fac(-18);
-        break;
-      case 'GLORIFICAR':
-        sumar(d, 'tesoro', -4);
-        if (o === RF.OBJETOS.LIDER) { sumar(d, 'pueblo', -3); sumar(d, 'orden', 2); sumar(d, 'cupula', 4); sumar(d, 'mundo', -4); }
-        else if (o === RF.OBJETOS.CRIMEN || o === RF.OBJETOS.OPOSICION) { sumar(d, 'pueblo', -4); sumar(d, 'cupula', -6); sumar(d, 'mundo', -3); }
-        else { sumar(d, 'pueblo', 1 + P); fac(12); af(4); }
-        break;
+    for (const [k, v] of Object.entries(ef || {})) {
+      if (!v) continue;
+      switch (k) {
+        case 'tesoro': sumar(d, 'dinero', v * 2); break;
+        case 'pueblo': sumar(d, 'felicidad', v); break;
+        case 'salud': sumar(d, 'felicidad', v * 0.5); break;
+        case 'orden': sumar(d, 'estabilidad', v * 0.6); break;
+        case 'ejercito': sumar(d, 'estabilidad', v * 0.4); break;
+        case 'cupula': sumar(d, 'estabilidad', v * 0.35); break;
+        case 'mundo': sumar(d, 'estabilidad', v * 0.25); sumar(d, 'dinero', v * 0.8); break;
+        case 'dinero': case 'inflacion': case 'estabilidad': case 'felicidad': sumar(d, k, v); break;
+      }
     }
-    // Lo desconocido siempre desconcierta un poco al mundo.
-    if (o === RF.OBJETO_OTRO) sumar(d, 'mundo', -1);
-    return { d, ingresos };
+    return d;
   }
 
-  // Consecuencias con retraso cuando no hay una especial para esa combinación.
-  function programarGenericas(accion, o, vars) {
-    const E = o.esencial || 0, R = o.rentable || 0, P = o.popular || 0;
-    const p = [];
-    if (accion === 'PRIVATIZAR' && E >= 2)
-      p.push({ en: 3, titulo: 'Mercado negro', texto: 'Surge un mercado negro de {objeto}. Quien puede pagar, paga dos veces. Quien no, se las arregla como puede.', efectos: { orden: -4, salud: o.afecta === 'salud' ? -3 : 0 } });
-    if (accion === 'PROHIBIR' && (P >= 2 || o.vicio))
-      p.push({ en: 3, titulo: 'Clandestinidad', texto: 'Lo de {objeto} pasa a la clandestinidad. Lo que antes era normal ahora se hace en sótanos, y los sótanos cobran entrada.', efectos: { orden: -4, cupula: 2 } });
-    if (accion === 'INVERTIR' || accion === 'CREAR')
-      p.push({ en: 4, titulo: 'Los frutos de la inversión', texto: 'Empiezan a notarse los resultados de {medida}. Hasta los más críticos lo reconocen en voz baja.', efectos: { pueblo: 3 + 2 * E, [o.afecta || 'tesoro']: o.afecta ? 6 : 4 }, ingresos: R >= 1 ? 1 : 0 });
-    if (accion === 'RECORTAR')
-      p.push({ en: 4, titulo: 'La factura del recorte', texto: 'Los efectos de {medida} llegan a la calle: servicios cerrados, colas más largas, gente más cansada.', efectos: { pueblo: -3, [o.afecta || 'orden']: -5 } });
-    if (accion === 'CASTIGAR' && o.gente && o.afecta !== 'orden')
-      p.push({ en: 3, titulo: 'Miedo', texto: 'El miedo se instala en Valdoria. La gente habla más bajo y mira más veces por encima del hombro.', efectos: { orden: 3, pueblo: -3 } });
-    if (accion === 'NACIONALIZAR' && R >= 2)
-      p.push({ en: 2, titulo: 'Fuga de capitales', texto: 'Tras {medida}, los inversores sacan su dinero del país. El valdo cae un 20% en una tarde.', efectos: { tesoro: -4, mundo: -2 } });
-    return p.map(x => Object.assign({}, x, { texto: T.expandir(x.texto, vars) }));
-  }
+  const LIMITES = { dinero: [-999, 9999], inflacion: [0, 5000], estabilidad: [0, 100], felicidad: [0, 100] };
 
-  function limitar(v) { return Math.max(0, Math.min(100, Math.round(v))); }
-
+  // Aplica efectos (acepta los nombres antiguos). Los decimales se acumulan hasta sumar un punto entero.
   function aplicarEfectos(estado, efectos, registro) {
-    for (const [k, v] of Object.entries(efectos || {})) {
-      if (!v || !(k in estado.stats)) continue;
+    const ef = convertir(efectos);
+    if (!estado.acum) estado.acum = {};
+    for (const [k, v] of Object.entries(ef)) {
+      if (!(k in estado.stats)) continue;
+      estado.acum[k] = (estado.acum[k] || 0) + v;
+      const n = Math.trunc(estado.acum[k]);
+      if (!n) continue;
+      estado.acum[k] -= n;
       const antes = estado.stats[k];
-      estado.stats[k] = limitar(antes + v);
+      estado.stats[k] = Math.max(LIMITES[k][0], Math.min(LIMITES[k][1], antes + n));
       if (registro) registro[k] = (registro[k] || 0) + (estado.stats[k] - antes);
     }
   }
 
-  // El personaje de a pie que protagoniza la escena: alguien a quien le importa el tema.
+  // Qué tal le va a cada ministro con la situación (0-100).
+  function lealtad(e, id) {
+    const s = e.stats;
+    switch (id) {
+      case 'cifuentes': return Math.max(0, Math.min(100, 50 + s.dinero / 4 - s.inflacion / 2));
+      case 'paredes': case 'ventura': return s.felicidad;
+      default: return s.estabilidad;
+    }
+  }
+
+  const MILITAR = ['EJERCITO', 'ESCUADRON', 'MILICIA', 'ARMAS', 'POLICIA'];
+  const SANITARIO = ['SALUD', 'AIRE', 'AGUA', 'COMIDA', 'AMBIENTE', 'VICIOS'];
+  const EXTERIOR = ['EXTRANJEROS', 'NARCO', 'RECURSOS', 'TURISMO'];
+
+  // El ministro que reacciona: el de lo que más cambia (contando lo que la ley hará en los próximos turnos).
+  function elegirMinistro(res, objId) {
+    const total = k => (res.deltas[k] || 0) + 4 * ((res.porTurno || {})[k] || 0);
+    const cand = [
+      { id: 'cifuentes', v: total('dinero') / 3 - total('inflacion') },
+      { id: MILITAR.includes(objId) ? 'garrote' : 'sombra', v: total('estabilidad') },
+      { id: 'paredes', v: total('felicidad') }
+    ];
+    if (SANITARIO.includes(objId)) cand.push({ id: 'ventura', v: total('felicidad') * 1.1 });
+    if (EXTERIOR.includes(objId)) cand.push({ id: 'montiel', v: total('estabilidad') * 1.1 });
+    let mejor = null;
+    for (const c of cand) if (Math.abs(c.v) >= 1 && (!mejor || Math.abs(c.v) > Math.abs(mejor.v))) mejor = c;
+    return mejor ? { id: mejor.id, delta: mejor.v } : null;
+  }
+
   function elegirCiudadano(estado, objId) {
-    const ids = Object.keys(RF.CIUDADANOS).filter(id => !estado.ciudadanos[id].estado || estado.ciudadanos[id].estado === 'libre');
+    const ids = Object.keys(RF.CIUDADANOS).filter(id => estado.ciudadanos[id].estado === 'libre');
     if (!ids.length) return null;
     const interesados = ids.filter(id => RF.CIUDADANOS[id].intereses.includes(objId));
     const pool = interesados.length ? interesados : ids;
     pool.sort((a, b) => estado.ciudadanos[a].ultimaVez - estado.ciudadanos[b].ultimaVez);
-    const candidatos = pool.slice(0, Math.min(2, pool.length));
-    return T.azar(candidatos);
+    return T.azar(pool.slice(0, Math.min(2, pool.length)));
   }
 
-  function elegirMinistro(deltas) {
-    let mejor = null, mejorV = 0;
-    for (const [id, m] of Object.entries(RF.GABINETE)) {
-      for (const s of m.stats) {
-        const v = Math.abs(deltas[s] || 0);
-        if (v > mejorV) { mejorV = v; mejor = { id, stat: s, delta: deltas[s] }; }
-      }
-    }
-    return mejor;
-  }
-
-  function comprobarFin(estado) {
-    const s = estado.stats;
-    const orden = ['ejercito', 'pueblo', 'cupula', 'mundo', 'orden', 'salud'];
-    for (const k of orden) if (s[k] <= 0) return k;
-    if (estado.diasEnQuiebra >= 2) return 'tesoro';
-    if (estado.dia > RF.PAIS.dias) {
-      if (s.pueblo >= 55) return 'elecciones_ganadas';
-      if (s.orden >= 55 && s.ejercito >= 50) return 'elecciones_amanadas';
-      return 'elecciones_perdidas';
-    }
-    return null;
+  // Un ministro y una persona de la calle reaccionan. La calle mira sobre todo la felicidad.
+  function reacciones(estado, res, objId) {
+    res.ministro = elegirMinistro(res, objId);
+    const impacto = (res.deltas.felicidad || 0) + 3 * ((res.porTurno || {}).felicidad || 0);
+    res.impacto = impacto;
+    const cid = elegirCiudadano(estado, objId);
+    if (!cid) { res.ciudadano = null; return; }
+    const interesado = RF.CIUDADANOS[cid].intereses.includes(objId);
+    const c = estado.ciudadanos[cid];
+    c.animo = Math.max(-100, Math.min(100, c.animo + impacto * (interesado ? 1.5 : 0.8)));
+    c.ultimaVez = estado.dia;
+    res.ciudadano = { id: cid, sentimiento: impacto > 2 ? 'pos' : impacto < -2 ? 'neg' : 'neu' };
   }
 
   /*
-   * Aplica un decreto ya interpretado. Devuelve todo lo que pasó para que el Narrador lo cuente.
+   * Firma un decreto ya interpretado. Devuelve todo lo que pasó para que el Narrador lo cuente.
    */
   function decretar(estado, interp, op) {
     op = op || {};
@@ -2938,82 +3238,61 @@ body {
     const objId = interp.objeto;
     const o = objetoDe(objId);
     const nombre = interp.nombreObjeto || o.nombre;
-    const laMedida = medida(accion, nombre);
-    const vars = { objeto: nombre, Objeto: T.mayus(nombre), medida: laMedida, Medida: T.mayus(laMedida), lider: 'Su Excelencia' };
-    const clave = accion + ':' + objId;
-    const especial = RF.ESPECIALES[clave];
-    const res = { dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, medida: laMedida, vars, deltas: {}, sucesos: [], notas: [] };
+    let laMedida = medida(accion, nombre);
+    const res = { tipo: 'decreto', dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, deltas: {}, porTurno: null, sucesos: [], notas: [] };
+    const inicial = {};
 
-    // 1. Efectos del decreto: los de una institución sustituyen a los generales.
-    const inst = RF.poder.aplicarInstitucion(estado, accion, objId);
-    const base = inst ? { d: inst.efectos, ingresos: 0 } : efectosBase(accion, o);
-    const efectos = Object.assign({}, base.d);
-    if (especial && especial.efectos) for (const [k, v] of Object.entries(especial.efectos)) sumar(efectos, k, v);
-    const eco = RF.economia.aplicarDecreto(estado, accion, objId, nombre);
-    for (const [k, v] of Object.entries(eco.efectos)) sumar(efectos, k, v);
-    if (inst) res.notas.push(...inst.notas);
-    res.notas.push(...eco.notas);
-
-    // Repetir el mismo decreto cansa: cada vez hace la mitad de efecto.
-    // Y lo que ya se vendió (o expropió) no se puede volver a vender.
-    const rep = estado.repeticiones[clave] || 0;
-    estado.repeticiones[clave] = rep + 1;
-    const yaHecho = (accion === 'PRIVATIZAR' || accion === 'NACIONALIZAR') && estado.politicas[objId] === accion;
-    // Varios decretos el mismo día: cada uno extra reparte la atención y pesa menos.
-    const factor = interp.intensidad * (yaHecho ? 0.1 : Math.pow(0.5, rep)) * (op.secundario ? 0.75 : 1);
-    for (const k of Object.keys(efectos)) efectos[k] = Math.round(efectos[k] * factor);
-    if (yaHecho) res.notas.push('Eso ya estaba hecho. El decreto se archiva junto al anterior y apenas cambia nada.');
-    else if (rep > 0) res.notas.push(rep === 1 ? 'Ya habías decretado algo así. La gente lo nota menos.' : 'Otra vez lo mismo. Ya casi nadie presta atención.');
-
-    // Contradecirse tiene un precio.
-    const previa = estado.politicas[objId];
-    if (objId !== 'OTRO' && previa && previa !== accion && RF.ACCIONES[accion].inversa === previa) {
-      sumar(efectos, 'mundo', -3); sumar(efectos, 'cupula', -4);
-      res.notas.push(`Hace poco decretaste ${medida(previa, nombre)}. Ahora lo contrario. Nadie sabe ya a qué atenerse.`);
-      res.contradiccion = true;
+    const def = RF.leyes.definir(accion, objId, nombre);
+    if (def && def.nombre) laMedida = def.nombre;
+    if (!def) {
+      res.notas.push('Este decreto no cambia nada que se pueda medir. Queda en la Gaceta como curiosidad.');
+    } else if (def.derogar) {
+      const r = RF.leyes.derogar(estado, def.derogar);
+      if (!r) { res.nulo = def.derogar === 'ULTIMA' ? 'No hay ninguna ley vigente que derogar.' : 'No hay ninguna ley vigente sobre ' + nombre + ' que derogar.'; return res; }
+      laMedida = 'la derogación de ' + r.ley.nombre;
+      Object.assign(inicial, r.choque);
+      res.derogada = r.ley.nombre;
+      if (r.choque.felicidad < 0) res.notas.push('Quitar lo que se había dado duele: la gente lo vive como una pérdida.');
+      if (r.choque.felicidad > 0) res.notas.push('La gente respira aliviada.');
+    } else if (def.unaVez) {
+      Object.assign(inicial, def.inicial);
+      res.notas.push(...def.notas);
+    } else {
+      const p = RF.leyes.promulgar(estado, def, accion, laMedida);
+      Object.assign(inicial, p.inicial);
+      res.ley = p.ley;
+      res.porTurno = RF.leyes.efectoNominal(p.ley);
+      res.curvas = p.ley.curvas;
+      res.notas.push(...p.notas, ...def.notas);
+      if (p.sustituye && RF.ACCIONES[accion].inversa === p.sustituye.accion) sumar(inicial, 'estabilidad', -1);
+      if (def.texto) res.especial = def.texto;
     }
-    estado.politicas[objId] = accion;
+    res.medida = laMedida;
+    res.vars = { objeto: nombre, Objeto: T.mayus(nombre), medida: laMedida, Medida: T.mayus(laMedida), lider: 'Su Excelencia' };
 
-    aplicarEfectos(estado, efectos, res.deltas);
-    const ingresosAntes = estado.ingresos;
-    estado.ingresos = Math.max(-6, Math.min(6, estado.ingresos + Math.round(base.ingresos * Math.min(1, factor))));
-    res.cambioIngresos = estado.ingresos - ingresosAntes;
-    if (especial && especial.texto) res.especial = T.expandir(especial.texto, vars);
-    if (inst && inst.texto) res.especial = inst.texto;
+    // Combinaciones con historia propia ("vender el aire").
+    const especial = !res.derogada && RF.ESPECIALES[accion + ':' + objId];
+    if (especial) {
+      for (const [k, v] of Object.entries(convertir(especial.efectos))) sumar(inicial, k, v);
+      if (especial.texto && !res.especial) res.especial = T.expandir(especial.texto, res.vars);
+      for (const p of especial.programar || []) estado.pendientes.push(Object.assign({}, p, { texto: T.expandir(p.texto, res.vars), dia: estado.dia + p.en }));
+      res.programadas = (especial.programar || []).length;
+    }
 
-    // 2. Consecuencias con retraso.
-    const programadas = inst ? [] : (especial && especial.programar)
-      ? especial.programar.map(p => Object.assign({}, p, { texto: T.expandir(p.texto, vars) }))
-      : programarGenericas(accion, o, vars);
-    for (const p of programadas) estado.pendientes.push(Object.assign({}, p, { dia: estado.dia + p.en }));
-    res.programadas = programadas.length;
+    const factor = op.secundario ? 0.75 : 1;
+    for (const k of Object.keys(inicial)) inicial[k] *= factor;
+    aplicarEfectos(estado, inicial, res.deltas);
 
     estado.historial.push({ dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, medida: laMedida, texto: interp.texto });
     res.numero = estado.historial.length;
-
-    // 3. Reacciones: un ministro y una persona de la calle.
-    reacciones(estado, res, objId, o);
-
-    // 4. Pasa el día (si es el último decreto de la jornada).
+    reacciones(estado, res, objId);
     if (op.avanzar !== false) avanzarDia(estado, res);
     return res;
   }
 
-  function reacciones(estado, res, objId, o) {
-    res.ministro = elegirMinistro(res.deltas);
-    const cid = elegirCiudadano(estado, objId);
-    for (const c of Object.values(estado.ciudadanos)) c.animo = Math.max(-100, Math.min(100, c.animo + (res.deltas.pueblo || 0) * 0.35));
-    if (!cid) { res.ciudadano = null; return; }
-    const interesado = RF.CIUDADANOS[cid].intereses.includes(objId);
-    const impacto = (res.deltas.pueblo || 0) + (interesado ? 0.5 * ((res.deltas.salud || 0) + (o && o.faccion === 'pueblo' ? res.deltas.pueblo || 0 : 0)) : 0);
-    const c = estado.ciudadanos[cid];
-    c.animo = Math.max(-100, Math.min(100, c.animo + impacto * 0.4 + (interesado ? Math.sign(impacto) * 4 : 0)));
-    c.ultimaVez = estado.dia;
-    res.ciudadano = { id: cid, sentimiento: impacto > 2 ? 'pos' : impacto < -2 ? 'neg' : 'neu' };
-  }
-
   /*
    * Decreto sobre una persona: "matar a Garrote", "encarcelar a Nico", "premiar a la canciller".
+   * Algunos dejan huella varios turnos (un mártir, el miedo en Palacio, el luto de un barrio).
    */
   function decretarPersona(estado, interp, op) {
     op = op || {};
@@ -3026,51 +3305,79 @@ body {
     res.especial = t.texto;
     res.sucesor = t.sucesor || null;
     const factor = op.secundario ? 0.75 : 1;
-    const efectos = {};
-    for (const [k, v] of Object.entries(t.efectos)) efectos[k] = Math.round(v * factor);
+    const efectos = convertir(t.efectos);
+    for (const k of Object.keys(efectos)) efectos[k] *= factor;
     aplicarEfectos(estado, efectos, res.deltas);
+    if (t.ley) {
+      const p = RF.leyes.promulgar(estado, t.ley, 'PERSONA', t.ley.nombre);
+      res.ley = p.ley;
+      res.porTurno = RF.leyes.efectoNominal(p.ley);
+      res.notas.push('Esto dejará huella durante ' + t.ley.duracion + ' turnos: ' + t.ley.nombre + '.');
+    }
+    for (const clave of t.derogar || []) RF.leyes.derogar(estado, clave);
     if (t.cadena) estado.dilemas.cadena.push({ id: t.cadena.id, dia: estado.dia + t.cadena.en });
     estado.historial.push({ dia: estado.dia, accion: 'PERSONA', objeto: interp.persona, nombreObjeto: t.nombre, medida: t.medida, texto: interp.texto });
     res.numero = estado.historial.length;
     const tipo = RF.PERSONAS[interp.persona].tipo;
-    reacciones(estado, res, tipo === 'opositor' ? 'OPOSICION' : tipo === 'extranjero' ? 'EXTRANJEROS' : 'LIDER', null);
+    reacciones(estado, res, tipo === 'opositor' ? 'OPOSICION' : tipo === 'extranjero' ? 'EXTRANJEROS' : 'LIDER');
     if (op.avanzar !== false) avanzarDia(estado, res);
     return res;
   }
 
+  // Pasa un turno: leyes vigentes, economía, consecuencias, personajes, alertas y eventos.
   function avanzarDia(estado, res) {
+    const s = estado.stats;
     estado.dia++;
-    const economia = {};
-    aplicarEfectos(estado, { tesoro: estado.ingresos - 1 }, economia);
-    res.economia = economia.tesoro || 0;
 
-    // Desgaste del poder: la paciencia se agota y la euforia se enfría.
-    const desgaste = { pueblo: -1 };
-    for (const [k, v] of Object.entries(estado.stats)) if (v > 75) sumar(desgaste, k, -2);
-    aplicarEfectos(estado, desgaste);
+    // 1. Todas las leyes vigentes actúan.
+    const L = RF.leyes.turno(estado);
+    res.leyesTurno = L.detalle;
 
-    // Economía (mercado, reconversión, paro, inflación...) e instituciones del régimen.
-    const diario = {};
-    const eco = RF.economia.dia(estado, res);
-    const inst = RF.poder.dia(estado, res);
-    for (const r of [eco, inst]) for (const [k, v] of Object.entries(r)) diario[k] = (diario[k] || 0) + v;
-    res.economia += diario.tesoro || 0;
-    delete diario.tesoro;
-    res.diario = diario;
+    // 2. La economía de fondo y cómo se afectan las cuatro cosas entre sí.
+    const ingresos = INGRESOS_BASE * Math.max(0.5, Math.min(1.3, 0.6 + s.estabilidad / 150)) * Math.max(0.4, 1 - s.inflacion / 250);
+    const gastos = GASTOS_BASE * (1 + s.inflacion / 100);
+    const deuda = s.dinero < 0;
+    const presion = L.total.inflacion + (deuda ? Math.min(12, -s.dinero / 15) : 0) + Math.max(0, s.inflacion - 40) * 0.12;
+    const nuevaInflacion = Math.max(0, s.inflacion * 0.8 + 0.8 + presion);
+    const fondo = {
+      dinero: ingresos - gastos,
+      felicidad: -Math.max(0, s.inflacion - 8) / 18 + (50 - s.felicidad) * 0.04,
+      estabilidad: (50 - s.estabilidad) * 0.03
+        + (s.felicidad < 40 ? -(40 - s.felicidad) / 8 : s.felicidad > 70 ? 0.5 : 0)
+        + (s.inflacion > 30 ? -(s.inflacion - 30) / 20 : 0)
+        + (deuda ? -1 : 0) + (s.dinero < -100 ? -2 : 0)
+    };
+    res.fondo = fondo;
+    res.causas = [];
+    if (deuda) res.causas.push('Hay deuda: el Banco Central imprime para pagarla (más inflación) y los funcionarios cobran tarde.');
+    if (s.inflacion > 30) res.causas.push('La inflación del ' + Math.round(s.inflacion) + '% encarece todo y amarga a la gente.');
+    if (s.felicidad < 40) res.causas.push('La gente está harta: las protestas restan estabilidad cada turno.');
+    if (s.inflacion > 40) res.causas.push('Los precios se retroalimentan: todos suben precios porque esperan que suban.');
 
-    // Consecuencias que tocan hoy.
+    const cambio = {
+      dinero: fondo.dinero + L.total.dinero,
+      inflacion: nuevaInflacion - s.inflacion,
+      felicidad: fondo.felicidad + L.total.felicidad,
+      estabilidad: fondo.estabilidad + L.total.estabilidad
+    };
+    res.cambioTurno = {};
+    aplicarEfectos(estado, cambio, res.cambioTurno);
+    res.balance = cambio.dinero;
+    estado.balance = cambio.dinero;
+    for (const c of Object.values(estado.ciudadanos)) c.animo = Math.max(-100, Math.min(100, c.animo + (res.cambioTurno.felicidad || 0) * 0.8));
+
+    // 3. Consecuencias programadas que tocan hoy.
     const hoy = estado.pendientes.filter(p => p.dia <= estado.dia);
     estado.pendientes = estado.pendientes.filter(p => p.dia > estado.dia);
     for (const p of hoy) {
       const reg = {};
       aplicarEfectos(estado, p.efectos, reg);
-      if (p.ingresos) estado.ingresos = Math.max(-6, Math.min(6, estado.ingresos + p.ingresos));
-      res.sucesos.push({ tipo: 'consecuencia', titulo: p.titulo, texto: p.texto, deltas: reg });
+      res.sucesos.push({ tipo: 'consecuencia', titulo: p.titulo, texto: T.expandir(p.texto), deltas: reg });
     }
 
-    // Hitos de la gente de a pie.
+    // 4. La gente de a pie.
     for (const [id, c] of Object.entries(estado.ciudadanos)) {
-      if (c.estado && c.estado !== 'libre') continue;
+      if (c.estado !== 'libre') continue;
       for (const h of RF.CIUDADANOS[id].hitos) {
         if (c.hitos.includes(h.id)) continue;
         if ((h.bajo != null && c.animo <= h.bajo) || (h.alto != null && c.animo >= h.alto)) {
@@ -3082,47 +3389,63 @@ body {
       }
     }
 
-    // Umbrales: cuando algo cae por debajo de 25.
-    for (const [k, u] of Object.entries(RF.UMBRALES)) {
-      if (estado.stats[k] < 25 && !estado.umbrales[k]) {
-        estado.umbrales[k] = true;
+    // 5. Alertas cuando algo cruza una línea roja.
+    for (const u of RF.UMBRALES) {
+      const v = s[u.stat];
+      const cruza = u.bajo != null ? v < u.bajo : v > u.alto;
+      const vuelve = u.bajo != null ? v >= u.bajo + 10 : v <= u.alto * 0.7;
+      if (cruza && !estado.umbrales[u.id]) {
+        estado.umbrales[u.id] = true;
         const reg = {};
         aplicarEfectos(estado, u.efectos, reg);
-        if (u.ingresos) estado.ingresos = Math.max(-6, estado.ingresos + u.ingresos);
         res.sucesos.push({ tipo: 'umbral', titulo: u.titulo, texto: T.expandir(u.texto), deltas: reg });
-      } else if (estado.stats[k] >= 35) {
-        estado.umbrales[k] = false;
-      }
+      } else if (vuelve) estado.umbrales[u.id] = false;
     }
 
-    // Dilemas (eventos con decisiones): el Director decide si hoy salta uno.
+    // 6. Eventos con decisiones y noticias sueltas.
     const dilema = !comprobarFin(estado) && RF.director ? RF.director.comprobar(estado) : null;
     if (dilema) res.dilema = dilema.id;
-
-    // Noticias sueltas: si lleva días tranquilo y hoy no hay dilema, mete un suceso.
     if (res.sucesos.length || dilema) estado.diasSinEvento = 0;
     else estado.diasSinEvento++;
-    if (!dilema && estado.diasSinEvento >= 3 && Math.random() < 0.45) {
-      const media = RF.STATS.reduce((s, x) => s + estado.stats[x.id], 0) / RF.STATS.length;
-      const tono = media < 35 ? 1 : media > 60 ? -1 : 0;
-      const pool = tono ? RF.AZAR.filter(e => e.tono === tono) : RF.AZAR;
-      const ev = T.azar(pool);
+    if (!dilema && estado.diasSinEvento >= 4 && Math.random() < 0.4) {
+      const ev = T.azar(RF.AZAR);
       const reg = {};
       aplicarEfectos(estado, ev.efectos, reg);
       res.sucesos.push({ tipo: 'azar', titulo: ev.titulo, texto: T.expandir(ev.texto), deltas: reg });
       estado.diasSinEvento = 0;
     }
 
-    estado.diasEnQuiebra = estado.stats.tesoro <= 0 ? estado.diasEnQuiebra + 1 : 0;
-    if (estado.stats.tesoro <= 0 && estado.diasEnQuiebra === 1) {
-      res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: T.expandir('{cifuentes} entra sin llamar: "No queda un valdo. Si mañana seguimos así, el país quiebra."'), deltas: {} });
+    // 7. Quiebra y fin.
+    estado.diasEnQuiebra = s.dinero <= -150 ? estado.diasEnQuiebra + 1 : 0;
+    if (estado.diasEnQuiebra === 1) {
+      res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: T.expandir('{cifuentes} entra sin llamar: "Debemos más de 150 millones y nadie nos presta. Si el turno que viene seguimos así, el país quiebra."'), deltas: {} });
     }
-
     const fin = comprobarFin(estado);
     if (fin) { estado.fin = fin; res.fin = fin; }
   }
 
-  RF.consejero = { nuevoEstado, decretar, decretarPersona, avanzarDia, aplicarEfectos, medida, objetoDe, comprobarFin };
+  // Pasar el turno sin firmar nada: las leyes siguen trabajando.
+  function pasarTurno(estado) {
+    const res = { tipo: 'espera', dia: estado.dia, deltas: {}, sucesos: [], notas: [] };
+    avanzarDia(estado, res);
+    return res;
+  }
+
+  function comprobarFin(estado) {
+    const s = estado.stats;
+    if (s.estabilidad <= 0) return s.felicidad < 30 ? 'pueblo' : 'ejercito';
+    if (s.felicidad <= 0) return 'pueblo';
+    if (s.inflacion >= 1000) return 'hiperinflacion';
+    if (estado.diasEnQuiebra >= 2) return 'tesoro';
+    if (estado.dia > RF.PAIS.dias) {
+      if (s.felicidad >= 55) return 'elecciones_ganadas';
+      if (s.estabilidad >= 60) return 'elecciones_amanadas';
+      return 'elecciones_perdidas';
+    }
+    return null;
+  }
+
+  RF.consejero = { nuevoEstado, decretar, decretarPersona, pasarTurno, avanzarDia, aplicarEfectos, convertir, medida, objetoDe, comprobarFin, lealtad };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/director.js
@@ -3197,27 +3520,46 @@ body {
   // Lo que el jugador ve debajo de cada opción: "Tesoro −8 · Pueblo +10 · ⚠ Traerá consecuencias".
   function resumen(op) {
     const partes = [];
+    const ef = RF.consejero.convertir(op.efectos);
+    if (op.economia && op.economia.inflacion) ef.inflacion = (ef.inflacion || 0) + op.economia.inflacion;
+    if (op.economia && op.economia.paro) ef.felicidad = (ef.felicidad || 0) - op.economia.paro * 0.5;
     for (const s of RF.STATS) {
-      const v = op.efectos && op.efectos[s.id];
-      if (v) partes.push({ texto: s.nombre + ' ' + (v > 0 ? '+' : '−') + Math.abs(v), tono: v > 0 ? 'sube' : 'baja' });
+      const v = ef[s.id];
+      if (!v) continue;
+      const n = Math.round(v) || Math.sign(v);
+      const bueno = s.id === 'inflacion' ? n < 0 : n > 0;
+      partes.push({ texto: s.nombre + ' ' + (n > 0 ? '+' : '−') + Math.abs(n) + (s.id === 'dinero' ? 'M' : s.id === 'inflacion' ? '%' : ''), tono: bueno ? 'sube' : 'baja' });
     }
-    if (op.ingresos) partes.push({ texto: 'Ingresos ' + (op.ingresos > 0 ? '+' : '−') + Math.abs(op.ingresos) + '/día', tono: op.ingresos > 0 ? 'sube' : 'baja' });
+    if (op.ingresos) partes.push({ texto: (op.ingresos > 0 ? 'Ingreso fijo +' : 'Gasto fijo −') + Math.abs(op.ingresos * 3) + 'M/turno', tono: op.ingresos > 0 ? 'sube' : 'baja' });
     for (const [id, v] of Object.entries(op.animo || {})) {
       partes.push({ texto: RF.CIUDADANOS[id].nombre + (v > 0 ? ' ▲' : ' ▼'), tono: v > 0 ? 'sube' : 'baja' });
     }
-    if (op.persona) partes.push({ texto: RF.poder.nombreTrato(op.persona.trato) + ': ' + (RF.PERSONAS[op.persona.id].nombre || RF.VARS['n_' + op.persona.id] || RF.CIUDADANOS[op.persona.id] && RF.CIUDADANOS[op.persona.id].nombre), tono: 'aviso' });
-    if (op.institucion) for (const [id, que] of Object.entries(op.institucion)) partes.push({ texto: (que === 'disolver' ? 'Disuelve ' : 'Crea ') + RF.INSTITUCIONES[id].corto, tono: 'aviso' });
+    if (op.persona) partes.push({ texto: RF.poder.nombreTrato(op.persona.trato) + ': ' + (RF.PERSONAS[op.persona.id].nombre || RF.VARS['n_' + op.persona.id] || (RF.CIUDADANOS[op.persona.id] && RF.CIUDADANOS[op.persona.id].nombre)), tono: 'aviso' });
+    if (op.institucion) for (const id of Object.keys(op.institucion)) partes.push({ texto: 'Disuelve ' + RF.INSTITUCIONES[id].corto, tono: 'aviso' });
     if (op.nombrar) partes.push({ texto: 'Nuevo ministro: ' + op.nombrar.nombre, tono: 'aviso' });
     if (op.economia) {
       const a = op.economia;
-      if (a.inflacion) partes.push({ texto: 'Inflación ' + (a.inflacion > 0 ? '▲' : '▼'), tono: a.inflacion > 0 ? 'baja' : 'sube' });
-      if (a.paro) partes.push({ texto: 'Paro ' + (a.paro > 0 ? '▲' : '▼'), tono: a.paro > 0 ? 'baja' : 'sube' });
-      for (const [id, v] of Object.entries(a.sectores || {})) partes.push({ texto: RF.SECTORES[id].nombre + (v > 0 ? ' ▲' : ' ▼'), tono: 'aviso' });
-      for (const [id, f] of Object.entries(a.multiplicar || {})) partes.push({ texto: RF.SECTORES[id].nombre + (f > 1 ? ' ▲' : ' ▼'), tono: 'aviso' });
+      if (a.multiplicar && a.multiplicar.narco) partes.push({ texto: 'Narcotráfico ▼', tono: 'aviso' });
+      if (a.sectores) partes.push({ texto: 'Frena la reconversión', tono: 'aviso' });
       if (a.cancelarModelo) partes.push({ texto: 'Cancela la reconversión', tono: 'aviso' });
     }
     if (op.programar || op.cadena) partes.push({ texto: '⚠ Traerá consecuencias', tono: 'aviso' });
     return partes;
+  }
+
+  // Los ajustes económicos de una opción, traducidos a las leyes vigentes.
+  function ajustarEconomia(e, a, deltas) {
+    const leyes = RF.leyes.lista(e);
+    if (a.inflacion) RF.consejero.aplicarEfectos(e, { inflacion: a.inflacion }, deltas);
+    if (a.paro) RF.consejero.aplicarEfectos(e, { felicidad: -a.paro * 0.5 }, deltas);
+    if (a.multiplicar && a.multiplicar.narco) {
+      const f = a.multiplicar.narco;
+      for (const l of leyes.filter(l => l.clave === 'NARCO' || l.modelo === 'narco')) {
+        if (f <= 0.3) RF.leyes.derogar(e, l.clave); else l.factor = (l.factor || 1) * f;
+      }
+    }
+    if (a.sectores) for (const l of leyes.filter(l => l.clave === 'MODELO')) l.factor = (l.factor || 1) * 0.8;
+    if (a.cancelarModelo) RF.leyes.derogar(e, 'MODELO');
   }
 
   function texto(d) { return T.expandir(d.texto, { lider: 'Su Excelencia' }); }
@@ -3234,7 +3576,7 @@ body {
     const textoOpcion = T.expandir(op.texto);
     const deltas = {};
     RF.consejero.aplicarEfectos(e, op.efectos, deltas);
-    if (op.economia) RF.economia.ajustar(e, op.economia);
+    if (op.economia) ajustarEconomia(e, op.economia, deltas);
     for (const [id, que] of Object.entries(op.institucion || {})) if (que === 'disolver') RF.poder.disolver(e, id);
     if (op.nombrar) RF.poder.nombrar(e, op.nombrar.cargo, op.nombrar.nombre, op.nombrar.corto);
     if (op.persona) {
@@ -3245,12 +3587,17 @@ body {
         if (t.sucesor) resultado += ' Su puesto lo ocupa ' + t.sucesor + '.';
       }
     }
-    if (op.ingresos) e.ingresos = Math.max(-6, Math.min(6, e.ingresos + op.ingresos));
+    // Un compromiso de gasto (subir salarios, pagar un préstamo...) se queda como ley vigente.
+    if (op.ingresos) {
+      const nombre = (op.ingresos > 0 ? 'los ingresos de "' : 'el compromiso de "') + T.expandir(op.texto).toLowerCase() + '"';
+      RF.leyes.promulgar(e, { clave: 'EVENTO:' + d.id, porTurno: { dinero: op.ingresos * 3 } }, 'EVENTO', nombre);
+    }
     for (const [id, v] of Object.entries(op.animo || {})) {
       const c = e.ciudadanos[id];
       if (c) c.animo = Math.max(-100, Math.min(100, c.animo + v));
     }
-    if (op.politica) Object.assign(e.politicas, op.politica);
+    // Una opción que cambia una política deroga la ley que había sobre ese tema.
+    for (const objId of Object.keys(op.politica || {})) RF.leyes.derogar(e, objId);
     for (const p of op.programar || []) e.pendientes.push(Object.assign({}, p, { dia: e.dia + p.en, texto: T.expandir(p.texto) }));
     if (op.cadena) D.cadena.push({ id: op.cadena.id, dia: e.dia + op.cadena.en });
     D.pendiente = null;
@@ -3261,281 +3608,6 @@ body {
   }
 
   RF.director = { comprobar, pendiente, resolver, resumen, texto, porId };
-})(globalThis.RF = globalThis.RF || {});
-
-// js/economia.js
-/*
- * LA ECONOMÍA
- * Cada sector tiene un peso (parte de la economía), un precio mundial que fluctúa y un dueño.
- * Cada día:
- *   1. los precios se mueven (con tendencia a volver a su valor normal)
- *   2. si hay una reconversión en marcha ("toda la economía al carbón"), el sector elegido crece y los demás encogen
- *   3. se calculan PIB, paro, inflación y contaminación
- *   4. todo eso empuja las estadísticas del país (tesoro, pueblo, salud, mundo, orden...)
- */
-(function (RF) {
-  'use strict';
-  const T = RF.texto;
-  const OBJETIVO_MODELO = 52;
-  const PASO_MODELO = 3;
-
-  function nueva() {
-    const sectores = {};
-    for (const [id, s] of Object.entries(RF.SECTORES)) sectores[id] = { peso: s.peso, precio: s.base, dueno: s.dueno, legal: !s.ilegal };
-    const eco = { sectores, defs: {}, modelo: null, pib: 0, pibAyer: 0, paro: 12, inflacion: 5, extraInflacion: 0, contaminacion: 0, alertas: {}, acum: {} };
-    const c = calcular(eco);
-    eco.pib = eco.pibAyer = eco.pibBase = c.pib;
-    eco.empleoBase = c.empleo;
-    eco.contaminacion = c.sucio * 0.35;
-    return eco;
-  }
-
-  function datos(e) {
-    if (!e.eco) e.eco = nueva();
-    return e.eco;
-  }
-
-  function def(eco, id) { return RF.SECTORES[id] || eco.defs[id]; }
-
-  function calcular(eco) {
-    let pib = 0, empleo = 0, sucio = 0;
-    for (const [id, s] of Object.entries(eco.sectores)) {
-      const d = def(eco, id);
-      pib += s.peso * s.precio;
-      empleo += s.peso * d.empleo;
-      sucio += s.peso * d.sucio;
-    }
-    return { pib, empleo, sucio };
-  }
-
-  function gauss() { return (Math.random() + Math.random() + Math.random() - 1.5) * 2; }
-  function limitar(v, a, b) { return Math.max(a, Math.min(b, v)); }
-
-  // Suma efectos con decimales: se guardan y se aplican cuando llegan a un punto entero.
-  function acumular(e, efectos, registro) {
-    const eco = datos(e);
-    const enteros = {};
-    for (const [k, v] of Object.entries(efectos)) {
-      if (!v) continue;
-      eco.acum[k] = (eco.acum[k] || 0) + v;
-      const n = Math.trunc(eco.acum[k]);
-      if (n) { enteros[k] = n; eco.acum[k] -= n; }
-    }
-    RF.consejero.aplicarEfectos(e, enteros, registro);
-    return enteros;
-  }
-
-  function nombreSector(eco, id) { return def(eco, id).nombre.toLowerCase(); }
-
-  // Nuevo sector inventado por el jugador ("toda la economía basada en los calcetines").
-  function sectorExotico(eco, nombre) {
-    const id = 'exotico';
-    eco.defs[id] = { nombre: T.mayus(nombre), detalle: 'la gran apuesta de Su Excelencia', base: 0.35, vol: 0.09, sucio: 1, empleo: 1 };
-    if (!eco.sectores[id]) eco.sectores[id] = { peso: 0, precio: 0.35, dueno: 'estado', legal: true };
-    return id;
-  }
-
-  /*
-   * Efectos económicos de un decreto. Devuelve { efectos, notas } que el Consejero suma a los del decreto.
-   */
-  function aplicarDecreto(e, accion, objId, nombre) {
-    const eco = datos(e);
-    const efectos = {};
-    const notas = [];
-    const sumar = (k, v) => { efectos[k] = (efectos[k] || 0) + v; };
-
-    if (objId === 'DINERO') {
-      if (accion === 'CREAR' || accion === 'SUBSIDIAR' || accion === 'INVERTIR') {
-        sumar('tesoro', 14); eco.extraInflacion += 25;
-        notas.push('Las imprentas del Banco Central trabajan día y noche. En unos días, los precios empezarán a subir.');
-      } else if (accion === 'PROHIBIR' || accion === 'PRIVATIZAR') {
-        eco.dolarizado = true; eco.extraInflacion = 0;
-        sumar('tesoro', -6); sumar('mundo', 4); sumar('pueblo', -3); sumar('cupula', 3);
-        notas.push('Adiós al valdo: Valdoria usará moneda extranjera. La inflación bajará, pero ya no podrás imprimir dinero.');
-      } else if (accion === 'RECORTAR' || accion === 'BAJAR_IMPUESTO') {
-        eco.extraInflacion += 10;
-        for (const id of ['agro', 'mineria', 'industria', 'turismo']) eco.sectores[id].precio *= 1.1;
-        sumar('tesoro', 4); sumar('pueblo', -3);
-        notas.push('El valdo pierde un tercio de su valor. Exportar sale más rentable; comprar pan, más caro.');
-      }
-      return { efectos, notas };
-    }
-
-    if (accion === 'ENFOCAR') {
-      let sec = RF.SECTOR_AMPLIO[objId];
-      if (!sec) sec = sectorExotico(eco, nombre);
-      eco.modelo = { sector: sec, desde: e.dia };
-      sumar('tesoro', -5); sumar('pueblo', -3);
-      const s = eco.sectores[sec];
-      if (sec === 'narco') {
-        s.dueno = 'estado'; s.legal = true;
-        sumar('mundo', -12); sumar('cupula', 4); sumar('orden', 2);
-        notas.push('El Estado se convierte en el mayor cártel del país. Los antiguos capos ahora tienen despacho en un ministerio.');
-      } else if (sec === 'carbon') { sumar('mundo', -5); sumar('cupula', 3); }
-      else if (sec === 'tecnologia' || sec === 'turismo') sumar('mundo', 3);
-      else if (sec === 'exotico') { sumar('mundo', -3); notas.push('Ningún economista del mundo había contemplado este modelo. Algunos piden verlo de cerca.'); }
-      notas.push('La economía empieza a girar hacia ' + nombreSector(eco, sec) + ': unos ' + PASO_MODELO + ' puntos por día hasta ocupar la mitad del país. Mientras dure la reconversión, subirá el paro.');
-      return { efectos, notas };
-    }
-
-    const sec = RF.SECTOR_DIRECTO[objId];
-    if (!sec) return { efectos, notas };
-    const s = eco.sectores[sec];
-    const antes = s.peso;
-    switch (accion) {
-      case 'INVERTIR': case 'CREAR': s.peso += 4; break;
-      case 'SUBSIDIAR': case 'OBLIGAR': s.peso += 2; break;
-      case 'BAJAR_IMPUESTO': s.peso += 1.5; break;
-      case 'SUBIR_IMPUESTO': s.peso = Math.max(0, s.peso - 1.5); break;
-      case 'RECORTAR': s.peso = Math.max(0, s.peso - 3); break;
-      case 'PRIVATIZAR': s.dueno = 'privado'; break;
-      case 'NACIONALIZAR': s.dueno = 'estado'; if (sec === 'narco') s.legal = true; break;
-      case 'LEGALIZAR': if (sec === 'narco') { s.legal = true; if (s.dueno === 'carteles') s.dueno = 'privado'; } break;
-      case 'PROHIBIR': case 'CASTIGAR':
-        s.peso = s.peso * (sec === 'narco' ? 0.6 : 0.4);
-        if (sec === 'narco') { s.legal = false; s.dueno = 'carteles'; }
-        break;
-    }
-    if (eco.modelo && eco.modelo.sector === sec && ['PROHIBIR', 'RECORTAR', 'CASTIGAR'].includes(accion)) {
-      eco.modelo = null;
-      notas.push('La reconversión hacia ' + nombreSector(eco, sec) + ' queda cancelada. Nadie sabe ya hacia dónde va la economía.');
-    }
-    const cambio = Math.round(s.peso - antes);
-    if (cambio) notas.push(RF.SECTORES[sec].nombre + ': ' + (cambio > 0 ? '+' : '') + cambio + ' puntos de la economía.');
-    return { efectos, notas };
-  }
-
-  // Ajustes que vienen de un evento ({ sectores: {narco: -10}, inflacion: 20, paro: -5, modelo: null }).
-  function ajustar(e, a) {
-    const eco = datos(e);
-    for (const [id, v] of Object.entries(a.sectores || {})) if (eco.sectores[id]) eco.sectores[id].peso = Math.max(0, eco.sectores[id].peso + v);
-    for (const [id, f] of Object.entries(a.multiplicar || {})) if (eco.sectores[id]) eco.sectores[id].peso *= f;
-    if (a.inflacion) eco.extraInflacion += a.inflacion;
-    if (a.paro) eco.paro = limitar(eco.paro + a.paro, 2, 60);
-    if (a.duenos) for (const [id, d] of Object.entries(a.duenos)) if (eco.sectores[id]) eco.sectores[id].dueno = d;
-    if (a.cancelarModelo) eco.modelo = null;
-  }
-
-  // Un día de economía. Devuelve el cambio del tesoro por la economía y añade noticias a res.sucesos.
-  function dia(e, res) {
-    const eco = datos(e);
-
-    // 1. Precios mundiales.
-    for (const [id, s] of Object.entries(eco.sectores)) {
-      const d = def(eco, id);
-      let objetivo = d.base;
-      if (id === 'turismo') objetivo = d.base * (0.5 + e.stats.orden / 200 + e.stats.mundo / 200);
-      if (id === 'narco' && s.legal && s.dueno === 'privado') objetivo = d.base * 0.75; // con competencia legal, paga menos
-      s.precio = limitar(s.precio + (objetivo - s.precio) * 0.12 + gauss() * d.vol, 0.15, d.base * 3);
-      // Noticias del mercado cuando el sector importa.
-      if (s.peso >= 8 && id !== 'servicios') {
-        const r = s.precio / d.base;
-        const v = { sector: nombreSector(eco, id), Sector: def(eco, id).nombre, capital: RF.PAIS.capital };
-        if (r < 0.72 && !eco.alertas[id + '_baja']) {
-          eco.alertas[id + '_baja'] = true;
-          res.sucesos.push({ tipo: 'mercado', titulo: def(eco, id).nombre + ' se hunde', texto: T.expandir(T.azar(RF.NOTICIAS_MERCADO.baja), v), deltas: {} });
-        } else if (r > 0.9) eco.alertas[id + '_baja'] = false;
-        if (r > 1.35 && !eco.alertas[id + '_sube']) {
-          eco.alertas[id + '_sube'] = true;
-          res.sucesos.push({ tipo: 'mercado', titulo: def(eco, id).nombre + ' se dispara', texto: T.expandir(T.azar(RF.NOTICIAS_MERCADO.sube), v), deltas: {} });
-        } else if (r < 1.15) eco.alertas[id + '_sube'] = false;
-      }
-    }
-
-    // 2. Reconversión.
-    let enTransicion = false;
-    if (eco.modelo && !eco.modelo.completado) {
-      const m = eco.sectores[eco.modelo.sector];
-      const total = Object.values(eco.sectores).reduce((t, s) => t + s.peso, 0);
-      const mover = Math.min(PASO_MODELO, Math.max(0, (OBJETIVO_MODELO / 100) * total - m.peso));
-      if (mover > 0.01) {
-        const otros = Object.entries(eco.sectores).filter(([id]) => id !== eco.modelo.sector);
-        const resto = otros.reduce((t, [, s]) => t + s.peso, 0) || 1;
-        for (const [, s] of otros) s.peso = Math.max(0, s.peso - mover * (s.peso / resto));
-        m.peso += mover;
-        enTransicion = true;
-      } else {
-        eco.modelo.completado = true;
-        const v = { sector: nombreSector(eco, eco.modelo.sector), Sector: def(eco, eco.modelo.sector).nombre };
-        res.sucesos.push({ tipo: 'mercado', titulo: 'Reconversión completada', texto: T.expandir(T.azar(RF.NOTICIAS_MERCADO.modelo), v), deltas: {} });
-      }
-    }
-
-    // 3. Indicadores.
-    const c = calcular(eco);
-    eco.pibAyer = eco.pib;
-    eco.pib = c.pib;
-    const paroObjetivo = limitar(12 + (eco.empleoBase - c.empleo) / 3 + (eco.pibBase - c.pib) / 4, 2, 60);
-    eco.paro = limitar(eco.paro + (paroObjetivo - eco.paro) * 0.2 + (enTransicion ? 0.7 : 0), 2, 60);
-    eco.extraInflacion *= 0.93;
-    const inflObjetivo = (eco.dolarizado ? 2 : 5) + (eco.dolarizado ? 0 : Math.max(0, -e.ingresos - 1) * 5 + eco.extraInflacion);
-    eco.inflacion = limitar(eco.inflacion + (inflObjetivo - eco.inflacion) * 0.25, 0, 500);
-    eco.contaminacion = limitar(eco.contaminacion + (c.sucio * 0.35 - eco.contaminacion) * 0.15, 0, 100);
-
-    // 4. Efectos en el país.
-    const ef = {};
-    const sumar = (k, v) => { ef[k] = (ef[k] || 0) + v; };
-    sumar('tesoro', (c.pib - eco.pibBase) / 6);
-    for (const [, s] of Object.entries(eco.sectores)) if (s.dueno === 'estado') sumar('tesoro', s.peso * s.precio * 0.05);
-    const n = eco.sectores.narco;
-    if (n.peso > 0.5) {
-      if (n.dueno === 'estado') { sumar('mundo', -n.peso / 12); sumar('cupula', n.peso / 30); }
-      else if (n.legal) { sumar('mundo', -n.peso / 20); sumar('tesoro', n.peso * 0.03); }
-      else { sumar('orden', -n.peso / 12); sumar('cupula', n.peso / 25); sumar('mundo', -n.peso / 25); }
-      sumar('salud', -n.peso / 30);
-    }
-    if (eco.paro > 28) sumar('pueblo', -1.5); else if (eco.paro > 18) sumar('pueblo', -0.6);
-    if (eco.inflacion > 60) sumar('pueblo', -1.5); else if (eco.inflacion > 20) sumar('pueblo', -0.6);
-    if (c.pib - eco.pibAyer > 2) sumar('pueblo', 0.5);
-    if (eco.contaminacion > 70) sumar('salud', -1.5); else if (eco.contaminacion > 45) sumar('salud', -0.7);
-    if (eco.contaminacion > 55) sumar('mundo', -0.5);
-    const reg = {};
-    acumular(e, ef, reg);
-    return reg;
-  }
-
-  // Datos para la cabecera y el informe.
-  function resumen(e) {
-    const eco = datos(e);
-    return {
-      pib: Math.round((eco.pib / eco.pibBase) * 100),
-      tendencia: eco.pib - eco.pibAyer,
-      paro: Math.round(eco.paro),
-      inflacion: Math.round(eco.inflacion),
-      contaminacion: Math.round(eco.contaminacion)
-    };
-  }
-
-  function barra(v, max) { const n = Math.round((v / max) * 10); return '█'.repeat(Math.min(10, n)) + '░'.repeat(Math.max(0, 10 - n)); }
-
-  function informe(e) {
-    const eco = datos(e);
-    const r = resumen(e);
-    const total = Object.values(eco.sectores).reduce((t, s) => t + s.peso, 0) || 1;
-    const lineas = [
-      'PIB ' + r.pib + ' ' + (r.tendencia > 0.5 ? '▲' : r.tendencia < -0.5 ? '▼' : '=') + '  (100 = tu llegada)',
-      'Paro ' + r.paro + '% · Inflación ' + r.inflacion + '%',
-      'Contaminación ' + r.contaminacion + '/100',
-      eco.dolarizado ? 'Moneda: dólar (ya no puedes imprimir)' : 'Moneda: el valdo',
-      eco.modelo ? 'Modelo: todo al ' + nombreSector(eco, eco.modelo.sector) : 'Modelo: economía mixta',
-      eco.modelo ? (eco.modelo.completado ? '  reconversión completada' : '  reconversión en marcha') : '',
-      '',
-      'SECTOR          PESO PRECIO DUEÑO'
-    ].filter((l, i) => l || i === 6);
-    const orden = Object.entries(eco.sectores).filter(([, s]) => s.peso >= 0.5).sort((a, b) => b[1].peso - a[1].peso);
-    for (const [id, s] of orden) {
-      const d = def(eco, id);
-      const pct = Math.round((s.peso / total) * 100);
-      const precio = s.precio / d.base;
-      const flecha = precio > 1.1 ? '▲' : precio < 0.9 ? '▼' : '=';
-      lineas.push(d.nombre.slice(0, 15).padEnd(15) + String(pct).padStart(4) + '% ' + (precio.toFixed(2) + flecha).padStart(5) + ' ' + (RF.DUENOS[s.dueno] || s.dueno) + (id === 'narco' && !s.legal ? '*' : ''));
-      lineas.push('  ' + barra(pct, 60));
-    }
-    if (!eco.sectores.narco.legal && eco.sectores.narco.peso >= 0.5) lineas.push('* ilegal');
-    return lineas.join('\n');
-  }
-
-  RF.economia = { nueva, datos, aplicarDecreto, ajustar, dia, resumen, informe, acumular, nombreSector };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/poder.js
@@ -3555,7 +3627,6 @@ body {
   };
 
   function iniciar(e) {
-    if (!e.instituciones) e.instituciones = {};
     if (!e.gabinete) {
       e.gabinete = {};
       for (const [id, m] of Object.entries(RF.GABINETE)) e.gabinete[id] = { nombre: m.nombre, corto: m.corto, caidos: [], sucesor: 0 };
@@ -3577,58 +3648,6 @@ body {
   }
 
   function ministro(e, id) { iniciar(e); return e.gabinete[id]; }
-
-  // ---------- Instituciones ----------
-  const CREAN = ['CREAR', 'INVERTIR', 'OBLIGAR', 'GLORIFICAR', 'SUBSIDIAR', 'LEGALIZAR'];
-  const DISUELVEN = ['PROHIBIR', 'RECORTAR', 'CASTIGAR', 'PRIVATIZAR'];
-
-  // Devuelve { efectos, texto, notas } si el decreto va sobre una institución; si no, null.
-  function aplicarInstitucion(e, accion, objId) {
-    const def = RF.INSTITUCIONES[objId];
-    if (!def) return null;
-    iniciar(e);
-    const actual = e.instituciones[objId];
-    const out = { efectos: {}, notas: [], texto: null };
-    if (CREAN.includes(accion)) {
-      if (actual) {
-        if (actual.nivel >= 3) { out.notas.push(T.mayus(def.corto) + ' ya está a pleno rendimiento. No se puede ampliar más.'); return out; }
-        actual.nivel++;
-        e.ingresos = Math.max(-6, e.ingresos - def.coste);
-        for (const [k, v] of Object.entries(def.crear)) out.efectos[k] = Math.round(v / 2);
-        out.texto = T.mayus(def.corto) + ' se amplía: más gente, más presupuesto, más alcance. Ahora es de nivel ' + actual.nivel + '.';
-      } else {
-        e.instituciones[objId] = { desde: e.dia, nivel: 1 };
-        e.ingresos = Math.max(-6, e.ingresos - def.coste);
-        Object.assign(out.efectos, def.crear);
-        out.texto = T.expandir(def.texto);
-      }
-      out.notas.push('Coste: ' + def.coste + ' valdos al día por nivel. Seguirá actuando cada día mientras exista.');
-    } else if (DISUELVEN.includes(accion)) {
-      if (!actual) { out.notas.push(T.mayus(def.corto) + ' no existe. No hay nada que disolver.'); return out; }
-      e.ingresos = Math.min(6, e.ingresos + def.coste * actual.nivel);
-      delete e.instituciones[objId];
-      Object.assign(out.efectos, def.disolver);
-      out.texto = T.mayus(def.corto) + ' queda disuelto por decreto. Sus miembros vuelven a casa... o eso dicen.';
-    } else return null;
-    return out;
-  }
-
-  function dia(e, res) {
-    iniciar(e);
-    const ef = {};
-    for (const [id, inst] of Object.entries(e.instituciones)) {
-      const def = RF.INSTITUCIONES[id];
-      for (const [k, v] of Object.entries(def.diario)) ef[k] = (ef[k] || 0) + v * inst.nivel;
-      if (def.vigila) {
-        if (e.stats.ejercito < 35) ef.ejercito = (ef.ejercito || 0) + 0.5;
-        if (e.stats.cupula < 35) ef.cupula = (ef.cupula || 0) + 0.5;
-      }
-      if (e.dia - inst.desde === 3) res.sucesos.push({ tipo: 'institucion', titulo: def.corto, texto: T.expandir(def.diarioTexto), deltas: {} });
-    }
-    const reg = {};
-    RF.economia.acumular(e, ef, reg);
-    return reg;
-  }
 
   // ---------- Personas ----------
   function nombrePersona(e, id) {
@@ -3737,6 +3756,7 @@ body {
         actualizarNombres(e);
         out.texto += ' ' + T.expandir(T.azar(RF.TEXTO_SUCESOR), { sucesor: nuevo.nombre, Sucesor: nuevo.nombre });
         out.sucesor = nuevo.nombre;
+        if (trato === 'matar') out.ley = { clave: 'MIEDO', nombre: 'el miedo en Palacio', porTurno: { estabilidad: 0.6, felicidad: -0.2 }, duracion: 5 };
       }
     } else if (p.tipo === 'ciudadano') {
       const c = e.ciudadanos[id];
@@ -3744,6 +3764,7 @@ body {
       const mueve = (quien, v) => { out.animo[quien] = (out.animo[quien] || 0) + v; };
       if (trato === 'matar') {
         c.estado = 'muerto';
+        out.ley = { clave: 'LUTO_' + id, nombre: 'el luto por ' + nombre, porTurno: { felicidad: -0.8, estabilidad: -0.3 }, duracion: 5 };
         for (const otro of Object.keys(e.ciudadanos)) if (otro !== id) mueve(otro, -20);
         if (familia) mueve(familia, -60);
         out.cadena = { id: 'luto_' + id, en: 2 };
@@ -3765,10 +3786,14 @@ body {
     } else if (p.tipo === 'opositor') {
       const destino = { matar: 'muerto', encarcelar: 'preso', exiliar: 'exiliado', destituir: 'exiliado', premiar: 'aliado', liberar: 'libre' }[trato];
       e.personas[id] = destino;
+      if (trato === 'matar') out.ley = { clave: 'MARTIR', nombre: 'el recuerdo del mártir Valiente', porTurno: { estabilidad: -1.2, felicidad: -0.5 }, duracion: 8 };
+      if (trato === 'encarcelar') out.ley = { clave: 'PRESO_POLITICO', nombre: 'Valiente entre rejas', porTurno: { estabilidad: -0.5, felicidad: -0.3 }, duracion: 12 };
+      if (trato === 'liberar' || trato === 'matar' || trato === 'exiliar') out.derogar = ['PRESO_POLITICO'];
       out.cadena = { matar: { id: 'funeral_valiente', en: 1 }, encarcelar: { id: 'huelga_hambre', en: 3 }, exiliar: { id: 'gobierno_exilio', en: 4 }, destituir: { id: 'gobierno_exilio', en: 4 } }[trato] || null;
     } else if (p.tipo === 'extranjero') {
       e.personas[id] = { matar: 'muerto', encarcelar: 'preso', exiliar: 'exiliado', destituir: 'exiliado' }[trato] || e.personas[id];
       if (trato === 'matar' || trato === 'encarcelar') out.cadena = { id: 'represalias', en: 1 };
+      if (trato === 'matar' || trato === 'encarcelar') out.ley = { clave: 'AISLAMIENTO', nombre: 'el aislamiento internacional', porTurno: { dinero: -8, estabilidad: -0.8 }, duracion: 12 };
       if (trato === 'exiliar' || trato === 'destituir') out.notas.push('La Unión Atlántica enviará un nuevo embajador. Más frío que el anterior.');
       if (trato === 'exiliar' || trato === 'destituir') e.personas[id] = 'libre';
     }
@@ -3794,18 +3819,13 @@ body {
   }
 
   // Disuelve una institución por un evento. Devuelve true si existía.
-  function disolver(e, id, registro) {
-    iniciar(e);
-    const actual = e.instituciones[id];
-    if (!actual) return false;
-    e.ingresos = Math.min(6, e.ingresos + RF.INSTITUCIONES[id].coste * actual.nivel);
-    delete e.instituciones[id];
-    return true;
+  function disolver(e, id) {
+    return !!RF.leyes.derogar(e, id);
   }
 
   function nombreTrato(id) { return RF.TRATOS.find(t => t.id === id).nombre; }
 
-  RF.poder = { iniciar, actualizarNombres, aplicarInstitucion, dia, buscar, detectarTrato, tratar, tratosPosibles, nombrePersona, nombreTrato, estadoPersona, ministro, nombrar, disolver, NOMINAL };
+  RF.poder = { iniciar, actualizarNombres, buscar, detectarTrato, tratar, tratosPosibles, nombrePersona, nombreTrato, estadoPersona, ministro, nombrar, disolver, NOMINAL };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/narrador.js
@@ -3826,19 +3846,20 @@ body {
     'El secretario escribe el decreto, lo lee, le da la vuelta al papel y lo vuelve a leer. "¿Esto se publica así, Excelencia?"'
   ];
 
-  const EJEMPLOS = ['prohibir el fútbol', 'el aire se vende', 'subir impuestos a los ricos', 'regalar comida', 'mano dura contra los ladrones', 'estatua de mí', 'invertir en hospitales', 'legalizar la marihuana'];
+  const EJEMPLOS = ['imprimir dinero', 'regalar comida', 'vender el aire', 'vender cocaína', 'subir impuestos a los ricos', 'crear una escuadra de represión', 'invertir en hospitales', 'dejar de imprimir dinero'];
 
   function ayuda() {
     return [{
       tipo: 'sistema', titulo: 'CÓMO GOBERNAR',
       texto: 'Escribe un decreto con tus palabras y pulsa Decretar. El Intérprete intentará entenderlo.\n' +
         'Ejemplos: ' + EJEMPLOS.map(e => '"' + e + '"').join(', ') + '.\n' +
+        'Cuatro cosas importan: DINERO, INFLACIÓN, ESTABILIDAD y FELICIDAD. Si la estabilidad o la felicidad llegan a 0, caes.\n' +
+        'Cada decreto es una LEY que sigue actuando todos los turnos: "regalar comida" cuesta dinero cada turno, "imprimir dinero" sube la inflación cada turno, "vender el aire" da dinero cada turno pero amarga a la gente. Las leyes se acumulan.\n' +
+        'Para quitar una ley: "dejar de regalar comida", "derogar la ley del aire" o "derogar el último decreto".\n' +
         'Puedes firmar hasta 3 decretos a la vez: "prohibir el fútbol y subir impuestos a los ricos".\n' +
-        'Economía: "hacer un narcoestado", "toda la economía al carbón", "imprimir dinero", "nacionalizar el petróleo".\n' +
-        'Poder: "crear una escuadra de represión", "fundar un partido único", "destituir a Cifuentes", "encarcelar a Valiente".\n' +
-        'Cada pocos días surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
-        'Comandos: "estado" (cómo va el país), "economía" (el mercado), "poder" (ministros, instituciones y personas), "historial", "reiniciar".\n' +
-        'Sobrevive ' + RF.PAIS.dias + ' días. Si alguna barra llega a 0, caes.'
+        'Cada pocos turnos surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
+        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
+        'Sobrevive ' + RF.PAIS.dias + ' turnos hasta las elecciones.'
     }];
   }
 
@@ -3846,9 +3867,9 @@ body {
     return [
       { tipo: 'titulo', texto: RF.PAIS.nombre.toUpperCase() },
       {
-        tipo: 'gaceta', titulo: 'GACETA OFICIAL · DÍA 1',
+        tipo: 'gaceta', titulo: 'GACETA OFICIAL · TURNO 1',
         texto: 'Anoche, tras "un proceso democrático muy rápido", te convertiste en el Líder Supremo de ' + RF.PAIS.nombre + '. ' +
-          'Tienes una consola, un sello y ' + RF.PAIS.dias + ' días hasta las elecciones prometidas. Todo lo que escribas aquí se convierte en ley.'
+          'Tienes una consola, un sello y ' + RF.PAIS.dias + ' turnos hasta las elecciones prometidas. Todo lo que escribas aquí se convierte en ley, y las leyes se acumulan.'
       },
       {
         tipo: 'cupula', titulo: 'TU GABINETE',
@@ -3857,7 +3878,7 @@ body {
       {
         tipo: 'prensa', titulo: 'LA OPOSICIÓN Y EL MUNDO',
         texto: 'Ernesto Valiente, líder de la oposición, ya ha convocado a sus seguidores. El embajador de la Unión Atlántica observa desde su embajada con cara de preocupación.\n' +
-          'La economía vive del plátano, el petróleo y el comercio. Escribe "economía" para ver el mercado.'
+          'Las arcas tienen 100 millones de valdos, la inflación está en el 4% y el país está razonablemente tranquilo. De momento.'
       },
       {
         tipo: 'calle', titulo: 'MIENTRAS TANTO, EN LA CALLE',
@@ -3871,7 +3892,7 @@ body {
     if (!m) return { titulo: 'EL GABINETE', texto: 'El gabinete escucha el decreto en silencio. Nadie sabe muy bien para qué sirve, pero todos aplauden.' };
     const min = RF.GABINETE[m.id];
     let texto = T.expandir(T.azar(m.delta > 0 ? min.pos : min.neg), res.vars);
-    if (estado.stats[m.stat] < 30 && Math.random() < 0.6) texto += ' ' + T.expandir(T.azar(min.bajo), res.vars);
+    if (RF.consejero.lealtad(estado, m.id) < 30 && Math.random() < 0.6) texto += ' ' + T.expandir(T.azar(min.bajo), res.vars);
     return { titulo: RF.poder.ministro(estado, m.id).nombre.toUpperCase() + ' · ' + min.cargo.toUpperCase(), texto };
   }
 
@@ -3911,14 +3932,16 @@ body {
   function titulares(res, tipo) {
     const lineas = [RF.PRENSA.oficial.nombre + ': ' + T.expandir(T.azar(deFuente('oficial', tipo)), res.vars)];
     const d = res.deltas;
-    if (Math.abs(d.mundo || 0) >= 2 || Math.random() < 0.5) lineas.push(RF.PRENSA.extranjera.nombre + ': ' + T.expandir(T.azar(deFuente('extranjera', tipo)), res.vars));
-    if ((d.pueblo || 0) < 0 || tipo === 'culto' || tipo === 'absurdo' || Math.random() < 0.3) lineas.push(RF.PRENSA.pirata.nombre + ': ' + T.expandir(T.azar(deFuente('pirata', tipo)), res.vars));
+    const pt = res.porTurno || {};
+    const est = (d.estabilidad || 0) + 3 * (pt.estabilidad || 0);
+    if (Math.abs(est) >= 2 || Math.random() < 0.5) lineas.push(RF.PRENSA.extranjera.nombre + ': ' + T.expandir(T.azar(deFuente('extranjera', tipo)), res.vars));
+    if ((res.impacto || 0) < 0 || tipo === 'culto' || tipo === 'absurdo' || Math.random() < 0.3) lineas.push(RF.PRENSA.pirata.nombre + ': ' + T.expandir(T.azar(deFuente('pirata', tipo)), res.vars));
     return lineas.join('\n');
   }
 
   function vozDeLaCalle(res, tipo) {
     if (tipo === 'absurdo' && Math.random() < 0.5) return T.expandir(T.azar(RF.ABSURDO.calle), res.vars);
-    const sent = (res.deltas.pueblo || 0) >= 2 ? 'pos' : 'neg';
+    const sent = (res.impacto || 0) >= 2 ? 'pos' : 'neg';
     const pool = RF.VOCES[sent][tipo] || RF.VOCES[sent].general;
     return '—' + T.expandir(T.azar(pool), res.vars) + ' — dice ' + T.azar(RF.VOCES_QUIEN) + '.';
   }
@@ -3931,9 +3954,12 @@ body {
 
   function ambiente(estado) {
     const s = estado.stats;
-    const peor = RF.STATS.map(x => x.id).sort((a, b) => s[a] - s[b])[0];
-    const media = RF.STATS.reduce((t, x) => t + s[x.id], 0) / RF.STATS.length;
-    const pool = s[peor] < 30 ? RF.AMBIENTE[peor] : media > 60 ? RF.AMBIENTE.bien : RF.AMBIENTE.normal;
+    let pool = RF.AMBIENTE.normal;
+    if (s.inflacion > 30) pool = RF.AMBIENTE.inflacion;
+    else if (s.dinero < 0) pool = RF.AMBIENTE.tesoro;
+    else if (s.estabilidad < 30) pool = Math.random() < 0.5 ? RF.AMBIENTE.ejercito : RF.AMBIENTE.orden;
+    else if (s.felicidad < 30) pool = RF.AMBIENTE.pueblo;
+    else if (s.felicidad > 60 && s.estabilidad > 55) pool = RF.AMBIENTE.bien;
     return T.expandir(T.azar(pool));
   }
 
@@ -3945,8 +3971,8 @@ body {
     const partes = ['INTÉRPRETE › ' + RF.poder.nombreTrato(res.trato).toUpperCase() + ' + ' + res.nombreObjeto.toUpperCase()];
     if (interp.heredada) partes.push('orden heredada de la frase anterior');
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
-    bloques.push({ tipo: 'gaceta', titulo: 'ORDEN EJECUTIVA Nº ' + res.numero + ' · DÍA ' + res.dia, texto: T.mayus(res.medida) + '. ' + res.especial });
-    bloques.push({ tipo: 'efectos', deltas: res.deltas });
+    bloques.push({ tipo: 'gaceta', titulo: 'ORDEN EJECUTIVA Nº ' + res.numero + ' · TURNO ' + res.dia, texto: T.mayus(res.medida) + '. ' + res.especial });
+    bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
     const tipo = TIPO_TRATO[res.trato] || 'general';
     bloques.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares(res, tipo) });
@@ -3973,8 +3999,8 @@ body {
     let gaceta = T.mayus(res.medida) + '.';
     if (res.especial) gaceta += ' ' + res.especial;
     else if (res.objeto === 'OTRO') gaceta += ' ' + T.expandir(T.azar(RF.ABSURDO.gaceta), res.vars);
-    bloques.push({ tipo: 'gaceta', titulo: 'DECRETO Nº ' + res.numero + ' · DÍA ' + res.dia, texto: gaceta });
-    bloques.push({ tipo: 'efectos', deltas: res.deltas, cambioIngresos: res.cambioIngresos });
+    bloques.push({ tipo: 'gaceta', titulo: 'DECRETO Nº ' + res.numero + ' · TURNO ' + res.dia, texto: gaceta });
+    bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.ley && res.ley.nivel });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
 
     bloques.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares(res, tipo) });
@@ -3990,18 +4016,33 @@ body {
     return bloques;
   }
 
-  // Lo que pasa al terminar el día: caja, consecuencias, sucesos y cómo amanece mañana.
+  // El parte del turno: qué ha hecho cada ley vigente, la economía de fondo y el resultado.
+  function parteLeyes(estado, res) {
+    const lineas = [];
+    const detalle = (res.leyesTurno || []).slice().sort((a, b) => Math.abs(b.efectos.dinero || 0) - Math.abs(a.efectos.dinero || 0));
+    for (const l of detalle.slice(0, 8)) {
+      lineas.push(T.mayus(l.nombre) + (l.nivel > 1 ? ' (nivel ' + l.nivel + ')' : ''));
+      lineas.push('   ' + RF.leyes.resumenLey(l.efectos));
+    }
+    if (detalle.length > 8) lineas.push('… y ' + (detalle.length - 8) + ' leyes más (escribe "leyes")');
+    const f = res.fondo || {};
+    lineas.push('Impuestos y gastos del Estado', '   ' + RF.leyes.resumenLey({ dinero: f.dinero, estabilidad: f.estabilidad, felicidad: f.felicidad }));
+    return lineas.join('\n');
+  }
+
+  // Lo que pasa al terminar el turno: el parte de las leyes, las causas, los sucesos y cómo amanece.
   function cierreDia(estado, res) {
     const bloques = [];
-    const diario = res.diario || {};
-    if (res.economia || Object.keys(diario).some(k => diario[k])) bloques.push({ tipo: 'efectos', rotulo: 'Fin del día', deltas: diario, economia: res.economia });
+    bloques.push({ tipo: 'leyes', titulo: 'LEYES VIGENTES · ESTE TURNO', texto: parteLeyes(estado, res) });
+    bloques.push({ tipo: 'efectos', rotulo: 'Resultado del turno', deltas: res.cambioTurno || {} });
+    for (const c of res.causas || []) bloques.push({ tipo: 'nota', texto: c });
     for (const s of res.sucesos) {
-      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA', mercado: 'MERCADO', institucion: 'RÉGIMEN' }[s.tipo];
+      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA' }[s.tipo] || 'NOTICIA';
       bloques.push({ tipo: 'suceso', clase: s.tipo, titulo: etiqueta + ' · ' + s.titulo.toUpperCase(), texto: s.texto, deltas: s.deltas });
     }
     if (res.fin) return bloques.concat(final(estado));
     if (res.programadas && !res.sucesos.length) bloques.push({ tipo: 'nota', texto: 'Radio Pasillo: dicen que esto todavía va a traer cola.' });
-    bloques.push({ tipo: 'amanecer', titulo: 'DÍA ' + estado.dia, texto: ambiente(estado) });
+    bloques.push({ tipo: 'amanecer', titulo: 'TURNO ' + estado.dia, texto: ambiente(estado) });
     return bloques;
   }
 
@@ -4059,14 +4100,24 @@ body {
     };
   }
 
+  function formatoStat(id, v) {
+    if (id === 'dinero') return (v < 0 ? '−' : '') + Math.abs(Math.round(v)) + 'M';
+    if (id === 'inflacion') return Math.round(v) + '%';
+    return String(Math.round(v));
+  }
+
   function estadoPais(estado) {
-    const lineas = RF.STATS.map(s => s.nombre.padEnd(9, ' ') + String(estado.stats[s.id]).padStart(3, ' ') + '  ' + barra(estado.stats[s.id]));
-    const ing = estado.ingresos - 1;
-    lineas.push('Balance diario del tesoro: ' + (ing > 0 ? '+' : '') + ing);
-    lineas.push('Día ' + Math.min(estado.dia, RF.PAIS.dias) + ' de ' + RF.PAIS.dias + ' · Decretos firmados: ' + estado.historial.length);
+    const s = estado.stats;
+    const lineas = [
+      'Dinero       ' + formatoStat('dinero', s.dinero),
+      'Inflación    ' + formatoStat('inflacion', s.inflacion),
+      'Estabilidad  ' + String(s.estabilidad).padStart(3) + '  ' + barra(s.estabilidad),
+      'Felicidad    ' + String(s.felicidad).padStart(3) + '  ' + barra(s.felicidad)
+    ];
+    const t = RF.leyes.lista(estado).reduce((acc, l) => { const ef = RF.leyes.efectoActual(estado, l); for (const k of Object.keys(acc)) acc[k] += ef[k] || 0; return acc; }, { dinero: 0, estabilidad: 0, felicidad: 0, inflacion: 0 });
+    lineas.push('', 'Tus ' + RF.leyes.lista(estado).length + ' leyes suman cada turno:', '   ' + RF.leyes.resumenLey(t));
+    lineas.push('Turno ' + Math.min(estado.dia, RF.PAIS.dias) + ' de ' + RF.PAIS.dias + ' · Decretos: ' + estado.historial.length);
     const humor = Object.entries(estado.ciudadanos).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + (c.estado && c.estado !== 'libre' ? DESTINOS[c.estado] : c.animo > 25 ? 'te apoya' : c.animo < -25 ? 'te detesta' : 'desconfía'));
-    const r = RF.economia.resumen(estado);
-    lineas.push('Economía: PIB ' + r.pib + ' · paro ' + r.paro + '% · inflación ' + r.inflacion + '% (escribe "economía")');
     lineas.push('', 'La calle:', ...humor.map(h => '  ' + h));
     return [{ tipo: 'sistema', titulo: 'INFORME DE SITUACIÓN', texto: lineas.join('\n'), mono: true }];
   }
@@ -4075,13 +4126,13 @@ body {
 
   function gabinete(estado) {
     const lineas = Object.entries(RF.GABINETE).map(([id, m]) => {
-      const v = Math.round(m.stats.reduce((s, k) => s + estado.stats[k], 0) / m.stats.length);
+      const v = RF.consejero.lealtad(estado, id);
       const actitud = v >= 60 ? 'leal' : v >= 35 ? 'inquieto' : 'conspira';
       const g = RF.poder.ministro(estado, id);
       const caidos = g.caidos.map(c => c.nombre + ' (' + DESTINOS[c.destino] + ')').join(', ');
       return g.nombre + ' (' + m.cargo + '): ' + actitud + (caidos ? '\n   antes: ' + caidos : '');
     });
-    const inst = Object.entries(estado.instituciones || {}).map(([id, i]) => '  ' + T.mayus(RF.INSTITUCIONES[id].nombre) + ' · nivel ' + i.nivel + ' · desde el día ' + i.desde);
+    const inst = RF.leyes.lista(estado).filter(l => l.institucion).map(l => '  ' + T.mayus(RF.INSTITUCIONES[l.clave].nombre) + ' · nivel ' + l.nivel + ' · desde el turno ' + l.desde);
     lineas.push('', 'Instituciones del régimen:', ...(inst.length ? inst : ['  ninguna (prueba "crear una red de espías")']));
     const per = estado.personas || {};
     lineas.push('', 'Ernesto Valiente, líder de la oposición: ' + (DESTINOS[per.valiente] || 'libre'));
@@ -4090,13 +4141,23 @@ body {
     return [{ tipo: 'sistema', titulo: 'EL PODER EN VALDORIA', texto: lineas.join('\n') }];
   }
 
-  function economia(estado) {
-    return [{ tipo: 'sistema', titulo: 'EL MERCADO DE VALDORIA', texto: RF.economia.informe(estado), mono: true }];
+  // Todas las leyes vigentes y lo que hacen ahora mismo cada turno.
+  function leyes(estado) {
+    const lista = RF.leyes.lista(estado);
+    if (!lista.length) return [{ tipo: 'nota', texto: 'No hay leyes vigentes. Cada decreto que firmes se quedará aquí actuando todos los turnos.' }];
+    const lineas = [];
+    for (const l of lista) {
+      const edad = estado.dia - l.desde;
+      lineas.push(T.mayus(l.nombre) + (l.nivel > 1 ? ' (nivel ' + l.nivel + ')' : ''));
+      lineas.push('   desde el turno ' + l.desde + (l.duracion ? ', dura ' + Math.max(0, l.duracion - edad) + ' turnos más' : '') + ': ' + RF.leyes.resumenLey(RF.leyes.efectoActual(estado, l)));
+    }
+    lineas.push('', 'Para quitar una ley: "derogar …" o "dejar de …".');
+    return [{ tipo: 'sistema', titulo: 'LEYES VIGENTES', texto: lineas.join('\n') }];
   }
 
   function historial(estado) {
     if (!estado.historial.length) return [{ tipo: 'nota', texto: 'Todavía no has firmado ningún decreto.' }];
-    return [{ tipo: 'sistema', titulo: 'ARCHIVO DE DECRETOS', texto: estado.historial.map((h, i) => 'Nº ' + (i + 1) + ' · Día ' + h.dia + ': ' + T.mayus(h.medida)).join('\n') }];
+    return [{ tipo: 'sistema', titulo: 'ARCHIVO DE DECRETOS', texto: estado.historial.map((h, i) => 'Nº ' + (i + 1) + ' · Turno ' + h.dia + ': ' + T.mayus(h.medida)).join('\n') }];
   }
 
   function barra(v) { const n = Math.round(v / 10); return '█'.repeat(n) + '░'.repeat(10 - n); }
@@ -4118,14 +4179,15 @@ body {
     else if (v === 'aliado') epilogos.push('Ernesto Valiente acabó sus días como ministro de un gobierno que había jurado combatir. Nunca se lo perdonó.');
     else if (v === 'preso' || v === 'exiliado') epilogos.push('Ernesto Valiente volvió a la vida pública en cuanto caíste. Ganó las siguientes elecciones.');
     const dias = Math.min(estado.dia, RF.PAIS.dias + 1) - 1;
+    const s = estado.stats;
     return [
       { tipo: 'fin', titulo: 'FIN · ' + f.titulo, texto: T.expandir(f.texto) },
       { tipo: 'calle', titulo: 'QUÉ FUE DE ELLOS', texto: epilogos.join('\n\n') },
-      { tipo: 'sistema', titulo: 'TU LEGADO', texto: 'Días en el poder: ' + dias + '. Decretos firmados: ' + estado.historial.length + '.\nEscribe "reiniciar" para gobernar otra vez.' }
+      { tipo: 'sistema', titulo: 'TU LEGADO', texto: 'Turnos en el poder: ' + dias + '. Decretos firmados: ' + estado.historial.length + '.\nDinero ' + formatoStat('dinero', s.dinero) + ' · Inflación ' + formatoStat('inflacion', s.inflacion) + ' · Estabilidad ' + s.estabilidad + ' · Felicidad ' + s.felicidad + '.\nEscribe "reiniciar" para gobernar otra vez.' }
     ];
   }
 
-  RF.narrador = { intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, economia, historial, ayuda, final, EJEMPLOS };
+  RF.narrador = { intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, historial, ayuda, final, formatoStat, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/juego.js
@@ -4135,18 +4197,17 @@ body {
  */
 (function (RF) {
   'use strict';
-  const CLAVE = 'valdoria.partida.v1';
+  const CLAVE = 'valdoria.partida.v2';
   const MAX_REGISTRO = 160;
   const $ = (id) => document.getElementById(id);
   const reducirMovimiento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const ATAJOS = [
-    ['Prohibir…', 'Prohibir '], ['Vender…', 'Vender '], ['Regalar…', 'Regalar '],
-    ['Impuestos a…', 'Subir impuestos a '], ['Mano dura…', 'Mano dura contra '], ['Legalizar…', 'Legalizar '],
-    ['Invertir en…', 'Invertir en '], ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '],
-    ['Destituir a…', 'Destituir a '], ['Encarcelar a…', 'Encarcelar a '], ['Recortar…', 'Recortar '],
-    ['Obligar…', 'Obligar a todos a '], ['Estatua de mí', 'Estatua de mí'],
-    ['estado', 'estado', true], ['economía', 'economía', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+    ['Imprimir dinero', 'imprimir dinero'], ['Regalar…', 'Regalar '], ['Vender…', 'Vender '],
+    ['Subir impuestos a…', 'Subir impuestos a '], ['Bajar impuestos a…', 'Bajar impuestos a '], ['Invertir en…', 'Invertir en '],
+    ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
+    ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -4158,16 +4219,34 @@ body {
   function cargar() {
     try {
       const d = JSON.parse(localStorage.getItem(CLAVE) || 'null');
-      if (d && d.estado && d.estado.version === 1) return d;
+      if (d && d.estado && d.estado.version === 2) return d;
     } catch (e) { /* partida corrupta o sin acceso */ }
     return null;
   }
 
-  // ---------- Barras del país ----------
+  // ---------- Los cuatro indicadores ----------
+  // Dinero puede ser negativo (deuda); en la inflación, subir es malo.
+  function nivelStat(id, v) {
+    if (id === 'dinero') return v < 0 ? 'bajo' : v < 40 ? 'medio' : '';
+    if (id === 'inflacion') return v > 30 ? 'bajo' : v > 12 ? 'medio' : '';
+    return v < 25 ? 'bajo' : v < 45 ? 'medio' : '';
+  }
+  function anchoBarra(id, v) {
+    if (id === 'dinero') return Math.max(0, Math.min(100, (v / 300) * 100));
+    if (id === 'inflacion') return Math.max(0, Math.min(100, v));
+    return v;
+  }
+  function textoDelta(id, d) {
+    const n = (d > 0 ? '+' : '−') + Math.abs(d);
+    return id === 'dinero' ? n + 'M' : id === 'inflacion' ? n + '%' : n;
+  }
+  function esBueno(id, d) { return id === 'inflacion' ? d < 0 : d > 0; }
+
   function montarStats() {
     $('stats').innerHTML = RF.STATS.map(s =>
       `<li class="stat" id="st-${s.id}" title="${s.nombre}">
-        <div class="stat-cab"><span class="stat-nombre">${s.corto}</span><span class="stat-valor">0</span></div>
+        <span class="stat-nombre">${s.corto}</span>
+        <span class="stat-valor">0</span>
         <div class="stat-barra"><div class="stat-relleno"></div></div>
         <div class="cambio"></div>
       </li>`).join('');
@@ -4176,25 +4255,26 @@ body {
     for (const s of RF.STATS) {
       const v = estado.stats[s.id];
       const li = $('st-' + s.id);
-      li.querySelector('.stat-valor').textContent = v;
-      li.querySelector('.stat-relleno').style.width = v + '%';
-      li.classList.toggle('bajo', v < 25);
-      li.classList.toggle('medio', v >= 25 && v < 45);
-      li.setAttribute('aria-label', s.nombre + ' ' + v);
+      li.querySelector('.stat-valor').textContent = RF.narrador.formatoStat(s.id, v);
+      li.querySelector('.stat-relleno').style.width = anchoBarra(s.id, v) + '%';
+      const nivel = nivelStat(s.id, v);
+      li.classList.toggle('bajo', nivel === 'bajo');
+      li.classList.toggle('medio', nivel === 'medio');
+      li.setAttribute('aria-label', s.nombre + ' ' + RF.narrador.formatoStat(s.id, v));
       const c = li.querySelector('.cambio');
       const d = deltas && deltas[s.id];
       if (d) {
-        c.textContent = (d > 0 ? '+' : '') + d;
-        c.className = 'cambio visible ' + (d > 0 ? 'sube' : 'baja');
+        c.textContent = textoDelta(s.id, d);
+        c.className = 'cambio visible ' + (esBueno(s.id, d) ? 'sube' : 'baja');
         clearTimeout(c._t);
         c._t = setTimeout(() => c.classList.remove('visible'), 4000);
       }
     }
-    $('dia').textContent = 'DÍA ' + Math.min(estado.dia, RF.PAIS.dias) + '/' + RF.PAIS.dias;
-    const r = RF.economia.resumen(estado);
-    const flecha = r.tendencia > 0.5 ? '▲' : r.tendencia < -0.5 ? '▼' : '';
-    $('ticker').textContent = 'PIB ' + r.pib + flecha + ' · PARO ' + r.paro + '% · INFLACIÓN ' + r.inflacion + '% · CO₂ ' + r.contaminacion;
-    $('ticker').classList.toggle('alerta', r.paro >= 24 || r.inflacion >= 40 || r.contaminacion >= 60);
+    $('dia').textContent = 'TURNO ' + Math.min(estado.dia, RF.PAIS.dias) + '/' + RF.PAIS.dias;
+    const n = RF.leyes.lista(estado).length;
+    const bal = Math.round(estado.balance || 0);
+    $('ticker').textContent = 'BALANCE ' + (bal >= 0 ? '+' : '−') + Math.abs(bal) + 'M POR TURNO · ' + n + (n === 1 ? ' LEY VIGENTE' : ' LEYES VIGENTES') + ' ›';
+    $('ticker').classList.toggle('alerta', bal < 0);
   }
 
   // ---------- Registro (la historia) ----------
@@ -4212,23 +4292,42 @@ body {
     const orden = RF.STATS.map(s => s.id).filter(k => deltas && deltas[k]);
     for (const k of orden) {
       const v = deltas[k];
-      cont.appendChild(el('span', (clase === 'mini' ? '' : 'efecto ') + (v > 0 ? 'sube' : 'baja'), nombreStat(k) + ' ' + (v > 0 ? '+' : '−') + Math.abs(v)));
+      cont.appendChild(el('span', (clase === 'mini' ? '' : 'efecto ') + (esBueno(k, v) ? 'sube' : 'baja'), nombreStat(k) + ' ' + textoDelta(k, v)));
     }
     return cont;
   }
+
+  // "Cada turno: +15M · Felicidad −3.1": lo que la ley seguirá haciendo.
+  function filaPorTurno(pt, curvas, nivel) {
+    const fila = el('div', 'b-efectos por-turno');
+    fila.appendChild(el('span', 'efecto neutro', nivel > 1 ? 'Cada turno (nivel ' + nivel + ')' : 'Cada turno'));
+    for (const s of RF.STATS) {
+      const v = pt[s.id];
+      if (!v || Math.abs(v) < 0.05) continue;
+      const n = s.id === 'dinero' ? Math.round(v) : Math.round(v * 10) / 10;
+      if (!n) continue;
+      const txt = (n > 0 ? '+' : '−') + Math.abs(n) + (s.id === 'dinero' ? 'M' : '');
+      cont(fila, el('span', 'efecto ' + (esBueno(s.id, n) ? 'sube' : 'baja'), s.nombre + ' ' + txt));
+    }
+    const c = curvas || {};
+    if (Object.values(c).includes('madura') || Object.values(c).includes('lenta')) cont(fila, el('span', 'efecto neutro', 'tarda unos turnos en rendir'));
+    if (c.felicidad === 'acostumbra') cont(fila, el('span', 'efecto neutro', 'la gente se acostumbrará'));
+    if (c.estabilidad === 'desgasta') cont(fila, el('span', 'efecto neutro', 'rinde menos con el tiempo'));
+    return fila;
+  }
+  function cont(padre, hijo) { padre.appendChild(hijo); }
 
   // Crea el elemento de un bloque. Devuelve {nodo, parrafo, texto} para el efecto máquina de escribir.
   function crearBloque(b) {
     const n = el('section', 'bloque b-' + b.tipo + (b.clase ? ' ' + b.clase : '') + (b.mono ? ' mono' : ''));
     let p = null, texto = null;
     if (b.tipo === 'efectos') {
-      const cont = listaDeltas(b.deltas, 'b-efectos');
-      if (b.rotulo) cont.insertBefore(el('span', 'efecto neutro', b.rotulo), cont.firstChild);
-      if (!cont.childNodes.length && !b.economia && !b.rotulo) cont.appendChild(el('span', 'efecto neutro', 'Sin cambios visibles'));
-      if (b.economia) cont.appendChild(el('span', 'efecto ' + (b.economia > 0 ? 'sube' : 'baja'), 'Caja del día ' + (b.economia > 0 ? '+' : '−') + Math.abs(b.economia)));
-      if (b.cambioIngresos) cont.appendChild(el('span', 'efecto ' + (b.cambioIngresos > 0 ? 'sube' : 'baja'), 'Ingresos diarios ' + (b.cambioIngresos > 0 ? '+' : '−') + Math.abs(b.cambioIngresos)));
-      n.className = 'bloque';
-      n.appendChild(cont);
+      const fila = listaDeltas(b.deltas, 'b-efectos');
+      fila.insertBefore(el('span', 'efecto neutro', b.rotulo || 'Ahora'), fila.firstChild);
+      if (fila.childNodes.length === 1) fila.appendChild(el('span', 'efecto neutro', 'sin cambios'));
+      n.className = 'bloque b-efectos-grupo';
+      n.appendChild(fila);
+      if (b.porTurno && Object.values(b.porTurno).some(v => Math.abs(v) >= 0.05)) n.appendChild(filaPorTurno(b.porTurno, b.curvas, b.nivel));
       return { nodo: n };
     }
     if (b.tipo === 'dilema') return crearDilema(b, n);
@@ -4375,6 +4474,19 @@ body {
     guardar();
   }
 
+  // Un turno sin decretos nuevos: las leyes vigentes siguen actuando.
+  function esperar() {
+    const antes = Object.assign({}, estado.stats);
+    const res = RF.consejero.pasarTurno(estado);
+    const bloques = [{ tipo: 'nota', texto: 'No firmas nada este turno. Dejas que tus leyes trabajen.' }].concat(RF.narrador.cierreDia(estado, res));
+    const d = RF.director.pendiente(estado);
+    if (d && res.dilema) bloques.push(RF.narrador.dilema(estado, d));
+    mostrar(bloques, true);
+    pintarStats(cambios(antes));
+    actualizarConsola();
+    guardar();
+  }
+
   function elegirOpcion(i) {
     const d = RF.director.pendiente(estado);
     if (!d || !d.opciones[i] || !tarjetaAbierta) return;
@@ -4431,7 +4543,7 @@ body {
     if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
     if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
     if (/^(gabinete|ministros|poder|instituciones)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
-    if (/^(economia|mercado|informe economico)$/.test(orden)) { mostrar(RF.narrador.economia(estado), false); return; }
+    if (/^(leyes|ley|leyes vigentes|economia|mercado|balance)$/.test(orden)) { mostrar(RF.narrador.leyes(estado), false); return; }
     if (/^(historial|decretos|archivo)$/.test(orden)) { mostrar(RF.narrador.historial(estado), false); return; }
 
     if (estado.fin) {
@@ -4446,6 +4558,8 @@ body {
       mostrar([{ tipo: 'nota', texto: 'Antes de firmar nada más, decide qué hacer con el evento "' + pend.titulo + '". Pulsa una opción o escribe A, B o C.' }], false);
       return;
     }
+
+    if (/^(esperar|espera|pasar|pasar turno|siguiente turno|siguiente|no hacer nada|nada)$/.test(orden)) { esperar(); return; }
 
     const lista = RF.interprete.interpretarVarios(texto, estado);
     if (lista.length > 1) { firmar(lista); return; }
@@ -4483,8 +4597,6 @@ body {
     const guardada = cargar();
     if (guardada) {
       estado = guardada.estado;
-      // Partidas guardadas con versiones anteriores: se completan con lo nuevo.
-      if (!estado.eco) estado.eco = RF.economia.nueva();
       RF.poder.iniciar(estado);
       registro = [];
       mostrar(guardada.registro, false);
@@ -4508,7 +4620,7 @@ body {
     });
     // Tocar la historia acelera el texto.
     $('registro').addEventListener('click', (e) => { if (!e.target.closest('button')) saltar = true; });
-    $('ticker').addEventListener('click', () => { vaciar(); procesar('economía'); });
+    $('ticker').addEventListener('click', () => { vaciar(); procesar('leyes'); });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);

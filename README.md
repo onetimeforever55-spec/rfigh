@@ -3,27 +3,21 @@
 Un juego de consola para el celular: eres el Líder Supremo de la República de Valdoria y gobiernas **escribiendo decretos con tus propias palabras**.
 
 ```
-> el aire se vende
+> vender el aire
 
-▸ INTÉRPRETE › PRIVATIZAR + EL AIRE · 91% seguro
-
-DECRETO Nº 1 · DÍA 1                                    [DECRETADO]
+DECRETO Nº 1 · TURNO 1                                  [DECRETADO]
 La privatización del aire. Se instalan medidores de respiración en
-cada hogar. Tarifa básica: 3 valdos por hora. Los asmáticos pagan
-tarifa premium.
-Tesoro +24  Pueblo −25  Cúpula +16  Salud −12  Mundo −3
+cada hogar. Tarifa básica: 3 valdos por hora.
+Ahora:       Dinero +42M   Felicidad −12
+Cada turno:  Dinero +15M   Estabilidad −0.9   Felicidad −2.1
 
-ROLANDO "ROLO" PAREDES · JEFE DE PROPAGANDA
-La televisión estatal dedica tres horas a un documental sobre patos
-para no hablar de la privatización del aire.
-
-LA CALLE · DOÑA CARMEN
-Doña Carmen enciende una vela en la iglesia. No pide por ella: pide
-por su nieto Nico, que rompió un plato al oír las noticias.
-
-(dos días después)
-CONSECUENCIA · AIRE EMBOTELLADO
-Aparece un mercado negro de aire embotellado en La Esperanza...
+> imprimir dinero
+...
+LEYES VIGENTES · ESTE TURNO
+La impresión de dinero          +25M  infl +6.0
+La privatización del aire       +14M  estab −0.9  felic −2.1
+Impuestos y gastos del Estado    −3M
+Resultado del turno:  Dinero +36M   Inflación +6%
 ```
 
 No usa ninguna IA externa: funciona sin internet, gratis y al instante.
@@ -32,15 +26,21 @@ No usa ninguna IA externa: funciona sin internet, gratis y al instante.
 
 - Abre `index.html` en el navegador (o `dist/valdoria.html`, que es el juego entero en un solo archivo).
 - Escribe un decreto y pulsa **DECRETAR**. Los botones de abajo te ayudan a empezar frases.
-- Puedes firmar hasta 3 decretos a la vez: `prohibir el fútbol y subir impuestos a los ricos`.
-- El bot entiende jerga y faltas: `banear a los tombos`, `birras gratis para los chamos`, `prohivir el alcojol`.
-- **Eventos:** más o menos cada 4 días (o antes, si pasa algo grave) salta un evento con 2 o 3 opciones, al estilo Victoria 2. Cada opción muestra sus efectos. Algunas traen consecuencias más adelante o abren otro evento.
-- **Economía profunda:** 8 sectores (agricultura, petróleo y minas, carbón, industria, turismo, tecnología, comercio y narcotráfico), cada uno con su peso, su dueño y un precio mundial que cambia cada día. Hay PIB, paro, inflación y contaminación. Prueba `quiero hacer un narco estado`, `toda la economía al carbón`, `imprimir dinero`, `dolarizar` o `nacionalizar el petróleo`. Una reconversión tarda días y trae sus propios eventos.
-- **Instituciones del régimen:** `crear una escuadra de represión`, `fundar un partido único`, `crear una red de espías`, `crear milicias populares`, `crear un ministerio de propaganda`. Siguen actuando cada día, cuestan dinero y se pueden disolver.
-- **Personas:** puedes eliminar, encarcelar, exiliar, destituir, premiar o liberar a tus ministros (`matar al general`, `destituir a Cifuentes`), a la gente de a pie (`encarcelar a Nico`), al líder de la oposición (`exiliar a Valiente`) o al embajador. Los ministros caídos se sustituyen por sucesores y todo tiene consecuencias.
-- Comandos: `estado`, `economía` (también tocando la línea del mercado), `poder` (ministros, instituciones y personas), `historial`, `ayuda`, `reiniciar`.
-- Sobrevive 30 días hasta las elecciones. Si alguna barra llega a 0, caes (revolución, golpe de estado, bancarrota...).
-- La partida se guarda sola en el celular.
+- Solo importan cuatro cosas: **Dinero** (millones de valdos; puede haber deuda), **Inflación**, **Estabilidad** y **Felicidad**. Si la estabilidad o la felicidad llegan a 0, caes.
+- **Cada decreto es una ley vigente que actúa todos los turnos**, y las leyes se acumulan:
+  - `imprimir dinero`: +25M cada turno, pero la inflación sube cada turno. Imprimir más veces dispara la hiperinflación.
+  - `regalar comida`: más felicidad, pero cuesta dinero cada turno (y más con inflación). La gente se acostumbra y el efecto se va diluyendo.
+  - `vender el aire`, `vender cocaína`: dinero cada turno; el aire amarga a la gente y la cocaína desestabiliza.
+  - `crear una escuadra de represión`, `mano dura contra…`: más estabilidad y menos felicidad cada turno. Con el tiempo rinde menos y el rencor crece.
+  - `invertir en hospitales`: cuesta mucho ahora y da fruto unos turnos después.
+  - `quiero hacer un narcoestado`, `toda la economía al carbón`: reconvierten toda la economía.
+- Para quitar una ley: `dejar de imprimir dinero`, `derogar la ley del aire`, `derogar el último decreto`. Quitar algo bueno duele y quitar algo malo alivia.
+- `esperar` pasa el turno sin firmar nada: tus leyes siguen trabajando.
+- Todo se conecta: la inflación encarece los gastos, se come los ingresos y amarga a la gente. La gente harta resta estabilidad. Sin estabilidad se recauda menos. La deuda se paga imprimiendo, lo que trae más inflación.
+- También puedes decretar sobre personas (`destituir a Cifuentes`, `encarcelar a Nico`, `matar a Valiente`) y firmar hasta 3 decretos a la vez.
+- **Eventos:** cada pocos turnos, o cuando tus leyes lo provocan, salta un evento con opciones (estilo Victoria 2).
+- Comandos: `esperar`, `estado`, `leyes`, `poder`, `historial`, `ayuda`, `reiniciar`.
+- Sobrevive 30 turnos hasta las elecciones. La partida se guarda sola en el celular.
 
 ### Publicarlo gratis con GitHub Pages
 
@@ -52,31 +52,28 @@ El juego tiene su propio "bot", con tres piezas:
 
 | Pieza | Archivo | Qué hace |
 |---|---|---|
-| **Intérprete** | `js/interprete.js` | Entiende el decreto. Traduce jerga (`js/datos/sinonimos.js`), corrige faltas, y usa dos clasificadores Naive Bayes (acción y objeto) entrenados con las frases de `js/datos/`. Detecta negaciones ("ya no se vende el agua"), intensidad ("subir *mucho*"), objetos desconocidos ("prohibir los calcetines") y varios decretos en una frase. Si duda, pregunta. |
-| **Consejero** | `js/consejero.js` | Calcula las consecuencias: 7 estadísticas, economía diaria, consecuencias con retraso, contradicciones, desgaste del poder, personajes con memoria y finales. |
-| **Economía** | `js/economia.js` | El mercado: precios mundiales, reconversiones, PIB, paro, inflación, contaminación y su efecto diario en el país. |
-| **Poder** | `js/poder.js` | Instituciones del régimen que actúan cada día, y decretos sobre personas concretas con sucesores y consecuencias. |
-| **Director** | `js/director.js` | Decide cuándo salta un evento con decisiones: continuaciones de eventos anteriores, urgencias (huelgas, rumores de golpe, epidemias...) o, si no, uno cada ~4 días según la situación. |
-| **Narrador** | `js/narrador.js` | Cuenta la historia: Gaceta Oficial, titulares de prensa (oficial, extranjera y radio pirata), el gabinete, la gente de a pie, voces anónimas, recuerdos de decretos anteriores y cómo amanece el país cada día. |
+| **Intérprete** | `js/interprete.js` | Entiende el decreto: jerga, faltas, negaciones ("dejar de…" = derogar), intensidad, personas y varios decretos en una frase. Si duda, pregunta. |
+| **Leyes** | `js/leyes.js` | La lógica de cada decreto: qué hace al firmarse, qué hace cada turno y cómo cambia con el tiempo (la gente se acostumbra, la represión se desgasta, las inversiones maduran). |
+| **Consejero** | `js/consejero.js` | Los cuatro indicadores y cómo se afectan entre sí cada turno (impuestos, gastos, inflación, deuda, protestas), alertas y finales. |
+| **Poder** | `js/poder.js` | Decretos sobre personas: ministros con sucesores, gente de a pie, el líder de la oposición y el embajador. |
+| **Director** | `js/director.js` | Decide cuándo salta un evento y aplica la opción elegida. |
+| **Narrador** | `js/narrador.js` | Cuenta la historia: Gaceta Oficial, el parte de leyes de cada turno, titulares, gabinete, calle y ambiente. |
 
 Los datos (lo que más se puede ampliar) están separados del código:
 
-- `js/datos/acciones.js`: 14 acciones (prohibir, privatizar, castigar, crear, reconvertir la economía...) con sus frases de ejemplo.
-- `js/datos/objetos.js`: 40 temas (aire, agua, fútbol, carbón, narcotráfico, escuadrón, los lunes...) con sus propiedades.
-- `js/datos/sinonimos.js`: jerga y sinónimos ("tombos" → policías, "birras" → cervezas).
-- `js/datos/personajes.js`: el gabinete y la gente de a pie (Doña Carmen, Nico, Ramiro, Lucía).
-- `js/datos/eventos.js`: combinaciones especiales, alertas, noticias al azar y finales.
-- `js/datos/dilemas.js`: 57 eventos con decisiones, sus condiciones y sus cadenas (narcoestado, carbón, escuadrón, funerales...).
-- `js/datos/mercado.js`: los sectores de la economía y las noticias del mercado.
-- `js/datos/poder.js`: instituciones, personas, sucesores y qué pasa con cada trato.
-- `js/datos/voces.js`: titulares, voces de la calle, ambiente de cada día y reacciones a lo absurdo.
+- `js/datos/acciones.js`: las acciones (prohibir, vender, regalar, derogar...) con sus frases de ejemplo.
+- `js/datos/objetos.js`: los temas (aire, agua, comida, cocaína, escuadrón...) con sus propiedades.
+- `js/datos/mercado.js`: los modelos económicos para reconvertir la economía (narco, carbón, turismo...).
+- `js/datos/sinonimos.js`: jerga y sinónimos.
+- `js/datos/personajes.js`, `js/datos/poder.js`: gabinete, gente de a pie, instituciones y personas.
+- `js/datos/eventos.js`, `js/datos/dilemas.js`, `js/datos/voces.js`: alertas, eventos con decisiones, noticias, titulares y voces.
 
 **Para que el bot entienda más:** añade frases a `frases` (acciones) o a `formas` (objetos). Se reentrena solo al cargar la página.
 
 ## Desarrollo
 
 ```bash
-npm test            # prueba el Intérprete, simula 400 partidas, prueba escenarios (narcoestado, carbón, escuadrón, personas) y el equilibrio
+npm test            # prueba el Intérprete, simula 400 partidas, comprueba la lógica de las leyes y el equilibrio
 npm run empaquetar  # genera dist/valdoria.html (todo en un archivo)
 ```
 

@@ -16,7 +16,7 @@
   // Cada ministro vigila una estadística y reacciona cuando cambia.
   RF.GABINETE = {
     garrote: {
-      nombre: 'General Bruno Garrote', corto: 'Garrote', cargo: 'Ministro de Defensa', stats: ['ejercito'],
+      nombre: 'General Bruno Garrote', corto: 'Garrote', cargo: 'Ministro de Defensa',
       pos: [
         'El {n_garrote} golpea la mesa con el puño. "[Por fin|Al fin|Ya era hora], {lider}. Así se gobierna." Esa noche los cuarteles brindan en su nombre.',
         '{garrote} se ajusta las medallas. "El ejército aprueba {medida}." No sonríe, pero tampoco hace falta.',
@@ -33,7 +33,7 @@
       ]
     },
     cifuentes: {
-      nombre: 'Leonor Cifuentes', corto: 'Cifuentes', cargo: 'Ministra de Hacienda', stats: ['tesoro', 'cupula'],
+      nombre: 'Leonor Cifuentes', corto: 'Cifuentes', cargo: 'Ministra de Hacienda',
       pos: [
         '{n_cifuentes} repasa las cuentas y sonríe con los labios, no con los ojos. "Las familias importantes están contentas, {lider}."',
         '{cifuentes} brinda con champán importado en el Club Náutico. Los empresarios la llaman "la ministra razonable".',
@@ -50,7 +50,7 @@
       ]
     },
     sombra: {
-      nombre: 'Octavio Sombra', corto: 'Sombra', cargo: 'Ministro del Interior', stats: ['orden'],
+      nombre: 'Octavio Sombra', corto: 'Sombra', cargo: 'Ministro del Interior',
       pos: [
         '{n_sombra} deja una carpeta sobre tu escritorio: calles tranquilas, archivos llenos. "Todo bajo control, {lider}."',
         '{sombra} asiente despacio. "La gente obedece mejor cuando sabe que la estamos mirando."',
@@ -67,7 +67,7 @@
       ]
     },
     paredes: {
-      nombre: 'Rolando "Rolo" Paredes', corto: 'Rolo', cargo: 'Jefe de Propaganda', stats: ['pueblo'],
+      nombre: 'Rolando "Rolo" Paredes', corto: 'Rolo', cargo: 'Jefe de Propaganda',
       pos: [
         '{n_paredes} ya tiene el eslogan: "¡{Medida}, la Patria lo agradece!" Los carteles se imprimen esa misma noche.',
         'En la televisión estatal, {paredes} presenta {medida} con música épica y niños sonriendo. Esta vez la gente sonríe de verdad.',
@@ -84,7 +84,7 @@
       ]
     },
     montiel: {
-      nombre: 'Isabela Montiel', corto: 'Montiel', cargo: 'Canciller', stats: ['mundo'],
+      nombre: 'Isabela Montiel', corto: 'Montiel', cargo: 'Canciller',
       pos: [
         'La canciller {montiel} recibe llamadas de felicitación de tres embajadas. "El mundo nos mira con otros ojos, {lider}."',
         '{montiel} sonríe en la cumbre regional. Por una vez nadie le pregunta por los derechos humanos.',
@@ -101,7 +101,7 @@
       ]
     },
     ventura: {
-      nombre: 'Dr. Aurelio Ventura', corto: 'Ventura', cargo: 'Ministro de Salud', stats: ['salud'],
+      nombre: 'Dr. Aurelio Ventura', corto: 'Ventura', cargo: 'Ministro de Salud',
       pos: [
         '{n_ventura} se quita las gafas y respira hondo. "Esto va a salvar vidas, {lider}. Gracias."',
         '{ventura} visita el Hospital Central y por primera vez nadie le grita en el pasillo.'

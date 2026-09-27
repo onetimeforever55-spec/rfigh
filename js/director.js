@@ -69,27 +69,46 @@
   // Lo que el jugador ve debajo de cada opción: "Tesoro −8 · Pueblo +10 · ⚠ Traerá consecuencias".
   function resumen(op) {
     const partes = [];
+    const ef = RF.consejero.convertir(op.efectos);
+    if (op.economia && op.economia.inflacion) ef.inflacion = (ef.inflacion || 0) + op.economia.inflacion;
+    if (op.economia && op.economia.paro) ef.felicidad = (ef.felicidad || 0) - op.economia.paro * 0.5;
     for (const s of RF.STATS) {
-      const v = op.efectos && op.efectos[s.id];
-      if (v) partes.push({ texto: s.nombre + ' ' + (v > 0 ? '+' : '−') + Math.abs(v), tono: v > 0 ? 'sube' : 'baja' });
+      const v = ef[s.id];
+      if (!v) continue;
+      const n = Math.round(v) || Math.sign(v);
+      const bueno = s.id === 'inflacion' ? n < 0 : n > 0;
+      partes.push({ texto: s.nombre + ' ' + (n > 0 ? '+' : '−') + Math.abs(n) + (s.id === 'dinero' ? 'M' : s.id === 'inflacion' ? '%' : ''), tono: bueno ? 'sube' : 'baja' });
     }
-    if (op.ingresos) partes.push({ texto: 'Ingresos ' + (op.ingresos > 0 ? '+' : '−') + Math.abs(op.ingresos) + '/día', tono: op.ingresos > 0 ? 'sube' : 'baja' });
+    if (op.ingresos) partes.push({ texto: (op.ingresos > 0 ? 'Ingreso fijo +' : 'Gasto fijo −') + Math.abs(op.ingresos * 3) + 'M/turno', tono: op.ingresos > 0 ? 'sube' : 'baja' });
     for (const [id, v] of Object.entries(op.animo || {})) {
       partes.push({ texto: RF.CIUDADANOS[id].nombre + (v > 0 ? ' ▲' : ' ▼'), tono: v > 0 ? 'sube' : 'baja' });
     }
-    if (op.persona) partes.push({ texto: RF.poder.nombreTrato(op.persona.trato) + ': ' + (RF.PERSONAS[op.persona.id].nombre || RF.VARS['n_' + op.persona.id] || RF.CIUDADANOS[op.persona.id] && RF.CIUDADANOS[op.persona.id].nombre), tono: 'aviso' });
-    if (op.institucion) for (const [id, que] of Object.entries(op.institucion)) partes.push({ texto: (que === 'disolver' ? 'Disuelve ' : 'Crea ') + RF.INSTITUCIONES[id].corto, tono: 'aviso' });
+    if (op.persona) partes.push({ texto: RF.poder.nombreTrato(op.persona.trato) + ': ' + (RF.PERSONAS[op.persona.id].nombre || RF.VARS['n_' + op.persona.id] || (RF.CIUDADANOS[op.persona.id] && RF.CIUDADANOS[op.persona.id].nombre)), tono: 'aviso' });
+    if (op.institucion) for (const id of Object.keys(op.institucion)) partes.push({ texto: 'Disuelve ' + RF.INSTITUCIONES[id].corto, tono: 'aviso' });
     if (op.nombrar) partes.push({ texto: 'Nuevo ministro: ' + op.nombrar.nombre, tono: 'aviso' });
     if (op.economia) {
       const a = op.economia;
-      if (a.inflacion) partes.push({ texto: 'Inflación ' + (a.inflacion > 0 ? '▲' : '▼'), tono: a.inflacion > 0 ? 'baja' : 'sube' });
-      if (a.paro) partes.push({ texto: 'Paro ' + (a.paro > 0 ? '▲' : '▼'), tono: a.paro > 0 ? 'baja' : 'sube' });
-      for (const [id, v] of Object.entries(a.sectores || {})) partes.push({ texto: RF.SECTORES[id].nombre + (v > 0 ? ' ▲' : ' ▼'), tono: 'aviso' });
-      for (const [id, f] of Object.entries(a.multiplicar || {})) partes.push({ texto: RF.SECTORES[id].nombre + (f > 1 ? ' ▲' : ' ▼'), tono: 'aviso' });
+      if (a.multiplicar && a.multiplicar.narco) partes.push({ texto: 'Narcotráfico ▼', tono: 'aviso' });
+      if (a.sectores) partes.push({ texto: 'Frena la reconversión', tono: 'aviso' });
       if (a.cancelarModelo) partes.push({ texto: 'Cancela la reconversión', tono: 'aviso' });
     }
     if (op.programar || op.cadena) partes.push({ texto: '⚠ Traerá consecuencias', tono: 'aviso' });
     return partes;
+  }
+
+  // Los ajustes económicos de una opción, traducidos a las leyes vigentes.
+  function ajustarEconomia(e, a, deltas) {
+    const leyes = RF.leyes.lista(e);
+    if (a.inflacion) RF.consejero.aplicarEfectos(e, { inflacion: a.inflacion }, deltas);
+    if (a.paro) RF.consejero.aplicarEfectos(e, { felicidad: -a.paro * 0.5 }, deltas);
+    if (a.multiplicar && a.multiplicar.narco) {
+      const f = a.multiplicar.narco;
+      for (const l of leyes.filter(l => l.clave === 'NARCO' || l.modelo === 'narco')) {
+        if (f <= 0.3) RF.leyes.derogar(e, l.clave); else l.factor = (l.factor || 1) * f;
+      }
+    }
+    if (a.sectores) for (const l of leyes.filter(l => l.clave === 'MODELO')) l.factor = (l.factor || 1) * 0.8;
+    if (a.cancelarModelo) RF.leyes.derogar(e, 'MODELO');
   }
 
   function texto(d) { return T.expandir(d.texto, { lider: 'Su Excelencia' }); }
@@ -106,7 +125,7 @@
     const textoOpcion = T.expandir(op.texto);
     const deltas = {};
     RF.consejero.aplicarEfectos(e, op.efectos, deltas);
-    if (op.economia) RF.economia.ajustar(e, op.economia);
+    if (op.economia) ajustarEconomia(e, op.economia, deltas);
     for (const [id, que] of Object.entries(op.institucion || {})) if (que === 'disolver') RF.poder.disolver(e, id);
     if (op.nombrar) RF.poder.nombrar(e, op.nombrar.cargo, op.nombrar.nombre, op.nombrar.corto);
     if (op.persona) {
@@ -117,12 +136,17 @@
         if (t.sucesor) resultado += ' Su puesto lo ocupa ' + t.sucesor + '.';
       }
     }
-    if (op.ingresos) e.ingresos = Math.max(-6, Math.min(6, e.ingresos + op.ingresos));
+    // Un compromiso de gasto (subir salarios, pagar un préstamo...) se queda como ley vigente.
+    if (op.ingresos) {
+      const nombre = (op.ingresos > 0 ? 'los ingresos de "' : 'el compromiso de "') + T.expandir(op.texto).toLowerCase() + '"';
+      RF.leyes.promulgar(e, { clave: 'EVENTO:' + d.id, porTurno: { dinero: op.ingresos * 3 } }, 'EVENTO', nombre);
+    }
     for (const [id, v] of Object.entries(op.animo || {})) {
       const c = e.ciudadanos[id];
       if (c) c.animo = Math.max(-100, Math.min(100, c.animo + v));
     }
-    if (op.politica) Object.assign(e.politicas, op.politica);
+    // Una opción que cambia una política deroga la ley que había sobre ese tema.
+    for (const objId of Object.keys(op.politica || {})) RF.leyes.derogar(e, objId);
     for (const p of op.programar || []) e.pendientes.push(Object.assign({}, p, { dia: e.dia + p.en, texto: T.expandir(p.texto) }));
     if (op.cadena) D.cadena.push({ id: op.cadena.id, dia: e.dia + op.cadena.en });
     D.pendiente = null;

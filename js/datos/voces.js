@@ -90,6 +90,7 @@
     salud: ['En la puerta del Hospital Central, la fila empieza de madrugada.', 'Las farmacias cuelgan el cartel de "no hay". Otra vez.', 'Se oye toser en todas las colas del país.'],
     orden: ['Anoche ardieron dos contenedores y una patrulla de policía. Nadie vio nada.', 'Las tiendas del centro amanecen con rejas nuevas.', 'En los barrios del sur mandan otros, y todo el mundo lo sabe.'],
     mundo: ['Otra embajada anuncia que reduce su personal "por precaución".', 'Los vuelos internacionales llegan casi vacíos.', 'En el puerto, los barcos extranjeros pasan de largo.'],
+    inflacion: ['Los precios de las pizarras de los mercados se borran y se reescriben antes del mediodía.', 'En la cola del pan, alguien paga con un fajo de billetes atado con una goma. Nadie se sorprende.', 'Las tiendas cierran a la hora de comer para cambiar las etiquetas.'],
     bien: ['Amanece soleado en Puerto Esperanza. Los vendedores cantan mientras montan sus puestos.', 'Hay niños jugando en la plaza y nadie los manda a casa.', 'Un día tranquilo. En Valdoria, eso ya es noticia.'],
     normal: ['Amanece en Puerto Esperanza. El país sigue, como siempre, esperando al siguiente decreto.', 'Otro día en Valdoria. El café está caro y los rumores, baratos.', 'Los periódicos del día llegan al Palacio. Nadie en la calle los lee.']
   };
