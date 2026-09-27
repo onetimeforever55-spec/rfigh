@@ -1,0 +1,2206 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#14110d">
+<title>Consola de Valdoria</title>
+<meta name="description" content="Gobierna un país escribiendo decretos en una consola. Tus órdenes cambian el país y la vida de su gente.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Special+Elite&family=VT323&display=swap">
+<style>
+/* Terminal presidencial: fósforo ámbar sobre negro cálido; los decretos salen impresos en papel. */
+:root {
+  color-scheme: dark;
+  --fondo: #14110d;
+  --fondo-2: #1d1812;
+  --linea: #3a2f21;
+  --ambar: #ffb547;
+  --ambar-tenue: #b98a3e;
+  --ambar-oscuro: #6e5429;
+  --papel: #efe6d2;
+  --tinta: #2b2418;
+  --sello: #d0452f;
+  --bien: #9ad17f;
+  --mal: #ff6b52;
+  --aviso: #ffd166;
+  --f-terminal: 'VT323', 'Courier New', monospace;
+  --f-texto: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --f-papel: 'Special Elite', 'Courier New', Courier, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--ambar);
+  font-family: var(--f-texto);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+.app {
+  height: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background:
+    repeating-linear-gradient(to bottom, rgba(255, 181, 71, 0.025) 0 1px, transparent 1px 3px),
+    var(--fondo);
+}
+
+/* ---------- Cabecera y barras del país ---------- */
+.cabecera {
+  flex: none;
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--linea);
+  background: var(--fondo);
+}
+.cabecera-fila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.marca {
+  font-family: var(--f-terminal);
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  margin: 0;
+  font-weight: 400;
+  text-shadow: 0 0 8px rgba(255, 181, 71, 0.35);
+}
+.dia {
+  font-family: var(--f-terminal);
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ambar-tenue);
+  font-variant-numeric: tabular-nums;
+}
+.stats {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.stat-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 2px; }
+.stat-nombre { font-size: 10px; letter-spacing: 0.08em; color: var(--ambar-tenue); }
+.stat-valor { font-family: var(--f-terminal); font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat-barra { height: 4px; background: var(--linea); position: relative; overflow: hidden; }
+.stat-relleno { position: absolute; inset: 0 auto 0 0; background: var(--ambar); transition: width 0.6s ease; }
+.stat.medio .stat-relleno { background: var(--aviso); }
+.stat.bajo .stat-relleno { background: var(--mal); }
+.stat.bajo .stat-valor { color: var(--mal); animation: parpadeo 1.2s steps(2) infinite; }
+.stat .cambio {
+  font-size: 10px; height: 12px; line-height: 12px; text-align: right;
+  font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 0.3s;
+}
+.stat .cambio.visible { opacity: 1; }
+.cambio.sube { color: var(--bien); }
+.cambio.baja { color: var(--mal); }
+
+@keyframes parpadeo { 50% { opacity: 0.45; } }
+
+/* ---------- Historia ---------- */
+.registro {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 16px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.bloque { max-width: 65ch; }
+.bloque p { margin: 0; white-space: pre-wrap; }
+.etiqueta {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--ambar-tenue);
+  margin-bottom: 2px;
+}
+
+.b-titulo {
+  font-family: var(--f-terminal);
+  font-size: 40px;
+  line-height: 1;
+  text-align: left;
+  text-wrap: balance;
+  text-shadow: 0 0 12px rgba(255, 181, 71, 0.4);
+  margin-top: 8px;
+}
+
+.b-eco, .b-bot { display: flex; gap: 1ch; }
+.b-eco { color: var(--ambar); font-weight: 600; margin-top: 6px; }
+.b-eco::before { content: '>'; color: var(--ambar-tenue); flex: none; }
+
+.b-bot { font-size: 12px; color: var(--ambar-tenue); opacity: 0.75; letter-spacing: 0.02em; }
+.b-bot::before { content: '▸'; flex: none; }
+
+.b-nota { font-size: 13px; font-style: italic; color: var(--ambar-tenue); }
+
+/* La Gaceta Oficial: un papel impreso dentro de la terminal. */
+.b-gaceta {
+  position: relative;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--f-papel);
+  padding: 14px 16px 16px;
+  box-shadow: 0 2px 0 var(--ambar-oscuro), 0 10px 24px rgba(0, 0, 0, 0.45);
+  transform: rotate(-0.4deg);
+  overflow: hidden;
+}
+.b-gaceta .etiqueta {
+  color: var(--tinta);
+  opacity: 0.7;
+  border-bottom: 1px dashed rgba(43, 36, 24, 0.4);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+  font-family: var(--f-texto);
+}
+.b-gaceta p { font-size: 15px; line-height: 1.5; }
+.sello {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  font-family: var(--f-terminal);
+  font-size: 22px;
+  letter-spacing: 0.1em;
+  color: var(--sello);
+  border: 2px solid var(--sello);
+  padding: 0 6px;
+  transform: rotate(8deg);
+  opacity: 0.85;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sello { animation: sellar 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+}
+@keyframes sellar {
+  from { transform: rotate(8deg) scale(2.2); opacity: 0; }
+  to { transform: rotate(8deg) scale(1); opacity: 0.85; }
+}
+
+.b-efectos { display: flex; flex-wrap: wrap; gap: 6px 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.efecto { padding: 1px 7px; border: 1px solid var(--linea); background: var(--fondo-2); white-space: nowrap; }
+.efecto.sube { color: var(--bien); }
+.efecto.baja { color: var(--mal); }
+.efecto.neutro { color: var(--ambar-tenue); }
+
+.b-cupula, .b-calle { padding-left: 12px; border-left: 2px solid var(--ambar-oscuro); }
+.b-calle { border-left-style: dotted; }
+
+.b-suceso { padding: 10px 12px; background: var(--fondo-2); border: 1px solid var(--linea); }
+.b-suceso.umbral { border-color: var(--mal); }
+.b-suceso.umbral .etiqueta { color: var(--mal); }
+.b-suceso.hito .etiqueta { color: var(--aviso); }
+.b-suceso .mini { margin-top: 6px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.mini .sube { color: var(--bien); }
+.mini .baja { color: var(--mal); }
+
+.b-sistema { padding: 10px 12px; border: 1px dashed var(--ambar-oscuro); font-size: 13px; }
+.b-sistema.mono p { font-variant-numeric: tabular-nums; overflow-x: auto; white-space: pre; }
+
+.b-fin {
+  border: 3px double var(--sello);
+  padding: 16px;
+  color: var(--papel);
+  background: rgba(208, 69, 47, 0.08);
+}
+.b-fin .etiqueta { font-family: var(--f-terminal); font-size: 30px; line-height: 1.1; letter-spacing: 0.06em; color: var(--sello); margin-bottom: 8px; }
+
+.opciones { display: flex; flex-direction: column; gap: 8px; }
+.opcion, .chip, .boton {
+  font: inherit;
+  color: var(--ambar);
+  background: var(--fondo-2);
+  border: 1px solid var(--ambar-oscuro);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.opcion { text-align: left; padding: 10px 12px; font-size: 14px; }
+.opcion::before { content: '[ ] '; color: var(--ambar-tenue); }
+.opcion:hover { border-color: var(--ambar); }
+.opcion:disabled { opacity: 0.4; cursor: default; }
+.opcion.elegida { opacity: 1; border-color: var(--ambar); }
+.opcion.elegida::before { content: '[x] '; }
+
+.cursor::after {
+  content: '▌';
+  animation: parpadeo 0.8s steps(2) infinite;
+  margin-left: 1px;
+}
+
+/* ---------- Consola ---------- */
+.consola {
+  flex: none;
+  border-top: 1px solid var(--linea);
+  background: var(--fondo);
+  padding: 8px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; font-size: 13px; padding: 5px 10px; white-space: nowrap; }
+.chip.cmd { color: var(--ambar-tenue); border-style: dashed; }
+.chip:hover { border-color: var(--ambar); }
+
+.linea-orden { display: flex; align-items: stretch; gap: 8px; }
+.prompt { font-family: var(--f-terminal); font-size: 26px; line-height: 44px; color: var(--ambar-tenue); }
+#decreto {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--f-texto);
+  font-size: 16px;
+  color: var(--ambar);
+  background: var(--fondo-2);
+  border: 1px solid var(--ambar-oscuro);
+  padding: 0 10px;
+  height: 44px;
+  caret-color: var(--ambar);
+  border-radius: 0;
+}
+#decreto::placeholder { color: var(--ambar-oscuro); }
+.boton {
+  flex: none;
+  padding: 0 14px;
+  height: 44px;
+  font-family: var(--f-terminal);
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  background: var(--sello);
+  color: var(--papel);
+  border-color: var(--sello);
+}
+.boton:disabled { opacity: 0.5; }
+
+:focus-visible { outline: 2px solid var(--aviso); outline-offset: 2px; }
+#decreto:focus-visible { outline-offset: 0; }
+
+@media (max-width: 420px) {
+  .stat-nombre { font-size: 9px; letter-spacing: 0.04em; }
+  .stat-valor { font-size: 18px; }
+  .stats { gap: 4px; }
+  .b-titulo { font-size: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-relleno { transition: none; }
+  .stat.bajo .stat-valor, .cursor::after { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="cabecera">
+    <div class="cabecera-fila">
+      <h1 class="marca">VALDORIA</h1>
+      <span class="dia" id="dia">DÍA 1/30</span>
+    </div>
+    <ul class="stats" id="stats" aria-label="Estado del país"></ul>
+  </header>
+
+  <main class="registro" id="registro" aria-live="polite"></main>
+
+  <form class="consola" id="consola" autocomplete="off">
+    <div class="chips" id="chips" aria-label="Atajos de decreto"></div>
+    <div class="linea-orden">
+      <span class="prompt" aria-hidden="true">&gt;</span>
+      <label for="decreto" class="oculto" hidden>Decreto</label>
+      <input id="decreto" name="decreto" type="text" placeholder="Escribe tu decreto…" enterkeyhint="send" autocapitalize="sentences" spellcheck="false" maxlength="200">
+      <button class="boton" id="enviar" type="submit">DECRETAR</button>
+    </div>
+  </form>
+</div>
+
+<script>
+// js/texto.js
+/*
+ * Utilidades de texto: normalizar, separar palabras, raíces (stemming),
+ * corrección de faltas y la mini-gramática que usa el Narrador.
+ */
+(function (RF) {
+  'use strict';
+
+  // Palabras que no aportan significado al decreto.
+  const VACIAS = new Set((
+    'el la los las lo un una unos unas de del al a en y e o u que se por para con sin ' +
+    'su sus tu tus es son ser sea sean esta este estos estas ese esa eso esos esas ' +
+    'aquel aquella muy pero como cuando donde desde hasta sobre entre hacia le les me te nos ' +
+    'ha han he hay todo todos toda todas partir hoy dia adelante decreto decreta decreto ' +
+    'ordeno ordena ordenamos quiero queremos sera seran va van vamos ahora nuevo nueva ' +
+    'pais nacion nacional ciudadanos gente pueblo excelencia'
+  ).split(/\s+/));
+
+  // Negaciones que pueden dar la vuelta a un decreto ("ya no se vende el agua").
+  const NEGACIONES = new Set(['no', 'nunca', 'jamas', 'dejar', 'dejen', 'deja', 'dejara', 'dejaran', 'basta']);
+
+  const SUFIJOS = [
+    'aciones', 'iciones', 'amiento', 'imiento', 'mente', 'acion', 'icion',
+    'ando', 'iendo', 'ados', 'adas', 'idos', 'idas', 'ado', 'ada', 'ido', 'ida',
+    'aran', 'eran', 'iran', 'aron', 'ieron', 'aras', 'eras', 'ara', 'era', 'ira',
+    'ar', 'er', 'ir', 'an', 'en', 'as', 'es', 'os', 'a', 'e', 'o', 's'
+  ];
+
+  function normalizar(txt) {
+    return String(txt || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9%\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function palabras(txt) {
+    const n = normalizar(txt);
+    return n ? n.split(' ') : [];
+  }
+
+  function raiz(p) {
+    if (p.length <= 4) return p;
+    for (const s of SUFIJOS) {
+      if (p.endsWith(s) && p.length - s.length >= 4) return p.slice(0, p.length - s.length);
+    }
+    return p;
+  }
+
+  function distancia(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let prev = new Array(b.length + 1);
+    for (let j = 0; j <= b.length; j++) prev[j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let minFila = i;
+      for (let j = 1; j <= b.length; j++) {
+        const c = a[i - 1] === b[j - 1] ? 0 : 1;
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + c);
+        if (cur[j] < minFila) minFila = cur[j];
+      }
+      if (minFila > max) return max + 1;
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+
+  // Corrige una palabra desconocida con la más parecida del vocabulario.
+  function corregir(p, vocab) {
+    if (p.length < 4 || vocab.has(p) || VACIAS.has(p) || NEGACIONES.has(p) || /\d/.test(p)) return p;
+    const max = p.length <= 5 ? 1 : 2;
+    let mejor = p, mejorD = max + 1;
+    for (const v of vocab) {
+      const d = distancia(p, v, max);
+      if (d < mejorD) { mejor = v; mejorD = d; if (d === 1 && max === 1) break; }
+    }
+    return mejorD <= max ? mejor : p;
+  }
+
+  function azar(lista) { return lista[Math.floor(Math.random() * lista.length)]; }
+
+  // Mini-gramática: [a|b|c] elige una opción al azar, {var} inserta variables.
+  function expandir(plantilla, vars) {
+    let t = plantilla;
+    const re = /\[([^\[\]]*)\]/;
+    let m, guardia = 0;
+    while ((m = re.exec(t)) && guardia++ < 200) {
+      t = t.slice(0, m.index) + azar(m[1].split('|')) + t.slice(m.index + m[0].length);
+    }
+    return t.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : '{' + k + '}'));
+  }
+
+  function de(nombre) { return /^el /i.test(nombre) ? 'del ' + nombre.slice(3) : 'de ' + nombre; }
+  function a(nombre) { return /^el /i.test(nombre) ? 'al ' + nombre.slice(3) : 'a ' + nombre; }
+  function mayus(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
+
+  RF.texto = { VACIAS, NEGACIONES, normalizar, palabras, raiz, distancia, corregir, azar, expandir, de, a, mayus };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/datos/acciones.js
+/*
+ * ACCIONES: qué quiere hacer el Líder con algo.
+ * Cada frase de ejemplo usa {o} donde va el objeto ("el aire", "los bancos"...).
+ * El Intérprete combina estas frases con todos los objetos para entrenarse.
+ */
+(function (RF) {
+  'use strict';
+
+  RF.ACCIONES = {
+    PROHIBIR: {
+      nombre: 'Prohibir',
+      nominal: 'la prohibición {de}',
+      inversa: 'LEGALIZAR',
+      frases: [
+        'prohibir {o}', 'se prohibe {o}', '{o} queda prohibido', '{o} esta prohibido', 'prohibido {o}',
+        'nadie puede tener {o}', 'no se permite {o}', 'no se puede usar {o}', 'eliminar {o}', 'abolir {o}',
+        'vetar {o}', '{o} es ilegal', 'ilegalizar {o}', 'quiero que desaparezca {o}', 'fuera {o}',
+        'se acabo {o}', 'clausurar {o}', 'cerrar {o}', 'bloquear {o}', 'censurar {o}', 'nadie puede usar {o}',
+        'queda terminantemente prohibido {o}', 'nada de {o}', 'erradicar {o}', 'suprimir {o}', 'prohiban {o}', 'que cierren {o}', 'eliminen {o}'
+      ]
+    },
+    OBLIGAR: {
+      nombre: 'Obligar',
+      nominal: 'la obligatoriedad {de}',
+      inversa: 'LEGALIZAR',
+      frases: [
+        'obligar a todos a {o}', '{o} es obligatorio', '{o} sera obligatorio', 'todos deben {o}',
+        'todos tienen que {o}', 'es obligatorio {o}', 'imponer {o}', 'exigir {o}', 'cada ciudadano debe tener {o}',
+        'todo el mundo debe usar {o}', 'forzar {o}', '{o} de forma obligatoria', 'obligatorio para todos {o}',
+        'nadie puede negarse a {o}', 'todos estan obligados a {o}', 'usar {o} a diario por ley', 'obligar {o}',
+        'todos deberan {o}', 'deben {o}', 'que todos usen {o}', 'que todo el mundo lleve {o}', 'llevar {o} obligatoriamente',
+        'hay que {o} a diario', 'tienen que {o} cada dia', 'es deber de todos {o}', 'que todos tengan {o}', 'obliguen a {o}'
+      ]
+    },
+    PRIVATIZAR: {
+      nombre: 'Privatizar',
+      nominal: 'la privatización {de}',
+      inversa: 'NACIONALIZAR',
+      frases: [
+        'privatizar {o}', 'vender {o}', '{o} se vende', '{o} ahora se vende', 'cobrar por {o}',
+        'hay que pagar por {o}', '{o} cuesta dinero', '{o} sera de pago', 'poner precio a {o}', 'subastar {o}',
+        'vender {o} a empresas', '{o} pasa a manos privadas', 'cobrar {o}', '{o} ya no es gratis',
+        'que la gente pague por {o}', 'concesionar {o}', 'la gente tiene que pagar {o}', 'rematar {o}',
+        'vender {o} al mejor postor', '{o} tiene precio', 'pagar para {o}',
+        'se cobra por {o}', 'cobrar a la gente por {o}', 'el estado cobra por {o}', 'cobrar una cuota por {o}', 'vendan {o}', 'que se venda {o}', 'que cobren por {o}'
+      ]
+    },
+    NACIONALIZAR: {
+      nombre: 'Nacionalizar',
+      nominal: 'la nacionalización {de}',
+      inversa: 'PRIVATIZAR',
+      frases: [
+        'nacionalizar {o}', 'expropiar {o}', '{o} pasa a ser del estado', '{o} es del estado',
+        'el estado controla {o}', 'estatizar {o}', 'confiscar {o}', 'quitarle {o} a los privados',
+        '{o} pertenece al estado', 'el gobierno toma {o}', '{o} ahora es publico', 'requisar {o}',
+        'el gobierno se queda con {o}', 'expropiese {o}', 'socializar {o}', 'expropien {o}', 'que el estado tome {o}'
+      ]
+    },
+    SUBIR_IMPUESTO: {
+      nombre: 'Subir impuestos',
+      nominal: 'el nuevo impuesto {a}',
+      inversa: 'BAJAR_IMPUESTO',
+      frases: [
+        'subir impuestos a {o}', 'mas impuestos a {o}', 'gravar {o}', 'impuesto a {o}', 'nuevo impuesto sobre {o}',
+        'cobrar impuestos a {o}', 'aumentar los impuestos de {o}', 'tasa especial a {o}', '{o} paga mas impuestos',
+        'duplicar impuestos a {o}', 'tributo sobre {o}', 'subir el iva de {o}', 'impuestazo a {o}',
+        'que {o} pague mas impuestos', 'recargo fiscal a {o}', 'subir la tasa de {o}', 'impuesto al {o}', 'que {o} paguen mas'
+      ]
+    },
+    BAJAR_IMPUESTO: {
+      nombre: 'Bajar impuestos',
+      nominal: 'la rebaja de impuestos {a}',
+      inversa: 'SUBIR_IMPUESTO',
+      frases: [
+        'bajar impuestos a {o}', 'menos impuestos a {o}', 'quitar impuestos a {o}', '{o} no paga impuestos',
+        'rebaja fiscal para {o}', 'reducir impuestos de {o}', 'exentar de impuestos a {o}', 'eliminar el impuesto a {o}',
+        'exoneracion fiscal a {o}', 'bajar el iva de {o}', 'sin impuestos para {o}', 'libre de impuestos {o}',
+        'recortar impuestos a {o}', 'alivio fiscal para {o}', '{o} no pagan impuestos', 'que {o} no paguen impuestos', 'perdonar impuestos a {o}'
+      ]
+    },
+    SUBSIDIAR: {
+      nombre: 'Regalar',
+      nominal: 'los subsidios {a}',
+      inversa: 'RECORTAR',
+      frases: [
+        '{o} gratis', '{o} gratis para todos', 'subsidiar {o}', 'regalar {o}', 'repartir {o} gratis',
+        'el estado paga {o}', 'ayudas para {o}', 'subvencionar {o}', 'bono para {o}', '{o} gratuito',
+        'abaratar {o}', 'bajar el precio de {o}', 'congelar el precio de {o}', 'subir el sueldo a {o}',
+        'dar dinero a {o}', 'pagar a {o}', 'repartir {o}', 'regalo de {o} a cada familia', '{o} a mitad de precio',
+        'ayuda economica a {o}', 'aumentar el sueldo de {o}', 'regalen {o}', 'repartan {o} gratis'
+      ]
+    },
+    CASTIGAR: {
+      nombre: 'Mano dura',
+      nominal: 'la mano dura contra {o}',
+      inversa: 'LEGALIZAR',
+      frases: [
+        'castigar {o}', 'encarcelar a {o}', 'ejecutar a {o}', 'fusilar a {o}', 'carcel para {o}',
+        'mano dura contra {o}', 'perseguir a {o}', 'arrestar a {o}', 'multar a {o}', 'desterrar a {o}',
+        'exiliar a {o}', 'pena de muerte para {o}', 'reprimir a {o}', 'purgar a {o}', 'detener a {o}',
+        'deportar a {o}', 'meter presos a {o}', 'encerrar a {o}', 'aplastar a {o}', 'cazar a {o}',
+        'mano de hierro con {o}', 'eliminar a {o}', 'matar a {o}', 'fusilen a {o}', 'encierren a {o}', 'arresten a {o}', 'maten a {o}', 'castiguen a {o}', 'que encarcelen a {o}'
+      ]
+    },
+    LEGALIZAR: {
+      nombre: 'Legalizar',
+      nominal: 'la legalización {de}',
+      inversa: 'PROHIBIR',
+      frases: [
+        'legalizar {o}', '{o} es legal', 'permitir {o}', 'se permite {o}', '{o} queda permitido',
+        'despenalizar {o}', 'liberar {o}', '{o} libre', 'libertad para {o}', 'autorizar {o}',
+        'amnistia para {o}', 'indultar a {o}', 'perdonar a {o}', 'soltar a {o}', '{o} ya es legal',
+        'regular {o}', 'se puede {o} libremente', 'legalicen {o}', 'permitan {o}', 'que se permita {o}'
+      ]
+    },
+    INVERTIR: {
+      nombre: 'Invertir',
+      nominal: 'la inversión en {o}',
+      inversa: 'RECORTAR',
+      frases: [
+        'invertir en {o}', 'construir {o}', 'mas dinero para {o}', 'financiar {o}', 'mejorar {o}',
+        'modernizar {o}', 'ampliar {o}', 'crear {o}', 'fortalecer {o}', 'presupuesto para {o}',
+        'plan nacional de {o}', 'desarrollar {o}', 'aumentar el presupuesto de {o}', 'impulsar {o}',
+        'fondos para {o}', 'reformar {o}', 'mas {o}', 'duplicar el presupuesto de {o}', 'construyan {o}', 'inviertan en {o}'
+      ]
+    },
+    RECORTAR: {
+      nombre: 'Recortar',
+      nominal: 'los recortes en {o}',
+      inversa: 'INVERTIR',
+      frases: [
+        'recortar {o}', 'recortes en {o}', 'menos dinero para {o}', 'reducir el presupuesto de {o}',
+        'quitar fondos a {o}', 'desfinanciar {o}', 'congelar el presupuesto de {o}', 'austeridad en {o}',
+        'reducir {o}', 'despedir a {o}', 'bajar el sueldo a {o}', 'eliminar ayudas a {o}', 'quitar subsidios a {o}',
+        'menos {o}', 'ajuste en {o}', 'tijeretazo a {o}', 'reducir el gasto en {o}', 'recorten {o}', 'despidan a {o}'
+      ]
+    },
+    GLORIFICAR: {
+      nombre: 'Glorificar',
+      nominal: 'el homenaje {a}',
+      inversa: null,
+      frases: [
+        'construir una estatua de {o}', 'estatua de {o}', 'homenaje a {o}', 'celebrar a {o}', 'dia nacional de {o}',
+        'feriado en honor a {o}', 'heroe nacional a {o}', 'culto a {o}', 'alabar a {o}',
+        'retrato de {o} en cada casa', 'cambiar el himno por {o}', 'renombrar el pais en honor a {o}',
+        'desfile en honor a {o}', 'glorificar a {o}', 'poner la cara de {o} en los billetes', 'cantar alabanzas a {o}',
+        'un monumento a {o}', 'medalla para {o}', 'honrar a {o}'
+      ]
+    }
+  };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/datos/objetos.js
+/*
+ * OBJETOS: sobre qué cae el decreto.
+ * Propiedades (0 a 3) que usa el Consejero para calcular consecuencias:
+ *   esencial  cuánto depende la gente de ello para vivir
+ *   rentable  cuánto dinero puede generar
+ *   libertad  cuánto se asocia a libertades (prensa, internet...)
+ *   popular   cuánto le gusta a la gente
+ *   vicio     es un vicio (alcohol, apuestas...)
+ *   gente     es un grupo de personas (se les puede encarcelar)
+ *   faccion   estadística del grupo que representa (ejercito, cupula...)
+ *   afecta    estadística directamente ligada (salud, orden, mundo...)
+ */
+(function (RF) {
+  'use strict';
+
+  RF.OBJETOS = {
+    AIRE: {
+      nombre: 'el aire', esencial: 3, rentable: 2, afecta: 'salud',
+      formas: ['el aire', 'el oxígeno', 'respirar', 'la respiración', 'el aire puro']
+    },
+    AGUA: {
+      nombre: 'el agua', esencial: 3, rentable: 2, afecta: 'salud',
+      formas: ['el agua', 'el agua potable', 'los ríos', 'el agua del grifo', 'el agua de la llave', 'la lluvia']
+    },
+    COMIDA: {
+      nombre: 'la comida', esencial: 3, rentable: 1, afecta: 'salud', popular: 1,
+      formas: ['la comida', 'el pan', 'los alimentos', 'las arepas', 'el arroz', 'la carne', 'la canasta básica', 'comer', 'la harina', 'los huevos', 'la leche']
+    },
+    SALUD: {
+      nombre: 'los hospitales', esencial: 3, rentable: 1, afecta: 'salud',
+      formas: ['los hospitales', 'la sanidad', 'las medicinas', 'los médicos', 'la salud pública', 'las vacunas', 'las enfermeras', 'los medicamentos', 'las clínicas']
+    },
+    EDUCACION: {
+      nombre: 'las escuelas', esencial: 2, libertad: 1,
+      formas: ['las escuelas', 'la educación', 'las universidades', 'los maestros', 'los profesores', 'los colegios', 'estudiar', 'los libros', 'los estudiantes']
+    },
+    PRENSA: {
+      nombre: 'la prensa', libertad: 3, afecta: 'mundo',
+      formas: ['la prensa', 'los periodistas', 'los periódicos', 'la televisión', 'la radio', 'las noticias', 'los medios', 'los canales de tv']
+    },
+    INTERNET: {
+      nombre: 'internet', libertad: 2, popular: 3, rentable: 1,
+      formas: ['internet', 'las redes sociales', 'el wifi', 'los celulares', 'WhatsApp', 'TikTok', 'los teléfonos', 'Instagram', 'YouTube', 'los móviles']
+    },
+    RELIGION: {
+      nombre: 'la religión', libertad: 2, popular: 2,
+      formas: ['la religión', 'las iglesias', 'la misa', 'rezar', 'los curas', 'la fe', 'Dios', 'los templos', 'la biblia']
+    },
+    EJERCITO: {
+      nombre: 'el ejército', faccion: 'ejercito', gente: 1,
+      formas: ['el ejército', 'los militares', 'los soldados', 'las fuerzas armadas', 'los generales', 'los tanques', 'el servicio militar']
+    },
+    POLICIA: {
+      nombre: 'la policía', afecta: 'orden', gente: 1,
+      formas: ['la policía', 'los policías', 'los agentes', 'la guardia nacional', 'las patrullas', 'los guardias']
+    },
+    OPOSICION: {
+      nombre: 'la oposición', libertad: 3, afecta: 'mundo', gente: 1,
+      formas: ['la oposición', 'los opositores', 'los partidos políticos', 'los disidentes', 'los manifestantes', 'los traidores', 'los rebeldes', 'las protestas', 'los enemigos del estado', 'las huelgas']
+    },
+    EMPRESAS: {
+      nombre: 'las empresas', rentable: 3, faccion: 'cupula', gente: 1,
+      formas: ['las empresas', 'los ricos', 'los empresarios', 'los bancos', 'los millonarios', 'las multinacionales', 'las fabricas', 'la bolsa', 'los oligarcas']
+    },
+    TRABAJADORES: {
+      nombre: 'los trabajadores', esencial: 2, faccion: 'pueblo', gente: 1,
+      formas: ['los trabajadores', 'los obreros', 'los sueldos', 'el salario mínimo', 'los empleados', 'los sindicatos', 'los pobres', 'las pensiones', 'los jubilados', 'los campesinos']
+    },
+    DIVERSION: {
+      nombre: 'el fútbol y las fiestas', popular: 3, libertad: 1, rentable: 1,
+      formas: ['el fútbol', 'los deportes', 'la música', 'las fiestas', 'el carnaval', 'el cine', 'los conciertos', 'bailar', 'el reguetón', 'la cultura', 'los videojuegos', 'la salsa', 'el béisbol']
+    },
+    VICIOS: {
+      nombre: 'el alcohol', popular: 2, rentable: 2, vicio: 1,
+      formas: ['el alcohol', 'la cerveza', 'el ron', 'el tabaco', 'fumar', 'los cigarros', 'las drogas', 'la marihuana', 'los casinos', 'las apuestas', 'el vino', 'emborracharse']
+    },
+    TRANSPORTE: {
+      nombre: 'el transporte', esencial: 2, rentable: 1,
+      formas: ['el transporte', 'los autobuses', 'el metro', 'los taxis', 'los coches', 'los carros', 'las carreteras', 'el tren', 'las motos', 'las bicicletas']
+    },
+    ENERGIA: {
+      nombre: 'la electricidad', esencial: 3, rentable: 2,
+      formas: ['la luz', 'la electricidad', 'la gasolina', 'el gas', 'la energía', 'el combustible', 'el diésel']
+    },
+    VIVIENDA: {
+      nombre: 'la vivienda', esencial: 2, rentable: 2,
+      formas: ['las casas', 'la vivienda', 'los alquileres', 'las rentas', 'los apartamentos', 'los pisos', 'las hipotecas', 'los edificios']
+    },
+    EXTRANJEROS: {
+      nombre: 'los extranjeros', libertad: 1, afecta: 'mundo', gente: 1,
+      formas: ['los extranjeros', 'los inmigrantes', 'los turistas', 'la frontera', 'las fronteras', 'viajar', 'las importaciones', 'los visados']
+    },
+    ARMAS: {
+      nombre: 'las armas', afecta: 'orden', rentable: 1,
+      formas: ['las armas', 'las pistolas', 'los fusiles', 'las balas', 'las escopetas', 'los rifles']
+    },
+    RECURSOS: {
+      nombre: 'el petróleo', rentable: 3, afecta: 'mundo',
+      formas: ['el petróleo', 'las minas', 'el oro', 'el litio', 'los bosques', 'la selva', 'los recursos naturales', 'el cobre', 'la minería']
+    },
+    CRIMEN: {
+      nombre: 'la delincuencia', afecta: 'orden', gente: 1,
+      formas: ['los ladrones', 'los delincuentes', 'el crimen', 'la delincuencia', 'los narcos', 'las pandillas', 'la corrupción', 'los corruptos', 'robar', 'los asesinos', 'los mafiosos']
+    },
+    MASCOTAS: {
+      nombre: 'las mascotas', popular: 2,
+      formas: ['las mascotas', 'los perros', 'los gatos', 'los animales', 'los loros', 'las palomas']
+    },
+    LIDER: {
+      nombre: 'el Líder',
+      formas: ['mi', 'mi persona', 'el líder', 'su excelencia', 'el presidente', 'yo', 'mi cara', 'mi nombre', 'el gran líder', 'mi madre', 'mi cumpleaños']
+    }
+  };
+
+  // Objeto comodín para decretos sobre cosas que el bot no conoce ("los calcetines").
+  RF.OBJETO_OTRO = { nombre: 'eso', libertad: 1, popular: 1, formas: [] };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/datos/personajes.js
+/*
+ * PERSONAJES
+ * El gabinete (la cúpula) y la gente de a pie que vive tus decretos.
+ * Plantillas: [a|b|c] elige una opción al azar; {medida}, {objeto}, {Medida} se rellenan solos.
+ */
+(function (RF) {
+  'use strict';
+
+  RF.PAIS = {
+    nombre: 'República de Valdoria',
+    capital: 'Puerto Esperanza',
+    moneda: 'valdos',
+    dias: 30
+  };
+
+  // Cada ministro vigila una estadística y reacciona cuando cambia.
+  RF.GABINETE = {
+    garrote: {
+      nombre: 'General Bruno Garrote', corto: 'Garrote', cargo: 'Ministro de Defensa', stats: ['ejercito'],
+      pos: [
+        'El General Garrote golpea la mesa con el puño. "[Por fin|Al fin|Ya era hora], {lider}. Así se gobierna." Esa noche los cuarteles brindan en su nombre.',
+        'Garrote se ajusta las medallas. "El ejército aprueba {medida}." No sonríe, pero tampoco hace falta.',
+        'En el cuartel central, los oficiales comentan {medida} con aprobación. Garrote manda una caja de puros a Palacio.'
+      ],
+      neg: [
+        'El General Garrote escucha el anuncio sin parpadear. Después pide su coche y no vuelve a Palacio en todo el día.',
+        '"Con todo respeto, {lider}," dice Garrote, "{medida} no le gusta a mis muchachos." Lo de "con todo respeto" suena a amenaza.',
+        'Garrote convoca a los coroneles a una reunión "de rutina". Nadie en Palacio sabe de qué hablaron.'
+      ],
+      bajo: [
+        'Se ven luces encendidas de madrugada en el Estado Mayor. Garrote ya no contesta sus llamadas a la primera.',
+        'Un coronel joven le susurra a tu secretaria: "Cuide a Su Excelencia. Hay gente contando tanques."'
+      ]
+    },
+    cifuentes: {
+      nombre: 'Leonor Cifuentes', corto: 'Cifuentes', cargo: 'Ministra de Hacienda', stats: ['tesoro', 'cupula'],
+      pos: [
+        'Leonor Cifuentes repasa las cuentas y sonríe con los labios, no con los ojos. "Las familias importantes están contentas, {lider}."',
+        'Cifuentes brinda con champán importado en el Club Náutico. Los empresarios la llaman "la ministra razonable".',
+        '"Excelente decisión," dice Cifuentes mientras anota algo en una libreta que nunca deja ver a nadie.'
+      ],
+      neg: [
+        'Cifuentes cierra la carpeta de golpe. "¿Sabe cuánto nos cuesta {medida}? No, claro que no lo sabe."',
+        'Esa noche, Leonor Cifuentes cena con tres banqueros. En la mesa de al lado, un periodista extranjero toma notas.',
+        'La ministra Cifuentes pide ver los libros contables "por si acaso". Nadie sabe qué significa ese "por si acaso".'
+      ],
+      bajo: [
+        'Cifuentes ha abierto una cuenta en un banco suizo. Tus espías lo saben. Ella sabe que tú lo sabes.',
+        'En el Club Náutico ya no se brinda por ti. Se brinda por "lo que venga después".'
+      ]
+    },
+    sombra: {
+      nombre: 'Octavio Sombra', corto: 'Sombra', cargo: 'Ministro del Interior', stats: ['orden'],
+      pos: [
+        'Octavio Sombra deja una carpeta sobre tu escritorio: calles tranquilas, archivos llenos. "Todo bajo control, {lider}."',
+        'Sombra asiente despacio. "La gente obedece mejor cuando sabe que la estamos mirando."',
+        'En el sótano del Ministerio del Interior, las máquinas de escribir no paran. Sombra está de buen humor.'
+      ],
+      neg: [
+        'Sombra frunce el ceño. "Con {medida} las calles se van a calentar. Mis hombres no son suficientes."',
+        '"Voy a necesitar más agentes," dice Sombra. "Y más celdas. Y más paciencia, {lider}."',
+        'Octavio Sombra enciende un cigarro en la ventana y mira la plaza. "Esto va a traer problemas."'
+      ],
+      bajo: [
+        'Sombra ya no te cuenta todo. Sus informes llegan tarde y con páginas arrancadas.',
+        'Hay pintadas contra ti en la pared del propio Ministerio del Interior. Nadie vio nada.'
+      ]
+    },
+    paredes: {
+      nombre: 'Rolando "Rolo" Paredes', corto: 'Rolo', cargo: 'Jefe de Propaganda', stats: ['pueblo'],
+      pos: [
+        'Rolo Paredes ya tiene el eslogan: "¡{Medida}, la Patria lo agradece!" Los carteles se imprimen esa misma noche.',
+        'En la televisión estatal, Rolo presenta {medida} con música épica y niños sonriendo. Esta vez la gente sonríe de verdad.',
+        '"Esto se vende solo, {lider}," dice Rolo. Por primera vez en semanas no tiene que inventar nada.'
+      ],
+      neg: [
+        'Rolo Paredes suda. "Puedo venderlo, {lider}. Todo se puede vender. Pero {medida} me lo pone difícil."',
+        'La televisión estatal dedica tres horas a un documental sobre patos para no hablar de {medida}.',
+        'Rolo manda imprimir carteles que dicen "Sacrificio es Patriotismo". Alguien les pinta bigotes antes del amanecer.'
+      ],
+      bajo: [
+        'Ya ni la televisión estatal logra tapar los abucheos. Rolo ha empezado a hablar de ti en pasado.',
+        'Rolo Paredes pide vacaciones "por salud". Tiene el pasaporte en el bolsillo.'
+      ]
+    },
+    montiel: {
+      nombre: 'Isabela Montiel', corto: 'Montiel', cargo: 'Canciller', stats: ['mundo'],
+      pos: [
+        'La canciller Montiel recibe llamadas de felicitación de tres embajadas. "El mundo nos mira con otros ojos, {lider}."',
+        'Montiel sonríe en la cumbre regional. Por una vez nadie le pregunta por los derechos humanos.',
+        'Un periódico extranjero publica: "Valdoria sorprende". Montiel lo enmarca.'
+      ],
+      neg: [
+        'Isabela Montiel cuelga el teléfono, pálida. "Era el embajador. Dice que {medida} es un escándalo internacional."',
+        'La prensa extranjera se burla de {medida}. En un programa de humor americano ya te imitan.',
+        'Montiel cancela su viaje a la cumbre. "No quiero que me tiren tomates, {lider}."'
+      ],
+      bajo: [
+        'Varios embajadores han "llamado a consultas" a sus diplomáticos. Montiel teme que la próxima llamada sea un ultimátum.',
+        'Montiel te enseña un mapa con barcos de guerra. No son los tuyos.'
+      ]
+    },
+    ventura: {
+      nombre: 'Dr. Aurelio Ventura', corto: 'Ventura', cargo: 'Ministro de Salud', stats: ['salud'],
+      pos: [
+        'El Dr. Ventura se quita las gafas y respira hondo. "Esto va a salvar vidas, {lider}. Gracias."',
+        'Ventura visita el Hospital Central y por primera vez nadie le grita en el pasillo.'
+      ],
+      neg: [
+        'El Dr. Ventura lee el decreto dos veces. "¿Sabe cuánta gente va a enfermar con {medida}?" No espera respuesta.',
+        'Ventura firma su parte de {medida} con la mano temblando. Luego va al baño a vomitar.',
+        '"Voy a necesitar más camas," dice Ventura. "Y más ataúdes."'
+      ],
+      bajo: [
+        'Los hospitales atienden en los pasillos. Ventura ha dejado de dormir y ha empezado a beber.',
+        'Ventura presenta su dimisión. La rompes. Él la vuelve a escribir.'
+      ]
+    }
+  };
+
+  /*
+   * GENTE DE A PIE: personajes recurrentes. Su "ánimo" (-100 a 100) cambia con tus decretos
+   * y al cruzar ciertos límites su historia da un giro (hitos).
+   */
+  RF.CIUDADANOS = {
+    carmen: {
+      nombre: 'Doña Carmen',
+      presentacion: 'Doña Carmen, 67 años, vende arepas en una esquina del barrio La Esperanza desde hace cuarenta años.',
+      intereses: ['COMIDA', 'AGUA', 'AIRE', 'ENERGIA', 'VIVIENDA', 'TRABAJADORES', 'RELIGION', 'SALUD'],
+      neg: [
+        'Doña Carmen se entera de {medida} por la radio mientras amasa. Se queda quieta un rato largo. Luego sigue amasando, [más fuerte|con rabia|sin cantar como siempre].',
+        'Hoy Doña Carmen vendió la mitad de arepas que ayer. "{Medida}," dice un cliente, y los dos miran al suelo.',
+        'Doña Carmen enciende una vela en la iglesia. No pide por ella: pide por su nieto Nico, que [llegó a casa furioso|no vino a dormir|rompió un plato al oír las noticias].',
+        'En la cola del mercado, Doña Carmen escucha a las vecinas hablar de {medida}. Ella calla. Ha vivido tres dictaduras y sabe cuándo callar.',
+        'Doña Carmen tiene que elegir esta semana entre pagar la luz o comprar harina. Culpa a {medida}. Y a ti.'
+      ],
+      pos: [
+        'Doña Carmen sube el volumen de la radio cuando anuncian {medida}. "Bueno, bueno," murmura. "Por fin algo."',
+        'Hoy Doña Carmen regaló una arepa de más al cartero. "Día de fiesta," le dijo. Tu retrato sigue colgado en su puesto.',
+        'Doña Carmen le dice a Nico que no todo lo que hace el gobierno es malo. Nico pone los ojos en blanco, pero no la contradice.'
+      ],
+      neu: [
+        'Doña Carmen ni se entera de {medida}. Tiene cosas más importantes: el precio del maíz y la tos de su vecina.',
+        'Doña Carmen oye lo de {medida} y se encoge de hombros. "Los de arriba siempre están inventando."'
+      ],
+      hitos: [
+        { id: 'carmen_cierra', bajo: -40, texto: 'Doña Carmen ha cerrado su puesto de arepas después de cuarenta años. En la persiana ha escrito con tiza: "Gracias a Su Excelencia".', efectos: { pueblo: -3 } },
+        { id: 'carmen_fan', alto: 40, texto: 'Doña Carmen ha colgado una foto tuya junto a la Virgen. Dice a sus clientas que eres "un buen muchacho, aunque un poco raro".', efectos: { pueblo: 2 } }
+      ],
+      finales: {
+        bien: 'Doña Carmen siguió vendiendo arepas hasta los noventa años. Nunca te nombró en voz alta, pero guardó tu foto.',
+        mal: 'Doña Carmen le contó a todo el que quisiera oírla lo que hiciste. Los niños del barrio aprendieron tu nombre como se aprende una palabrota.',
+        neutro: 'Doña Carmen siguió en su esquina. Gobiernos iban y venían. Las arepas siempre salían igual de buenas.'
+      }
+    },
+    nico: {
+      nombre: 'Nico',
+      presentacion: 'Nico, 19 años, nieto de Doña Carmen, estudia periodismo y pasa el día pegado al celular.',
+      intereses: ['EDUCACION', 'INTERNET', 'PRENSA', 'DIVERSION', 'OPOSICION', 'VICIOS', 'MASCOTAS', 'LIDER', 'POLICIA'],
+      neg: [
+        'Nico publica un meme sobre {medida}. En una hora lo comparten diez mil personas. En dos horas, alguien del Ministerio del Interior lo guarda en una carpeta.',
+        'En la universidad, Nico y sus amigos pintan una pancarta contra {medida}. [Uno se va antes de que llegue la policía|Nadie firma con su nombre real|La esconden en el techo de la cafetería].',
+        'Nico discute con su abuela en la cena. "¡{Medida} es una locura!" Doña Carmen le pide que baje la voz. Las paredes son finas.',
+        'Nico escribe en su diario: "Hoy decretaron {medida}. Algún día alguien va a contar esta historia."'
+      ],
+      pos: [
+        'Nico lee lo de {medida} dos veces, buscando la trampa. No la encuentra. Le escribe a un amigo: "¿Esto es real?"',
+        'Nico publica, casi a su pesar: "Ok, {medida} no está mal." Le llueven insultos de sus amigos. Y algunos "me gusta".',
+        'Por primera vez, Nico no se burla de ti en la cena. Su abuela lo nota y sonríe.'
+      ],
+      neu: [
+        'Nico ve la noticia de {medida} entre dos videos de gatos y sigue deslizando.',
+        'A Nico le da igual {medida}. Esta semana tiene exámenes.'
+      ],
+      hitos: [
+        { id: 'nico_resistencia', bajo: -40, texto: 'Nico ha dejado la universidad. Su abuela dice que "se fue al campo". Los informes de Sombra dicen que se unió a la resistencia.', efectos: { orden: -4 } },
+        { id: 'nico_juventudes', alto: 40, texto: 'Nico se ha unido a las Juventudes Patrióticas. Su abuela no sabe si alegrarse o preocuparse.', efectos: { pueblo: 2, orden: 2 } }
+      ],
+      finales: {
+        bien: 'Nico se hizo periodista y escribió tu biografía. Era sorprendentemente amable. Casi nadie la creyó.',
+        mal: 'Años después, Nico escribió un libro sobre tu gobierno. Se tituló "La consola del miedo". Fue un éxito mundial.',
+        neutro: 'Nico se fue a estudiar al extranjero y nunca volvió. De vez en cuando le pregunta a su abuela si "el loco ese" sigue ahí.'
+      }
+    },
+    ramiro: {
+      nombre: 'Ramiro',
+      presentacion: 'Ramiro, 45 años, taxista. Escucha la radio doce horas al día y tiene opinión sobre todo.',
+      intereses: ['TRANSPORTE', 'ENERGIA', 'CRIMEN', 'POLICIA', 'ARMAS', 'EXTRANJEROS', 'VICIOS', 'EMPRESAS', 'EJERCITO', 'DIVERSION'],
+      neg: [
+        'Ramiro apaga la radio de golpe. "{Medida}," le dice al pasajero. "Así estamos." El pasajero, por si acaso, no contesta.',
+        'En la parada de taxis, Ramiro y los demás no hablan de otra cosa que {medida}. Alguien propone una huelga. Nadie dice que no.',
+        'Ramiro echa cuentas en una servilleta. Con {medida}, este mes no llega. Su hija tendrá que dejar las clases de piano.',
+        'Ramiro ya no pone la emisora oficial. Ahora escucha una radio pirata que habla muy mal de {medida}.'
+      ],
+      pos: [
+        'Ramiro se lo cuenta a todos los pasajeros: "¿Oyó lo de {medida}? ¡Eso es tener pantalones!"',
+        'Ramiro pega una pegatina con tu cara en el taxi. Algunos pasajeros se bajan. Él no se arrepiente.',
+        'Por primera vez en meses, Ramiro silba mientras conduce. {Medida} le ha alegrado la semana.'
+      ],
+      neu: [
+        'Ramiro comenta {medida} con un pasajero y acaban hablando de fútbol.',
+        '"¿{Medida}? Mientras no toquen la gasolina, que hagan lo que quieran," dice Ramiro.'
+      ],
+      hitos: [
+        { id: 'ramiro_huelga', bajo: -40, texto: 'Ramiro encabeza una huelga de taxistas. Puerto Esperanza amanece colapsada. Su cara sale en la radio pirata.', efectos: { tesoro: -5, orden: -4 } },
+        { id: 'ramiro_fan', alto: 40, texto: 'Ramiro ha fundado el "Club de Taxistas por Su Excelencia". Tiene doce miembros y un grupo de WhatsApp muy activo.', efectos: { pueblo: 2 } }
+      ],
+      finales: {
+        bien: 'Ramiro contó hasta el final de sus días que una vez llevó a Su Excelencia en su taxi. Era mentira, pero lo contaba muy bien.',
+        mal: 'Ramiro fue de los primeros en salir a la plaza cuando todo acabó. Llevaba una bandera y el claxon pegado.',
+        neutro: 'Ramiro sigue conduciendo. "Políticos," dice, y sube el volumen del fútbol.'
+      }
+    },
+    lucia: {
+      nombre: 'Lucía',
+      presentacion: 'Lucía, 34 años, enfermera del Hospital Central. Hace turnos dobles y tiene dos hijos pequeños.',
+      intereses: ['SALUD', 'AIRE', 'AGUA', 'EDUCACION', 'TRABAJADORES', 'COMIDA', 'VIVIENDA', 'MASCOTAS'],
+      neg: [
+        'Lucía termina un turno de dieciséis horas y se entera de {medida} en el autobús. Llora un poco, en silencio, contra la ventana.',
+        'En el Hospital Central, Lucía ve llegar a los primeros afectados por {medida}. Anota sus nombres en una libreta. Por si algún día alguien los pregunta.',
+        'Lucía mira ofertas de trabajo en el extranjero. Por la noche, cuando sus hijos duermen, rellena un formulario.',
+        'Una paciente anciana le pregunta a Lucía qué significa {medida}. Lucía le arregla la almohada y no contesta.'
+      ],
+      pos: [
+        'En el Hospital Central, las enfermeras hablan de {medida} en la sala de descanso. Lucía se permite una sonrisa cansada.',
+        'Lucía le explica a su hija pequeña que {medida} es algo bueno. La niña dibuja un sol sobre el Palacio.',
+        'Esta semana Lucía ha podido dormir seis horas seguidas. No sabe si es por {medida}, pero lo agradece.'
+      ],
+      neu: [
+        'Lucía no tiene tiempo para {medida}. Tiene cuarenta pacientes y una sola máquina de oxígeno.',
+        'Lucía oye lo de {medida} y sigue cambiando vendas. "Ya veremos," piensa.'
+      ],
+      hitos: [
+        { id: 'lucia_emigra', bajo: -40, texto: 'Lucía ha emigrado con sus hijos. En el Hospital Central la despidieron con una tarta. Hay otras doce enfermeras con la maleta hecha.', efectos: { salud: -5 } },
+        { id: 'lucia_premio', alto: 40, texto: 'Lucía ha recibido una medalla al mérito sanitario. En la foto oficial sale incómoda, pero orgullosa.', efectos: { salud: 2, pueblo: 1 } }
+      ],
+      finales: {
+        bien: 'Lucía llegó a ser directora del Hospital Central. En su despacho hay una placa con tu nombre, algo torcida.',
+        mal: 'Lucía declaró como testigo en el juicio contra tu gobierno. Leyó en voz alta los nombres de su libreta. Tardó tres horas.',
+        neutro: 'Lucía siguió haciendo turnos dobles, con o sin ti. Los hospitales no cierran por cambios de gobierno.'
+      }
+    }
+  };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/datos/eventos.js
+/*
+ * EVENTOS
+ *  ESPECIALES  combinaciones acción+objeto con consecuencias propias (se suman a las generales)
+ *  UMBRALES    lo que pasa cuando una estadística cae demasiado
+ *  AZAR        sucesos que el Director de Historia mete para dar ritmo
+ *  FINALES     cómo termina tu gobierno
+ * "en" es a cuántos días vista ocurre una consecuencia programada.
+ */
+(function (RF) {
+  'use strict';
+
+  RF.ESPECIALES = {
+    'PRIVATIZAR:AIRE': {
+      efectos: { tesoro: 6, cupula: 4, pueblo: -4, mundo: -6 },
+      texto: 'Se instalan medidores de respiración en cada hogar. Tarifa básica: 3 valdos por hora. Los asmáticos pagan tarifa premium.',
+      programar: [
+        { en: 2, titulo: 'Aire embotellado', texto: 'Aparece un mercado negro de aire embotellado en La Esperanza. Las botellas se venden en la puerta de las escuelas, "sabor montaña".', efectos: { orden: -6, cupula: 3 } },
+        { en: 4, titulo: 'Los que no pueden pagar', texto: 'Los hospitales reciben a los primeros ciudadanos que dejaron de "respirar oficialmente" por no pagar. Nadie sabe cómo contarlos en las estadísticas.', efectos: { salud: -8, pueblo: -6, mundo: -5 } }
+      ]
+    },
+    'PROHIBIR:AIRE': {
+      efectos: { pueblo: -10, orden: -6, mundo: -10 },
+      texto: 'Respirar queda prohibido en todo el territorio. La población sigue respirando, pero ahora a escondidas y con culpa.'
+    },
+    'NACIONALIZAR:AIRE': {
+      efectos: { mundo: -3 },
+      texto: 'El aire pasa a ser propiedad del Estado. De momento es gratis. La palabra "de momento" preocupa a todo el mundo.'
+    },
+    'PRIVATIZAR:AGUA': {
+      texto: 'Una empresa del cuñado de Cifuentes gana la concesión del agua. Casualidad.',
+      programar: [{ en: 3, titulo: 'Pozos clandestinos', texto: 'En los barrios pobres se cavan pozos a escondidas. El agua sale turbia. Los niños enferman.', efectos: { salud: -6, orden: -3 } }]
+    },
+    'PRIVATIZAR:RECURSOS': {
+      efectos: { pueblo: -3 },
+      texto: 'Una multinacional compra la concesión por una fracción de su valor. Cifuentes estrena reloj.',
+      programar: [{ en: 3, titulo: 'Ríos de colores', texto: 'Los ríos cerca de las minas bajan naranjas. Los pescadores protestan con peces muertos frente a Palacio.', efectos: { salud: -5, pueblo: -4, mundo: -3 } }]
+    },
+    'PRIVATIZAR:SALUD': {
+      programar: [{ en: 3, titulo: 'Hospitales de lujo', texto: 'Los hospitales privatizados reabren con alfombra roja y precios en dólares. En la puerta, una fila de gente que no puede entrar.', efectos: { salud: -7, pueblo: -4, cupula: 3 } }]
+    },
+    'PROHIBIR:INTERNET': {
+      efectos: { orden: 4, mundo: -6, tesoro: -4 },
+      texto: 'Se apagan las antenas a medianoche. En los cibercafés, la gente mira pantallas negras como quien mira un pozo.',
+      programar: [{ en: 3, titulo: 'Antenas piratas', texto: 'Aparecen antenas piratas en las azoteas. Sombra calcula que hay una cada tres manzanas.', efectos: { orden: -5, pueblo: -2 } }]
+    },
+    'PROHIBIR:DIVERSION': {
+      texto: 'El Estadio Nacional se cierra con candado. Los niños juegan con latas en la calle, mirando a los lados.',
+      programar: [{ en: 2, titulo: 'El partido clandestino', texto: 'La policía interrumpe un partido de fútbol clandestino en un garaje. Había 400 personas. Y dos policías jugando.', efectos: { orden: -4, pueblo: -3 } }]
+    },
+    'PROHIBIR:VICIOS': {
+      programar: [{ en: 3, titulo: 'Contrabando', texto: 'El contrabando florece en la frontera. Los contrabandistas mandan un regalo a Palacio para agradecer el negocio.', efectos: { orden: -6, cupula: 4, tesoro: -2 } }]
+    },
+    'PROHIBIR:MASCOTAS': {
+      efectos: { pueblo: -6 },
+      texto: 'Los perros de Valdoria pasan a la clandestinidad. En muchas casas, el armario ladra.'
+    },
+    'PROHIBIR:LIDER': {
+      efectos: { cupula: -8, mundo: -6, orden: -5 },
+      texto: 'Su Excelencia se prohíbe a sí mismo. Los juristas pasan la noche discutiendo si el país sigue teniendo gobierno.'
+    },
+    'PROHIBIR:RELIGION': {
+      programar: [{ en: 3, titulo: 'Misas en los sótanos', texto: 'Se celebran misas clandestinas en sótanos y garajes. Los curas usan bigote falso.', efectos: { pueblo: -4, orden: -3 } }]
+    },
+    'CASTIGAR:OPOSICION': {
+      texto: 'Las furgonetas negras hacen tres viajes esa noche. A la mañana siguiente, varias sillas del Parlamento están vacías.',
+      programar: [{ en: 3, titulo: 'Mártires', texto: 'Las fotos de los detenidos aparecen pegadas en las paredes con la palabra "¿DÓNDE ESTÁN?". Las arrancan. Vuelven a aparecer.', efectos: { pueblo: -6, mundo: -5 } }]
+    },
+    'CASTIGAR:CRIMEN': {
+      efectos: { orden: 5, pueblo: 3 },
+      texto: 'Las cárceles se llenan en una semana. Algunos detenidos incluso eran delincuentes.',
+      programar: [{ en: 4, titulo: 'Motín en La Roca', texto: 'Motín en la prisión de La Roca: caben 800 presos y hay 3.000. Los amotinados piden colchones y una entrevista contigo.', efectos: { orden: -5, tesoro: -3 } }]
+    },
+    'CASTIGAR:PRENSA': {
+      efectos: { mundo: -8 },
+      texto: 'Los corresponsales extranjeros hacen las maletas. El último en irse deja un artículo programado para publicarse al llegar a casa.'
+    },
+    'NACIONALIZAR:EMPRESAS': {
+      programar: [{ en: 2, titulo: 'Fuga de capitales', texto: 'Los millonarios huyen con maletas llenas. En el aeropuerto hay tanto tráfico de jets privados que se forma un atasco en el aire.', efectos: { tesoro: -6, mundo: -4 } }]
+    },
+    'NACIONALIZAR:RECURSOS': {
+      programar: [{ en: 2, titulo: 'Ofertas misteriosas', texto: 'Tres potencias extranjeras ofrecen "ayuda técnica" para explotar tu petróleo. Montiel dice que la ayuda viene con portaaviones.', efectos: { mundo: -4, tesoro: 4 } }]
+    },
+    'NACIONALIZAR:EXTRANJEROS': {
+      efectos: { mundo: 8, pueblo: 2 },
+      texto: 'Todos los extranjeros reciben la nacionalidad valdoriana, la quieran o no. Un turista japonés descubre que ahora debe hacer el servicio militar.'
+    },
+    'OBLIGAR:EJERCITO': {
+      efectos: { ejercito: 8, pueblo: -6, tesoro: -3 },
+      texto: 'Servicio militar obligatorio desde los 16 años. Los cuarteles se llenan de adolescentes que no saben atarse las botas.'
+    },
+    'OBLIGAR:RELIGION': {
+      efectos: { mundo: -4 },
+      texto: 'Misa obligatoria los domingos. Los curas están encantados. Los ateos rezan en silencio, por si acaso.'
+    },
+    'SUBSIDIAR:EJERCITO': {
+      texto: 'Los soldados cobran doble este mes. Los tanques brillan como nunca.'
+    },
+    'SUBSIDIAR:COMIDA': {
+      programar: [{ en: 5, titulo: 'Las colas', texto: 'La comida subsidiada escasea. Las colas en los mercados dan la vuelta a la manzana. Alguien vende su puesto en la cola.', efectos: { tesoro: -3, orden: -2 } }]
+    },
+    'RECORTAR:EJERCITO': {
+      efectos: { ejercito: -10 },
+      programar: [{ en: 3, titulo: 'Ruido de sables', texto: 'Los oficiales se quejan de que los tanques no tienen gasolina. Algunos tanques, sin embargo, se han movido de sitio.', efectos: { ejercito: -5 } }]
+    },
+    'GLORIFICAR:LIDER': {
+      texto: 'Se inaugura una estatua tuya de 30 metros en la Plaza Mayor. La nariz ha salido un poco grande.',
+      programar: [{ en: 3, titulo: 'La estatua', texto: 'Amanece la estatua con un bigote pintado y un cartel que dice "¿Y el pan?". Tardan dos días en limpiarla.', efectos: { pueblo: -2, orden: -2 } }]
+    },
+    'LEGALIZAR:VICIOS': {
+      efectos: { tesoro: 4 },
+      texto: 'Se abren dispensarios estatales. Hacienda cobra impuesto por cada gramo y por cada botella.'
+    },
+    'LEGALIZAR:CRIMEN': {
+      efectos: { orden: -12, pueblo: -6 },
+      texto: 'Robar pasa a ser legal. Los ladrones, desconcertados, fundan un sindicato para no perder su identidad profesional.'
+    },
+    'LEGALIZAR:ARMAS': {
+      efectos: { orden: -6, ejercito: -3 },
+      texto: 'Las armerías abren 24 horas. Ramiro se compra una "por si acaso" y la guarda en la guantera del taxi.'
+    },
+    'INVERTIR:SALUD': {
+      texto: 'Se anuncian tres hospitales nuevos. De momento hay tres carteles y una primera piedra.'
+    }
+  };
+
+  // Cuando una estadística cae por debajo de 25 ocurre esto (una vez, hasta que se recupere).
+  RF.UMBRALES = {
+    pueblo: { titulo: 'Cacerolazo', texto: 'A las nueve de la noche, toda la ciudad golpea cacerolas. El ruido llega hasta tu dormitorio en Palacio.', efectos: { orden: -5 } },
+    ejercito: { titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a misa con Garrote. En el ejército eso significa algo.', efectos: { orden: -2 } },
+    cupula: { titulo: 'Cena secreta', texto: 'Las familias más ricas del país cenan juntas sin invitarte. El menú: tu sucesor.', efectos: { tesoro: -3 } },
+    tesoro: { titulo: 'Arcas vacías', texto: 'Hacienda no puede pagar los sueldos de los funcionarios este mes. Los maestros cobran en vales de gasolina.', efectos: { pueblo: -4 } },
+    salud: { titulo: 'Epidemia', texto: 'Un brote de fiebre se extiende por los barrios pobres. Los hospitales cuelgan el cartel de "completo".', efectos: { pueblo: -4, orden: -2 } },
+    orden: { titulo: 'Saqueos', texto: 'Saqueos en el centro de Puerto Esperanza. Se llevan televisores, colchones y, por algún motivo, todos los maniquíes.', efectos: { tesoro: -4, pueblo: -3 } },
+    mundo: { titulo: 'Sanciones', texto: 'Las potencias extranjeras aprueban sanciones contra Valdoria. Tus cuentas en el extranjero aparecen congeladas.', efectos: { tesoro: -6 }, ingresos: -1 }
+  };
+
+  // Eventos del Director de Historia. tono: +1 bueno para ti, -1 malo.
+  RF.AZAR = [
+    { tono: -1, titulo: 'Terremoto', texto: 'Un terremoto sacude el sur del país. Las casas de adobe caen; el Palacio ni se mueve.', efectos: { salud: -6, tesoro: -6 } },
+    { tono: 1, titulo: '¡Petróleo!', texto: 'Un campesino encuentra petróleo mientras cavaba un pozo. Le das una medalla y le quitas el terreno.', efectos: { tesoro: 10, mundo: 2 } },
+    { tono: -1, titulo: 'Escándalo familiar', texto: 'Tu sobrino choca un coche oficial contra una fuente, borracho y en calzoncillos. El video se hace viral.', efectos: { pueblo: -5 } },
+    { tono: 1, titulo: 'Gloria deportiva', texto: 'La selección gana la Copa Regional. El país entero sale a la calle. Durante una semana, nadie se acuerda de sus problemas.', efectos: { pueblo: 8 } },
+    { tono: 1, titulo: 'Visita estelar', texto: 'Un cantante famoso da un concierto en la capital y se hace una foto contigo. No sabía quién eras.', efectos: { pueblo: 3, mundo: 3 } },
+    { tono: -1, titulo: 'Sequía', texto: 'No llueve desde hace dos meses. Las cosechas se secan y el precio del maíz se dispara.', efectos: { salud: -3, tesoro: -4, pueblo: -2 } },
+    { tono: -1, titulo: 'Filtración', texto: 'Unos hackers publican tus mensajes privados. Lo peor no son los secretos de Estado: son tus audios cantando boleros.', efectos: { mundo: -4, pueblo: -3 } },
+    { tono: 1, titulo: 'Cumbre internacional', texto: 'Valdoria es elegida sede de una cumbre regional. Montiel está feliz. Los presidentes vecinos alaban tu buffet.', efectos: { mundo: 6 } },
+    { tono: -1, titulo: 'Plaga de palomas', texto: 'Una plaga de palomas invade la capital. Rolo culpa a un país vecino. El país vecino dice que no tiene palomas.', efectos: { salud: -2, orden: -2 } },
+    { tono: -1, titulo: 'Crisis del plátano', texto: 'El precio internacional del plátano se desploma. Tu principal exportación ya no vale nada.', efectos: { tesoro: -6 } },
+    { tono: 1, titulo: 'Remesas récord', texto: 'Los valdorianos que emigraron envían más dinero que nunca. Irónicamente, tu mejor política económica es que la gente se vaya.', efectos: { tesoro: 6 } },
+    { tono: 1, titulo: 'Rumor de tu muerte', texto: 'Corre el rumor de que has muerto. Sales al balcón a saludar y la gente, por la sorpresa, aplaude.', efectos: { pueblo: 3, orden: 2 } },
+    { tono: -1, titulo: 'Huracán', texto: 'Un huracán arrasa la costa. La ayuda internacional llega, pero la mitad desaparece en el puerto.', efectos: { salud: -4, tesoro: -5, cupula: 3 } },
+    { tono: 1, titulo: 'Premio inesperado', texto: 'Una revista extranjera te nombra "Líder más fotogénico del año". Rolo lo manda imprimir en todas las escuelas.', efectos: { mundo: 3, pueblo: 1 } }
+  ];
+
+  RF.FINALES = {
+    pueblo: { titulo: 'REVOLUCIÓN', texto: 'La plaza se llena, luego las calles, luego los pasillos de Palacio. Escapas por un túnel secreto que resulta llevar a la cocina. Te reconoce un cocinero. Tu gobierno termina con un delantal puesto y las manos en alto.' },
+    ejercito: { titulo: 'GOLPE DE ESTADO', texto: 'A las cuatro de la madrugada, los tanques rodean Palacio. El General Garrote aparece en la televisión con tu banda presidencial puesta. Le queda un poco grande.' },
+    cupula: { titulo: 'TRAICIÓN EN PALACIO', texto: 'La cena de gala tenía un postre especial solo para ti. Leonor Cifuentes brinda "por la estabilidad" mientras te desplomas sobre la tarta.' },
+    tesoro: { titulo: 'BANCARROTA', texto: 'Valdoria no puede pagar ni la luz del Palacio. Los acreedores internacionales toman el control del país. Te ofrecen un puesto de asesor, sin sueldo.' },
+    salud: { titulo: 'COLAPSO SANITARIO', texto: 'La epidemia llega a Palacio. Tus ministros huyen. Pasas tus últimos días de gobierno en cuarentena, hablando con tu propio retrato.' },
+    orden: { titulo: 'ANARQUÍA', texto: 'Nadie obedece a nadie. Cada barrio tiene su propio presidente. En tu despacho han montado un mercadillo. Alguien vende tu sillón.' },
+    mundo: { titulo: 'INTERVENCIÓN EXTRANJERA', texto: 'Una coalición internacional desembarca "para restaurar la democracia". Te detienen en pijama. La foto da la vuelta al mundo.' },
+    elecciones_ganadas: { titulo: 'REELECCIÓN LIMPIA', texto: 'Al final de tu mandato convocas elecciones. Nadie se lo cree, pero ganas. Limpiamente. La oposición pide un recuento y, para su sorpresa, vuelves a ganar.' },
+    elecciones_amanadas: { titulo: 'REELECCIÓN CON EL 99,7%', texto: 'Convocas elecciones. Sombra se encarga del conteo. Ganas con el 99,7% de los votos, incluidos los de varios muertos y un perro. El mundo protesta un rato y luego se olvida.' },
+    elecciones_perdidas: { titulo: 'DERROTA EN LAS URNAS', texto: 'Convocas elecciones convencido de ganar. Pierdes por goleada. Te vas al exilio con tres maletas y la estatua de 30 metros, que no cabe en el avión.' }
+  };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/interprete.js
+/*
+ * EL INTÉRPRETE
+ * Un pequeño bot que entiende decretos escritos libremente.
+ *
+ * Usa dos clasificadores Naive Bayes (uno para la ACCIÓN y otro para el OBJETO)
+ * entrenados con las frases de ejemplo de acciones.js y objetos.js.
+ * Además corrige faltas de ortografía, detecta negaciones ("ya no se vende...")
+ * e intensidad ("subir MUCHO los impuestos").
+ */
+(function (RF) {
+  'use strict';
+  const T = RF.texto;
+  const ALFA = 0.5;
+  const NEGACIONES_FUERA = new Set(['no', 'nunca', 'jamas', 'ya', 'nadie']);
+
+  const FUERTES = new Set(['mucho', 'muchisimo', 'muchos', 'doble', 'duplicar', 'triple', 'triplicar', 'totalmente',
+    'completamente', 'absolutamente', 'ejecutar', 'fusilar', 'matar', 'muerte', 'exterminar', 'radical', 'brutal',
+    'masivo', 'masivamente', 'enorme', 'extremo', 'terminantemente', 'aplastar']);
+  const SUAVES = new Set(['poco', 'poquito', 'ligeramente', 'algo', 'levemente', 'moderado', 'moderadamente',
+    'simbolico', 'temporalmente', 'leve', 'tantito']);
+
+  // Convierte un texto en rasgos: raíces de palabras con significado + pares de raíces.
+  function rasgos(palabras) {
+    const utiles = palabras.filter(p => !T.VACIAS.has(p));
+    const raices = utiles.map(T.raiz);
+    const out = raices.slice();
+    // La palabra exacta también cuenta ("impuesto" no es igual que "impuestos").
+    utiles.forEach((p, i) => { if (p !== raices[i]) out.push('=' + p); });
+    for (let i = 0; i < raices.length - 1; i++) out.push(raices[i] + '_' + raices[i + 1]);
+    return out;
+  }
+
+  function crearClasificador() {
+    return { cuentas: {}, totales: {}, vocab: new Set(), clases: [] };
+  }
+
+  function entrenarEjemplo(clf, clase, rs) {
+    if (!clf.cuentas[clase]) { clf.cuentas[clase] = {}; clf.totales[clase] = 0; clf.clases.push(clase); }
+    for (const r of rs) {
+      clf.cuentas[clase][r] = (clf.cuentas[clase][r] || 0) + 1;
+      clf.totales[clase]++;
+      clf.vocab.add(r);
+    }
+  }
+
+  // Un rasgo es "evidencia" de una clase si aparece sobre todo en esa clase.
+  function calcularEvidencias(clf) {
+    clf.evidencia = {};
+    for (const r of clf.vocab) {
+      if (r.includes('_')) continue;
+      let suma = 0, mejor = null, mejorF = 0;
+      for (const c of clf.clases) {
+        const f = (clf.cuentas[c][r] || 0) / clf.totales[c];
+        suma += f;
+        if (f > mejorF) { mejorF = f; mejor = c; }
+      }
+      if (suma > 0 && mejorF / suma >= 0.6) clf.evidencia[r] = mejor;
+    }
+  }
+
+  function clasificar(clf, rs) {
+    const conocidos = rs.filter(r => clf.vocab.has(r));
+    const V = clf.vocab.size;
+    const puntos = clf.clases.map(c => {
+      let lp = 0;
+      for (const r of conocidos) lp += Math.log(((clf.cuentas[c][r] || 0) + ALFA) / (clf.totales[c] + ALFA * V));
+      return { clase: c, lp };
+    });
+    const max = Math.max(...puntos.map(p => p.lp));
+    let suma = 0;
+    for (const p of puntos) { p.prob = Math.exp(p.lp - max); suma += p.prob; }
+    for (const p of puntos) p.prob /= suma;
+    puntos.sort((x, y) => y.prob - x.prob);
+    const evid = {};
+    for (const r of conocidos) if (clf.evidencia[r]) (evid[clf.evidencia[r]] = evid[clf.evidencia[r]] || []).push(r);
+    return { ranking: puntos, evidencias: evid, conocidos: conocidos.length };
+  }
+
+  // Seguridad del bot: margen frente a la segunda opción, y si hubo palabras claras.
+  function confianza(ra, ro) {
+    const parte = r => {
+      const [a, b] = r.ranking;
+      const margen = a.prob / (a.prob + b.prob);
+      return r.evidencias[a.clase] ? 0.5 + margen / 2 : margen * 0.8;
+    };
+    return Math.round(parte(ra) * parte(ro) * 100);
+  }
+
+  let modelo = null;
+
+  function entrenar() {
+    const acc = crearClasificador();
+    const obj = crearClasificador();
+    const vocabPalabras = new Set();
+
+    for (const [id, a] of Object.entries(RF.ACCIONES)) {
+      for (const f of a.frases) {
+        const ps = T.palabras(f.replace('{o}', ' '));
+        ps.forEach(p => vocabPalabras.add(p));
+        entrenarEjemplo(acc, id, rasgos(ps));
+      }
+    }
+    for (const [id, o] of Object.entries(RF.OBJETOS)) {
+      for (const f of o.formas) {
+        const ps = T.palabras(f);
+        ps.forEach(p => vocabPalabras.add(p));
+        entrenarEjemplo(obj, id, rasgos(ps));
+      }
+    }
+    calcularEvidencias(acc);
+    calcularEvidencias(obj);
+    modelo = { acc, obj, vocabPalabras };
+    return modelo;
+  }
+
+  function intensidad(ps, textoNorm) {
+    let k = 1;
+    if (ps.some(p => FUERTES.has(p))) k = 1.5;
+    if (ps.some(p => SUAVES.has(p)) || /\bun poco\b/.test(textoNorm)) k = 0.6;
+    const pct = textoNorm.match(/(\d+)\s*%/);
+    if (pct) { const n = +pct[1]; k = n >= 50 ? 1.5 : n <= 10 ? 0.6 : 1; }
+    return k;
+  }
+
+  // ¿Hay una negación justo antes de la palabra que marca la acción?
+  function estaNegado(ps, clf, accion) {
+    for (let i = 0; i < ps.length; i++) {
+      const r = T.raiz(ps[i]);
+      if (clf.evidencia[r] !== accion || NEGACIONES_FUERA.has(ps[i])) continue;
+      for (let j = Math.max(0, i - 3); j < i; j++) {
+        // "no pagan impuestos" ya significa bajar impuestos: la negación es parte de la frase aprendida.
+        if (T.NEGACIONES.has(ps[j]) && !clf.cuentas[accion][T.raiz(ps[j]) + '_' + r]) return true;
+      }
+    }
+    return false;
+  }
+
+  // Elige la forma del objeto que mejor encaja con lo que escribió el jugador ("el reguetón").
+  function formaMostrada(objId, raicesTexto) {
+    const o = RF.OBJETOS[objId];
+    if (objId === 'LIDER') return 'Su Excelencia';
+    let mejor = o.nombre, mejorN = 0;
+    for (const f of o.formas) {
+      const rf = T.palabras(f).filter(p => !T.VACIAS.has(p)).map(T.raiz);
+      const n = rf.filter(r => raicesTexto.has(r)).length;
+      if (n > mejorN) { mejor = f; mejorN = n; }
+    }
+    return mejor;
+  }
+
+  // Si el objeto es desconocido ("los calcetines"), rescatamos el texto original.
+  function extraerOtro(original, acc, accion) {
+    const orig = original.replace(/[.,;:!¡?¿"«»()]/g, ' ').split(/\s+/).filter(Boolean);
+    const norm = orig.map(T.normalizar);
+    const esAccion = norm.map(p => {
+      const r = T.raiz(p);
+      return !!acc.evidencia[r] || (accion && acc.cuentas[accion][r] > 0 && !T.VACIAS.has(p) && !NEGACIONES_FUERA.has(p));
+    });
+    const limpiar = (ws, ns) => {
+      const basura = /^(que|a|de|se|y|ya|no|ahora|es|sea|sera|son|esta|estan|queda|quedan|para|por|en|hoy|todos|todas|mi|decreto|ordeno)$/;
+      while (ns.length && basura.test(ns[0])) { ws.shift(); ns.shift(); }
+      while (ns.length && basura.test(ns[ns.length - 1])) { ws.pop(); ns.pop(); }
+      return ws.slice(0, 6).join(' ');
+    };
+    const ultimo = esAccion.lastIndexOf(true);
+    const primero = esAccion.indexOf(true);
+    if (ultimo === -1) return '';
+    let t = limpiar(orig.slice(ultimo + 1), norm.slice(ultimo + 1));
+    if (!t && primero > 0) t = limpiar(orig.slice(0, primero), norm.slice(0, primero));
+    return t.toLowerCase();
+  }
+
+  /*
+   * Devuelve una interpretación:
+   *  estado: 'ok' | 'preguntar_accion' | 'preguntar_objeto' | 'confuso'
+   *  accion, objeto, nombreObjeto, intensidad, confianza, negado, opciones
+   */
+  function interpretar(texto) {
+    if (!modelo) entrenar();
+    const { acc, obj, vocabPalabras } = modelo;
+    const crudas = T.palabras(texto);
+    const ps = crudas.map(p => T.corregir(p, vocabPalabras));
+    const rs = rasgos(ps);
+    const raicesTexto = new Set(ps.map(T.raiz));
+    const corregidas = crudas.map((p, i) => (p !== ps[i] ? [p, ps[i]] : null)).filter(Boolean);
+
+    const ra = clasificar(acc, rs);
+    const ro = clasificar(obj, rs);
+
+    let accion = ra.ranking[0].clase;
+    const hayAccion = !!ra.evidencias[accion] || ra.ranking[0].prob >= 0.6;
+    const accionDudosa = !hayAccion && ra.conocidos > 0 && ra.ranking[0].prob >= 0.3;
+
+    // Objeto: evitar que "yo"/"mi" gane cuando hay un objeto claro.
+    let objeto = ro.ranking[0].clase;
+    const evidObj = ro.evidencias;
+    if (objeto === 'LIDER' && evidObj.LIDER && evidObj.LIDER.every(r => r === 'mi' || r === 'yo')) {
+      const otro = ro.ranking.find(p => p.clase !== 'LIDER' && evidObj[p.clase]);
+      if (otro) objeto = otro.clase;
+    }
+    const hayObjeto = !!evidObj[objeto];
+
+    const res = {
+      texto, corregidas, intensidad: intensidad(ps, T.normalizar(texto)),
+      negado: false, opciones: [],
+      confianza: confianza(ra, ro)
+    };
+
+    if (!hayAccion && !hayObjeto) { res.estado = 'confuso'; return res; }
+
+    if (!hayAccion && !accionDudosa) {
+      res.estado = 'preguntar_accion';
+      res.objeto = objeto;
+      res.nombreObjeto = formaMostrada(objeto, raicesTexto);
+      res.opciones = ['PRIVATIZAR', 'SUBSIDIAR', 'PROHIBIR', 'INVERTIR'].map(a => ({ accion: a, objeto, nombreObjeto: res.nombreObjeto }));
+      return res;
+    }
+
+    // Duda entre dos acciones parecidas sin palabras claras.
+    const segunda = ra.ranking[1];
+    if (accionDudosa || (!ra.evidencias[accion] && segunda.prob > ra.ranking[0].prob / 1.6)) {
+      res.estado = 'preguntar_accion';
+    }
+
+    if (estaNegado(ps, acc, accion) && RF.ACCIONES[accion].inversa) {
+      accion = RF.ACCIONES[accion].inversa;
+      res.negado = true;
+    }
+    res.accion = accion;
+
+    if (hayObjeto) {
+      res.objeto = objeto;
+      res.nombreObjeto = formaMostrada(objeto, raicesTexto);
+    } else {
+      const otro = extraerOtro(texto, acc, ra.ranking[0].clase);
+      if (!otro) {
+        res.estado = 'preguntar_objeto';
+        return res;
+      }
+      res.objeto = 'OTRO';
+      res.nombreObjeto = otro;
+    }
+
+    if (res.estado === 'preguntar_accion') {
+      res.opciones = [ra.ranking[0].clase, segunda.clase].map(a => ({ accion: a, objeto: res.objeto, nombreObjeto: res.nombreObjeto }));
+      return res;
+    }
+    res.estado = 'ok';
+    return res;
+  }
+
+  RF.interprete = { entrenar, interpretar };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/consejero.js
+/*
+ * EL CONSEJERO
+ * Toma el decreto que entendió el Intérprete, calcula sus consecuencias sobre el país,
+ * programa efectos para más adelante, mueve a los personajes y decide si el juego termina.
+ */
+(function (RF) {
+  'use strict';
+  const T = RF.texto;
+
+  RF.STATS = [
+    { id: 'tesoro', nombre: 'Tesoro', corto: 'TES' },
+    { id: 'pueblo', nombre: 'Pueblo', corto: 'PUE' },
+    { id: 'ejercito', nombre: 'Ejército', corto: 'EJÉ' },
+    { id: 'cupula', nombre: 'Cúpula', corto: 'CÚP' },
+    { id: 'salud', nombre: 'Salud', corto: 'SAL' },
+    { id: 'orden', nombre: 'Orden', corto: 'ORD' },
+    { id: 'mundo', nombre: 'Mundo', corto: 'MUN' }
+  ];
+
+  function nuevoEstado() {
+    const ciudadanos = {};
+    for (const id of Object.keys(RF.CIUDADANOS)) ciudadanos[id] = { animo: 0, hitos: [], ultimaVez: -99 };
+    return {
+      version: 1,
+      dia: 1,
+      stats: { tesoro: 60, pueblo: 55, ejercito: 60, cupula: 60, salud: 60, orden: 60, mundo: 50 },
+      ingresos: 0,
+      pendientes: [],
+      historial: [],
+      politicas: {},
+      repeticiones: {},
+      ciudadanos,
+      umbrales: {},
+      diasSinEvento: 0,
+      diasEnQuiebra: 0,
+      fin: null
+    };
+  }
+
+  function objetoDe(id) { return id === 'OTRO' ? RF.OBJETO_OTRO : RF.OBJETOS[id]; }
+
+  // "la privatización del aire", "el nuevo impuesto a los ricos"...
+  function medida(accion, nombreObjeto) {
+    return T.expandir(RF.ACCIONES[accion].nominal, { de: T.de(nombreObjeto), a: T.a(nombreObjeto), o: nombreObjeto });
+  }
+
+  function sumar(d, k, v) { if (v) d[k] = (d[k] || 0) + v; }
+
+  // Consecuencias generales según el tipo de acción y cómo es el objeto.
+  function efectosBase(accion, o) {
+    const E = o.esencial || 0, R = o.rentable || 0, L = o.libertad || 0, P = o.popular || 0;
+    const d = {};
+    let ingresos = 0;
+    const af = (v) => { if (o.afecta) sumar(d, o.afecta, v); };
+    const fac = (v) => { if (o.faccion) sumar(d, o.faccion, v); };
+
+    switch (accion) {
+      case 'PROHIBIR':
+        sumar(d, 'pueblo', -(3 + 3 * E + 3 * P + 2 * L));
+        sumar(d, 'mundo', -(1 + 3 * L));
+        sumar(d, 'orden', 2 - 2 * Math.max(E, P));
+        sumar(d, 'cupula', -2 * R); sumar(d, 'tesoro', -2 * R);
+        if (o.vicio) sumar(d, 'salud', 5);
+        if (o.afecta === 'salud') af(-3 * E);
+        if (o.afecta === 'orden') af(4);
+        fac(-20);
+        break;
+      case 'OBLIGAR':
+        sumar(d, 'pueblo', -(4 + 3 * L) + P);
+        sumar(d, 'mundo', -(2 + 2 * L));
+        sumar(d, 'orden', 3);
+        sumar(d, 'cupula', 2 * R); sumar(d, 'tesoro', R);
+        if (o.afecta === 'salud') af(3);
+        break;
+      case 'PRIVATIZAR':
+        sumar(d, 'tesoro', 6 + 6 * R);
+        sumar(d, 'pueblo', -(3 + 6 * E));
+        sumar(d, 'cupula', 6 + 3 * R);
+        sumar(d, 'mundo', 3);
+        if (o.afecta === 'salud') af(-4 * E);
+        if (R >= 2) ingresos -= 1;
+        fac(-10);
+        break;
+      case 'NACIONALIZAR':
+        sumar(d, 'tesoro', -(4 + 2 * R));
+        sumar(d, 'pueblo', 2 + 3 * E);
+        sumar(d, 'cupula', -(6 + 5 * R));
+        sumar(d, 'mundo', -(3 + 3 * R));
+        ingresos += R;
+        break;
+      case 'SUBIR_IMPUESTO':
+        ingresos += 1 + Math.ceil(R / 2);
+        sumar(d, 'tesoro', 3 + 2 * R);
+        if (o.faccion === 'cupula') { sumar(d, 'cupula', -15); sumar(d, 'pueblo', 6); }
+        else if (o.vicio) { sumar(d, 'salud', 3); sumar(d, 'pueblo', -4); }
+        else { sumar(d, 'pueblo', -(3 + 3 * E + 2 * P)); fac(-8); }
+        if (R >= 2) sumar(d, 'mundo', -1);
+        break;
+      case 'BAJAR_IMPUESTO':
+        ingresos -= 1 + Math.ceil(R / 2);
+        sumar(d, 'tesoro', -(2 + R));
+        if (o.faccion === 'cupula') { sumar(d, 'cupula', 12); sumar(d, 'pueblo', -5); sumar(d, 'mundo', 2); }
+        else { sumar(d, 'pueblo', 3 + 2 * E + P); sumar(d, 'cupula', 2); fac(6); }
+        break;
+      case 'SUBSIDIAR':
+        ingresos -= 1 + Math.ceil(E / 2);
+        sumar(d, 'tesoro', -(3 + 2 * E));
+        sumar(d, 'pueblo', 4 + 3 * E + 2 * P);
+        sumar(d, 'cupula', -2);
+        if (o.afecta === 'salud') af(3 * E);
+        fac(15);
+        break;
+      case 'CASTIGAR':
+        if (!o.gente) { // "castigar el alcohol" = una prohibición con porra
+          sumar(d, 'pueblo', -(2 + 2 * P)); sumar(d, 'orden', 3); sumar(d, 'mundo', -2);
+          break;
+        }
+        sumar(d, 'orden', 6);
+        sumar(d, 'mundo', -(3 + 3 * L));
+        if (o.afecta === 'orden') { sumar(d, 'pueblo', 6); sumar(d, 'mundo', -2); }
+        else if (o.faccion) { fac(-25); sumar(d, 'pueblo', -4); }
+        else sumar(d, 'pueblo', -(4 + 2 * L));
+        if (o.faccion !== 'ejercito') sumar(d, 'ejercito', 3);
+        break;
+      case 'LEGALIZAR':
+        if (o.gente) { sumar(d, 'pueblo', 2); sumar(d, 'orden', -4); sumar(d, 'mundo', 3 + L); fac(8); break; }
+        sumar(d, 'pueblo', 2 + 3 * P + 2 * L);
+        sumar(d, 'mundo', 1 + 2 * L);
+        sumar(d, 'orden', o.vicio ? -3 : -1);
+        if (o.vicio) { sumar(d, 'tesoro', 5); sumar(d, 'salud', -3); ingresos += 1; }
+        break;
+      case 'INVERTIR':
+        sumar(d, 'tesoro', -(8 + 2 * E));
+        sumar(d, 'pueblo', 2);
+        sumar(d, 'mundo', 1);
+        if (o.afecta === 'salud') af(3);
+        if (o.faccion === 'ejercito') { fac(12); sumar(d, 'mundo', -4); }
+        else fac(8);
+        break;
+      case 'RECORTAR':
+        sumar(d, 'tesoro', 5 + 2 * E);
+        ingresos += 1;
+        sumar(d, 'pueblo', -(3 + 4 * E));
+        sumar(d, 'mundo', 2);
+        af(-(4 + 2 * E));
+        fac(-18);
+        break;
+      case 'GLORIFICAR':
+        sumar(d, 'tesoro', -4);
+        if (o === RF.OBJETOS.LIDER) { sumar(d, 'pueblo', -3); sumar(d, 'orden', 2); sumar(d, 'cupula', 4); sumar(d, 'mundo', -4); }
+        else if (o === RF.OBJETOS.CRIMEN || o === RF.OBJETOS.OPOSICION) { sumar(d, 'pueblo', -4); sumar(d, 'cupula', -6); sumar(d, 'mundo', -3); }
+        else { sumar(d, 'pueblo', 1 + P); fac(12); af(4); }
+        break;
+    }
+    // Lo desconocido siempre desconcierta un poco al mundo.
+    if (o === RF.OBJETO_OTRO) sumar(d, 'mundo', -1);
+    return { d, ingresos };
+  }
+
+  // Consecuencias con retraso cuando no hay una especial para esa combinación.
+  function programarGenericas(accion, o, vars) {
+    const E = o.esencial || 0, R = o.rentable || 0, P = o.popular || 0;
+    const p = [];
+    if (accion === 'PRIVATIZAR' && E >= 2)
+      p.push({ en: 3, titulo: 'Mercado negro', texto: 'Surge un mercado negro de {objeto}. Quien puede pagar, paga dos veces. Quien no, se las arregla como puede.', efectos: { orden: -4, salud: o.afecta === 'salud' ? -3 : 0 } });
+    if (accion === 'PROHIBIR' && (P >= 2 || o.vicio))
+      p.push({ en: 3, titulo: 'Clandestinidad', texto: 'Lo de {objeto} pasa a la clandestinidad. Lo que antes era normal ahora se hace en sótanos, y los sótanos cobran entrada.', efectos: { orden: -4, cupula: 2 } });
+    if (accion === 'INVERTIR')
+      p.push({ en: 4, titulo: 'Los frutos de la inversión', texto: 'Empiezan a notarse los resultados de {medida}. Hasta los más críticos lo reconocen en voz baja.', efectos: { pueblo: 3 + 2 * E, [o.afecta || 'tesoro']: o.afecta ? 6 : 4 }, ingresos: R >= 1 ? 1 : 0 });
+    if (accion === 'RECORTAR')
+      p.push({ en: 4, titulo: 'La factura del recorte', texto: 'Los efectos de {medida} llegan a la calle: servicios cerrados, colas más largas, gente más cansada.', efectos: { pueblo: -3, [o.afecta || 'orden']: -5 } });
+    if (accion === 'CASTIGAR' && o.gente && o.afecta !== 'orden')
+      p.push({ en: 3, titulo: 'Miedo', texto: 'El miedo se instala en Valdoria. La gente habla más bajo y mira más veces por encima del hombro.', efectos: { orden: 3, pueblo: -3 } });
+    if (accion === 'NACIONALIZAR' && R >= 2)
+      p.push({ en: 2, titulo: 'Fuga de capitales', texto: 'Tras {medida}, los inversores sacan su dinero del país. El valdo cae un 20% en una tarde.', efectos: { tesoro: -4, mundo: -2 } });
+    return p.map(x => Object.assign({}, x, { texto: T.expandir(x.texto, vars) }));
+  }
+
+  function limitar(v) { return Math.max(0, Math.min(100, Math.round(v))); }
+
+  function aplicarEfectos(estado, efectos, registro) {
+    for (const [k, v] of Object.entries(efectos || {})) {
+      if (!v || !(k in estado.stats)) continue;
+      const antes = estado.stats[k];
+      estado.stats[k] = limitar(antes + v);
+      if (registro) registro[k] = (registro[k] || 0) + (estado.stats[k] - antes);
+    }
+  }
+
+  // El personaje de a pie que protagoniza la escena: alguien a quien le importa el tema.
+  function elegirCiudadano(estado, objId) {
+    const ids = Object.keys(RF.CIUDADANOS);
+    const interesados = ids.filter(id => RF.CIUDADANOS[id].intereses.includes(objId));
+    const pool = interesados.length ? interesados : ids;
+    pool.sort((a, b) => estado.ciudadanos[a].ultimaVez - estado.ciudadanos[b].ultimaVez);
+    const candidatos = pool.slice(0, Math.min(2, pool.length));
+    return T.azar(candidatos);
+  }
+
+  function elegirMinistro(deltas) {
+    let mejor = null, mejorV = 0;
+    for (const [id, m] of Object.entries(RF.GABINETE)) {
+      for (const s of m.stats) {
+        const v = Math.abs(deltas[s] || 0);
+        if (v > mejorV) { mejorV = v; mejor = { id, stat: s, delta: deltas[s] }; }
+      }
+    }
+    return mejor;
+  }
+
+  function comprobarFin(estado) {
+    const s = estado.stats;
+    const orden = ['ejercito', 'pueblo', 'cupula', 'mundo', 'orden', 'salud'];
+    for (const k of orden) if (s[k] <= 0) return k;
+    if (estado.diasEnQuiebra >= 2) return 'tesoro';
+    if (estado.dia > RF.PAIS.dias) {
+      if (s.pueblo >= 55) return 'elecciones_ganadas';
+      if (s.orden >= 55 && s.ejercito >= 50) return 'elecciones_amanadas';
+      return 'elecciones_perdidas';
+    }
+    return null;
+  }
+
+  /*
+   * Aplica un decreto ya interpretado. Devuelve todo lo que pasó para que el Narrador lo cuente.
+   */
+  function decretar(estado, interp) {
+    const accion = interp.accion;
+    const objId = interp.objeto;
+    const o = objetoDe(objId);
+    const nombre = interp.nombreObjeto || o.nombre;
+    const laMedida = medida(accion, nombre);
+    const vars = { objeto: nombre, Objeto: T.mayus(nombre), medida: laMedida, Medida: T.mayus(laMedida), lider: 'Su Excelencia' };
+    const clave = accion + ':' + objId;
+    const especial = RF.ESPECIALES[clave];
+    const res = { dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, medida: laMedida, vars, deltas: {}, sucesos: [], notas: [] };
+
+    // 1. Efectos del decreto.
+    const base = efectosBase(accion, o);
+    const efectos = Object.assign({}, base.d);
+    if (especial && especial.efectos) for (const [k, v] of Object.entries(especial.efectos)) sumar(efectos, k, v);
+
+    // Repetir el mismo decreto cansa: cada vez hace la mitad de efecto.
+    // Y lo que ya se vendió (o expropió) no se puede volver a vender.
+    const rep = estado.repeticiones[clave] || 0;
+    estado.repeticiones[clave] = rep + 1;
+    const yaHecho = (accion === 'PRIVATIZAR' || accion === 'NACIONALIZAR') && estado.politicas[objId] === accion;
+    const factor = interp.intensidad * (yaHecho ? 0.1 : Math.pow(0.5, rep));
+    for (const k of Object.keys(efectos)) efectos[k] = Math.round(efectos[k] * factor);
+    if (yaHecho) res.notas.push('Eso ya estaba hecho. El decreto se archiva junto al anterior y apenas cambia nada.');
+    else if (rep > 0) res.notas.push(rep === 1 ? 'Ya habías decretado algo así. La gente lo nota menos.' : 'Otra vez lo mismo. Ya casi nadie presta atención.');
+
+    // Contradecirse tiene un precio.
+    const previa = estado.politicas[objId];
+    if (objId !== 'OTRO' && previa && previa !== accion && RF.ACCIONES[accion].inversa === previa) {
+      sumar(efectos, 'mundo', -3); sumar(efectos, 'cupula', -4);
+      res.notas.push(`Hace poco decretaste ${medida(previa, nombre)}. Ahora lo contrario. Nadie sabe ya a qué atenerse.`);
+      res.contradiccion = true;
+    }
+    estado.politicas[objId] = accion;
+
+    aplicarEfectos(estado, efectos, res.deltas);
+    const ingresosAntes = estado.ingresos;
+    estado.ingresos = Math.max(-6, Math.min(6, estado.ingresos + Math.round(base.ingresos * Math.min(1, factor))));
+    res.cambioIngresos = estado.ingresos - ingresosAntes;
+    if (especial && especial.texto) res.especial = T.expandir(especial.texto, vars);
+
+    // 2. Consecuencias con retraso.
+    const programadas = (especial && especial.programar)
+      ? especial.programar.map(p => Object.assign({}, p, { texto: T.expandir(p.texto, vars) }))
+      : programarGenericas(accion, o, vars);
+    for (const p of programadas) estado.pendientes.push(Object.assign({}, p, { dia: estado.dia + p.en }));
+    res.programadas = programadas.length;
+
+    estado.historial.push({ dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, medida: laMedida, texto: interp.texto });
+
+    // 3. Reacciones: un ministro y una persona de la calle.
+    res.ministro = elegirMinistro(res.deltas);
+    const cid = elegirCiudadano(estado, objId);
+    const interesado = RF.CIUDADANOS[cid].intereses.includes(objId);
+    let impacto = (res.deltas.pueblo || 0) + (interesado ? 0.5 * ((res.deltas.salud || 0) + (o.faccion === 'pueblo' ? res.deltas.pueblo || 0 : 0)) : 0);
+    for (const [id, c] of Object.entries(estado.ciudadanos)) {
+      c.animo = Math.max(-100, Math.min(100, c.animo + (res.deltas.pueblo || 0) * 0.35));
+      if (id === cid) c.animo = Math.max(-100, Math.min(100, c.animo + impacto * 0.4 + (interesado ? Math.sign(impacto) * 4 : 0)));
+    }
+    estado.ciudadanos[cid].ultimaVez = estado.dia;
+    res.ciudadano = { id: cid, sentimiento: impacto > 2 ? 'pos' : impacto < -2 ? 'neg' : 'neu' };
+
+    // 4. Pasa el día.
+    avanzarDia(estado, res);
+    return res;
+  }
+
+  function avanzarDia(estado, res) {
+    estado.dia++;
+    const economia = {};
+    aplicarEfectos(estado, { tesoro: estado.ingresos - 1 }, economia);
+    res.economia = economia.tesoro || 0;
+
+    // Desgaste del poder: la paciencia se agota y la euforia se enfría.
+    const desgaste = { pueblo: -1 };
+    for (const [k, v] of Object.entries(estado.stats)) if (v > 75) sumar(desgaste, k, -2);
+    aplicarEfectos(estado, desgaste);
+
+    // Consecuencias que tocan hoy.
+    const hoy = estado.pendientes.filter(p => p.dia <= estado.dia);
+    estado.pendientes = estado.pendientes.filter(p => p.dia > estado.dia);
+    for (const p of hoy) {
+      const reg = {};
+      aplicarEfectos(estado, p.efectos, reg);
+      if (p.ingresos) estado.ingresos = Math.max(-6, Math.min(6, estado.ingresos + p.ingresos));
+      res.sucesos.push({ tipo: 'consecuencia', titulo: p.titulo, texto: p.texto, deltas: reg });
+    }
+
+    // Hitos de la gente de a pie.
+    for (const [id, c] of Object.entries(estado.ciudadanos)) {
+      for (const h of RF.CIUDADANOS[id].hitos) {
+        if (c.hitos.includes(h.id)) continue;
+        if ((h.bajo != null && c.animo <= h.bajo) || (h.alto != null && c.animo >= h.alto)) {
+          c.hitos.push(h.id);
+          const reg = {};
+          aplicarEfectos(estado, h.efectos, reg);
+          res.sucesos.push({ tipo: 'hito', titulo: RF.CIUDADANOS[id].nombre, texto: h.texto, deltas: reg });
+        }
+      }
+    }
+
+    // Umbrales: cuando algo cae por debajo de 25.
+    for (const [k, u] of Object.entries(RF.UMBRALES)) {
+      if (estado.stats[k] < 25 && !estado.umbrales[k]) {
+        estado.umbrales[k] = true;
+        const reg = {};
+        aplicarEfectos(estado, u.efectos, reg);
+        if (u.ingresos) estado.ingresos = Math.max(-6, estado.ingresos + u.ingresos);
+        res.sucesos.push({ tipo: 'umbral', titulo: u.titulo, texto: u.texto, deltas: reg });
+      } else if (estado.stats[k] >= 35) {
+        estado.umbrales[k] = false;
+      }
+    }
+
+    // Director de Historia: si lleva días tranquilo, mete un suceso.
+    if (res.sucesos.length) estado.diasSinEvento = 0;
+    else estado.diasSinEvento++;
+    if (estado.diasSinEvento >= 3 && Math.random() < 0.6) {
+      const media = RF.STATS.reduce((s, x) => s + estado.stats[x.id], 0) / RF.STATS.length;
+      const tono = media < 35 ? 1 : media > 60 ? -1 : 0;
+      const pool = tono ? RF.AZAR.filter(e => e.tono === tono) : RF.AZAR;
+      const ev = T.azar(pool);
+      const reg = {};
+      aplicarEfectos(estado, ev.efectos, reg);
+      res.sucesos.push({ tipo: 'azar', titulo: ev.titulo, texto: ev.texto, deltas: reg });
+      estado.diasSinEvento = 0;
+    }
+
+    estado.diasEnQuiebra = estado.stats.tesoro <= 0 ? estado.diasEnQuiebra + 1 : 0;
+    if (estado.stats.tesoro <= 0 && estado.diasEnQuiebra === 1) {
+      res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: 'Cifuentes entra sin llamar: "No queda un valdo. Si mañana seguimos así, el país quiebra."', deltas: {} });
+    }
+
+    const fin = comprobarFin(estado);
+    if (fin) { estado.fin = fin; res.fin = fin; }
+  }
+
+  RF.consejero = { nuevoEstado, decretar, medida, objetoDe, comprobarFin };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/narrador.js
+/*
+ * EL NARRADOR
+ * Convierte lo que pasó en bloques de texto para la consola:
+ * la Gaceta Oficial, los números, la cúpula, la calle y los sucesos.
+ */
+(function (RF) {
+  'use strict';
+  const T = RF.texto;
+
+  const CONFUSOS = [
+    'Tus ministros se miran entre ellos. Rolo carraspea: "¿Podría repetirlo, Excelencia? Con otras palabras."',
+    'Garrote asiente muy serio, aunque no ha entendido nada. Nadie se atreve a preguntar.',
+    'Cifuentes toma nota, frunce el ceño y tacha lo que escribió. "Necesitamos algo más concreto, Excelencia."',
+    'Sombra apunta tus palabras en su libreta negra "por si acaso significan algo". La prensa extranjera se ríe un poco de ti.',
+    'El secretario escribe el decreto, lo lee, le da la vuelta al papel y lo vuelve a leer. "¿Esto se publica así, Excelencia?"'
+  ];
+
+  const EJEMPLOS = ['prohibir el fútbol', 'el aire se vende', 'subir impuestos a los ricos', 'regalar comida', 'mano dura contra los ladrones', 'estatua de mí', 'invertir en hospitales', 'legalizar la marihuana'];
+
+  function ayuda() {
+    return [{
+      tipo: 'sistema', titulo: 'CÓMO GOBERNAR',
+      texto: 'Escribe un decreto con tus palabras y pulsa Decretar. El Intérprete intentará entenderlo.\n' +
+        'Ejemplos: ' + EJEMPLOS.map(e => '"' + e + '"').join(', ') + '.\n' +
+        'Comandos: "estado" (cómo va el país), "gabinete" (tus ministros), "historial" (tus decretos), "reiniciar" (empezar de cero).\n' +
+        'Sobrevive ' + RF.PAIS.dias + ' días. Si alguna barra llega a 0, caes.'
+    }];
+  }
+
+  function intro(estado) {
+    return [
+      { tipo: 'titulo', texto: RF.PAIS.nombre.toUpperCase() },
+      {
+        tipo: 'gaceta', titulo: 'GACETA OFICIAL · DÍA 1',
+        texto: 'Anoche, tras "un proceso democrático muy rápido", te convertiste en el Líder Supremo de ' + RF.PAIS.nombre + '. ' +
+          'Tienes una consola, un sello y ' + RF.PAIS.dias + ' días hasta las elecciones prometidas. Todo lo que escribas aquí se convierte en ley.'
+      },
+      {
+        tipo: 'cupula', titulo: 'TU GABINETE',
+        texto: Object.values(RF.GABINETE).map(m => m.nombre + ', ' + m.cargo.toLowerCase()).join('. ') + '.'
+      },
+      {
+        tipo: 'calle', titulo: 'MIENTRAS TANTO, EN LA CALLE',
+        texto: Object.values(RF.CIUDADANOS).map(c => c.presentacion).join(' ')
+      }
+    ].concat(ayuda());
+  }
+
+  function lineaMinistro(estado, res) {
+    const m = res.ministro;
+    if (!m) return { titulo: 'EL GABINETE', texto: 'El gabinete escucha el decreto en silencio. Nadie sabe muy bien para qué sirve, pero todos aplauden.' };
+    const min = RF.GABINETE[m.id];
+    let texto = T.expandir(T.azar(m.delta > 0 ? min.pos : min.neg), res.vars);
+    if (estado.stats[m.stat] < 30 && Math.random() < 0.6) texto += ' ' + T.expandir(T.azar(min.bajo), res.vars);
+    return { titulo: min.nombre.toUpperCase() + ' · ' + min.cargo.toUpperCase(), texto };
+  }
+
+  function lineaCiudadano(estado, res) {
+    const id = res.ciudadano.id;
+    const c = RF.CIUDADANOS[id];
+    const est = estado.ciudadanos[id];
+    let texto = T.expandir(T.azar(c[res.ciudadano.sentimiento]), res.vars);
+    if (!est.presentado) { texto = c.presentacion + ' ' + texto; est.presentado = true; }
+    return { titulo: 'LA CALLE · ' + c.nombre.toUpperCase(), texto };
+  }
+
+  function turno(estado, interp, res) {
+    const n = estado.historial.length;
+    const bloques = [];
+    const partes = ['INTÉRPRETE › ' + RF.ACCIONES[res.accion].nombre.toUpperCase() + ' + ' + (res.objeto === 'OTRO' ? '"' + res.nombreObjeto + '" (desconocido)' : res.nombreObjeto.toUpperCase())];
+    if (interp.confianza != null) partes.push(interp.confianza + '% seguro');
+    if (interp.negado) partes.push('negación detectada');
+    if (interp.intensidad > 1) partes.push('intensidad alta');
+    if (interp.intensidad < 1) partes.push('intensidad baja');
+    if (interp.corregidas && interp.corregidas.length) partes.push('corregí ' + interp.corregidas.map(([a, b]) => a + '→' + b).join(', '));
+    bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
+
+    let gaceta = T.mayus(res.medida) + '.';
+    if (res.especial) gaceta += ' ' + res.especial;
+    bloques.push({ tipo: 'gaceta', titulo: 'DECRETO Nº ' + n + ' · DÍA ' + res.dia, texto: gaceta });
+    bloques.push({ tipo: 'efectos', deltas: res.deltas, economia: res.economia, cambioIngresos: res.cambioIngresos, ingresos: estado.ingresos });
+    for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
+
+    const lm = lineaMinistro(estado, res);
+    bloques.push({ tipo: 'cupula', titulo: lm.titulo, texto: lm.texto });
+    const lc = lineaCiudadano(estado, res);
+    bloques.push({ tipo: 'calle', titulo: lc.titulo, texto: lc.texto });
+
+    for (const s of res.sucesos) {
+      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA' }[s.tipo];
+      bloques.push({ tipo: 'suceso', clase: s.tipo, titulo: etiqueta + ' · ' + s.titulo.toUpperCase(), texto: s.texto, deltas: s.deltas });
+    }
+    if (res.fin) bloques.push(...final(estado));
+    else if (res.programadas) bloques.push({ tipo: 'nota', texto: 'Radio Pasillo: dicen que esto todavía va a traer cola.' });
+    return bloques;
+  }
+
+  function confuso(interp) {
+    return [
+      { tipo: 'bot', texto: 'INTÉRPRETE › no entendí el decreto' },
+      { tipo: 'cupula', titulo: 'EL GABINETE', texto: T.azar(CONFUSOS) },
+      { tipo: 'nota', texto: 'Prueba algo como "' + T.azar(EJEMPLOS) + '".' }
+    ];
+  }
+
+  function pregunta(interp) {
+    if (interp.estado === 'preguntar_objeto') {
+      return {
+        bloques: [
+          { tipo: 'bot', texto: 'INTÉRPRETE › entendí ' + RF.ACCIONES[interp.accion].nombre.toUpperCase() + ', pero no sobre qué' },
+          { tipo: 'cupula', titulo: 'EL SECRETARIO', texto: '"' + RF.ACCIONES[interp.accion].nombre + '... ¿el qué, Excelencia?" El secretario espera con la pluma en el aire.' }
+        ],
+        opciones: []
+      };
+    }
+    const opciones = interp.opciones.map(op => ({
+      etiqueta: T.mayus(RF.consejero.medida(op.accion, op.nombreObjeto)),
+      interp: Object.assign({}, interp, { estado: 'ok', accion: op.accion, objeto: op.objeto, nombreObjeto: op.nombreObjeto })
+    }));
+    const texto = opciones.length > 2
+      ? '"¿Qué hacemos con ' + interp.nombreObjeto + ', Excelencia?"'
+      : '"Disculpe, Excelencia. ¿Se refiere a ' + opciones.map(o => o.etiqueta.toLowerCase()).join(' o a ') + '?"';
+    return {
+      bloques: [
+        { tipo: 'bot', texto: 'INTÉRPRETE › tengo dudas, pregunto antes de firmar' },
+        { tipo: 'cupula', titulo: 'EL SECRETARIO', texto }
+      ],
+      opciones
+    };
+  }
+
+  function estadoPais(estado) {
+    const lineas = RF.STATS.map(s => s.nombre.padEnd(9, ' ') + String(estado.stats[s.id]).padStart(3, ' ') + '  ' + barra(estado.stats[s.id]));
+    const ing = estado.ingresos - 1;
+    lineas.push('Balance diario del tesoro: ' + (ing > 0 ? '+' : '') + ing);
+    lineas.push('Día ' + Math.min(estado.dia, RF.PAIS.dias) + ' de ' + RF.PAIS.dias + ' · Decretos firmados: ' + estado.historial.length);
+    const humor = Object.entries(estado.ciudadanos).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + (c.animo > 25 ? 'te apoya' : c.animo < -25 ? 'te detesta' : 'desconfía'));
+    lineas.push('', 'La calle:', ...humor.map(h => '  ' + h));
+    return [{ tipo: 'sistema', titulo: 'INFORME DE SITUACIÓN', texto: lineas.join('\n'), mono: true }];
+  }
+
+  function gabinete(estado) {
+    const lineas = Object.values(RF.GABINETE).map(m => {
+      const v = Math.round(m.stats.reduce((s, k) => s + estado.stats[k], 0) / m.stats.length);
+      const actitud = v >= 60 ? 'leal' : v >= 35 ? 'inquieto' : 'conspira';
+      return m.nombre + ' (' + m.cargo + '): ' + actitud;
+    });
+    return [{ tipo: 'sistema', titulo: 'TU GABINETE', texto: lineas.join('\n') }];
+  }
+
+  function historial(estado) {
+    if (!estado.historial.length) return [{ tipo: 'nota', texto: 'Todavía no has firmado ningún decreto.' }];
+    return [{ tipo: 'sistema', titulo: 'ARCHIVO DE DECRETOS', texto: estado.historial.map((h, i) => 'Nº ' + (i + 1) + ' · Día ' + h.dia + ': ' + T.mayus(h.medida)).join('\n') }];
+  }
+
+  function barra(v) { const n = Math.round(v / 10); return '█'.repeat(n) + '░'.repeat(10 - n); }
+
+  function final(estado) {
+    const f = RF.FINALES[estado.fin];
+    const epilogos = Object.entries(estado.ciudadanos).map(([id, c]) => {
+      const tipo = c.animo > 25 ? 'bien' : c.animo < -25 ? 'mal' : 'neutro';
+      return RF.CIUDADANOS[id].finales[tipo];
+    });
+    const dias = Math.min(estado.dia, RF.PAIS.dias + 1) - 1;
+    return [
+      { tipo: 'fin', titulo: 'FIN · ' + f.titulo, texto: f.texto },
+      { tipo: 'calle', titulo: 'QUÉ FUE DE ELLOS', texto: epilogos.join('\n\n') },
+      { tipo: 'sistema', titulo: 'TU LEGADO', texto: 'Días en el poder: ' + dias + '. Decretos firmados: ' + estado.historial.length + '.\nEscribe "reiniciar" para gobernar otra vez.' }
+    ];
+  }
+
+  RF.narrador = { intro, turno, confuso, pregunta, estadoPais, gabinete, historial, ayuda, final, EJEMPLOS };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/juego.js
+/*
+ * EL JUEGO: conecta la consola (pantalla) con el Intérprete, el Consejero y el Narrador.
+ * Guarda la partida en el propio celular para poder seguir otro día.
+ */
+(function (RF) {
+  'use strict';
+  const CLAVE = 'valdoria.partida.v1';
+  const MAX_REGISTRO = 160;
+  const $ = (id) => document.getElementById(id);
+  const reducirMovimiento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const ATAJOS = [
+    ['Prohibir…', 'Prohibir '], ['Vender…', 'Vender '], ['Regalar…', 'Regalar '],
+    ['Impuestos a…', 'Subir impuestos a '], ['Mano dura…', 'Mano dura contra '], ['Legalizar…', 'Legalizar '],
+    ['Invertir en…', 'Invertir en '], ['Recortar…', 'Recortar '], ['Obligar…', 'Obligar a todos a '],
+    ['Estatua de mí', 'Estatua de mí'],
+    ['estado', 'estado', true], ['gabinete', 'gabinete', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+  ];
+
+  let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false;
+
+  // ---------- Guardado ----------
+  function guardar() {
+    try { localStorage.setItem(CLAVE, JSON.stringify({ estado, registro: registro.slice(-MAX_REGISTRO) })); } catch (e) { /* sin guardado */ }
+  }
+  function cargar() {
+    try {
+      const d = JSON.parse(localStorage.getItem(CLAVE) || 'null');
+      if (d && d.estado && d.estado.version === 1) return d;
+    } catch (e) { /* partida corrupta o sin acceso */ }
+    return null;
+  }
+
+  // ---------- Barras del país ----------
+  function montarStats() {
+    $('stats').innerHTML = RF.STATS.map(s =>
+      `<li class="stat" id="st-${s.id}" title="${s.nombre}">
+        <div class="stat-cab"><span class="stat-nombre">${s.corto}</span><span class="stat-valor">0</span></div>
+        <div class="stat-barra"><div class="stat-relleno"></div></div>
+        <div class="cambio"></div>
+      </li>`).join('');
+  }
+  function pintarStats(deltas) {
+    for (const s of RF.STATS) {
+      const v = estado.stats[s.id];
+      const li = $('st-' + s.id);
+      li.querySelector('.stat-valor').textContent = v;
+      li.querySelector('.stat-relleno').style.width = v + '%';
+      li.classList.toggle('bajo', v < 25);
+      li.classList.toggle('medio', v >= 25 && v < 45);
+      li.setAttribute('aria-label', s.nombre + ' ' + v);
+      const c = li.querySelector('.cambio');
+      const d = deltas && deltas[s.id];
+      if (d) {
+        c.textContent = (d > 0 ? '+' : '') + d;
+        c.className = 'cambio visible ' + (d > 0 ? 'sube' : 'baja');
+        clearTimeout(c._t);
+        c._t = setTimeout(() => c.classList.remove('visible'), 4000);
+      }
+    }
+    $('dia').textContent = 'DÍA ' + Math.min(estado.dia, RF.PAIS.dias) + '/' + RF.PAIS.dias;
+  }
+
+  // ---------- Registro (la historia) ----------
+  function el(tag, clase, texto) {
+    const e = document.createElement(tag);
+    if (clase) e.className = clase;
+    if (texto != null) e.textContent = texto;
+    return e;
+  }
+
+  function nombreStat(id) { return RF.STATS.find(s => s.id === id).nombre; }
+
+  function listaDeltas(deltas, clase) {
+    const cont = el('div', clase);
+    const orden = RF.STATS.map(s => s.id).filter(k => deltas && deltas[k]);
+    for (const k of orden) {
+      const v = deltas[k];
+      cont.appendChild(el('span', (clase === 'mini' ? '' : 'efecto ') + (v > 0 ? 'sube' : 'baja'), nombreStat(k) + ' ' + (v > 0 ? '+' : '−') + Math.abs(v)));
+    }
+    return cont;
+  }
+
+  // Crea el elemento de un bloque. Devuelve {nodo, parrafo, texto} para el efecto máquina de escribir.
+  function crearBloque(b) {
+    const n = el('section', 'bloque b-' + b.tipo + (b.clase ? ' ' + b.clase : '') + (b.mono ? ' mono' : ''));
+    let p = null, texto = null;
+    if (b.tipo === 'efectos') {
+      const cont = listaDeltas(b.deltas, 'b-efectos');
+      if (!cont.childNodes.length) cont.appendChild(el('span', 'efecto neutro', 'Sin cambios visibles'));
+      if (b.economia) cont.appendChild(el('span', 'efecto ' + (b.economia > 0 ? 'sube' : 'baja'), 'Caja del día ' + (b.economia > 0 ? '+' : '−') + Math.abs(b.economia)));
+      if (b.cambioIngresos) cont.appendChild(el('span', 'efecto ' + (b.cambioIngresos > 0 ? 'sube' : 'baja'), 'Ingresos diarios ' + (b.cambioIngresos > 0 ? '+' : '−') + Math.abs(b.cambioIngresos)));
+      n.className = 'bloque';
+      n.appendChild(cont);
+      return { nodo: n };
+    }
+    if (b.titulo) n.appendChild(el('span', 'etiqueta', b.titulo));
+    if (b.tipo === 'gaceta' && b.titulo && b.titulo.indexOf('DECRETO') === 0) n.appendChild(el('span', 'sello', 'DECRETADO'));
+    if (b.texto != null) {
+      p = el('p');
+      n.appendChild(p);
+      texto = b.texto;
+    }
+    if (b.tipo === 'suceso' && b.deltas && Object.keys(b.deltas).some(k => b.deltas[k])) n.appendChild(listaDeltas(b.deltas, 'mini'));
+    return { nodo: n, parrafo: p, texto };
+  }
+
+  const ANIMADOS = new Set(['gaceta', 'cupula', 'calle', 'suceso', 'fin']);
+
+  function mostrar(bloques, animar) {
+    for (const b of bloques) {
+      registro.push(b);
+      cola.push({ b, animar: animar && !reducirMovimiento && ANIMADOS.has(b.tipo) });
+    }
+    if (registro.length > MAX_REGISTRO * 1.5) registro = registro.slice(-MAX_REGISTRO);
+    if (!escribiendo) siguiente();
+  }
+
+  function alFondo() { const r = $('registro'); r.scrollTop = r.scrollHeight; }
+
+  function siguiente() {
+    let item;
+    while ((item = cola.shift())) {
+      const { nodo, parrafo, texto } = crearBloque(item.b);
+      $('registro').appendChild(nodo);
+      if (!parrafo || !item.animar || saltar) { if (parrafo) parrafo.textContent = texto; continue; }
+      let i = 0;
+      actual = { parrafo, texto };
+      parrafo.classList.add('cursor');
+      const paso = () => {
+        i = saltar ? texto.length : Math.min(texto.length, i + 4);
+        parrafo.textContent = texto.slice(0, i);
+        alFondo();
+        if (i < texto.length) escribiendo = requestAnimationFrame(paso);
+        else { parrafo.classList.remove('cursor'); actual = null; escribiendo = setTimeout(siguiente, saltar ? 0 : 180); }
+      };
+      escribiendo = requestAnimationFrame(paso);
+      return;
+    }
+    alFondo();
+    escribiendo = null;
+    saltar = false;
+  }
+
+  // Termina de golpe todo lo que se estaba escribiendo.
+  function vaciar() {
+    if (escribiendo) { clearTimeout(escribiendo); cancelAnimationFrame(escribiendo); }
+    if (actual) { actual.parrafo.textContent = actual.texto; actual.parrafo.classList.remove('cursor'); actual = null; }
+    while (cola.length) {
+      const { nodo, parrafo, texto } = crearBloque(cola.shift().b);
+      if (parrafo) parrafo.textContent = texto;
+      $('registro').appendChild(nodo);
+    }
+    escribiendo = null;
+    saltar = false;
+    alFondo();
+  }
+
+  function mostrarOpciones(opciones) {
+    const cont = el('div', 'bloque opciones');
+    for (const op of opciones) {
+      const b = el('button', 'opcion', op.etiqueta);
+      b.type = 'button';
+      b.addEventListener('click', () => {
+        cont.querySelectorAll('button').forEach(x => { x.disabled = true; });
+        b.classList.add('elegida');
+        vaciar();
+        firmar(op.interp);
+      });
+      cont.appendChild(b);
+    }
+    const esperar = () => { if (escribiendo || cola.length) setTimeout(esperar, 100); else { $('registro').appendChild(cont); alFondo(); } };
+    esperar();
+  }
+
+  // ---------- Turno ----------
+  function firmar(interp) {
+    const antes = Object.assign({}, estado.stats);
+    const res = RF.consejero.decretar(estado, interp);
+    const bloques = RF.narrador.turno(estado, interp, res);
+    const cambio = {};
+    for (const k of Object.keys(antes)) cambio[k] = estado.stats[k] - antes[k];
+    mostrar(bloques, true);
+    pintarStats(cambio);
+    guardar();
+  }
+
+  function reiniciar() {
+    estado = RF.consejero.nuevoEstado();
+    vaciar();
+    registro = [];
+    $('registro').innerHTML = '';
+    pintarStats();
+    mostrar(RF.narrador.intro(estado), false);
+    guardar();
+  }
+
+  function procesar(entrada) {
+    const texto = entrada.trim();
+    if (!texto) return;
+    const orden = RF.texto.normalizar(texto);
+    mostrar([{ tipo: 'eco', texto }], false);
+
+    if (pendienteReinicio) {
+      pendienteReinicio = false;
+      if (/^(si|s|confirmar|reiniciar)$/.test(orden)) { reiniciar(); return; }
+      mostrar([{ tipo: 'nota', texto: 'Seguimos gobernando.' }], false);
+      return;
+    }
+    if (/^(reiniciar|reset|nueva partida|empezar de nuevo)$/.test(orden)) {
+      if (estado.fin) { reiniciar(); return; }
+      pendienteReinicio = true;
+      mostrar([{ tipo: 'nota', texto: '¿Seguro que quieres abandonar el poder y empezar de cero? Escribe "sí" para confirmar.' }], false);
+      return;
+    }
+    if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
+    if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
+    if (/^(gabinete|ministros)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
+    if (/^(historial|decretos|archivo)$/.test(orden)) { mostrar(RF.narrador.historial(estado), false); return; }
+
+    if (estado.fin) {
+      mostrar([{ tipo: 'nota', texto: 'Tu gobierno ha terminado. Escribe "reiniciar" para empezar otra partida.' }], false);
+      return;
+    }
+
+    const interp = RF.interprete.interpretar(texto);
+    if (interp.estado === 'ok') { firmar(interp); return; }
+    if (interp.estado === 'confuso') { mostrar(RF.narrador.confuso(interp), true); guardar(); return; }
+    const q = RF.narrador.pregunta(interp);
+    mostrar(q.bloques, true);
+    if (q.opciones.length) mostrarOpciones(q.opciones);
+    guardar();
+  }
+
+  // ---------- Controles ----------
+  function montarAtajos() {
+    const cont = $('chips');
+    for (const [etiqueta, valor, esComando] of ATAJOS) {
+      const b = el('button', 'chip' + (esComando ? ' cmd' : ''), etiqueta);
+      b.type = 'button';
+      b.addEventListener('click', () => {
+        const input = $('decreto');
+        if (esComando || !valor.endsWith(' ')) { vaciar(); procesar(valor); return; }
+        input.value = valor;
+        input.focus();
+        try { input.setSelectionRange(valor.length, valor.length); } catch (e) { /* algunos navegadores no lo permiten */ }
+      });
+      cont.appendChild(b);
+    }
+  }
+
+  function iniciar() {
+    RF.interprete.entrenar();
+    montarStats();
+    montarAtajos();
+
+    const guardada = cargar();
+    if (guardada) {
+      estado = guardada.estado;
+      registro = [];
+      mostrar(guardada.registro, false);
+      mostrar([{ tipo: 'nota', texto: 'Partida recuperada. Bienvenido de vuelta a Palacio, Excelencia.' }], false);
+      pintarStats();
+    } else {
+      reiniciar();
+    }
+
+    $('consola').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = $('decreto');
+      const v = input.value;
+      input.value = '';
+      vaciar();
+      procesar(v);
+    });
+    // Tocar la historia acelera el texto.
+    $('registro').addEventListener('click', (e) => { if (!e.target.closest('button')) saltar = true; });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
+})(globalThis.RF = globalThis.RF || {});
+</script>
+</body>
+</html>

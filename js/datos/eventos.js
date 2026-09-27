@@ -1,0 +1,167 @@
+/*
+ * EVENTOS
+ *  ESPECIALES  combinaciones acción+objeto con consecuencias propias (se suman a las generales)
+ *  UMBRALES    lo que pasa cuando una estadística cae demasiado
+ *  AZAR        sucesos que el Director de Historia mete para dar ritmo
+ *  FINALES     cómo termina tu gobierno
+ * "en" es a cuántos días vista ocurre una consecuencia programada.
+ */
+(function (RF) {
+  'use strict';
+
+  RF.ESPECIALES = {
+    'PRIVATIZAR:AIRE': {
+      efectos: { tesoro: 6, cupula: 4, pueblo: -4, mundo: -6 },
+      texto: 'Se instalan medidores de respiración en cada hogar. Tarifa básica: 3 valdos por hora. Los asmáticos pagan tarifa premium.',
+      programar: [
+        { en: 2, titulo: 'Aire embotellado', texto: 'Aparece un mercado negro de aire embotellado en La Esperanza. Las botellas se venden en la puerta de las escuelas, "sabor montaña".', efectos: { orden: -6, cupula: 3 } },
+        { en: 4, titulo: 'Los que no pueden pagar', texto: 'Los hospitales reciben a los primeros ciudadanos que dejaron de "respirar oficialmente" por no pagar. Nadie sabe cómo contarlos en las estadísticas.', efectos: { salud: -8, pueblo: -6, mundo: -5 } }
+      ]
+    },
+    'PROHIBIR:AIRE': {
+      efectos: { pueblo: -10, orden: -6, mundo: -10 },
+      texto: 'Respirar queda prohibido en todo el territorio. La población sigue respirando, pero ahora a escondidas y con culpa.'
+    },
+    'NACIONALIZAR:AIRE': {
+      efectos: { mundo: -3 },
+      texto: 'El aire pasa a ser propiedad del Estado. De momento es gratis. La palabra "de momento" preocupa a todo el mundo.'
+    },
+    'PRIVATIZAR:AGUA': {
+      texto: 'Una empresa del cuñado de Cifuentes gana la concesión del agua. Casualidad.',
+      programar: [{ en: 3, titulo: 'Pozos clandestinos', texto: 'En los barrios pobres se cavan pozos a escondidas. El agua sale turbia. Los niños enferman.', efectos: { salud: -6, orden: -3 } }]
+    },
+    'PRIVATIZAR:RECURSOS': {
+      efectos: { pueblo: -3 },
+      texto: 'Una multinacional compra la concesión por una fracción de su valor. Cifuentes estrena reloj.',
+      programar: [{ en: 3, titulo: 'Ríos de colores', texto: 'Los ríos cerca de las minas bajan naranjas. Los pescadores protestan con peces muertos frente a Palacio.', efectos: { salud: -5, pueblo: -4, mundo: -3 } }]
+    },
+    'PRIVATIZAR:SALUD': {
+      programar: [{ en: 3, titulo: 'Hospitales de lujo', texto: 'Los hospitales privatizados reabren con alfombra roja y precios en dólares. En la puerta, una fila de gente que no puede entrar.', efectos: { salud: -7, pueblo: -4, cupula: 3 } }]
+    },
+    'PROHIBIR:INTERNET': {
+      efectos: { orden: 4, mundo: -6, tesoro: -4 },
+      texto: 'Se apagan las antenas a medianoche. En los cibercafés, la gente mira pantallas negras como quien mira un pozo.',
+      programar: [{ en: 3, titulo: 'Antenas piratas', texto: 'Aparecen antenas piratas en las azoteas. Sombra calcula que hay una cada tres manzanas.', efectos: { orden: -5, pueblo: -2 } }]
+    },
+    'PROHIBIR:DIVERSION': {
+      texto: 'El Estadio Nacional se cierra con candado. Los niños juegan con latas en la calle, mirando a los lados.',
+      programar: [{ en: 2, titulo: 'El partido clandestino', texto: 'La policía interrumpe un partido de fútbol clandestino en un garaje. Había 400 personas. Y dos policías jugando.', efectos: { orden: -4, pueblo: -3 } }]
+    },
+    'PROHIBIR:VICIOS': {
+      programar: [{ en: 3, titulo: 'Contrabando', texto: 'El contrabando florece en la frontera. Los contrabandistas mandan un regalo a Palacio para agradecer el negocio.', efectos: { orden: -6, cupula: 4, tesoro: -2 } }]
+    },
+    'PROHIBIR:MASCOTAS': {
+      efectos: { pueblo: -6 },
+      texto: 'Los perros de Valdoria pasan a la clandestinidad. En muchas casas, el armario ladra.'
+    },
+    'PROHIBIR:LIDER': {
+      efectos: { cupula: -8, mundo: -6, orden: -5 },
+      texto: 'Su Excelencia se prohíbe a sí mismo. Los juristas pasan la noche discutiendo si el país sigue teniendo gobierno.'
+    },
+    'PROHIBIR:RELIGION': {
+      programar: [{ en: 3, titulo: 'Misas en los sótanos', texto: 'Se celebran misas clandestinas en sótanos y garajes. Los curas usan bigote falso.', efectos: { pueblo: -4, orden: -3 } }]
+    },
+    'CASTIGAR:OPOSICION': {
+      texto: 'Las furgonetas negras hacen tres viajes esa noche. A la mañana siguiente, varias sillas del Parlamento están vacías.',
+      programar: [{ en: 3, titulo: 'Mártires', texto: 'Las fotos de los detenidos aparecen pegadas en las paredes con la palabra "¿DÓNDE ESTÁN?". Las arrancan. Vuelven a aparecer.', efectos: { pueblo: -6, mundo: -5 } }]
+    },
+    'CASTIGAR:CRIMEN': {
+      efectos: { orden: 5, pueblo: 3 },
+      texto: 'Las cárceles se llenan en una semana. Algunos detenidos incluso eran delincuentes.',
+      programar: [{ en: 4, titulo: 'Motín en La Roca', texto: 'Motín en la prisión de La Roca: caben 800 presos y hay 3.000. Los amotinados piden colchones y una entrevista contigo.', efectos: { orden: -5, tesoro: -3 } }]
+    },
+    'CASTIGAR:PRENSA': {
+      efectos: { mundo: -8 },
+      texto: 'Los corresponsales extranjeros hacen las maletas. El último en irse deja un artículo programado para publicarse al llegar a casa.'
+    },
+    'NACIONALIZAR:EMPRESAS': {
+      programar: [{ en: 2, titulo: 'Fuga de capitales', texto: 'Los millonarios huyen con maletas llenas. En el aeropuerto hay tanto tráfico de jets privados que se forma un atasco en el aire.', efectos: { tesoro: -6, mundo: -4 } }]
+    },
+    'NACIONALIZAR:RECURSOS': {
+      programar: [{ en: 2, titulo: 'Ofertas misteriosas', texto: 'Tres potencias extranjeras ofrecen "ayuda técnica" para explotar tu petróleo. Montiel dice que la ayuda viene con portaaviones.', efectos: { mundo: -4, tesoro: 4 } }]
+    },
+    'NACIONALIZAR:EXTRANJEROS': {
+      efectos: { mundo: 8, pueblo: 2 },
+      texto: 'Todos los extranjeros reciben la nacionalidad valdoriana, la quieran o no. Un turista japonés descubre que ahora debe hacer el servicio militar.'
+    },
+    'OBLIGAR:EJERCITO': {
+      efectos: { ejercito: 8, pueblo: -6, tesoro: -3 },
+      texto: 'Servicio militar obligatorio desde los 16 años. Los cuarteles se llenan de adolescentes que no saben atarse las botas.'
+    },
+    'OBLIGAR:RELIGION': {
+      efectos: { mundo: -4 },
+      texto: 'Misa obligatoria los domingos. Los curas están encantados. Los ateos rezan en silencio, por si acaso.'
+    },
+    'SUBSIDIAR:EJERCITO': {
+      texto: 'Los soldados cobran doble este mes. Los tanques brillan como nunca.'
+    },
+    'SUBSIDIAR:COMIDA': {
+      programar: [{ en: 5, titulo: 'Las colas', texto: 'La comida subsidiada escasea. Las colas en los mercados dan la vuelta a la manzana. Alguien vende su puesto en la cola.', efectos: { tesoro: -3, orden: -2 } }]
+    },
+    'RECORTAR:EJERCITO': {
+      efectos: { ejercito: -10 },
+      programar: [{ en: 3, titulo: 'Ruido de sables', texto: 'Los oficiales se quejan de que los tanques no tienen gasolina. Algunos tanques, sin embargo, se han movido de sitio.', efectos: { ejercito: -5 } }]
+    },
+    'GLORIFICAR:LIDER': {
+      texto: 'Se inaugura una estatua tuya de 30 metros en la Plaza Mayor. La nariz ha salido un poco grande.',
+      programar: [{ en: 3, titulo: 'La estatua', texto: 'Amanece la estatua con un bigote pintado y un cartel que dice "¿Y el pan?". Tardan dos días en limpiarla.', efectos: { pueblo: -2, orden: -2 } }]
+    },
+    'LEGALIZAR:VICIOS': {
+      efectos: { tesoro: 4 },
+      texto: 'Se abren dispensarios estatales. Hacienda cobra impuesto por cada gramo y por cada botella.'
+    },
+    'LEGALIZAR:CRIMEN': {
+      efectos: { orden: -12, pueblo: -6 },
+      texto: 'Robar pasa a ser legal. Los ladrones, desconcertados, fundan un sindicato para no perder su identidad profesional.'
+    },
+    'LEGALIZAR:ARMAS': {
+      efectos: { orden: -6, ejercito: -3 },
+      texto: 'Las armerías abren 24 horas. Ramiro se compra una "por si acaso" y la guarda en la guantera del taxi.'
+    },
+    'INVERTIR:SALUD': {
+      texto: 'Se anuncian tres hospitales nuevos. De momento hay tres carteles y una primera piedra.'
+    }
+  };
+
+  // Cuando una estadística cae por debajo de 25 ocurre esto (una vez, hasta que se recupere).
+  RF.UMBRALES = {
+    pueblo: { titulo: 'Cacerolazo', texto: 'A las nueve de la noche, toda la ciudad golpea cacerolas. El ruido llega hasta tu dormitorio en Palacio.', efectos: { orden: -5 } },
+    ejercito: { titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a misa con Garrote. En el ejército eso significa algo.', efectos: { orden: -2 } },
+    cupula: { titulo: 'Cena secreta', texto: 'Las familias más ricas del país cenan juntas sin invitarte. El menú: tu sucesor.', efectos: { tesoro: -3 } },
+    tesoro: { titulo: 'Arcas vacías', texto: 'Hacienda no puede pagar los sueldos de los funcionarios este mes. Los maestros cobran en vales de gasolina.', efectos: { pueblo: -4 } },
+    salud: { titulo: 'Epidemia', texto: 'Un brote de fiebre se extiende por los barrios pobres. Los hospitales cuelgan el cartel de "completo".', efectos: { pueblo: -4, orden: -2 } },
+    orden: { titulo: 'Saqueos', texto: 'Saqueos en el centro de Puerto Esperanza. Se llevan televisores, colchones y, por algún motivo, todos los maniquíes.', efectos: { tesoro: -4, pueblo: -3 } },
+    mundo: { titulo: 'Sanciones', texto: 'Las potencias extranjeras aprueban sanciones contra Valdoria. Tus cuentas en el extranjero aparecen congeladas.', efectos: { tesoro: -6 }, ingresos: -1 }
+  };
+
+  // Eventos del Director de Historia. tono: +1 bueno para ti, -1 malo.
+  RF.AZAR = [
+    { tono: -1, titulo: 'Terremoto', texto: 'Un terremoto sacude el sur del país. Las casas de adobe caen; el Palacio ni se mueve.', efectos: { salud: -6, tesoro: -6 } },
+    { tono: 1, titulo: '¡Petróleo!', texto: 'Un campesino encuentra petróleo mientras cavaba un pozo. Le das una medalla y le quitas el terreno.', efectos: { tesoro: 10, mundo: 2 } },
+    { tono: -1, titulo: 'Escándalo familiar', texto: 'Tu sobrino choca un coche oficial contra una fuente, borracho y en calzoncillos. El video se hace viral.', efectos: { pueblo: -5 } },
+    { tono: 1, titulo: 'Gloria deportiva', texto: 'La selección gana la Copa Regional. El país entero sale a la calle. Durante una semana, nadie se acuerda de sus problemas.', efectos: { pueblo: 8 } },
+    { tono: 1, titulo: 'Visita estelar', texto: 'Un cantante famoso da un concierto en la capital y se hace una foto contigo. No sabía quién eras.', efectos: { pueblo: 3, mundo: 3 } },
+    { tono: -1, titulo: 'Sequía', texto: 'No llueve desde hace dos meses. Las cosechas se secan y el precio del maíz se dispara.', efectos: { salud: -3, tesoro: -4, pueblo: -2 } },
+    { tono: -1, titulo: 'Filtración', texto: 'Unos hackers publican tus mensajes privados. Lo peor no son los secretos de Estado: son tus audios cantando boleros.', efectos: { mundo: -4, pueblo: -3 } },
+    { tono: 1, titulo: 'Cumbre internacional', texto: 'Valdoria es elegida sede de una cumbre regional. Montiel está feliz. Los presidentes vecinos alaban tu buffet.', efectos: { mundo: 6 } },
+    { tono: -1, titulo: 'Plaga de palomas', texto: 'Una plaga de palomas invade la capital. Rolo culpa a un país vecino. El país vecino dice que no tiene palomas.', efectos: { salud: -2, orden: -2 } },
+    { tono: -1, titulo: 'Crisis del plátano', texto: 'El precio internacional del plátano se desploma. Tu principal exportación ya no vale nada.', efectos: { tesoro: -6 } },
+    { tono: 1, titulo: 'Remesas récord', texto: 'Los valdorianos que emigraron envían más dinero que nunca. Irónicamente, tu mejor política económica es que la gente se vaya.', efectos: { tesoro: 6 } },
+    { tono: 1, titulo: 'Rumor de tu muerte', texto: 'Corre el rumor de que has muerto. Sales al balcón a saludar y la gente, por la sorpresa, aplaude.', efectos: { pueblo: 3, orden: 2 } },
+    { tono: -1, titulo: 'Huracán', texto: 'Un huracán arrasa la costa. La ayuda internacional llega, pero la mitad desaparece en el puerto.', efectos: { salud: -4, tesoro: -5, cupula: 3 } },
+    { tono: 1, titulo: 'Premio inesperado', texto: 'Una revista extranjera te nombra "Líder más fotogénico del año". Rolo lo manda imprimir en todas las escuelas.', efectos: { mundo: 3, pueblo: 1 } }
+  ];
+
+  RF.FINALES = {
+    pueblo: { titulo: 'REVOLUCIÓN', texto: 'La plaza se llena, luego las calles, luego los pasillos de Palacio. Escapas por un túnel secreto que resulta llevar a la cocina. Te reconoce un cocinero. Tu gobierno termina con un delantal puesto y las manos en alto.' },
+    ejercito: { titulo: 'GOLPE DE ESTADO', texto: 'A las cuatro de la madrugada, los tanques rodean Palacio. El General Garrote aparece en la televisión con tu banda presidencial puesta. Le queda un poco grande.' },
+    cupula: { titulo: 'TRAICIÓN EN PALACIO', texto: 'La cena de gala tenía un postre especial solo para ti. Leonor Cifuentes brinda "por la estabilidad" mientras te desplomas sobre la tarta.' },
+    tesoro: { titulo: 'BANCARROTA', texto: 'Valdoria no puede pagar ni la luz del Palacio. Los acreedores internacionales toman el control del país. Te ofrecen un puesto de asesor, sin sueldo.' },
+    salud: { titulo: 'COLAPSO SANITARIO', texto: 'La epidemia llega a Palacio. Tus ministros huyen. Pasas tus últimos días de gobierno en cuarentena, hablando con tu propio retrato.' },
+    orden: { titulo: 'ANARQUÍA', texto: 'Nadie obedece a nadie. Cada barrio tiene su propio presidente. En tu despacho han montado un mercadillo. Alguien vende tu sillón.' },
+    mundo: { titulo: 'INTERVENCIÓN EXTRANJERA', texto: 'Una coalición internacional desembarca "para restaurar la democracia". Te detienen en pijama. La foto da la vuelta al mundo.' },
+    elecciones_ganadas: { titulo: 'REELECCIÓN LIMPIA', texto: 'Al final de tu mandato convocas elecciones. Nadie se lo cree, pero ganas. Limpiamente. La oposición pide un recuento y, para su sorpresa, vuelves a ganar.' },
+    elecciones_amanadas: { titulo: 'REELECCIÓN CON EL 99,7%', texto: 'Convocas elecciones. Sombra se encarga del conteo. Ganas con el 99,7% de los votos, incluidos los de varios muertos y un perro. El mundo protesta un rato y luego se olvida.' },
+    elecciones_perdidas: { titulo: 'DERROTA EN LAS URNAS', texto: 'Convocas elecciones convencido de ganar. Pierdes por goleada. Te vas al exilio con tres maletas y la estatua de 30 metros, que no cabe en el avión.' }
+  };
+})(globalThis.RF = globalThis.RF || {});

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#14110d">
+<title>Consola de Valdoria</title>
+<meta name="description" content="Gobierna un país escribiendo decretos en una consola. Tus órdenes cambian el país y la vida de su gente.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=Special+Elite&family=VT323&display=swap">
+<!--ESTILOS-->
+<link rel="stylesheet" href="css/estilo.css">
+<!--/ESTILOS-->
+</head>
+<body>
+<div class="app">
+  <header class="cabecera">
+    <div class="cabecera-fila">
+      <h1 class="marca">VALDORIA</h1>
+      <span class="dia" id="dia">DÍA 1/30</span>
+    </div>
+    <ul class="stats" id="stats" aria-label="Estado del país"></ul>
+  </header>
+
+  <main class="registro" id="registro" aria-live="polite"></main>
+
+  <form class="consola" id="consola" autocomplete="off">
+    <div class="chips" id="chips" aria-label="Atajos de decreto"></div>
+    <div class="linea-orden">
+      <span class="prompt" aria-hidden="true">&gt;</span>
+      <label for="decreto" class="oculto" hidden>Decreto</label>
+      <input id="decreto" name="decreto" type="text" placeholder="Escribe tu decreto…" enterkeyhint="send" autocapitalize="sentences" spellcheck="false" maxlength="200">
+      <button class="boton" id="enviar" type="submit">DECRETAR</button>
+    </div>
+  </form>
+</div>
+
+<!--SCRIPTS-->
+<script src="js/texto.js"></script>
+<script src="js/datos/acciones.js"></script>
+<script src="js/datos/objetos.js"></script>
+<script src="js/datos/personajes.js"></script>
+<script src="js/datos/eventos.js"></script>
+<script src="js/interprete.js"></script>
+<script src="js/consejero.js"></script>
+<script src="js/narrador.js"></script>
+<script src="js/juego.js"></script>
+<!--/SCRIPTS-->
+</body>
+</html>

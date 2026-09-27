@@ -1,0 +1,10 @@
+{
+  "name": "consola-de-valdoria",
+  "version": "0.1.0",
+  "description": "Juego de consola: gobierna un país escribiendo decretos.",
+  "private": true,
+  "scripts": {
+    "test": "node test/interprete.test.js && node test/simulacion.test.js && node test/equilibrio.test.js",
+    "empaquetar": "node scripts/empaquetar.js"
+  }
+}
