@@ -66,6 +66,7 @@ El juego tiene su propio "bot", con tres piezas:
 | **Poder** | `js/poder.js` | Decretos sobre personas: ministros con sucesores, gente de a pie, el líder de la oposición y el embajador. |
 | **Director** | `js/director.js` | Decide cuándo salta un evento y aplica la opción elegida. |
 | **Narrador** | `js/narrador.js` | Cuenta la historia: Gaceta Oficial, el parte de leyes de cada turno, titulares, gabinete, calle y ambiente. |
+| **Narrador con IA** (opcional) | `js/narradorIA.js` | Convierte los datos del turno en una crónica escrita por Claude. |
 
 Los datos (lo que más se puede ampliar) están separados del código:
 
@@ -79,11 +80,21 @@ Los datos (lo que más se puede ampliar) están separados del código:
 
 **Para que el bot entienda más:** añade frases a `frases` (acciones) o a `formas` (objetos). Se reentrena solo al cargar la página.
 
+## Crónica con IA (opcional)
+
+El juego funciona entero sin IA. Si quieres, escribe `ia` en la consola, pega tu clave de la API de Claude y activa la crónica.
+
+- **La IA no decide nada.** El juego calcula todo igual que siempre. Después, cada turno se envía un resumen de lo que ya pasó: indicadores, régimen, gabinete, gente, leyes vigentes, hechos del turno y los textos que escribió el narrador local como borrador. Claude solo lo convierte en una crónica. No guarda memoria entre turnos: los datos del juego son la memoria.
+- **Modelos:** Claude Opus 5 (por defecto), Sonnet 5 o Haiku 4.5. Se usa `effort: low` para que sea rápido y barato. Con Opus 5 está activado el *fallback* del servidor ante rechazos. El contexto fijo del mundo va marcado para la caché de prompts.
+- **Si falla** (sin conexión, clave mala, rechazo del modelo), el turno se cuenta con la narración local de siempre.
+- **La clave se guarda solo en el navegador** (`localStorage`). El juego llama directamente a la API desde el navegador con el SDK oficial, así que no compartas tu partida con la clave puesta.
+- **Dónde funciona:** en GitHub Pages o abriendo `dist/valdoria.html`. En el visor de artefactos de Claude no funciona, porque bloquea las conexiones externas.
+
 ## Desarrollo
 
 ```bash
-npm test            # prueba el Intérprete, simula 400 partidas, comprueba la lógica de las leyes y el equilibrio
+npm test            # prueba el Intérprete, simula 400 partidas, comprueba la lógica de las leyes, el equilibrio y el narrador con IA (simulado)
 npm run empaquetar  # genera dist/valdoria.html (todo en un archivo)
 ```
 
-No hace falta instalar nada: solo Node.js para las pruebas.
+Para las pruebas solo hace falta Node.js. `npm install` instala el SDK de Anthropic, que usa la prueba del narrador con IA con respuestas simuladas; sin el SDK, esa prueba se omite.

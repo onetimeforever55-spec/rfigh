@@ -15,7 +15,7 @@
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
     ['Disolver…', 'Disolver '], ['Controlar…', 'Controlar '], ['En secreto…', 'En secreto '],
-    ['esperar', 'esperar', true], ['estado', 'estado', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ia', 'ia', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -142,6 +142,13 @@
       return { nodo: n };
     }
     if (b.tipo === 'dilema') return crearDilema(b, n);
+    if (b.tipo === 'cronica') {
+      n.appendChild(el('span', 'etiqueta', b.titulo || 'CRÓNICA'));
+      const pc = el('p', b.terminada ? '' : 'cursor', b.texto || '');
+      n.appendChild(pc);
+      nodosCronica.set(b, pc);
+      return { nodo: n };
+    }
     if (b.titulo) n.appendChild(el('span', 'etiqueta', b.titulo));
     if (b.tipo === 'gaceta' && b.titulo) {
       const sello = b.titulo.indexOf('DECRETO') === 0 ? 'DECRETADO' : b.titulo.indexOf('ORDEN RESERVADA') === 0 ? 'SECRETO' : b.titulo.indexOf('PROYECTO') === 0 ? 'BLOQUEADO' : null;
@@ -261,6 +268,103 @@
   }
 
   // Firma uno o varios decretos (el mismo día) y cuenta lo que pasa.
+  // ---------- Crónica con IA ----------
+  const nodosCronica = new WeakMap();
+  let iaPausada = false; // si la conexión falla (por ejemplo, dentro del visor de Claude), no se reintenta en esta sesión
+
+  function pintarCronica(b) {
+    const pc = nodosCronica.get(b);
+    if (!pc) return;
+    pc.textContent = b.texto;
+    pc.classList.toggle('cursor', !b.terminada);
+    alFondo();
+  }
+
+  // Muestra los bloques de un turno. Con la IA activa, los textos narrativos se sustituyen por una crónica.
+  function publicarTurno(bloques) {
+    const N = RF.narradorIA.NARRATIVOS;
+    const narrativos = bloques.filter(b => N.has(b.tipo));
+    if (!RF.narradorIA.activa() || iaPausada || !narrativos.length) { mostrar(bloques, true); return; }
+    const cronica = { tipo: 'cronica', titulo: 'CRÓNICA', texto: '' };
+    const resto = bloques.filter(b => !N.has(b.tipo));
+    const i = resto.findIndex(b => b.tipo === 'dilema' || b.tipo === 'fin');
+    resto.splice(i === -1 ? resto.length : i, 0, cronica);
+    mostrar(resto, true);
+    RF.narradorIA.narrar(estado, bloques, (t) => { cronica.texto = t; pintarCronica(cronica); })
+      .then(r => {
+        cronica.texto = r.texto;
+        cronica.terminada = true;
+        pintarCronica(cronica);
+        mostrar([{ tipo: 'bot', texto: RF.narradorIA.textoUso(r) }], false);
+        guardar();
+      })
+      .catch(err => {
+        // Si algo falla, se quita la crónica y se cuenta el turno con la narración normal.
+        registro = registro.filter(b => b !== cronica);
+        const pc = nodosCronica.get(cronica);
+        if (pc && pc.parentNode) pc.parentNode.remove();
+        cola = cola.filter(x => x.b !== cronica);
+        const conexion = /conectar|cargar/.test(err.mensaje || '');
+        if (conexion) iaPausada = true;
+        mostrar([{ tipo: 'nota', texto: (err.mensaje || 'La IA no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') + ' El turno sigue con la narración normal.' }].concat(narrativos), true);
+        guardar();
+      });
+  }
+
+  // El panel donde se pone la clave de la API.
+  let panelesIA = 0;
+  function mostrarConfigIA() {
+    vaciar();
+    const c = RF.narradorIA.config();
+    const k = ++panelesIA;
+    const n = el('section', 'bloque b-config-ia');
+    n.appendChild(el('span', 'etiqueta', 'NARRADOR CON IA'));
+    n.appendChild(el('p', '', 'Con tu clave de la API de Anthropic, Claude convierte los datos de cada turno en una crónica escrita. No decide nada: el juego ya ha calculado todo, la IA solo lo cuenta mejor. Cada turno hace una petición a tu cuenta.'));
+    const aviso = el('p', 'aviso-ia', 'Tu clave se guarda solo en este navegador. No compartas el juego con la clave puesta. Dentro de la página de Claude no funciona (el visor bloquea conexiones externas): usa GitHub Pages o el archivo dist/valdoria.html.');
+    n.appendChild(aviso);
+    const form = el('form', 'form-ia');
+    const lab1 = el('label', '', 'Clave de la API'); lab1.htmlFor = 'ia-clave-' + k;
+    const clave = el('input'); clave.id = 'ia-clave-' + k; clave.type = 'password'; clave.autocomplete = 'off'; clave.placeholder = 'sk-ant-…'; clave.value = c.clave || '';
+    const lab2 = el('label', '', 'Modelo'); lab2.htmlFor = 'ia-modelo-' + k;
+    const sel = el('select'); sel.id = 'ia-modelo-' + k;
+    for (const m of RF.narradorIA.MODELOS) { const o = el('option', '', m.nombre); o.value = m.id; o.selected = m.id === c.modelo; sel.appendChild(o); }
+    const fila = el('label', 'fila-ia');
+    const chk = el('input'); chk.type = 'checkbox'; chk.id = 'ia-activa-' + k; chk.checked = !!c.activa;
+    fila.appendChild(chk); fila.appendChild(document.createTextNode(' Usar la crónica con IA en cada turno'));
+    const botones = el('div', 'botones-ia');
+    const bGuardar = el('button', 'chip', 'Guardar'); bGuardar.type = 'submit';
+    const bProbar = el('button', 'chip', 'Probar conexión'); bProbar.type = 'button';
+    const bBorrar = el('button', 'chip cmd', 'Borrar clave'); bBorrar.type = 'button';
+    botones.append(bGuardar, bProbar, bBorrar);
+    const estadoIA = el('p', 'estado-ia', RF.narradorIA.activa() ? 'Activa con ' + RF.narradorIA.modelo().nombre + '.' : 'Desactivada.');
+    form.append(lab1, clave, lab2, sel, fila, botones);
+    n.append(form, estadoIA);
+    const leer = () => ({ clave: clave.value.trim(), modelo: sel.value, activa: chk.checked });
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const v = leer();
+      if (v.activa && !v.clave) { estadoIA.textContent = 'Falta la clave para activar la IA.'; return; }
+      RF.narradorIA.guardar(v);
+      iaPausada = false;
+      estadoIA.textContent = RF.narradorIA.activa() ? 'Guardado. La próxima crónica la escribirá ' + RF.narradorIA.modelo().nombre + '.' : 'Guardado. La IA está desactivada: sigue la narración normal.';
+    });
+    bProbar.addEventListener('click', async () => {
+      RF.narradorIA.guardar(Object.assign(leer(), { activa: RF.narradorIA.config().activa }));
+      if (!clave.value.trim()) { estadoIA.textContent = 'Escribe primero tu clave.'; return; }
+      estadoIA.textContent = 'Probando…';
+      const r = await RF.narradorIA.probar();
+      estadoIA.textContent = r.mensaje;
+      if (r.ok) iaPausada = false;
+    });
+    bBorrar.addEventListener('click', () => {
+      RF.narradorIA.guardar({ clave: '', activa: false });
+      clave.value = ''; chk.checked = false;
+      estadoIA.textContent = 'Clave borrada de este navegador.';
+    });
+    $('registro').appendChild(n);
+    alFondo();
+  }
+
   function firmar(lista) {
     const antes = Object.assign({}, estado.stats);
     const bloques = [];
@@ -283,7 +387,7 @@
     // Si ha saltado un evento (o el Congreso ha bloqueado la ley), su tarjeta va al final.
     const d = RF.director.pendiente(estado);
     if (d) bloques.push(RF.narrador.dilema(estado, d));
-    mostrar(bloques, true);
+    publicarTurno(bloques);
     pintarStats(cambios(antes));
     actualizarConsola();
     guardar();
@@ -296,7 +400,7 @@
     const bloques = [{ tipo: 'nota', texto: 'No firmas nada este turno. Dejas que tus leyes trabajen.' }].concat(RF.narrador.cierreDia(estado, res));
     const d = RF.director.pendiente(estado);
     if (d && res.dilema) bloques.push(RF.narrador.dilema(estado, d));
-    mostrar(bloques, true);
+    publicarTurno(bloques);
     pintarStats(cambios(antes));
     actualizarConsola();
     guardar();
@@ -357,6 +461,7 @@
     }
     if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
     if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
+    if (/^(ia|api|clave|configurar ia|narrador ia|cronica)$/.test(orden)) { mostrarConfigIA(); return; }
     if (/^(sistema|regimen|politica|congreso|sistema politico)$/.test(orden)) { mostrar(RF.narrador.sistema(estado), false); return; }
     if (/^(gabinete|ministros|poder|instituciones)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
     if (/^(leyes|ley|leyes vigentes|economia|mercado|balance)$/.test(orden)) { mostrar(RF.narrador.leyes(estado), false); return; }

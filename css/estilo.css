@@ -279,6 +279,24 @@ body {
 .b-suceso.escandalo { border-color: var(--mal); background: rgba(255, 107, 82, 0.06); }
 .b-suceso.escandalo .etiqueta { color: var(--mal); }
 
+/* Crónica escrita por la IA: el texto principal del turno. */
+.b-cronica { padding: 12px 14px; border-left: 3px solid var(--fosforo); background: var(--fondo-2); }
+.b-cronica .etiqueta { color: var(--fosforo); }
+.b-cronica p { font-size: 15px; line-height: 1.65; }
+
+/* Panel de la clave de la API. */
+.b-config-ia { padding: 12px; border: 1px dashed var(--fosforo); display: flex; flex-direction: column; gap: 10px; }
+.b-config-ia .aviso-ia { font-size: 12px; color: var(--aviso); }
+.form-ia { display: flex; flex-direction: column; gap: 6px; }
+.form-ia label { font-size: 12px; color: var(--fosforo-tenue); letter-spacing: 0.04em; }
+.form-ia input[type="password"], .form-ia select {
+  font: inherit; font-size: 16px; color: var(--fosforo); background: var(--fondo);
+  border: 1px solid var(--fosforo-oscuro); padding: 8px 10px; border-radius: 0; width: 100%;
+}
+.form-ia .fila-ia { font-size: 14px; color: var(--fosforo); display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.botones-ia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.estado-ia { font-size: 13px; color: var(--fosforo-tenue); }
+
 /* Evento con decisión (estilo Victoria 2): marco doble y opciones con sus efectos. */
 .b-dilema {
   border: 3px double var(--fosforo);
