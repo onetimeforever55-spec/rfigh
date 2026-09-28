@@ -285,17 +285,58 @@ body {
 .b-cronica p { font-size: 15px; line-height: 1.65; }
 
 /* Panel de la clave de la API. */
-.b-config-ia { padding: 12px; border: 1px dashed var(--fosforo); display: flex; flex-direction: column; gap: 10px; }
-.b-config-ia .aviso-ia { font-size: 12px; color: var(--aviso); }
+.cabecera-der { display: flex; align-items: baseline; gap: 10px; }
+/* Botón de la IA en la cabecera: apagado en tenue, encendido brilla. */
+.boton-ia {
+  font: inherit; font-family: var(--f-terminal); font-size: 18px; line-height: 1;
+  padding: 3px 8px; background: none; cursor: pointer;
+  color: var(--fosforo-tenue); border: 1px dashed var(--fosforo-oscuro);
+}
+.boton-ia:hover, .boton-ia:focus-visible { color: var(--fosforo); border-color: var(--fosforo); }
+.boton-ia.on { color: var(--fondo); background: var(--fosforo); border: 1px solid var(--fosforo); box-shadow: 0 0 10px var(--brillo); }
+
+/* El cuadro donde se pega la clave. */
+.modal-ia {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(3, 8, 5, 0.82);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px 16px;
+  overflow-y: auto;
+}
+.modal-ia[hidden] { display: none; }
+.caja-ia {
+  width: 100%; max-width: 480px; margin-top: 6vh;
+  background: var(--fondo-2); border: 1px solid var(--fosforo);
+  box-shadow: 0 0 0 4px var(--fondo), 0 0 0 5px var(--fosforo-oscuro), 0 0 30px rgba(98, 245, 154, 0.15);
+  padding: 14px 16px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cab-ia { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid var(--linea); padding-bottom: 8px; }
+.cab-ia h2 { margin: 0; font-family: var(--f-terminal); font-weight: 400; font-size: 24px; line-height: 1; letter-spacing: 0.05em; text-shadow: 0 0 8px var(--brillo); }
+.cerrar-ia { font: inherit; font-size: 18px; background: none; border: 0; color: var(--fosforo-tenue); cursor: pointer; padding: 4px 8px; min-width: 44px; min-height: 36px; }
+.cerrar-ia:hover { color: var(--fosforo); }
+.intro-ia { margin: 0; font-size: 14px; }
+.aviso-ia { margin: 0; font-size: 12px; color: var(--aviso); }
 .form-ia { display: flex; flex-direction: column; gap: 6px; }
 .form-ia label { font-size: 12px; color: var(--fosforo-tenue); letter-spacing: 0.04em; }
-.form-ia input[type="password"], .form-ia select {
+.fila-clave { display: flex; gap: 6px; }
+.fila-clave input { flex: 1; min-width: 0; }
+.form-ia input[type="password"], .form-ia input[type="text"], .form-ia select {
   font: inherit; font-size: 16px; color: var(--fosforo); background: var(--fondo);
-  border: 1px solid var(--fosforo-oscuro); padding: 8px 10px; border-radius: 0; width: 100%;
+  border: 1px solid var(--fosforo-oscuro); padding: 10px; border-radius: 0; width: 100%;
 }
+.form-ia input:focus, .form-ia select:focus { outline: none; border-color: var(--fosforo); box-shadow: 0 0 0 1px var(--fosforo); }
+.form-ia select:disabled { opacity: 0.5; }
+.detectado-ia { margin: 0; min-height: 1.4em; font-size: 13px; color: var(--fosforo); }
+.detectado-ia.mal { color: var(--aviso); }
 .form-ia .fila-ia { font-size: 14px; color: var(--fosforo); display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.form-ia .fila-ia input { width: 18px; height: 18px; accent-color: var(--fosforo); }
 .botones-ia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.estado-ia { font-size: 13px; color: var(--fosforo-tenue); }
+.guardar-ia { color: var(--fondo) !important; background: var(--fosforo) !important; border-color: var(--fosforo) !important; }
+.estado-ia { margin: 0; font-size: 13px; color: var(--fosforo-tenue); min-height: 1.4em; }
+.guia-ia { font-size: 13px; color: var(--fosforo-tenue); border-top: 1px solid var(--linea); padding-top: 8px; }
+.guia-ia summary { cursor: pointer; color: var(--fosforo); }
+.guia-ia p { margin: 6px 0 0; }
 
 /* Evento con decisión (estilo Victoria 2): marco doble y opciones con sus efectos. */
 .b-dilema {

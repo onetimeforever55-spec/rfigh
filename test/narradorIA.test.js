@@ -83,6 +83,64 @@ RF.narradorIA.cargarSDK = async () => Anthropic.default || Anthropic;
   const prueba = await RF.narradorIA.probar();
   comprobar(prueba.ok && /claude-opus-5/.test(prueba.mensaje) && ultima.body.stream !== true, 'el botón "Probar" hace una petición corta: "' + prueba.mensaje + '"');
 
+  console.log('PROVEEDORES POR LA CLAVE');
+  const NI = RF.narradorIA;
+  comprobar(NI.detectar('sk-or-v1-abc') === 'openrouter' && NI.detectar('AIzaSyX') === 'gemini' && NI.detectar('gsk_123') === 'groq' && NI.detectar(' sk-ant-api03 ') === 'anthropic' && NI.detectar('hola') === null, 'reconoce OpenRouter, Gemini, Groq y Claude');
+
+  console.log('OPENROUTER (GRATIS)');
+  const peticiones = [];
+  let chat = null;
+  globalThis.fetch = async (url, init) => {
+    peticiones.push({ url: String(url), init });
+    if (String(url).endsWith('/models')) {
+      return new Response(JSON.stringify({ data: [
+        { id: 'anthropic/claude-opus-5', pricing: { prompt: '0.000015', completion: '0.00007' } },
+        { id: 'deepseek/deepseek-r1:free', pricing: { prompt: '0', completion: '0' } },
+        { id: 'meta-llama/llama-3.3-70b-instruct:free', pricing: { prompt: '0', completion: '0' } },
+        { id: 'qwen/qwen3-8b:free', pricing: { prompt: '0', completion: '0' } }
+      ] }), { status: 200 });
+    }
+    return chat();
+  };
+  const sseOA = (trozos, extra) => {
+    const lineas = [': OPENROUTER PROCESSING', ''];
+    trozos.forEach(t => lineas.push('data: ' + JSON.stringify({ model: 'meta-llama/llama-3.3-70b-instruct:free', choices: [{ delta: { content: t }, finish_reason: null }] }), ''));
+    lineas.push('data: ' + JSON.stringify(Object.assign({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 1800, completion_tokens: 210 } }, extra || {})), '', 'data: [DONE]', '');
+    const texto = lineas.join('\n');
+    // Se parte en trozos raros para comprobar que las líneas cortadas se unen bien.
+    const enc = new TextEncoder().encode(texto);
+    return new Response(new ReadableStream({ start(c) { for (let i = 0; i < enc.length; i += 37) c.enqueue(enc.slice(i, i + 37)); c.close(); } }), { status: 200, headers: { 'content-type': 'text/event-stream' } });
+  };
+  NI.guardar({ clave: 'sk-or-v1-prueba', proveedor: 'openrouter', modelo: '', activa: true });
+  comprobar((await NI.listarModelos()).join() === 'deepseek/deepseek-r1:free,meta-llama/llama-3.3-70b-instruct:free,qwen/qwen3-8b:free', 'lista solo los modelos gratis');
+  chat = () => sseOA(['<think>mmm</think>', 'La ciudad ', 'huele a aire embotellado. ', 'Ramiro cobra el doble.']);
+  peticiones.length = 0;
+  const trozosOA = [];
+  const r2 = await NI.narrar(e, bloques, t => trozosOA.push(t));
+  const cuerpoOA = JSON.parse(peticiones.find(x => x.url.endsWith('/chat/completions')).init.body);
+  comprobar(NI.config().modelo === 'meta-llama/llama-3.3-70b-instruct:free', 'elige solo un modelo gratis que escribe bien (sin los que "piensan"): ' + NI.config().modelo);
+  comprobar(peticiones.some(x => x.url === 'https://openrouter.ai/api/v1/chat/completions') && cuerpoOA.stream === true && cuerpoOA.messages[0].role === 'system' && cuerpoOA.messages[1].content.includes('"hechos"'), 'pide la crónica a OpenRouter en streaming con el contexto y los datos');
+  comprobar(peticiones[peticiones.length - 1].init.headers.Authorization === 'Bearer sk-or-v1-prueba', 'envía la clave del jugador');
+  comprobar(r2.texto === 'La ciudad huele a aire embotellado. Ramiro cobra el doble.' && !trozosOA.some(t => /think/.test(t)), 'une el texto y quita el "pensamiento" del modelo');
+  comprobar(NI.textoUso(r2) === 'CRÓNICA IA · meta-llama/llama-3.3-70b-instruct:free · 1.8k tokens de entrada · 210 de salida', 'informa del consumo: ' + NI.textoUso(r2));
+  chat = () => new Response(JSON.stringify({ error: { message: 'Rate limit exceeded: free-models-per-day' } }), { status: 429 });
+  err = await NI.narrar(e, bloques).catch(x => x);
+  comprobar(/límite/.test(err.mensaje), 'límite gratis agotado: "' + err.mensaje + '"');
+  chat = () => new Response(JSON.stringify({ error: { message: 'No endpoints found' } }), { status: 404 });
+  err = await NI.narrar(e, bloques).catch(x => x);
+  comprobar(/no aceptó el modelo/.test(err.mensaje), 'modelo que ya no existe: "' + err.mensaje.slice(0, 80) + '…"');
+  comprobar(NI.config().modelo === '' && /probaré con otro/.test(err.mensaje), 'si el modelo lo eligió el juego, el próximo turno elige otro');
+  globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
+  err = await NI.narrar(e, bloques).catch(x => x);
+  comprobar(/conectar/.test(err.mensaje), 'sin conexión (el juego pausa la IA): "' + err.mensaje.slice(0, 60) + '…"');
+
+  console.log('GEMINI');
+  NI.guardar({ clave: 'AIzaPrueba', proveedor: 'gemini', modelo: '' });
+  peticiones.length = 0;
+  globalThis.fetch = async (url, init) => { peticiones.push({ url: String(url), init }); return new Response(JSON.stringify({ model: 'gemini-2.5-flash', choices: [{ message: { content: 'Listo' }, finish_reason: 'stop' }] }), { status: 200 }); };
+  const pg = await NI.probar();
+  comprobar(pg.ok && peticiones[0].url === 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' && JSON.parse(peticiones[0].init.body).model === 'gemini-2.5-flash', 'usa el modelo por defecto de Gemini: "' + pg.mensaje + '"');
+
   console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
   process.exit(fallos ? 1 : 0);
 })();

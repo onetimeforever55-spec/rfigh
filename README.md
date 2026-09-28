@@ -82,12 +82,19 @@ Los datos (lo que más se puede ampliar) están separados del código:
 
 ## Crónica con IA (opcional)
 
-El juego funciona entero sin IA. Si quieres, escribe `ia` en la consola, pega tu clave de la API de Claude y activa la crónica.
+El juego funciona entero sin IA. Si quieres, toca el botón **IA** de la cabecera (o escribe `ia`) y pega una clave de API. El juego reconoce el proveedor por la forma de la clave:
 
-- **La IA no decide nada.** El juego calcula todo igual que siempre. Después, cada turno se envía un resumen de lo que ya pasó: indicadores, régimen, gabinete, gente, leyes vigentes, hechos del turno y los textos que escribió el narrador local como borrador. Claude solo lo convierte en una crónica. No guarda memoria entre turnos: los datos del juego son la memoria.
-- **Modelos:** Claude Opus 5 (por defecto), Sonnet 5 o Haiku 4.5. Se usa `effort: low` para que sea rápido y barato. Con Opus 5 está activado el *fallback* del servidor ante rechazos. El contexto fijo del mundo va marcado para la caché de prompts.
-- **Si falla** (sin conexión, clave mala, rechazo del modelo), el turno se cuenta con la narración local de siempre.
-- **La clave se guarda solo en el navegador** (`localStorage`). El juego llama directamente a la API desde el navegador con el SDK oficial, así que no compartas tu partida con la clave puesta.
+| Clave | Proveedor | Coste |
+|---|---|---|
+| `sk-or-…` | OpenRouter | Gratis: el juego lista solo los modelos gratis y elige uno solo |
+| `AIza…` | Google Gemini | Plan gratis (modelo por defecto `gemini-2.5-flash`) |
+| `gsk_…` | Groq | Plan gratis (modelo por defecto `llama-3.3-70b-versatile`) |
+| `sk-ant-…` | Claude (Anthropic) | De pago; la mejor prosa (Opus 5, Sonnet 5 o Haiku 4.5) |
+
+- **La IA no decide nada.** El juego calcula todo igual que siempre. Después, cada turno se envía un resumen de lo que ya pasó: indicadores, régimen, gabinete, gente, leyes vigentes, hechos del turno y los textos que escribió el narrador local como borrador. La IA solo lo convierte en una crónica. No guarda memoria entre turnos: los datos del juego son la memoria.
+- **Claude** se usa con el SDK oficial, `effort: low`, caché del contexto del mundo y, en Opus 5, el *fallback* del servidor ante rechazos. **Los demás** se usan con su API compatible con OpenAI, en streaming.
+- **Si falla** (sin conexión, clave mala, límite gratis agotado, rechazo), el turno se cuenta con la narración local de siempre. Si el modelo gratis elegido desaparece, el siguiente turno se elige otro.
+- **La clave se guarda solo en el navegador** (`localStorage`). Las llamadas van directas del navegador al proveedor, así que no compartas tu partida con la clave puesta.
 - **Dónde funciona:** en GitHub Pages o abriendo `dist/valdoria.html`. En el visor de artefactos de Claude no funciona, porque bloquea las conexiones externas.
 
 ## Desarrollo

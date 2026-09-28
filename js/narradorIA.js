@@ -4,11 +4,12 @@
  * No decide nada ni recuerda la partida: el juego ya ha calculado todo lo que pasa en el turno.
  * Este módulo toma esos datos (el decreto, sus efectos, las leyes, los personajes, los sucesos
  * y los textos que el Narrador normal ha escrito) y le pide a Claude que los convierta en una
- * crónica bonita. Si no hay clave, falla la conexión o Claude no responde, el juego sigue con
+ * crónica bonita. Si no hay clave, falla la conexión o la IA no responde, el juego sigue con
  * su narración de siempre.
  *
- * Usa el SDK oficial de Anthropic, cargado desde jsDelivr solo cuando se activa.
- * La clave del jugador se guarda únicamente en su navegador.
+ * Proveedores: Claude (con el SDK oficial de Anthropic, cargado desde jsDelivr solo cuando se usa)
+ * y los que hablan el formato de OpenAI (OpenRouter, Gemini, Groq), por fetch. El proveedor se
+ * reconoce por la forma de la clave. La clave del jugador se guarda únicamente en su navegador.
  */
 (function (RF) {
   'use strict';
@@ -23,10 +24,23 @@
     { id: 'claude-haiku-4-5', nombre: 'Claude Haiku 4.5 · el más barato y rápido' }
   ];
 
+  // Los proveedores que hablan el formato de OpenAI. "modelo" es el que se usa si el jugador no elige.
+  const PROVEEDORES = {
+    anthropic: { nombre: 'Claude (Anthropic)', clave: /^sk-ant-/, ejemplo: 'sk-ant-…' },
+    openrouter: { nombre: 'OpenRouter', clave: /^sk-or-/, ejemplo: 'sk-or-…', base: 'https://openrouter.ai/api/v1', soloGratis: true },
+    gemini: { nombre: 'Google Gemini', clave: /^AIza/, ejemplo: 'AIza…', base: 'https://generativelanguage.googleapis.com/v1beta/openai', modelo: 'gemini-2.5-flash' },
+    groq: { nombre: 'Groq', clave: /^gsk_/, ejemplo: 'gsk_…', base: 'https://api.groq.com/openai/v1', modelo: 'llama-3.3-70b-versatile' }
+  };
+
+  function detectar(clave) {
+    for (const [id, p] of Object.entries(PROVEEDORES)) if (p.clave.test((clave || '').trim())) return id;
+    return null;
+  }
+
   // Las piezas de texto que la crónica sustituye (los números y los eventos se quedan).
   const NARRATIVOS = new Set(['prensa', 'cupula', 'calle', 'amanecer']);
 
-  let config = { activa: false, clave: '', modelo: MODELOS[0].id };
+  let config = { activa: false, clave: '', proveedor: '', modelo: '' };
   try { Object.assign(config, JSON.parse(localStorage.getItem(CLAVE_CONFIG) || '{}')); } catch (e) { /* sin almacenamiento */ }
 
   function guardar(nueva) {
@@ -35,7 +49,13 @@
   }
 
   function activa() { return !!(config.activa && config.clave); }
-  function modelo() { return MODELOS.find(m => m.id === config.modelo) || MODELOS[0]; }
+  function proveedor() { return config.proveedor || detectar(config.clave) || 'anthropic'; }
+  // El modelo en uso. En Claude es una ficha de MODELOS; en los demás, el nombre que dé el proveedor.
+  function modelo() {
+    if (proveedor() === 'anthropic') return MODELOS.find(m => m.id === config.modelo) || MODELOS[0];
+    const id = config.modelo || PROVEEDORES[proveedor()].modelo || '';
+    return { id, nombre: id || 'automático' };
+  }
 
   // ---------- Qué sabe Claude del mundo (fijo: se puede cachear) ----------
   const SISTEMA = [
@@ -119,8 +139,8 @@
 
   // Traduce los errores del SDK a algo que el jugador entienda.
   function explicar(err, Anthropic) {
-    if (Anthropic && err instanceof Anthropic.AuthenticationError) return 'La clave de la API no es válida. Revísala en "ia".';
-    if (Anthropic && err instanceof Anthropic.PermissionDeniedError) return 'Tu clave no tiene permiso para usar este modelo. Prueba otro en "ia".';
+    if (Anthropic && err instanceof Anthropic.AuthenticationError) return 'La clave de la API no es válida. Revísala en el botón IA.';
+    if (Anthropic && err instanceof Anthropic.PermissionDeniedError) return 'Tu clave no tiene permiso para usar este modelo. Prueba otro en el botón IA.';
     if (Anthropic && err instanceof Anthropic.RateLimitError) return 'Demasiadas peticiones seguidas a la API. Espera un momento.';
     if (Anthropic && err instanceof Anthropic.BadRequestError) return 'La API rechazó la petición: ' + (err.message || 'petición no válida') + '.';
     if (Anthropic && err instanceof Anthropic.APIConnectionError) return 'No se pudo conectar con la API. Si estás jugando dentro de la página de Claude, el visor bloquea las conexiones externas: abre el juego desde GitHub Pages o el archivo dist/valdoria.html.';
@@ -133,21 +153,24 @@
    * Narra un turno. alTexto(textoAcumulado) se llama con cada trozo que llega.
    * Devuelve { texto, uso } o lanza un error con .mensaje listo para mostrar.
    */
-  async function narrar(estado, bloques, alTexto) {
+  function contenidoTurno(estado, bloques) {
+    return 'Datos del turno (JSON):\n' + JSON.stringify(datosTurno(estado, bloques)) + '\n\nEscribe la crónica de este turno.';
+  }
+
+  async function narrarClaude(estado, bloques, alTexto) {
     let Anthropic = null;
     try {
       const c = await cliente();
       Anthropic = c.Anthropic;
-      const datos = datosTurno(estado, bloques);
-      const contenido = 'Datos del turno (JSON):\n' + JSON.stringify(datos) + '\n\nEscribe la crónica de este turno.';
-      const params = peticion(contenido, 4000);
+      const params = peticion(contenidoTurno(estado, bloques), 4000);
       const stream = params.betas ? c.client.beta.messages.stream(params) : c.client.messages.stream(params);
       let texto = '';
       stream.on('text', (delta) => { texto += delta; if (alTexto) alTexto(texto); });
       const final = await stream.finalMessage();
       if (final.stop_reason === 'refusal') { const e = new Error('refusal'); e.refusal = true; throw e; }
       if (!texto.trim()) throw new Error('respuesta vacía');
-      return { texto: texto.trim(), uso: final.usage, modelo: final.model };
+      const u = final.usage || {};
+      return { texto: texto.trim(), uso: { entrada: (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0), cache: u.cache_read_input_tokens || 0, salida: u.output_tokens || 0 }, modelo: final.model };
     } catch (err) {
       err.mensaje = explicar(err, Anthropic);
       throw err;
@@ -155,7 +178,7 @@
   }
 
   // Una petición mínima para comprobar que la clave y la conexión funcionan.
-  async function probar() {
+  async function probarClaude() {
     let Anthropic = null;
     try {
       const c = await cliente();
@@ -169,12 +192,142 @@
     }
   }
 
-  function textoUso(r) {
-    const u = r.uso || {};
-    const entrada = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
-    const k = n => (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n));
-    return 'CRÓNICA IA · ' + (r.modelo || modelo().id) + ' · ' + k(entrada) + ' tokens de entrada' + (u.cache_read_input_tokens ? ' (' + k(u.cache_read_input_tokens) + ' en caché)' : '') + ' · ' + k(u.output_tokens || 0) + ' de salida';
+  // ---------- Proveedores con formato OpenAI (OpenRouter, Gemini, Groq) ----------
+  function cabeceras(clave, prov) {
+    const h = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (clave || config.clave) };
+    if ((prov || proveedor()) === 'openrouter') h['X-Title'] = 'Consola de Valdoria';
+    return h;
   }
 
-  RF.narradorIA = { MODELOS, NARRATIVOS, config: () => config, guardar, activa, modelo, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, SISTEMA };
+  function errorHTTP(status, detalle) {
+    const e = new Error(detalle || ('HTTP ' + status));
+    e.status = status;
+    return e;
+  }
+
+  function explicarCompatible(err) {
+    const p = PROVEEDORES[proveedor()].nombre;
+    if (err.refusal) return 'El modelo prefirió no narrar este turno.';
+    if (err.status === 401 || err.status === 403) return 'La clave de ' + p + ' no es válida o no tiene permiso. Revísala en el botón IA.';
+    if (err.status === 429) return p + ' dice que has llegado al límite de peticiones (en los modelos gratis es bajo). Espera un rato o elige otro modelo en el botón IA.';
+    if (err.status === 402) return p + ' pide saldo para este modelo. Elige uno gratis en el botón IA.';
+    if (err.status === 400 || err.status === 404) return p + ' no aceptó el modelo "' + modelo().id + '"' + (err.message ? ' (' + err.message.slice(0, 120) + ')' : '') + '. Elige otro en el botón IA.';
+    if (err.status) return p + ' respondió con un error (' + err.status + ').';
+    if (err instanceof TypeError) return 'No se pudo conectar con ' + p + '. Si estás jugando dentro de la página de Claude, el visor bloquea las conexiones externas: abre el juego desde GitHub Pages o el archivo dist/valdoria.html.';
+    return 'La IA falló (' + (err.message || 'error desconocido') + ').';
+  }
+
+  async function leerError(r) {
+    let detalle = '';
+    try { const j = await r.json(); detalle = (j.error && (j.error.message || j.error)) || j.message || ''; if (Array.isArray(j) && j[0] && j[0].error) detalle = j[0].error.message; } catch (e) { /* sin cuerpo */ }
+    return errorHTTP(r.status, typeof detalle === 'string' ? detalle : JSON.stringify(detalle));
+  }
+
+  // Los modelos del proveedor (por defecto, el de la clave guardada). En OpenRouter, solo los gratis.
+  async function listarModelos(clave, prov) {
+    prov = prov || proveedor();
+    const p = PROVEEDORES[prov];
+    if (!p.base) return [];
+    const r = await fetch(p.base + '/models', { headers: cabeceras(clave, prov) });
+    if (!r.ok) throw await leerError(r);
+    const j = await r.json();
+    let lista = (j.data || j.models || []).map(m => ({ id: String(m.id || m.name || '').replace(/^models\//, ''), gratis: /:free$/.test(m.id || '') || (m.pricing && Number(m.pricing.prompt) === 0 && Number(m.pricing.completion) === 0), contexto: m.context_length || 0 }));
+    lista = lista.filter(m => m.id && !/embed|whisper|tts|guard|image|vision-only|audio|imagen|veo|aqa/i.test(m.id));
+    if (p.soloGratis) lista = lista.filter(m => m.gratis);
+    return lista.map(m => m.id);
+  }
+
+  // Si no hay modelo elegido, se escoge uno: en OpenRouter, el gratis que mejor escribe de los conocidos.
+  const PREFERIDOS = [/deepseek.*(v3|chat)/i, /llama-3\.3-70b/i, /gemini/i, /qwen.*(72|235|max)/i, /mistral.*(medium|large|small-3)/i, /llama/i, /qwen/i];
+  async function asegurarModelo() {
+    if (proveedor() === 'anthropic' || modelo().id) return modelo().id;
+    const lista = await listarModelos();
+    if (!lista.length) throw errorHTTP(404, 'no hay modelos gratis disponibles ahora mismo');
+    const elegido = PREFERIDOS.map(re => lista.find(id => re.test(id) && !/r1|think|reason/i.test(id))).find(Boolean) || lista[0];
+    guardar({ modelo: elegido, auto: true });
+    return elegido;
+  }
+
+  function cuerpo(contenido, maxTokens, stream) {
+    return JSON.stringify({
+      model: modelo().id,
+      messages: [{ role: 'system', content: SISTEMA }, { role: 'user', content: contenido }],
+      max_tokens: maxTokens,
+      temperature: 0.9,
+      stream
+    });
+  }
+
+  // Algunos modelos gratis piensan en voz alta dentro de <think>…</think>: eso no es crónica.
+  const limpiar = t => t.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').replace(/^\s+/, '');
+
+  async function narrarCompatible(estado, bloques, alTexto) {
+    try {
+      await asegurarModelo();
+      const r = await fetch(PROVEEDORES[proveedor()].base + '/chat/completions', { method: 'POST', headers: cabeceras(), body: cuerpo(contenidoTurno(estado, bloques), 1500, true) });
+      if (!r.ok) throw await leerError(r);
+      const lector = r.body.getReader();
+      const dec = new TextDecoder();
+      let pendiente = '', bruto = '', uso = null, fin = null, modeloReal = null;
+      for (;;) {
+        const { value, done } = await lector.read();
+        if (done) break;
+        pendiente += dec.decode(value, { stream: true });
+        const lineas = pendiente.split('\n');
+        pendiente = lineas.pop();
+        for (const linea of lineas) {
+          if (!linea.startsWith('data:')) continue; // comentarios como ": OPENROUTER PROCESSING"
+          const dato = linea.slice(5).trim();
+          if (!dato || dato === '[DONE]') continue;
+          let j; try { j = JSON.parse(dato); } catch (e) { continue; }
+          if (j.error) throw errorHTTP(j.error.code || 500, j.error.message);
+          if (j.usage) uso = j.usage;
+          if (j.model) modeloReal = j.model;
+          const c = j.choices && j.choices[0];
+          if (!c) continue;
+          if (c.finish_reason) fin = c.finish_reason;
+          const trozo = c.delta && c.delta.content;
+          if (trozo) { bruto += trozo; if (alTexto) alTexto(limpiar(bruto)); }
+        }
+      }
+      if (fin === 'content_filter') { const e = new Error('refusal'); e.refusal = true; throw e; }
+      const texto = limpiar(bruto).trim();
+      if (!texto) throw new Error('respuesta vacía');
+      return { texto, uso: uso ? { entrada: uso.prompt_tokens || 0, cache: (uso.prompt_tokens_details && uso.prompt_tokens_details.cached_tokens) || 0, salida: uso.completion_tokens || 0 } : null, modelo: modeloReal || modelo().id };
+    } catch (err) {
+      err.mensaje = explicarCompatible(err);
+      // Si el modelo lo eligió el juego y ya no está (los gratis cambian), el próximo turno se elige otro.
+      if ((err.status === 400 || err.status === 404) && config.auto) { guardar({ modelo: '' }); err.mensaje += ' El próximo turno probaré con otro modelo gratis.'; }
+      throw err;
+    }
+  }
+
+  async function probarCompatible() {
+    try {
+      await asegurarModelo();
+      const r = await fetch(PROVEEDORES[proveedor()].base + '/chat/completions', { method: 'POST', headers: cabeceras(), body: cuerpo('Responde solo con la palabra: Listo', 300, false) });
+      if (!r.ok) throw await leerError(r);
+      const j = await r.json();
+      if (j.error) throw errorHTTP(j.error.code || 500, j.error.message);
+      return { ok: true, mensaje: 'Conexión correcta con ' + PROVEEDORES[proveedor()].nombre + ' (' + (j.model || modelo().id) + '). La crónica con IA está lista.' };
+    } catch (err) {
+      return { ok: false, mensaje: explicarCompatible(err) };
+    }
+  }
+
+  // ---------- Lo que usa el juego ----------
+  function narrar(estado, bloques, alTexto) {
+    return proveedor() === 'anthropic' ? narrarClaude(estado, bloques, alTexto) : narrarCompatible(estado, bloques, alTexto);
+  }
+  function probar() { return proveedor() === 'anthropic' ? probarClaude() : probarCompatible(); }
+
+  function textoUso(r) {
+    const u = r.uso;
+    const k = n => (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n));
+    const cab = 'CRÓNICA IA · ' + (r.modelo || modelo().id);
+    if (!u) return cab;
+    return cab + ' · ' + k(u.entrada) + ' tokens de entrada' + (u.cache ? ' (' + k(u.cache) + ' en caché)' : '') + ' · ' + k(u.salida) + ' de salida';
+  }
+
+  RF.narradorIA = { MODELOS, PROVEEDORES, NARRATIVOS, config: () => config, guardar, activa, proveedor, detectar, modelo, listarModelos, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, SISTEMA };
 })(globalThis.RF = globalThis.RF || {});

@@ -15,7 +15,7 @@
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
     ['Disolver…', 'Disolver '], ['Controlar…', 'Controlar '], ['En secreto…', 'En secreto '],
-    ['esperar', 'esperar', true], ['estado', 'estado', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ia', 'ia', true], ['ayuda', 'ayuda', true]
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -305,64 +305,158 @@
         if (pc && pc.parentNode) pc.parentNode.remove();
         cola = cola.filter(x => x.b !== cronica);
         const conexion = /conectar|cargar/.test(err.mensaje || '');
-        if (conexion) iaPausada = true;
+        if (conexion) { iaPausada = true; pintarBotonIA(); }
         mostrar([{ tipo: 'nota', texto: (err.mensaje || 'La IA no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') + ' El turno sigue con la narración normal.' }].concat(narrativos), true);
         guardar();
       });
   }
 
-  // El panel donde se pone la clave de la API.
-  let panelesIA = 0;
-  function mostrarConfigIA() {
-    vaciar();
-    const c = RF.narradorIA.config();
-    const k = ++panelesIA;
-    const n = el('section', 'bloque b-config-ia');
-    n.appendChild(el('span', 'etiqueta', 'NARRADOR CON IA'));
-    n.appendChild(el('p', '', 'Con tu clave de la API de Anthropic, Claude convierte los datos de cada turno en una crónica escrita. No decide nada: el juego ya ha calculado todo, la IA solo lo cuenta mejor. Cada turno hace una petición a tu cuenta.'));
-    const aviso = el('p', 'aviso-ia', 'Tu clave se guarda solo en este navegador. No compartas el juego con la clave puesta. Dentro de la página de Claude no funciona (el visor bloquea conexiones externas): usa GitHub Pages o el archivo dist/valdoria.html.');
-    n.appendChild(aviso);
+  // ---------- El cuadro de la IA: se pega la clave y el juego reconoce el proveedor ----------
+  let modalIA = null, volverFoco = null;
+
+  function pintarBotonIA() {
+    const b = $('boton-ia');
+    if (!b) return;
+    const on = RF.narradorIA.activa() && !iaPausada;
+    b.classList.toggle('on', on);
+    b.textContent = on ? 'IA ●' : 'IA';
+    b.setAttribute('aria-label', on ? 'Narrador con IA: activado' : 'Narrador con IA: desactivado');
+  }
+
+  function cerrarIA() {
+    if (!modalIA || modalIA.hidden) return;
+    modalIA.hidden = true;
+    pintarBotonIA();
+    if (volverFoco) volverFoco.focus();
+  }
+
+  function construirIA() {
+    const NI = RF.narradorIA;
+    const fondo = el('div', 'modal-ia'); fondo.hidden = true;
+    const caja = el('div', 'caja-ia');
+    caja.setAttribute('role', 'dialog'); caja.setAttribute('aria-modal', 'true'); caja.setAttribute('aria-labelledby', 'titulo-ia');
+    const cab = el('div', 'cab-ia');
+    const tit = el('h2', '', 'NARRADOR CON IA'); tit.id = 'titulo-ia';
+    const cerrar = el('button', 'cerrar-ia', '✕'); cerrar.type = 'button'; cerrar.setAttribute('aria-label', 'Cerrar');
+    cab.append(tit, cerrar);
+    const intro = el('p', 'intro-ia', 'Pega tu clave de API y la IA convertirá lo que pasa cada turno en una crónica. No decide nada: el juego ya lo ha calculado todo.');
+
     const form = el('form', 'form-ia');
-    const lab1 = el('label', '', 'Clave de la API'); lab1.htmlFor = 'ia-clave-' + k;
-    const clave = el('input'); clave.id = 'ia-clave-' + k; clave.type = 'password'; clave.autocomplete = 'off'; clave.placeholder = 'sk-ant-…'; clave.value = c.clave || '';
-    const lab2 = el('label', '', 'Modelo'); lab2.htmlFor = 'ia-modelo-' + k;
-    const sel = el('select'); sel.id = 'ia-modelo-' + k;
-    for (const m of RF.narradorIA.MODELOS) { const o = el('option', '', m.nombre); o.value = m.id; o.selected = m.id === c.modelo; sel.appendChild(o); }
+    const lab1 = el('label', '', 'Tu clave de API'); lab1.htmlFor = 'ia-clave';
+    const filaClave = el('div', 'fila-clave');
+    const clave = el('input'); clave.id = 'ia-clave'; clave.type = 'password'; clave.autocomplete = 'off'; clave.spellcheck = false;
+    clave.placeholder = 'Pega aquí tu clave (sk-or-…, AIza…, sk-ant-…)';
+    const ver = el('button', 'chip', 'ver'); ver.type = 'button'; ver.setAttribute('aria-label', 'Mostrar u ocultar la clave');
+    filaClave.append(clave, ver);
+    const detectado = el('p', 'detectado-ia');
+    const lab2 = el('label', '', 'Modelo'); lab2.htmlFor = 'ia-modelo';
+    const sel = el('select'); sel.id = 'ia-modelo';
     const fila = el('label', 'fila-ia');
-    const chk = el('input'); chk.type = 'checkbox'; chk.id = 'ia-activa-' + k; chk.checked = !!c.activa;
-    fila.appendChild(chk); fila.appendChild(document.createTextNode(' Usar la crónica con IA en cada turno'));
+    const chk = el('input'); chk.type = 'checkbox'; chk.id = 'ia-activa';
+    fila.append(chk, document.createTextNode(' Contar cada turno con la IA'));
     const botones = el('div', 'botones-ia');
-    const bGuardar = el('button', 'chip', 'Guardar'); bGuardar.type = 'submit';
-    const bProbar = el('button', 'chip', 'Probar conexión'); bProbar.type = 'button';
+    const bGuardar = el('button', 'chip guardar-ia', 'Guardar'); bGuardar.type = 'submit';
+    const bProbar = el('button', 'chip', 'Probar'); bProbar.type = 'button';
     const bBorrar = el('button', 'chip cmd', 'Borrar clave'); bBorrar.type = 'button';
     botones.append(bGuardar, bProbar, bBorrar);
-    const estadoIA = el('p', 'estado-ia', RF.narradorIA.activa() ? 'Activa con ' + RF.narradorIA.modelo().nombre + '.' : 'Desactivada.');
-    form.append(lab1, clave, lab2, sel, fila, botones);
-    n.append(form, estadoIA);
-    const leer = () => ({ clave: clave.value.trim(), modelo: sel.value, activa: chk.checked });
+    form.append(lab1, filaClave, detectado, lab2, sel, fila, botones);
+    const estadoIA = el('p', 'estado-ia'); estadoIA.setAttribute('aria-live', 'polite');
+    const guia = el('details', 'guia-ia');
+    guia.append(el('summary', '', '¿Dónde consigo una clave?'));
+    for (const t of [
+      'Gratis: OpenRouter (openrouter.ai → Keys). El juego elige solo un modelo gratis.',
+      'Gratis: Google Gemini (aistudio.google.com → Get API key).',
+      'Gratis: Groq (console.groq.com → API Keys).',
+      'De pago, la mejor prosa: Claude (console.anthropic.com → API Keys).'
+    ]) guia.append(el('p', '', t));
+    const aviso = el('p', 'aviso-ia', 'La clave se guarda solo en este navegador. No compartas el juego con la clave puesta. Dentro de la página de Claude no funciona (bloquea conexiones externas): usa GitHub Pages o el archivo dist/valdoria.html.');
+    caja.append(cab, intro, form, estadoIA, guia, aviso);
+    fondo.appendChild(caja);
+    document.body.appendChild(fondo);
+
+    // Qué proveedor es y qué modelos ofrecer.
+    let proveedorVisto = null, cargando = 0;
+    const opcion = (valor, texto, elegido) => { const o = el('option', '', texto); o.value = valor; o.selected = !!elegido; sel.appendChild(o); };
+    async function alCambiarClave() {
+      const c = NI.config();
+      const p = NI.detectar(clave.value);
+      if (p === proveedorVisto && sel.options.length) return;
+      proveedorVisto = p;
+      sel.textContent = '';
+      if (!clave.value.trim()) { detectado.textContent = ''; sel.disabled = true; opcion('', '—'); return; }
+      if (!p) { detectado.textContent = 'No reconozco esta clave. Sirven las de OpenRouter, Gemini, Groq o Claude.'; detectado.className = 'detectado-ia mal'; sel.disabled = true; opcion('', '—'); return; }
+      const info = NI.PROVEEDORES[p];
+      detectado.className = 'detectado-ia';
+      detectado.textContent = '✓ ' + info.nombre + (info.soloGratis ? ' · solo modelos gratis' : '');
+      sel.disabled = false;
+      const mismo = c.proveedor === p || (!c.proveedor && NI.detectar(c.clave) === p);
+      if (p === 'anthropic') { for (const m of NI.MODELOS) opcion(m.id, m.nombre, mismo && m.id === c.modelo); return; }
+      const fijo = mismo && c.modelo && !c.auto;
+      opcion('', 'Automático' + (info.modelo ? ' (' + info.modelo + ')' : ' · uno gratis'), !fijo);
+      if (fijo) opcion(c.modelo, c.modelo, true);
+      // Se pide la lista de modelos al proveedor con la clave escrita (sin guardarla todavía).
+      const yo = ++cargando;
+      let lista = [];
+      try { lista = await NI.listarModelos(clave.value.trim(), p); } catch (e) { /* sin lista: queda "automático" */ }
+      if (yo !== cargando) return;
+      for (const id of lista.sort()) if (!(fijo && id === c.modelo)) opcion(id, id);
+      if (lista.length) detectado.textContent += ' · ' + lista.length + ' modelos';
+    }
+    clave.addEventListener('input', alCambiarClave);
+    ver.addEventListener('click', () => { clave.type = clave.type === 'password' ? 'text' : 'password'; ver.textContent = clave.type === 'password' ? 'ver' : 'ocultar'; });
+
+    const leer = () => ({ clave: clave.value.trim(), proveedor: NI.detectar(clave.value) || '', modelo: sel.value, auto: !sel.value, activa: chk.checked });
+    const describir = () => NI.PROVEEDORES[NI.proveedor()].nombre + (NI.modelo().id ? ' · ' + NI.modelo().nombre : '');
     form.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const v = leer();
+      if (v.clave && !v.proveedor) { estadoIA.textContent = 'No reconozco esa clave.'; return; }
       if (v.activa && !v.clave) { estadoIA.textContent = 'Falta la clave para activar la IA.'; return; }
-      RF.narradorIA.guardar(v);
+      NI.guardar(v);
       iaPausada = false;
-      estadoIA.textContent = RF.narradorIA.activa() ? 'Guardado. La próxima crónica la escribirá ' + RF.narradorIA.modelo().nombre + '.' : 'Guardado. La IA está desactivada: sigue la narración normal.';
+      pintarBotonIA();
+      if (NI.activa()) { estadoIA.textContent = 'Guardado. El próximo turno lo cuenta ' + describir() + '.'; setTimeout(cerrarIA, 900); }
+      else estadoIA.textContent = 'Guardado. La IA está apagada: sigue la narración normal.';
     });
     bProbar.addEventListener('click', async () => {
-      RF.narradorIA.guardar(Object.assign(leer(), { activa: RF.narradorIA.config().activa }));
-      if (!clave.value.trim()) { estadoIA.textContent = 'Escribe primero tu clave.'; return; }
+      const v = leer();
+      if (!v.clave) { estadoIA.textContent = 'Pega primero tu clave.'; return; }
+      if (!v.proveedor) { estadoIA.textContent = 'No reconozco esa clave.'; return; }
+      NI.guardar(Object.assign(v, { activa: NI.config().activa }));
       estadoIA.textContent = 'Probando…';
-      const r = await RF.narradorIA.probar();
+      bProbar.disabled = true;
+      const r = await NI.probar();
+      bProbar.disabled = false;
       estadoIA.textContent = r.mensaje;
-      if (r.ok) iaPausada = false;
+      if (r.ok) { iaPausada = false; if (NI.modelo().id && ![...sel.options].some(o => o.value === NI.modelo().id)) opcion(NI.modelo().id, NI.modelo().id, true); }
     });
     bBorrar.addEventListener('click', () => {
-      RF.narradorIA.guardar({ clave: '', activa: false });
-      clave.value = ''; chk.checked = false;
+      NI.guardar({ clave: '', activa: false, proveedor: '', modelo: '' });
+      clave.value = ''; chk.checked = false; proveedorVisto = undefined; alCambiarClave();
+      pintarBotonIA();
       estadoIA.textContent = 'Clave borrada de este navegador.';
     });
-    $('registro').appendChild(n);
-    alFondo();
+    cerrar.addEventListener('click', cerrarIA);
+    fondo.addEventListener('click', (ev) => { if (ev.target === fondo) cerrarIA(); });
+    fondo.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') cerrarIA(); });
+
+    fondo.abrir = () => {
+      const c = NI.config();
+      clave.value = c.clave || ''; clave.type = 'password'; ver.textContent = 'ver';
+      chk.checked = !!c.activa || !c.clave; // con la primera clave, la IA se activa sola
+      proveedorVisto = undefined; alCambiarClave();
+      estadoIA.textContent = NI.activa() ? (iaPausada ? 'En pausa por un error de conexión. Pulsa Guardar para reintentar.' : 'Activa con ' + describir() + '.') : 'Apagada: el juego usa su narración normal.';
+    };
+    return fondo;
+  }
+
+  function mostrarConfigIA() {
+    if (!modalIA) modalIA = construirIA();
+    volverFoco = document.activeElement;
+    modalIA.abrir();
+    modalIA.hidden = false;
+    const c = modalIA.querySelector('#ia-clave');
+    setTimeout(() => (c.value ? modalIA.querySelector('.guardar-ia') : c).focus(), 30);
   }
 
   function firmar(lista) {
@@ -543,6 +637,8 @@
     $('registro').addEventListener('click', (e) => { if (!e.target.closest('button')) saltar = true; });
     $('ticker').addEventListener('click', () => { vaciar(); procesar('leyes'); });
     $('regimen').addEventListener('click', () => { vaciar(); procesar('sistema'); });
+    $('boton-ia').addEventListener('click', mostrarConfigIA);
+    pintarBotonIA();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
