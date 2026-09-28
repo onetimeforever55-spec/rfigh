@@ -18,7 +18,14 @@ function decretar(e, texto) {
 // Juega varios turnos sin eventos (para medir solo las leyes).
 function turnos(e, n) { for (let i = 0; i < n && !e.fin; i++) { e.dilemas.pendiente = null; e.diasSinEvento = -99; RF.consejero.pasarTurno(e); } }
 // Sin eventos que ensucien la medida y con un Congreso afín (para medir solo las leyes).
-const nuevo = () => { const e = RF.consejero.nuevoEstado(); e.dilemas.ultimo = 999; e.politica.apoyo = 100; return e; };
+// El juego empieza en la dinastía Juche (Corea del Norte). La mayoría de estas pruebas miden la lógica
+// de las leyes y del sistema político partiendo de una democracia neutra, así que la preparan a mano.
+function democratico(e) {
+  Object.assign(e.politica, { regimen: 'DEMOCRACIA', proclamado: null, congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre', historia: ['DEMOCRACIA'] });
+  e.stats = { dinero: 100, inflacion: 4, estabilidad: 60, felicidad: 55 };
+  return e;
+}
+const nuevo = () => { const e = democratico(RF.consejero.nuevoEstado()); e.dilemas.ultimo = 999; e.politica.apoyo = 100; return e; };
 // Fuerza que el azar salga "sí" (o "no") durante una función.
 function conAzar(valor, fn) { const r = Math.random; Math.random = () => valor; try { return fn(); } finally { Math.random = r; } }
 
@@ -137,25 +144,32 @@ comprobar(algunaVez(30, 'el aire se vende', 'contrabando_aire', 8), 'vender el a
 console.log('PERSONAS');
 {
   const e = nuevo();
-  const r1 = decretar(e, 'matar al general Garrote');
-  comprobar(r1.sucesor && e.gabinete.garrote.nombre !== 'General Bruno Garrote', 'Garrote muere y lo reemplaza ' + e.gabinete.garrote.nombre);
+  const r1 = decretar(e, 'matar al general Jang');
+  comprobar(r1.sucesor && e.gabinete.garrote.nombre !== 'General Bruno Jang', 'Jang muere y lo reemplaza ' + e.gabinete.garrote.nombre);
   comprobar(RF.texto.expandir('{n_garrote}') === e.gabinete.garrote.nombre, 'los textos ya nombran al sucesor');
-  const r2 = decretar(e, 'matar a Garrote');
-  comprobar(!!r2.nulo, 'no se puede matar dos veces a Garrote');
-  decretar(e, 'encarcelar a Nico');
-  comprobar(e.ciudadanos.nico.estado === 'preso' && e.ciudadanos.carmen.animo < -20, 'Nico va a la cárcel y Doña Carmen lo sufre');
+  const r2 = decretar(e, 'matar a Jang');
+  comprobar(!!r2.nulo, 'no se puede matar dos veces a Jang');
+  decretar(e, 'encarcelar a Chol-su');
+  comprobar(e.ciudadanos.nico.estado === 'preso' && e.ciudadanos.carmen.animo < -20, 'Chol-su va a la cárcel y la abuela Sun-ja lo sufre');
   const v = nuevo();
   const est0 = v.stats.estabilidad;
-  decretar(v, 'matar a Valiente');
-  comprobar(RF.leyes.lista(v).some(l => l.clave === 'MARTIR'), 'matar a Valiente deja un mártir que resta estabilidad varios turnos');
+  decretar(v, 'matar a Song Dae-ho');
+  comprobar(RF.leyes.lista(v).some(l => l.clave === 'MARTIR'), 'matar a Song Dae-ho deja un mártir que resta estabilidad varios turnos');
   turnos(v, 4);
   comprobar(v.stats.estabilidad < est0 - 5, 'estabilidad ' + est0 + ' → ' + v.stats.estabilidad);
 }
 
 console.log('SISTEMA POLÍTICO');
 {
+  const k = RF.consejero.nuevoEstado();
+  comprobar(RF.politica.regimen(k) === 'JUCHE' && k.politica.congreso === 'controlado' && k.politica.prensa === 'controlado', 'se empieza en Corea del Norte: dinastía Juche, Asamblea obediente, solo prensa oficial');
+  k.politica.apoyo = 5;
+  comprobar(!decretar(k, 'vender cocaína').bloqueada, 'la Asamblea no bloquea nada');
+  decretar(k, 'restaurar la democracia');
+  comprobar(RF.politica.regimen(k) === 'DEMOCRACIA' && k.politica.congreso === 'libre', 'se puede democratizar Corea del Norte');
+  decretar(k, 'volver al juche');
+  comprobar(RF.politica.regimen(k) === 'JUCHE', 'y volver al Juche');
   const e = nuevo();
-  comprobar(RF.politica.regimen(e) === 'DEMOCRACIA', 'se empieza en democracia');
 
   // El Congreso bloquea leyes polémicas sin apoyo; negociando, salen adelante.
   e.politica.apoyo = 30;
@@ -195,17 +209,16 @@ console.log('SISTEMA POLÍTICO');
   comprobar(e.politica.secretos.some(s => s.tipo === 'soborno'), 'los sobornos quedan como un secreto que puede salir a la luz');
   decretar(e, 'proclamarme rey');
   comprobar(RF.politica.regimen(e) === 'MONARQUIA', 'proclamarse rey instaura la monarquía');
-  e.dia = RF.PAIS.dias + 1; e.stats.estabilidad = 50;
-  comprobar(RF.consejero.comprobarFin(e) === 'perpetuo', 'sin elecciones, al final solo cuenta seguir en el poder');
-  e.dia = 10;
+  e.dia = 500; e.stats.estabilidad = 50;
+  comprobar(RF.consejero.comprobarFin(e) === null, 'no hay último turno: en el turno 500 sigues gobernando');
   decretar(e, 'restaurar la democracia');
   comprobar(RF.politica.regimen(e) === 'DEMOCRACIA', 'se puede restaurar la democracia');
 }
 {
   // Asesinato secreto: parece un accidente... hasta que se descubre.
   const e = nuevo();
-  const r = conAzar(0.99, () => decretar(e, 'matar en secreto a Valiente'));
-  comprobar(r.secreto && e.personas.valiente === 'muerto' && !RF.leyes.lista(e).some(l => l.clave === 'MARTIR'), 'matar en secreto a Valiente: oficialmente un accidente, sin mártir');
+  const r = conAzar(0.99, () => decretar(e, 'matar en secreto a Song Dae-ho'));
+  comprobar(r.secreto && e.personas.valiente === 'muerto' && !RF.leyes.lista(e).some(l => l.clave === 'MARTIR'), 'matar en secreto a Song Dae-ho: oficialmente un accidente, sin mártir');
   comprobar(e.politica.secretos.length === 1, 'queda un secreto pendiente');
   const est0 = e.stats.estabilidad;
   conAzar(0, () => RF.consejero.pasarTurno(e));
@@ -217,22 +230,32 @@ console.log('SISTEMA POLÍTICO');
 }
 {
   const e = nuevo();
-  decretar(e, 'matar a Valiente');
-  comprobar(RF.director.pendiente(e) && RF.director.pendiente(e).id === 'juicio_politico', 'matar a Valiente a la vista de todos en democracia: juicio político inmediato');
+  decretar(e, 'matar a Song Dae-ho');
+  comprobar(RF.director.pendiente(e) && RF.director.pendiente(e).id === 'juicio_politico', 'matar a Song Dae-ho a la vista de todos en democracia: juicio político inmediato');
   const f = nuevo();
   decretar(f, 'disuelvo el congreso');
   f.dilemas.cadena = []; f.dilemas.pendiente = null;
-  decretar(f, 'matar a Valiente');
+  decretar(f, 'matar a Song Dae-ho');
   const pf = RF.director.pendiente(f);
   comprobar(!pf || pf.id !== 'juicio_politico', 'en dictadura no hay Congreso que te juzgue' + (pf ? ' (salta "' + pf.titulo + '")' : ''));
 }
 {
-  const e = nuevo(); e.dia = RF.PAIS.dias + 1; e.stats.felicidad = 50;
-  comprobar(RF.consejero.comprobarFin(e) === 'elecciones_perdidas', 'en democracia, con felicidad 50, pierdes las elecciones');
+  // Elecciones cada 20 turnos.
+  const eleccion = (x) => { x.politica.proximas = x.dia; const res = { sucesos: [] }; RF.politica.turno(x, res); return res; };
+  const e = nuevo(); e.stats.felicidad = 40; e.politica.apoyo = 40;
+  eleccion(e);
+  comprobar(e.fin === 'elecciones_perdidas' && RF.consejero.comprobarFin(e) === 'elecciones_perdidas', 'en democracia, con el pueblo a 40, pierdes las elecciones y se acaba');
+  const w = nuevo(); w.stats.felicidad = 65;
+  const rw = eleccion(w);
+  comprobar(!w.fin && rw.sucesos[0].titulo === 'Elecciones generales' && w.politica.proximas === w.dia + 20, 'si ganas, sigues otros 20 turnos');
   const g = nuevo();
   conAzar(0.99, () => decretar(g, 'amañar las elecciones'));
-  g.dia = RF.PAIS.dias + 1; g.stats.felicidad = 45;
-  comprobar(RF.consejero.comprobarFin(g) === 'elecciones_amanadas', 'con las elecciones amañadas, "ganas" igual');
+  g.stats.felicidad = 20;
+  const rg = conAzar(0.99, () => eleccion(g));
+  comprobar(!g.fin && /99,/.test(rg.sucesos[0].texto), 'con las elecciones amañadas, "ganas" siempre con el 99%');
+  const k = RF.consejero.nuevoEstado();
+  const rk = eleccion(k);
+  comprobar(!k.fin && /un solo candidato/.test(rk.sucesos[0].texto), 'en Corea del Norte las elecciones son un ritual con candidato único');
 }
 
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');

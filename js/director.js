@@ -133,7 +133,7 @@
   function varsEvento(e) {
     const p = e && e.dilemas && e.dilemas.pendiente;
     const extra = (p && p.datos) || {};
-    return { lider: 'Su Excelencia', medida: extra.medida || 'la ley', apoyo: e && e.politica ? Math.round(e.politica.apoyo) + '%' : '' };
+    return { lider: 'Líder Supremo', medida: extra.medida || 'la ley', apoyo: e && e.politica ? Math.round(e.politica.apoyo) + '%' : '' };
   }
 
   function texto(d, e) { return T.expandir(d.texto, varsEvento(e)); }

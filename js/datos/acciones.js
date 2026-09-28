@@ -143,7 +143,7 @@
         'que toda la economia sea {o}', 'economia basada en {o}', 'toda la economia al {o}', 'economia del {o}',
         'convertir el pais en potencia de {o}', 'apostar todo al {o}', 'vivir del {o}', 'el pais vivira de {o}',
         'modelo economico de {o}', 'centrar la economia en {o}', 'reconvertir la economia hacia {o}',
-        'que el pais produzca solo {o}', 'hacer de valdoria un pais de {o}', 'economia centrada en {o}',
+        'que el pais produzca solo {o}', 'hacer de corea un pais de {o}', 'economia centrada en {o}',
         'que la economia dependa de {o}', 'potencia mundial del {o}', 'la economia sera de {o}', 'giro economico hacia {o}',
         'cambiar la economia a {o}', 'reorientar la economia al {o}', 'exportar solo {o}', 'hacer un pais de {o}'
       ]

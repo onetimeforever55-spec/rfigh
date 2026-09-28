@@ -73,13 +73,13 @@
       if (accion === 'PROHIBIR' || accion === 'PRIVATIZAR') {
         ini('felicidad', -3); ini('estabilidad', 2);
         pt('inflacion', -4); pt('dinero', -3); pt('felicidad', -0.2);
-        ley.notas.push('Adiós al valdo: la inflación irá bajando, pero ya no podrás imprimir dinero.');
+        ley.notas.push('Adiós al won: la inflación irá bajando, pero ya no podrás imprimir dinero.');
         ley.dolariza = true;
         ley.nombre = 'la dolarización';
         return ley;
       }
       if (accion === 'RECORTAR' || accion === 'BAJAR_IMPUESTO') {
-        return { unaVez: true, nombre: 'la devaluación del valdo', inicial: { dinero: 25, inflacion: 12, felicidad: -3 }, notas: ['El valdo pierde un tercio de su valor: entra dinero ahora, pero todo cuesta más.'] };
+        return { unaVez: true, nombre: 'la devaluación del won', inicial: { dinero: 25, inflacion: 12, felicidad: -3 }, notas: ['El won pierde un tercio de su valor: entra dinero ahora, pero todo cuesta más.'] };
       }
     }
 
@@ -353,9 +353,9 @@
     const f = (v, suf) => (v > 0 ? '+' : '−') + Math.abs(v).toFixed(Math.abs(v) < 10 && suf !== 'M' ? 1 : 0) + suf;
     const partes = [];
     if (Math.abs(ef.dinero || 0) >= 0.5) partes.push(f(ef.dinero, 'M'));
-    if (Math.abs(ef.estabilidad || 0) >= 0.05) partes.push('estab ' + f(ef.estabilidad, ''));
-    if (Math.abs(ef.felicidad || 0) >= 0.05) partes.push('felic ' + f(ef.felicidad, ''));
-    if (Math.abs(ef.inflacion || 0) >= 0.05) partes.push('infl ' + f(ef.inflacion, ''));
+    if (Math.abs(ef.estabilidad || 0) >= 0.05) partes.push('lealtad ' + f(ef.estabilidad, ''));
+    if (Math.abs(ef.felicidad || 0) >= 0.05) partes.push('pueblo ' + f(ef.felicidad, ''));
+    if (Math.abs(ef.inflacion || 0) >= 0.05) partes.push('arroz ' + f(ef.inflacion, ''));
     return partes.join('  ') || 'sin efecto este turno';
   }
 

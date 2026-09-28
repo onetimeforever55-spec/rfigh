@@ -1,32 +1,35 @@
-# Consola de Valdoria
+# Consola de Pionyang
 
-Un juego de consola para el celular: eres el Líder Supremo de la República de Valdoria y gobiernas **escribiendo decretos con tus propias palabras**.
+Un juego de consola para el celular: acabas de heredar el poder en **Corea del Norte** y gobiernas **escribiendo decretos con tus propias palabras**. Es una sátira: tú eres «el Líder Supremo», y los ministros y la gente de a pie son personajes inventados.
 
 ```
-> vender el aire
+> vender carbón a China
 
 DECRETO Nº 1 · TURNO 1                                  [DECRETADO]
-La privatización del aire. Se instalan medidores de respiración en
-cada hogar. Tarifa básica: 3 valdos por hora.
-Ahora:       Dinero +42M   Felicidad −12
-Cada turno:  Dinero +15M   Estabilidad −0.9   Felicidad −2.1
+La privatización del carbón.
+Ahora:       Divisas +35M   Pueblo −4
+Cada turno:  Divisas +8M    Pueblo −0.3
 
-> imprimir dinero
+> imprimir wones
 ...
 LEYES VIGENTES · ESTE TURNO
-La impresión de dinero          +25M  infl +6.0
-La privatización del aire       +14M  estab −0.9  felic −2.1
-Impuestos y gastos del Estado    −3M
-Resultado del turno:  Dinero +36M   Inflación +6%
+La impresión de dinero          +25M  arroz +6.0
+La privatización del carbón      +8M  pueblo −0.3
+Impuestos y gastos del Estado    −6M
+Resultado del turno:  Divisas +27M   Arroz +6%
 ```
+
+- **Cuatro barras:** DIVISAS (millones de dólares, pese a las sanciones), ARROZ (lo que sube cada turno el precio del arroz: la inflación), LEALTAD (de la élite y el ejército; a 0 hay golpe) y PUEBLO (cómo aguanta la gente; a 0 hay revuelta).
+- **Se empieza en la dinastía Juche:** la Asamblea Popular Suprema aplaude, solo existe la prensa oficial y las elecciones tienen un candidato único. Puedes democratizar el país, proclamarte rey o volver al Juche.
+- **No hay último turno:** el contador sigue para siempre y gobiernas mientras aguantes. Cada 20 turnos hay elecciones: amañadas o rituales (siempre ganas) o, si has democratizado el país, libres (si pierdes, se acaba). Sin buscar divisas, las sanciones te llevan a la quiebra hacia el turno 35.
 
 No usa ninguna IA externa: funciona sin internet, gratis y al instante.
 
 ## Cómo jugar
 
-- Abre `index.html` en el navegador (o `dist/valdoria.html`, que es el juego entero en un solo archivo).
+- Abre `index.html` en el navegador (o `dist/pionyang.html`, que es el juego entero en un solo archivo).
 - Escribe un decreto y pulsa **DECRETAR**. Los botones de abajo te ayudan a empezar frases.
-- Solo importan cuatro cosas: **Dinero** (millones de valdos; puede haber deuda), **Inflación**, **Estabilidad** y **Felicidad**. Si la estabilidad o la felicidad llegan a 0, caes.
+- Solo importan cuatro cosas: **Divisas** (millones de dólares; puede haber deuda), **Arroz** (la inflación), **Lealtad** y **Pueblo**. Si la lealtad o el pueblo llegan a 0, caes.
 - **Cada decreto es una ley vigente que actúa todos los turnos**, y las leyes se acumulan:
   - `imprimir dinero`: +25M cada turno, pero la inflación sube cada turno. Imprimir más veces dispara la hiperinflación.
   - `regalar comida`: más felicidad, pero cuesta dinero cada turno (y más con inflación). La gente se acostumbra y el efecto se va diluyendo.
@@ -44,10 +47,10 @@ No usa ninguna IA externa: funciona sin internet, gratis y al instante.
   - Lo que haces **en secreto** (`matar en secreto a Valiente`, `asesino contrincantes secretamente`) no pasa por el Congreso y parece un accidente, pero cada turno puede salir a la luz: escándalo y, en democracia, juicio político.
   - Al final: en democracia hay elecciones limpias, en democracia iliberal se pueden amañar, y en dictadura, monarquía, teocracia o junta solo cuenta seguir en el poder.
   - Escribe `sistema` o toca la etiqueta del régimen para ver el Congreso, los jueces, la prensa, las elecciones y la Constitución.
-- También puedes decretar sobre personas (`destituir a Cifuentes`, `encarcelar a Nico`, `matar a Valiente`) y firmar hasta 3 decretos a la vez.
+- También puedes decretar sobre personas (`destituir a Pak`, `encarcelar a Chol-su`, `matar a Song Dae-ho`) y firmar hasta 3 decretos a la vez.
 - **Eventos:** cada pocos turnos, o cuando tus leyes lo provocan, salta un evento con opciones (estilo Victoria 2).
 - Comandos: `esperar`, `estado`, `sistema`, `leyes`, `poder`, `historial`, `ayuda`, `reiniciar`.
-- Sobrevive 30 turnos hasta las elecciones. La partida se guarda sola en el celular.
+- No hay último turno: gobierna mientras aguantes. La partida se guarda sola en el celular.
 
 ### Publicarlo gratis con GitHub Pages
 
@@ -106,7 +109,7 @@ Con el Consejo activo, los eventos de catálogo solo saltan si la situación los
 
 Mientras el Consejo delibera, el juego enseña lo que ha entendido en cuanto llega («Entendido: …»).
 
-**Coherencia absurda.** Cualquier estupidez se cumple al pie de la letra, con total seriedad burocrática. El Consejo razona en cadena: cómo lo aplica el Estado, quién gana dinero, quién hace la trampa y qué efecto secundario nadie previó. Esos pasos se ven en el «Informe del Consejo». La regla absurda queda en la memoria como realidad del juego: si prohíbes los lunes, en Valdoria después del domingo viene el martes durante el resto de la partida.
+**Coherencia absurda.** Cualquier estupidez se cumple al pie de la letra, con total seriedad burocrática. El Consejo razona en cadena: cómo lo aplica el Estado, quién gana dinero, quién hace la trampa y qué efecto secundario nadie previó. Esos pasos se ven en el «Informe del Consejo». La regla absurda queda en la memoria como realidad del juego: si prohíbes los lunes, en Corea del Norte después del domingo viene el martes durante el resto de la partida.
 
 Sin IA, el bot local también cumple lo absurdo con su propia lógica: la Brigada Especial contra la gravedad, la Inspección Nacional de los sombreros o la empresa fantasma que compra la luna. Cada caso trae una consecuencia unos turnos después: mercado negro, resquicio legal, certificados falsos, el dueño que cobra o la evasión. Esta lógica está en `RF.ABSURDO.logica`, en `js/datos/voces.js`. Si la IA falla o responde algo ilegible, ese decreto lo resuelve el Intérprete local.
 
@@ -129,13 +132,13 @@ El juego funciona entero sin IA. Si quieres, toca el botón **IA** de la cabecer
 - **Claude** se usa con el SDK oficial, `effort: low`, caché del contexto del mundo y, en Opus 5, el *fallback* del servidor ante rechazos. **Los demás** se usan con su API compatible con OpenAI, en streaming.
 - **Si falla** (sin conexión, clave mala, límite gratis agotado, rechazo), el turno se cuenta con la narración local de siempre. Si el modelo gratis elegido desaparece, el siguiente turno se elige otro.
 - **La clave se guarda solo en el navegador** (`localStorage`). Las llamadas van directas del navegador al proveedor, así que no compartas tu partida con la clave puesta.
-- **Dónde funciona cada cosa:** la cuenta de Claude, solo dentro de claude.ai. Las claves de API, en GitHub Pages o abriendo `dist/valdoria.html`; dentro de claude.ai no, porque el visor bloquea las conexiones externas.
+- **Dónde funciona cada cosa:** la cuenta de Claude, solo dentro de claude.ai. Las claves de API, en GitHub Pages o abriendo `dist/pionyang.html`; dentro de claude.ai no, porque el visor bloquea las conexiones externas.
 
 ## Desarrollo
 
 ```bash
 npm test            # prueba el Intérprete, simula 400 partidas, comprueba la lógica de las leyes, el equilibrio y el narrador con IA (simulado)
-npm run empaquetar  # genera dist/valdoria.html (todo en un archivo)
+npm run empaquetar  # genera dist/pionyang.html (todo en un archivo)
 ```
 
 Para las pruebas solo hace falta Node.js. `npm install` instala el SDK de Anthropic, que usa la prueba del narrador con IA con respuestas simuladas; sin el SDK, esa prueba se omite.

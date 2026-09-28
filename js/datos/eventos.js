@@ -12,9 +12,9 @@
   RF.ESPECIALES = {
     'PRIVATIZAR:AIRE': {
       efectos: { tesoro: 6, cupula: 4, pueblo: -4, mundo: -6 },
-      texto: 'Se instalan medidores de respiración en cada hogar. Tarifa básica: 3 valdos por hora. Los asmáticos pagan tarifa premium.',
+      texto: 'Se instalan medidores de respiración en cada hogar. Tarifa básica: 3 wones por hora. Los asmáticos pagan tarifa premium.',
       programar: [
-        { en: 2, titulo: 'Aire embotellado', texto: 'Aparece un mercado negro de aire embotellado en La Esperanza. Las botellas se venden en la puerta de las escuelas, "sabor montaña".', efectos: { orden: -6, cupula: 3 } },
+        { en: 2, titulo: 'Aire embotellado', texto: 'Aparece un mercado negro de aire embotellado en Sadong. Las botellas se venden en la puerta de las escuelas, "sabor montaña".', efectos: { orden: -6, cupula: 3 } },
         { en: 4, titulo: 'Los que no pueden pagar', texto: 'Los hospitales reciben a los primeros ciudadanos que dejaron de "respirar oficialmente" por no pagar. Nadie sabe cómo contarlos en las estadísticas.', efectos: { salud: -8, pueblo: -6, mundo: -5 } }
       ]
     },
@@ -52,11 +52,11 @@
     },
     'PROHIBIR:MASCOTAS': {
       efectos: { pueblo: -6 },
-      texto: 'Los perros de Valdoria pasan a la clandestinidad. En muchas casas, el armario ladra.'
+      texto: 'Los perros de Corea del Norte pasan a la clandestinidad. En muchas casas, el armario ladra.'
     },
     'PROHIBIR:LIDER': {
       efectos: { cupula: -8, mundo: -6, orden: -5 },
-      texto: 'Su Excelencia se prohíbe a sí mismo. Los juristas pasan la noche discutiendo si el país sigue teniendo gobierno.'
+      texto: 'El Líder Supremo se prohíbe a sí mismo. Los juristas pasan la noche discutiendo si el país sigue teniendo gobierno.'
     },
     'PROHIBIR:RELIGION': {
       programar: [{ en: 3, titulo: 'Misas en los sótanos', texto: 'Se celebran misas clandestinas en sótanos y garajes. Los curas usan bigote falso.', efectos: { pueblo: -4, orden: -3 } }]
@@ -82,7 +82,7 @@
     },
     'NACIONALIZAR:EXTRANJEROS': {
       efectos: { mundo: 8, pueblo: 2 },
-      texto: 'Todos los extranjeros reciben la nacionalidad valdoriana, la quieran o no. Un turista japonés descubre que ahora debe hacer el servicio militar.'
+      texto: 'Todos los extranjeros reciben la nacionalidad norcoreana, la quieran o no. Un turista japonés descubre que ahora debe hacer el servicio militar.'
     },
     'OBLIGAR:EJERCITO': {
       efectos: { ejercito: 8, pueblo: -6, tesoro: -3 },
@@ -116,7 +116,7 @@
     },
     'LEGALIZAR:ARMAS': {
       efectos: { orden: -6, ejercito: -3 },
-      texto: 'Las armerías abren 24 horas. Ramiro se compra una "por si acaso" y la guarda en la guantera del taxi.'
+      texto: 'Las armerías abren 24 horas. Kwang-ho se compra una "por si acaso" y la guarda en la guantera del taxi.'
     },
     'INVERTIR:SALUD': {
       texto: 'Se anuncian tres hospitales nuevos. De momento hay tres carteles y una primera piedra.'
@@ -125,11 +125,11 @@
 
   // Alertas: cuando algo cruza una línea roja ocurre esto (una vez, hasta que se recupere).
   RF.UMBRALES = [
-    { id: 'cacerolazo', stat: 'felicidad', bajo: 25, titulo: 'Cacerolazo', texto: 'A las nueve de la noche, toda la ciudad golpea cacerolas. El ruido llega hasta tu dormitorio en Palacio.', efectos: { estabilidad: -4 } },
-    { id: 'sables', stat: 'estabilidad', bajo: 25, titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a misa con {garrote}. En el ejército, eso significa algo. Los tanques cambian de sitio por las noches.', efectos: { estabilidad: -2 } },
+    { id: 'cacerolazo', stat: 'felicidad', bajo: 25, titulo: 'Aplausos tibios', texto: 'En el desfile de hoy, la multitud aplaude medio segundo tarde. En Corea del Norte eso es un grito. Tus guardaespaldas lo notan. Tú también.', efectos: { estabilidad: -4 } },
+    { id: 'sables', stat: 'estabilidad', bajo: 25, titulo: 'Ruido de sables', texto: 'Tres generales dejan de ir a las cacerías de {garrote}. En el ejército, eso significa algo. Los tanques cambian de sitio por las noches.', efectos: { estabilidad: -2 } },
     { id: 'arcas', stat: 'dinero', bajo: 0, titulo: 'Arcas vacías', texto: 'Hacienda no puede pagar los sueldos de los funcionarios. Los maestros cobran en vales de gasolina y los policías, en promesas.', efectos: { felicidad: -3, estabilidad: -2 } },
-    { id: 'precios', stat: 'inflacion', alto: 25, titulo: 'Precios por las nubes', texto: 'El pan cuesta cada semana más. Las etiquetas de los supermercados se cambian a diario. La gente compra por miedo a que mañana cueste más.', efectos: { felicidad: -3 } },
-    { id: 'hiper', stat: 'inflacion', alto: 100, titulo: 'Hiperinflación', texto: 'Los billetes ya no valen el papel en el que están impresos. La gente paga el café con huevos y el alquiler con gallinas. Los niños juegan con fajos de valdos.', efectos: { felicidad: -6, estabilidad: -5 } }
+    { id: 'precios', stat: 'inflacion', alto: 25, titulo: 'Precios por las nubes', texto: 'El pan cuesta cada semana más. En el mercado, los precios del arroz se cambian dos veces al día. La gente compra por miedo a que mañana cueste más.', efectos: { felicidad: -3 } },
+    { id: 'hiper', stat: 'inflacion', alto: 100, titulo: 'Hiperinflación', texto: 'Los billetes ya no valen el papel en el que están impresos. La gente paga el café con huevos y el alquiler con gallinas. Los niños juegan con fajos de wones.', efectos: { felicidad: -6, estabilidad: -5 } }
   ];
 
   // Eventos del Director de Historia. tono: +1 bueno para ti, -1 malo.
@@ -141,10 +141,10 @@
     { tono: 1, titulo: 'Visita estelar', texto: 'Un cantante famoso da un concierto en la capital y se hace una foto contigo. No sabía quién eras.', efectos: { pueblo: 3, mundo: 3 } },
     { tono: -1, titulo: 'Sequía', texto: 'No llueve desde hace dos meses. Las cosechas se secan y el precio del maíz se dispara.', efectos: { salud: -3, tesoro: -4, pueblo: -2 } },
     { tono: -1, titulo: 'Filtración', texto: 'Unos hackers publican tus mensajes privados. Lo peor no son los secretos de Estado: son tus audios cantando boleros.', efectos: { mundo: -4, pueblo: -3 } },
-    { tono: 1, titulo: 'Cumbre internacional', texto: 'Valdoria es elegida sede de una cumbre regional. {montiel} está feliz. Los presidentes vecinos alaban tu buffet.', efectos: { mundo: 6 } },
+    { tono: 1, titulo: 'Cumbre internacional', texto: 'Corea del Norte es elegida sede de una cumbre regional. {montiel} está feliz. Los presidentes vecinos alaban tu buffet.', efectos: { mundo: 6 } },
     { tono: -1, titulo: 'Plaga de palomas', texto: 'Una plaga de palomas invade la capital. {paredes} culpa a un país vecino. El país vecino dice que no tiene palomas.', efectos: { salud: -2, orden: -2 } },
-    { tono: -1, titulo: 'Crisis del plátano', texto: 'El precio internacional del plátano se desploma. Tu principal exportación ya no vale nada.', efectos: { tesoro: -6 } },
-    { tono: 1, titulo: 'Remesas récord', texto: 'Los valdorianos que emigraron envían más dinero que nunca. Irónicamente, tu mejor política económica es que la gente se vaya.', efectos: { tesoro: 6 } },
+    { tono: -1, titulo: 'Crisis del carbón', texto: 'China deja de comprar carbón "por motivos técnicos". Tu principal exportación se amontona en el puerto de Nampo.', efectos: { tesoro: -6 } },
+    { tono: 1, titulo: 'Remesas récord', texto: 'Los norcoreanos que emigraron envían más dinero que nunca. Irónicamente, tu mejor política económica es que la gente se vaya.', efectos: { tesoro: 6 } },
     { tono: 1, titulo: 'Rumor de tu muerte', texto: 'Corre el rumor de que has muerto. Sales al balcón a saludar y la gente, por la sorpresa, aplaude.', efectos: { pueblo: 3, orden: 2 } },
     { tono: -1, titulo: 'Huracán', texto: 'Un huracán arrasa la costa. La ayuda internacional llega, pero la mitad desaparece en el puerto.', efectos: { salud: -4, tesoro: -5, cupula: 3 } },
     { tono: 1, titulo: 'Premio inesperado', texto: 'Una revista extranjera te nombra "Líder más fotogénico del año". {paredes} lo manda imprimir en todas las escuelas.', efectos: { mundo: 3, pueblo: 1 } }
@@ -152,17 +152,17 @@
 
   RF.FINALES = {
     pueblo: { titulo: 'REVOLUCIÓN', texto: 'La plaza se llena, luego las calles, luego los pasillos de Palacio. Escapas por un túnel secreto que resulta llevar a la cocina. Te reconoce un cocinero. Tu gobierno termina con un delantal puesto y las manos en alto.' },
-    ejercito: { titulo: 'GOLPE DE ESTADO', texto: 'A las cuatro de la madrugada, los tanques rodean Palacio. El {n_garrote} aparece en la televisión con tu banda presidencial puesta. Le queda un poco grande.' },
+    ejercito: { titulo: 'GOLPE DE ESTADO', texto: 'A las cuatro de la madrugada, los tanques rodean Palacio. El {n_garrote} aparece en la televisión delante de tu retrato, que alguien ya ha descolgado a medias.' },
     cupula: { titulo: 'TRAICIÓN EN PALACIO', texto: 'La cena de gala tenía un postre especial solo para ti. {n_cifuentes} brinda "por la estabilidad" mientras te desplomas sobre la tarta.' },
-    tesoro: { titulo: 'BANCARROTA', texto: 'Valdoria no puede pagar ni la luz del Palacio. Los acreedores internacionales toman el control del país. Te ofrecen un puesto de asesor, sin sueldo.' },
+    tesoro: { titulo: 'BANCARROTA', texto: 'Corea del Norte no puede pagar ni la luz del Palacio. Los acreedores internacionales toman el control del país. Te ofrecen un puesto de asesor, sin sueldo.' },
     salud: { titulo: 'COLAPSO SANITARIO', texto: 'La epidemia llega a Palacio. Tus ministros huyen. Pasas tus últimos días de gobierno en cuarentena, hablando con tu propio retrato.' },
     orden: { titulo: 'ANARQUÍA', texto: 'Nadie obedece a nadie. Cada barrio tiene su propio presidente. En tu despacho han montado un mercadillo. Alguien vende tu sillón.' },
     mundo: { titulo: 'INTERVENCIÓN EXTRANJERA', texto: 'Una coalición internacional desembarca "para restaurar la democracia". Te detienen en pijama. La foto da la vuelta al mundo.' },
     elecciones_ganadas: { titulo: 'REELECCIÓN LIMPIA', texto: 'Al final de tu mandato convocas elecciones. Nadie se lo cree, pero ganas. Limpiamente. La oposición pide un recuento y, para su sorpresa, vuelves a ganar.' },
     elecciones_amanadas: { titulo: 'REELECCIÓN CON EL 99,7%', texto: 'Convocas elecciones. {sombra} se encarga del conteo. Ganas con el 99,7% de los votos, incluidos los de varios muertos y un perro. El mundo protesta un rato y luego se olvida.' },
-    hiperinflacion: { titulo: 'COLAPSO DEL VALDO', texto: 'La inflación supera el mil por ciento. Nadie acepta valdos: ni los soldados, ni los panaderos, ni tu cocinero. Una mañana llegas a Palacio y la guardia se ha ido a trabajar a otra parte. Tu gobierno termina sin un solo disparo, simplemente porque ya nadie cobra por obedecerte.' },
+    hiperinflacion: { titulo: 'COLAPSO DEL WON', texto: 'La inflación supera el mil por ciento. Nadie acepta wones: ni los soldados, ni los panaderos, ni tu cocinero. Una mañana llegas a Palacio y la guardia se ha ido a trabajar a otra parte. Tu gobierno termina sin un solo disparo, simplemente porque ya nadie cobra por obedecerte.' },
     destituido: { titulo: 'DESTITUIDO', texto: 'El Congreso vota tu destitución. {n_sombra} te acompaña hasta la puerta del Palacio con una caja de cartón con tus cosas: la banda presidencial no entra. Una semana después, un juez te cita a declarar. Luego otro. Luego todos.' },
-    dimision: { titulo: 'DIMISIÓN', texto: 'Dimites en un mensaje de tres minutos, sin mirar a cámara. Te vas a una casa de campo con vistas al mar y un abogado muy caro. En Valdoria, algunos te echarán de menos. La mayoría, no.' },
+    dimision: { titulo: 'DIMISIÓN', texto: 'Dimites en un mensaje de tres minutos, sin mirar a cámara. Te vas a una casa de campo con vistas al mar y un abogado muy caro. En Corea del Norte, algunos te echarán de menos. La mayoría, no.' },
     perpetuo: { titulo: 'EL PODER SIN FIN', texto: 'Treinta turnos después sigues en el Palacio. No hubo elecciones, ni nadie se atreve ya a pedirlas. Los niños que nacieron con tu llegada no conocen otra cara en los billetes. Has ganado, si a esto se le puede llamar ganar.' },
     elecciones_perdidas: { titulo: 'DERROTA EN LAS URNAS', texto: 'Convocas elecciones convencido de ganar. Pierdes por goleada. Te vas al exilio con tres maletas y la estatua de 30 metros, que no cabe en el avión.' }
   };

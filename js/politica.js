@@ -23,9 +23,10 @@
   function iniciar(e) {
     if (!e.politica) {
       e.politica = {
-        regimen: 'DEMOCRACIA', proclamado: null, desde: 1,
-        congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre',
-        apoyo: 55, secretos: [], escandalos: 0, crimenes: 0, legislativas: false, historia: ['DEMOCRACIA']
+        // Corea del Norte: la dinastía Juche, con todas las instituciones al servicio del Partido.
+        regimen: 'JUCHE', proclamado: 'JUCHE', desde: 1,
+        congreso: 'controlado', tribunales: 'controlado', prensa: 'controlado', elecciones: 'controlado', constitucion: 'controlado',
+        apoyo: 99, secretos: [], escandalos: 0, crimenes: 0, historia: ['JUCHE']
       };
     }
     return e.politica;
@@ -88,6 +89,7 @@
 
   // Efectos al instaurar un régimen de golpe.
   const INSTAURAR = {
+    JUCHE: { efectos: { estabilidad: 4, felicidad: -6, dinero: -10 }, instituciones: { congreso: 'controlado', tribunales: 'controlado', prensa: 'controlado', elecciones: 'controlado', constitucion: 'controlado' } },
     DEMOCRACIA: { efectos: { felicidad: 8, estabilidad: -4, dinero: 10 }, instituciones: { congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre' } },
     DICTADURA: { efectos: { estabilidad: -8, felicidad: -10, dinero: -15 }, instituciones: { congreso: 'disuelto', elecciones: 'disuelto' } },
     JUNTA: { efectos: { estabilidad: 6, felicidad: -8, dinero: -10 }, instituciones: { congreso: 'disuelto', elecciones: 'disuelto', prensa: 'controlado' } },
@@ -98,10 +100,10 @@
   // Cambia de régimen por decreto o por un evento. Devuelve lo que pasó.
   function instaurar(e, destino) {
     const p = iniciar(e);
-    if (p.regimen === destino) return { nulo: 'Valdoria ya es una ' + RF.REGIMENES[destino].nombre.toLowerCase() + '.' };
+    if (p.regimen === destino) return { nulo: 'Corea del Norte ya es una ' + RF.REGIMENES[destino].nombre.toLowerCase() + '.' };
     const d = INSTAURAR[destino];
     const de = p.regimen;
-    p.proclamado = ['JUNTA', 'MONARQUIA', 'TEOCRACIA'].includes(destino) ? destino : null;
+    p.proclamado = ['JUNTA', 'MONARQUIA', 'TEOCRACIA', 'JUCHE'].includes(destino) ? destino : null;
     Object.assign(p, d.instituciones);
     if (destino === 'DEMOCRACIA') { p.apoyo = e.stats.felicidad; RF.leyes.derogar(e, 'SOBORNOS'); }
     const cambio = actualizar(e) || { de, a: destino };
@@ -246,7 +248,7 @@
     // La represión secreta pasa a doler lo que tenía que doler.
     if (s.clave) { const ley = RF.leyes.lista(e).find(l => l.clave === s.clave); if (ley && ley.secreta) { ley.secreta = false; ley.porTurno.felicidad = (ley.porTurno.felicidad || 0) / 0.4; } }
     if (s.persona === 'valiente') {
-      RF.leyes.promulgar(e, { clave: 'MARTIR', porTurno: { estabilidad: -1.2, felicidad: -0.5 }, duracion: 8 }, 'PERSONA', 'el recuerdo del mártir Valiente');
+      RF.leyes.promulgar(e, { clave: 'MARTIR', porTurno: { estabilidad: -1.2, felicidad: -0.5 }, duracion: 8 }, 'PERSONA', 'el recuerdo del mártir Song Dae-ho');
     }
     res.sucesos.push({ tipo: 'escandalo', titulo: 'Escándalo', texto: T.expandir(T.azar(TEXTO_ESCANDALO[s.tipo] || TEXTO_ESCANDALO.asesinato), { descripcion: s.descripcion }), deltas: reg });
     if (p.congreso === 'libre' && p.tribunales !== 'controlado' && esDemocracia(e)) RF.director.forzar(e, 'juicio_politico', {});
@@ -275,18 +277,38 @@
       if (Math.random() < r) { p.secretos.splice(p.secretos.indexOf(s), 1); p.crimenes++; escandalo(e, s, res); }
     }
 
-    // Elecciones legislativas a mitad de mandato.
-    if (!p.legislativas && e.dia >= 15 && p.congreso !== 'disuelto' && esDemocracia(e)) {
-      p.legislativas = true;
-      const amanadas = p.elecciones === 'controlado';
-      const apoyo = Math.round(Math.min(95, e.stats.felicidad + (amanadas ? 20 : 0)));
-      if (p.congreso === 'libre') p.apoyo = apoyo;
-      res.sucesos.push({
-        tipo: 'politica', titulo: 'Elecciones legislativas',
-        texto: 'Valdoria renueva el Congreso a mitad de mandato. ' + (amanadas ? 'Con el sistema electoral "ajustado", tu partido' : 'Tu partido') + ' obtiene el ' + apoyo + '% de los escaños. ' + (apoyo >= 50 ? 'Tienes mayoría para gobernar.' : 'Sin mayoría, el Congreso te lo pondrá difícil.'),
-        deltas: {}
-      });
+    // Elecciones cada CICLO turnos (el juego no tiene final: se gobierna hasta caer).
+    if (!p.proximas) p.proximas = e.dia + CICLO;
+    if (e.dia >= p.proximas) {
+      p.proximas = e.dia + CICLO;
+      if (p.elecciones !== 'disuelto') elecciones(e, res);
     }
+  }
+
+  const CICLO = 20;
+
+  // Libres: si pierdes, se acaba. Amañadas (o en un régimen que no es democracia): un ritual que siempre ganas.
+  function elecciones(e, res) {
+    const p = iniciar(e);
+    const s = e.stats;
+    const reg = {};
+    if (p.elecciones === 'libre' && esDemocracia(e)) {
+      const votos = Math.round(Math.max(5, Math.min(90, s.felicidad + (p.apoyo - 50) * 0.2)));
+      if (p.congreso === 'libre') p.apoyo = votos;
+      if (votos < 50) {
+        e.fin = 'elecciones_perdidas';
+        res.sucesos.push({ tipo: 'politica', titulo: 'Elecciones generales', texto: 'Se celebran elecciones libres. Tu partido saca el ' + votos + '% de los votos. La oposición gana.', deltas: {} });
+        return;
+      }
+      RF.consejero.aplicarEfectos(e, { estabilidad: 3 }, reg);
+      res.sucesos.push({ tipo: 'politica', titulo: 'Elecciones generales', texto: 'Se celebran elecciones libres y vuelves a ganar, con el ' + votos + '% de los votos. Tienes otros ' + CICLO + ' turnos por delante.', deltas: reg });
+      return;
+    }
+    const cifra = (99 + Math.random() * 0.9).toFixed(1).replace('.', ',');
+    RF.consejero.aplicarEfectos(e, { dinero: -3, estabilidad: 1 }, reg);
+    let texto = 'Toca votar. Hay un solo candidato por distrito y la papeleta se deposita sin marcar. Participación: 99,9%. Apoyo: ' + cifra + '%.';
+    if (s.felicidad < 30) { RF.consejero.aplicarEfectos(e, { estabilidad: -3 }, reg); texto += ' Esta vez, en algunos colegios aparecen papeletas tachadas. {sombra} ya está buscando a quién pertenecen.'; }
+    res.sucesos.push({ tipo: 'politica', titulo: 'Elecciones', texto: T.expandir(texto), deltas: reg });
   }
 
   function resumen(e) {
@@ -297,7 +319,7 @@
       'Régimen: ' + m.nombre + ' (desde el turno ' + p.desde + ')',
       m.descripcion,
       '',
-      'Congreso      ' + RF.ESTADOS_INSTITUCION.congreso[p.congreso] + (p.congreso === 'libre' ? ' · tu apoyo: ' + Math.round(p.apoyo) + '%' : ''),
+      'Asamblea      ' + RF.ESTADOS_INSTITUCION.congreso[p.congreso] + (p.congreso === 'libre' ? ' · tu apoyo: ' + Math.round(p.apoyo) + '%' : ''),
       'Tribunales    ' + RF.ESTADOS_INSTITUCION.tribunales[p.tribunales],
       'Prensa        ' + RF.ESTADOS_INSTITUCION.prensa[p.prensa],
       'Elecciones    ' + RF.ESTADOS_INSTITUCION.elecciones[p.elecciones],
@@ -305,9 +327,9 @@
       '',
       'Efectos del régimen:',
       '  Recaudación ' + f(m.recaudacion) + ' · Inversión ' + f(m.inversion),
-      '  Felicidad ' + (m.felicidadTurno >= 0 ? '+' : '−') + Math.abs(m.felicidadTurno) + '/turno · Exterior ' + (m.dineroTurno >= 0 ? '+' : '−') + Math.abs(m.dineroTurno) + 'M/turno',
-      '  Represión: estabilidad ×' + m.represionEstab + ', felicidad ×' + m.represionFel,
-      '  Elecciones al final: ' + (m.elecciones === 'libres' ? 'libres (tienes que ganarlas)' : m.elecciones === 'amanables' ? 'sí, pero se pueden amañar' : 'no hay: solo tienes que seguir en el poder')
+      '  Pueblo ' + (m.felicidadTurno >= 0 ? '+' : '−') + Math.abs(m.felicidadTurno) + '/turno · Exterior ' + (m.dineroTurno >= 0 ? '+' : '−') + Math.abs(m.dineroTurno) + 'M/turno',
+      '  Represión: lealtad ×' + m.represionEstab + ', pueblo ×' + m.represionFel,
+      '  Elecciones cada ' + CICLO + ' turnos (próximas: turno ' + (p.proximas || CICLO + 1) + '): ' + (p.elecciones === 'disuelto' ? 'suspendidas' : p.elecciones === 'libre' && esDemocracia(e) ? 'libres (si pierdes, se acaba)' : 'amañadas (siempre ganas)')
     ];
     if (p.secretos.length) lineas.push('', 'Secretos que podrían salir a la luz: ' + p.secretos.length + ' (riesgo por turno: ' + Math.round(riesgo(e) * 100) + '% cada uno)');
     if (p.escandalos) lineas.push('Escándalos que ya estallaron: ' + p.escandalos);

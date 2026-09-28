@@ -6,7 +6,13 @@ const C = RF.consejoIA;
 
 let fallos = 0;
 const comprobar = (c, t) => { console.log((c ? '  ✓ ' : '  ✗ ') + t); if (!c) fallos++; };
-const nuevo = () => { const e = RF.consejero.nuevoEstado(); e.politica.apoyo = 100; e.iaActiva = true; e.dilemas.ultimo = -99; return e; };
+// El juego empieza en la dinastía Juche; estas pruebas parten de una democracia neutra para medir la lógica.
+function democratico(e) {
+  Object.assign(e.politica, { regimen: 'DEMOCRACIA', proclamado: null, congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre', historia: ['DEMOCRACIA'] });
+  e.stats = { dinero: 100, inflacion: 4, estabilidad: 60, felicidad: 55 };
+  return e;
+}
+const nuevo = () => { const e = democratico(RF.consejero.nuevoEstado()); e.politica.apoyo = 100; e.iaActiva = true; e.dilemas.ultimo = -99; return e; };
 const turno = (e, ficha, texto) => { const res = C.aplicar(e, ficha, texto || 'decreto'); RF.consejero.avanzarDia(e, res); return res; };
 const sinHuecos = bl => bl.every(b => !/\{|\}|undefined|NaN|\[object/.test((b.titulo || '') + (b.texto || '')));
 
@@ -16,8 +22,8 @@ const AIRE = {
   leyes: [{ nombre: 'la privatización del aire', inicial: { dinero: 35, felicidad: -8 }, por_turno: { dinero: 15, felicidad: -2, estabilidad: -1 }, curvas: {}, controversia: 2 }],
   hechos: ['El Gobierno vendió el aire a la empresa Brisa S.A.'],
   titulares: ['El Patriota: «El aire, por fin, vale algo»', 'Radio Libertad: «Nos cobran por respirar»'],
-  gabinete: { id: 'cifuentes', dice: 'Cifuentes sonríe: las cuentas cuadran.' },
-  calle: { id: 'carmen', dice: 'Doña Carmen abre la ventana con miedo.' }
+  gabinete: { id: 'cifuentes', dice: 'Pak sonríe: las cuentas cuadran.' },
+  calle: { id: 'carmen', dice: 'la abuela Sun-ja abre la ventana con miedo.' }
 };
 
 console.log('UNA LEY NORMAL');
@@ -55,9 +61,9 @@ console.log('PERSONAS');
 {
   const e = nuevo();
   const res = C.aplicar(e, { titulo: 'la caída del general', personas: [{ id: 'garrote', accion: 'destituir' }] });
-  comprobar(e.gabinete.garrote.nombre !== 'General Bruno Garrote' && res.notas.some(n => /Su puesto lo ocupa/.test(n)), 'un ministro destituido tiene sucesor');
+  comprobar(e.gabinete.garrote.nombre !== 'General Bruno Jang' && res.notas.some(n => /Su puesto lo ocupa/.test(n)), 'un ministro destituido tiene sucesor');
   C.aplicar(e, { titulo: 'x', personas: [{ id: 'nico', accion: 'encarcelar' }] });
-  comprobar(e.ciudadanos.nico.estado === 'preso', 'Nico queda en la cárcel');
+  comprobar(e.ciudadanos.nico.estado === 'preso', 'Chol-su queda en la cárcel');
   const r2 = C.aplicar(e, { titulo: 'x', personas: [{ id: 'nico', accion: 'encarcelar' }] });
   comprobar(r2.notas.some(n => /ya est/i.test(n)), 'no se puede encarcelar a quien ya está preso: "' + r2.notas[0] + '"');
   const antes = e.ciudadanos.carmen.animo;
@@ -65,8 +71,8 @@ console.log('PERSONAS');
   comprobar(Math.round(e.ciudadanos.carmen.animo - antes) === Math.max(-40, -100 - antes) && !r3.notas.length, 'ignora personas que no existen y recorta el cambio de ánimo a −40');
   const e2 = nuevo();
   e2.politica.apoyo = 50;
-  const r4 = C.aplicar(e2, { titulo: 'la eliminación de Valiente', personas: [{ id: 'valiente', accion: 'matar' }] });
-  comprobar(e2.personas.valiente === 'muerto' && r4.dilema === 'juicio_politico' && RF.director.pendiente(e2).id === 'juicio_politico', 'matar a Valiente a la vista de todos en democracia abre un juicio político');
+  const r4 = C.aplicar(e2, { titulo: 'la eliminación de Song Dae-ho', personas: [{ id: 'valiente', accion: 'matar' }] });
+  comprobar(e2.personas.valiente === 'muerto' && r4.dilema === 'juicio_politico' && RF.director.pendiente(e2).id === 'juicio_politico', 'matar a Song Dae-ho a la vista de todos en democracia abre un juicio político');
   const e3 = nuevo();
   const r5 = C.aplicar(e3, { titulo: 'un accidente', secreto: true, personas: [{ id: 'valiente', accion: 'matar' }] });
   comprobar(e3.personas.valiente === 'muerto' && !r5.dilema && e3.politica.secretos.length === 1, 'en secreto no hay juicio, pero queda un secreto que puede salir');

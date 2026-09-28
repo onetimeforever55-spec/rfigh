@@ -28,7 +28,7 @@
         texto: 'Los tribunales reciben la orden de reclasificar a ciertos trabajadores como «patrimonio productivo del Estado». Las minas y las plantaciones firman contratos sin sueldo y sin fecha de salida. En el extranjero, las embajadas piden explicaciones por escrito.',
         notas: ['Sale barato producir así, pero el mundo entero lo está mirando: vienen sanciones.'],
         programar: [
-          { en: 2, titulo: 'Sanciones internacionales', texto: 'La Unión Atlántica congela las cuentas del Estado en el extranjero y prohíbe comprar plátanos de Valdoria. {montiel} se encierra en su despacho.', efectos: { dinero: -20, estabilidad: -3 } },
+          { en: 2, titulo: 'Sanciones internacionales', texto: 'La ONU congela las cuentas del Estado en el extranjero y prohíbe comprar carbón de Corea del Norte. {montiel} se encierra en su despacho.', efectos: { dinero: -20, estabilidad: -3 } },
           { en: 4, titulo: 'La fuga de las minas', texto: 'Cuarenta trabajadores forzados escapan de una mina del sur. Los pueblos del camino los esconden. La radio pirata ya tiene nombres y caras.', efectos: { estabilidad: -5, felicidad: -2 } }
         ]
       },
@@ -37,7 +37,7 @@
         inicial: { felicidad: 8, estabilidad: -2, dinero: -10 }, porTurno: { felicidad: 0.5, dinero: -1 },
         texto: 'Quedan libres todos los trabajadores forzados. El Estado indemniza a los dueños de las minas, que protestan igual. En las plantaciones, la gente se va caminando sin mirar atrás.'
       },
-      sinLey: { unaVez: true, inicial: { felicidad: 1 }, notas: ['En Valdoria la esclavitud ya estaba prohibida. El decreto lo repite, por si acaso.'] }
+      sinLey: { unaVez: true, inicial: { felicidad: 1 }, notas: ['En Corea del Norte la esclavitud ya estaba prohibida. El decreto lo repite, por si acaso.'] }
     },
 
     TRABAJO_INFANTIL: {
@@ -63,11 +63,11 @@
         nombre: 'la guerra contra el país vecino', controversia: 3,
         inicial: { dinero: -30, estabilidad: 5, felicidad: 3 },
         porTurno: { dinero: -12, felicidad: -1.5, estabilidad: 0.8 }, curvas: { estabilidad: 'desgasta' },
-        texto: 'Valdoria declara la guerra. Los reclutas se presentan en los cuarteles con la maleta de la escuela. Durante unos días, todo el país canta el himno a la vez. Luego llegan las facturas.',
+        texto: 'Corea del Norte declara la guerra. Los reclutas se presentan en los cuarteles con la maleta de la escuela. Durante unos días, todo el país canta el himno a la vez. Luego llegan las facturas.',
         notas: ['Al principio la guerra une (estabilidad +). Cada turno cuesta 12 millones y desgasta la moral.'],
         programar: [
-          { en: 3, titulo: 'Los primeros ataúdes', texto: 'Llegan al puerto los primeros ataúdes cubiertos con la bandera. En La Esperanza, tres familias ponen crespón negro en la puerta.', efectos: { felicidad: -6, estabilidad: -3 } },
-          { en: 5, titulo: 'Bloqueo naval', texto: 'La flota de la Unión Atlántica bloquea el puerto. Los barcos de plátanos se pudren en el muelle.', efectos: { dinero: -20, felicidad: -3 } }
+          { en: 3, titulo: 'Los primeros ataúdes', texto: 'Llegan al puerto los primeros ataúdes cubiertos con la bandera. En Sadong, tres familias ponen crespón negro en la puerta.', efectos: { felicidad: -6, estabilidad: -3 } },
+          { en: 5, titulo: 'Bloqueo naval', texto: 'La flota de la ONU bloquea el puerto. Los barcos de carbón se pudren en el muelle.', efectos: { dinero: -20, felicidad: -3 } }
         ]
       },
       contra: {
@@ -75,7 +75,7 @@
         inicial: { felicidad: 6, estabilidad: -3 }, porTurno: { felicidad: 0.5 },
         texto: 'Se firma la paz en una mesa prestada por un hotel de la frontera. {garrote} no aparece en la foto. Los soldados vuelven a casa; algunos no saben muy bien a qué.'
       },
-      sinLey: { unaVez: true, inicial: { felicidad: 1 }, notas: ['Valdoria no estaba en guerra con nadie. El decreto de paz se archiva junto a los de buena voluntad.'] }
+      sinLey: { unaVez: true, inicial: { felicidad: 1 }, notas: ['Corea del Norte no estaba en guerra con nadie. El decreto de paz se archiva junto a los de buena voluntad.'] }
     },
 
     NUCLEAR: {
@@ -84,14 +84,49 @@
         nombre: 'el programa nuclear militar', controversia: 3,
         inicial: { dinero: -40, estabilidad: 2 }, porTurno: { dinero: -8, estabilidad: 0.6 }, curvas: { estabilidad: 'lenta' },
         texto: 'Un grupo de físicos se instala en una base secreta del interior. Tardarán años; mientras tanto, la palabra «nuclear» ya aparece en todos los discursos de Palacio.',
-        programar: [{ en: 3, titulo: 'El mundo se entera', texto: 'Un satélite extranjero fotografía la base. La Unión Atlántica convoca una cumbre de emergencia sobre Valdoria. El embajador ya no sonríe.', efectos: { dinero: -25, estabilidad: -4 } }]
+        programar: [{ en: 3, titulo: 'El mundo se entera', texto: 'Un satélite extranjero fotografía la base. La ONU convoca una cumbre de emergencia sobre Corea del Norte. El embajador ya no sonríe.', efectos: { dinero: -25, estabilidad: -4 } }]
       },
       contra: {
         nombre: 'el desarme nuclear', controversia: 0,
         inicial: { dinero: 10, estabilidad: -1 }, porTurno: { dinero: 1 },
-        texto: 'Valdoria renuncia a las armas atómicas. Los inspectores internacionales se llevan unos papeles y dejan un cheque de ayuda.'
+        texto: 'Corea del Norte renuncia a las armas atómicas. Los inspectores internacionales se llevan unos papeles y dejan un cheque de ayuda.'
       },
-      sinLey: { unaVez: true, inicial: { dinero: 3 }, notas: ['Valdoria no tenía armas nucleares. La Unión Atlántica agradece la promesa con una pequeña ayuda.'] }
+      sinLey: { unaVez: true, inicial: { dinero: 3 }, notas: ['Corea del Norte no tenía armas nucleares. La ONU agradece la promesa con una pequeña ayuda.'] }
+    },
+
+    MISILES: {
+      nombre: 'los misiles', re: /\b(misil\w*|cohete\w*|lanzar un satelite|prueba\w* de misiles|ensayo\w* de misiles|disparar al mar)\b/,
+      contraRe: /\b(moratoria|suspend\w*|dej\w* de|par(ar|en|e) (de|las|los)|no (mas|lanzar)|prohib\w*|desmantel\w*)\b/,
+      favor: {
+        nombre: 'las pruebas de misiles', controversia: 2, prensa: 'culto',
+        inicial: { estabilidad: 3, felicidad: 1, dinero: -12 }, porTurno: { dinero: -3, estabilidad: 0.4 }, curvas: { estabilidad: 'acostumbra' },
+        texto: 'Un misil despega de la costa este, cruza el cielo y cae al mar. El Rodong Sinmun dedica ocho páginas al éxito. {garrote} llora de emoción en la foto oficial, rodeado de generales que toman notas.',
+        notas: ['Cada lanzamiento une a la élite, pero cuesta divisas y enfada al mundo.'],
+        programar: [{ en: 2, titulo: 'Nuevas sanciones', texto: 'El Consejo de Seguridad de la ONU aprueba otra ronda de sanciones. China se abstiene, pero pide a {montiel} "un poco de calma".', efectos: { dinero: -12, estabilidad: -1 } }]
+      },
+      contra: {
+        nombre: 'la moratoria de pruebas de misiles', controversia: 0,
+        inicial: { dinero: 8, estabilidad: -2 }, porTurno: { dinero: 2 },
+        texto: 'Anuncias que no habrá más lanzamientos "de momento". Llegan barcos con arroz de ayuda humanitaria. Los generales miran el cielo vacío con nostalgia.'
+      },
+      sinLey: { unaVez: true, inicial: { dinero: 3 }, notas: ['No había pruebas en marcha. El mundo agradece la promesa con un poco de ayuda.'] }
+    },
+
+    MERCADOS: {
+      nombre: 'el mercado negro', re: /\b(jangmadang|mercados? negros?|mercados? privados?|mercados? libres?|libre mercado|abrir los mercados|cerrar los mercados|comercio privado|los mercados)\b/,
+      favor: {
+        nombre: 'la legalización de los mercados', controversia: 1, prensa: 'economia',
+        inicial: { felicidad: 5, estabilidad: -2 }, porTurno: { dinero: 5, felicidad: 0.8, inflacion: -1, estabilidad: -0.3 }, curvas: { dinero: 'madura' },
+        texto: 'El jangmadang deja de ser negro: los puestos pagan una licencia y un impuesto. Las abuelas que vendían a escondidas cuelgan por primera vez un cartel con su nombre. Algunos cuadros del Partido pierden sus sobornos y ponen mala cara.',
+        programar: [{ en: 3, titulo: 'Los nuevos ricos', texto: 'En Pionyang aparecen los donju, comerciantes con coche y teléfono extranjero. Compran pisos, prestan dinero y ya no bajan la mirada ante los inspectores.', efectos: { dinero: 4, estabilidad: -2 } }]
+      },
+      contra: {
+        nombre: 'el cierre de los mercados', controversia: 1, prensa: 'esencial',
+        inicial: { felicidad: -6, estabilidad: 1 }, porTurno: { felicidad: -1.5, inflacion: 2, estabilidad: 0.2 },
+        texto: 'La policía cierra el jangmadang y requisa las mercancías. El arroz desaparece de las tiendas en dos días. Lo que queda se vende por la ventana, al triple.',
+        programar: [{ en: 2, titulo: 'Las colas del hambre', texto: 'Sin mercados, las raciones del Estado no llegan. En el campo, la gente come hierba cocida. La abuela Sun-ja reparte en secreto lo que le queda.', efectos: { felicidad: -5, estabilidad: -2 } }]
+      },
+      sinLey: { unaVez: true, inicial: { felicidad: -2, inflacion: 1 }, notas: ['Los mercados eran ilegales, pero todos los usaban. La policía hace una redada, requisa unas cuantas cosas y todo vuelve a abrir al día siguiente.'] }
     },
 
     CAMPOS: {
@@ -102,14 +137,14 @@
         inicial: { dinero: -15, estabilidad: 3, felicidad: -8 }, porTurno: { dinero: -4, estabilidad: 1, felicidad: -2 },
         curvas: { estabilidad: 'desgasta', felicidad: 'desgasta' },
         texto: 'En el interior se levantan barracones con alambre y un cartel que dice «Escuela de Ciudadanía». Los autobuses salen de noche. Nadie en los barrios pregunta en voz alta adónde van.',
-        programar: [{ en: 3, titulo: 'Los que no vuelven', texto: 'Las madres de los internados se reúnen cada mañana frente al Ministerio del Interior con fotos. Cada día son más.', efectos: { felicidad: -5, estabilidad: -3, dinero: -5 } }]
+        programar: [{ en: 3, titulo: 'Los que no vuelven', texto: 'Las madres de los internados se reúnen cada mañana frente al Ministerio de Seguridad del Estado con fotos. Cada día son más.', efectos: { felicidad: -5, estabilidad: -3, dinero: -5 } }]
       },
       contra: {
         nombre: 'el cierre de los campos', controversia: 0,
         inicial: { felicidad: 6, estabilidad: -3 }, porTurno: { felicidad: 0.4 },
         texto: 'Se abren las puertas de los campos. Los internados salen flacos y callados. Algunos ya están contando lo que vieron.'
       },
-      sinLey: { unaVez: true, inicial: { felicidad: 1 }, notas: ['En Valdoria no había campos. El decreto tranquiliza a los que temían que los hubiera.'] }
+      sinLey: { unaVez: true, inicial: { felicidad: 1 }, notas: ['En Corea del Norte no había campos. El decreto tranquiliza a los que temían que los hubiera.'] }
     },
 
     LIBROS: {
@@ -119,7 +154,7 @@
         nombre: 'la quema de libros', controversia: 2,
         inicial: { felicidad: -6, estabilidad: 1 }, porTurno: { felicidad: -1.2, estabilidad: 0.2 },
         texto: 'En la plaza mayor arde una hoguera de novelas, diccionarios y un manual de fontanería que se coló. {paredes} lo retransmite como «limpieza cultural».',
-        programar: [{ en: 3, titulo: 'Bibliotecas clandestinas', texto: 'En los sótanos de La Esperanza se prestan libros a escondidas. Nico organiza un club de lectura con contraseña.', efectos: { estabilidad: -2 } }]
+        programar: [{ en: 3, titulo: 'Bibliotecas clandestinas', texto: 'En los sótanos de Sadong se prestan libros a escondidas. Chol-su organiza un club de lectura con contraseña.', efectos: { estabilidad: -2 } }]
       },
       contra: {
         nombre: 'la libertad de los libros', controversia: 0,
@@ -133,13 +168,13 @@
       favor: {
         nombre: 'los interrogatorios mejorados', controversia: 3,
         inicial: { estabilidad: 2, felicidad: -5 }, porTurno: { estabilidad: 0.8, felicidad: -1.2 }, curvas: { estabilidad: 'desgasta' },
-        texto: 'Un decreto de una página autoriza «interrogatorios con métodos mejorados» en los sótanos del Ministerio del Interior. {sombra} lo firma sin leerlo.',
+        texto: 'Un decreto de una página autoriza «interrogatorios con métodos mejorados» en los sótanos del Ministerio de Seguridad del Estado. {sombra} lo firma sin leerlo.',
         programar: [{ en: 3, titulo: 'Las fotos', texto: 'Un funcionario arrepentido filtra fotos de los sótanos a la prensa extranjera. Ya nadie puede decir que no sabía.', efectos: { estabilidad: -5, dinero: -8, felicidad: -3 } }]
       },
       contra: {
         nombre: 'la prohibición de la tortura', controversia: 0,
         inicial: { felicidad: 3, estabilidad: -1 }, porTurno: { felicidad: 0.2 },
-        texto: 'Se prohíben los interrogatorios con violencia. En los sótanos del Ministerio del Interior se apagan unas luces que llevaban años encendidas.'
+        texto: 'Se prohíben los interrogatorios con violencia. En los sótanos del Ministerio de Seguridad del Estado se apagan unas luces que llevaban años encendidas.'
       },
       sinLey: { unaVez: true, inicial: { felicidad: 1 }, notas: ['La tortura ya era ilegal. El decreto lo recuerda en voz alta.'] }
     },
@@ -149,14 +184,14 @@
       favor: {
         nombre: 'el aborto legal', controversia: 2,
         inicial: { felicidad: 2, estabilidad: -2 }, porTurno: { felicidad: 0.3, dinero: -0.5 },
-        texto: 'Los hospitales públicos podrán interrumpir embarazos de forma legal y gratuita. El arzobispo convoca una misa de desagravio. {ventura} cierra dos clínicas clandestinas que ya no tienen clientes.',
-        programar: [{ en: 2, titulo: 'Las procesiones', texto: 'Miles de fieles recorren la capital con velas. El arzobispo habla de «días oscuros». Las encuestas dicen que el país está partido en dos.', efectos: { estabilidad: -2 } }]
+        texto: 'Los hospitales públicos podrán interrumpir embarazos de forma legal y gratuita. {ventura} cierra dos clínicas clandestinas que ya no tienen clientes. Las ancianas del barrio murmuran.',
+        programar: [{ en: 2, titulo: 'Los murmullos', texto: 'Los veteranos del Partido se quejan en voz baja de «costumbres decadentes». No hay encuestas, pero en las colas del mercado el país está partido en dos.', efectos: { estabilidad: -2 } }]
       },
       contra: {
         nombre: 'la prohibición del aborto', controversia: 2,
         inicial: { felicidad: -4, estabilidad: 1 }, porTurno: { felicidad: -0.6 },
-        texto: 'El aborto queda prohibido en todos los casos. El arzobispo bendice el decreto. Las clínicas clandestinas suben sus precios esa misma noche.',
-        programar: [{ en: 3, titulo: 'Clínicas clandestinas', texto: 'El Hospital Central recibe a mujeres con complicaciones de abortos clandestinos. Lucía hace turnos dobles y no dice nada.', efectos: { felicidad: -3 } }]
+        texto: 'El aborto queda prohibido en todos los casos: el Partido quiere «más soldados para el futuro». Las clínicas clandestinas suben sus precios esa misma noche.',
+        programar: [{ en: 3, titulo: 'Clínicas clandestinas', texto: 'El Hospital Central recibe a mujeres con complicaciones de abortos clandestinos. Eun-hee hace turnos dobles y no dice nada.', efectos: { felicidad: -3 } }]
       }
     },
 
@@ -165,7 +200,7 @@
       favor: {
         nombre: 'el matrimonio igualitario', controversia: 1,
         inicial: { felicidad: 2, estabilidad: -1, dinero: 2 }, porTurno: { felicidad: 0.3, dinero: 0.5 },
-        texto: 'Cualquier pareja podrá casarse en el registro civil. Los primeros en hacerlo son dos taxistas amigos de Ramiro, que llevaban veinte años esperando. El arzobispo no va a la boda.'
+        texto: 'Cualquier pareja podrá casarse en el registro civil. Los primeros en hacerlo son dos taxistas amigos de Kwang-ho, que llevaban veinte años esperando. El Rodong Sinmun no publica la foto.'
       },
       contra: {
         nombre: 'la prohibición del matrimonio igualitario', controversia: 1,
@@ -194,8 +229,8 @@
       favor: {
         nombre: 'la expulsión de los inmigrantes', controversia: 2,
         inicial: { estabilidad: 2, felicidad: -3, dinero: -10 }, porTurno: { dinero: -3, felicidad: -0.4 },
-        texto: 'Autobuses del Ministerio del Interior recorren los barrios deteniendo a quien no tenga papeles. En el campo, la mitad de los jornaleros desaparece en una semana.',
-        programar: [{ en: 3, titulo: 'Cosechas sin recoger', texto: 'Los plátanos se pudren en las plantaciones: no queda quien los recoja. Los dueños piden a Palacio que «los devuelvan, pero solo para la cosecha».', efectos: { dinero: -12, felicidad: -2 } }]
+        texto: 'Autobuses del Ministerio de Seguridad del Estado recorren los barrios deteniendo a quien no tenga papeles. En el campo, la mitad de los jornaleros desaparece en una semana.',
+        programar: [{ en: 3, titulo: 'Cosechas sin recoger', texto: 'El maíz se pudre en las granjas colectivas: no queda quien lo recoja. Los dueños piden a Palacio que «los devuelvan, pero solo para la cosecha».', efectos: { dinero: -12, felicidad: -2 } }]
       },
       contra: {
         nombre: 'la regularización de los inmigrantes', controversia: 1,
@@ -215,7 +250,7 @@
       contra: {
         nombre: 'la rebaja del salario mínimo', controversia: 2,
         inicial: { felicidad: -6, dinero: 3 }, porTurno: { felicidad: -1.2, dinero: 3, estabilidad: -0.5, inflacion: -0.3 },
-        texto: 'El salario mínimo baja «para ganar competitividad». Los empresarios aplauden desde el Club Náutico. En las colas del autobús nadie aplaude.'
+        texto: 'El salario mínimo baja «para ganar competitividad». Los empresarios aplauden desde el club del Comité Central. En las colas del autobús nadie aplaude.'
       }
     },
 
@@ -225,7 +260,7 @@
       favor: {
         nombre: 'la subida de las pensiones', controversia: 0,
         inicial: { felicidad: 4, dinero: -5 }, porTurno: { felicidad: 0.6, dinero: -5, inflacion: 0.3 }, curvas: { felicidad: 'acostumbra' },
-        texto: 'Las pensiones suben. Doña Carmen dice que ahora podrá comprar carne dos veces por semana.'
+        texto: 'Las pensiones suben. La abuela Sun-ja dice que ahora podrá comprar carne dos veces por semana.'
       },
       contra: {
         nombre: 'el recorte de las pensiones', controversia: 2,
@@ -240,7 +275,7 @@
       favor: {
         nombre: 'la renta básica universal', controversia: 1,
         inicial: { felicidad: 8 }, porTurno: { dinero: -16, felicidad: 1.5, inflacion: 1.5, estabilidad: 0.3 }, curvas: { felicidad: 'acostumbra' },
-        texto: 'Cada adulto de Valdoria recibirá una paga mensual por el simple hecho de existir. {cifuentes} hace la cuenta tres veces y pide un vaso de agua.',
+        texto: 'Cada adulto de Corea del Norte recibirá una paga mensual por el simple hecho de existir. {cifuentes} hace la cuenta tres veces y pide un vaso de agua.',
         notas: ['Es muy cara: 16 millones cada turno. Si no hay dinero, habrá que imprimirlo.']
       },
       contra: {
@@ -258,7 +293,7 @@
         nombre: 'los aranceles a las importaciones', controversia: 1,
         inicial: { felicidad: -1 }, porTurno: { dinero: 4, inflacion: 1, felicidad: -0.4, estabilidad: 0.1 },
         texto: 'Todo lo que entre por el puerto pagará un 40% extra. Las fábricas nacionales celebran; los electrodomésticos del escaparate cambian de precio antes del mediodía.',
-        programar: [{ en: 3, titulo: 'Represalias comerciales', texto: 'La Unión Atlántica responde con aranceles a los plátanos de Valdoria. Los exportadores miran los barcos vacíos.', efectos: { dinero: -10 } }]
+        programar: [{ en: 3, titulo: 'Represalias comerciales', texto: 'La ONU responde con aranceles a los carbón de Corea del Norte. Los exportadores miran los barcos vacíos.', efectos: { dinero: -10 } }]
       },
       contra: {
         nombre: 'el libre comercio', controversia: 1,
@@ -302,12 +337,12 @@
       nombre: 'el voto de las mujeres', re: /\b(voto (a |de )?las mujeres|sufragio femenino|(que )?las mujeres (no )?(puedan )?voten?)\b/,
       favor: {
         nombre: 'el voto de las mujeres', controversia: 0, unaVez: true,
-        inicial: { felicidad: 1 }, notas: ['Las mujeres ya votan en Valdoria. El decreto se archiva con los obvios.']
+        inicial: { felicidad: 1 }, notas: ['Las mujeres ya votan en Corea del Norte. El decreto se archiva con los obvios.']
       },
       contra: {
         nombre: 'la retirada del voto a las mujeres', controversia: 3,
         inicial: { felicidad: -12, estabilidad: -4, dinero: -5 }, porTurno: { felicidad: -2, estabilidad: -0.6 },
-        texto: 'Un decreto retira el voto a la mitad del país. Esa noche, las mujeres de La Esperanza salen a la calle con cacerolas. Doña Carmen lleva la más grande.',
+        texto: 'Un decreto retira el voto a la mitad del país. Esa noche, las mujeres de Sadong salen a la calle con cacerolas. La abuela Sun-ja lleva la más grande.',
         programar: [{ en: 2, titulo: 'La huelga de las mujeres', texto: 'Las mujeres dejan de trabajar, de cocinar y de ir a clase. Los hospitales, las escuelas y la mitad de los mercados cierran. El país se detiene.', efectos: { dinero: -15, estabilidad: -5 } }]
       }
     },
@@ -317,7 +352,7 @@
       favor: {
         nombre: 'el bitcoin como moneda oficial', controversia: 1,
         inicial: { dinero: -10, felicidad: -1 }, porTurno: { dinero: 2, inflacion: -0.5, estabilidad: -0.3 },
-        texto: 'El bitcoin pasa a ser moneda oficial. Doña Carmen pone un cartel: «Arepas: 0,00004 BTC». Nadie sabe darle el cambio.',
+        texto: 'El bitcoin pasa a ser moneda oficial. La abuela Sun-ja pone un cartel: «Tortitas: 0,00004 BTC». Nadie sabe darle el cambio.',
         programar: [{ en: 3, titulo: 'El desplome', texto: 'El bitcoin cae un 40% en una noche. Las reservas del Estado pierden un tercio de su valor mientras {cifuentes} duerme.', efectos: { dinero: -20, estabilidad: -2 } }]
       },
       contra: {
@@ -333,7 +368,7 @@
       favor: {
         nombre: 'el muro de la frontera', controversia: 2,
         inicial: { dinero: -40, estabilidad: 1 }, porTurno: { dinero: -2, estabilidad: 0.3, felicidad: -0.2 },
-        texto: 'Empieza la construcción de un muro de seis metros en la frontera. La primera piedra la pone Su Excelencia; la segunda, una empresa del cuñado de {cifuentes}.',
+        texto: 'Empieza la construcción de un muro de seis metros en la frontera. La primera piedra la pone el Líder Supremo; la segunda, una empresa del cuñado de {cifuentes}.',
         programar: [{ en: 3, titulo: 'Escaleras de siete metros', texto: 'En los mercados de la frontera se venden escaleras de siete metros. Son el producto más vendido del mes.', efectos: { dinero: -4 } }]
       },
       contra: {
@@ -354,7 +389,7 @@
       contra: {
         nombre: 'el voto adolescente', controversia: 1, prensa: 'absurdo',
         inicial: { felicidad: 2, estabilidad: -1 }, porTurno: {},
-        texto: 'Se rebaja la edad para votar. Los partidos abren cuentas en las redes de moda y prometen recreos más largos. Nico ya está haciendo campaña.',
+        texto: 'Se rebaja la edad para votar. Los partidos abren cuentas en las redes de moda y prometen recreos más largos. Chol-su ya está haciendo campaña.',
         programar: [{ en: 3, titulo: 'El partido de los recreos', texto: 'Un partido de estudiantes de secundaria encabeza las encuestas con una sola promesa: prohibir los exámenes los viernes.', efectos: { estabilidad: -2, felicidad: 2 } }]
       }
     },
@@ -366,7 +401,7 @@
       favor: {
         nombre: 'la construcción de cárceles', controversia: 0,
         inicial: { dinero: -30, estabilidad: 1 }, porTurno: { dinero: -3, estabilidad: 0.4 }, curvas: { estabilidad: 'madura' },
-        texto: 'Se construyen tres cárceles nuevas con capacidad para diez mil presos. De momento, Valdoria tiene cuatro mil. {sombra} dice que ya se llenarán.'
+        texto: 'Se construyen tres cárceles nuevas con capacidad para diez mil presos. De momento, Corea del Norte tiene cuatro mil. {sombra} dice que ya se llenarán.'
       },
       privada: {
         nombre: 'la privatización de las cárceles', controversia: 2,

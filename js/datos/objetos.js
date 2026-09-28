@@ -24,7 +24,7 @@
     },
     COMIDA: {
       nombre: 'la comida', esencial: 3, rentable: 1, afecta: 'salud', popular: 1,
-      formas: ['la comida', 'el pan', 'los alimentos', 'las arepas', 'el arroz', 'la carne', 'la canasta básica', 'comer', 'la harina', 'los huevos', 'la leche']
+      formas: ['la comida', 'el pan', 'los alimentos', 'las tortitas', 'el arroz', 'la carne', 'la canasta básica', 'comer', 'la harina', 'los huevos', 'la leche']
     },
     SALUD: {
       nombre: 'los hospitales', esencial: 3, rentable: 1, afecta: 'salud',
@@ -68,7 +68,7 @@
     },
     DIVERSION: {
       nombre: 'el fútbol y las fiestas', popular: 3, libertad: 1, rentable: 1,
-      formas: ['el fútbol', 'los deportes', 'la música', 'las fiestas', 'el carnaval', 'el cine', 'los conciertos', 'bailar', 'el reguetón', 'la cultura', 'los videojuegos', 'la salsa', 'el béisbol']
+      formas: ['el fútbol', 'los deportes', 'la música', 'las fiestas', 'el carnaval', 'el cine', 'los conciertos', 'bailar', 'el reguetón', 'la cultura', 'los videojuegos', 'la salsa', 'el béisbol', 'el k pop', 'el kpop', 'los doramas', 'las series del sur', 'las series surcoreanas', 'la música del sur', 'las películas extranjeras']
     },
     VICIOS: {
       nombre: 'el alcohol', popular: 2, rentable: 2, vicio: 1,
@@ -144,8 +144,8 @@
       formas: ['el narcotráfico', 'el narco', 'la cocaína', 'los cárteles', 'la coca', 'las plantaciones de coca', 'el tráfico de drogas', 'narcotraficar']
     },
     DINERO: {
-      nombre: 'el valdo', rentable: 1,
-      formas: ['el dinero', 'los billetes', 'la moneda', 'el valdo', 'la moneda nacional', 'dinero nuevo']
+      nombre: 'el won', rentable: 1,
+      formas: ['el dinero', 'los billetes', 'la moneda', 'el won', 'los wones', 'wones', 'la moneda nacional', 'dinero nuevo']
     },
 
     // ---------- Instituciones del régimen (se crean y siguen actuando cada día) ----------
@@ -172,8 +172,8 @@
 
     // ---------- El sistema político: instituciones del Estado y regímenes ----------
     CONGRESO: {
-      nombre: 'el Congreso', politico: 'congreso', libertad: 2,
-      formas: ['el congreso', 'el parlamento', 'la asamblea', 'los diputados', 'los senadores', 'el senado', 'la asamblea nacional', 'los legisladores', 'las cortes']
+      nombre: 'la Asamblea Popular Suprema', politico: 'congreso', libertad: 2,
+      formas: ['la asamblea popular suprema', 'la asamblea popular', 'el congreso', 'el parlamento', 'la asamblea', 'los diputados', 'los senadores', 'el senado', 'la asamblea nacional', 'los legisladores', 'las cortes']
     },
     TRIBUNALES: {
       nombre: 'los tribunales', politico: 'tribunales', libertad: 2,
@@ -203,6 +203,10 @@
       nombre: 'la teocracia', regimen: 'TEOCRACIA',
       formas: ['la teocracia', 'un estado religioso', 'la ley de dios', 'un gobierno religioso', 'la sharía', 'un estado confesional']
     },
+    JUCHE: {
+      nombre: 'la dinastía Juche', regimen: 'JUCHE',
+      formas: ['el juche', 'la idea juche', 'el régimen juche', 'la dinastía', 'el socialismo juche', 'el songun', 'el culto al líder']
+    },
     JUNTA: {
       nombre: 'la junta militar', regimen: 'JUNTA',
       formas: ['la junta', 'una junta de gobierno', 'un gobierno de facto', 'una junta de generales', 'la junta castrense']
@@ -215,7 +219,7 @@
     },
     LIDER: {
       nombre: 'el Líder',
-      formas: ['mi', 'mi persona', 'el líder', 'su excelencia', 'el presidente', 'yo', 'mi cara', 'mi nombre', 'el gran líder', 'mi madre', 'mi cumpleaños']
+      formas: ['mi', 'mi persona', 'el líder', 'el líder supremo', 'el mariscal', 'su excelencia', 'el presidente', 'yo', 'mi cara', 'mi nombre', 'el gran líder', 'mi madre', 'mi cumpleaños']
     }
   };
 

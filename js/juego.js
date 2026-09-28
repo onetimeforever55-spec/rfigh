@@ -4,13 +4,13 @@
  */
 (function (RF) {
   'use strict';
-  const CLAVE = 'valdoria.partida.v2';
+  const CLAVE = 'pionyang.partida.v1'; // partida nueva: las de Valdoria (con 30 turnos) no son compatibles
   const MAX_REGISTRO = 160;
   const $ = (id) => document.getElementById(id);
   const reducirMovimiento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const ATAJOS = [
-    ['Imprimir dinero', 'imprimir dinero'], ['Regalar…', 'Regalar '], ['Vender…', 'Vender '],
+    ['Imprimir wones', 'imprimir wones'], ['Vender carbón a China', 'vender carbón a China'], ['Lanzar un misil', 'lanzar un misil'], ['Regalar…', 'Regalar '], ['Vender…', 'Vender '],
     ['Subir impuestos a…', 'Subir impuestos a '], ['Bajar impuestos a…', 'Bajar impuestos a '], ['Invertir en…', 'Invertir en '],
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
@@ -78,7 +78,7 @@
         c._t = setTimeout(() => c.classList.remove('visible'), 4000);
       }
     }
-    $('dia').textContent = 'TURNO ' + Math.min(estado.dia, RF.PAIS.dias) + '/' + RF.PAIS.dias;
+    $('dia').textContent = 'TURNO ' + estado.dia;
     const reg = RF.politica.regimen(estado);
     $('regimen').textContent = RF.REGIMENES[reg].corto;
     $('regimen').className = 'regimen r-' + reg.toLowerCase();
@@ -397,7 +397,7 @@
       'Gratis: Groq (console.groq.com → API Keys).',
       'De pago, la mejor prosa: Claude (console.anthropic.com → API Keys).'
     ]) guia.append(el('p', '', t));
-    const aviso = el('p', 'aviso-ia', 'La clave se guarda solo en este navegador. No compartas el juego con la clave puesta. Dentro de la página de Claude no funciona (bloquea conexiones externas): usa GitHub Pages o el archivo dist/valdoria.html.');
+    const aviso = el('p', 'aviso-ia', 'La clave se guarda solo en este navegador. No compartas el juego con la clave puesta. Dentro de la página de Claude no funciona (bloquea conexiones externas): usa GitHub Pages o el archivo dist/pionyang.html.');
     caja.append(cab, intro, form, estadoIA, guia, aviso);
     fondo.appendChild(caja);
     document.body.appendChild(fondo);
@@ -539,7 +539,7 @@
     }
     listo();
     if (ficha.entendido === false) {
-      mostrar([{ tipo: 'cupula', titulo: 'EL GABINETE', texto: RF.consejoIA.limpiarTexto(ficha.pregunta) || 'El gabinete se mira entre sí. Nadie ha entendido el decreto. ¿Puede explicarlo de otra forma, Excelencia?' }], true);
+      mostrar([{ tipo: 'cupula', titulo: 'EL GABINETE', texto: RF.consejoIA.limpiarTexto(ficha.pregunta) || 'El gabinete se mira entre sí. Nadie ha entendido el decreto. ¿Puede explicarlo de otra forma, Líder Supremo?' }], true);
       guardar();
       return;
     }
@@ -601,7 +601,7 @@
 
   // Un turno sin decretos con el Consejo activo: la IA decide qué pasa en el país por sí solo.
   async function esperarIA() {
-    const aviso = deliberando('Valdoria sigue su curso. Tus ministros vigilan qué se mueve en el país…');
+    const aviso = deliberando('Corea del Norte sigue su curso. Tus ministros vigilan qué se mueve en el país…');
     let ficha;
     try {
       ficha = await RF.consejoIA.consultarMundo(estado);
@@ -757,7 +757,7 @@
       registro = [];
       // Una crónica que se quedó a medias al cerrar la página no se vuelve a mostrar.
       mostrar(guardada.registro.filter(b => b.tipo !== 'cronica' || b.terminada), false);
-      mostrar([{ tipo: 'nota', texto: 'Partida recuperada. Bienvenido de vuelta a Palacio, Excelencia.' }], false);
+      mostrar([{ tipo: 'nota', texto: 'Partida recuperada. Bienvenido de vuelta a Palacio, Líder Supremo.' }], false);
       // Si había un evento abierto y su tarjeta no quedó en el registro, se vuelve a mostrar.
       const d = RF.director.pendiente(estado);
       if (d && !tarjetaAbierta) mostrar([RF.narrador.dilema(estado, d)], false);

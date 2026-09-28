@@ -37,7 +37,7 @@
     migrantes: 'inmigrantes', gringos: 'extranjeros', guiris: 'extranjeros',
     // Comida
     tortillas: 'comida', pupusas: 'comida', empanadas: 'comida', tacos: 'comida', papas: 'comida', frijoles: 'comida',
-    arepa: 'arepas', morfi: 'comida', papeo: 'comida', rancho: 'comida',
+    tortita: 'tortitas', morfi: 'comida', papeo: 'comida', rancho: 'comida',
     // Ocio
     fut: 'futbol', futbolito: 'futbol', fucho: 'futbol', rumba: 'fiestas', parranda: 'fiestas', perreo: 'reguetón',
     reggaeton: 'reguetón', regueton: 'reguetón', trap: 'musica', netflix: 'cine', series: 'cine', telenovelas: 'television',
@@ -75,6 +75,9 @@
     // "dar marcha atrás con X" = derogar X (pero "caminar hacia atrás" no es derogar nada).
     [/\b(dar |dando |hacer )?marcha atras( con| en)?\b/g, 'derogar'],
     [/\bvolver atras( con| en)?\b/g, 'derogar'],
+    // "volver al juche", "volver a la democracia" = restaurarlos.
+    [/\bvolver al\b/g, 'restaurar el'],
+    [/\bvolver a la\b/g, 'restaurar la'],
     // "que la lluvia pague impuestos" = poner un impuesto a la lluvia (no rebajarlo).
     [/\bque (el |la |los |las )?([a-zñ ]+?) (pague|paguen|tribute|tributen) (mas )?impuestos?\b/g, 'subir el impuesto a $1$2'],
     [/\b(dar un |hacer un )?auto ?golpe( de estado)?\b/g, 'disolver el congreso'],
@@ -116,7 +119,7 @@
     [/\bestado narco\b/g, 'economia basada en el narcotrafico'],
     [/\bescuadrones? de la muerte\b/g, 'escuadron de la muerte'],
     [/\bescuadra de represion\b/g, 'escuadra de represion'],
-    [/\bdolarizar\b/g, 'prohibir el valdo'],
+    [/\bdolarizar\b/g, 'prohibir el won'],
     [/\bdevaluar\b/g, 'recortar'],
     [/\bimprimir (mas )?(dinero|billetes|plata)\b/g, 'imprimir dinero nuevo']
   ];

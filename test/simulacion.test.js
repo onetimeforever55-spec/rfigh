@@ -16,16 +16,16 @@ const DECRETOS = [
   'quiero hacer un narco estado', 'toda la economía al carbón', 'economía basada en el turismo', 'que toda la economía sea de calcetines',
   'imprimir dinero', 'dolarizar', 'devaluar el valdo', 'invertir en la industria', 'nacionalizar el petróleo', 'prohibir el narcotráfico',
   'crear una escuadra de represión', 'fundar un partido único', 'crear una red de espías', 'crear milicias populares',
-  'crear un ministerio de propaganda', 'disolver el escuadrón', 'matar al general', 'encarcelar a Nico', 'liberar a Nico',
-  'destituir a la ministra de hacienda', 'premiar a la canciller', 'exiliar al líder de la oposición', 'matar a Valiente',
-  'expulsar al embajador', 'matar al embajador', 'fusilar a Doña Carmen', 'regalarle un taxi a Ramiro', 'matar a Garrote y a Sombra',
+  'crear un ministerio de propaganda', 'disolver el escuadrón', 'matar al general', 'encarcelar a Chol-su', 'liberar a Chol-su',
+  'destituir a la ministra de hacienda', 'premiar a la canciller', 'exiliar al líder de la oposición', 'matar a Song Dae-ho',
+  'expulsar al embajador', 'matar al embajador', 'fusilar a la abuela Sun-ja', 'regalarle un taxi a Kwang-ho', 'matar a Jang y a Ryu',
   // Leyes que se acumulan y se derogan
   'vender cocaína', 'dejar de imprimir dinero', 'ya no se regala comida', 'derogar el último decreto', 'derogar la ley del aire',
   'esperar', 'esperar', 'esperar',
   // Sistema político
   'disuelvo el congreso', 'comprar a los diputados', 'controlar los jueces', 'suspender las elecciones', 'amañar las elecciones',
   'reelección indefinida', 'proclamarme rey', 'instaurar una teocracia', 'ley marcial', 'restaurar la democracia',
-  'asesino contrincantes secretamente', 'matar en secreto a Valiente', 'que parezca un accidente lo de Cifuentes', 'comprar la prensa'
+  'asesino contrincantes secretamente', 'matar en secreto a Song Dae-ho', 'que parezca un accidente lo de Pak', 'comprar la prensa'
 ];
 
 const finales = {};
@@ -43,7 +43,7 @@ for (let partida = 0; partida < PARTIDAS; partida++) {
   const estado = RF.consejero.nuevoEstado();
   let nulos = 0;
   revisar(RF.narrador.intro(estado));
-  while (!estado.fin) {
+  while (!estado.fin && estado.dia <= 60) { // el juego no tiene final: se juegan 60 turnos como mucho
     const pend = RF.director.pendiente(estado);
     if (pend) {
       revisar([RF.narrador.dilema(estado, pend)]);

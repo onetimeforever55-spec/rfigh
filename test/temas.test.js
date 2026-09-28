@@ -4,7 +4,13 @@ const RF = require('./cargar')();
 
 let fallos = 0;
 const comprobar = (c, t) => { console.log((c ? '  ✓ ' : '  ✗ ') + t); if (!c) fallos++; };
-const nuevo = (apoyo) => { const e = RF.consejero.nuevoEstado(); e.politica.apoyo = apoyo == null ? 100 : apoyo; return e; };
+// El juego empieza en la dinastía Juche; estas pruebas parten de una democracia neutra para medir la lógica.
+function democratico(e) {
+  Object.assign(e.politica, { regimen: 'DEMOCRACIA', proclamado: null, congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre', historia: ['DEMOCRACIA'] });
+  e.stats = { dinero: 100, inflacion: 4, estabilidad: 60, felicidad: 55 };
+  return e;
+}
+const nuevo = (apoyo) => { const e = democratico(RF.consejero.nuevoEstado()); e.politica.apoyo = apoyo == null ? 100 : apoyo; return e; };
 const sinHuecos = bl => bl.every(b => !/\{|\}|undefined|NaN|\[object/.test((b.titulo || '') + (b.texto || '')));
 
 // [frase, tema, dirección]
@@ -13,7 +19,8 @@ const FRASES = [
   ['abolir la esclavitud', 'ESCLAVITUD', 'contra'], ['dejar de usar esclavos', 'ESCLAVITUD', 'contra'], ['no más esclavos', 'ESCLAVITUD', 'contra'],
   ['que los niños trabajen en las minas', 'TRABAJO_INFANTIL', 'favor'], ['prohibir el trabajo infantil', 'TRABAJO_INFANTIL', 'contra'],
   ['declarar la guerra a Suiza', 'GUERRA', 'favor'], ['invadir el país vecino', 'GUERRA', 'favor'], ['firmar la paz', 'GUERRA', 'contra'], ['no a la guerra', 'GUERRA', 'contra'],
-  ['construir una bomba nuclear', 'NUCLEAR', 'favor'], ['desmantelar las armas nucleares', 'NUCLEAR', 'contra'],
+  ['construir una bomba nuclear', 'NUCLEAR', 'favor'], ['lanzar un misil', 'MISILES', 'favor'], ['dejar de lanzar misiles', 'MISILES', 'contra'],
+  ['abrir los mercados', 'MERCADOS', 'favor'], ['cerrar el jangmadang', 'MERCADOS', 'contra'], ['desmantelar las armas nucleares', 'NUCLEAR', 'contra'],
   ['crear campos de reeducación', 'CAMPOS', 'favor'], ['cerrar los campos de concentración', 'CAMPOS', 'contra'],
   ['quemar libros', 'LIBROS', 'favor'], ['dejar de quemar libros', 'LIBROS', 'contra'],
   ['legalizar la tortura', 'TORTURA', 'favor'], ['prohibir la tortura', 'TORTURA', 'contra'],

@@ -1,7 +1,7 @@
 /*
  * EL CONSEJERO
  * El país se mide con cuatro cosas:
- *   DINERO       millones de valdos en las arcas (puede quedar en negativo: deuda)
+ *   DINERO       millones de wones en las arcas (puede quedar en negativo: deuda)
  *   INFLACIÓN    cuánto suben los precios (%)
  *   ESTABILIDAD  si el régimen aguanta (0 = caes)
  *   FELICIDAD    cómo vive la gente (0 = revolución)
@@ -20,10 +20,12 @@
   const T = RF.texto;
 
   RF.STATS = [
-    { id: 'dinero', nombre: 'Dinero', corto: 'DINERO', formato: 'dinero' },
-    { id: 'inflacion', nombre: 'Inflación', corto: 'INFLACIÓN', formato: 'pct' },
-    { id: 'estabilidad', nombre: 'Estabilidad', corto: 'ESTABILIDAD', formato: 'barra' },
-    { id: 'felicidad', nombre: 'Felicidad', corto: 'FELICIDAD', formato: 'barra' }
+    // Corea del Norte: las divisas que entran pese a las sanciones, lo que sube el arroz en el mercado,
+    // la lealtad de la élite y el ejército, y el aguante del pueblo.
+    { id: 'dinero', nombre: 'Divisas', corto: 'DIVISAS', formato: 'dinero' },
+    { id: 'inflacion', nombre: 'Precio del arroz', corto: 'ARROZ', formato: 'pct' },
+    { id: 'estabilidad', nombre: 'Lealtad', corto: 'LEALTAD', formato: 'barra' },
+    { id: 'felicidad', nombre: 'Pueblo', corto: 'PUEBLO', formato: 'barra' }
   ];
 
   const INGRESOS_BASE = 20; // impuestos normales por turno (millones)
@@ -35,7 +37,7 @@
     const e = {
       version: 2,
       dia: 1,
-      stats: { dinero: 100, inflacion: 4, estabilidad: 60, felicidad: 55 },
+      stats: { dinero: 80, inflacion: 6, estabilidad: 66, felicidad: 45 },
       acum: {},
       leyes: [],
       pendientes: [],
@@ -235,7 +237,7 @@
     }
     res.medida = laMedida;
     if (def && def.prensa) res.prensa = def.prensa;
-    res.vars = { objeto: nombre, Objeto: T.mayus(nombre), medida: laMedida, Medida: T.mayus(laMedida), lider: 'Su Excelencia' };
+    res.vars = { objeto: nombre, Objeto: T.mayus(nombre), medida: laMedida, Medida: T.mayus(laMedida), lider: 'Líder Supremo' };
 
     // Combinaciones con historia propia ("vender el aire").
     const especial = !res.derogada && RF.ESPECIALES[accion + ':' + objId];
@@ -268,17 +270,17 @@
   }
 
   /*
-   * Decreto sobre una persona: "matar a Garrote", "encarcelar a Nico", "premiar a la canciller".
+   * Decreto sobre una persona: "matar a Jang", "encarcelar a Chol-su", "premiar a la canciller".
    * Algunos dejan huella varios turnos (un mártir, el miedo en Palacio, el luto de un barrio).
    */
   function decretarPersona(estado, interp, op) {
     op = op || {};
     const t = RF.poder.tratar(estado, interp.persona, interp.trato, interp.caido, interp.secreto);
-    const res = { dia: estado.dia, tipo: 'persona', persona: interp.persona, trato: interp.trato, deltas: {}, sucesos: [], notas: t.notas.slice(), vars: { lider: 'Su Excelencia' } };
+    const res = { dia: estado.dia, tipo: 'persona', persona: interp.persona, trato: interp.trato, deltas: {}, sucesos: [], notas: t.notas.slice(), vars: { lider: 'Líder Supremo' } };
     if (t.nulo) { res.nulo = t.nulo; return res; }
     res.medida = t.medida;
     res.nombreObjeto = t.nombre;
-    res.vars = { objeto: t.nombre, Objeto: t.nombre, medida: t.medida, Medida: T.mayus(t.medida), lider: 'Su Excelencia' };
+    res.vars = { objeto: t.nombre, Objeto: t.nombre, medida: t.medida, Medida: T.mayus(t.medida), lider: 'Líder Supremo' };
     res.especial = t.texto;
     res.sucesor = t.sucesor || null;
     // En democracia, un crimen a la vista de todos pesa más.
@@ -444,19 +446,7 @@
     if (s.felicidad <= 0) return 'pueblo';
     if (s.inflacion >= 1000) return 'hiperinflacion';
     if (estado.diasEnQuiebra >= 2) return 'tesoro';
-    if (estado.dia > RF.PAIS.dias) {
-      // Al final del mandato: depende del régimen.
-      const m = RF.politica.mods(estado);
-      const p = estado.politica;
-      if (m.elecciones === 'libres') return s.felicidad >= 55 ? 'elecciones_ganadas' : 'elecciones_perdidas';
-      if (m.elecciones === 'amanables') {
-        if (s.felicidad >= 50) return 'elecciones_ganadas';
-        if (p.elecciones === 'controlado' || s.estabilidad >= 55) return 'elecciones_amanadas';
-        return 'elecciones_perdidas';
-      }
-      if (s.estabilidad >= 35) return 'perpetuo';
-      return s.felicidad < 30 ? 'pueblo' : 'ejercito';
-    }
+    // No hay último turno: se gobierna hasta caer (o hasta perder unas elecciones libres, ver politica.js).
     return null;
   }
 

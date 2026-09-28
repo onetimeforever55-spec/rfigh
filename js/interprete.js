@@ -154,7 +154,7 @@
   // Elige la forma del objeto que mejor encaja con lo que escribió el jugador ("el reguetón").
   function formaMostrada(objId, raicesTexto) {
     const o = RF.OBJETOS[objId];
-    if (objId === 'LIDER') return 'Su Excelencia';
+    if (objId === 'LIDER') return 'el Líder Supremo';
     if (o.institucion) return o.nombre;
     let mejor = o.nombre, mejorN = 0;
     for (const f of o.formas) {
@@ -200,7 +200,7 @@
   // Qué hacer con una persona según la acción que entendió el clasificador.
   const TRATO_DE_ACCION = { CASTIGAR: 'encarcelar', PROHIBIR: 'exiliar', RECORTAR: 'destituir', GLORIFICAR: 'premiar', SUBSIDIAR: 'premiar', INVERTIR: 'premiar', LEGALIZAR: 'liberar' };
 
-  // ¿El decreto va sobre una persona concreta? ("matar a Garrote", "premiar a la canciller")
+  // ¿El decreto va sobre una persona concreta? ("matar a Jang", "premiar a la canciller")
   function interpretarPersona(texto, crudas, ra, estado, corregidas, k) {
     if (!RF.poder) return null;
     const norm = crudas.join(' ');
@@ -308,7 +308,7 @@
     } else {
       // Objeto desconocido ("los calcetines"), para todos ("subir impuestos") o falta el objeto.
       const otro = extraerOtro(texto, acc, ra.ranking[0].clase);
-      const paraTodos = /\b(todos|todo el mundo|gente|pueblo|poblacion|ciudadanos|valdorianos|nadie)\b/.test(T.normalizar(texto));
+      const paraTodos = /\b(todos|todo el mundo|gente|pueblo|poblacion|ciudadanos|norcoreanos|nadie)\b/.test(T.normalizar(texto));
       if (otro) {
         res.objeto = 'OTRO';
         res.nombreObjeto = otro;

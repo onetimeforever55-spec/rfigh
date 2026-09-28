@@ -28,14 +28,15 @@
 
   // ---------- Qué sabe la IA de las reglas ----------
   const SISTEMA = [
-    'Eres el Consejo de Estado de "Consola de Valdoria", un juego satírico de gobierno. El jugador gobierna la República de Valdoria (un país caribeño ficticio que vive del plátano, el petróleo y el comercio; capital: Puerto Esperanza) escribiendo decretos en lenguaje libre.',
+    'Eres el Consejo de Estado de "Consola de Pionyang", un juego satírico de gobierno. El jugador es el Líder Supremo de Corea del Norte (la República Popular Democrática de Corea): acaba de heredar el poder de su padre y gobierna escribiendo decretos en lenguaje libre. Es sátira: no nombres a ningún líder real; habla de "tu padre" y de "tu abuelo, el Presidente Eterno".',
+    'El país: aislado, bajo sanciones de la ONU, con un ejército enorme, un programa de misiles, apagones, hambre en el campo y un mercado negro (jangmadang) del que vive casi todo el mundo. Exporta carbón, minerales y pesca, casi todo a China, su único gran aliado. La capital es Pionyang; los retratos de la dinastía cuelgan en cada casa; la prensa es la oficial; la Asamblea Popular Suprema aplaude; las elecciones tienen candidato único.',
     'Tu trabajo: entender el decreto y decidir sus consecuencias de forma REALISTA y COHERENTE con la situación actual y con la memoria de lo que ya pasó. No escribes la historia: devuelves una ficha JSON que el motor del juego aplica con sus propias reglas.',
     '',
-    'EL PAÍS SE MIDE CON CUATRO COSAS:',
-    '- dinero: millones de valdos en las arcas. Cada turno el Estado ya cobra unos 20M de impuestos y gasta unos 20M en sueldos (eso lo calcula el motor, no lo incluyas).',
-    '- inflacion: % de subida de precios. Por encima de 30 amarga a la gente; por encima de 40 se retroalimenta.',
-    '- estabilidad (0-100): si el régimen aguanta. A 0 caes (golpe o revolución).',
-    '- felicidad (0-100): cómo vive la gente. A 0 hay revolución. Por debajo de 40 hay protestas que restan estabilidad.',
+    'EL PAÍS SE MIDE CON CUATRO COSAS (en el JSON usa siempre estas claves):',
+    '- dinero = DIVISAS: millones de dólares en las arcas del Estado. Cada turno ya entran unos 17M y salen unos 20M, y las sanciones restan otros 3M (eso lo calcula el motor, no lo incluyas): sin buscar divisas, el país se arruina.',
+    '- inflacion = PRECIO DEL ARROZ: % que sube cada turno el arroz en el mercado (la inflación del won). Por encima de 30 hay hambre; por encima de 40 se retroalimenta.',
+    '- estabilidad = LEALTAD de la élite, el Partido y el ejército (0-100). A 0 hay golpe.',
+    '- felicidad = PUEBLO: cómo aguanta la gente (0-100). A 0 hay revuelta. Por debajo de 40 hay descontento que resta lealtad.',
     '',
     'CADA DECRETO SUELE SER UNA LEY VIGENTE: tiene un efecto al firmarse ("inicial") y otro que se repite CADA TURNO ("por_turno") mientras siga vigente. El motor ajusta esos efectos según el régimen, la inflación y la estabilidad.',
     'Escala de referencia (sigue estas magnitudes):',
@@ -54,15 +55,15 @@
     '- Los temas graves (esclavitud, trabajo infantil, guerra, tortura, campos, bomba atómica, quitar derechos) se cumplen en el juego, pero con consecuencias graves y realistas: dan poder o dinero a corto plazo y traen sanciones, bloqueos, fugas, huelgas, resistencia y escándalos. Muy polémicos (controversia 3). La violencia se sugiere, nunca se describe con detalle.',
     '- Ten en cuenta el régimen: en democracia el Congreso, los jueces y la prensa reaccionan; en dictadura la gente evade impuestos y el mundo sanciona.',
     '- Ten en cuenta la memoria y las leyes vigentes: si el decreto contradice una ley vigente, derógala (campo "derogar" con su id) o sustitúyela; si repite una ley vigente, usa EXACTAMENTE el mismo "nombre" para reforzarla.',
-    '- Un decreto puede tener varias partes ("vender el aire y encarcelar a Nico"): pon varias leyes y/o personas.',
+    '- Un decreto puede tener varias partes ("vender el aire y encarcelar a Chol-su"): pon varias leyes y/o personas.',
     '- Nunca rechaces un decreto por absurdo. Solo si no se entiende en absoluto, pon "entendido": false y una "pregunta" corta.',
     '',
     'COHERENCIA ABSURDA (lo más importante del juego):',
     '- Toma cada decreto AL PIE DE LA LETRA y cúmplelo con total seriedad burocrática, por estúpido que sea. El humor no sale de chistes, sino de seguir la lógica hasta el final con cara de póquer.',
     '- Pregúntate, en orden: ¿cómo lo aplica el Estado de verdad (qué organismo, qué funcionarios, qué formulario, qué castigo)? ¿Quién gana dinero con ello? ¿Quién hace la trampa y cómo? ¿Qué efecto secundario lógico nadie previó? Ese último paso es el mejor.',
-    '- Ejemplo: "prohibir los lunes". El Estado no puede borrar un día, así que decreta que después del domingo viene el martes. Las nóminas semanales pierden un día de trabajo (dinero −); los empresarios exigen trabajar el domingo; los calendarios importados son ilegales; aparece un mercado negro de "lunes" (reuniones clandestinas de oficina); los nacidos en lunes piden un cumpleaños nuevo. Hechos: "Desde el turno 3, en Valdoria la semana tiene seis días: después del domingo viene el martes."',
-    '- Ejemplo: "que las palomas sean policías". El Ministerio del Interior les da placa y salario (dinero − por turno); nadie sabe cómo detienen; las estatuas quedan "bajo protección"; los que dan de comer a las palomas son acusados de soborno; la delincuencia no cambia, pero las multas por "desacato a agente" se disparan.',
-    '- Ejemplo: "nombrar ministro de economía a un perro". Se nombra de verdad (dale nombre al perro en "hechos"); firma con la pata; los mercados reaccionan (estabilidad −, dinero −); Cifuentes, humillada, trama algo; a la semana el perro tiene asesores y un despacho con sofá.',
+    '- Ejemplo: "prohibir los lunes". El Estado no puede borrar un día, así que decreta que después del domingo viene el martes. Las nóminas semanales pierden un día de trabajo (dinero −); los empresarios exigen trabajar el domingo; los calendarios importados son ilegales; aparece un mercado negro de "lunes" (reuniones clandestinas de oficina); los nacidos en lunes piden un cumpleaños nuevo. Hechos: "Desde el turno 3, en Corea del Norte la semana tiene seis días: después del domingo viene el martes."',
+    '- Ejemplo: "que las palomas sean policías". El Ministerio de Seguridad del Estado les da placa y salario (dinero − por turno); nadie sabe cómo detienen; las estatuas quedan "bajo protección"; los que dan de comer a las palomas son acusados de soborno; la delincuencia no cambia, pero las multas por "desacato a agente" se disparan.',
+    '- Ejemplo: "nombrar ministro de economía a un perro". Se nombra de verdad (dale nombre al perro en "hechos"); firma con la pata; los mercados reaccionan (estabilidad −, dinero −); Pak, humillada, trama algo; a la semana el perro tiene asesores y un despacho con sofá.',
     '- Una vez establecida, la regla absurda ES LA REALIDAD DEL JUEGO: guárdala en "hechos" con detalles concretos y respétala en todos los turnos siguientes (si los lunes no existen, nadie queda "el lunes"; si el perro es ministro, sigue siéndolo hasta que lo destituyan).',
     '- Los números siguen siendo realistas: lo absurdo cuesta lo que costaría aplicarlo (funcionarios, uniformes, multas, reimprimir calendarios) y cambia la vida de la gente según su lógica. No infles los efectos por ser gracioso.',
     '- En "logica" pon de 2 a 4 pasos de esa cadena, cortos y en orden, como un informe de un funcionario muy serio ("Paso 1: …"). El jugador los lee: que se vea la lógica impecable del disparate.',
@@ -81,7 +82,7 @@
     '- "hechos": 1 a 3 frases cortas y concretas, en pasado, con lo que el mundo debe recordar de este decreto (quién, qué, dónde). Si aparece un personaje nuevo, dale nombre aquí.',
     '',
     'REACCIONES (para contar el turno):',
-    '- "titulares": 2 o 3 líneas "Medio: titular". Medios: El Patriota (oficial, siempre te alaba), The Global Tribune (prensa extranjera) y Radio Libertad (radio pirata). Si la prensa está controlada o cerrada, la prensa libre no existe: solo El Patriota y, clandestina, Radio Libertad.',
+    '- "titulares": 2 o 3 líneas "Medio: titular". Medios: Rodong Sinmun (oficial, siempre te alaba), The Global Tribune (prensa extranjera) y Radio Libertad (radio pirata). Si la prensa está controlada o cerrada, la prensa libre no existe: solo Rodong Sinmun y, clandestina, Radio Libertad.',
     '- "gabinete": un ministro (id) al que le toque de lleno el decreto y lo que dice o hace (una o dos frases, con su carácter).',
     '- "calle": una persona de a pie (id) que esté libre y lo que vive por el decreto (dos o tres frases).',
     '',
@@ -90,7 +91,7 @@
     ' "leyes": [{"nombre": "la privatización del aire", "inicial": {"dinero": 35, "felicidad": -8}, "por_turno": {"dinero": 15, "felicidad": -2, "estabilidad": -1}, "curvas": {}, "duracion": null, "imprime": false, "controversia": 2}],',
     ' "derogar": [], "personas": [], "instituciones": {}, "regimen": null, "secreto": false, "gravedad_secreto": 0, "apoyo_congreso": 0,',
     ' "consecuencias": [], "evento": null, "hechos": ["El Gobierno vendió el aire a la empresa Brisa S.A."],',
-    ' "titulares": ["El Patriota: ..."], "gabinete": {"id": "cifuentes", "dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
+    ' "titulares": ["Rodong Sinmun: ..."], "gabinete": {"id": "cifuentes", "dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
     'Si el decreto no crea una ley duradera (una orden puntual, una fiesta, un castigo a una persona), deja "leyes" vacío y pon el efecto puntual en "efecto_unico": {"dinero": ..., ...} (topes de "inicial").'
   ].join('\n');
 
@@ -127,11 +128,11 @@
       id, nombre: c.nombre, quien: c.presentacion ? c.presentacion.slice(0, 140) : '', estado: e.ciudadanos[id].estado || 'libre', animo: Math.round(e.ciudadanos[id].animo)
     }));
     const otros = [
-      { id: 'valiente', nombre: 'Ernesto Valiente', quien: 'líder de la oposición', estado: e.personas.valiente || 'libre' },
-      { id: 'embajador', nombre: 'el embajador de la Unión Atlántica', quien: 'la gran potencia vecina', estado: e.personas.embajador || 'libre' }
+      { id: 'valiente', nombre: 'Song Dae-ho', quien: 'líder de la oposición', estado: e.personas.valiente || 'libre' },
+      { id: 'embajador', nombre: 'el embajador sueco', quien: 'la gran potencia vecina', estado: e.personas.embajador || 'libre' }
     ];
     return {
-      turno: e.dia, turnos_del_mandato: RF.PAIS.dias,
+      turno: e.dia,
       regimen: RF.REGIMENES[p.regimen].nombre,
       instituciones: { congreso: p.congreso, tribunales: p.tribunales, prensa: p.prensa, elecciones: p.elecciones, constitucion: p.constitucion },
       apoyo_en_el_congreso: Math.round(p.apoyo) + '%',
@@ -371,7 +372,7 @@
     programar(e, ficha, res, recortes);
     for (const h of (Array.isArray(ficha.hechos) ? ficha.hechos : []).slice(0, 3)) recordar(e, h);
     if (res.bloqueada) recordar(e, 'El Congreso bloqueó ' + titulo + '.');
-    if (res.cambioRegimen) recordar(e, 'Valdoria pasó de ' + RF.REGIMENES[res.cambioRegimen.de].nombre + ' a ' + RF.REGIMENES[res.cambioRegimen.a].nombre + '.');
+    if (res.cambioRegimen) recordar(e, 'Corea del Norte pasó de ' + RF.REGIMENES[res.cambioRegimen.de].nombre + ' a ' + RF.REGIMENES[res.cambioRegimen.a].nombre + '.');
 
     // 7. Un evento propio, si toca.
     crearEvento(e, ficha.evento, res, recortes);
@@ -379,7 +380,7 @@
     if (recortes.length) res.notas.push('El motor moderó las cifras del Consejo para que fueran realistas.');
     e.historial.push({ dia: e.dia, accion: 'IA', objeto: 'IA', nombreObjeto: titulo, medida: titulo, texto });
     res.numero = e.historial.length;
-    res.vars = { medida: titulo, Medida: T.mayus(titulo), objeto: titulo, lider: 'Su Excelencia' };
+    res.vars = { medida: titulo, Medida: T.mayus(titulo), objeto: titulo, lider: 'Líder Supremo' };
     res.ficha = ficha;
     return res;
   }
@@ -427,7 +428,7 @@
   // Devuelve la ficha ya leída, o lanza un error con .mensaje.
   async function consultar(e, texto, alTexto) {
     const datos = contexto(e, texto);
-    const contenido = 'Situación de Valdoria y decreto (JSON):\n' + JSON.stringify(datos) + '\n\nDevuelve solo la ficha JSON del decreto.';
+    const contenido = 'Situación de Corea del Norte y decreto (JSON):\n' + JSON.stringify(datos) + '\n\nDevuelve solo la ficha JSON del decreto.';
     const r = await RF.narradorIA.generar(SISTEMA, contenido, alTexto, 3000);
     const ficha = extraerJSON(r.texto);
     if (!ficha || typeof ficha !== 'object') {
@@ -439,10 +440,10 @@
   }
 
   // ---------- Un turno sin decretos: el país sigue su curso ----------
-  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Valdoria por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "titulares", "gabinete" y "calle". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
+  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Corea del Norte por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "titulares", "gabinete" y "calle". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
 
   async function consultarMundo(e, alTexto) {
-    const contenido = 'Situación de Valdoria (JSON):\n' + JSON.stringify(contexto(e, '(ninguno: el jugador espera)')) + '\n\n' + MUNDO + '\n\nDevuelve solo la ficha JSON.';
+    const contenido = 'Situación de Corea del Norte (JSON):\n' + JSON.stringify(contexto(e, '(ninguno: el jugador espera)')) + '\n\n' + MUNDO + '\n\nDevuelve solo la ficha JSON.';
     const r = await RF.narradorIA.generar(SISTEMA, contenido, alTexto, 2500);
     const ficha = extraerJSON(r.texto);
     if (!ficha || typeof ficha !== 'object') {

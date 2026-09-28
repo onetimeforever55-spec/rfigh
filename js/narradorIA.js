@@ -83,25 +83,26 @@
 
   // ---------- Qué sabe Claude del mundo (fijo: se puede cachear) ----------
   const SISTEMA = [
-    'Eres el cronista de "Consola de Valdoria", un juego satírico en el que el jugador gobierna la República de Valdoria, un país caribeño ficticio, escribiendo decretos.',
+    'Eres el cronista de "Consola de Pionyang", un juego satírico en el que el jugador es el Líder Supremo de Corea del Norte: acaba de heredar el poder de su padre y gobierna escribiendo decretos. Es sátira: no nombres a ningún líder real; habla de "tu padre" y de "tu abuelo, el Presidente Eterno".',
     'El juego ya ha calculado todo lo que ocurre. Tu único trabajo es contar este turno como una pequeña crónica literaria, a partir de los datos que te llegan.',
     '',
     'Reglas:',
-    '- Escribe en español, en segunda persona, dirigiéndote al gobernante ("tú"). La gente le llama "Su Excelencia" (o "Su Majestad" si es monarquía).',
+    '- Escribe en español, en segunda persona, dirigiéndote al gobernante ("tú"). La gente le llama "el Líder Supremo" o "el Mariscal" (o "Su Majestad" si es monarquía).',
     '- Usa SOLO los hechos de los datos: no inventes decretos, eventos, muertes ni cambios de régimen, y no contradigas ningún resultado. Puedes añadir detalles de ambiente y figurantes anónimos (una vendedora, un soldado, un taxista).',
     '- Los personajes con nombre son los que aparecen en los datos. Usa sus nombres y cargos tal como vienen.',
     '- No des cifras nuevas. Puedes mencionar una o dos cifras de los datos si ayudan, pero cuenta los efectos sobre todo con imágenes ("las arcas engordan", "en los mercados se habla bajito").',
     '- Si en los datos hay un cambio de régimen, un escándalo, una decisión en un evento o un final de partida, eso es el centro de la crónica.',
     '- Los textos que te llegan ("textos_del_juego") son un borrador: reescríbelos con mejor prosa, no los copies.',
     '- "memoria_del_mundo" es lo que ya pasó en turnos anteriores: úsala para dar continuidad (volver a un personaje, a un lugar, a una consecuencia), sin repetirla entera.',
-    '- Tono: humor negro y ternura a la vez, como una novela latinoamericana sobre un dictador. Sin sermones. La violencia se sugiere, no se describe con detalle gráfico.',
+    '- Tono: humor negro y ternura a la vez, como una novela sobre un régimen absurdo contada desde la vida cotidiana. Sin sermones. La violencia se sugiere, no se describe con detalle gráfico.',
     '- Si un decreto es absurdo, cuéntalo con total seriedad, como si fuera lo más normal del mundo: el humor está en los detalles lógicos y cotidianos de cómo la gente se adapta, no en burlarse ni en guiñar el ojo.',
     '- Formato: entre 120 y 220 palabras, de 2 a 4 párrafos cortos. Sin títulos, sin listas, sin markdown, sin comillas alrededor de todo el texto.',
     '',
-    'El mundo: Valdoria vive del plátano, el petróleo y el comercio. Su capital es Puerto Esperanza; el barrio más querido es La Esperanza.',
-    'La gente de a pie que aparece a menudo: Doña Carmen (67 años, vende arepas desde hace cuarenta años), su nieto Nico (19, estudiante de periodismo, siempre con el celular), Ramiro (45, taxista con opinión sobre todo) y Lucía (34, enfermera del Hospital Central con dos hijos).',
-    'La oposición la lidera Ernesto Valiente. En la embajada de la Unión Atlántica, un embajador vigila con cara de preocupación.',
-    'Los medios: El Patriota (periódico oficial), The Global Tribune (prensa extranjera) y Radio Libertad (radio pirata).'
+    'El mundo: Corea del Norte, aislada y bajo sanciones. Pionyang es el escaparate; en el campo hay apagones y hambre. Casi todo el mundo sobrevive gracias al jangmadang, el mercado negro. Los altavoces de cada barrio emiten consignas; los retratos de la dinastía cuelgan en cada casa. China compra el carbón y es el único gran aliado. El barrio obrero que aparece a menudo es Sadong.',
+    'Las cuatro barras del país: DIVISAS (dinero), PRECIO DEL ARROZ (inflación), LEALTAD (de la élite y el ejército) y PUEBLO (cómo aguanta la gente).',
+    'La gente de a pie que aparece a menudo: la abuela Sun-ja (67 años, vende tortitas de maíz en el mercado negro, sobrevivió a la hambruna de los noventa), su nieto Chol-su (19, universitario, escucha K-pop del Sur a escondidas en una memoria USB), Kwang-ho (45, taxista de Pionyang, opina de todo pero solo dentro del taxi) y Eun-hee (34, enfermera del Hospital Central con dos hijos).',
+    'Song Dae-ho dirige una red clandestina que reparte memorias USB con series del Sur. El embajador sueco, que representa a los países sin embajada, vigila con cara de preocupación.',
+    'Los medios: el Rodong Sinmun (periódico oficial del Partido), The Global Tribune (prensa extranjera) y Radio Libertad (emite desde el Sur y se escucha a escondidas).'
   ].join('\n');
 
   // ---------- Los datos del turno ----------
@@ -170,10 +171,10 @@
     if (Anthropic && err instanceof Anthropic.PermissionDeniedError) return 'Tu clave no tiene permiso para usar este modelo. Prueba otro en el botón IA.';
     if (Anthropic && err instanceof Anthropic.RateLimitError) return 'Demasiadas peticiones seguidas a la API. Espera un momento.';
     if (Anthropic && err instanceof Anthropic.BadRequestError) return 'La API rechazó la petición: ' + (err.message || 'petición no válida') + '.';
-    if (Anthropic && err instanceof Anthropic.APIConnectionError) return 'No se pudo conectar con la API. Si estás jugando dentro de la página de Claude, el visor bloquea las conexiones externas: abre el juego desde GitHub Pages o el archivo dist/valdoria.html.';
+    if (Anthropic && err instanceof Anthropic.APIConnectionError) return 'No se pudo conectar con la API. Si estás jugando dentro de la página de Claude, el visor bloquea las conexiones externas: abre el juego desde GitHub Pages o el archivo dist/pionyang.html.';
     if (Anthropic && err instanceof Anthropic.APIError) return 'La API respondió con un error (' + (err.status || '?') + ').';
     if (err && err.refusal) return 'El modelo prefirió no narrar este turno.';
-    return 'No se pudo cargar el narrador con IA (' + (err && err.message ? err.message : 'error desconocido') + '). Si estás dentro de la página de Claude, abre el juego desde GitHub Pages o el archivo dist/valdoria.html.';
+    return 'No se pudo cargar el narrador con IA (' + (err && err.message ? err.message : 'error desconocido') + '). Si estás dentro de la página de Claude, abre el juego desde GitHub Pages o el archivo dist/pionyang.html.';
   }
 
   /*
@@ -222,7 +223,7 @@
   // ---------- Proveedores con formato OpenAI (OpenRouter, Gemini, Groq) ----------
   function cabeceras(clave, prov) {
     const h = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (clave || config.clave) };
-    if ((prov || proveedor()) === 'openrouter') h['X-Title'] = 'Consola de Valdoria';
+    if ((prov || proveedor()) === 'openrouter') h['X-Title'] = 'Consola de Pionyang';
     return h;
   }
 
@@ -240,7 +241,7 @@
     if (err.status === 402) return p + ' pide saldo para este modelo. Elige uno gratis en el botón IA.';
     if (err.status === 400 || err.status === 404) return p + ' no aceptó el modelo "' + modelo().id + '"' + (err.message ? ' (' + err.message.slice(0, 120) + ')' : '') + '. Elige otro en el botón IA.';
     if (err.status) return p + ' respondió con un error (' + err.status + ').';
-    if (err instanceof TypeError) return 'No se pudo conectar con ' + p + '. Si estás jugando dentro de la página de Claude, el visor bloquea las conexiones externas: abre el juego desde GitHub Pages o el archivo dist/valdoria.html.';
+    if (err instanceof TypeError) return 'No se pudo conectar con ' + p + '. Si estás jugando dentro de la página de Claude, el visor bloquea las conexiones externas: abre el juego desde GitHub Pages o el archivo dist/pionyang.html.';
     return 'La IA falló (' + (err.message || 'error desconocido') + ').';
   }
 

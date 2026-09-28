@@ -91,13 +91,13 @@ const ESPECIALES = [
   ['imprimir dinero', 'CREAR', 'DINERO'],
   ['dolarizar', 'PROHIBIR', 'DINERO'],
   ['legalizar el narcotráfico', 'LEGALIZAR', 'NARCO'],
-  ['matar al general Garrote', 'matar', 'garrote'],
-  ['encarcelar a Nico', 'encarcelar', 'nico'],
+  ['matar al general Jang', 'matar', 'garrote'],
+  ['encarcelar a Chol-su', 'encarcelar', 'nico'],
   ['premiar a la canciller', 'premiar', 'montiel'],
   ['expulsar al embajador', 'exiliar', 'embajador'],
   ['que desaparezca el líder de la oposición', 'matar', 'valiente'],
-  ['destituir a Cifuentes', 'destituir', 'cifuentes'],
-  ['regalarle un taxi nuevo a Ramiro', 'premiar', 'ramiro'],
+  ['destituir a Pak', 'destituir', 'cifuentes'],
+  ['regalarle un taxi nuevo a Kwang-ho', 'premiar', 'ramiro'],
   // Sistema político
   ['disuelvo el congreso', 'PROHIBIR', 'CONGRESO'],
   ['dar un autogolpe', 'PROHIBIR', 'CONGRESO'],
@@ -112,8 +112,8 @@ const ESPECIALES = [
   ['restaurar la democracia', 'CREAR', 'DEMOCRACIA'],
   ['convocar elecciones libres', 'CREAR', 'DEMOCRACIA'],
   ['asesino contrincantes secretamente', 'CASTIGAR', 'OPOSICION'],
-  ['matar en secreto a Valiente', 'matar', 'valiente'],
-  ['que parezca un accidente lo de Cifuentes', 'matar', 'cifuentes']
+  ['matar en secreto a Song Dae-ho', 'matar', 'valiente'],
+  ['que parezca un accidente lo de Pak', 'matar', 'cifuentes']
 ];
 let espOk = 0;
 for (const [frase, accion, objeto] of ESPECIALES) {

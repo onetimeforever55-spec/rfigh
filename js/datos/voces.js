@@ -14,32 +14,32 @@
 
   RF.PRENSA = {
     oficial: {
-      nombre: 'El Patriota',
-      esencial: ['«{Medida}: una reforma valiente que el pueblo sabrá agradecer»', '«Expertos confirman: {objeto} funcionará mejor que nunca»', '«Su Excelencia moderniza {objeto} con visión de futuro»'],
-      libertad: ['«{Medida}: orden y paz para las familias valdorianas»', '«El pueblo respira tranquilo tras {medida}»', '«Por fin: {medida}. Las madres lo agradecen»'],
+      nombre: 'Rodong Sinmun',
+      esencial: ['«{Medida}: una reforma valiente que el pueblo sabrá agradecer»', '«Expertos confirman: {objeto} funcionará mejor que nunca»', '«El Líder Supremo moderniza {objeto} con visión de futuro»'],
+      libertad: ['«{Medida}: orden y paz para las familias norcoreanas»', '«El pueblo respira tranquilo tras {medida}»', '«Por fin: {medida}. Las madres lo agradecen»'],
       represion: ['«Mano firme contra quienes amenazan la patria»', '«{Medida}: la seguridad es lo primero»', '«Ciudadanos de bien celebran {medida}»'],
-      regalo: ['«¡Gracias, Excelencia! {Medida} llena de alegría los hogares»', '«{Medida}: el líder que cuida de su pueblo»', '«Lágrimas de felicidad en los barrios tras {medida}»'],
+      regalo: ['«¡Gracias, Líder Supremo! {Medida} llena de alegría los hogares»', '«{Medida}: el líder que cuida de su pueblo»', '«Lágrimas de felicidad en los barrios tras {medida}»'],
       impuesto: ['«{Medida}: todos aportan a la grandeza nacional»', '«Contribuir es amar a la patria»', '«Nuevo impuesto patriótico recibido con entusiasmo»'],
       culto: ['«La nación entera celebra {medida}»', '«{Medida}: un homenaje merecido»', '«Los niños ya cantan la nueva canción del homenaje»'],
       absurdo: ['«{Medida}: una idea adelantada a su tiempo»', '«Otros países ya estudian copiar {medida}»', '«Científicos aplauden {medida}, aunque no saben por qué»'],
-      economia: ['«{Medida} traerá prosperidad, afirma el gobierno»', '«Los mercados celebran {medida}»', '«{Medida}: Valdoria entra en el siglo XXI»'],
+      economia: ['«{Medida} traerá prosperidad, afirma el gobierno»', '«Los mercados celebran {medida}»', '«{Medida}: Corea del Norte entra en el siglo XXI»'],
       obra: ['«{Medida}: la patria construye su futuro»', '«Primera piedra de una nueva era»', '«{Medida}: obra histórica del líder»'],
       secreto: ['«Trágico suceso: {Objeto} nos deja»', '«El Gobierno lamenta profundamente lo ocurrido y pide respeto para las familias»', '«Las autoridades descartan cualquier indicio de delito»'],
-      general: ['«Su Excelencia decreta y el país avanza»', '«{Medida}: otro acierto del gobierno»', '«Un decreto histórico: {medida}»']
+      general: ['«El Líder Supremo decreta y el país avanza»', '«{Medida}: otro acierto del gobierno»', '«Un decreto histórico: {medida}»']
     },
     extranjera: {
       nombre: 'The Global Tribune',
-      esencial: ['"Valdoria: el dictador que puso precio a {objeto}"', '"Alarma humanitaria en Valdoria tras {medida}"', '"Las ONG denuncian {medida}"'],
-      libertad: ['"Valdoria se cierra al mundo: {medida}"', '"Otro paso hacia el autoritarismo en Valdoria"', '"La comunidad internacional condena {medida}"'],
-      represion: ['"Represión en Valdoria: {medida}"', '"Amnistía Internacional pide explicaciones a Valdoria"', '"Valdoria, cada día más parecido a una cárcel"'],
-      regalo: ['"Populismo tropical: {medida}"', '"Economistas advierten del coste de {medida}"', '"Valdoria gasta lo que no tiene"'],
-      impuesto: ['"Valdoria sube la presión fiscal"', '"Inversores preocupados por {medida}"', '"Fuga de capitales en Valdoria tras {medida}"'],
-      culto: ['"El culto a la personalidad llega a un nuevo nivel en Valdoria"', '"Valdoria: {medida}. Sí, en serio"', '"El ego más grande del Caribe"'],
-      absurdo: ['"Los decretos más extraños del año: Valdoria gana otra vez"', '"¿Qué está pasando en Valdoria? Ahora: {medida}"', '"Humor involuntario: {medida}"'],
-      economia: ['"Valdoria cambia las reglas del juego: {medida}"', '"Los mercados reaccionan a {medida}"', '"Giro económico en Valdoria"'],
-      obra: ['"Valdoria invierte: ¿propaganda o progreso?"', '"Obras en Valdoria: a ver cuánto dura"', '"Un raro acierto en Valdoria"'],
-      secreto: ['"Extrañas circunstancias en Valdoria: ¿accidente o algo más?"', '"Organizaciones internacionales piden una investigación independiente en Valdoria"', '"Demasiadas casualidades en Valdoria"'],
-      general: ['"Otro día, otro decreto en Valdoria"', '"Valdoria: {medida}"', '"El impredecible líder de Valdoria vuelve a sorprender"']
+      esencial: ['"Corea del Norte: el dictador que puso precio a {objeto}"', '"Alarma humanitaria en Corea del Norte tras {medida}"', '"Las ONG denuncian {medida}"'],
+      libertad: ['"Corea del Norte se cierra al mundo: {medida}"', '"Otro paso hacia el autoritarismo en Corea del Norte"', '"La comunidad internacional condena {medida}"'],
+      represion: ['"Represión en Corea del Norte: {medida}"', '"Amnistía Internacional pide explicaciones a Corea del Norte"', '"Corea del Norte, cada día más parecido a una cárcel"'],
+      regalo: ['"Populismo tropical: {medida}"', '"Economistas advierten del coste de {medida}"', '"Corea del Norte gasta lo que no tiene"'],
+      impuesto: ['"Corea del Norte sube la presión fiscal"', '"Inversores preocupados por {medida}"', '"Fuga de capitales en Corea del Norte tras {medida}"'],
+      culto: ['"El culto a la personalidad llega a un nuevo nivel en Corea del Norte"', '"Corea del Norte: {medida}. Sí, en serio"', '"El ego más grande de Asia"'],
+      absurdo: ['"Los decretos más extraños del año: Corea del Norte gana otra vez"', '"¿Qué está pasando en Corea del Norte? Ahora: {medida}"', '"Humor involuntario: {medida}"'],
+      economia: ['"Corea del Norte cambia las reglas del juego: {medida}"', '"Los mercados reaccionan a {medida}"', '"Giro económico en Corea del Norte"'],
+      obra: ['"Corea del Norte invierte: ¿propaganda o progreso?"', '"Obras en Corea del Norte: a ver cuánto dura"', '"Un raro acierto en Corea del Norte"'],
+      secreto: ['"Extrañas circunstancias en Corea del Norte: ¿accidente o algo más?"', '"Organizaciones internacionales piden una investigación independiente en Corea del Norte"', '"Demasiadas casualidades en Corea del Norte"'],
+      general: ['"Otro día, otro decreto en Corea del Norte"', '"Corea del Norte: {medida}"', '"El impredecible líder de Corea del Norte vuelve a sorprender"']
     },
     pirata: {
       nombre: 'Radio Libertad',
@@ -61,7 +61,7 @@
   RF.VOCES_QUIEN = [
     'una vendedora del mercado', 'un jubilado en la cola del banco', 'una estudiante en el metro', 'un albañil en su descanso',
     'una maestra de primaria', 'un camarero del centro', 'una madre a la salida del colegio', 'un pescador del puerto',
-    'un policía fuera de servicio', 'una abuela en la parada del autobús', 'un chico repartiendo pizzas', 'una peluquera de La Esperanza',
+    'un policía fuera de servicio', 'una abuela en la parada del autobús', 'un chico repartiendo pizzas', 'una peluquera de Sadong',
     'un cura de barrio', 'un vendedor de lotería', 'una médica de guardia', 'un campesino llegado a la capital'
   ];
 
@@ -70,7 +70,7 @@
       esencial: ['"¿Y ahora cómo vivimos? ¿Del aire? Ah, no, que ese también lo cobran."', '"Mi madre me decía que los pobres siempre pagamos. No sabía cuánta razón tenía."', '"Con {medida} no llegamos a fin de mes. Ni a mitad."'],
       libertad: ['"Yo no me meto en política. Pero ahora la política se mete conmigo."', '"Mejor no digo nada. Nunca se sabe quién escucha."', '"Lo de {objeto} era lo único que nos quedaba."'],
       represion: ['"A mi vecino se lo llevaron de noche. Nadie sabe dónde está."', '"Ahora hay que tener cuidado hasta con lo que uno piensa."', '"Dicen que es contra los malos. Siempre dicen eso."'],
-      impuesto: ['"¿Más impuestos? ¿Y qué me dan a cambio? ¿Otro discurso?"', '"Ya no me queda nada que me puedan cobrar."', '"El sueldo baja y los impuestos suben. Magia valdoriana."'],
+      impuesto: ['"¿Más impuestos? ¿Y qué me dan a cambio? ¿Otro discurso?"', '"Ya no me queda nada que me puedan cobrar."', '"El sueldo baja y los impuestos suben. Magia norcoreana."'],
       culto: ['"Con lo que cuesta eso se arreglaba el hospital."', '"Mis hijos preguntan quién es ese señor de las estatuas. No sé qué decirles."', '"Otro homenaje. Qué bonito. Qué hambre."'],
       absurdo: ['"¿{Medida}? ¿En serio? ¿Eso es lo que nos preocupaba?"', '"Ya no sé si reír o emigrar."', '"Mi abuela vivió tres dictaduras y dice que esta es la más rara."'],
       general: ['"Cada día una cosa nueva, y cada cosa peor."', '"Aguantaremos. Siempre aguantamos."', '"No sé adónde vamos, pero no me gusta el camino."']
@@ -88,29 +88,29 @@
   RF.AMBIENTE = {
     pueblo: ['Amanece con pintadas nuevas en las paredes del centro. Los barrenderos ya no se molestan en borrarlas.', 'En los mercados se habla bajito y se mira mucho al Palacio.', 'Las cacerolas de anoche aún resuenan en la cabeza de los vecinos.'],
     ejercito: ['Hay más movimiento del habitual en los cuarteles. Nadie da explicaciones.', 'Un tanque aparca frente al Palacio "por mantenimiento". Nadie se lo cree.', '{garrote} ha cancelado el desayuno semanal contigo. Por segunda vez.'],
-    cupula: ['Los coches de lujo del Club Náutico salen de madrugada rumbo al aeropuerto.', 'En Palacio, los ministros se callan cuando entras en la sala.', 'Alguien ha cambiado la cerradura de tu despacho. Dicen que fue el conserje.'],
-    tesoro: ['Los funcionarios hacen cola frente a Hacienda para cobrar. La cola no avanza.', 'El valdo amanece otra vez por los suelos. Las casas de cambio cierran antes de abrir.', 'En Palacio se ha cortado el aire acondicionado para ahorrar. Hace un calor insoportable.'],
+    cupula: ['Los coches de lujo del club del Comité Central salen de madrugada rumbo al aeropuerto.', 'En Palacio, los ministros se callan cuando entras en la sala.', 'Alguien ha cambiado la cerradura de tu despacho. Dicen que fue el conserje.'],
+    tesoro: ['Los funcionarios hacen cola frente a Hacienda para cobrar. La cola no avanza.', 'El won amanece otra vez por los suelos. Las casas de cambio cierran antes de abrir.', 'En Palacio se ha cortado el aire acondicionado para ahorrar. Hace un calor insoportable.'],
     salud: ['En la puerta del Hospital Central, la fila empieza de madrugada.', 'Las farmacias cuelgan el cartel de "no hay". Otra vez.', 'Se oye toser en todas las colas del país.'],
     orden: ['Anoche ardieron dos contenedores y una patrulla de policía. Nadie vio nada.', 'Las tiendas del centro amanecen con rejas nuevas.', 'En los barrios del sur mandan otros, y todo el mundo lo sabe.'],
     mundo: ['Otra embajada anuncia que reduce su personal "por precaución".', 'Los vuelos internacionales llegan casi vacíos.', 'En el puerto, los barcos extranjeros pasan de largo.'],
     inflacion: ['Los precios de las pizarras de los mercados se borran y se reescriben antes del mediodía.', 'En la cola del pan, alguien paga con un fajo de billetes atado con una goma. Nadie se sorprende.', 'Las tiendas cierran a la hora de comer para cambiar las etiquetas.'],
-    bien: ['Amanece soleado en Puerto Esperanza. Los vendedores cantan mientras montan sus puestos.', 'Hay niños jugando en la plaza y nadie los manda a casa.', 'Un día tranquilo. En Valdoria, eso ya es noticia.'],
-    normal: ['Amanece en Puerto Esperanza. El país sigue, como siempre, esperando al siguiente decreto.', 'Otro día en Valdoria. El café está caro y los rumores, baratos.', 'Los periódicos del día llegan al Palacio. Nadie en la calle los lee.']
+    bien: ['Amanece soleado en Pionyang. Los vendedores cantan mientras montan sus puestos.', 'Hay niños jugando en la plaza y nadie los manda a casa.', 'Un día tranquilo. En Corea del Norte, eso ya es noticia.'],
+    normal: ['Amanece en Pionyang. El país sigue, como siempre, esperando al siguiente decreto.', 'Otro día en Corea del Norte. El café está caro y los rumores, baratos.', 'Los periódicos del día llegan al Palacio. Nadie en la calle los lee.']
   };
 
   // Decretos sobre cosas que el bot no conoce.
   RF.ABSURDO = {
     gaceta: [
       'Los juristas del Estado pasan la noche buscando en el diccionario qué es exactamente «{objeto}».',
-      'Es la primera ley de la historia de Valdoria que menciona «{objeto}». Los historiadores están emocionados.',
+      'Es la primera ley de la historia de Corea del Norte que menciona «{objeto}». Los historiadores están emocionados.',
       'El texto oficial ocupa una sola línea. Los abogados ya discuten si incluye a «{objeto}» de color azul.',
       'La policía recibe instrucciones de «vigilar el asunto de {objeto}». Nadie sabe muy bien cómo.'
     ],
     calle: [
       'En la calle, la gente se mira sin saber si reír o preocuparse. Al final, se ríe. Por si acaso, en voz baja.',
-      'Por la tarde ya hay memes, canciones y un baile sobre {medida}. Nico ha publicado cinco.',
-      'En La Esperanza nadie sabía que {objeto} fuera un problema nacional. Ahora todos tienen opinión.',
-      'Doña Carmen dice que en sus tiempos también hubo un presidente así. Duró poco.'
+      'Por la tarde ya hay memes, canciones y un baile sobre {medida}. Chol-su ha publicado cinco.',
+      'En Sadong nadie sabía que {objeto} fuera un problema nacional. Ahora todos tienen opinión.',
+      'La abuela Sun-ja dice que en sus tiempos también hubo un presidente así. Duró poco.'
     ]
   };
 
@@ -128,7 +128,7 @@
         'La policía instala controles en las entradas de la capital para detectar {objeto}. Nadie sabe qué buscar, así que se requisa todo lo sospechoso: paraguas, gallinas, un acordeón.'
       ],
       consecuencias: [
-        { en: 2, titulo: 'El mercado negro de {objeto}', textos: ['En el puerto ya se vende {objeto} de contrabando, a precio de oro. Los agentes de la Brigada son los mejores clientes.', 'Un bar clandestino de La Esperanza ofrece {objeto} en la trastienda. Hay cola. Hay contraseña. La contraseña es tu nombre.'], efectos: { estabilidad: -2, dinero: -3 } },
+        { en: 2, titulo: 'El mercado negro de {objeto}', textos: ['En el puerto ya se vende {objeto} de contrabando, a precio de oro. Los agentes de la Brigada son los mejores clientes.', 'Un bar clandestino de Sadong ofrece {objeto} en la trastienda. Hay cola. Hay contraseña. La contraseña es tu nombre.'], efectos: { estabilidad: -2, dinero: -3 } },
         { en: 3, titulo: 'El resquicio legal', textos: ['Un abogado descubre que el decreto no dice nada de {objeto} «en diminutivo». Media ciudad se acoge a la excepción.', 'Los tribunales se llenan de recursos: ¿es delito {objeto} sin querer? ¿Y en sueños? El Supremo lleva tres días deliberando.'], efectos: { estabilidad: -2, felicidad: 2 } }
       ]
     },
@@ -139,7 +139,7 @@
         'A partir de hoy, cada ventanilla del Estado exige demostrar {objeto} antes de atender. Las colas dan la vuelta a la manzana.'
       ],
       consecuencias: [
-        { en: 2, titulo: 'Certificados falsos', textos: ['En el mercado venden certificados falsos de {objeto} por cinco valdos. Los auténticos cuestan veinte y tardan un mes.', 'Un primo de {cifuentes} monta una academia de {objeto} con título oficial. Tiene cuatro mil alumnos y ningún profesor.'], efectos: { dinero: -3, felicidad: -1 } },
+        { en: 2, titulo: 'Certificados falsos', textos: ['En el mercado venden certificados falsos de {objeto} por cinco wones. Los auténticos cuestan veinte y tardan un mes.', 'Un primo de {cifuentes} monta una academia de {objeto} con título oficial. Tiene cuatro mil alumnos y ningún profesor.'], efectos: { dinero: -3, felicidad: -1 } },
         { en: 3, titulo: 'Los primeros multados', textos: ['La primera multa por no cumplir con {objeto} se la ponen a una monja. La foto da la vuelta al mundo.', 'Un pueblo entero del interior se declara «incapaz» de cumplir con {objeto}. {sombra} manda a un inspector. El inspector no vuelve.'], efectos: { estabilidad: -2, felicidad: -2 } }
       ]
     },
@@ -150,14 +150,14 @@
         'Un decreto de catorce páginas regula {objeto} hasta el último detalle. La página nueve contradice a la página tres.'
       ],
       consecuencias: [
-        { en: 3, titulo: 'Turismo del absurdo', textos: ['Llegan turistas extranjeros a ver {objeto} con sus propios ojos. Compran camisetas y se van riendo. El dinero, al menos, es real.', 'Un documental extranjero sobre {objeto} en Valdoria se vuelve viral. Llegan mochileros. Algunos se quedan.'], efectos: { dinero: 5, estabilidad: -1 } },
+        { en: 3, titulo: 'Turismo del absurdo', textos: ['Llegan turistas extranjeros a ver {objeto} con sus propios ojos. Compran camisetas y se van riendo. El dinero, al menos, es real.', 'Un documental extranjero sobre {objeto} en Corea del Norte se vuelve viral. Llegan mochileros. Algunos se quedan.'], efectos: { dinero: 5, estabilidad: -1 } },
         { en: 2, titulo: 'La contrata', textos: ['La empresa que construye {objeto} resulta ser del cuñado de {cifuentes}. El presupuesto ya se ha triplicado.', 'Se descubre que {objeto} no existe todavía, pero ya tiene doscientos empleados cobrando.'], efectos: { dinero: -6 } }
       ]
     },
     vender: {
       gaceta: [
-        'Se adjudica {objeto} a la empresa Valdoria Futuro S.A., fundada ayer por la tarde. Su dirección fiscal es un buzón en el puerto.',
-        'Se subasta {objeto} en el Palacio. Solo se presenta un comprador. Gana la subasta con una oferta de doce valdos y un apretón de manos.'
+        'Se adjudica {objeto} a la empresa Paektu Futuro S.A., fundada ayer por la tarde. Su dirección fiscal es un buzón en el puerto.',
+        'Se subasta {objeto} en el Palacio. Solo se presenta un comprador. Gana la subasta con una oferta de doce wones y un apretón de manos.'
       ],
       consecuencias: [
         { en: 2, titulo: 'El dueño cobra', textos: ['El nuevo dueño de {objeto} empieza a cobrar a quien lo use, lo mire o lo mencione. Nadie sabía que se usaba. Ahora todo el mundo lo necesita.', 'Los dueños de {objeto} demandan al Estado por «uso indebido» de {objeto} en los actos oficiales.'], efectos: { felicidad: -3, dinero: 2 } }

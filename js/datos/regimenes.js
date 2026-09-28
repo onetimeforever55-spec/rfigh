@@ -14,6 +14,12 @@
   'use strict';
 
   RF.REGIMENES = {
+    JUCHE: {
+      nombre: 'Dinastía Juche', corto: 'JUCHE',
+      descripcion: 'El Partido, el Ejército y tu familia son el Estado. La Asamblea aplaude, la prensa repite y las elecciones tienen un solo candidato. Nadie bloquea tus decretos y la represión rinde mucho, pero las sanciones asfixian las divisas y el pueblo vive al límite.',
+      recaudacion: 0.85, inversion: 0.75, felicidadTurno: -0.3, estabilidadBase: 62, represionEstab: 1.5, represionFel: 0.8, dineroTurno: -3,
+      elecciones: 'amanables'
+    },
     DEMOCRACIA: {
       nombre: 'Democracia', corto: 'DEMOCRACIA',
       descripcion: 'Congreso, jueces y prensa libres. Recaudas bien y llega inversión, pero el Congreso puede bloquear tus leyes y los escándalos pueden tumbarte.',
@@ -40,7 +46,7 @@
     },
     MONARQUIA: {
       nombre: 'Monarquía absoluta', corto: 'MONARQUÍA',
-      descripcion: 'Su Excelencia es ahora Su Majestad. La corona da cierta legitimidad tradicional, pero la corte cuesta un dineral y el mundo se ríe un poco.',
+      descripcion: 'El Líder Supremo es ahora Su Majestad. La corona da cierta legitimidad tradicional, pero la corte cuesta un dineral y el mundo se ríe un poco.',
       recaudacion: 0.9, inversion: 0.9, felicidadTurno: -0.2, estabilidadBase: 50, represionEstab: 1.2, represionFel: 1.0, dineroTurno: -4,
       elecciones: null
     },
@@ -54,9 +60,13 @@
 
   // Lo que se cuenta al cambiar de régimen.
   RF.TEXTOS_REGIMEN = {
+    JUCHE: [
+      'Se restaura la dinastía. Los retratos vuelven a todas las paredes, los altavoces vuelven a todos los barrios y la Asamblea vuelve a aplaudir de pie durante once minutos seguidos.',
+      'Anuncias el regreso a la idea Juche. {paredes} ya tiene preparados los murales. Algunos, sospechosamente, ya estaban pintados.'
+    ],
     DICTADURA: [
       'A las cinco de la mañana, los tanques rodean el Congreso. Los diputados que llegan a trabajar encuentran las puertas cerradas con cadenas y un cartel: "Cerrado por reformas patrióticas". Desde hoy, tu palabra es la ley.',
-      'Lees el decreto en televisión, con la bandera detrás y {n_garrote} a tu lado. Se suspenden las garantías constitucionales "de forma temporal". Nadie en Valdoria sabe cuánto dura lo temporal.'
+      'Lees el decreto en televisión, con la bandera detrás y {n_garrote} a tu lado. Se suspenden las garantías constitucionales "de forma temporal". Nadie en Corea del Norte sabe cuánto dura lo temporal.'
     ],
     ILIBERAL: [
       'Nada cambia en apariencia: el Congreso se reúne, los jueces juzgan, los periódicos salen cada mañana. Pero las decisiones importantes ya se toman en tu despacho.',
@@ -67,25 +77,25 @@
       'Convocas elecciones libres y devuelves las llaves del Congreso. En la calle, la gente llora y se abraza. En Palacio, alguien empieza a destruir documentos.'
     ],
     JUNTA: [
-      'Firmas el decreto rodeado de generales. Desde hoy, Valdoria la gobierna una Junta Militar presidida por ti. {n_garrote} sonríe por primera vez en años.',
+      'Firmas el decreto rodeado de generales. Desde hoy, Corea del Norte la gobierna una Junta Militar presidida por ti. {n_garrote} sonríe por primera vez en años.',
       'Los militares ocupan los ministerios. Donde había un funcionario, ahora hay un coronel. El país se despierta con toque de queda.'
     ],
     MONARQUIA: [
-      'En una ceremonia de cuatro horas, te colocas tú mismo la corona. Es de latón dorado y pesa demasiado. Desde hoy, Su Excelencia es Su Majestad Primero de Valdoria.',
+      'En una ceremonia de cuatro horas, te colocas tú mismo la corona. Es de latón dorado y pesa demasiado. Desde hoy, el Líder Supremo es Su Majestad Primero de Corea del Norte.',
       'Se proclama la monarquía. {paredes} ya ha encargado el retrato oficial con armiño. Los niños tienen que aprender un nuevo himno, con más estrofas.'
     ],
     TEOCRACIA: [
       'El arzobispo bendice el nuevo orden desde el balcón del Palacio. Las leyes se revisarán "a la luz de las Escrituras". Los bares cierran los domingos. Y los lunes, por si acaso.',
-      'Valdoria se proclama Estado confesional. Los curas entran en las escuelas, en los tribunales y en los ministerios. {sombra} se compra un rosario.'
+      'Corea del Norte se proclama Estado confesional. Los curas entran en las escuelas, en los tribunales y en los ministerios. {sombra} se compra un rosario.'
     ]
   };
 
   // Estado de cada institución del Estado, para contarlo.
   RF.ESTADOS_INSTITUCION = {
-    congreso: { libre: 'libre', controlado: 'comprado', disuelto: 'disuelto' },
-    tribunales: { libre: 'independientes', controlado: 'controlados', disuelto: 'disueltos' },
-    prensa: { libre: 'libre', controlado: 'censurada', disuelto: 'cerrada' },
-    elecciones: { libre: 'libres', controlado: 'amañadas', disuelto: 'suspendidas' },
+    congreso: { libre: 'libre', controlado: 'obediente (aplaude de pie)', disuelto: 'disuelto' },
+    tribunales: { libre: 'independientes', controlado: 'al servicio del Partido', disuelto: 'disueltos' },
+    prensa: { libre: 'libre', controlado: 'solo la oficial', disuelto: 'cerrada' },
+    elecciones: { libre: 'libres', controlado: 'candidato único', disuelto: 'suspendidas' },
     constitucion: { libre: 'vigente', controlado: 'reformada a tu medida', disuelto: 'abolida' }
   };
 

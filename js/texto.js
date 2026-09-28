@@ -117,9 +117,9 @@
   function mayus(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : t; }
 
   RF.VARS = RF.VARS || {
-    garrote: 'Garrote', n_garrote: 'General Bruno Garrote', cifuentes: 'Cifuentes', n_cifuentes: 'Leonor Cifuentes',
-    sombra: 'Sombra', n_sombra: 'Octavio Sombra', paredes: 'Rolo', n_paredes: 'Rolo Paredes',
-    montiel: 'Montiel', n_montiel: 'Isabela Montiel', ventura: 'Ventura', n_ventura: 'Dr. Aurelio Ventura', lider: 'Su Excelencia'
+    garrote: 'Jang', n_garrote: 'Mariscal Jang Tae-bok', cifuentes: 'Pak', n_cifuentes: 'Pak Mi-ran',
+    sombra: 'Ryu', n_sombra: 'Ryu Chang-sok', paredes: 'Kang', n_paredes: 'Kang Myong-dal',
+    montiel: 'Ri', n_montiel: 'Ri Song-mi', ventura: 'Yun', n_ventura: 'Dr. Yun Jae-hyon', lider: 'Líder Supremo'
   };
 
   RF.texto = { VACIAS, NEGACIONES, normalizar, palabras, raiz, distancia, corregir, azar, expandir, de, a, mayus };

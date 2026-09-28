@@ -8,30 +8,30 @@
   const T = RF.texto;
 
   const CONFUSOS = [
-    'Tus ministros se miran entre ellos. {paredes} carraspea: "¿Podría repetirlo, Excelencia? Con otras palabras."',
+    'Tus ministros se miran entre ellos. {paredes} carraspea: "¿Podría repetirlo, Líder Supremo? Con otras palabras."',
     '{garrote} asiente muy serio, aunque no ha entendido nada. Nadie se atreve a preguntar.',
-    '{cifuentes} toma nota, frunce el ceño y tacha lo que escribió. "Necesitamos algo más concreto, Excelencia."',
+    '{cifuentes} toma nota, frunce el ceño y tacha lo que escribió. "Necesitamos algo más concreto, Líder Supremo."',
     '{sombra} apunta tus palabras en su libreta negra "por si acaso significan algo". La prensa extranjera se ríe un poco de ti.',
-    'El secretario escribe el decreto, lo lee, le da la vuelta al papel y lo vuelve a leer. "¿Esto se publica así, Excelencia?"'
+    'El secretario escribe el decreto, lo lee, le da la vuelta al papel y lo vuelve a leer. "¿Esto se publica así, Líder Supremo?"'
   ];
 
-  const EJEMPLOS = ['imprimir dinero', 'regalar comida', 'vender el aire', 'vender cocaína', 'subir impuestos a los ricos', 'crear una escuadra de represión', 'invertir en hospitales', 'dejar de imprimir dinero'];
+  const EJEMPLOS = ['imprimir wones', 'regalar arroz', 'vender carbón a China', 'lanzar un misil', 'crear campos de reeducación', 'abrir los mercados', 'legalizar el K-pop', 'restaurar la democracia'];
 
   function ayuda() {
     return [{
       tipo: 'sistema', titulo: 'CÓMO GOBERNAR',
       texto: 'Escribe un decreto con tus palabras y pulsa Decretar. El Intérprete intentará entenderlo.\n' +
         'Ejemplos: ' + EJEMPLOS.map(e => '"' + e + '"').join(', ') + '.\n' +
-        'Cuatro cosas importan: DINERO, INFLACIÓN, ESTABILIDAD y FELICIDAD. Si la estabilidad o la felicidad llegan a 0, caes.\n' +
-        'Cada decreto es una LEY que sigue actuando todos los turnos: "regalar comida" cuesta dinero cada turno, "imprimir dinero" sube la inflación cada turno, "vender el aire" da dinero cada turno pero amarga a la gente. Las leyes se acumulan.\n' +
-        'Para quitar una ley: "dejar de regalar comida", "derogar la ley del aire" o "derogar el último decreto".\n' +
+        'Cuatro cosas importan: DIVISAS (millones de dólares en las arcas, pese a las sanciones), ARROZ (lo que sube cada turno el precio del arroz en el mercado: la inflación), LEALTAD (de la élite y el ejército) y PUEBLO (cómo aguanta la gente). Si la lealtad llega a 0 hay golpe; si el pueblo llega a 0, revuelta.\n' +
+        'Cada decreto es una LEY que sigue actuando todos los turnos: "regalar arroz" cuesta divisas cada turno, "imprimir wones" dispara el precio del arroz, "vender carbón" da divisas cada turno pero las sanciones acechan. Las leyes se acumulan.\n' +
+        'Para quitar una ley: "dejar de regalar arroz", "derogar la ley del carbón" o "derogar el último decreto".\n' +
         'Puedes firmar hasta 3 decretos a la vez: "prohibir el fútbol y subir impuestos a los ricos".\n' +
         'Cada pocos turnos surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
-        'El SISTEMA POLÍTICO también se cambia con decretos: "disuelvo el congreso", "comprar a los diputados", "controlar los jueces", "suspender las elecciones", "proclamarme rey", "restaurar la democracia". Cada régimen recauda, invierte y reprime distinto.\n' +
-        'En democracia, el Congreso puede bloquear leyes polémicas. Lo que haces "en secreto" no pasa por el Congreso, pero puede descubrirse.\n' +
+        'El SISTEMA POLÍTICO también se cambia con decretos: "restaurar la democracia", "garantizar elecciones libres", "liberar la prensa", "disolver la asamblea", "proclamarme rey", "volver al juche". Cada régimen recauda, invierte y reprime distinto. En democracia, el Congreso puede bloquear leyes polémicas y hay que ganar las elecciones.\n' +
+        'Lo que haces "en secreto" no pasa por ningún control, pero puede descubrirse.\n' +
         'Opcional: toca el botón IA de arriba (o escribe "ia"). Con IA, un Consejo de Estado entiende cualquier decreto, decide sus consecuencias (el juego pone las reglas y los límites) y recuerda lo que va pasando; y una crónica cuenta cada turno. Dentro de claude.ai funciona con tu cuenta; fuera, con una clave de API (OpenRouter y Gemini tienen planes gratis).\n' +
         'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
-        'Sobrevive ' + RF.PAIS.dias + ' turnos hasta las elecciones.'
+        'No hay último turno: gobiernas mientras aguantes. Cada 20 turnos hay elecciones.'
     }];
   }
 
@@ -39,19 +39,19 @@
     return [
       { tipo: 'titulo', texto: RF.PAIS.nombre.toUpperCase() },
       {
-        tipo: 'gaceta', titulo: 'GACETA OFICIAL · TURNO 1',
-        texto: 'Anoche ganaste las elecciones por un margen mínimo y hoy juras como Presidente de ' + RF.PAIS.nombre + ', una democracia joven y frágil. ' +
-          'Tienes una consola, un sello y ' + RF.PAIS.dias + ' turnos hasta las próximas elecciones. Todo lo que escribas aquí se convierte en ley, y las leyes se acumulan. ' +
-          'El Congreso, los jueces y la prensa te vigilan... de momento.'
+        tipo: 'gaceta', titulo: 'RODONG SINMUN · TURNO 1',
+        texto: 'Tu padre ha muerto y hoy heredas la ' + RF.PAIS.nombre + ': veinticinco millones de personas, un ejército enorme, un país aislado y bajo sanciones, y un retrato tuyo que ya cuelga en cada casa aunque nadie te conoce. ' +
+          'Tienes una consola y un sello. Todo lo que escribas aquí se convierte en ley, y las leyes se acumulan. ' +
+          'La Asamblea Popular Suprema aplaudirá lo que firmes. El ejército, los cuadros del Partido y el pueblo decidirán si te dejan seguir.'
       },
       {
         tipo: 'cupula', titulo: 'TU GABINETE',
         texto: Object.entries(RF.GABINETE).map(([id, m]) => RF.poder.ministro(estado, id).nombre + ', ' + m.cargo.toLowerCase()).join('. ') + '.'
       },
       {
-        tipo: 'prensa', titulo: 'LA OPOSICIÓN Y EL MUNDO',
-        texto: 'Ernesto Valiente, líder de la oposición, ya ha convocado a sus seguidores. El embajador de la Unión Atlántica observa desde su embajada con cara de preocupación.\n' +
-          'Las arcas tienen 100 millones de valdos, la inflación está en el 4% y el país está razonablemente tranquilo. De momento.'
+        tipo: 'prensa', titulo: 'LOS DE FUERA Y LOS DE DENTRO',
+        texto: 'Song Dae-ho dirige una red clandestina que reparte memorias USB con series del Sur. China compra tu carbón y te presta paciencia. La ONU prepara otra ronda de sanciones. El embajador sueco, que habla en nombre de los que no tienen embajada, observa con cara de preocupación.\n' +
+          'Las arcas tienen 80 millones de dólares en divisas, el arroz sube un 6% cada turno, la élite te es leal... y el pueblo aguanta. De momento.'
       },
       {
         tipo: 'calle', titulo: 'MIENTRAS TANTO, EN LA CALLE',
@@ -266,7 +266,7 @@
       return {
         bloques: [
           { tipo: 'bot', texto: 'INTÉRPRETE › entendí ' + RF.ACCIONES[interp.accion].nombre.toUpperCase() + ', pero no sobre qué' },
-          { tipo: 'cupula', titulo: 'EL SECRETARIO', texto: '"' + RF.ACCIONES[interp.accion].nombre + '... ¿el qué, Excelencia?" El secretario espera con la pluma en el aire.' }
+          { tipo: 'cupula', titulo: 'EL SECRETARIO', texto: '"' + RF.ACCIONES[interp.accion].nombre + '... ¿el qué, Líder Supremo?" El secretario espera con la pluma en el aire.' }
         ],
         opciones: []
       };
@@ -278,8 +278,8 @@
         interp: Object.assign({}, interp, { estado: 'ok', accion: op.accion, objeto: op.objeto, nombreObjeto: op.nombreObjeto })
       }));
     const texto = opciones.length > 2
-      ? '"¿Qué hacemos con ' + interp.nombreObjeto + ', Excelencia?"'
-      : '"Disculpe, Excelencia. ¿Se refiere a ' + opciones.map(o => o.etiqueta.toLowerCase()).join(' o a ') + '?"';
+      ? '"¿Qué hacemos con ' + interp.nombreObjeto + ', Líder Supremo?"'
+      : '"Disculpe, Líder Supremo. ¿Se refiere a ' + opciones.map(o => o.etiqueta.toLowerCase()).join(' o a ') + '?"';
     return {
       bloques: [
         { tipo: 'bot', texto: 'INTÉRPRETE › tengo dudas, pregunto antes de firmar' },
@@ -306,7 +306,7 @@
     ];
     const t = RF.leyes.lista(estado).reduce((acc, l) => { const ef = RF.leyes.efectoActual(estado, l); for (const k of Object.keys(acc)) acc[k] += ef[k] || 0; return acc; }, { dinero: 0, estabilidad: 0, felicidad: 0, inflacion: 0 });
     lineas.push('', 'Tus ' + RF.leyes.lista(estado).length + ' leyes suman cada turno:', '   ' + RF.leyes.resumenLey(t));
-    lineas.push('Turno ' + Math.min(estado.dia, RF.PAIS.dias) + ' de ' + RF.PAIS.dias + ' · Decretos: ' + estado.historial.length);
+    lineas.push('Turno ' + estado.dia + ' · Decretos: ' + estado.historial.length);
     const humor = Object.entries(estado.ciudadanos).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + (c.estado && c.estado !== 'libre' ? DESTINOS[c.estado] : c.animo > 25 ? 'te apoya' : c.animo < -25 ? 'te detesta' : 'desconfía'));
     lineas.push('', 'La calle:', ...humor.map(h => '  ' + h));
     return [{ tipo: 'sistema', titulo: 'INFORME DE SITUACIÓN', texto: lineas.join('\n'), mono: true }];
@@ -325,10 +325,10 @@
     const inst = RF.leyes.lista(estado).filter(l => l.institucion).map(l => '  ' + T.mayus(RF.INSTITUCIONES[l.clave].nombre) + ' · nivel ' + l.nivel + ' · desde el turno ' + l.desde);
     lineas.push('', 'Instituciones del régimen:', ...(inst.length ? inst : ['  ninguna (prueba "crear una red de espías")']));
     const per = estado.personas || {};
-    lineas.push('', 'Ernesto Valiente, líder de la oposición: ' + (DESTINOS[per.valiente] || 'libre'));
+    lineas.push('', 'Song Dae-ho, líder de la oposición: ' + (DESTINOS[per.valiente] || 'libre'));
     const gente = Object.entries(estado.ciudadanos).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + (DESTINOS[c.estado || 'libre']));
     lineas.push('La gente de a pie: ' + gente.join(' · '));
-    return [{ tipo: 'sistema', titulo: 'EL PODER EN VALDORIA', texto: lineas.join('\n') }];
+    return [{ tipo: 'sistema', titulo: 'EL PODER EN COREA DEL NORTE', texto: lineas.join('\n') }];
   }
 
   // Todas las leyes vigentes y lo que hacen ahora mismo cada turno.
@@ -357,7 +357,7 @@
     const EPITAFIOS = {
       muerto: '{n} no llegó a ver el final de tu gobierno. En su barrio aún dejan flores cada aniversario.',
       preso: '{n} seguía en la cárcel cuando todo terminó. Salió años después, con el pelo blanco y la memoria intacta.',
-      exiliado: '{n} vivió el final de tu gobierno desde el exilio. Nunca volvió a Valdoria.'
+      exiliado: '{n} vivió el final de tu gobierno desde el exilio. Nunca volvió a Corea del Norte.'
     };
     const epilogos = Object.entries(estado.ciudadanos).map(([id, c]) => {
       if (c.estado && c.estado !== 'libre') return T.expandir(EPITAFIOS[c.estado], { n: RF.CIUDADANOS[id].nombre });
@@ -365,15 +365,15 @@
       return T.expandir(RF.CIUDADANOS[id].finales[tipo]);
     });
     const v = (estado.personas || {}).valiente;
-    if (v === 'muerto') epilogos.push('Las plazas de medio país llevan hoy el nombre de Ernesto Valiente. Ninguna lleva el tuyo.');
-    else if (v === 'aliado') epilogos.push('Ernesto Valiente acabó sus días como ministro de un gobierno que había jurado combatir. Nunca se lo perdonó.');
-    else if (v === 'preso' || v === 'exiliado') epilogos.push('Ernesto Valiente volvió a la vida pública en cuanto caíste. Ganó las siguientes elecciones.');
-    const dias = Math.min(estado.dia, RF.PAIS.dias + 1) - 1;
+    if (v === 'muerto') epilogos.push('Las plazas de medio país llevan hoy el nombre de Song Dae-ho. Ninguna lleva el tuyo.');
+    else if (v === 'aliado') epilogos.push('Song Dae-ho acabó sus días como ministro de un gobierno que había jurado combatir. Nunca se lo perdonó.');
+    else if (v === 'preso' || v === 'exiliado') epilogos.push('Song Dae-ho volvió a la vida pública en cuanto caíste. Ganó las siguientes elecciones.');
+    const dias = estado.dia - 1;
     const s = estado.stats;
     return [
       { tipo: 'fin', titulo: 'FIN · ' + f.titulo, texto: T.expandir(f.texto) },
       { tipo: 'calle', titulo: 'QUÉ FUE DE ELLOS', texto: epilogos.join('\n\n') },
-      { tipo: 'sistema', titulo: 'TU LEGADO', texto: 'Turnos en el poder: ' + dias + '. Decretos firmados: ' + estado.historial.length + '.\nDinero ' + formatoStat('dinero', s.dinero) + ' · Inflación ' + formatoStat('inflacion', s.inflacion) + ' · Estabilidad ' + s.estabilidad + ' · Felicidad ' + s.felicidad + '.\nEscribe "reiniciar" para gobernar otra vez.' }
+      { tipo: 'sistema', titulo: 'TU LEGADO', texto: 'Turnos en el poder: ' + dias + '. Decretos firmados: ' + estado.historial.length + '.\nDivisas ' + formatoStat('dinero', s.dinero) + ' · Arroz ' + formatoStat('inflacion', s.inflacion) + ' · Lealtad ' + s.estabilidad + ' · Pueblo ' + s.felicidad + '.\nEscribe "reiniciar" para gobernar otra vez.' }
     ];
   }
 

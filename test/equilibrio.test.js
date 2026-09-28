@@ -1,13 +1,15 @@
 // Un jugador "listo" que cada turno prueba todos sus decretos y elige el que deja el país mejor
 // dentro de 3 turnos (las leyes se acumulan: hay que mirar un poco hacia delante).
-// Comprueba que es posible llegar a las elecciones y que no es trivial.
+// El juego no tiene final: comprueba que se puede sobrevivir 60 turnos en Corea del Norte (y que no es trivial).
 const RF = require('./cargar')();
 const DECRETOS = [
   'esperar', 'regalar comida', 'invertir en hospitales', 'subir impuestos a los ricos', 'bajar impuestos a los trabajadores',
   'construir escuelas', 'vender cocaína', 'imprimir dinero', 'crear una red de espías', 'mano dura contra los ladrones',
   'legalizar la marihuana', 'recortar el ejército', 'subir el sueldo a los soldados', 'economía basada en el turismo',
-  'derogar el último decreto', 'dejar de regalar comida', 'dejar de imprimir dinero', 'crear un ministerio de propaganda'
+  'derogar el último decreto', 'dejar de regalar comida', 'dejar de imprimir dinero', 'crear un ministerio de propaganda',
+  'vender carbón a China', 'regalar arroz'
 ];
+const TURNOS = 60;
 
 const clonar = e => JSON.parse(JSON.stringify(e));
 // Un país "sano": estabilidad y felicidad altas, algo de dinero y poca inflación.
@@ -35,7 +37,7 @@ function resolverEventos(e) {
 const finales = {};
 for (let p = 0; p < 40; p++) {
   const estado = RF.consejero.nuevoEstado();
-  while (!estado.fin) {
+  while (!estado.fin && estado.dia <= TURNOS) {
     resolverEventos(estado);
     if (estado.fin) break;
     let mejor = 'esperar', mejorP = -Infinity;
@@ -43,13 +45,13 @@ for (let p = 0; p < 40; p++) {
       const prueba = clonar(estado);
       if (!jugarDecreto(prueba, d)) continue;
       for (let k = 0; k < 2 && !prueba.fin; k++) { prueba.dilemas.pendiente = null; RF.consejero.pasarTurno(prueba); }
-      const pt = prueba.fin && !prueba.fin.startsWith('elecciones_ganadas') ? -1e9 : puntuar(prueba);
+      const pt = prueba.fin ? -1e9 : puntuar(prueba);
       if (pt > mejorP) { mejorP = pt; mejor = d; }
     }
     if (!jugarDecreto(estado, mejor)) RF.consejero.pasarTurno(estado);
   }
-  finales[estado.fin] = (finales[estado.fin] || 0) + 1;
+  const f = estado.fin || 'sigue_en_el_poder';
+  finales[f] = (finales[f] || 0) + 1;
 }
-console.log('Jugador listo, finales:', finales);
-const llegan = Object.entries(finales).filter(([k]) => k.startsWith('elecciones')).reduce((s, [, v]) => s + v, 0);
-process.exit(llegan >= 20 ? 0 : 1);
+console.log('Jugador listo, a los ' + TURNOS + ' turnos:', finales);
+process.exit((finales.sigue_en_el_poder || 0) >= 20 ? 0 : 1);

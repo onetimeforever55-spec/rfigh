@@ -6,7 +6,7 @@ const path = require('path');
 const raiz = path.join(__dirname, '..');
 const args = process.argv.slice(2);
 const sinEnvoltura = args.includes('--sin-envoltura');
-const salida = args.find(a => !a.startsWith('--')) || path.join(raiz, 'dist', 'valdoria.html');
+const salida = args.find(a => !a.startsWith('--')) || path.join(raiz, 'dist', 'pionyang.html');
 
 let html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
 const leer = (rel) => fs.readFileSync(path.join(raiz, rel), 'utf8');
