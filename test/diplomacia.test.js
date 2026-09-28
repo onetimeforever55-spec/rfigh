@@ -99,6 +99,18 @@ for (const id of ['presion_china', 'mano_seul', 'secuestrados_japon', 'cumbre_ee
   comprobar(!RF.DILEMAS.find(d => d.id === 'mano_seul').si(e), 'si el Sur está resentido, no tiende la mano');
 }
 
+console.log('CAMBIOS DE RÉGIMEN CON PADRINO');
+{
+  const e = nuevo(); const u0 = rel(e, 'eeuu');
+  const r = decretar(e, 'instaurar la democracia con ayuda de Estados Unidos');
+  const f = nuevo();
+  decretar(f, 'restaurar la democracia');
+  comprobar(e.politica.regimen === 'DEMOCRACIA' && r.relaciones.eeuu > 0 && rel(e, 'eeuu') > rel(f, 'eeuu') && rel(e, 'china') < rel(f, 'china'), '"con ayuda de Estados Unidos" cambia el régimen, y Washington lo agradece más (y Pekín menos)');
+  const g = nuevo();
+  decretar(g, 'proclamarme rey con el apoyo de China');
+  comprobar(g.politica.regimen === 'MONARQUIA' && rel(g, 'china') > 58, 'proclamarse rey con el apoyo de China también funciona');
+}
+
 console.log('EL MOTOR ARBITRA LA IA');
 {
   const e = nuevo();

@@ -195,6 +195,7 @@
   function decretar(estado, interp, op) {
     op = op || {};
     if (interp.tipo === 'diplomacia') return decretarDiplomacia(estado, interp, op);
+    const antesRel = RF.diplomacia ? Object.assign({}, RF.diplomacia.iniciar(estado).relaciones) : null;
     const accion = interp.accion;
     const objId = interp.objeto;
     const o = objetoDe(objId);
@@ -276,6 +277,15 @@
     }
     res.medida = laMedida;
     if (def && def.prensa) res.prensa = def.prensa;
+    // Un cambio de régimen con padrino extranjero: el padrino lo agradece; sus rivales, no tanto.
+    if (interp.padrino && res.cambioRegimen && RF.diplomacia) {
+      const pad = interp.padrino, P = RF.PAIS.relaciones[pad];
+      const cambios = { [pad]: 12 };
+      if (pad !== 'china') cambios.china = -6; else cambios.eeuu = -6;
+      RF.diplomacia.ajustar(estado, cambios, res.notas);
+      res.notas.push('Lo haces con el apoyo de ' + P.nombre + ': en su capital lo celebran como un éxito propio. ' + (pad !== 'china' ? 'En Pekín, no tanto.' : 'En Washington, no tanto.'));
+      aplicarEfectos(estado, pad === 'eeuu' ? { dinero: 10, ejercito: -4 } : { dinero: 5 }, res.deltas);
+    }
     // El arsenal nuclear, y el país contra el que apunta un misil o una guerra ("lanzar un misil a Japón").
     if (RF.diplomacia && interp.tema && !res.bloqueada) {
       const D = RF.diplomacia.iniciar(estado);
@@ -311,6 +321,12 @@
     for (const k of Object.keys(inicial)) inicial[k] *= factor;
     aplicarEfectos(estado, inicial, res.deltas);
 
+    // Lo que ha cambiado en las relaciones exteriores con este decreto (venga de donde venga).
+    if (antesRel) {
+      const ahora = estado.diplomacia.relaciones, dif = {};
+      for (const k of Object.keys(ahora)) { const d = Math.round(ahora[k] - antesRel[k]); if (d) dif[k] = d; }
+      res.relaciones = Object.keys(dif).length ? dif : null;
+    }
     estado.historial.push({ dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, medida: laMedida, texto: interp.texto });
     res.numero = estado.historial.length;
     reacciones(estado, res, objId);

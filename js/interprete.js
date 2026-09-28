@@ -231,7 +231,17 @@
     return null;
   }
 
+  // Si el decreto nombra a una potencia sin ser un gesto diplomático ("instaurar la democracia con Estados Unidos"), se apunta como padrino.
   function interpretar(texto, estado) {
+    const r = interpretarBase(texto, estado);
+    if (r && r.tipo !== 'diplomacia' && RF.diplomacia) {
+      const p = RF.diplomacia.buscar(T.normalizar(texto));
+      if (p) r.padrino = p;
+    }
+    return r;
+  }
+
+  function interpretarBase(texto, estado) {
     if (!modelo) entrenar();
     const { acc, obj, vocabPalabras } = modelo;
     const crudas = traducir(texto);
@@ -246,7 +256,11 @@
     // Temas duros (la esclavitud, la guerra, el aborto...): se reconocen por su forma y tienen sus propias reglas.
     const tema = detectarTema(T.normalizar(texto));
     // Diplomacia: un gesto hacia (o contra) una potencia vecina, si no es un tema duro ("declarar la guerra a Japón").
-    const dip = !tema && RF.diplomacia && RF.diplomacia.detectar(T.normalizar(texto));
+    // Un cambio de régimen "con ayuda de Estados Unidos" es un cambio de régimen con padrino, no un gesto diplomático.
+    const nTexto = T.normalizar(texto);
+    const regimen = /\b(democracia|democratic\w*|dictadura|monarquia|rey|reina|juche|junta|teocracia|elecciones libres)\b/.test(nTexto);
+    const padrino = RF.diplomacia && RF.diplomacia.buscar(nTexto);
+    const dip = !tema && !regimen && RF.diplomacia && RF.diplomacia.detectar(nTexto);
     if (dip) {
       return { texto, corregidas, intensidad: 1, negado: false, opciones: [], confianza: 90, estado: 'ok', tipo: 'diplomacia', pais: dip.pais, dir: dip.dir,
         nombreObjeto: RF.PAIS.relaciones[dip.pais].nombre, accion: 'DIPLOMACIA', objeto: dip.pais };

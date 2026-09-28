@@ -3825,7 +3825,17 @@ body {
     return null;
   }
 
+  // Si el decreto nombra a una potencia sin ser un gesto diplomático ("instaurar la democracia con Estados Unidos"), se apunta como padrino.
   function interpretar(texto, estado) {
+    const r = interpretarBase(texto, estado);
+    if (r && r.tipo !== 'diplomacia' && RF.diplomacia) {
+      const p = RF.diplomacia.buscar(T.normalizar(texto));
+      if (p) r.padrino = p;
+    }
+    return r;
+  }
+
+  function interpretarBase(texto, estado) {
     if (!modelo) entrenar();
     const { acc, obj, vocabPalabras } = modelo;
     const crudas = traducir(texto);
@@ -3840,7 +3850,11 @@ body {
     // Temas duros (la esclavitud, la guerra, el aborto...): se reconocen por su forma y tienen sus propias reglas.
     const tema = detectarTema(T.normalizar(texto));
     // Diplomacia: un gesto hacia (o contra) una potencia vecina, si no es un tema duro ("declarar la guerra a Japón").
-    const dip = !tema && RF.diplomacia && RF.diplomacia.detectar(T.normalizar(texto));
+    // Un cambio de régimen "con ayuda de Estados Unidos" es un cambio de régimen con padrino, no un gesto diplomático.
+    const nTexto = T.normalizar(texto);
+    const regimen = /\b(democracia|democratic\w*|dictadura|monarquia|rey|reina|juche|junta|teocracia|elecciones libres)\b/.test(nTexto);
+    const padrino = RF.diplomacia && RF.diplomacia.buscar(nTexto);
+    const dip = !tema && !regimen && RF.diplomacia && RF.diplomacia.detectar(nTexto);
     if (dip) {
       return { texto, corregidas, intensidad: 1, negado: false, opciones: [], confianza: 90, estado: 'ok', tipo: 'diplomacia', pais: dip.pais, dir: dip.dir,
         nombreObjeto: RF.PAIS.relaciones[dip.pais].nombre, accion: 'DIPLOMACIA', objeto: dip.pais };
@@ -4535,6 +4549,7 @@ body {
   function decretar(estado, interp, op) {
     op = op || {};
     if (interp.tipo === 'diplomacia') return decretarDiplomacia(estado, interp, op);
+    const antesRel = RF.diplomacia ? Object.assign({}, RF.diplomacia.iniciar(estado).relaciones) : null;
     const accion = interp.accion;
     const objId = interp.objeto;
     const o = objetoDe(objId);
@@ -4616,6 +4631,15 @@ body {
     }
     res.medida = laMedida;
     if (def && def.prensa) res.prensa = def.prensa;
+    // Un cambio de régimen con padrino extranjero: el padrino lo agradece; sus rivales, no tanto.
+    if (interp.padrino && res.cambioRegimen && RF.diplomacia) {
+      const pad = interp.padrino, P = RF.PAIS.relaciones[pad];
+      const cambios = { [pad]: 12 };
+      if (pad !== 'china') cambios.china = -6; else cambios.eeuu = -6;
+      RF.diplomacia.ajustar(estado, cambios, res.notas);
+      res.notas.push('Lo haces con el apoyo de ' + P.nombre + ': en su capital lo celebran como un éxito propio. ' + (pad !== 'china' ? 'En Pekín, no tanto.' : 'En Washington, no tanto.'));
+      aplicarEfectos(estado, pad === 'eeuu' ? { dinero: 10, ejercito: -4 } : { dinero: 5 }, res.deltas);
+    }
     // El arsenal nuclear, y el país contra el que apunta un misil o una guerra ("lanzar un misil a Japón").
     if (RF.diplomacia && interp.tema && !res.bloqueada) {
       const D = RF.diplomacia.iniciar(estado);
@@ -4651,6 +4675,12 @@ body {
     for (const k of Object.keys(inicial)) inicial[k] *= factor;
     aplicarEfectos(estado, inicial, res.deltas);
 
+    // Lo que ha cambiado en las relaciones exteriores con este decreto (venga de donde venga).
+    if (antesRel) {
+      const ahora = estado.diplomacia.relaciones, dif = {};
+      for (const k of Object.keys(ahora)) { const d = Math.round(ahora[k] - antesRel[k]); if (d) dif[k] = d; }
+      res.relaciones = Object.keys(dif).length ? dif : null;
+    }
     estado.historial.push({ dia: estado.dia, accion, objeto: objId, nombreObjeto: nombre, medida: laMedida, texto: interp.texto });
     res.numero = estado.historial.length;
     reacciones(estado, res, objId);
