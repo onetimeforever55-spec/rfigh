@@ -501,3 +501,12 @@ body {
   color: var(--fondo); background: var(--fosforo); border: 0; box-shadow: 0 0 12px var(--brillo);
 }
 .ir-abajo[hidden] { display: none; }
+
+/* Relaciones exteriores tras un decreto. */
+.b-exterior { font-size: 12.5px; padding: 8px 10px; border-left: 2px solid var(--aviso); background: var(--fondo-2); }
+.b-exterior .etiqueta { color: var(--aviso); }
+.b-exterior p { white-space: pre-line; font-variant-numeric: tabular-nums; }
+.b-suceso.diplomacia { border-left: 3px solid var(--aviso); }
+
+/* Los bloques del registro nunca se encogen (si no, la Gaceta, que recorta su contenido, se quedaba en una línea). */
+.registro > * { flex-shrink: 0; }

@@ -97,6 +97,12 @@
       if (a.sectores) partes.push({ texto: 'Frena la reconversión', tono: 'aviso' });
       if (a.cancelarModelo) partes.push({ texto: 'Cancela la reconversión', tono: 'aviso' });
     }
+    for (const [id, v] of Object.entries(op.relaciones || {})) {
+      const P = RF.PAIS.relaciones && RF.PAIS.relaciones[id];
+      if (P && Math.abs(v) >= 5) partes.push({ texto: P.nombre + (v > 0 ? ' ▲' : ' ▼'), tono: v > 0 ? 'sube' : 'baja' });
+    }
+    if (op.sanciones) partes.push({ texto: 'Sanciones ' + (op.sanciones > 0 ? '▲' : '▼'), tono: op.sanciones > 0 ? 'baja' : 'sube' });
+    if (op.arsenal === false) partes.push({ texto: 'Desmantela el arsenal', tono: 'aviso' });
     if (op.apoyo) partes.push({ texto: 'Apoyo en el Congreso ' + (op.apoyo > 0 ? '▲' : '▼'), tono: op.apoyo > 0 ? 'sube' : 'baja' });
     if (op.aprobar) partes.push({ texto: 'La ley se aprueba', tono: 'aviso' });
     if (op.sistema) partes.push({ texto: 'Régimen: ' + RF.REGIMENES[op.sistema].nombre, tono: 'aviso' });
@@ -173,6 +179,10 @@
     }
     // Una opción que cambia una política deroga la ley que había sobre ese tema.
     for (const objId of Object.keys(op.politica || {})) RF.leyes.derogar(e, objId);
+    // Diplomacia: relaciones con las potencias, sanciones y el arsenal nuclear.
+    const relaciones = op.relaciones && RF.diplomacia ? RF.diplomacia.ajustar(e, op.relaciones) : null;
+    if (op.sanciones) RF.consejero.ajustarEconomia(e, { sanciones: op.sanciones });
+    if (op.arsenal != null && RF.diplomacia) RF.diplomacia.iniciar(e).arsenal = op.arsenal;
     for (const p of op.programar || []) e.pendientes.push(Object.assign({}, p, { dia: e.dia + p.en, texto: T.expandir(p.texto) }));
     if (op.cadena) D.cadena.push({ id: op.cadena.id, dia: e.dia + op.cadena.en });
     D.pendiente = null;
@@ -221,7 +231,7 @@
     if (d.ia && D.custom) delete D.custom[d.id];
     const fin = RF.consejero.comprobarFin(e);
     if (fin) e.fin = fin;
-    return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado, decreto, cambio };
+    return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado, decreto, cambio, relaciones };
   }
 
   RF.director = { comprobar, pendiente, resolver, resumen, texto, porId, forzar };

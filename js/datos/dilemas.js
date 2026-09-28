@@ -20,6 +20,8 @@
   const hito = (e, id) => Object.values(e.ciudadanos).some(c => c.hitos.includes(id));
   const vivo = (e, id) => !e.ciudadanos[id].estado || e.ciudadanos[id].estado === 'libre';
   const persona = (e, id) => (e.personas || {})[id] || 'libre';
+  const relacion = (e, id) => (RF.diplomacia ? RF.diplomacia.rel(e, id) : 50);
+  const arsenal = e => !!(e.diplomacia && e.diplomacia.arsenal);
 
   RF.DILEMAS = [
     // ---------- Provocados por el estado del país ----------
@@ -455,6 +457,75 @@
         { texto: 'Detenerlos a todos esta noche', efectos: { ejercito: 6, cupula: 6, orden: 3, mundo: -5 }, resultado: 'Doce detenciones antes del amanecer. El resto del poder entiende el mensaje. Nadie vuelve a conspirar. Durante un tiempo.' },
         { texto: 'Vigilarlos y esperar', efectos: { orden: 2 }, resultado: 'Dejas que sigan conspirando mientras escuchas cada palabra. Es agotador, pero aprendes mucho.' },
         { texto: 'Chantajearlos para que te sirvan', efectos: { cupula: 8, ejercito: 3, pueblo: -1 }, resultado: 'Cada uno recibe una copia de su carpeta y una sonrisa tuya. Ahora son los más leales del país.' }
+      ]
+    },
+
+    // ---------- Diplomacia: las potencias vecinas quieren cosas ----------
+    {
+      id: 'oferta_washington', titulo: 'La oferta de Washington', urgente: true, peso: 1.5,
+      si: e => e.dia >= 5 && relacion(e, 'eeuu') >= 12 && (arsenal(e) || ley(e, 'TEMA:MISILES')),
+      texto: 'Un enviado americano llega a Pionyang vía Pekín, con traje gris y cara de no haber dormido. La oferta cabe en un folio: desmantelas el arsenal y los misiles, y Washington levanta sanciones y manda 500.000 toneladas de trigo. {garrote} lee el folio dos veces y luego te mira a ti. {montiel} mira al suelo.',
+      opciones: [
+        { texto: 'Aceptar: el arsenal a cambio de trigo y dólares', efectos: { dinero: 30, felicidad: 5, ejercito: -15, estabilidad: -2 }, sanciones: -2, arsenal: false, politica: { 'TEMA:NUCLEAR': 1, 'TEMA:MISILES': 1 }, relaciones: { eeuu: 25, surcorea: 15, japon: 12, china: 6 },
+          programar: [{ en: 3, titulo: 'Los generales sin juguetes', texto: 'En el Estado Mayor se habla de "traición a la herencia del abuelo". Los inspectores americanos cuentan tornillos; los coroneles cuentan votos.', efectos: { ejercito: -5, estabilidad: -2 } }],
+          resultado: 'Los inspectores internacionales llegan en un autobús con aire acondicionado. En el puerto de Nampo descargan trigo americano en sacos con la bandera tapada con cinta. {garrote} no aparece en la foto.' },
+        { texto: 'Fingir que aceptas y seguir en secreto', efectos: { dinero: 15 }, sanciones: -1, relaciones: { eeuu: 10 },
+          programar: [{ en: 4, titulo: 'Washington lo descubre', texto: 'Un satélite americano fotografía camiones entrando en la base que "ya no existía". La Casa Blanca habla de "engaño deliberado". Las sanciones vuelven, y con amigos.', efectos: { dinero: -15, estabilidad: -3 }, sanciones: 2, relaciones: { eeuu: -30, japon: -10, surcorea: -10 } }],
+          resultado: 'Firmas el acuerdo con una sonrisa. Esa misma noche, {garrote} traslada los misiles a un túnel nuevo, con una pancarta en la entrada que dice "Almacén de coles".' },
+        { texto: 'Rechazar: el arsenal no se negocia', efectos: { ejercito: 6, estabilidad: 1 }, relaciones: { eeuu: -10, china: 3 },
+          resultado: 'Devuelves el folio con una frase escrita a mano: "La herencia de mi abuelo no está en venta". El enviado se va por donde vino. Los generales brindan con soju.' }
+      ]
+    },
+    {
+      id: 'presion_china', titulo: 'Pekín pierde la paciencia', urgente: true, peso: 1.3,
+      si: e => e.dia >= 4 && (relacion(e, 'china') < 40 || (ley(e, 'TEMA:MISILES') && e.dia - ley(e, 'TEMA:MISILES').desde <= 3) || (ley(e, 'TEMA:GUERRA') !== undefined)),
+      texto: 'El embajador chino pide audiencia y llega con una sola frase aprendida de memoria: "Pekín desea estabilidad". Detrás de la frase, un recordatorio: el 90% de tu comercio y todo tu petróleo pasan por su frontera. Esa mañana, el oleoducto ha empezado a "revisarse por motivos técnicos".',
+      opciones: [
+        { texto: 'Ceder: moratoria de pruebas y buenas palabras', efectos: { ejercito: -8, dinero: 8 }, politica: { 'TEMA:MISILES': 1 }, relaciones: { china: 15, eeuu: 4, japon: 4 },
+          resultado: 'Anuncias que no habrá más lanzamientos "por ahora". El petróleo vuelve a fluir esa misma tarde. {garrote} guarda en un cajón los planos del siguiente misil, sin cerrarlo con llave.' },
+        { texto: 'Desafiarlos: somos independientes (Juche)', efectos: { inflacion: 6, dinero: -10, ejercito: 4, estabilidad: 1 }, relaciones: { china: -15 },
+          programar: [{ en: 2, titulo: 'La frontera se cierra', texto: 'Los camiones chinos dejan de cruzar el puente de la Amistad. En el mercado de Sinuiju el arroz cuesta el doble y la abuela Sun-ja raciona las tortitas.', efectos: { felicidad: -4, inflacion: 3 }, relaciones: { china: -5 } }],
+          resultado: 'Das un discurso sobre la autosuficiencia. Muy aplaudido. Esa noche, en Pionyang, se corta la luz a las ocho para ahorrar el poco combustible que queda.' },
+        { texto: 'Buscar petróleo en Moscú', efectos: { dinero: -6, elite: 3 }, relaciones: { china: -8, eeuu: -4 },
+          resultado: 'Moscú te vende petróleo al doble de precio y con una lista de condiciones escrita en cirílico. {montiel} firma sin entender la mitad. Pekín, que lo entiende todo, toma nota.' }
+      ]
+    },
+    {
+      id: 'mano_seul', titulo: 'Seúl tiende la mano', urgente: true, peso: 1,
+      si: e => e.dia >= 4 && relacion(e, 'surcorea') >= 45,
+      texto: 'Seúl propone reabrir el polígono industrial de Kaesong, donde obreros del Norte trabajarían para fábricas del Sur, y organizar un reencuentro de familias separadas desde la guerra. {sombra} advierte: "Los obreros verán cosas". {cifuentes} advierte: "Los obreros cobrarán en dólares".',
+      opciones: [
+        { texto: 'Reabrir Kaesong', efectos: { felicidad: 3, elite: -4 }, ingresos: 1.5, relaciones: { surcorea: 15, eeuu: 3 },
+          programar: [{ en: 4, titulo: 'Los Choco Pies de Kaesong', texto: 'En Kaesong las fábricas del Sur pagan parte del sueldo en galletas Choco Pie. Se revenden en el mercado a precio de oro y con ellas viaja una idea peligrosa: que en el Sur hay galletas para todos.', efectos: { elite: -3, felicidad: 2 } }],
+          resultado: 'Las fábricas vuelven a encender las máquinas. El Estado se queda con casi todo el sueldo en dólares de los obreros. Los obreros se quedan con las galletas.' },
+        { texto: 'Solo el reencuentro de familias', efectos: { felicidad: 6, estabilidad: -1 }, animo: { carmen: 15 }, relaciones: { surcorea: 10 },
+          resultado: 'Cien ancianos cruzan la frontera en autobús para ver durante tres horas a hermanos que no ven desde 1953. La abuela Sun-ja no tiene a nadie en el Sur, pero llora viendo la televisión igual que todo el país.' },
+        { texto: 'Rechazarlo y volar la oficina de enlace', efectos: { ejercito: 5, dinero: -3 }, relaciones: { surcorea: -22, eeuu: -6 },
+          resultado: 'La oficina de enlace con el Sur salta por los aires en directo. Era un edificio pagado por el Sur. El Sur lo apunta en una lista que ya es muy larga.' }
+      ]
+    },
+    {
+      id: 'secuestrados_japon', titulo: 'Los secuestrados de Tokio', peso: 0.8,
+      si: e => e.dia >= 6 && relacion(e, 'japon') < 55,
+      texto: 'Japón vuelve a pedir noticias de los ciudadanos japoneses secuestrados por agentes de tu abuelo en los años setenta. Ofrece ayuda económica si hay "gestos sinceros". En un archivo del Ministerio de Seguridad del Estado hay una carpeta que nadie ha abierto en treinta años.',
+      opciones: [
+        { texto: 'Admitirlo y devolver a los supervivientes', efectos: { dinero: 20, elite: -5, estabilidad: -2 }, relaciones: { japon: 25, eeuu: 5, surcorea: 5 },
+          resultado: 'Cinco ancianos japoneses bajan de un avión en Tokio, cuarenta años después. El país entero llora en directo. En Pionyang, {paredes} explica que fue "un intercambio cultural muy prolongado".' },
+        { texto: 'Negarlo todo', efectos: { ejercito: 2 }, relaciones: { japon: -10 },
+          resultado: '{montiel} lee un comunicado: "No hay ningún japonés en Corea del Norte, salvo los que están de visita, que tampoco hay". Tokio no se lo cree. Nadie se lo cree.' }
+      ]
+    },
+    {
+      id: 'cumbre_eeuu', titulo: 'La cumbre', urgente: true, unaVez: true, peso: 2,
+      si: e => relacion(e, 'eeuu') >= 55,
+      texto: 'El presidente de Estados Unidos propone una cumbre en Singapur: fotos, apretón de manos y "un nuevo capítulo". {paredes} ya está ensayando los ángulos de cámara. {garrote} pregunta, sin mirarte, si en Singapur hay tanques.',
+      opciones: [
+        { texto: 'Ir y dar la mano', efectos: { estabilidad: 3, felicidad: 4, ejercito: -5 }, sanciones: -1, relaciones: { eeuu: 12, surcorea: 8, japon: 5, china: -3 },
+          resultado: 'La foto del apretón de manos da la vuelta al mundo. Durante una semana, el Rodong Sinmun explica que el presidente americano "vino a pedir consejo". Él dice lo mismo de ti.' },
+        { texto: 'Mandar a {montiel} en tu lugar', efectos: { estabilidad: 1 }, relaciones: { eeuu: 2 },
+          resultado: '{montiel} se sienta frente al presidente americano. Hablan de pesca durante dos horas. Nadie sabe muy bien para qué fue todo, pero el hotel era bonito.' },
+        { texto: 'Plantarlos en el último momento', efectos: { ejercito: 4 }, relaciones: { eeuu: -15 },
+          resultado: 'La delegación americana espera en Singapur tres horas junto a una silla vacía con tu nombre. La foto de la silla vacía da más vueltas al mundo que la del apretón habría dado.' }
       ]
     },
 

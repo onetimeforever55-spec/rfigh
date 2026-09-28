@@ -245,6 +245,12 @@
     if (personal) return personal;
     // Temas duros (la esclavitud, la guerra, el aborto...): se reconocen por su forma y tienen sus propias reglas.
     const tema = detectarTema(T.normalizar(texto));
+    // Diplomacia: un gesto hacia (o contra) una potencia vecina, si no es un tema duro ("declarar la guerra a Japón").
+    const dip = !tema && RF.diplomacia && RF.diplomacia.detectar(T.normalizar(texto));
+    if (dip) {
+      return { texto, corregidas, intensidad: 1, negado: false, opciones: [], confianza: 90, estado: 'ok', tipo: 'diplomacia', pais: dip.pais, dir: dip.dir,
+        nombreObjeto: RF.PAIS.relaciones[dip.pais].nombre, accion: 'DIPLOMACIA', objeto: dip.pais };
+    }
     if (tema) {
       return Object.assign({
         texto, corregidas, intensidad: 1, negado: false, opciones: [], confianza: 92, estado: 'ok',

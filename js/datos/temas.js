@@ -22,7 +22,7 @@
     ESCLAVITUD: {
       nombre: 'la esclavitud', re: /\b(esclav\w*|trabajos? forzados?|servidumbre)\b/,
       favor: {
-        nombre: 'la esclavitud legal', controversia: 3, economia: { sanciones: 1 },
+        nombre: 'la esclavitud legal', controversia: 3, economia: { sanciones: 1 }, relaciones: { eeuu: -8, surcorea: -6, japon: -5 },
         inicial: { dinero: 15, felicidad: -10, estabilidad: -3 },
         porTurno: { dinero: 10, felicidad: -2.5, estabilidad: -1.2 }, curvas: { dinero: 'acostumbra' },
         texto: 'Los tribunales reciben la orden de reclasificar a ciertos trabajadores como «patrimonio productivo del Estado». Las minas y las plantaciones firman contratos sin sueldo y sin fecha de salida. En el extranjero, las embajadas piden explicaciones por escrito.',
@@ -60,7 +60,7 @@
       no: /\b(narco\w*|drogas?|crimen|pobreza|corrupcion|hambre)\b/,
       contraRe: /\b(paz|armisticio|rendi\w*|retir\w*|alto el fuego|tregua|acabar la guerra|terminar la guerra|fin de la guerra)\b/,
       favor: {
-        nombre: 'la guerra contra el país vecino', controversia: 3, economia: { sanciones: 1 },
+        nombre: 'la guerra contra el país vecino', controversia: 3, economia: { sanciones: 1 }, relaciones: { eeuu: -20, china: -15, surcorea: -25, japon: -15 },
         inicial: { dinero: -30, estabilidad: 5, felicidad: 3, ejercito: 10 },
         porTurno: { dinero: -12, felicidad: -1.5, estabilidad: 0.8, ejercito: 0.5 }, curvas: { estabilidad: 'desgasta', ejercito: 'desgasta' },
         texto: 'Corea del Norte declara la guerra. Los reclutas se presentan en los cuarteles con la maleta de la escuela. Durante unos días, todo el país canta el himno a la vez. Luego llegan las facturas.',
@@ -71,7 +71,7 @@
         ]
       },
       contra: {
-        nombre: 'la paz', controversia: 0,
+        nombre: 'la paz', controversia: 0, relaciones: { eeuu: 8, china: 8, surcorea: 12, japon: 6 },
         inicial: { felicidad: 6, estabilidad: -3 }, porTurno: { felicidad: 0.5 },
         texto: 'Se firma la paz en una mesa prestada por un hotel de la frontera. {garrote} no aparece en la foto. Los soldados vuelven a casa; algunos no saben muy bien a qué.'
       },
@@ -81,31 +81,31 @@
     NUCLEAR: {
       nombre: 'la bomba atómica', re: /\b(bomba\w*|arma\w*|misil\w*|programa|cabeza\w*) (nuclear\w*|atomic\w*)\b/,
       favor: {
-        nombre: 'el programa nuclear militar', controversia: 3, economia: { sanciones: 1 },
+        nombre: 'el programa nuclear militar', controversia: 3, economia: { sanciones: 1 }, relaciones: { eeuu: -15, china: -10, surcorea: -12, japon: -12 },
         inicial: { dinero: -40, estabilidad: 2, ejercito: 6 }, porTurno: { dinero: -8, estabilidad: 0.6 }, curvas: { estabilidad: 'lenta' },
         texto: 'Un grupo de físicos se instala en una base secreta del interior. Tardarán años; mientras tanto, la palabra «nuclear» ya aparece en todos los discursos de Palacio.',
         programar: [{ en: 3, titulo: 'El mundo se entera', texto: 'Un satélite extranjero fotografía la base. La ONU convoca una cumbre de emergencia sobre Corea del Norte. El embajador ya no sonríe.', efectos: { dinero: -25, estabilidad: -4 } }]
       },
       contra: {
-        nombre: 'el desarme nuclear', controversia: 0, economia: { sanciones: -1 },
+        nombre: 'el desarme nuclear', controversia: 0, economia: { sanciones: -2 }, relaciones: { eeuu: 25, china: 8, surcorea: 15, japon: 12 },
         inicial: { dinero: 10, estabilidad: -1, ejercito: -8 }, porTurno: { dinero: 1 },
         texto: 'Corea del Norte renuncia a las armas atómicas. Los inspectores internacionales se llevan unos papeles y dejan un cheque de ayuda.'
       },
-      sinLey: { unaVez: true, inicial: { dinero: 3 }, notas: ['Corea del Norte no tenía armas nucleares. La ONU agradece la promesa con una pequeña ayuda.'] }
+      sinLey: { unaVez: true, inicial: { dinero: 3 }, notas: ['Ya no queda arsenal que desmantelar: los inspectores se llevaron hasta los tornillos. El mundo agradece que lo repitas.'] }
     },
 
     MISILES: {
       nombre: 'los misiles', re: /\b(misil\w*|cohete\w*|lanzar un satelite|prueba\w* de misiles|ensayo\w* de misiles|disparar al mar)\b/,
       contraRe: /\b(moratoria|suspend\w*|dej\w* de|par(ar|en|e) (de|las|los)|no (mas|lanzar)|prohib\w*|desmantel\w*)\b/,
       favor: {
-        nombre: 'las pruebas de misiles', controversia: 2, prensa: 'culto', economia: { sanciones: 1 },
+        nombre: 'las pruebas de misiles', controversia: 2, prensa: 'culto', economia: { sanciones: 1 }, relaciones: { eeuu: -8, china: -6, surcorea: -8, japon: -10 },
         inicial: { estabilidad: 2, felicidad: 1, dinero: -12, ejercito: 6 }, porTurno: { dinero: -3, estabilidad: 0.3, ejercito: 0.5 }, curvas: { estabilidad: 'acostumbra', ejercito: 'acostumbra' },
         texto: 'Un misil despega de la costa este, cruza el cielo y cae al mar. El Rodong Sinmun dedica ocho páginas al éxito. {garrote} llora de emoción en la foto oficial, rodeado de generales que toman notas.',
         notas: ['Cada lanzamiento une a la élite, pero cuesta divisas y enfada al mundo.'],
         programar: [{ en: 2, titulo: 'Nuevas sanciones', texto: 'El Consejo de Seguridad de la ONU aprueba otra ronda de sanciones. China se abstiene, pero pide a {montiel} "un poco de calma".', efectos: { dinero: -12, estabilidad: -1 } }]
       },
       contra: {
-        nombre: 'la moratoria de pruebas de misiles', controversia: 0, economia: { sanciones: -1 },
+        nombre: 'la moratoria de pruebas de misiles', controversia: 0, economia: { sanciones: -1 }, relaciones: { eeuu: 10, china: 8, surcorea: 6, japon: 10 },
         inicial: { dinero: 8, estabilidad: -1, ejercito: -6 }, porTurno: { dinero: 2 },
         texto: 'Anuncias que no habrá más lanzamientos "de momento". Llegan barcos con arroz de ayuda humanitaria. Los generales miran el cielo vacío con nostalgia.'
       },
@@ -115,7 +115,7 @@
     MERCADOS: {
       nombre: 'el mercado negro', re: /\b(jangmadang|mercados? negros?|mercados? privados?|mercados? libres?|libre mercado|abrir los mercados|cerrar los mercados|comercio privado|los mercados)\b/,
       favor: {
-        nombre: 'la legalización de los mercados', controversia: 1, prensa: 'economia', economia: { mercadoNegro: -35 },
+        nombre: 'la legalización de los mercados', controversia: 1, prensa: 'economia', economia: { mercadoNegro: -35 }, relaciones: { china: 6, surcorea: 4 },
         inicial: { felicidad: 5, estabilidad: -1, elite: -6 }, porTurno: { dinero: 5, felicidad: 0.8, inflacion: -1, estabilidad: -0.3 }, curvas: { dinero: 'madura' },
         texto: 'El jangmadang deja de ser negro: los puestos pagan una licencia y un impuesto. Las abuelas que vendían a escondidas cuelgan por primera vez un cartel con su nombre. Algunos cuadros del Partido pierden sus sobornos y ponen mala cara.',
         programar: [{ en: 3, titulo: 'Los nuevos ricos', texto: 'En Pionyang aparecen los donju, comerciantes con coche y teléfono extranjero. Compran pisos, prestan dinero y ya no bajan la mirada ante los inspectores.', efectos: { dinero: 4, estabilidad: -2 } }]
@@ -133,7 +133,7 @@
       nombre: 'los campos de reeducación', re: /\b(campos? de (reeducacion|concentracion|trabajo|internamiento)|reeducacion)\b/,
       contraRe: /\b(cerr\w*|liber\w*|desmantel\w*|abol\w*|prohib\w*|elimin\w*)\b/,
       favor: {
-        nombre: 'los campos de reeducación', controversia: 3,
+        nombre: 'los campos de reeducación', controversia: 3, relaciones: { eeuu: -6, surcorea: -6, japon: -3 },
         inicial: { dinero: -15, estabilidad: 3, felicidad: -8 }, porTurno: { dinero: -4, estabilidad: 1, felicidad: -2 },
         curvas: { estabilidad: 'desgasta', felicidad: 'desgasta' },
         texto: 'En el interior se levantan barracones con alambre y un cartel que dice «Escuela de Ciudadanía». Los autobuses salen de noche. Nadie en los barrios pregunta en voz alta adónde van.',

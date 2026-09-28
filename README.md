@@ -65,6 +65,24 @@ Algunos decretos tienen reglas propias porque el clasificador general no los tra
 
 Cada tema se entiende en las dos direcciones: «legalizar la esclavitud» / «abolir la esclavitud», «declarar la guerra» / «firmar la paz», «talar la selva» / «dejar de talar la selva». Cada dirección tiene sus efectos, lo polémico que es para el Congreso y consecuencias con retraso: sanciones, fugas, bloqueo naval, inundaciones o la huelga de las mujeres. Ir en contra sustituye a la ley anterior, y abolir algo que nunca existió solo lo recuerda. Los temas están en `js/datos/temas.js`; para añadir uno basta con escribir su entrada.
 
+### Diplomacia
+
+Cuatro potencias tienen una relación contigo (0-100), algo que quieren y algo que temen. Escribe `diplomacia` para verlo.
+
+| País | Quiere | Consecuencia cada turno |
+|---|---|---|
+| **China** | estabilidad en su frontera: ni guerras ni pruebas que atraigan barcos americanos | comercio (divisas). Si se enfada, corta el petróleo: suben los precios |
+| **Estados Unidos** | que desmanteles el arsenal (lo heredas de tu padre) | si te odia, endurece las sanciones; si te aprecia, las alivia |
+| **Corea del Sur** | reencuentros familiares, zonas industriales conjuntas | con buenas relaciones manda ayuda (y se cuelan memorias USB) |
+| **Japón** | que devuelvas a los secuestrados y dejes de lanzar misiles | algo de ayuda si las relaciones son buenas |
+
+- **Decretos diplomáticos:** `negociar con Estados Unidos`, `pedir ayuda a China`, `visitar Seúl`, `insultar a Japón`… Acercarte a uno puede molestar a otro, por ejemplo a China le ponen celosa los tratos con Washington. Los generales desconfían de los acercamientos al enemigo. Cuanto mejor es ya la relación, menos rinde cada gesto.
+- **Los temas duros también cuentan:** los misiles y la bomba enfadan a todos, y más aún al país al que apuntas (`lanzar un misil a Japón`). El desarme, la paz y democratizar el país mejoran las relaciones.
+- **Eventos:** la *oferta de Washington* (el arsenal a cambio de trigo y levantar sanciones; si finges aceptar, te descubren unos turnos después), *Pekín pierde la paciencia*, *Seúl tiende la mano* (Kaesong o reencuentros), *los secuestrados de Tokio* y *la cumbre*, que llega si las relaciones con EE. UU. mejoran.
+- **Con IA,** el Consejo recibe qué quiere y teme cada potencia y puede mover las relaciones y el arsenal, con los mismos topes.
+
+Las relaciones vuelven poco a poco a su punto de partida: la memoria diplomática es corta.
+
 ### Perfil de país
 
 Todo lo que hace distinto a un país está en `js/datos/paises.js`:

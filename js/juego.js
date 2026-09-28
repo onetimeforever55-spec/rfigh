@@ -15,7 +15,7 @@
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
     ['Disolver…', 'Disolver '], ['Controlar…', 'Controlar '], ['En secreto…', 'En secreto '],
-    ['esperar', 'esperar', true], ['estado', 'estado', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['diplomacia', 'diplomacia', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -745,6 +745,7 @@
     if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
     if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
     if (/^(ia|api|clave|configurar ia|narrador ia|cronica)$/.test(orden)) { mostrarConfigIA(); return; }
+    if (/^(diplomacia|relaciones|exterior|relaciones exteriores|paises|el mundo)$/.test(orden)) { mostrar(RF.narrador.diplomacia(estado), false); return; }
     if (/^(sistema|regimen|politica|congreso|sistema politico)$/.test(orden)) { mostrar(RF.narrador.sistema(estado), false); return; }
     if (/^(gabinete|ministros|poder|instituciones)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
     if (/^(leyes|ley|leyes vigentes|economia|mercado|balance)$/.test(orden)) { mostrar(RF.narrador.leyes(estado), false); return; }

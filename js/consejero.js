@@ -58,6 +58,7 @@
     };
     RF.poder.iniciar(e);
     RF.politica.iniciar(e);
+    if (RF.diplomacia) RF.diplomacia.iniciar(e);
     return e;
   }
 
@@ -193,6 +194,7 @@
    */
   function decretar(estado, interp, op) {
     op = op || {};
+    if (interp.tipo === 'diplomacia') return decretarDiplomacia(estado, interp, op);
     const accion = interp.accion;
     const objId = interp.objeto;
     const o = objetoDe(objId);
@@ -237,6 +239,7 @@
       Object.assign(inicial, def.inicial);
       res.notas.push(...def.notas);
       if (def.economia) ajustarEconomia(estado, def.economia, res.notas);
+      if (def.relaciones && RF.diplomacia) res.relaciones = RF.diplomacia.ajustar(estado, def.relaciones, res.notas);
     } else if (!op.forzar && RF.politica.bloquea(estado, def, accion, objId, interp)) {
       // En democracia, el Congreso puede tumbar una ley polémica si no tienes votos.
       res.bloqueada = true;
@@ -266,12 +269,23 @@
       for (const pr of def.programar || []) estado.pendientes.push({ dia: estado.dia + pr.en, titulo: pr.titulo, texto: T.expandir(pr.texto), efectos: pr.efectos });
       if ((def.programar || []).length) res.programadas = def.programar.length;
       if (def.economia) ajustarEconomia(estado, def.economia, res.notas);
+      if (def.relaciones && RF.diplomacia) res.relaciones = RF.diplomacia.ajustar(estado, def.relaciones, res.notas);
       RF.politica.tras(estado, def, accion, objId);
       const lat = RF.politica.efectoLateral(estado, accion, objId);
       if (lat) res.cambioRegimen = lat;
     }
     res.medida = laMedida;
     if (def && def.prensa) res.prensa = def.prensa;
+    // El arsenal nuclear, y el país contra el que apunta un misil o una guerra ("lanzar un misil a Japón").
+    if (RF.diplomacia && interp.tema && !res.bloqueada) {
+      const D = RF.diplomacia.iniciar(estado);
+      if (interp.tema === 'NUCLEAR') D.arsenal = accion !== 'PROHIBIR';
+      const blanco = ['MISILES', 'GUERRA', 'NUCLEAR'].includes(interp.tema) && accion !== 'PROHIBIR' && RF.diplomacia.objetivo(T.normalizar(interp.texto || ''));
+      if (blanco) {
+        const extra = RF.diplomacia.ajustar(estado, { [blanco]: interp.tema === 'GUERRA' ? -25 : -12 }, res.notas);
+        res.relaciones = Object.assign(res.relaciones || {}, { [blanco]: ((res.relaciones || {})[blanco] || 0) + (extra[blanco] || 0) });
+      }
+    }
     res.vars = { objeto: nombre, Objeto: T.mayus(nombre), medida: laMedida, Medida: T.mayus(laMedida), lider: 'Líder Supremo' };
 
     // Combinaciones con historia propia ("vender el aire").
@@ -352,6 +366,28 @@
     return res;
   }
 
+  /*
+   * Un gesto diplomático: "negociar con Estados Unidos", "insultar a Japón", "pedir ayuda a China".
+   * Cambia relaciones (y a veces divisas, precios o el ánimo del ejército) y queda en el historial.
+   */
+  function decretarDiplomacia(estado, interp, op) {
+    const g = RF.diplomacia.gesto(estado, interp.pais, interp.dir);
+    const nombre = RF.PAIS.relaciones[interp.pais].nombre;
+    const res = { tipo: 'diplomacia', dia: estado.dia, pais: interp.pais, dir: interp.dir, deltas: {}, porTurno: null, sucesos: [], notas: g.notas.slice(),
+      medida: g.medida, nombreObjeto: nombre, especial: g.texto };
+    res.vars = { objeto: nombre, Objeto: nombre, medida: g.medida, Medida: T.mayus(g.medida), lider: 'Líder Supremo' };
+    const efectos = convertir(g.efectos);
+    if (op.secundario) for (const k of Object.keys(efectos)) efectos[k] *= 0.75;
+    aplicarEfectos(estado, efectos, res.deltas);
+    res.relaciones = RF.diplomacia.ajustar(estado, g.relaciones, res.notas);
+    if (g.sanciones) ajustarEconomia(estado, { sanciones: g.sanciones }, res.notas);
+    estado.historial.push({ dia: estado.dia, accion: 'DIPLOMACIA', objeto: interp.pais, nombreObjeto: nombre, medida: g.medida, texto: interp.texto });
+    res.numero = estado.historial.length;
+    reacciones(estado, res, 'EXTRANJEROS');
+    if (op.avanzar !== false) avanzarDia(estado, res);
+    return res;
+  }
+
   // Pasa un turno: leyes vigentes, economía, consecuencias, personajes, alertas y eventos.
   function avanzarDia(estado, res) {
     const s = estado.stats;
@@ -399,13 +435,16 @@
     if (s.felicidad < 40) res.causas.push('La población no aguanta más: el descontento resta estabilidad cada turno.');
     if (s.inflacion > 40) res.causas.push('Los precios se retroalimentan: todos suben precios porque esperan que suban.');
 
+    // Las potencias vecinas: comercio con China, petróleo, ayuda del Sur, sanciones de Washington.
+    const ext = RF.diplomacia ? RF.diplomacia.turno(estado, res) : { dinero: 0, inflacion: 0, felicidad: 0, elite: 0 };
+    res.exterior = ext;
     const cambio = {
-      dinero: fondo.dinero + L.total.dinero,
-      inflacion: nuevaInflacion - s.inflacion,
-      felicidad: fondo.felicidad + L.total.felicidad,
+      dinero: fondo.dinero + L.total.dinero + ext.dinero,
+      inflacion: nuevaInflacion - s.inflacion + ext.inflacion,
+      felicidad: fondo.felicidad + L.total.felicidad + ext.felicidad,
       estabilidad: fondo.estabilidad + L.total.estabilidad,
       ejercito: fondo.ejercito + (L.total.ejercito || 0),
-      elite: fondo.elite + (L.total.elite || 0)
+      elite: fondo.elite + (L.total.elite || 0) + ext.elite
     };
     res.cambioTurno = {};
     aplicarEfectos(estado, cambio, res.cambioTurno);
@@ -424,6 +463,8 @@
     for (const p of hoy) {
       const reg = {};
       aplicarEfectos(estado, p.efectos, reg);
+      if (p.sanciones) ajustarEconomia(estado, { sanciones: p.sanciones });
+      if (p.relaciones && RF.diplomacia) RF.diplomacia.ajustar(estado, p.relaciones);
       res.sucesos.push({ tipo: 'consecuencia', titulo: p.titulo, texto: T.expandir(p.texto), deltas: reg });
     }
 

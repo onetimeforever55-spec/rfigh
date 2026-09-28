@@ -111,6 +111,7 @@
     'El mundo: ' + RF.PAIS.corto + ', aislada y bajo sanciones. Pionyang es el escaparate; en el campo hay apagones y hambre. Casi todo el mundo sobrevive gracias al jangmadang, el mercado negro. Altavoces en cada barrio, retratos de la dinastía en cada casa. China compra el carbón. El barrio obrero que aparece a menudo es Sadong.',
     'Los indicadores: DIVISAS (dinero), INFLACIÓN, ESTABILIDAD; y el ánimo de tres sectores: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN.',
     'La gente de a pie: la abuela Sun-ja (67 años, vende tortitas de maíz en el mercado negro, sobrevivió a la hambruna), su nieto Chol-su (19, universitario, escucha K-pop del Sur a escondidas en una memoria USB), Kwang-ho (45, taxista de Pionyang, opina de todo pero solo dentro del taxi) y Eun-hee (34, enfermera del Hospital Central con dos hijos).',
+    'Fuera: China (el único aliado, que quiere estabilidad), Estados Unidos (quiere que desmanteles la bomba), Corea del Sur y Japón. Si algo de diplomacia pasa en el turno, puede aparecer en PALACIO (la ministra de Exteriores) o en la RADIO.',
     'Song Dae-ho dirige una red clandestina de memorias USB. El embajador sueco vigila con cara de preocupación. Medios: el Rodong Sinmun (oficial), Radio Pionyang (oficial) y Radio Libertad (desde el Sur, a escondidas).'
   ].join('\n');
 
@@ -147,6 +148,7 @@
       regimen: RF.REGIMENES && p.regimen ? RF.REGIMENES[p.regimen].nombre : 'Democracia',
       pais: { divisas_millones: s.dinero, inflacion_pct: Math.round(s.inflacion), estabilidad: s.estabilidad },
       sectores: sectoresTurno(estado, bloques),
+      relaciones_exteriores: RF.diplomacia && estado.diplomacia ? Object.fromEntries(Object.entries(RF.PAIS.relaciones).map(([id, P]) => [P.nombre, Math.round(estado.diplomacia.relaciones[id]) + ' (' + RF.diplomacia.etiqueta(estado.diplomacia.relaciones[id]) + ')'])) : undefined,
       economia: estado.economia ? { sanciones: estado.economia.sanciones + ' de 4', mercado_negro: Math.round(estado.economia.mercadoNegro) + '%' } : undefined,
       gabinete: Object.entries(RF.GABINETE).map(([id, m]) => (estado.gabinete && estado.gabinete[id] ? estado.gabinete[id].nombre : m.nombre) + ' (' + m.cargo + ')'),
       gente: Object.entries(estado.ciudadanos || {}).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + ({ muerto: 'muerto/a', preso: 'en la cárcel', exiliado: 'en el exilio' }[c.estado] || (c.animo > 25 ? 'te apoya' : c.animo < -25 ? 'te detesta' : 'desconfía'))),

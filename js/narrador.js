@@ -30,8 +30,9 @@
         'Cada pocos turnos surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
         'El SISTEMA POLÍTICO también se cambia con decretos: "restaurar la democracia", "garantizar elecciones libres", "liberar la prensa", "disolver la asamblea", "proclamarme rey", "volver al juche". Cada régimen recauda, invierte y reprime distinto. En democracia, el Congreso puede bloquear leyes polémicas y hay que ganar las elecciones.\n' +
         'Lo que haces "en secreto" no pasa por ningún control, pero puede descubrirse.\n' +
+        'DIPLOMACIA: Estados Unidos, China, Corea del Sur y Japón quieren cosas distintas. "negociar con Estados Unidos", "pedir ayuda a China", "visitar Seúl" o "insultar a Japón" cambian las relaciones; los misiles y la bomba también. China da comercio y petróleo; Washington decide las sanciones; el Sur manda ayuda. Escribe "diplomacia" para verlo.\n' +
         'Opcional: toca el botón IA de arriba (o escribe "ia"). Con IA, un Consejo de Estado entiende cualquier decreto, decide sus consecuencias (el juego pone las reglas y los límites) y recuerda lo que va pasando; y una crónica cuenta cada turno. Dentro de claude.ai funciona con tu cuenta; fuera, con una clave de API (OpenRouter y Gemini tienen planes gratis).\n' +
-        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
+        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "diplomacia" (relaciones exteriores), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
         'No hay último turno: gobiernas mientras aguantes. Cada 20 turnos hay elecciones.'
     }];
   }
@@ -191,8 +192,32 @@
     return bloques;
   }
 
+  // Cómo han cambiado las relaciones con las potencias vecinas.
+  function bloqueExterior(estado, relaciones) {
+    const ids = Object.keys(relaciones || {}).filter(id => relaciones[id]);
+    if (!ids.length || !RF.diplomacia) return null;
+    const lineas = ids.map(id => {
+      const v = Math.round(RF.diplomacia.rel(estado, id));
+      const d = relaciones[id];
+      return RF.PAIS.relaciones[id].nombre + ': ' + (d > 0 ? '+' : '−') + Math.abs(d) + ' → ' + v + ' (' + RF.diplomacia.etiqueta(v) + ')';
+    });
+    return { tipo: 'exterior', titulo: 'RELACIONES EXTERIORES', texto: lineas.join('\n') };
+  }
+
+  function decretoDiplomacia(estado, interp, res) {
+    const bloques = [{ tipo: 'bot', texto: 'INTÉRPRETE › DIPLOMACIA · ' + res.medida.toUpperCase() }];
+    bloques.push({ tipo: 'gaceta', titulo: 'NOTA DIPLOMÁTICA Nº ' + res.numero + ' · TURNO ' + res.dia, texto: T.mayus(res.medida) + '. ' + res.especial });
+    bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: null });
+    for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
+    const ex = bloqueExterior(estado, res.relaciones);
+    if (ex) bloques.push(ex);
+    bloques.push(...secciones(estado, res, res.dir === 'hostil' ? 'culto' : 'regalo'));
+    return bloques;
+  }
+
   function decreto(estado, interp, res) {
     if (res.tipo === 'persona') return decretoPersona(estado, interp, res);
+    if (res.tipo === 'diplomacia') return decretoDiplomacia(estado, interp, res);
     const bloques = [];
     const partes = [interp.tema ? 'INTÉRPRETE › ' + res.medida.toUpperCase() : 'INTÉRPRETE › ' + RF.ACCIONES[res.accion].nombre.toUpperCase() + ' + ' + (res.objeto === 'OTRO' ? '"' + res.nombreObjeto + '" (desconocido)' : res.nombreObjeto.toUpperCase())];
     if (interp.confianza != null) partes.push(interp.confianza + '% seguro');
@@ -213,6 +238,8 @@
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.ley && res.ley.nivel });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
 
+    const ex = bloqueExterior(estado, res.relaciones);
+    if (ex) bloques.push(ex);
     bloques.push(...secciones(estado, res, tipo));
     if (res.cambioRegimen) bloques.push(bloqueRegimen(res.cambioRegimen));
     return bloques;
@@ -239,7 +266,7 @@
     bloques.push({ tipo: 'efectos', rotulo: 'Resultado del turno', deltas: res.cambioTurno || {} });
     for (const c of res.causas || []) bloques.push({ tipo: 'nota', texto: c });
     for (const s of res.sucesos) {
-      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA', escandalo: 'ESCÁNDALO', politica: 'POLÍTICA', mundo: 'EN EL PAÍS' }[s.tipo] || 'NOTICIA';
+      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA', escandalo: 'ESCÁNDALO', politica: 'POLÍTICA', mundo: 'EN EL PAÍS', diplomacia: 'EXTERIOR' }[s.tipo] || 'NOTICIA';
       bloques.push({ tipo: 'suceso', clase: s.tipo, titulo: etiqueta + ' · ' + s.titulo.toUpperCase(), texto: s.texto, deltas: s.deltas });
     }
     if (res.fin) return bloques.concat(final(estado));
@@ -268,9 +295,15 @@
   function decision(estado, r) {
     const bloques = [{ tipo: 'suceso', clase: 'decision', titulo: 'DECISIÓN · ' + (r.textoOpcion || T.expandir(r.opcion.texto)).toUpperCase(), texto: r.resultado, deltas: r.deltas }];
     if (r.decreto && r.decreto.porTurno) bloques.push({ tipo: 'efectos', rotulo: 'Ley aprobada', deltas: {}, porTurno: r.decreto.porTurno, curvas: r.decreto.curvas });
+    const ex = bloqueExterior(estado, r.relaciones);
+    if (ex) bloques.push(ex);
     if (r.cambio) bloques.push(bloqueRegimen(r.cambio));
     if (r.fin) bloques.push(...final(estado));
     return bloques;
+  }
+
+  function diplomacia(estado) {
+    return [{ tipo: 'sistema', titulo: 'RELACIONES EXTERIORES', texto: RF.diplomacia.resumen(estado), mono: true }];
   }
 
   function sistema(estado) {
@@ -338,6 +371,10 @@
       'Sanciones    nivel ' + ec.sanciones + ' de 4 (' + (ec.sanciones * RF.PAIS.economia.costeSancion) + 'M por turno)',
       'Mercado negro ' + Math.round(ec.mercadoNegro) + '% de la economía'
     ];
+    if (RF.diplomacia) {
+      lineas.push('', 'Relaciones exteriores (escribe "diplomacia" para ver qué quiere cada uno):');
+      for (const [id, P] of Object.entries(RF.PAIS.relaciones || {})) lineas.push(fila(P.nombre, RF.diplomacia.rel(estado, id)) + ' ' + RF.diplomacia.etiqueta(RF.diplomacia.rel(estado, id)));
+    }
     const t = RF.leyes.lista(estado).reduce((acc, l) => { const ef = RF.leyes.efectoActual(estado, l); for (const k of Object.keys(acc)) acc[k] += ef[k] || 0; return acc; }, { dinero: 0, estabilidad: 0, felicidad: 0, inflacion: 0, ejercito: 0, elite: 0 });
     lineas.push('', 'Tus ' + RF.leyes.lista(estado).length + ' leyes suman cada turno:', '   ' + RF.leyes.resumenLey(t));
     lineas.push('Turno ' + estado.dia + ' · Decretos: ' + estado.historial.length);
@@ -411,5 +448,5 @@
     ];
   }
 
-  RF.narrador = { secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
+  RF.narrador = { diplomacia, bloqueExterior, secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});

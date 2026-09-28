@@ -44,6 +44,7 @@
     '- ejercito = el EJÉRCITO: generales, oficiales y soldados. Les gustan los misiles, las medallas, las raciones y el dinero; odian los recortes, las purgas, las milicias rivales y cobrar tarde. A 0, golpe de Estado.',
     '- elite = el PALACIO: el Partido y la élite. Les gustan los lujos, los sobornos del mercado negro y que no se toque su poder; odian las sanciones, las purgas y perder privilegios. A 0, te traicionan.',
     '- felicidad = la POBLACIÓN: cómo aguanta la gente (comida, apagones, miedo, mercado). A 0, revuelta. Por debajo de 40 resta estabilidad.',
+    'DIPLOMACIA (campo "relaciones" de la ficha, opcional): cambios en la relación (0-100) con las potencias vecinas, de -25 a +25 cada una: {"eeuu": ..., "china": ..., "surcorea": ..., "japon": ...}. Lo que quiere y teme cada una viene en "diplomacia". Sé coherente con sus intereses: China quiere estabilidad y odia las pruebas que atraen barcos americanos; Estados Unidos quiere desnuclearización y castiga los misiles con sanciones; el Sur premia los gestos de acercamiento y teme la artillería; Japón exige a los secuestrados y odia los misiles sobre su territorio. Cada turno el motor aplica sus consecuencias: China da comercio y, si se enfada, corta el petróleo; Estados Unidos sube o baja las sanciones; el Sur manda ayuda. Si el decreto desmantela o reconstruye el arsenal nuclear, pon "arsenal": false o true.',
     'ECONOMÍA (campo "economia" de la ficha, opcional): {"sanciones": de -2 a +2 (cambia el nivel de sanciones, 0-4), "mercado_negro": de -40 a +40 (puntos del % de economía que va por el jangmadang)}. Los misiles y la bomba suben sanciones; la diplomacia y el desarme las bajan; legalizar mercados reduce el mercado negro (pasa a pagar impuestos); perseguirlo también lo reduce pero trae hambre.',
     '',
     'CADA DECRETO SUELE SER UNA LEY VIGENTE: tiene un efecto al firmarse ("inicial") y otro que se repite CADA TURNO ("por_turno") mientras siga vigente. El motor ajusta esos efectos según el régimen, la inflación y la estabilidad.',
@@ -85,7 +86,7 @@
     '',
     'CONSECUENCIAS Y EVENTOS:',
     '- "consecuencias": efectos que llegan más tarde (0 a 2), con "en_turnos" (1-6), un "titulo", un "texto" de una o dos frases y "efectos" (topes de "inicial").',
-    '- "evento": SOLO si el decreto provoca de inmediato una decisión difícil (más o menos uno de cada tres decretos). Con "titulo", "texto" y 2 o 3 "opciones", cada una con "texto" (la acción, corta), "resultado" (qué pasa, una o dos frases), "efectos" (topes de "inicial"), opcional "por_turno_dinero" (un ingreso o gasto fijo, entre -15 y 15) y opcional "hecho" (qué recordar si se elige).',
+    '- "evento": SOLO si el decreto provoca de inmediato una decisión difícil (más o menos uno de cada tres decretos). Con "titulo", "texto" y 2 o 3 "opciones", cada una con "texto" (la acción, corta), "resultado" (qué pasa, una o dos frases), "efectos" (topes de "inicial"), opcional "por_turno_dinero" (un ingreso o gasto fijo, entre -15 y 15), opcional "relaciones" (como el campo de la ficha, de -20 a 20) y opcional "sanciones" (-1 o 1) y opcional "hecho" (qué recordar si se elige).',
     '- Si "turnos_sin_evento" es 4 o más, propón un evento aunque el decreto sea tranquilo: el país no se queda quieto.',
     '- "hechos": 1 a 3 frases cortas y concretas, en pasado, con lo que el mundo debe recordar de este decreto (quién, qué, dónde). Si aparece un personaje nuevo, dale nombre aquí.',
     '',
@@ -100,7 +101,7 @@
     ' "leyes": [{"nombre": "la privatización del aire", "inicial": {"dinero": 35, "felicidad": -8}, "por_turno": {"dinero": 15, "felicidad": -2, "estabilidad": -1}, "curvas": {}, "duracion": null, "imprime": false, "controversia": 2}],',
     ' "derogar": [], "personas": [], "instituciones": {}, "regimen": null, "secreto": false, "gravedad_secreto": 0, "apoyo_congreso": 0,',
     ' "consecuencias": [], "evento": null, "hechos": ["El Gobierno vendió el aire a la empresa Brisa S.A."],',
-    ' "economia": {}, "radio": "¡Buenos días, camaradas! ...", "gabinete": {"id": "cifuentes", "dice": "..."}, "ejercito": {"dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
+    ' "economia": {}, "relaciones": {}, "radio": "¡Buenos días, camaradas! ...", "gabinete": {"id": "cifuentes", "dice": "..."}, "ejercito": {"dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
     'Si el decreto no crea una ley duradera (una orden puntual, una fiesta, un castigo a una persona), deja "leyes" vacío y pon el efecto puntual en "efecto_unico": {"dinero": ..., ...} (topes de "inicial").'
   ].join('\n');
 
@@ -148,6 +149,7 @@
       pais: { dinero: s.dinero, inflacion: Math.round(s.inflacion), estabilidad: s.estabilidad, balance_por_turno: Math.round(e.balance || 0) },
       sectores: { ejercito: Math.round(RF.consejero.asegurar(e).sectores.ejercito), elite: Math.round(e.sectores.elite), felicidad: s.felicidad },
       economia: { sanciones: e.economia.sanciones + ' de 4', mercado_negro: Math.round(e.economia.mercadoNegro) + '%' },
+      diplomacia: RF.diplomacia ? RF.diplomacia.paraIA(e) : undefined,
       leyes_vigentes: RF.leyes.lista(e).map(l => ({ id: l.clave, nombre: l.nombre, desde_turno: l.desde, nivel: l.nivel, por_turno: soloNumeros(RF.leyes.efectoNominal(l)), secreta: l.secreta || undefined })),
       gabinete, gente_de_a_pie: gente, otras_personas: otros,
       secretos_sin_descubrir: p.secretos.length, escandalos: p.escandalos,
@@ -235,6 +237,20 @@
     return r.inicial;
   }
 
+  // Relaciones con las potencias (con tope ±25 cada una) y el arsenal nuclear.
+  function aplicarRelaciones(e, ficha, res) {
+    if (!RF.diplomacia) return;
+    const r = ficha.relaciones && typeof ficha.relaciones === 'object' ? ficha.relaciones : {};
+    const cambios = {};
+    for (const id of Object.keys(RF.PAIS.relaciones || {})) {
+      const v = Math.max(-25, Math.min(25, Math.round(Number(r[id]) || 0)));
+      if (v) cambios[id] = v;
+    }
+    const hecho = RF.diplomacia.ajustar(e, cambios, res.notas);
+    if (Object.keys(hecho).length) res.relaciones = Object.assign(res.relaciones || {}, hecho);
+    if (typeof ficha.arsenal === 'boolean') RF.diplomacia.iniciar(e).arsenal = ficha.arsenal;
+  }
+
   // Consecuencias que llegan más tarde (las cuenta el motor cuando toca).
   function programar(e, ficha, res, recortes) {
     for (const c of objetos(ficha.consecuencias, 2)) {
@@ -246,6 +262,13 @@
     }
   }
 
+  function relacionesOpcion(r) {
+    const out = {};
+    if (!r || typeof r !== 'object') return out;
+    for (const id of Object.keys(RF.PAIS.relaciones || {})) { const v = Math.max(-20, Math.min(20, Math.round(Number(r[id]) || 0))); if (v) out[id] = v; }
+    return out;
+  }
+
   // Un evento propio de la IA: no más de uno cada dos turnos y nunca encima de otro.
   function crearEvento(e, ev, res, recortes) {
     const D = e.dilemas;
@@ -253,7 +276,7 @@
       const id = 'ia_' + e.dia + '_' + Math.floor(Math.random() * 1e6);
       const opciones = objetos(ev.opciones, 3).map(o => {
         const din = Math.max(-15, Math.min(15, Number(o.por_turno_dinero) || 0));
-        return { texto: limpiar(o.texto, 90) || 'Seguir adelante', resultado: limpiar(o.resultado, 400), efectos: efectos(o.efectos, TOPES.inicial, recortes), ingresos: din ? Math.round(din / 3 * 10) / 10 : 0, hecho: limpiar(o.hecho, 240) };
+        return { texto: limpiar(o.texto, 90) || 'Seguir adelante', resultado: limpiar(o.resultado, 400), efectos: efectos(o.efectos, TOPES.inicial, recortes), ingresos: din ? Math.round(din / 3 * 10) / 10 : 0, hecho: limpiar(o.hecho, 240), relaciones: relacionesOpcion(o.relaciones), sanciones: Math.max(-1, Math.min(1, Math.round(Number(o.sanciones) || 0))) };
       });
       D.custom = D.custom || {};
       D.custom[id] = { id, titulo: limpiar(ev.titulo, 80) || 'Una decisión', texto: limpiar(ev.texto, 700), opciones, ia: true };
@@ -384,6 +407,7 @@
     const dSan = Math.max(-2, Math.min(2, Math.round(Number(ecf.sanciones) || 0)));
     const dMer = Math.max(-40, Math.min(40, Math.round(Number(ecf.mercado_negro) || 0)));
     if (dSan || dMer) RF.consejero.ajustarEconomia(e, { sanciones: dSan, mercadoNegro: dMer }, res.notas);
+    aplicarRelaciones(e, ficha, res);
 
     // 6. Lo que llega más tarde y lo que hay que recordar.
     programar(e, ficha, res, recortes);
@@ -460,7 +484,7 @@
   }
 
   // ---------- Un turno sin decretos: el país sigue su curso ----------
-  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Corea del Norte por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "radio", "gabinete", "ejercito", "calle" y "economia". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
+  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Corea del Norte por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "radio", "gabinete", "ejercito", "calle", "economia" y "relaciones" (las potencias también se mueven solas: una cumbre, una amenaza, un barco de ayuda). NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
 
   async function consultarMundo(e, alTexto) {
     const contenido = 'Situación de Corea del Norte (JSON):\n' + JSON.stringify(contexto(e, '(ninguno: el jugador espera)')) + '\n\n' + MUNDO + '\n\nDevuelve solo la ficha JSON.';
@@ -488,6 +512,7 @@
     if (titulo && texto) res.sucesos.push({ tipo: 'mundo', titulo, texto, deltas });
     programar(e, ficha, res, recortes);
     crearEvento(e, ficha.evento, res, recortes);
+    aplicarRelaciones(e, ficha, res);
     for (const h of (Array.isArray(ficha.hechos) ? ficha.hechos : []).slice(0, 3)) recordar(e, h);
     res.ficha = ficha;
     return res;

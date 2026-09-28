@@ -235,14 +235,17 @@
     const t = RF.TEMAS[objId];
     const dir = accion === 'PROHIBIR' ? 'contra' : accion === 'PRIVATIZAR' && t.privada ? 'privada' : 'favor';
     const vigente = lista(e).find(l => l.clave === 'TEMA:' + objId);
-    const d = dir === 'contra' && t.sinLey && !(vigente && vigente.accion !== 'PROHIBIR') ? Object.assign({ nombre: t.contra.nombre }, t.sinLey) : t[dir];
+    // El arsenal heredado cuenta como "algo que desmantelar" aunque no haya ley.
+    const heredado = objId === 'NUCLEAR' && e.diplomacia && e.diplomacia.arsenal;
+    const d = dir === 'contra' && t.sinLey && !heredado && !(vigente && vigente.accion !== 'PROHIBIR') ? Object.assign({ nombre: t.contra.nombre }, t.sinLey) : t[dir];
     const prensa = d.prensa || (d.controversia >= 3 ? 'represion' : d.controversia === 2 ? 'libertad' : dir === 'contra' ? 'regalo' : 'general');
-    if (d.unaVez) return { unaVez: true, nombre: d.nombre, inicial: Object.assign({}, d.inicial), notas: (d.notas || []).slice(), prensa, controversia: 0, economia: d.economia };
+    if (d.unaVez) return { unaVez: true, nombre: d.nombre, inicial: Object.assign({}, d.inicial), notas: (d.notas || []).slice(), prensa, controversia: 0, economia: d.economia, relaciones: d.relaciones };
     return {
       clave: 'TEMA:' + objId, nombre: d.nombre, tema: objId, prensa,
       inicial: Object.assign({}, d.inicial), porTurno: Object.assign({}, d.porTurno), curvas: Object.assign({}, d.curvas),
       notas: (d.notas || []).slice(), texto: d.texto ? T.expandir(d.texto) : '', programar: d.programar || [], controversia: d.controversia || 0,
-      economia: d.economia || null // sanciones y mercado negro
+      economia: d.economia || null, // sanciones y mercado negro
+      relaciones: d.relaciones || null // con las potencias vecinas
     };
   }
 

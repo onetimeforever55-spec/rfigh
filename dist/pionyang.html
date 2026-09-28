@@ -513,6 +513,15 @@ body {
   color: var(--fondo); background: var(--fosforo); border: 0; box-shadow: 0 0 12px var(--brillo);
 }
 .ir-abajo[hidden] { display: none; }
+
+/* Relaciones exteriores tras un decreto. */
+.b-exterior { font-size: 12.5px; padding: 8px 10px; border-left: 2px solid var(--aviso); background: var(--fondo-2); }
+.b-exterior .etiqueta { color: var(--aviso); }
+.b-exterior p { white-space: pre-line; font-variant-numeric: tabular-nums; }
+.b-suceso.diplomacia { border-left: 3px solid var(--aviso); }
+
+/* Los bloques del registro nunca se encogen (si no, la Gaceta, que recorta su contenido, se quedaba en una línea). */
+.registro > * { flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -712,7 +721,63 @@ body {
         regimen: 'JUCHE',
         instituciones: { congreso: 'controlado', tribunales: 'controlado', prensa: 'controlado', elecciones: 'controlado', constitucion: 'controlado' },
         apoyo: 99,
-        economia: { sanciones: 2, mercadoNegro: 60 }
+        economia: { sanciones: 2, mercadoNegro: 60 },
+        arsenal: true // heredas el programa nuclear de tu padre
+      },
+
+      /*
+       * DIPLOMACIA: las potencias vecinas. Relación 0-100 (inicio y "base", a la que tiende con el tiempo),
+       * qué quieren, qué temen, cómo se las nombra en un decreto y qué pasa con un gesto amistoso u hostil.
+       */
+      relaciones: {
+        eeuu: {
+          nombre: 'Estados Unidos', inicio: 18, base: 22,
+          quiere: 'que desmanteles misiles y bombas; a cambio levantaría sanciones y mandaría comida',
+          teme: 'un misil capaz de llegar a su costa',
+          claves: /\b(estados unidos|eeuu|ee uu|usa|washington|norteamerica\w*|americanos?|yanquis?|la casa blanca)\b/,
+          gestos: {
+            amistad: { medida: 'el acercamiento a Estados Unidos', relaciones: { eeuu: 12, china: -4, surcorea: 3 }, efectos: { ejercito: -4, estabilidad: -1 },
+              textos: ['Mandas una carta a Washington escrita a mano, con un sello de lacre y tres faltas de ortografía que {montiel} no se atrevió a corregir. La Casa Blanca contesta en cuarenta y ocho horas. Los generales, en cuarenta y ocho segundos, y no para bien.', 'Invitas a un equipo de baloncesto americano a Pionyang. Pierden 110 a 12 porque los árbitros son tuyos. Aun así, en Washington lo llaman "un paso adelante".'] },
+            hostil: { medida: 'el desafío a Estados Unidos', relaciones: { eeuu: -15, china: -3, japon: -3 }, efectos: { ejercito: 5, estabilidad: 2 }, sanciones: 0,
+              textos: ['El Rodong Sinmun dedica su portada a llamar al presidente americano "chocho senil con peluquín". En Washington lo traducen tres veces para asegurarse. Los generales lo enmarcan.', 'Ordenas un desfile frente a la embajada que no existe. Se desfila igual, frente a un solar, con pancartas en un inglés muy creativo.'] }
+          }
+        },
+        china: {
+          nombre: 'China', inicio: 58, base: 55,
+          quiere: 'estabilidad en su frontera: ni guerras, ni refugiados, ni pruebas que atraigan barcos americanos',
+          teme: 'que el régimen caiga y haya soldados americanos en el río Yalu',
+          claves: /\b(china|chinos?|pekin|beijing|el gigante asiatico)\b/,
+          gestos: {
+            amistad: { medida: 'la visita a Pekín', relaciones: { china: 12, eeuu: -2 }, efectos: { dinero: 6, elite: 3 },
+              textos: ['Viajas a Pekín en tu tren blindado, que va a 40 por hora porque no hay tren más rápido que no sea chino. Te reciben con alfombra roja y una lista de peticiones. Vuelves con arroz, petróleo y la sensación de que alguien te ha dado una palmadita en la cabeza.', 'Mandas a Pekín una delegación con regalos: una estatua de mármol, dos tigres disecados y un cuadro tuyo. Te devuelven un barco de fertilizante. Es el mejor cambio del año.'] },
+            hostil: { medida: 'el desplante a Pekín', relaciones: { china: -18 }, efectos: { dinero: -8, inflacion: 3, ejercito: 3 },
+              textos: ['Llamas "imperialistas del arroz" a los chinos en un discurso. Pekín no contesta. Solo cierra el oleoducto una semana "por mantenimiento". Nunca un mantenimiento fue tan elocuente.', 'Expulsas a tres comerciantes chinos del mercado de Sinuiju. Al día siguiente, en la frontera, los camiones chinos descubren un repentino interés por las inspecciones exhaustivas.'] }
+          }
+        },
+        surcorea: {
+          nombre: 'Corea del Sur', inicio: 28, base: 32,
+          quiere: 'reencuentros de familias separadas, zonas industriales conjuntas y, algún día, la reunificación',
+          teme: 'la artillería que apunta a Seúl desde la frontera',
+          claves: /\b(corea del sur|surcorea\w*|seul|los del sur|el gobierno del sur)\b/,
+          gestos: {
+            amistad: { medida: 'la mano tendida al Sur', relaciones: { surcorea: 14, eeuu: 3, japon: 2 }, efectos: { felicidad: 2, ejercito: -3, elite: -2 },
+              textos: ['Reabres la línea telefónica con Seúl, que llevaba dos años sonando sin que nadie lo cogiera. El primer día solo se dicen "¿hola?" y "¿hola?". Es histórico.', 'Mandas al Sur una caja de setas de pino, el regalo más elegante de la península. Seúl responde con mandarinas. Los generales, con cara de pocos amigos.'] },
+            hostil: { medida: 'la provocación al Sur', relaciones: { surcorea: -18, eeuu: -5, japon: -2 }, efectos: { ejercito: 4, estabilidad: 1 },
+              textos: ['Mandas globos con basura por encima de la frontera. Caen en Seúl bolsas con colillas y calcetines. Los surcoreanos responden con altavoces de K-pop a todo volumen. Tus soldados de la frontera se aprenden las coreografías.', 'Los altavoces de la frontera insultan al Sur día y noche. El Sur responde subiendo el volumen de sus propias canciones. Nadie duerme en veinte kilómetros.'] }
+          }
+        },
+        japon: {
+          nombre: 'Japón', inicio: 18, base: 22,
+          quiere: 'que devuelvas a los japoneses secuestrados hace décadas y dejes de lanzar misiles por encima de su territorio',
+          teme: 'un misil sobre Hokkaido a la hora del desayuno',
+          claves: /\b(japon\w*|tokio|nipon\w*|hokkaido)\b/,
+          gestos: {
+            amistad: { medida: 'el deshielo con Japón', relaciones: { japon: 14, eeuu: 2 }, efectos: { dinero: 3, elite: -1 },
+              textos: ['Aceptas hablar con Tokio de los secuestrados. Es la primera vez en veinte años que en una reunión diplomática nadie se levanta enfadado antes del té.', 'Permites que un barco japonés recoja a unos pescadores que habían naufragado en tu costa. Tokio da las gracias con una reverencia muy larga y un cheque muy corto.'] },
+            hostil: { medida: 'la bronca con Japón', relaciones: { japon: -16, eeuu: -3 }, efectos: { ejercito: 3, felicidad: 1 },
+              textos: ['{paredes} lee en televisión un comunicado de nueve páginas contra los "enanos imperialistas". Al terminar, la gente aplaude porque por fin se ha terminado.', 'Exiges a Japón reparaciones por la ocupación, un siglo de intereses y un perrito que se llevó un soldado en 1938. Tokio no contesta. El perrito tampoco.'] }
+          }
+        }
       },
 
       economia: {
@@ -742,6 +807,7 @@ body {
         'Economía: el Estado ya no alimenta a todo el mundo desde la hambruna de los noventa (la "Ardua Marcha"). La gente vive del jangmadang, el mercado medio tolerado; los donju se enriquecen; los cuadros cobran sobornos. Hay apagones, escasez de petróleo y el won se desploma si se imprime. En 2009 una reforma monetaria arruinó los ahorros de la gente y provocó protestas.',
         'Divisas: entran por el contrabando de carbón de barco a barco, los trabajadores enviados a China y Rusia, el turismo chino, la venta de armas y los ciberrobos. Cada misil trae más sanciones.',
         'Sociedad: songbun (casta política), inminban (vigilancia vecinal), sesiones de autocrítica, trabajo obligatorio en el campo, servicio militar de diez años, campos de prisioneros políticos, castigo a la familia, desertores por el río hacia China, series del Sur en memorias USB.',
+        'Diplomacia: China es su salvavidas (comercio, petróleo) pero quiere estabilidad y detesta las pruebas que atraen barcos americanos. Estados Unidos ofrece levantar sanciones a cambio de desnuclearizar, sin fiarse. Corea del Sur alterna la mano tendida (reencuentros familiares, la zona industrial de Kaesong) con la tensión en la frontera. Japón exige la vuelta de los ciudadanos secuestrados en los años 70 y 80 y sufre los misiles que sobrevuelan su territorio.',
         'Poder: el ejército (songun) y el Partido son los dos pilares. Si el ejército se enfada, hay golpe; si la élite se siente traicionada, hay conspiración en Palacio; si la población no aguanta, hay revuelta, aunque sea lo más difícil de todo en Corea del Norte.'
       ]
     }
@@ -1743,6 +1809,8 @@ body {
   const hito = (e, id) => Object.values(e.ciudadanos).some(c => c.hitos.includes(id));
   const vivo = (e, id) => !e.ciudadanos[id].estado || e.ciudadanos[id].estado === 'libre';
   const persona = (e, id) => (e.personas || {})[id] || 'libre';
+  const relacion = (e, id) => (RF.diplomacia ? RF.diplomacia.rel(e, id) : 50);
+  const arsenal = e => !!(e.diplomacia && e.diplomacia.arsenal);
 
   RF.DILEMAS = [
     // ---------- Provocados por el estado del país ----------
@@ -2178,6 +2246,75 @@ body {
         { texto: 'Detenerlos a todos esta noche', efectos: { ejercito: 6, cupula: 6, orden: 3, mundo: -5 }, resultado: 'Doce detenciones antes del amanecer. El resto del poder entiende el mensaje. Nadie vuelve a conspirar. Durante un tiempo.' },
         { texto: 'Vigilarlos y esperar', efectos: { orden: 2 }, resultado: 'Dejas que sigan conspirando mientras escuchas cada palabra. Es agotador, pero aprendes mucho.' },
         { texto: 'Chantajearlos para que te sirvan', efectos: { cupula: 8, ejercito: 3, pueblo: -1 }, resultado: 'Cada uno recibe una copia de su carpeta y una sonrisa tuya. Ahora son los más leales del país.' }
+      ]
+    },
+
+    // ---------- Diplomacia: las potencias vecinas quieren cosas ----------
+    {
+      id: 'oferta_washington', titulo: 'La oferta de Washington', urgente: true, peso: 1.5,
+      si: e => e.dia >= 5 && relacion(e, 'eeuu') >= 12 && (arsenal(e) || ley(e, 'TEMA:MISILES')),
+      texto: 'Un enviado americano llega a Pionyang vía Pekín, con traje gris y cara de no haber dormido. La oferta cabe en un folio: desmantelas el arsenal y los misiles, y Washington levanta sanciones y manda 500.000 toneladas de trigo. {garrote} lee el folio dos veces y luego te mira a ti. {montiel} mira al suelo.',
+      opciones: [
+        { texto: 'Aceptar: el arsenal a cambio de trigo y dólares', efectos: { dinero: 30, felicidad: 5, ejercito: -15, estabilidad: -2 }, sanciones: -2, arsenal: false, politica: { 'TEMA:NUCLEAR': 1, 'TEMA:MISILES': 1 }, relaciones: { eeuu: 25, surcorea: 15, japon: 12, china: 6 },
+          programar: [{ en: 3, titulo: 'Los generales sin juguetes', texto: 'En el Estado Mayor se habla de "traición a la herencia del abuelo". Los inspectores americanos cuentan tornillos; los coroneles cuentan votos.', efectos: { ejercito: -5, estabilidad: -2 } }],
+          resultado: 'Los inspectores internacionales llegan en un autobús con aire acondicionado. En el puerto de Nampo descargan trigo americano en sacos con la bandera tapada con cinta. {garrote} no aparece en la foto.' },
+        { texto: 'Fingir que aceptas y seguir en secreto', efectos: { dinero: 15 }, sanciones: -1, relaciones: { eeuu: 10 },
+          programar: [{ en: 4, titulo: 'Washington lo descubre', texto: 'Un satélite americano fotografía camiones entrando en la base que "ya no existía". La Casa Blanca habla de "engaño deliberado". Las sanciones vuelven, y con amigos.', efectos: { dinero: -15, estabilidad: -3 }, sanciones: 2, relaciones: { eeuu: -30, japon: -10, surcorea: -10 } }],
+          resultado: 'Firmas el acuerdo con una sonrisa. Esa misma noche, {garrote} traslada los misiles a un túnel nuevo, con una pancarta en la entrada que dice "Almacén de coles".' },
+        { texto: 'Rechazar: el arsenal no se negocia', efectos: { ejercito: 6, estabilidad: 1 }, relaciones: { eeuu: -10, china: 3 },
+          resultado: 'Devuelves el folio con una frase escrita a mano: "La herencia de mi abuelo no está en venta". El enviado se va por donde vino. Los generales brindan con soju.' }
+      ]
+    },
+    {
+      id: 'presion_china', titulo: 'Pekín pierde la paciencia', urgente: true, peso: 1.3,
+      si: e => e.dia >= 4 && (relacion(e, 'china') < 40 || (ley(e, 'TEMA:MISILES') && e.dia - ley(e, 'TEMA:MISILES').desde <= 3) || (ley(e, 'TEMA:GUERRA') !== undefined)),
+      texto: 'El embajador chino pide audiencia y llega con una sola frase aprendida de memoria: "Pekín desea estabilidad". Detrás de la frase, un recordatorio: el 90% de tu comercio y todo tu petróleo pasan por su frontera. Esa mañana, el oleoducto ha empezado a "revisarse por motivos técnicos".',
+      opciones: [
+        { texto: 'Ceder: moratoria de pruebas y buenas palabras', efectos: { ejercito: -8, dinero: 8 }, politica: { 'TEMA:MISILES': 1 }, relaciones: { china: 15, eeuu: 4, japon: 4 },
+          resultado: 'Anuncias que no habrá más lanzamientos "por ahora". El petróleo vuelve a fluir esa misma tarde. {garrote} guarda en un cajón los planos del siguiente misil, sin cerrarlo con llave.' },
+        { texto: 'Desafiarlos: somos independientes (Juche)', efectos: { inflacion: 6, dinero: -10, ejercito: 4, estabilidad: 1 }, relaciones: { china: -15 },
+          programar: [{ en: 2, titulo: 'La frontera se cierra', texto: 'Los camiones chinos dejan de cruzar el puente de la Amistad. En el mercado de Sinuiju el arroz cuesta el doble y la abuela Sun-ja raciona las tortitas.', efectos: { felicidad: -4, inflacion: 3 }, relaciones: { china: -5 } }],
+          resultado: 'Das un discurso sobre la autosuficiencia. Muy aplaudido. Esa noche, en Pionyang, se corta la luz a las ocho para ahorrar el poco combustible que queda.' },
+        { texto: 'Buscar petróleo en Moscú', efectos: { dinero: -6, elite: 3 }, relaciones: { china: -8, eeuu: -4 },
+          resultado: 'Moscú te vende petróleo al doble de precio y con una lista de condiciones escrita en cirílico. {montiel} firma sin entender la mitad. Pekín, que lo entiende todo, toma nota.' }
+      ]
+    },
+    {
+      id: 'mano_seul', titulo: 'Seúl tiende la mano', urgente: true, peso: 1,
+      si: e => e.dia >= 4 && relacion(e, 'surcorea') >= 45,
+      texto: 'Seúl propone reabrir el polígono industrial de Kaesong, donde obreros del Norte trabajarían para fábricas del Sur, y organizar un reencuentro de familias separadas desde la guerra. {sombra} advierte: "Los obreros verán cosas". {cifuentes} advierte: "Los obreros cobrarán en dólares".',
+      opciones: [
+        { texto: 'Reabrir Kaesong', efectos: { felicidad: 3, elite: -4 }, ingresos: 1.5, relaciones: { surcorea: 15, eeuu: 3 },
+          programar: [{ en: 4, titulo: 'Los Choco Pies de Kaesong', texto: 'En Kaesong las fábricas del Sur pagan parte del sueldo en galletas Choco Pie. Se revenden en el mercado a precio de oro y con ellas viaja una idea peligrosa: que en el Sur hay galletas para todos.', efectos: { elite: -3, felicidad: 2 } }],
+          resultado: 'Las fábricas vuelven a encender las máquinas. El Estado se queda con casi todo el sueldo en dólares de los obreros. Los obreros se quedan con las galletas.' },
+        { texto: 'Solo el reencuentro de familias', efectos: { felicidad: 6, estabilidad: -1 }, animo: { carmen: 15 }, relaciones: { surcorea: 10 },
+          resultado: 'Cien ancianos cruzan la frontera en autobús para ver durante tres horas a hermanos que no ven desde 1953. La abuela Sun-ja no tiene a nadie en el Sur, pero llora viendo la televisión igual que todo el país.' },
+        { texto: 'Rechazarlo y volar la oficina de enlace', efectos: { ejercito: 5, dinero: -3 }, relaciones: { surcorea: -22, eeuu: -6 },
+          resultado: 'La oficina de enlace con el Sur salta por los aires en directo. Era un edificio pagado por el Sur. El Sur lo apunta en una lista que ya es muy larga.' }
+      ]
+    },
+    {
+      id: 'secuestrados_japon', titulo: 'Los secuestrados de Tokio', peso: 0.8,
+      si: e => e.dia >= 6 && relacion(e, 'japon') < 55,
+      texto: 'Japón vuelve a pedir noticias de los ciudadanos japoneses secuestrados por agentes de tu abuelo en los años setenta. Ofrece ayuda económica si hay "gestos sinceros". En un archivo del Ministerio de Seguridad del Estado hay una carpeta que nadie ha abierto en treinta años.',
+      opciones: [
+        { texto: 'Admitirlo y devolver a los supervivientes', efectos: { dinero: 20, elite: -5, estabilidad: -2 }, relaciones: { japon: 25, eeuu: 5, surcorea: 5 },
+          resultado: 'Cinco ancianos japoneses bajan de un avión en Tokio, cuarenta años después. El país entero llora en directo. En Pionyang, {paredes} explica que fue "un intercambio cultural muy prolongado".' },
+        { texto: 'Negarlo todo', efectos: { ejercito: 2 }, relaciones: { japon: -10 },
+          resultado: '{montiel} lee un comunicado: "No hay ningún japonés en Corea del Norte, salvo los que están de visita, que tampoco hay". Tokio no se lo cree. Nadie se lo cree.' }
+      ]
+    },
+    {
+      id: 'cumbre_eeuu', titulo: 'La cumbre', urgente: true, unaVez: true, peso: 2,
+      si: e => relacion(e, 'eeuu') >= 55,
+      texto: 'El presidente de Estados Unidos propone una cumbre en Singapur: fotos, apretón de manos y "un nuevo capítulo". {paredes} ya está ensayando los ángulos de cámara. {garrote} pregunta, sin mirarte, si en Singapur hay tanques.',
+      opciones: [
+        { texto: 'Ir y dar la mano', efectos: { estabilidad: 3, felicidad: 4, ejercito: -5 }, sanciones: -1, relaciones: { eeuu: 12, surcorea: 8, japon: 5, china: -3 },
+          resultado: 'La foto del apretón de manos da la vuelta al mundo. Durante una semana, el Rodong Sinmun explica que el presidente americano "vino a pedir consejo". Él dice lo mismo de ti.' },
+        { texto: 'Mandar a {montiel} en tu lugar', efectos: { estabilidad: 1 }, relaciones: { eeuu: 2 },
+          resultado: '{montiel} se sienta frente al presidente americano. Hablan de pesca durante dos horas. Nadie sabe muy bien para qué fue todo, pero el hotel era bonito.' },
+        { texto: 'Plantarlos en el último momento', efectos: { ejercito: 4 }, relaciones: { eeuu: -15 },
+          resultado: 'La delegación americana espera en Singapur tres horas junto a una silla vacía con tu nombre. La foto de la silla vacía da más vueltas al mundo que la del apretón habría dado.' }
       ]
     },
 
@@ -3058,7 +3195,7 @@ body {
     ESCLAVITUD: {
       nombre: 'la esclavitud', re: /\b(esclav\w*|trabajos? forzados?|servidumbre)\b/,
       favor: {
-        nombre: 'la esclavitud legal', controversia: 3, economia: { sanciones: 1 },
+        nombre: 'la esclavitud legal', controversia: 3, economia: { sanciones: 1 }, relaciones: { eeuu: -8, surcorea: -6, japon: -5 },
         inicial: { dinero: 15, felicidad: -10, estabilidad: -3 },
         porTurno: { dinero: 10, felicidad: -2.5, estabilidad: -1.2 }, curvas: { dinero: 'acostumbra' },
         texto: 'Los tribunales reciben la orden de reclasificar a ciertos trabajadores como «patrimonio productivo del Estado». Las minas y las plantaciones firman contratos sin sueldo y sin fecha de salida. En el extranjero, las embajadas piden explicaciones por escrito.',
@@ -3096,7 +3233,7 @@ body {
       no: /\b(narco\w*|drogas?|crimen|pobreza|corrupcion|hambre)\b/,
       contraRe: /\b(paz|armisticio|rendi\w*|retir\w*|alto el fuego|tregua|acabar la guerra|terminar la guerra|fin de la guerra)\b/,
       favor: {
-        nombre: 'la guerra contra el país vecino', controversia: 3, economia: { sanciones: 1 },
+        nombre: 'la guerra contra el país vecino', controversia: 3, economia: { sanciones: 1 }, relaciones: { eeuu: -20, china: -15, surcorea: -25, japon: -15 },
         inicial: { dinero: -30, estabilidad: 5, felicidad: 3, ejercito: 10 },
         porTurno: { dinero: -12, felicidad: -1.5, estabilidad: 0.8, ejercito: 0.5 }, curvas: { estabilidad: 'desgasta', ejercito: 'desgasta' },
         texto: 'Corea del Norte declara la guerra. Los reclutas se presentan en los cuarteles con la maleta de la escuela. Durante unos días, todo el país canta el himno a la vez. Luego llegan las facturas.',
@@ -3107,7 +3244,7 @@ body {
         ]
       },
       contra: {
-        nombre: 'la paz', controversia: 0,
+        nombre: 'la paz', controversia: 0, relaciones: { eeuu: 8, china: 8, surcorea: 12, japon: 6 },
         inicial: { felicidad: 6, estabilidad: -3 }, porTurno: { felicidad: 0.5 },
         texto: 'Se firma la paz en una mesa prestada por un hotel de la frontera. {garrote} no aparece en la foto. Los soldados vuelven a casa; algunos no saben muy bien a qué.'
       },
@@ -3117,31 +3254,31 @@ body {
     NUCLEAR: {
       nombre: 'la bomba atómica', re: /\b(bomba\w*|arma\w*|misil\w*|programa|cabeza\w*) (nuclear\w*|atomic\w*)\b/,
       favor: {
-        nombre: 'el programa nuclear militar', controversia: 3, economia: { sanciones: 1 },
+        nombre: 'el programa nuclear militar', controversia: 3, economia: { sanciones: 1 }, relaciones: { eeuu: -15, china: -10, surcorea: -12, japon: -12 },
         inicial: { dinero: -40, estabilidad: 2, ejercito: 6 }, porTurno: { dinero: -8, estabilidad: 0.6 }, curvas: { estabilidad: 'lenta' },
         texto: 'Un grupo de físicos se instala en una base secreta del interior. Tardarán años; mientras tanto, la palabra «nuclear» ya aparece en todos los discursos de Palacio.',
         programar: [{ en: 3, titulo: 'El mundo se entera', texto: 'Un satélite extranjero fotografía la base. La ONU convoca una cumbre de emergencia sobre Corea del Norte. El embajador ya no sonríe.', efectos: { dinero: -25, estabilidad: -4 } }]
       },
       contra: {
-        nombre: 'el desarme nuclear', controversia: 0, economia: { sanciones: -1 },
+        nombre: 'el desarme nuclear', controversia: 0, economia: { sanciones: -2 }, relaciones: { eeuu: 25, china: 8, surcorea: 15, japon: 12 },
         inicial: { dinero: 10, estabilidad: -1, ejercito: -8 }, porTurno: { dinero: 1 },
         texto: 'Corea del Norte renuncia a las armas atómicas. Los inspectores internacionales se llevan unos papeles y dejan un cheque de ayuda.'
       },
-      sinLey: { unaVez: true, inicial: { dinero: 3 }, notas: ['Corea del Norte no tenía armas nucleares. La ONU agradece la promesa con una pequeña ayuda.'] }
+      sinLey: { unaVez: true, inicial: { dinero: 3 }, notas: ['Ya no queda arsenal que desmantelar: los inspectores se llevaron hasta los tornillos. El mundo agradece que lo repitas.'] }
     },
 
     MISILES: {
       nombre: 'los misiles', re: /\b(misil\w*|cohete\w*|lanzar un satelite|prueba\w* de misiles|ensayo\w* de misiles|disparar al mar)\b/,
       contraRe: /\b(moratoria|suspend\w*|dej\w* de|par(ar|en|e) (de|las|los)|no (mas|lanzar)|prohib\w*|desmantel\w*)\b/,
       favor: {
-        nombre: 'las pruebas de misiles', controversia: 2, prensa: 'culto', economia: { sanciones: 1 },
+        nombre: 'las pruebas de misiles', controversia: 2, prensa: 'culto', economia: { sanciones: 1 }, relaciones: { eeuu: -8, china: -6, surcorea: -8, japon: -10 },
         inicial: { estabilidad: 2, felicidad: 1, dinero: -12, ejercito: 6 }, porTurno: { dinero: -3, estabilidad: 0.3, ejercito: 0.5 }, curvas: { estabilidad: 'acostumbra', ejercito: 'acostumbra' },
         texto: 'Un misil despega de la costa este, cruza el cielo y cae al mar. El Rodong Sinmun dedica ocho páginas al éxito. {garrote} llora de emoción en la foto oficial, rodeado de generales que toman notas.',
         notas: ['Cada lanzamiento une a la élite, pero cuesta divisas y enfada al mundo.'],
         programar: [{ en: 2, titulo: 'Nuevas sanciones', texto: 'El Consejo de Seguridad de la ONU aprueba otra ronda de sanciones. China se abstiene, pero pide a {montiel} "un poco de calma".', efectos: { dinero: -12, estabilidad: -1 } }]
       },
       contra: {
-        nombre: 'la moratoria de pruebas de misiles', controversia: 0, economia: { sanciones: -1 },
+        nombre: 'la moratoria de pruebas de misiles', controversia: 0, economia: { sanciones: -1 }, relaciones: { eeuu: 10, china: 8, surcorea: 6, japon: 10 },
         inicial: { dinero: 8, estabilidad: -1, ejercito: -6 }, porTurno: { dinero: 2 },
         texto: 'Anuncias que no habrá más lanzamientos "de momento". Llegan barcos con arroz de ayuda humanitaria. Los generales miran el cielo vacío con nostalgia.'
       },
@@ -3151,7 +3288,7 @@ body {
     MERCADOS: {
       nombre: 'el mercado negro', re: /\b(jangmadang|mercados? negros?|mercados? privados?|mercados? libres?|libre mercado|abrir los mercados|cerrar los mercados|comercio privado|los mercados)\b/,
       favor: {
-        nombre: 'la legalización de los mercados', controversia: 1, prensa: 'economia', economia: { mercadoNegro: -35 },
+        nombre: 'la legalización de los mercados', controversia: 1, prensa: 'economia', economia: { mercadoNegro: -35 }, relaciones: { china: 6, surcorea: 4 },
         inicial: { felicidad: 5, estabilidad: -1, elite: -6 }, porTurno: { dinero: 5, felicidad: 0.8, inflacion: -1, estabilidad: -0.3 }, curvas: { dinero: 'madura' },
         texto: 'El jangmadang deja de ser negro: los puestos pagan una licencia y un impuesto. Las abuelas que vendían a escondidas cuelgan por primera vez un cartel con su nombre. Algunos cuadros del Partido pierden sus sobornos y ponen mala cara.',
         programar: [{ en: 3, titulo: 'Los nuevos ricos', texto: 'En Pionyang aparecen los donju, comerciantes con coche y teléfono extranjero. Compran pisos, prestan dinero y ya no bajan la mirada ante los inspectores.', efectos: { dinero: 4, estabilidad: -2 } }]
@@ -3169,7 +3306,7 @@ body {
       nombre: 'los campos de reeducación', re: /\b(campos? de (reeducacion|concentracion|trabajo|internamiento)|reeducacion)\b/,
       contraRe: /\b(cerr\w*|liber\w*|desmantel\w*|abol\w*|prohib\w*|elimin\w*)\b/,
       favor: {
-        nombre: 'los campos de reeducación', controversia: 3,
+        nombre: 'los campos de reeducación', controversia: 3, relaciones: { eeuu: -6, surcorea: -6, japon: -3 },
         inicial: { dinero: -15, estabilidad: 3, felicidad: -8 }, porTurno: { dinero: -4, estabilidad: 1, felicidad: -2 },
         curvas: { estabilidad: 'desgasta', felicidad: 'desgasta' },
         texto: 'En el interior se levantan barracones con alambre y un cartel que dice «Escuela de Ciudadanía». Los autobuses salen de noche. Nadie en los barrios pregunta en voz alta adónde van.',
@@ -3702,6 +3839,12 @@ body {
     if (personal) return personal;
     // Temas duros (la esclavitud, la guerra, el aborto...): se reconocen por su forma y tienen sus propias reglas.
     const tema = detectarTema(T.normalizar(texto));
+    // Diplomacia: un gesto hacia (o contra) una potencia vecina, si no es un tema duro ("declarar la guerra a Japón").
+    const dip = !tema && RF.diplomacia && RF.diplomacia.detectar(T.normalizar(texto));
+    if (dip) {
+      return { texto, corregidas, intensidad: 1, negado: false, opciones: [], confianza: 90, estado: 'ok', tipo: 'diplomacia', pais: dip.pais, dir: dip.dir,
+        nombreObjeto: RF.PAIS.relaciones[dip.pais].nombre, accion: 'DIPLOMACIA', objeto: dip.pais };
+    }
     if (tema) {
       return Object.assign({
         texto, corregidas, intensidad: 1, negado: false, opciones: [], confianza: 92, estado: 'ok',
@@ -4061,14 +4204,17 @@ body {
     const t = RF.TEMAS[objId];
     const dir = accion === 'PROHIBIR' ? 'contra' : accion === 'PRIVATIZAR' && t.privada ? 'privada' : 'favor';
     const vigente = lista(e).find(l => l.clave === 'TEMA:' + objId);
-    const d = dir === 'contra' && t.sinLey && !(vigente && vigente.accion !== 'PROHIBIR') ? Object.assign({ nombre: t.contra.nombre }, t.sinLey) : t[dir];
+    // El arsenal heredado cuenta como "algo que desmantelar" aunque no haya ley.
+    const heredado = objId === 'NUCLEAR' && e.diplomacia && e.diplomacia.arsenal;
+    const d = dir === 'contra' && t.sinLey && !heredado && !(vigente && vigente.accion !== 'PROHIBIR') ? Object.assign({ nombre: t.contra.nombre }, t.sinLey) : t[dir];
     const prensa = d.prensa || (d.controversia >= 3 ? 'represion' : d.controversia === 2 ? 'libertad' : dir === 'contra' ? 'regalo' : 'general');
-    if (d.unaVez) return { unaVez: true, nombre: d.nombre, inicial: Object.assign({}, d.inicial), notas: (d.notas || []).slice(), prensa, controversia: 0, economia: d.economia };
+    if (d.unaVez) return { unaVez: true, nombre: d.nombre, inicial: Object.assign({}, d.inicial), notas: (d.notas || []).slice(), prensa, controversia: 0, economia: d.economia, relaciones: d.relaciones };
     return {
       clave: 'TEMA:' + objId, nombre: d.nombre, tema: objId, prensa,
       inicial: Object.assign({}, d.inicial), porTurno: Object.assign({}, d.porTurno), curvas: Object.assign({}, d.curvas),
       notas: (d.notas || []).slice(), texto: d.texto ? T.expandir(d.texto) : '', programar: d.programar || [], controversia: d.controversia || 0,
-      economia: d.economia || null // sanciones y mercado negro
+      economia: d.economia || null, // sanciones y mercado negro
+      relaciones: d.relaciones || null // con las potencias vecinas
     };
   }
 
@@ -4252,6 +4398,7 @@ body {
     };
     RF.poder.iniciar(e);
     RF.politica.iniciar(e);
+    if (RF.diplomacia) RF.diplomacia.iniciar(e);
     return e;
   }
 
@@ -4387,6 +4534,7 @@ body {
    */
   function decretar(estado, interp, op) {
     op = op || {};
+    if (interp.tipo === 'diplomacia') return decretarDiplomacia(estado, interp, op);
     const accion = interp.accion;
     const objId = interp.objeto;
     const o = objetoDe(objId);
@@ -4431,6 +4579,7 @@ body {
       Object.assign(inicial, def.inicial);
       res.notas.push(...def.notas);
       if (def.economia) ajustarEconomia(estado, def.economia, res.notas);
+      if (def.relaciones && RF.diplomacia) res.relaciones = RF.diplomacia.ajustar(estado, def.relaciones, res.notas);
     } else if (!op.forzar && RF.politica.bloquea(estado, def, accion, objId, interp)) {
       // En democracia, el Congreso puede tumbar una ley polémica si no tienes votos.
       res.bloqueada = true;
@@ -4460,12 +4609,23 @@ body {
       for (const pr of def.programar || []) estado.pendientes.push({ dia: estado.dia + pr.en, titulo: pr.titulo, texto: T.expandir(pr.texto), efectos: pr.efectos });
       if ((def.programar || []).length) res.programadas = def.programar.length;
       if (def.economia) ajustarEconomia(estado, def.economia, res.notas);
+      if (def.relaciones && RF.diplomacia) res.relaciones = RF.diplomacia.ajustar(estado, def.relaciones, res.notas);
       RF.politica.tras(estado, def, accion, objId);
       const lat = RF.politica.efectoLateral(estado, accion, objId);
       if (lat) res.cambioRegimen = lat;
     }
     res.medida = laMedida;
     if (def && def.prensa) res.prensa = def.prensa;
+    // El arsenal nuclear, y el país contra el que apunta un misil o una guerra ("lanzar un misil a Japón").
+    if (RF.diplomacia && interp.tema && !res.bloqueada) {
+      const D = RF.diplomacia.iniciar(estado);
+      if (interp.tema === 'NUCLEAR') D.arsenal = accion !== 'PROHIBIR';
+      const blanco = ['MISILES', 'GUERRA', 'NUCLEAR'].includes(interp.tema) && accion !== 'PROHIBIR' && RF.diplomacia.objetivo(T.normalizar(interp.texto || ''));
+      if (blanco) {
+        const extra = RF.diplomacia.ajustar(estado, { [blanco]: interp.tema === 'GUERRA' ? -25 : -12 }, res.notas);
+        res.relaciones = Object.assign(res.relaciones || {}, { [blanco]: ((res.relaciones || {})[blanco] || 0) + (extra[blanco] || 0) });
+      }
+    }
     res.vars = { objeto: nombre, Objeto: T.mayus(nombre), medida: laMedida, Medida: T.mayus(laMedida), lider: 'Líder Supremo' };
 
     // Combinaciones con historia propia ("vender el aire").
@@ -4546,6 +4706,28 @@ body {
     return res;
   }
 
+  /*
+   * Un gesto diplomático: "negociar con Estados Unidos", "insultar a Japón", "pedir ayuda a China".
+   * Cambia relaciones (y a veces divisas, precios o el ánimo del ejército) y queda en el historial.
+   */
+  function decretarDiplomacia(estado, interp, op) {
+    const g = RF.diplomacia.gesto(estado, interp.pais, interp.dir);
+    const nombre = RF.PAIS.relaciones[interp.pais].nombre;
+    const res = { tipo: 'diplomacia', dia: estado.dia, pais: interp.pais, dir: interp.dir, deltas: {}, porTurno: null, sucesos: [], notas: g.notas.slice(),
+      medida: g.medida, nombreObjeto: nombre, especial: g.texto };
+    res.vars = { objeto: nombre, Objeto: nombre, medida: g.medida, Medida: T.mayus(g.medida), lider: 'Líder Supremo' };
+    const efectos = convertir(g.efectos);
+    if (op.secundario) for (const k of Object.keys(efectos)) efectos[k] *= 0.75;
+    aplicarEfectos(estado, efectos, res.deltas);
+    res.relaciones = RF.diplomacia.ajustar(estado, g.relaciones, res.notas);
+    if (g.sanciones) ajustarEconomia(estado, { sanciones: g.sanciones }, res.notas);
+    estado.historial.push({ dia: estado.dia, accion: 'DIPLOMACIA', objeto: interp.pais, nombreObjeto: nombre, medida: g.medida, texto: interp.texto });
+    res.numero = estado.historial.length;
+    reacciones(estado, res, 'EXTRANJEROS');
+    if (op.avanzar !== false) avanzarDia(estado, res);
+    return res;
+  }
+
   // Pasa un turno: leyes vigentes, economía, consecuencias, personajes, alertas y eventos.
   function avanzarDia(estado, res) {
     const s = estado.stats;
@@ -4593,13 +4775,16 @@ body {
     if (s.felicidad < 40) res.causas.push('La población no aguanta más: el descontento resta estabilidad cada turno.');
     if (s.inflacion > 40) res.causas.push('Los precios se retroalimentan: todos suben precios porque esperan que suban.');
 
+    // Las potencias vecinas: comercio con China, petróleo, ayuda del Sur, sanciones de Washington.
+    const ext = RF.diplomacia ? RF.diplomacia.turno(estado, res) : { dinero: 0, inflacion: 0, felicidad: 0, elite: 0 };
+    res.exterior = ext;
     const cambio = {
-      dinero: fondo.dinero + L.total.dinero,
-      inflacion: nuevaInflacion - s.inflacion,
-      felicidad: fondo.felicidad + L.total.felicidad,
+      dinero: fondo.dinero + L.total.dinero + ext.dinero,
+      inflacion: nuevaInflacion - s.inflacion + ext.inflacion,
+      felicidad: fondo.felicidad + L.total.felicidad + ext.felicidad,
       estabilidad: fondo.estabilidad + L.total.estabilidad,
       ejercito: fondo.ejercito + (L.total.ejercito || 0),
-      elite: fondo.elite + (L.total.elite || 0)
+      elite: fondo.elite + (L.total.elite || 0) + ext.elite
     };
     res.cambioTurno = {};
     aplicarEfectos(estado, cambio, res.cambioTurno);
@@ -4618,6 +4803,8 @@ body {
     for (const p of hoy) {
       const reg = {};
       aplicarEfectos(estado, p.efectos, reg);
+      if (p.sanciones) ajustarEconomia(estado, { sanciones: p.sanciones });
+      if (p.relaciones && RF.diplomacia) RF.diplomacia.ajustar(estado, p.relaciones);
       res.sucesos.push({ tipo: 'consecuencia', titulo: p.titulo, texto: T.expandir(p.texto), deltas: reg });
     }
 
@@ -4804,6 +4991,12 @@ body {
       if (a.sectores) partes.push({ texto: 'Frena la reconversión', tono: 'aviso' });
       if (a.cancelarModelo) partes.push({ texto: 'Cancela la reconversión', tono: 'aviso' });
     }
+    for (const [id, v] of Object.entries(op.relaciones || {})) {
+      const P = RF.PAIS.relaciones && RF.PAIS.relaciones[id];
+      if (P && Math.abs(v) >= 5) partes.push({ texto: P.nombre + (v > 0 ? ' ▲' : ' ▼'), tono: v > 0 ? 'sube' : 'baja' });
+    }
+    if (op.sanciones) partes.push({ texto: 'Sanciones ' + (op.sanciones > 0 ? '▲' : '▼'), tono: op.sanciones > 0 ? 'baja' : 'sube' });
+    if (op.arsenal === false) partes.push({ texto: 'Desmantela el arsenal', tono: 'aviso' });
     if (op.apoyo) partes.push({ texto: 'Apoyo en el Congreso ' + (op.apoyo > 0 ? '▲' : '▼'), tono: op.apoyo > 0 ? 'sube' : 'baja' });
     if (op.aprobar) partes.push({ texto: 'La ley se aprueba', tono: 'aviso' });
     if (op.sistema) partes.push({ texto: 'Régimen: ' + RF.REGIMENES[op.sistema].nombre, tono: 'aviso' });
@@ -4880,6 +5073,10 @@ body {
     }
     // Una opción que cambia una política deroga la ley que había sobre ese tema.
     for (const objId of Object.keys(op.politica || {})) RF.leyes.derogar(e, objId);
+    // Diplomacia: relaciones con las potencias, sanciones y el arsenal nuclear.
+    const relaciones = op.relaciones && RF.diplomacia ? RF.diplomacia.ajustar(e, op.relaciones) : null;
+    if (op.sanciones) RF.consejero.ajustarEconomia(e, { sanciones: op.sanciones });
+    if (op.arsenal != null && RF.diplomacia) RF.diplomacia.iniciar(e).arsenal = op.arsenal;
     for (const p of op.programar || []) e.pendientes.push(Object.assign({}, p, { dia: e.dia + p.en, texto: T.expandir(p.texto) }));
     if (op.cadena) D.cadena.push({ id: op.cadena.id, dia: e.dia + op.cadena.en });
     D.pendiente = null;
@@ -4928,7 +5125,7 @@ body {
     if (d.ia && D.custom) delete D.custom[d.id];
     const fin = RF.consejero.comprobarFin(e);
     if (fin) e.fin = fin;
-    return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado, decreto, cambio };
+    return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado, decreto, cambio, relaciones };
   }
 
   RF.director = { comprobar, pendiente, resolver, resumen, texto, porId, forzar };
@@ -5278,6 +5475,7 @@ body {
     if (destino === 'DEMOCRACIA') {
       p.apoyo = e.stats.felicidad; RF.leyes.derogar(e, 'SOBORNOS');
       if (RF.consejero.ajustarEconomia) RF.consejero.ajustarEconomia(e, { sanciones: -2 }); // el mundo premia la apertura
+      if (RF.diplomacia) RF.diplomacia.ajustar(e, { eeuu: 20, surcorea: 25, japon: 10, china: -10 });
     }
     const cambio = actualizar(e) || { de, a: destino };
     const out = { efectos: Object.assign({}, d.efectos), texto: textoCambio(destino), cambio, notas: [] };
@@ -5512,6 +5710,148 @@ body {
   RF.politica = { iniciar, regimen, mods, esDemocracia, decreto, efectoLateral, instaurar, bloquea, tras, controversia, registrarSecreto, crimenPublico, turno, riesgo, resumen, actualizar };
 })(globalThis.RF = globalThis.RF || {});
 
+// js/diplomacia.js
+/*
+ * DIPLOMACIA
+ * Relaciones (0-100) con las potencias que rodean al país (las define su perfil en datos/paises.js).
+ * Cada una quiere algo y teme algo; sus relaciones cambian con tus decretos, los eventos y la IA,
+ * y cada turno tienen consecuencias:
+ *   China           comercio (divisas) y petróleo: si se enfada, corta el oleoducto y suben los precios
+ *   Estados Unidos  las sanciones: si te odia, las endurece; si te aprecia, las alivia
+ *   Corea del Sur   ayuda humanitaria (y series del Sur que se cuelan)
+ *   Japón           algo de ayuda si las relaciones son buenas
+ * También se decreta diplomacia directamente: "negociar con Estados Unidos", "insultar a Japón", "pedir ayuda a China".
+ */
+(function (RF) {
+  'use strict';
+  const T = RF.texto;
+
+  function paises() { return RF.PAIS.relaciones || {}; }
+
+  function iniciar(e) {
+    if (!e.diplomacia) {
+      e.diplomacia = { arsenal: !!(RF.PAIS.inicio.arsenal), relaciones: {} };
+      for (const [id, p] of Object.entries(paises())) e.diplomacia.relaciones[id] = p.inicio;
+    }
+    return e.diplomacia;
+  }
+
+  function rel(e, id) { return iniciar(e).relaciones[id]; }
+
+  const PLURAL = { hostil: 'hostiles', 'fría': 'frías', tensa: 'tensas', cordial: 'cordiales', aliada: 'de alianza' };
+  function etiqueta(v) { return v < 20 ? 'hostil' : v < 40 ? 'fría' : v < 60 ? 'tensa' : v < 80 ? 'cordial' : 'aliada'; }
+
+  // Cambia relaciones ({ eeuu: -10, china: 5 }). Devuelve { id: cambio real }.
+  function ajustar(e, cambios, notas) {
+    const D = iniciar(e);
+    const hecho = {};
+    for (const [id, v] of Object.entries(cambios || {})) {
+      if (!(id in D.relaciones) || !v) continue;
+      const antes = D.relaciones[id];
+      D.relaciones[id] = Math.max(0, Math.min(100, Math.round(antes + v)));
+      const d = D.relaciones[id] - antes;
+      if (!d) continue;
+      hecho[id] = d;
+      if (notas && etiqueta(antes) !== etiqueta(D.relaciones[id])) notas.push('Las relaciones con ' + paises()[id].nombre + ' pasan a ser ' + PLURAL[etiqueta(D.relaciones[id])] + '.');
+    }
+    return hecho;
+  }
+
+  // ¿A qué país se refiere el texto? (normalizado)
+  function buscar(n) {
+    for (const [id, p] of Object.entries(paises())) if (p.claves.test(n)) return id;
+    return null;
+  }
+
+  const AMISTAD = /\b(negoci\w*|dialog\w*|acerc\w*|reuni\w*|visit\w*|viaj\w* a|cumbre|acuerdo|pact\w*|alian\w*|aliar\w*|amist\w*|comerci\w*|relaciones con|embajad\w*|regal\w*|halag\w*|felicit\w*|disculp\w*|perdon|pedir ayuda|pedirle ayuda|ayuda de|cooper\w*|tender la mano|hacer las paces|reconcili\w*|invit\w*)\b/;
+  const HOSTIL = /\b(insult\w*|amenaz\w*|romper relaciones|romper con|cortar relaciones|expuls\w*|provoc\w*|desafi\w*|burl\w*|humill\w*|boicot\w*|cerrar la frontera|espi\w*|hacke\w*|ciberataque\w*|secuestr\w*|odi\w*|enfrent\w*|denunci\w*|maldec\w*|escup\w*|ignor\w*)\b/;
+
+  // Un decreto diplomático: { pais, dir: 'amistad' | 'hostil' }, o null.
+  function detectar(n) {
+    const pais = buscar(n);
+    if (!pais) return null;
+    if (HOSTIL.test(n)) return { pais, dir: 'hostil' };
+    if (AMISTAD.test(n)) return { pais, dir: 'amistad' };
+    return null;
+  }
+
+  /*
+   * Qué produce un gesto diplomático. Lo ganado rinde menos cuanto mejor es ya la relación.
+   * Devuelve { medida, texto, efectos, relaciones, sanciones, notas }.
+   */
+  function gesto(e, pais, dir) {
+    const P = paises()[pais];
+    const G = P.gestos[dir];
+    const actual = rel(e, pais);
+    const factor = dir === 'amistad' ? Math.max(0.35, 1 - actual / 110) : 1;
+    const relaciones = {};
+    for (const [id, v] of Object.entries(G.relaciones)) relaciones[id] = Math.round(v * (id === pais ? factor : 1));
+    const notas = [];
+    if (dir === 'amistad' && factor < 0.6) notas.push('Las relaciones con ' + P.nombre + ' ya son buenas: cada gesto rinde menos.');
+    return { medida: T.expandir(G.medida), texto: T.expandir(T.azar(G.textos)), efectos: Object.assign({}, G.efectos), relaciones, sanciones: G.sanciones || 0, notas };
+  }
+
+  // Lo que hacen las potencias cada turno. Devuelve cambios para la economía del turno y deja sucesos en res.
+  function turno(e, res) {
+    const D = iniciar(e);
+    const out = { dinero: 0, inflacion: 0, felicidad: 0, elite: 0 };
+    const causas = res.causas || [];
+    // Las relaciones vuelven poco a poco a su punto de partida: la memoria diplomática es corta.
+    for (const [id, p] of Object.entries(paises())) D.relaciones[id] += Math.sign(p.base - D.relaciones[id]) * Math.min(1, Math.abs(p.base - D.relaciones[id]) * 0.05) || 0;
+    for (const id of Object.keys(D.relaciones)) D.relaciones[id] = Math.round(D.relaciones[id] * 10) / 10;
+    const r = D.relaciones;
+    const ec = RF.consejero.asegurar(e).economia;
+
+    if ('china' in r) {
+      out.dinero += (r.china - 50) * 0.1;
+      if (r.china < 25) { out.inflacion += 1.5; out.dinero -= 2; causas.push('China ha cerrado el oleoducto "por mantenimiento": falta petróleo y suben los precios.'); }
+    }
+    if ('surcorea' in r && r.surcorea >= 60) { out.dinero += 2; out.felicidad += 0.4; out.elite -= 0.2; causas.push('Llega ayuda humanitaria del Sur. Con los sacos de arroz se cuelan memorias USB.'); }
+    if ('japon' in r && r.japon >= 60) out.dinero += 1;
+
+    if ('eeuu' in r) {
+      const reg = {};
+      if (r.eeuu < 15 && ec.sanciones < 4 && Math.random() < 0.12) {
+        RF.consejero.ajustarEconomia(e, { sanciones: 1 });
+        res.sucesos.push({ tipo: 'diplomacia', titulo: 'Washington endurece las sanciones', texto: T.expandir('El Departamento del Tesoro congela cuentas de tres bancos chinos que trabajaban para ti. {montiel} tarda una tarde entera en encontrar otro. Las sanciones suben de nivel.'), deltas: reg });
+      } else if (r.eeuu >= 65 && ec.sanciones > 0 && Math.random() < 0.2) {
+        RF.consejero.ajustarEconomia(e, { sanciones: -1 });
+        res.sucesos.push({ tipo: 'diplomacia', titulo: 'Se alivian las sanciones', texto: 'Washington levanta la prohibición de importar maquinaria agrícola "como gesto de buena voluntad". En el puerto de Nampo descargan tractores de verdad.', deltas: reg });
+      }
+    }
+    return out;
+  }
+
+  // Las consecuencias diplomáticas de algunos temas duros, según a quién apunten ("lanzar un misil a Japón").
+  function objetivo(textoNorm) { return buscar(textoNorm); }
+
+  function resumen(e) {
+    const D = iniciar(e);
+    const lineas = [];
+    for (const [id, p] of Object.entries(paises())) {
+      const v = Math.round(D.relaciones[id]);
+      lineas.push((p.nombre + '               ').slice(0, 15) + String(v).padStart(3) + '  ' + etiqueta(v));
+      lineas.push('   quiere: ' + p.quiere);
+      lineas.push('   teme:   ' + p.teme);
+    }
+    lineas.push('', 'Arsenal nuclear: ' + (D.arsenal ? 'sí (heredado de tu padre)' : 'desmantelado'));
+    lineas.push('Sanciones: nivel ' + RF.consejero.asegurar(e).economia.sanciones + ' de 4');
+    lineas.push('', 'Decretos de ejemplo: "negociar con Estados Unidos", "pedir ayuda a China", "visitar Seúl", "insultar a Japón", "desmantelar las armas nucleares".');
+    return lineas.join('\n');
+  }
+
+  // Para la IA y la crónica: una línea por país.
+  function paraIA(e) {
+    const D = iniciar(e);
+    const out = {};
+    for (const [id, p] of Object.entries(paises())) out[id] = Math.round(D.relaciones[id]) + ' (' + etiqueta(D.relaciones[id]) + '). Quiere: ' + p.quiere + '. Teme: ' + p.teme + '.';
+    out.arsenal_nuclear = D.arsenal ? 'sí' : 'desmantelado';
+    return out;
+  }
+
+  RF.diplomacia = { iniciar, rel, etiqueta, ajustar, detectar, buscar, gesto, turno, objetivo, resumen, paraIA };
+})(globalThis.RF = globalThis.RF || {});
+
 // js/narrador.js
 /*
  * EL NARRADOR
@@ -5545,8 +5885,9 @@ body {
         'Cada pocos turnos surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
         'El SISTEMA POLÍTICO también se cambia con decretos: "restaurar la democracia", "garantizar elecciones libres", "liberar la prensa", "disolver la asamblea", "proclamarme rey", "volver al juche". Cada régimen recauda, invierte y reprime distinto. En democracia, el Congreso puede bloquear leyes polémicas y hay que ganar las elecciones.\n' +
         'Lo que haces "en secreto" no pasa por ningún control, pero puede descubrirse.\n' +
+        'DIPLOMACIA: Estados Unidos, China, Corea del Sur y Japón quieren cosas distintas. "negociar con Estados Unidos", "pedir ayuda a China", "visitar Seúl" o "insultar a Japón" cambian las relaciones; los misiles y la bomba también. China da comercio y petróleo; Washington decide las sanciones; el Sur manda ayuda. Escribe "diplomacia" para verlo.\n' +
         'Opcional: toca el botón IA de arriba (o escribe "ia"). Con IA, un Consejo de Estado entiende cualquier decreto, decide sus consecuencias (el juego pone las reglas y los límites) y recuerda lo que va pasando; y una crónica cuenta cada turno. Dentro de claude.ai funciona con tu cuenta; fuera, con una clave de API (OpenRouter y Gemini tienen planes gratis).\n' +
-        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
+        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "diplomacia" (relaciones exteriores), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
         'No hay último turno: gobiernas mientras aguantes. Cada 20 turnos hay elecciones.'
     }];
   }
@@ -5706,8 +6047,32 @@ body {
     return bloques;
   }
 
+  // Cómo han cambiado las relaciones con las potencias vecinas.
+  function bloqueExterior(estado, relaciones) {
+    const ids = Object.keys(relaciones || {}).filter(id => relaciones[id]);
+    if (!ids.length || !RF.diplomacia) return null;
+    const lineas = ids.map(id => {
+      const v = Math.round(RF.diplomacia.rel(estado, id));
+      const d = relaciones[id];
+      return RF.PAIS.relaciones[id].nombre + ': ' + (d > 0 ? '+' : '−') + Math.abs(d) + ' → ' + v + ' (' + RF.diplomacia.etiqueta(v) + ')';
+    });
+    return { tipo: 'exterior', titulo: 'RELACIONES EXTERIORES', texto: lineas.join('\n') };
+  }
+
+  function decretoDiplomacia(estado, interp, res) {
+    const bloques = [{ tipo: 'bot', texto: 'INTÉRPRETE › DIPLOMACIA · ' + res.medida.toUpperCase() }];
+    bloques.push({ tipo: 'gaceta', titulo: 'NOTA DIPLOMÁTICA Nº ' + res.numero + ' · TURNO ' + res.dia, texto: T.mayus(res.medida) + '. ' + res.especial });
+    bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: null });
+    for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
+    const ex = bloqueExterior(estado, res.relaciones);
+    if (ex) bloques.push(ex);
+    bloques.push(...secciones(estado, res, res.dir === 'hostil' ? 'culto' : 'regalo'));
+    return bloques;
+  }
+
   function decreto(estado, interp, res) {
     if (res.tipo === 'persona') return decretoPersona(estado, interp, res);
+    if (res.tipo === 'diplomacia') return decretoDiplomacia(estado, interp, res);
     const bloques = [];
     const partes = [interp.tema ? 'INTÉRPRETE › ' + res.medida.toUpperCase() : 'INTÉRPRETE › ' + RF.ACCIONES[res.accion].nombre.toUpperCase() + ' + ' + (res.objeto === 'OTRO' ? '"' + res.nombreObjeto + '" (desconocido)' : res.nombreObjeto.toUpperCase())];
     if (interp.confianza != null) partes.push(interp.confianza + '% seguro');
@@ -5728,6 +6093,8 @@ body {
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.ley && res.ley.nivel });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
 
+    const ex = bloqueExterior(estado, res.relaciones);
+    if (ex) bloques.push(ex);
     bloques.push(...secciones(estado, res, tipo));
     if (res.cambioRegimen) bloques.push(bloqueRegimen(res.cambioRegimen));
     return bloques;
@@ -5754,7 +6121,7 @@ body {
     bloques.push({ tipo: 'efectos', rotulo: 'Resultado del turno', deltas: res.cambioTurno || {} });
     for (const c of res.causas || []) bloques.push({ tipo: 'nota', texto: c });
     for (const s of res.sucesos) {
-      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA', escandalo: 'ESCÁNDALO', politica: 'POLÍTICA', mundo: 'EN EL PAÍS' }[s.tipo] || 'NOTICIA';
+      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA', escandalo: 'ESCÁNDALO', politica: 'POLÍTICA', mundo: 'EN EL PAÍS', diplomacia: 'EXTERIOR' }[s.tipo] || 'NOTICIA';
       bloques.push({ tipo: 'suceso', clase: s.tipo, titulo: etiqueta + ' · ' + s.titulo.toUpperCase(), texto: s.texto, deltas: s.deltas });
     }
     if (res.fin) return bloques.concat(final(estado));
@@ -5783,9 +6150,15 @@ body {
   function decision(estado, r) {
     const bloques = [{ tipo: 'suceso', clase: 'decision', titulo: 'DECISIÓN · ' + (r.textoOpcion || T.expandir(r.opcion.texto)).toUpperCase(), texto: r.resultado, deltas: r.deltas }];
     if (r.decreto && r.decreto.porTurno) bloques.push({ tipo: 'efectos', rotulo: 'Ley aprobada', deltas: {}, porTurno: r.decreto.porTurno, curvas: r.decreto.curvas });
+    const ex = bloqueExterior(estado, r.relaciones);
+    if (ex) bloques.push(ex);
     if (r.cambio) bloques.push(bloqueRegimen(r.cambio));
     if (r.fin) bloques.push(...final(estado));
     return bloques;
+  }
+
+  function diplomacia(estado) {
+    return [{ tipo: 'sistema', titulo: 'RELACIONES EXTERIORES', texto: RF.diplomacia.resumen(estado), mono: true }];
   }
 
   function sistema(estado) {
@@ -5853,6 +6226,10 @@ body {
       'Sanciones    nivel ' + ec.sanciones + ' de 4 (' + (ec.sanciones * RF.PAIS.economia.costeSancion) + 'M por turno)',
       'Mercado negro ' + Math.round(ec.mercadoNegro) + '% de la economía'
     ];
+    if (RF.diplomacia) {
+      lineas.push('', 'Relaciones exteriores (escribe "diplomacia" para ver qué quiere cada uno):');
+      for (const [id, P] of Object.entries(RF.PAIS.relaciones || {})) lineas.push(fila(P.nombre, RF.diplomacia.rel(estado, id)) + ' ' + RF.diplomacia.etiqueta(RF.diplomacia.rel(estado, id)));
+    }
     const t = RF.leyes.lista(estado).reduce((acc, l) => { const ef = RF.leyes.efectoActual(estado, l); for (const k of Object.keys(acc)) acc[k] += ef[k] || 0; return acc; }, { dinero: 0, estabilidad: 0, felicidad: 0, inflacion: 0, ejercito: 0, elite: 0 });
     lineas.push('', 'Tus ' + RF.leyes.lista(estado).length + ' leyes suman cada turno:', '   ' + RF.leyes.resumenLey(t));
     lineas.push('Turno ' + estado.dia + ' · Decretos: ' + estado.historial.length);
@@ -5926,7 +6303,7 @@ body {
     ];
   }
 
-  RF.narrador = { secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
+  RF.narrador = { diplomacia, bloqueExterior, secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/narradorIA.js
@@ -6043,6 +6420,7 @@ body {
     'El mundo: ' + RF.PAIS.corto + ', aislada y bajo sanciones. Pionyang es el escaparate; en el campo hay apagones y hambre. Casi todo el mundo sobrevive gracias al jangmadang, el mercado negro. Altavoces en cada barrio, retratos de la dinastía en cada casa. China compra el carbón. El barrio obrero que aparece a menudo es Sadong.',
     'Los indicadores: DIVISAS (dinero), INFLACIÓN, ESTABILIDAD; y el ánimo de tres sectores: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN.',
     'La gente de a pie: la abuela Sun-ja (67 años, vende tortitas de maíz en el mercado negro, sobrevivió a la hambruna), su nieto Chol-su (19, universitario, escucha K-pop del Sur a escondidas en una memoria USB), Kwang-ho (45, taxista de Pionyang, opina de todo pero solo dentro del taxi) y Eun-hee (34, enfermera del Hospital Central con dos hijos).',
+    'Fuera: China (el único aliado, que quiere estabilidad), Estados Unidos (quiere que desmanteles la bomba), Corea del Sur y Japón. Si algo de diplomacia pasa en el turno, puede aparecer en PALACIO (la ministra de Exteriores) o en la RADIO.',
     'Song Dae-ho dirige una red clandestina de memorias USB. El embajador sueco vigila con cara de preocupación. Medios: el Rodong Sinmun (oficial), Radio Pionyang (oficial) y Radio Libertad (desde el Sur, a escondidas).'
   ].join('\n');
 
@@ -6079,6 +6457,7 @@ body {
       regimen: RF.REGIMENES && p.regimen ? RF.REGIMENES[p.regimen].nombre : 'Democracia',
       pais: { divisas_millones: s.dinero, inflacion_pct: Math.round(s.inflacion), estabilidad: s.estabilidad },
       sectores: sectoresTurno(estado, bloques),
+      relaciones_exteriores: RF.diplomacia && estado.diplomacia ? Object.fromEntries(Object.entries(RF.PAIS.relaciones).map(([id, P]) => [P.nombre, Math.round(estado.diplomacia.relaciones[id]) + ' (' + RF.diplomacia.etiqueta(estado.diplomacia.relaciones[id]) + ')'])) : undefined,
       economia: estado.economia ? { sanciones: estado.economia.sanciones + ' de 4', mercado_negro: Math.round(estado.economia.mercadoNegro) + '%' } : undefined,
       gabinete: Object.entries(RF.GABINETE).map(([id, m]) => (estado.gabinete && estado.gabinete[id] ? estado.gabinete[id].nombre : m.nombre) + ' (' + m.cargo + ')'),
       gente: Object.entries(estado.ciudadanos || {}).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + ({ muerto: 'muerto/a', preso: 'en la cárcel', exiliado: 'en el exilio' }[c.estado] || (c.animo > 25 ? 'te apoya' : c.animo < -25 ? 'te detesta' : 'desconfía'))),
@@ -6411,6 +6790,7 @@ body {
     '- ejercito = el EJÉRCITO: generales, oficiales y soldados. Les gustan los misiles, las medallas, las raciones y el dinero; odian los recortes, las purgas, las milicias rivales y cobrar tarde. A 0, golpe de Estado.',
     '- elite = el PALACIO: el Partido y la élite. Les gustan los lujos, los sobornos del mercado negro y que no se toque su poder; odian las sanciones, las purgas y perder privilegios. A 0, te traicionan.',
     '- felicidad = la POBLACIÓN: cómo aguanta la gente (comida, apagones, miedo, mercado). A 0, revuelta. Por debajo de 40 resta estabilidad.',
+    'DIPLOMACIA (campo "relaciones" de la ficha, opcional): cambios en la relación (0-100) con las potencias vecinas, de -25 a +25 cada una: {"eeuu": ..., "china": ..., "surcorea": ..., "japon": ...}. Lo que quiere y teme cada una viene en "diplomacia". Sé coherente con sus intereses: China quiere estabilidad y odia las pruebas que atraen barcos americanos; Estados Unidos quiere desnuclearización y castiga los misiles con sanciones; el Sur premia los gestos de acercamiento y teme la artillería; Japón exige a los secuestrados y odia los misiles sobre su territorio. Cada turno el motor aplica sus consecuencias: China da comercio y, si se enfada, corta el petróleo; Estados Unidos sube o baja las sanciones; el Sur manda ayuda. Si el decreto desmantela o reconstruye el arsenal nuclear, pon "arsenal": false o true.',
     'ECONOMÍA (campo "economia" de la ficha, opcional): {"sanciones": de -2 a +2 (cambia el nivel de sanciones, 0-4), "mercado_negro": de -40 a +40 (puntos del % de economía que va por el jangmadang)}. Los misiles y la bomba suben sanciones; la diplomacia y el desarme las bajan; legalizar mercados reduce el mercado negro (pasa a pagar impuestos); perseguirlo también lo reduce pero trae hambre.',
     '',
     'CADA DECRETO SUELE SER UNA LEY VIGENTE: tiene un efecto al firmarse ("inicial") y otro que se repite CADA TURNO ("por_turno") mientras siga vigente. El motor ajusta esos efectos según el régimen, la inflación y la estabilidad.',
@@ -6452,7 +6832,7 @@ body {
     '',
     'CONSECUENCIAS Y EVENTOS:',
     '- "consecuencias": efectos que llegan más tarde (0 a 2), con "en_turnos" (1-6), un "titulo", un "texto" de una o dos frases y "efectos" (topes de "inicial").',
-    '- "evento": SOLO si el decreto provoca de inmediato una decisión difícil (más o menos uno de cada tres decretos). Con "titulo", "texto" y 2 o 3 "opciones", cada una con "texto" (la acción, corta), "resultado" (qué pasa, una o dos frases), "efectos" (topes de "inicial"), opcional "por_turno_dinero" (un ingreso o gasto fijo, entre -15 y 15) y opcional "hecho" (qué recordar si se elige).',
+    '- "evento": SOLO si el decreto provoca de inmediato una decisión difícil (más o menos uno de cada tres decretos). Con "titulo", "texto" y 2 o 3 "opciones", cada una con "texto" (la acción, corta), "resultado" (qué pasa, una o dos frases), "efectos" (topes de "inicial"), opcional "por_turno_dinero" (un ingreso o gasto fijo, entre -15 y 15), opcional "relaciones" (como el campo de la ficha, de -20 a 20) y opcional "sanciones" (-1 o 1) y opcional "hecho" (qué recordar si se elige).',
     '- Si "turnos_sin_evento" es 4 o más, propón un evento aunque el decreto sea tranquilo: el país no se queda quieto.',
     '- "hechos": 1 a 3 frases cortas y concretas, en pasado, con lo que el mundo debe recordar de este decreto (quién, qué, dónde). Si aparece un personaje nuevo, dale nombre aquí.',
     '',
@@ -6467,7 +6847,7 @@ body {
     ' "leyes": [{"nombre": "la privatización del aire", "inicial": {"dinero": 35, "felicidad": -8}, "por_turno": {"dinero": 15, "felicidad": -2, "estabilidad": -1}, "curvas": {}, "duracion": null, "imprime": false, "controversia": 2}],',
     ' "derogar": [], "personas": [], "instituciones": {}, "regimen": null, "secreto": false, "gravedad_secreto": 0, "apoyo_congreso": 0,',
     ' "consecuencias": [], "evento": null, "hechos": ["El Gobierno vendió el aire a la empresa Brisa S.A."],',
-    ' "economia": {}, "radio": "¡Buenos días, camaradas! ...", "gabinete": {"id": "cifuentes", "dice": "..."}, "ejercito": {"dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
+    ' "economia": {}, "relaciones": {}, "radio": "¡Buenos días, camaradas! ...", "gabinete": {"id": "cifuentes", "dice": "..."}, "ejercito": {"dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
     'Si el decreto no crea una ley duradera (una orden puntual, una fiesta, un castigo a una persona), deja "leyes" vacío y pon el efecto puntual en "efecto_unico": {"dinero": ..., ...} (topes de "inicial").'
   ].join('\n');
 
@@ -6515,6 +6895,7 @@ body {
       pais: { dinero: s.dinero, inflacion: Math.round(s.inflacion), estabilidad: s.estabilidad, balance_por_turno: Math.round(e.balance || 0) },
       sectores: { ejercito: Math.round(RF.consejero.asegurar(e).sectores.ejercito), elite: Math.round(e.sectores.elite), felicidad: s.felicidad },
       economia: { sanciones: e.economia.sanciones + ' de 4', mercado_negro: Math.round(e.economia.mercadoNegro) + '%' },
+      diplomacia: RF.diplomacia ? RF.diplomacia.paraIA(e) : undefined,
       leyes_vigentes: RF.leyes.lista(e).map(l => ({ id: l.clave, nombre: l.nombre, desde_turno: l.desde, nivel: l.nivel, por_turno: soloNumeros(RF.leyes.efectoNominal(l)), secreta: l.secreta || undefined })),
       gabinete, gente_de_a_pie: gente, otras_personas: otros,
       secretos_sin_descubrir: p.secretos.length, escandalos: p.escandalos,
@@ -6602,6 +6983,20 @@ body {
     return r.inicial;
   }
 
+  // Relaciones con las potencias (con tope ±25 cada una) y el arsenal nuclear.
+  function aplicarRelaciones(e, ficha, res) {
+    if (!RF.diplomacia) return;
+    const r = ficha.relaciones && typeof ficha.relaciones === 'object' ? ficha.relaciones : {};
+    const cambios = {};
+    for (const id of Object.keys(RF.PAIS.relaciones || {})) {
+      const v = Math.max(-25, Math.min(25, Math.round(Number(r[id]) || 0)));
+      if (v) cambios[id] = v;
+    }
+    const hecho = RF.diplomacia.ajustar(e, cambios, res.notas);
+    if (Object.keys(hecho).length) res.relaciones = Object.assign(res.relaciones || {}, hecho);
+    if (typeof ficha.arsenal === 'boolean') RF.diplomacia.iniciar(e).arsenal = ficha.arsenal;
+  }
+
   // Consecuencias que llegan más tarde (las cuenta el motor cuando toca).
   function programar(e, ficha, res, recortes) {
     for (const c of objetos(ficha.consecuencias, 2)) {
@@ -6613,6 +7008,13 @@ body {
     }
   }
 
+  function relacionesOpcion(r) {
+    const out = {};
+    if (!r || typeof r !== 'object') return out;
+    for (const id of Object.keys(RF.PAIS.relaciones || {})) { const v = Math.max(-20, Math.min(20, Math.round(Number(r[id]) || 0))); if (v) out[id] = v; }
+    return out;
+  }
+
   // Un evento propio de la IA: no más de uno cada dos turnos y nunca encima de otro.
   function crearEvento(e, ev, res, recortes) {
     const D = e.dilemas;
@@ -6620,7 +7022,7 @@ body {
       const id = 'ia_' + e.dia + '_' + Math.floor(Math.random() * 1e6);
       const opciones = objetos(ev.opciones, 3).map(o => {
         const din = Math.max(-15, Math.min(15, Number(o.por_turno_dinero) || 0));
-        return { texto: limpiar(o.texto, 90) || 'Seguir adelante', resultado: limpiar(o.resultado, 400), efectos: efectos(o.efectos, TOPES.inicial, recortes), ingresos: din ? Math.round(din / 3 * 10) / 10 : 0, hecho: limpiar(o.hecho, 240) };
+        return { texto: limpiar(o.texto, 90) || 'Seguir adelante', resultado: limpiar(o.resultado, 400), efectos: efectos(o.efectos, TOPES.inicial, recortes), ingresos: din ? Math.round(din / 3 * 10) / 10 : 0, hecho: limpiar(o.hecho, 240), relaciones: relacionesOpcion(o.relaciones), sanciones: Math.max(-1, Math.min(1, Math.round(Number(o.sanciones) || 0))) };
       });
       D.custom = D.custom || {};
       D.custom[id] = { id, titulo: limpiar(ev.titulo, 80) || 'Una decisión', texto: limpiar(ev.texto, 700), opciones, ia: true };
@@ -6751,6 +7153,7 @@ body {
     const dSan = Math.max(-2, Math.min(2, Math.round(Number(ecf.sanciones) || 0)));
     const dMer = Math.max(-40, Math.min(40, Math.round(Number(ecf.mercado_negro) || 0)));
     if (dSan || dMer) RF.consejero.ajustarEconomia(e, { sanciones: dSan, mercadoNegro: dMer }, res.notas);
+    aplicarRelaciones(e, ficha, res);
 
     // 6. Lo que llega más tarde y lo que hay que recordar.
     programar(e, ficha, res, recortes);
@@ -6827,7 +7230,7 @@ body {
   }
 
   // ---------- Un turno sin decretos: el país sigue su curso ----------
-  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Corea del Norte por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "radio", "gabinete", "ejercito", "calle" y "economia". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
+  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Corea del Norte por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "radio", "gabinete", "ejercito", "calle", "economia" y "relaciones" (las potencias también se mueven solas: una cumbre, una amenaza, un barco de ayuda). NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
 
   async function consultarMundo(e, alTexto) {
     const contenido = 'Situación de Corea del Norte (JSON):\n' + JSON.stringify(contexto(e, '(ninguno: el jugador espera)')) + '\n\n' + MUNDO + '\n\nDevuelve solo la ficha JSON.';
@@ -6855,6 +7258,7 @@ body {
     if (titulo && texto) res.sucesos.push({ tipo: 'mundo', titulo, texto, deltas });
     programar(e, ficha, res, recortes);
     crearEvento(e, ficha.evento, res, recortes);
+    aplicarRelaciones(e, ficha, res);
     for (const h of (Array.isArray(ficha.hechos) ? ficha.hechos : []).slice(0, 3)) recordar(e, h);
     res.ficha = ficha;
     return res;
@@ -6881,7 +7285,7 @@ body {
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
     ['Disolver…', 'Disolver '], ['Controlar…', 'Controlar '], ['En secreto…', 'En secreto '],
-    ['esperar', 'esperar', true], ['estado', 'estado', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['diplomacia', 'diplomacia', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -7611,6 +8015,7 @@ body {
     if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
     if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
     if (/^(ia|api|clave|configurar ia|narrador ia|cronica)$/.test(orden)) { mostrarConfigIA(); return; }
+    if (/^(diplomacia|relaciones|exterior|relaciones exteriores|paises|el mundo)$/.test(orden)) { mostrar(RF.narrador.diplomacia(estado), false); return; }
     if (/^(sistema|regimen|politica|congreso|sistema politico)$/.test(orden)) { mostrar(RF.narrador.sistema(estado), false); return; }
     if (/^(gabinete|ministros|poder|instituciones)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
     if (/^(leyes|ley|leyes vigentes|economia|mercado|balance)$/.test(orden)) { mostrar(RF.narrador.leyes(estado), false); return; }

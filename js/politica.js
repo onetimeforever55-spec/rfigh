@@ -109,6 +109,7 @@
     if (destino === 'DEMOCRACIA') {
       p.apoyo = e.stats.felicidad; RF.leyes.derogar(e, 'SOBORNOS');
       if (RF.consejero.ajustarEconomia) RF.consejero.ajustarEconomia(e, { sanciones: -2 }); // el mundo premia la apertura
+      if (RF.diplomacia) RF.diplomacia.ajustar(e, { eeuu: 20, surcorea: 25, japon: 10, china: -10 });
     }
     const cambio = actualizar(e) || { de, a: destino };
     const out = { efectos: Object.assign({}, d.efectos), texto: textoCambio(destino), cambio, notas: [] };
