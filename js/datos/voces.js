@@ -114,6 +114,66 @@
     ]
   };
 
+  /*
+   * LÓGICA ABSURDA: cuando el decreto trata de algo que el juego no conoce ("prohibir los lunes",
+   * "obligar a caminar hacia atrás", "vender la luna"), el Estado lo cumple con toda seriedad.
+   * Cada tipo de orden tiene su mecanismo burocrático y una consecuencia que llega más tarde
+   * siguiendo esa misma lógica (quien hace la ley hace la trampa; quien la vigila, cobra).
+   */
+  RF.ABSURDO.logica = {
+    prohibir: {
+      gaceta: [
+        'Se crea la Brigada Especial contra {objeto}: cuarenta agentes, dos coches y ningún protocolo. Su primer informe pide más presupuesto para entender qué están persiguiendo.',
+        'El Código Penal gana un artículo nuevo, el 666 bis. Los jueces piden por escrito una definición de {objeto}. Se les responde que «se sabe cuando se ve».',
+        'La policía instala controles en las entradas de la capital para detectar {objeto}. Nadie sabe qué buscar, así que se requisa todo lo sospechoso: paraguas, gallinas, un acordeón.'
+      ],
+      consecuencias: [
+        { en: 2, titulo: 'El mercado negro de {objeto}', textos: ['En el puerto ya se vende {objeto} de contrabando, a precio de oro. Los agentes de la Brigada son los mejores clientes.', 'Un bar clandestino de La Esperanza ofrece {objeto} en la trastienda. Hay cola. Hay contraseña. La contraseña es tu nombre.'], efectos: { estabilidad: -2, dinero: -3 } },
+        { en: 3, titulo: 'El resquicio legal', textos: ['Un abogado descubre que el decreto no dice nada de {objeto} «en diminutivo». Media ciudad se acoge a la excepción.', 'Los tribunales se llenan de recursos: ¿es delito {objeto} sin querer? ¿Y en sueños? El Supremo lleva tres días deliberando.'], efectos: { estabilidad: -2, felicidad: 2 } }
+      ]
+    },
+    obligar: {
+      gaceta: [
+        'Se crea la Inspección Nacional de {objeto}. Todo ciudadano deberá llevar encima el certificado de cumplimiento, sellado y con foto.',
+        'Los funcionarios reciben un cursillo de dos horas sobre {objeto}. Suspenden todos. El examen se repite hasta que aprueban todos.',
+        'A partir de hoy, cada ventanilla del Estado exige demostrar {objeto} antes de atender. Las colas dan la vuelta a la manzana.'
+      ],
+      consecuencias: [
+        { en: 2, titulo: 'Certificados falsos', textos: ['En el mercado venden certificados falsos de {objeto} por cinco valdos. Los auténticos cuestan veinte y tardan un mes.', 'Un primo de {cifuentes} monta una academia de {objeto} con título oficial. Tiene cuatro mil alumnos y ningún profesor.'], efectos: { dinero: -3, felicidad: -1 } },
+        { en: 3, titulo: 'Los primeros multados', textos: ['La primera multa por no cumplir con {objeto} se la ponen a una monja. La foto da la vuelta al mundo.', 'Un pueblo entero del interior se declara «incapaz» de cumplir con {objeto}. {sombra} manda a un inspector. El inspector no vuelve.'], efectos: { estabilidad: -2, felicidad: -2 } }
+      ]
+    },
+    crear: {
+      gaceta: [
+        'Nace el Instituto Nacional de {objeto}, con director, vicedirector, coche oficial y un logo que costó más que el edificio.',
+        'Se inaugura con banda de música el primer {objeto} oficial de la República. {paredes} corta la cinta. La cinta es lo único que funciona.',
+        'Un decreto de catorce páginas regula {objeto} hasta el último detalle. La página nueve contradice a la página tres.'
+      ],
+      consecuencias: [
+        { en: 3, titulo: 'Turismo del absurdo', textos: ['Llegan turistas extranjeros a ver {objeto} con sus propios ojos. Compran camisetas y se van riendo. El dinero, al menos, es real.', 'Un documental extranjero sobre {objeto} en Valdoria se vuelve viral. Llegan mochileros. Algunos se quedan.'], efectos: { dinero: 5, estabilidad: -1 } },
+        { en: 2, titulo: 'La contrata', textos: ['La empresa que construye {objeto} resulta ser del cuñado de {cifuentes}. El presupuesto ya se ha triplicado.', 'Se descubre que {objeto} no existe todavía, pero ya tiene doscientos empleados cobrando.'], efectos: { dinero: -6 } }
+      ]
+    },
+    vender: {
+      gaceta: [
+        'Se adjudica {objeto} a la empresa Valdoria Futuro S.A., fundada ayer por la tarde. Su dirección fiscal es un buzón en el puerto.',
+        'Se subasta {objeto} en el Palacio. Solo se presenta un comprador. Gana la subasta con una oferta de doce valdos y un apretón de manos.'
+      ],
+      consecuencias: [
+        { en: 2, titulo: 'El dueño cobra', textos: ['El nuevo dueño de {objeto} empieza a cobrar a quien lo use, lo mire o lo mencione. Nadie sabía que se usaba. Ahora todo el mundo lo necesita.', 'Los dueños de {objeto} demandan al Estado por «uso indebido» de {objeto} en los actos oficiales.'], efectos: { felicidad: -3, dinero: 2 } }
+      ]
+    },
+    impuesto: {
+      gaceta: [
+        'Se crea el Impuesto sobre {objeto}. Hacienda imprime un formulario de nueve páginas para declararlo.',
+        'Cada ciudadano deberá declarar cuánto tiene de {objeto}. Hacienda no sabe cómo medirlo, pero ya ha contratado a doscientos medidores.'
+      ],
+      consecuencias: [
+        { en: 2, titulo: 'La evasión', textos: ['Todo el mundo declara cero en la casilla de {objeto}. Lo que haya se esconde bajo la cama, en el jardín, en casa de la suegra. Hacienda contrata perros adiestrados.', 'Las familias ricas trasladan su {objeto} a una isla del Caribe con mejor régimen fiscal.'], efectos: { dinero: -3, estabilidad: -1 } }
+      ]
+    }
+  };
+
   // Recuerdos: la gente no olvida tus decretos anteriores.
   RF.ECOS = [
     'En el mercado todavía se habla de {anterior}.',

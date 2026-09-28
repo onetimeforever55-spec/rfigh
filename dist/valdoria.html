@@ -245,6 +245,9 @@ body {
 
 /* Parte de las leyes vigentes: la lista de lo que cada ley ha hecho este turno. */
 .b-leyes { font-size: 12.5px; padding: 8px 10px; border-left: 2px solid var(--fosforo-oscuro); background: var(--fondo-2); }
+.b-logica { font-size: 13px; padding: 8px 12px; border: 1px dashed var(--fosforo-oscuro); background: var(--fondo-2); }
+.b-logica .etiqueta { color: var(--fosforo-tenue); letter-spacing: 0.08em; }
+.b-logica p { white-space: pre-line; color: var(--fosforo); }
 .b-leyes p { color: var(--fosforo-tenue); font-variant-numeric: tabular-nums; }
 .efecto { padding: 1px 7px; border: 1px solid var(--linea); background: var(--fondo-2); white-space: nowrap; }
 .efecto.sube { color: var(--bien); }
@@ -491,6 +494,7 @@ body {
 
 .b-consejo { border-left: 3px solid var(--fosforo-oscuro); padding: 8px 12px; }
 .b-consejo .etiqueta { color: var(--fosforo-tenue); }
+.b-consejo p { white-space: pre-line; }
 .b-consejo p.pensando, .b-cronica p.pensando { color: var(--fosforo-tenue); font-style: italic; }
 </style>
 </head>
@@ -588,8 +592,26 @@ body {
   }
 
   // Corrige una palabra desconocida con la más parecida del vocabulario.
+  // Palabras reales que el bot no conoce pero no son faltas: no se "corrigen" ("caminar" no es "cambiar",
+  // "volar" no es "votar"). Son las que más salen en los decretos absurdos.
+  const REALES = new Set((
+    'caminar camine caminen volar vuele vuelen nadar bailar bailen cantar canten llorar reir rian correr saltar dormir duerman ' +
+    'soñar besar abrazar silbar gritar hablar hablen callar comer coman beber fumar respirar pensar leer escribir jugar pescar ' +
+    'cazar cocinar llover llueva nevar sonreir estornudar bostezar toser rezar mentir amar odiar sentarse parpadear aplaudir ' +
+    'peinar peinarse vestir desnudo desnudos desnudas lunes martes miercoles jueves viernes sabado sabados domingo domingos ' +
+    'luna sol lluvia nubes nube viento vientos gatos gato perro perros loro loros palomas paloma patos pato vaca vacas cabra ' +
+    'cabras gallina gallinas burro burros caballo caballos mono monos peces sombrero sombreros bigote bigotes barba barbas ' +
+    'calcetines zapatos corbata corbatas pijama pijamas colores rojo azul verde amarillo rosado morado musica himno baile ' +
+    'chiste chistes risa risas tristeza gravedad tiempo reloj relojes numero numeros impares pares letra letras nombre ' +
+    'nombres apellido apellidos cumpleaños navidad siesta queso helado helados chocolate mango mangos piña espejo espejos ' +
+    'paraguas bicicleta bicicletas patines globo globos pelota pelotas futbol beisbol dados cartas ajedrez hacia atras ' +
+    'adelante izquierda derecha cabeza pies manos ojos orejas nariz dientes calvo calvos zurdo zurdos gordo ' +
+    'gordos flaco flacos feos bonitos altos bajos abuelas abuelos niños niñas bebes payaso payasos magos brujas fantasmas ' +
+    'extraterrestres marcianos dragones unicornios sirenas vampiros zombis piratas ninjas robots'
+  ).split(' '));
+
   function corregir(p, vocab) {
-    if (p.length < 4 || vocab.has(p) || VACIAS.has(p) || NEGACIONES.has(p) || /\d/.test(p)) return p;
+    if (p.length < 4 || vocab.has(p) || VACIAS.has(p) || NEGACIONES.has(p) || REALES.has(p) || /\d/.test(p)) return p;
     const max = p.length <= 6 ? 1 : 2;
     let mejor = p, mejorD = max + 1;
     for (const v of vocab) {
@@ -703,6 +725,12 @@ body {
   // Expresiones de varias palabras (se aplican antes que las palabras sueltas).
   RF.SINONIMOS_FRASES = [
     [/\bpena capital\b/g, 'pena de muerte'],
+    [/\babajo (con )?(los |el )?impuestos?\b/g, 'bajar los impuestos'],
+    // "dar marcha atrás con X" = derogar X (pero "caminar hacia atrás" no es derogar nada).
+    [/\b(dar |dando |hacer )?marcha atras( con| en)?\b/g, 'derogar'],
+    [/\bvolver atras( con| en)?\b/g, 'derogar'],
+    // "que la lluvia pague impuestos" = poner un impuesto a la lluvia (no rebajarlo).
+    [/\bque (el |la |los |las )?([a-zñ ]+?) (pague|paguen|tribute|tributen) (mas )?impuestos?\b/g, 'subir el impuesto a $1$2'],
     [/\b(dar un |hacer un )?auto ?golpe( de estado)?\b/g, 'disolver el congreso'],
     [/\bdar un golpe de estado\b/g, 'disolver el congreso'],
     [/\bcerrar el congreso\b/g, 'disolver el congreso'],
@@ -928,8 +956,8 @@ body {
       frases: [
         'derogar {o}', 'derogar la ley de {o}', 'anular {o}', 'anular el decreto de {o}', 'quitar la ley de {o}',
         'dejar de {o}', 'parar de {o}', 'revocar {o}', 'revocar la ley de {o}', 'suspender {o}', 'suspender la ley de {o}',
-        'terminar con la ley de {o}', 'eliminar el decreto de {o}', 'volver atras con {o}', 'dar marcha atras con {o}',
-        'derogar el ultimo decreto', 'anular el ultimo decreto', 'deshacer el ultimo decreto', 'derogar la ultima ley', 'marcha atras'
+        'terminar con la ley de {o}', 'eliminar el decreto de {o}', 
+        'derogar el ultimo decreto', 'anular el ultimo decreto', 'deshacer el ultimo decreto', 'derogar la ultima ley'
       ]
     },
     GLORIFICAR: {
@@ -2413,6 +2441,66 @@ body {
     ]
   };
 
+  /*
+   * LÓGICA ABSURDA: cuando el decreto trata de algo que el juego no conoce ("prohibir los lunes",
+   * "obligar a caminar hacia atrás", "vender la luna"), el Estado lo cumple con toda seriedad.
+   * Cada tipo de orden tiene su mecanismo burocrático y una consecuencia que llega más tarde
+   * siguiendo esa misma lógica (quien hace la ley hace la trampa; quien la vigila, cobra).
+   */
+  RF.ABSURDO.logica = {
+    prohibir: {
+      gaceta: [
+        'Se crea la Brigada Especial contra {objeto}: cuarenta agentes, dos coches y ningún protocolo. Su primer informe pide más presupuesto para entender qué están persiguiendo.',
+        'El Código Penal gana un artículo nuevo, el 666 bis. Los jueces piden por escrito una definición de {objeto}. Se les responde que «se sabe cuando se ve».',
+        'La policía instala controles en las entradas de la capital para detectar {objeto}. Nadie sabe qué buscar, así que se requisa todo lo sospechoso: paraguas, gallinas, un acordeón.'
+      ],
+      consecuencias: [
+        { en: 2, titulo: 'El mercado negro de {objeto}', textos: ['En el puerto ya se vende {objeto} de contrabando, a precio de oro. Los agentes de la Brigada son los mejores clientes.', 'Un bar clandestino de La Esperanza ofrece {objeto} en la trastienda. Hay cola. Hay contraseña. La contraseña es tu nombre.'], efectos: { estabilidad: -2, dinero: -3 } },
+        { en: 3, titulo: 'El resquicio legal', textos: ['Un abogado descubre que el decreto no dice nada de {objeto} «en diminutivo». Media ciudad se acoge a la excepción.', 'Los tribunales se llenan de recursos: ¿es delito {objeto} sin querer? ¿Y en sueños? El Supremo lleva tres días deliberando.'], efectos: { estabilidad: -2, felicidad: 2 } }
+      ]
+    },
+    obligar: {
+      gaceta: [
+        'Se crea la Inspección Nacional de {objeto}. Todo ciudadano deberá llevar encima el certificado de cumplimiento, sellado y con foto.',
+        'Los funcionarios reciben un cursillo de dos horas sobre {objeto}. Suspenden todos. El examen se repite hasta que aprueban todos.',
+        'A partir de hoy, cada ventanilla del Estado exige demostrar {objeto} antes de atender. Las colas dan la vuelta a la manzana.'
+      ],
+      consecuencias: [
+        { en: 2, titulo: 'Certificados falsos', textos: ['En el mercado venden certificados falsos de {objeto} por cinco valdos. Los auténticos cuestan veinte y tardan un mes.', 'Un primo de {cifuentes} monta una academia de {objeto} con título oficial. Tiene cuatro mil alumnos y ningún profesor.'], efectos: { dinero: -3, felicidad: -1 } },
+        { en: 3, titulo: 'Los primeros multados', textos: ['La primera multa por no cumplir con {objeto} se la ponen a una monja. La foto da la vuelta al mundo.', 'Un pueblo entero del interior se declara «incapaz» de cumplir con {objeto}. {sombra} manda a un inspector. El inspector no vuelve.'], efectos: { estabilidad: -2, felicidad: -2 } }
+      ]
+    },
+    crear: {
+      gaceta: [
+        'Nace el Instituto Nacional de {objeto}, con director, vicedirector, coche oficial y un logo que costó más que el edificio.',
+        'Se inaugura con banda de música el primer {objeto} oficial de la República. {paredes} corta la cinta. La cinta es lo único que funciona.',
+        'Un decreto de catorce páginas regula {objeto} hasta el último detalle. La página nueve contradice a la página tres.'
+      ],
+      consecuencias: [
+        { en: 3, titulo: 'Turismo del absurdo', textos: ['Llegan turistas extranjeros a ver {objeto} con sus propios ojos. Compran camisetas y se van riendo. El dinero, al menos, es real.', 'Un documental extranjero sobre {objeto} en Valdoria se vuelve viral. Llegan mochileros. Algunos se quedan.'], efectos: { dinero: 5, estabilidad: -1 } },
+        { en: 2, titulo: 'La contrata', textos: ['La empresa que construye {objeto} resulta ser del cuñado de {cifuentes}. El presupuesto ya se ha triplicado.', 'Se descubre que {objeto} no existe todavía, pero ya tiene doscientos empleados cobrando.'], efectos: { dinero: -6 } }
+      ]
+    },
+    vender: {
+      gaceta: [
+        'Se adjudica {objeto} a la empresa Valdoria Futuro S.A., fundada ayer por la tarde. Su dirección fiscal es un buzón en el puerto.',
+        'Se subasta {objeto} en el Palacio. Solo se presenta un comprador. Gana la subasta con una oferta de doce valdos y un apretón de manos.'
+      ],
+      consecuencias: [
+        { en: 2, titulo: 'El dueño cobra', textos: ['El nuevo dueño de {objeto} empieza a cobrar a quien lo use, lo mire o lo mencione. Nadie sabía que se usaba. Ahora todo el mundo lo necesita.', 'Los dueños de {objeto} demandan al Estado por «uso indebido» de {objeto} en los actos oficiales.'], efectos: { felicidad: -3, dinero: 2 } }
+      ]
+    },
+    impuesto: {
+      gaceta: [
+        'Se crea el Impuesto sobre {objeto}. Hacienda imprime un formulario de nueve páginas para declararlo.',
+        'Cada ciudadano deberá declarar cuánto tiene de {objeto}. Hacienda no sabe cómo medirlo, pero ya ha contratado a doscientos medidores.'
+      ],
+      consecuencias: [
+        { en: 2, titulo: 'La evasión', textos: ['Todo el mundo declara cero en la casilla de {objeto}. Lo que haya se esconde bajo la cama, en el jardín, en casa de la suegra. Hacienda contrata perros adiestrados.', 'Las familias ricas trasladan su {objeto} a una isla del Caribe con mejor régimen fiscal.'], efectos: { dinero: -3, estabilidad: -1 } }
+      ]
+    }
+  };
+
   // Recuerdos: la gente no olvida tus decretos anteriores.
   RF.ECOS = [
     'En el mercado todavía se habla de {anterior}.',
@@ -3727,6 +3815,16 @@ body {
       if (especial.texto && !res.especial) res.especial = T.expandir(especial.texto, res.vars);
       for (const p of especial.programar || []) estado.pendientes.push(Object.assign({}, p, { texto: T.expandir(p.texto, res.vars), dia: estado.dia + p.en }));
       res.programadas = (especial.programar || []).length;
+    }
+
+    // Decretos sobre algo que el juego no conoce: el Estado los cumple con una lógica absurda pero coherente.
+    const grupo = { PROHIBIR: 'prohibir', CASTIGAR: 'prohibir', OBLIGAR: 'obligar', CREAR: 'crear', INVERTIR: 'crear', GLORIFICAR: 'crear', SUBSIDIAR: 'crear', LEGALIZAR: 'crear', ENFOCAR: 'crear', PRIVATIZAR: 'vender', SUBIR_IMPUESTO: 'impuesto' }[accion];
+    const logica = (objId === 'OTRO' || ['CALENDARIO', 'ROPA', 'MASCOTAS'].includes(objId)) && !especial && !res.derogada && !res.bloqueada && def && !def.derogar && RF.ABSURDO.logica[grupo];
+    if (logica) {
+      if (!res.especial) res.especial = T.expandir(T.azar(logica.gaceta), res.vars);
+      const c = T.azar(logica.consecuencias);
+      estado.pendientes.push({ dia: estado.dia + c.en, titulo: T.expandir(c.titulo, res.vars), texto: T.expandir(T.azar(c.textos), res.vars), efectos: c.efectos });
+      res.programadas = 1;
     }
 
     const factor = op.secundario ? 0.75 : 1;
@@ -5198,6 +5296,7 @@ body {
     '- Los textos que te llegan ("textos_del_juego") son un borrador: reescríbelos con mejor prosa, no los copies.',
     '- "memoria_del_mundo" es lo que ya pasó en turnos anteriores: úsala para dar continuidad (volver a un personaje, a un lugar, a una consecuencia), sin repetirla entera.',
     '- Tono: humor negro y ternura a la vez, como una novela latinoamericana sobre un dictador. Sin sermones. La violencia se sugiere, no se describe con detalle gráfico.',
+    '- Si un decreto es absurdo, cuéntalo con total seriedad, como si fuera lo más normal del mundo: el humor está en los detalles lógicos y cotidianos de cómo la gente se adapta, no en burlarse ni en guiñar el ojo.',
     '- Formato: entre 120 y 220 palabras, de 2 a 4 párrafos cortos. Sin títulos, sin listas, sin markdown, sin comillas alrededor de todo el texto.',
     '',
     'El mundo: Valdoria vive del plátano, el petróleo y el comercio. Su capital es Puerto Esperanza; el barrio más querido es La Esperanza.',
@@ -5570,7 +5669,17 @@ body {
     '- Ten en cuenta el régimen: en democracia el Congreso, los jueces y la prensa reaccionan; en dictadura la gente evade impuestos y el mundo sanciona.',
     '- Ten en cuenta la memoria y las leyes vigentes: si el decreto contradice una ley vigente, derógala (campo "derogar" con su id) o sustitúyela; si repite una ley vigente, usa EXACTAMENTE el mismo "nombre" para reforzarla.',
     '- Un decreto puede tener varias partes ("vender el aire y encarcelar a Nico"): pon varias leyes y/o personas.',
-    '- Nunca rechaces un decreto por absurdo: el régimen intenta cumplirlo y eso tiene consecuencias (gasto, ridículo, obediencia, miedo). Solo si no se entiende en absoluto, pon "entendido": false y una "pregunta" corta.',
+    '- Nunca rechaces un decreto por absurdo. Solo si no se entiende en absoluto, pon "entendido": false y una "pregunta" corta.',
+    '',
+    'COHERENCIA ABSURDA (lo más importante del juego):',
+    '- Toma cada decreto AL PIE DE LA LETRA y cúmplelo con total seriedad burocrática, por estúpido que sea. El humor no sale de chistes, sino de seguir la lógica hasta el final con cara de póquer.',
+    '- Pregúntate, en orden: ¿cómo lo aplica el Estado de verdad (qué organismo, qué funcionarios, qué formulario, qué castigo)? ¿Quién gana dinero con ello? ¿Quién hace la trampa y cómo? ¿Qué efecto secundario lógico nadie previó? Ese último paso es el mejor.',
+    '- Ejemplo: "prohibir los lunes". El Estado no puede borrar un día, así que decreta que después del domingo viene el martes. Las nóminas semanales pierden un día de trabajo (dinero −); los empresarios exigen trabajar el domingo; los calendarios importados son ilegales; aparece un mercado negro de "lunes" (reuniones clandestinas de oficina); los nacidos en lunes piden un cumpleaños nuevo. Hechos: "Desde el turno 3, en Valdoria la semana tiene seis días: después del domingo viene el martes."',
+    '- Ejemplo: "que las palomas sean policías". El Ministerio del Interior les da placa y salario (dinero − por turno); nadie sabe cómo detienen; las estatuas quedan "bajo protección"; los que dan de comer a las palomas son acusados de soborno; la delincuencia no cambia, pero las multas por "desacato a agente" se disparan.',
+    '- Ejemplo: "nombrar ministro de economía a un perro". Se nombra de verdad (dale nombre al perro en "hechos"); firma con la pata; los mercados reaccionan (estabilidad −, dinero −); Cifuentes, humillada, trama algo; a la semana el perro tiene asesores y un despacho con sofá.',
+    '- Una vez establecida, la regla absurda ES LA REALIDAD DEL JUEGO: guárdala en "hechos" con detalles concretos y respétala en todos los turnos siguientes (si los lunes no existen, nadie queda "el lunes"; si el perro es ministro, sigue siéndolo hasta que lo destituyan).',
+    '- Los números siguen siendo realistas: lo absurdo cuesta lo que costaría aplicarlo (funcionarios, uniformes, multas, reimprimir calendarios) y cambia la vida de la gente según su lógica. No infles los efectos por ser gracioso.',
+    '- En "logica" pon de 2 a 4 pasos de esa cadena, cortos y en orden, como un informe de un funcionario muy serio ("Paso 1: …"). El jugador los lee: que se vea la lógica impecable del disparate.',
     '',
     'INSTITUCIONES Y PERSONAS:',
     '- "instituciones": cambia congreso, tribunales, prensa, elecciones o constitucion a "libre", "controlado" (comprado, censurado, amañado) o "disuelto". El régimen se recalcula solo.',
@@ -5591,7 +5700,7 @@ body {
     '- "calle": una persona de a pie (id) que esté libre y lo que vive por el decreto (dos o tres frases).',
     '',
     'RESPONDE SOLO CON EL JSON, sin markdown ni texto alrededor. Usa comillas dobles. No uses llaves ni corchetes dentro de los textos. Esquema:',
-    '{"entendido": true, "pregunta": "", "interpretacion": "qué entendiste, en una frase", "titulo": "nombre de la medida, en minúscula y con artículo (la privatización del aire)", "gaceta": "1 o 2 frases estilo Boletín Oficial",',
+    '{"entendido": true, "pregunta": "", "interpretacion": "qué entendiste, en una frase", "logica": ["Paso 1: cómo lo aplica el Estado", "Paso 2: quién gana y quién hace la trampa", "Paso 3: el efecto secundario que nadie previó"], "titulo": "nombre de la medida, en minúscula y con artículo (la privatización del aire)", "gaceta": "1 o 2 frases estilo Boletín Oficial",',
     ' "leyes": [{"nombre": "la privatización del aire", "inicial": {"dinero": 35, "felicidad": -8}, "por_turno": {"dinero": 15, "felicidad": -2, "estabilidad": -1}, "curvas": {}, "duracion": null, "imprime": false, "controversia": 2}],',
     ' "derogar": [], "personas": [], "instituciones": {}, "regimen": null, "secreto": false, "gravedad_secreto": 0, "apoyo_congreso": 0,',
     ' "consecuencias": [], "evento": null, "hechos": ["El Gobierno vendió el aire a la empresa Brisa S.A."],',
@@ -5893,6 +6002,8 @@ body {
   function bloques(e, ficha, res) {
     const out = [];
     out.push({ tipo: 'bot', texto: 'CONSEJO DE ESTADO › ' + (limpiar(ficha.interpretacion, 200) || T.mayus(res.medida)) });
+    const pasos = (Array.isArray(ficha.logica) ? ficha.logica : []).map(x => limpiar(x, 220)).filter(Boolean).slice(0, 4);
+    if (pasos.length) out.push({ tipo: 'logica', titulo: 'INFORME DEL CONSEJO', texto: pasos.join('\n') });
     const cab = res.bloqueada && !res.leyes.length ? 'PROYECTO DE LEY Nº ' : res.secreto ? 'ORDEN RESERVADA Nº ' : 'DECRETO Nº ';
     let gaceta = T.mayus(res.medida) + '.';
     const g = limpiar(ficha.gaceta, 500);
@@ -5942,7 +6053,7 @@ body {
   }
 
   // ---------- Un turno sin decretos: el país sigue su curso ----------
-  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Valdoria por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Debe ser UNA cosa concreta y creíble, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "titulares", "gabinete" y "calle". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
+  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Valdoria por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "titulares", "gabinete" y "calle". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
 
   async function consultarMundo(e, alTexto) {
     const contenido = 'Situación de Valdoria (JSON):\n' + JSON.stringify(contexto(e, '(ninguno: el jugador espera)')) + '\n\n' + MUNDO + '\n\nDevuelve solo la ficha JSON.';
@@ -6493,7 +6604,12 @@ body {
       // En cuanto llega la interpretación (el primer campo de la ficha), se enseña.
       alTexto: (t) => {
         const m = /"interpretacion"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(t);
-        if (m && m[1]) { p.textContent = 'Entendido: ' + m[1].replace(/\\"/g, '"') + '. Calculando las consecuencias…'; alFondo(); }
+        if (!m || !m[1]) return;
+        // Los pasos del razonamiento que ya han llegado enteros.
+        const l = /"logica"\s*:\s*\[((?:[^\]"]|"(?:[^"\\]|\\.)*")*)/.exec(t);
+        const pasos = l ? [...l[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(x => x[1].replace(/\\"/g, '"')) : [];
+        p.textContent = 'Entendido: ' + m[1].replace(/\\"/g, '"') + '.' + (pasos.length ? '\n' + pasos.join('\n') : '') + '\nCalculando las consecuencias…';
+        alFondo();
       },
       listo: () => { espera.remove(); ocupado = false; $('consola').classList.remove('ocupada'); }
     };

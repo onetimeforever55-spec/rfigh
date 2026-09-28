@@ -71,6 +71,12 @@
   // Expresiones de varias palabras (se aplican antes que las palabras sueltas).
   RF.SINONIMOS_FRASES = [
     [/\bpena capital\b/g, 'pena de muerte'],
+    [/\babajo (con )?(los |el )?impuestos?\b/g, 'bajar los impuestos'],
+    // "dar marcha atrás con X" = derogar X (pero "caminar hacia atrás" no es derogar nada).
+    [/\b(dar |dando |hacer )?marcha atras( con| en)?\b/g, 'derogar'],
+    [/\bvolver atras( con| en)?\b/g, 'derogar'],
+    // "que la lluvia pague impuestos" = poner un impuesto a la lluvia (no rebajarlo).
+    [/\bque (el |la |los |las )?([a-zñ ]+?) (pague|paguen|tribute|tributen) (mas )?impuestos?\b/g, 'subir el impuesto a $1$2'],
     [/\b(dar un |hacer un )?auto ?golpe( de estado)?\b/g, 'disolver el congreso'],
     [/\bdar un golpe de estado\b/g, 'disolver el congreso'],
     [/\bcerrar el congreso\b/g, 'disolver el congreso'],

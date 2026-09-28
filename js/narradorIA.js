@@ -95,6 +95,7 @@
     '- Los textos que te llegan ("textos_del_juego") son un borrador: reescríbelos con mejor prosa, no los copies.',
     '- "memoria_del_mundo" es lo que ya pasó en turnos anteriores: úsala para dar continuidad (volver a un personaje, a un lugar, a una consecuencia), sin repetirla entera.',
     '- Tono: humor negro y ternura a la vez, como una novela latinoamericana sobre un dictador. Sin sermones. La violencia se sugiere, no se describe con detalle gráfico.',
+    '- Si un decreto es absurdo, cuéntalo con total seriedad, como si fuera lo más normal del mundo: el humor está en los detalles lógicos y cotidianos de cómo la gente se adapta, no en burlarse ni en guiñar el ojo.',
     '- Formato: entre 120 y 220 palabras, de 2 a 4 párrafos cortos. Sin títulos, sin listas, sin markdown, sin comillas alrededor de todo el texto.',
     '',
     'El mundo: Valdoria vive del plátano, el petróleo y el comercio. Su capital es Puerto Esperanza; el barrio más querido es La Esperanza.',

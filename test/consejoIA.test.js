@@ -191,6 +191,18 @@ console.log('UN TURNO SIN DECRETOS (EL PAÍS SIGUE SU CURSO)');
   comprobar(C.contexto(e, 'x').turnos_sin_evento >= 1, 'el contexto dice cuántos turnos llevan sin evento');
 }
 
+console.log('COHERENCIA ABSURDA');
+{
+  comprobar(/AL PIE DE LA LETRA/.test(C.SISTEMA) && /prohibir los lunes/.test(C.SISTEMA) && /"logica"/.test(C.SISTEMA), 'el Consejo sabe que debe cumplir lo absurdo con lógica impecable (con ejemplos)');
+  const e = nuevo();
+  const f = { titulo: 'la abolición de los lunes', logica: ['Paso 1: después del domingo viene el martes.', 'Paso 2: las nóminas pierden un día {raro}.', null, 'Paso 3: aparece un mercado negro de lunes.', 'Paso 4: x', 'Paso 5: sobra'],
+    efecto_unico: { dinero: -5 }, hechos: ['Desde el turno 1, la semana tiene seis días: después del domingo viene el martes.'] };
+  const res = C.aplicar(e, f);
+  const inf = C.bloques(e, f, res).find(b => b.tipo === 'logica');
+  comprobar(inf && inf.texto.split('\n').length === 4 && !/[{}]/.test(inf.texto), 'muestra el informe con los pasos del razonamiento (máximo 4, limpios)');
+  comprobar(C.memoria(e).some(m => /seis días/.test(m.texto)), 'la regla absurda queda en la memoria como realidad del juego');
+}
+
 console.log('LEER LA RESPUESTA DE LA IA');
 comprobar(C.extraerJSON('{"a":1}').a === 1, 'JSON limpio');
 comprobar(C.extraerJSON('```json\n{"a":2}\n```').a === 2, 'JSON dentro de un bloque de código');

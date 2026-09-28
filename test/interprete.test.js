@@ -4,6 +4,11 @@ const RF = require('./cargar')();
 
 const CASOS = [
   ['el aire se vende', 'PRIVATIZAR', 'AIRE'],
+  // Decretos absurdos: palabras reales que no hay que "corregir" y frases que no hay que malinterpretar.
+  ['obligar a todos a caminar hacia atrás', 'OBLIGAR', 'OTRO'],
+  ['legalizar volar', 'LEGALIZAR', 'OTRO'],
+  ['que la lluvia pague impuestos', 'SUBIR_IMPUESTO', 'AGUA'],
+  ['dar marcha atrás con la privatización del agua', 'DEROGAR', 'AGUA'],
   ['A partir de hoy el aire es propiedad del Estado y se cobra por respirar', 'PRIVATIZAR', 'AIRE'],
   ['prohibir el fútbol', 'PROHIBIR', 'DIVERSION'],
   ['prohivir el reggaeton', 'PROHIBIR', 'DIVERSION'],

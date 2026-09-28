@@ -512,7 +512,12 @@
       // En cuanto llega la interpretación (el primer campo de la ficha), se enseña.
       alTexto: (t) => {
         const m = /"interpretacion"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(t);
-        if (m && m[1]) { p.textContent = 'Entendido: ' + m[1].replace(/\\"/g, '"') + '. Calculando las consecuencias…'; alFondo(); }
+        if (!m || !m[1]) return;
+        // Los pasos del razonamiento que ya han llegado enteros.
+        const l = /"logica"\s*:\s*\[((?:[^\]"]|"(?:[^"\\]|\\.)*")*)/.exec(t);
+        const pasos = l ? [...l[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(x => x[1].replace(/\\"/g, '"')) : [];
+        p.textContent = 'Entendido: ' + m[1].replace(/\\"/g, '"') + '.' + (pasos.length ? '\n' + pasos.join('\n') : '') + '\nCalculando las consecuencias…';
+        alFondo();
       },
       listo: () => { espera.remove(); ocupado = false; $('consola').classList.remove('ocupada'); }
     };

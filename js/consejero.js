@@ -242,6 +242,16 @@
       res.programadas = (especial.programar || []).length;
     }
 
+    // Decretos sobre algo que el juego no conoce: el Estado los cumple con una lógica absurda pero coherente.
+    const grupo = { PROHIBIR: 'prohibir', CASTIGAR: 'prohibir', OBLIGAR: 'obligar', CREAR: 'crear', INVERTIR: 'crear', GLORIFICAR: 'crear', SUBSIDIAR: 'crear', LEGALIZAR: 'crear', ENFOCAR: 'crear', PRIVATIZAR: 'vender', SUBIR_IMPUESTO: 'impuesto' }[accion];
+    const logica = (objId === 'OTRO' || ['CALENDARIO', 'ROPA', 'MASCOTAS'].includes(objId)) && !especial && !res.derogada && !res.bloqueada && def && !def.derogar && RF.ABSURDO.logica[grupo];
+    if (logica) {
+      if (!res.especial) res.especial = T.expandir(T.azar(logica.gaceta), res.vars);
+      const c = T.azar(logica.consecuencias);
+      estado.pendientes.push({ dia: estado.dia + c.en, titulo: T.expandir(c.titulo, res.vars), texto: T.expandir(T.azar(c.textos), res.vars), efectos: c.efectos });
+      res.programadas = 1;
+    }
+
     const factor = op.secundario ? 0.75 : 1;
     for (const k of Object.keys(inicial)) inicial[k] *= factor;
     aplicarEfectos(estado, inicial, res.deltas);

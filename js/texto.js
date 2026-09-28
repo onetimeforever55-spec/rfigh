@@ -66,8 +66,26 @@
   }
 
   // Corrige una palabra desconocida con la más parecida del vocabulario.
+  // Palabras reales que el bot no conoce pero no son faltas: no se "corrigen" ("caminar" no es "cambiar",
+  // "volar" no es "votar"). Son las que más salen en los decretos absurdos.
+  const REALES = new Set((
+    'caminar camine caminen volar vuele vuelen nadar bailar bailen cantar canten llorar reir rian correr saltar dormir duerman ' +
+    'soñar besar abrazar silbar gritar hablar hablen callar comer coman beber fumar respirar pensar leer escribir jugar pescar ' +
+    'cazar cocinar llover llueva nevar sonreir estornudar bostezar toser rezar mentir amar odiar sentarse parpadear aplaudir ' +
+    'peinar peinarse vestir desnudo desnudos desnudas lunes martes miercoles jueves viernes sabado sabados domingo domingos ' +
+    'luna sol lluvia nubes nube viento vientos gatos gato perro perros loro loros palomas paloma patos pato vaca vacas cabra ' +
+    'cabras gallina gallinas burro burros caballo caballos mono monos peces sombrero sombreros bigote bigotes barba barbas ' +
+    'calcetines zapatos corbata corbatas pijama pijamas colores rojo azul verde amarillo rosado morado musica himno baile ' +
+    'chiste chistes risa risas tristeza gravedad tiempo reloj relojes numero numeros impares pares letra letras nombre ' +
+    'nombres apellido apellidos cumpleaños navidad siesta queso helado helados chocolate mango mangos piña espejo espejos ' +
+    'paraguas bicicleta bicicletas patines globo globos pelota pelotas futbol beisbol dados cartas ajedrez hacia atras ' +
+    'adelante izquierda derecha cabeza pies manos ojos orejas nariz dientes calvo calvos zurdo zurdos gordo ' +
+    'gordos flaco flacos feos bonitos altos bajos abuelas abuelos niños niñas bebes payaso payasos magos brujas fantasmas ' +
+    'extraterrestres marcianos dragones unicornios sirenas vampiros zombis piratas ninjas robots'
+  ).split(' '));
+
   function corregir(p, vocab) {
-    if (p.length < 4 || vocab.has(p) || VACIAS.has(p) || NEGACIONES.has(p) || /\d/.test(p)) return p;
+    if (p.length < 4 || vocab.has(p) || VACIAS.has(p) || NEGACIONES.has(p) || REALES.has(p) || /\d/.test(p)) return p;
     const max = p.length <= 6 ? 1 : 2;
     let mejor = p, mejorD = max + 1;
     for (const v of vocab) {

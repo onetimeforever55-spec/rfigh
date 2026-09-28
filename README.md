@@ -98,7 +98,11 @@ Con el Consejo activo, los eventos de catálogo solo saltan si la situación los
 
 **Al esperar** (sin decreto), el Consejo decide qué pasa en el país por sí solo, como consecuencia de las leyes vigentes y de la memoria: una huelga, una conspiración o algo que se sembró antes. Aparece como suceso «EN EL PAÍS». En esos turnos la IA no puede crear leyes, cambiar instituciones ni tocar personas: solo el ánimo de la gente, consecuencias, eventos y hechos.
 
-Mientras el Consejo delibera, el juego enseña lo que ha entendido en cuanto llega («Entendido: …»). Si la IA falla o responde algo ilegible, ese decreto lo resuelve el Intérprete local.
+Mientras el Consejo delibera, el juego enseña lo que ha entendido en cuanto llega («Entendido: …»).
+
+**Coherencia absurda.** Cualquier estupidez se cumple al pie de la letra, con total seriedad burocrática. El Consejo razona en cadena: cómo lo aplica el Estado, quién gana dinero, quién hace la trampa y qué efecto secundario nadie previó. Esos pasos se ven en el «Informe del Consejo». La regla absurda queda en la memoria como realidad del juego: si prohíbes los lunes, en Valdoria después del domingo viene el martes durante el resto de la partida.
+
+Sin IA, el bot local también cumple lo absurdo con su propia lógica: la Brigada Especial contra la gravedad, la Inspección Nacional de los sombreros o la empresa fantasma que compra la luna. Cada caso trae una consecuencia unos turnos después: mercado negro, resquicio legal, certificados falsos, el dueño que cobra o la evasión. Esta lógica está en `RF.ABSURDO.logica`, en `js/datos/voces.js`. Si la IA falla o responde algo ilegible, ese decreto lo resuelve el Intérprete local.
 
 ## Crónica con IA (opcional)
 

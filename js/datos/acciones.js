@@ -177,8 +177,8 @@
       frases: [
         'derogar {o}', 'derogar la ley de {o}', 'anular {o}', 'anular el decreto de {o}', 'quitar la ley de {o}',
         'dejar de {o}', 'parar de {o}', 'revocar {o}', 'revocar la ley de {o}', 'suspender {o}', 'suspender la ley de {o}',
-        'terminar con la ley de {o}', 'eliminar el decreto de {o}', 'volver atras con {o}', 'dar marcha atras con {o}',
-        'derogar el ultimo decreto', 'anular el ultimo decreto', 'deshacer el ultimo decreto', 'derogar la ultima ley', 'marcha atras'
+        'terminar con la ley de {o}', 'eliminar el decreto de {o}', 
+        'derogar el ultimo decreto', 'anular el ultimo decreto', 'deshacer el ultimo decreto', 'derogar la ultima ley'
       ]
     },
     GLORIFICAR: {

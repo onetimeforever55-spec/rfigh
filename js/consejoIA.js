@@ -54,7 +54,17 @@
     '- Ten en cuenta el régimen: en democracia el Congreso, los jueces y la prensa reaccionan; en dictadura la gente evade impuestos y el mundo sanciona.',
     '- Ten en cuenta la memoria y las leyes vigentes: si el decreto contradice una ley vigente, derógala (campo "derogar" con su id) o sustitúyela; si repite una ley vigente, usa EXACTAMENTE el mismo "nombre" para reforzarla.',
     '- Un decreto puede tener varias partes ("vender el aire y encarcelar a Nico"): pon varias leyes y/o personas.',
-    '- Nunca rechaces un decreto por absurdo: el régimen intenta cumplirlo y eso tiene consecuencias (gasto, ridículo, obediencia, miedo). Solo si no se entiende en absoluto, pon "entendido": false y una "pregunta" corta.',
+    '- Nunca rechaces un decreto por absurdo. Solo si no se entiende en absoluto, pon "entendido": false y una "pregunta" corta.',
+    '',
+    'COHERENCIA ABSURDA (lo más importante del juego):',
+    '- Toma cada decreto AL PIE DE LA LETRA y cúmplelo con total seriedad burocrática, por estúpido que sea. El humor no sale de chistes, sino de seguir la lógica hasta el final con cara de póquer.',
+    '- Pregúntate, en orden: ¿cómo lo aplica el Estado de verdad (qué organismo, qué funcionarios, qué formulario, qué castigo)? ¿Quién gana dinero con ello? ¿Quién hace la trampa y cómo? ¿Qué efecto secundario lógico nadie previó? Ese último paso es el mejor.',
+    '- Ejemplo: "prohibir los lunes". El Estado no puede borrar un día, así que decreta que después del domingo viene el martes. Las nóminas semanales pierden un día de trabajo (dinero −); los empresarios exigen trabajar el domingo; los calendarios importados son ilegales; aparece un mercado negro de "lunes" (reuniones clandestinas de oficina); los nacidos en lunes piden un cumpleaños nuevo. Hechos: "Desde el turno 3, en Valdoria la semana tiene seis días: después del domingo viene el martes."',
+    '- Ejemplo: "que las palomas sean policías". El Ministerio del Interior les da placa y salario (dinero − por turno); nadie sabe cómo detienen; las estatuas quedan "bajo protección"; los que dan de comer a las palomas son acusados de soborno; la delincuencia no cambia, pero las multas por "desacato a agente" se disparan.',
+    '- Ejemplo: "nombrar ministro de economía a un perro". Se nombra de verdad (dale nombre al perro en "hechos"); firma con la pata; los mercados reaccionan (estabilidad −, dinero −); Cifuentes, humillada, trama algo; a la semana el perro tiene asesores y un despacho con sofá.',
+    '- Una vez establecida, la regla absurda ES LA REALIDAD DEL JUEGO: guárdala en "hechos" con detalles concretos y respétala en todos los turnos siguientes (si los lunes no existen, nadie queda "el lunes"; si el perro es ministro, sigue siéndolo hasta que lo destituyan).',
+    '- Los números siguen siendo realistas: lo absurdo cuesta lo que costaría aplicarlo (funcionarios, uniformes, multas, reimprimir calendarios) y cambia la vida de la gente según su lógica. No infles los efectos por ser gracioso.',
+    '- En "logica" pon de 2 a 4 pasos de esa cadena, cortos y en orden, como un informe de un funcionario muy serio ("Paso 1: …"). El jugador los lee: que se vea la lógica impecable del disparate.',
     '',
     'INSTITUCIONES Y PERSONAS:',
     '- "instituciones": cambia congreso, tribunales, prensa, elecciones o constitucion a "libre", "controlado" (comprado, censurado, amañado) o "disuelto". El régimen se recalcula solo.',
@@ -75,7 +85,7 @@
     '- "calle": una persona de a pie (id) que esté libre y lo que vive por el decreto (dos o tres frases).',
     '',
     'RESPONDE SOLO CON EL JSON, sin markdown ni texto alrededor. Usa comillas dobles. No uses llaves ni corchetes dentro de los textos. Esquema:',
-    '{"entendido": true, "pregunta": "", "interpretacion": "qué entendiste, en una frase", "titulo": "nombre de la medida, en minúscula y con artículo (la privatización del aire)", "gaceta": "1 o 2 frases estilo Boletín Oficial",',
+    '{"entendido": true, "pregunta": "", "interpretacion": "qué entendiste, en una frase", "logica": ["Paso 1: cómo lo aplica el Estado", "Paso 2: quién gana y quién hace la trampa", "Paso 3: el efecto secundario que nadie previó"], "titulo": "nombre de la medida, en minúscula y con artículo (la privatización del aire)", "gaceta": "1 o 2 frases estilo Boletín Oficial",',
     ' "leyes": [{"nombre": "la privatización del aire", "inicial": {"dinero": 35, "felicidad": -8}, "por_turno": {"dinero": 15, "felicidad": -2, "estabilidad": -1}, "curvas": {}, "duracion": null, "imprime": false, "controversia": 2}],',
     ' "derogar": [], "personas": [], "instituciones": {}, "regimen": null, "secreto": false, "gravedad_secreto": 0, "apoyo_congreso": 0,',
     ' "consecuencias": [], "evento": null, "hechos": ["El Gobierno vendió el aire a la empresa Brisa S.A."],',
@@ -377,6 +387,8 @@
   function bloques(e, ficha, res) {
     const out = [];
     out.push({ tipo: 'bot', texto: 'CONSEJO DE ESTADO › ' + (limpiar(ficha.interpretacion, 200) || T.mayus(res.medida)) });
+    const pasos = (Array.isArray(ficha.logica) ? ficha.logica : []).map(x => limpiar(x, 220)).filter(Boolean).slice(0, 4);
+    if (pasos.length) out.push({ tipo: 'logica', titulo: 'INFORME DEL CONSEJO', texto: pasos.join('\n') });
     const cab = res.bloqueada && !res.leyes.length ? 'PROYECTO DE LEY Nº ' : res.secreto ? 'ORDEN RESERVADA Nº ' : 'DECRETO Nº ';
     let gaceta = T.mayus(res.medida) + '.';
     const g = limpiar(ficha.gaceta, 500);
@@ -426,7 +438,7 @@
   }
 
   // ---------- Un turno sin decretos: el país sigue su curso ----------
-  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Valdoria por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Debe ser UNA cosa concreta y creíble, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "titulares", "gabinete" y "calle". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
+  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Valdoria por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "titulares", "gabinete" y "calle". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
 
   async function consultarMundo(e, alTexto) {
     const contenido = 'Situación de Valdoria (JSON):\n' + JSON.stringify(contexto(e, '(ninguno: el jugador espera)')) + '\n\n' + MUNDO + '\n\nDevuelve solo la ficha JSON.';

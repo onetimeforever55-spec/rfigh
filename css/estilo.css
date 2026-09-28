@@ -233,6 +233,9 @@ body {
 
 /* Parte de las leyes vigentes: la lista de lo que cada ley ha hecho este turno. */
 .b-leyes { font-size: 12.5px; padding: 8px 10px; border-left: 2px solid var(--fosforo-oscuro); background: var(--fondo-2); }
+.b-logica { font-size: 13px; padding: 8px 12px; border: 1px dashed var(--fosforo-oscuro); background: var(--fondo-2); }
+.b-logica .etiqueta { color: var(--fosforo-tenue); letter-spacing: 0.08em; }
+.b-logica p { white-space: pre-line; color: var(--fosforo); }
 .b-leyes p { color: var(--fosforo-tenue); font-variant-numeric: tabular-nums; }
 .efecto { padding: 1px 7px; border: 1px solid var(--linea); background: var(--fondo-2); white-space: nowrap; }
 .efecto.sube { color: var(--bien); }
@@ -479,4 +482,5 @@ body {
 
 .b-consejo { border-left: 3px solid var(--fosforo-oscuro); padding: 8px 12px; }
 .b-consejo .etiqueta { color: var(--fosforo-tenue); }
+.b-consejo p { white-space: pre-line; }
 .b-consejo p.pensando, .b-cronica p.pensando { color: var(--fosforo-tenue); font-style: italic; }
