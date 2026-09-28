@@ -53,6 +53,12 @@ No usa ninguna IA externa: funciona sin internet, gratis y al instante.
 
 En GitHub: **Settings → Pages → Deploy from a branch**, elige la rama y la carpeta `/ (root)`. El juego quedará en `https://<usuario>.github.io/rfigh/`.
 
+### Temas duros
+
+Algunos decretos tienen reglas propias porque el clasificador general no los trata bien: la esclavitud, el trabajo infantil, la guerra, la bomba atómica, los campos de reeducación, la quema de libros, la tortura, el aborto, el matrimonio igualitario, la prostitución, la inmigración, el salario mínimo, las pensiones, la renta básica, los aranceles, la selva, la jornada laboral, el voto de las mujeres, la edad para votar, el bitcoin, el muro y las cárceles.
+
+Cada tema se entiende en las dos direcciones: «legalizar la esclavitud» / «abolir la esclavitud», «declarar la guerra» / «firmar la paz», «talar la selva» / «dejar de talar la selva». Cada dirección tiene sus efectos, lo polémico que es para el Congreso y consecuencias con retraso: sanciones, fugas, bloqueo naval, inundaciones o la huelga de las mujeres. Ir en contra sustituye a la ley anterior, y abolir algo que nunca existió solo lo recuerda. Los temas están en `js/datos/temas.js`; para añadir uno basta con escribir su entrada.
+
 ## Cómo funciona por dentro
 
 El juego tiene su propio "bot", con tres piezas:

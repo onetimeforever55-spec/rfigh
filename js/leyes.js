@@ -227,6 +227,24 @@
 
   function lista(e) { if (!e.leyes) e.leyes = []; return e.leyes; }
 
+  /*
+   * Un tema duro (datos/temas.js). LEGALIZAR = a favor, PROHIBIR = en contra, PRIVATIZAR = su variante privada.
+   * Ir "en contra" de algo que nunca estuvo a favor (abolir la esclavitud en un país sin esclavitud) usa "sinLey".
+   */
+  function definirTema(e, objId, accion) {
+    const t = RF.TEMAS[objId];
+    const dir = accion === 'PROHIBIR' ? 'contra' : accion === 'PRIVATIZAR' && t.privada ? 'privada' : 'favor';
+    const vigente = lista(e).find(l => l.clave === 'TEMA:' + objId);
+    const d = dir === 'contra' && t.sinLey && !(vigente && vigente.accion !== 'PROHIBIR') ? Object.assign({ nombre: t.contra.nombre }, t.sinLey) : t[dir];
+    const prensa = d.prensa || (d.controversia >= 3 ? 'represion' : d.controversia === 2 ? 'libertad' : dir === 'contra' ? 'regalo' : 'general');
+    if (d.unaVez) return { unaVez: true, nombre: d.nombre, inicial: Object.assign({}, d.inicial), notas: (d.notas || []).slice(), prensa, controversia: 0 };
+    return {
+      clave: 'TEMA:' + objId, nombre: d.nombre, tema: objId, prensa,
+      inicial: Object.assign({}, d.inicial), porTurno: Object.assign({}, d.porTurno), curvas: Object.assign({}, d.curvas),
+      notas: (d.notas || []).slice(), texto: d.texto ? T.expandir(d.texto) : '', programar: d.programar || [], controversia: d.controversia || 0
+    };
+  }
+
   // Firma una ley: si ya había una sobre lo mismo, la refuerza (misma acción) o la sustituye (otra acción).
   function promulgar(e, ley, accion, nombre) {
     const leyes = lista(e);
@@ -341,5 +359,5 @@
     return partes.join('  ') || 'sin efecto este turno';
   }
 
-  RF.leyes = { definir, promulgar, derogar, turno, efectoActual, efectoNominal, resumenLey, lista, CURVAS };
+  RF.leyes = { definir, definirTema, promulgar, derogar, turno, efectoActual, efectoNominal, resumenLey, lista, CURVAS };
 })(globalThis.RF = globalThis.RF || {});

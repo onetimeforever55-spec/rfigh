@@ -4,7 +4,7 @@
   "description": "Juego de consola: gobierna un país escribiendo decretos.",
   "private": true,
   "scripts": {
-    "test": "node test/interprete.test.js && node test/simulacion.test.js && node test/sistemas.test.js && node test/equilibrio.test.js && node test/narradorIA.test.js && node test/consejoIA.test.js",
+    "test": "node test/interprete.test.js && node test/simulacion.test.js && node test/sistemas.test.js && node test/equilibrio.test.js && node test/narradorIA.test.js && node test/consejoIA.test.js && node test/temas.test.js",
     "empaquetar": "node scripts/empaquetar.js"
   },
   "devDependencies": {

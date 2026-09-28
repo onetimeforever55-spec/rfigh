@@ -50,7 +50,7 @@ const CASOS = [
   ['modernizar el metro', 'INVERTIR', 'TRANSPORTE'],
   ['vender las minas de oro a los chinos', 'PRIVATIZAR', 'RECURSOS'],
   ['cobrar por la luz', 'PRIVATIZAR', 'ENERGIA'],
-  ['deportar a los inmigrantes', 'CASTIGAR', 'EXTRANJEROS'],
+  ['deportar a los inmigrantes', 'LEGALIZAR', 'INMIGRACION'], // tema duro: la expulsión de los inmigrantes,
   ['cerrar las fronteras', 'PROHIBIR', 'EXTRANJEROS'],
   ['prohibir los gatos', 'PROHIBIR', 'MASCOTAS'],
   ['homenaje al ejercito', 'GLORIFICAR', 'EJERCITO'],

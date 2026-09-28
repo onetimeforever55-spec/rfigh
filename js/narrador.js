@@ -161,7 +161,7 @@
   function decreto(estado, interp, res) {
     if (res.tipo === 'persona') return decretoPersona(estado, interp, res);
     const bloques = [];
-    const partes = ['INTÉRPRETE › ' + RF.ACCIONES[res.accion].nombre.toUpperCase() + ' + ' + (res.objeto === 'OTRO' ? '"' + res.nombreObjeto + '" (desconocido)' : res.nombreObjeto.toUpperCase())];
+    const partes = [interp.tema ? 'INTÉRPRETE › ' + res.medida.toUpperCase() : 'INTÉRPRETE › ' + RF.ACCIONES[res.accion].nombre.toUpperCase() + ' + ' + (res.objeto === 'OTRO' ? '"' + res.nombreObjeto + '" (desconocido)' : res.nombreObjeto.toUpperCase())];
     if (interp.confianza != null) partes.push(interp.confianza + '% seguro');
     if (interp.heredada) partes.push('acción heredada de la frase anterior');
     if (interp.negado) partes.push('negación detectada');
@@ -170,7 +170,7 @@
     if (interp.corregidas && interp.corregidas.length) partes.push('corregí ' + interp.corregidas.map(([a, b]) => a + '→' + b).join(', '));
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
 
-    const tipo = res.secreto ? 'secreto' : tipoDecreto(res.accion, res.objeto);
+    const tipo = res.secreto ? 'secreto' : res.prensa || tipoDecreto(res.accion, res.objeto);
     let gaceta = T.mayus(res.medida) + '.';
     if (res.especial) gaceta += ' ' + res.especial;
     else if (res.objeto === 'OTRO') gaceta += ' ' + T.expandir(T.azar(RF.ABSURDO.gaceta), res.vars);

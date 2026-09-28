@@ -220,6 +220,17 @@
     return Object.assign(base, { estado: 'preguntar_trato', nombreObjeto: nombre, opciones: tratos.map(t => Object.assign({}, base, { estado: 'ok', trato: t, nombreObjeto: nombre })) });
   }
 
+  // Devuelve { tema, accion, objeto, nombreObjeto } si el decreto trata de un tema duro (ver datos/temas.js).
+  function detectarTema(n) {
+    for (const [id, t] of Object.entries(RF.TEMAS || {})) {
+      if (!t.re.test(n) || (t.no && t.no.test(n))) continue;
+      const contra = (t.contraRe || RF.CONTRA).test(n) || (!t.sinParar && RF.PARAR.test(n));
+      const dir = t.privatizar && t.privatizar.test(n) && t.privada ? 'privada' : contra ? 'contra' : 'favor';
+      return { tema: id, dir, accion: { favor: 'LEGALIZAR', contra: 'PROHIBIR', privada: 'PRIVATIZAR' }[dir], objeto: id, nombreObjeto: t.nombre };
+    }
+    return null;
+  }
+
   function interpretar(texto, estado) {
     if (!modelo) entrenar();
     const { acc, obj, vocabPalabras } = modelo;
@@ -232,6 +243,14 @@
     const ra = clasificar(acc, rs);
     const personal = interpretarPersona(texto, crudas, ra, estado, corregidas, intensidad(ps, T.normalizar(texto)));
     if (personal) return personal;
+    // Temas duros (la esclavitud, la guerra, el aborto...): se reconocen por su forma y tienen sus propias reglas.
+    const tema = detectarTema(T.normalizar(texto));
+    if (tema) {
+      return Object.assign({
+        texto, corregidas, intensidad: 1, negado: false, opciones: [], confianza: 92, estado: 'ok',
+        secreto: RF.SECRETO ? RF.SECRETO.test(T.normalizar(texto)) : false
+      }, tema);
+    }
     const ro = clasificar(obj, rs);
 
     // Si la favorita no tiene ninguna palabra clara pero otra sí ("ya no se regala comida"), gana la que la tiene.

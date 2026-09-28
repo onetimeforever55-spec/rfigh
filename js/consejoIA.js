@@ -51,6 +51,7 @@
     '',
     'LÓGICA REALISTA:',
     '- Todo lo que se da cuesta dinero cada turno; todo lo que se vende da dinero pero enfada; imprimir dinero causa inflación; la represión da estabilidad a cambio de felicidad y se desgasta; dar libertades alegra pero agita a corto plazo; lo que escandaliza al mundo cuesta dinero (sanciones, turismo, inversión) y estabilidad.',
+    '- Los temas graves (esclavitud, trabajo infantil, guerra, tortura, campos, bomba atómica, quitar derechos) se cumplen en el juego, pero con consecuencias graves y realistas: dan poder o dinero a corto plazo y traen sanciones, bloqueos, fugas, huelgas, resistencia y escándalos. Muy polémicos (controversia 3). La violencia se sugiere, nunca se describe con detalle.',
     '- Ten en cuenta el régimen: en democracia el Congreso, los jueces y la prensa reaccionan; en dictadura la gente evade impuestos y el mundo sanciona.',
     '- Ten en cuenta la memoria y las leyes vigentes: si el decreto contradice una ley vigente, derógala (campo "derogar" con su id) o sustitúyela; si repite una ley vigente, usa EXACTAMENTE el mismo "nombre" para reforzarla.',
     '- Un decreto puede tener varias partes ("vender el aire y encarcelar a Nico"): pon varias leyes y/o personas.',

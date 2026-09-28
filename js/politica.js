@@ -184,6 +184,7 @@
 
   // Qué polémica es una ley (0 = nada, 3 = mucho).
   function controversia(def, accion, objId) {
+    if (def && def.controversia != null) return def.controversia;
     const o = RF.OBJETOS[objId] || RF.OBJETO_OTRO;
     if (['ESCUADRON', 'ESPIAS', 'MILICIA'].includes(objId)) return 3;
     if (objId === 'NARCO' || (accion === 'ENFOCAR' && RF.SECTOR_AMPLIO[objId] === 'narco')) return 3;

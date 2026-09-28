@@ -181,7 +181,7 @@
       if (pol.secreto) RF.politica.registrarSecreto(estado, pol.secreto);
       if (pol.cadena) estado.dilemas.cadena.push({ id: pol.cadena.id, dia: estado.dia + pol.cadena.en });
     } else {
-      def = RF.leyes.definir(accion, objId, nombre);
+      def = RF.TEMAS && RF.TEMAS[objId] ? RF.leyes.definirTema(estado, objId, accion) : RF.leyes.definir(accion, objId, nombre);
       if (def && def.nombre) laMedida = def.nombre;
     }
     if (pol) {
@@ -226,11 +226,15 @@
       res.notas.push(...p.notas, ...def.notas);
       if (p.sustituye && RF.ACCIONES[accion].inversa === p.sustituye.accion) sumar(inicial, 'estabilidad', -1);
       if (def.texto) res.especial = def.texto;
+      // Lo que traen los temas duros más adelante (sanciones, fugas, inundaciones...).
+      for (const pr of def.programar || []) estado.pendientes.push({ dia: estado.dia + pr.en, titulo: pr.titulo, texto: T.expandir(pr.texto), efectos: pr.efectos });
+      if ((def.programar || []).length) res.programadas = def.programar.length;
       RF.politica.tras(estado, def, accion, objId);
       const lat = RF.politica.efectoLateral(estado, accion, objId);
       if (lat) res.cambioRegimen = lat;
     }
     res.medida = laMedida;
+    if (def && def.prensa) res.prensa = def.prensa;
     res.vars = { objeto: nombre, Objeto: T.mayus(nombre), medida: laMedida, Medida: T.mayus(laMedida), lider: 'Su Excelencia' };
 
     // Combinaciones con historia propia ("vender el aire").
