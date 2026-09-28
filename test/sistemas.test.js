@@ -228,8 +228,9 @@ console.log('SISTEMA POLÍTICO');
   comprobar(e.politica.secretos.length === 0 && e.politica.escandalos === 1 && e.stats.estabilidad < est0 - 8, 'si se descubre, estalla el escándalo (estabilidad ' + est0 + ' → ' + e.stats.estabilidad + ')');
   comprobar(RF.director.pendiente(e) && RF.director.pendiente(e).id === 'juicio_politico', 'y en democracia llega el juicio político');
   e.politica.apoyo = 20;
+  const est1 = e.stats.estabilidad;
   RF.director.resolver(e, 0);
-  comprobar(e.fin === 'destituido', 'con poco apoyo en el Congreso, te destituyen');
+  comprobar(!e.fin && e.stats.estabilidad <= est1 - 20, 'con poco apoyo el Congreso te destituye, pero te atrincheras: no pierdes, la estabilidad se hunde (' + est1 + ' → ' + e.stats.estabilidad + ')');
 }
 {
   const e = nuevo();
@@ -246,8 +247,28 @@ console.log('SISTEMA POLÍTICO');
   // Elecciones cada 20 turnos.
   const eleccion = (x) => { x.politica.proximas = x.dia; const res = { sucesos: [] }; RF.politica.turno(x, res); return res; };
   const e = nuevo(); e.stats.felicidad = 40; e.politica.apoyo = 40;
+  const est0 = e.stats.estabilidad;
   eleccion(e);
-  comprobar(e.fin === 'elecciones_perdidas' && RF.consejero.comprobarFin(e) === 'elecciones_perdidas', 'en democracia, con el pueblo a 40, pierdes las elecciones y se acaba');
+  comprobar(!e.fin && RF.consejero.comprobarFin(e) === null && e.stats.estabilidad <= est0 - 20, 'en democracia, con el pueblo a 40, pierdes las elecciones: no te vas, pero la estabilidad se hunde');
+
+  // Solo se pierde con la estabilidad a 0.
+  const z = nuevo(); z.sectores.ejercito = 0; z.stats.felicidad = 0; z.stats.inflacion = 900; z.diasEnQuiebra = 3;
+  comprobar(RF.consejero.comprobarFin(z) === null, 'un sector a 0, la hiperinflación o la quiebra no terminan la partida por sí solas');
+  const zr = RF.consejero.pasarTurno(z);
+  comprobar(zr.causas.some(c => /se desploma/.test(c)), 'pero hunden la estabilidad y se avisa');
+  z.stats.estabilidad = 0;
+  comprobar(RF.consejero.comprobarFin(z) !== null, 'con la estabilidad a 0, caes');
+
+  // La represión da estabilidad artificial: el miedo calla el descontento.
+  const a = nuevo(), b = nuevo();
+  a.stats.felicidad = 15; b.stats.felicidad = 15;
+  decretar(b, 'crear una escuadra de represión');
+  decretar(b, 'crear una red de espías');
+  // Mismo país en todo lo demás: solo cambia que en b hay leyes represivas (miedo).
+  b.stats = Object.assign({}, a.stats); b.sectores = Object.assign({}, a.sectores); b.economia = Object.assign({}, a.economia); b.diasEnQuiebra = 0;
+  a.dilemas.ultimo = b.dilemas.ultimo = 999;
+  const ra = RF.consejero.pasarTurno(a), rb = RF.consejero.pasarTurno(b);
+  comprobar(RF.leyes.miedo(b) > 0.3 && rb.fondo.estabilidad > ra.fondo.estabilidad + 1, 'con represión, el descontento de la gente resta mucha menos estabilidad (' + ra.fondo.estabilidad.toFixed(1) + ' → ' + rb.fondo.estabilidad.toFixed(1) + ' por turno)');
   const w = nuevo(); w.stats.felicidad = 65;
   const rw = eleccion(w);
   comprobar(!w.fin && rw.sucesos[0].titulo === 'Elecciones generales' && w.politica.proximas === w.dia + 20, 'si ganas, sigues otros 20 turnos');

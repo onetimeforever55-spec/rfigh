@@ -300,7 +300,15 @@
   }
 
   // Efecto de una ley en este turno, con su nivel, su edad y la situación del país.
-  function esRepresion(ley) { return ley.accion === 'CASTIGAR' || ['ESCUADRON', 'MILICIA', 'ESPIAS'].includes(ley.clave); }
+  // Cuánto miedo hay (0 a 0.75): cada ley represiva vigente calla una parte del descontento.
+  function miedo(e) {
+    let m = 0;
+    for (const l of lista(e)) if (esRepresion(l)) m += 0.2 * l.nivel;
+    if (RF.politica && e.politica && ['JUCHE', 'DICTADURA', 'JUNTA'].includes(e.politica.regimen)) m += 0.1;
+    return Math.min(0.75, m);
+  }
+
+  function esRepresion(ley) { return ley.accion === 'CASTIGAR' || ['ESCUADRON', 'MILICIA', 'ESPIAS', 'TEMA:CAMPOS', 'TEMA:TORTURA'].includes(ley.clave); }
 
   function efectoActual(e, ley) {
     const edad = e.dia - ley.desde;
@@ -319,7 +327,7 @@
       if (m) {
         if (k === 'dinero' && v > 0 && !ley.imprime) v *= ley.accion === 'SUBIR_IMPUESTO' ? m.recaudacion : m.inversion;
         if (esRepresion(ley)) {
-          if (k === 'estabilidad' && v > 0) v *= m.represionEstab;
+          if (k === 'estabilidad' && v > 0) v *= m.represionEstab * 1.5; // la represión compra estabilidad (artificial)
           if (k === 'felicidad' && v < 0) v *= m.represionFel;
         }
       }
@@ -365,5 +373,5 @@
     return partes.join('  ') || 'sin efecto este turno';
   }
 
-  RF.leyes = { definir, definirTema, promulgar, derogar, turno, efectoActual, efectoNominal, resumenLey, lista, CURVAS };
+  RF.leyes = { miedo, definir, definirTema, promulgar, derogar, turno, efectoActual, efectoNominal, resumenLey, lista, CURVAS };
 })(globalThis.RF = globalThis.RF || {});

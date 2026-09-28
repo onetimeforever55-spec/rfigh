@@ -707,7 +707,7 @@ body {
         estabilidad: { nombre: 'Estabilidad', corto: 'ESTABILIDAD', ayuda: 'si el régimen aguanta: a 0, caes' }
       },
 
-      // El ánimo de cada sector (0-100) empuja la estabilidad cada turno. Si uno llega a 0, se acabó.
+      // El ánimo de cada sector (0-100) empuja la estabilidad cada turno. Solo se pierde con la estabilidad a 0.
       // "poblacion" es la felicidad de la gente (sin barra propia: se ve en su sección del texto).
       sectores: {
         ejercito: { nombre: 'Ejército', seccion: 'EJÉRCITO', quien: 'el Ejército Popular de Corea: los generales, los oficiales y un millón de soldados', fin: 'ejercito' },
@@ -4283,7 +4283,15 @@ body {
   }
 
   // Efecto de una ley en este turno, con su nivel, su edad y la situación del país.
-  function esRepresion(ley) { return ley.accion === 'CASTIGAR' || ['ESCUADRON', 'MILICIA', 'ESPIAS'].includes(ley.clave); }
+  // Cuánto miedo hay (0 a 0.75): cada ley represiva vigente calla una parte del descontento.
+  function miedo(e) {
+    let m = 0;
+    for (const l of lista(e)) if (esRepresion(l)) m += 0.2 * l.nivel;
+    if (RF.politica && e.politica && ['JUCHE', 'DICTADURA', 'JUNTA'].includes(e.politica.regimen)) m += 0.1;
+    return Math.min(0.75, m);
+  }
+
+  function esRepresion(ley) { return ley.accion === 'CASTIGAR' || ['ESCUADRON', 'MILICIA', 'ESPIAS', 'TEMA:CAMPOS', 'TEMA:TORTURA'].includes(ley.clave); }
 
   function efectoActual(e, ley) {
     const edad = e.dia - ley.desde;
@@ -4302,7 +4310,7 @@ body {
       if (m) {
         if (k === 'dinero' && v > 0 && !ley.imprime) v *= ley.accion === 'SUBIR_IMPUESTO' ? m.recaudacion : m.inversion;
         if (esRepresion(ley)) {
-          if (k === 'estabilidad' && v > 0) v *= m.represionEstab;
+          if (k === 'estabilidad' && v > 0) v *= m.represionEstab * 1.5; // la represión compra estabilidad (artificial)
           if (k === 'felicidad' && v < 0) v *= m.represionFel;
         }
       }
@@ -4348,7 +4356,7 @@ body {
     return partes.join('  ') || 'sin efecto este turno';
   }
 
-  RF.leyes = { definir, definirTema, promulgar, derogar, turno, efectoActual, efectoNominal, resumenLey, lista, CURVAS };
+  RF.leyes = { miedo, definir, definirTema, promulgar, derogar, turno, efectoActual, efectoNominal, resumenLey, lista, CURVAS };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/consejero.js
@@ -4763,8 +4771,6 @@ body {
     const s = estado.stats;
     asegurar(estado);
     const sec = estado.sectores, ec = estado.economia, P = RF.PAIS.economia;
-    // Si un decreto o un evento ha dejado a un sector a 0, cae el régimen (antes de que se recupere solo).
-    const hundido = sec.ejercito <= 0 ? 'ejercito' : sec.elite <= 0 ? 'cupula' : null;
     estado.dia++;
 
     // 1. Todas las leyes vigentes actúan.
@@ -4777,6 +4783,15 @@ body {
     const ingresos = P.ingresos * (1 - ec.mercadoNegro / 200) * m.recaudacion * Math.max(0.5, Math.min(1.3, 0.6 + s.estabilidad / 150)) * Math.max(0.4, 1 - s.inflacion / 250);
     const gastos = P.gastos * (1 + s.inflacion / 100);
     const sanciones = ec.sanciones * P.costeSancion;
+    const miedo = RF.leyes.miedo(estado);
+    const crisis = { total: 0, lista: [] };
+    const golpe = (v, t) => { crisis.total += v; crisis.lista.push(t); };
+    if (sec.ejercito <= 10) golpe((11 - sec.ejercito) * 0.6, 'El ejército está al borde del golpe: los cuarteles no obedecen y la estabilidad se desploma.');
+    if (sec.elite <= 10) golpe((11 - sec.elite) * 0.5, 'El Palacio conspira abiertamente: la estabilidad se desploma.');
+    if (s.felicidad <= 10) golpe((11 - s.felicidad) * 0.6 * (1 - miedo), 'La población está en las calles' + (miedo > 0.3 ? ', aunque el miedo contiene a muchos' : '') + ': la estabilidad se desploma.');
+    if (s.inflacion >= 200) golpe(Math.min(8, (s.inflacion - 150) / 60), 'Hiperinflación: nadie acepta wones y el Estado no puede pagar a nadie.');
+    if (estado.diasEnQuiebra >= 1) golpe(4 + 2 * estado.diasEnQuiebra, 'Quiebra: no hay con qué pagar a soldados ni funcionarios.');
+    res.miedo = miedo;
     const deuda = s.dinero < 0;
     const presion = L.total.inflacion + (deuda ? Math.min(12, -s.dinero / 15) : 0) + Math.max(0, s.inflacion - 40) * 0.12;
     const nuevaInflacion = Math.max(0, s.inflacion * 0.8 + 0.8 + presion);
@@ -4785,11 +4800,14 @@ body {
       // El mercado negro ayuda a la gente a sobrevivir cuando el Estado no llega.
       felicidad: -Math.max(0, s.inflacion - 8) / 18 + (50 - s.felicidad) * 0.04 + m.felicidadTurno + (ec.mercadoNegro - 40) / 100,
       // La estabilidad depende de los tres sectores: la población, el ejército y el Palacio.
+      // El miedo (la represión) tapa el descontento de la gente: estabilidad artificial.
       estabilidad: (m.estabilidadBase - s.estabilidad) * 0.03
-        + (s.felicidad < 40 ? -(40 - s.felicidad) / 8 : s.felicidad > 70 ? 0.5 : 0)
+        + (s.felicidad < 40 ? -(40 - s.felicidad) / 8 * (1 - miedo) : s.felicidad > 70 ? 0.5 : 0)
         + (sec.ejercito - 50) * 0.04 + (sec.elite - 50) * 0.03
         + (s.inflacion > 30 ? -(s.inflacion - 30) / 20 : 0)
-        + (deuda ? -1 : 0) + (s.dinero < -100 ? -2 : 0),
+        + (deuda ? -1 : 0) + (s.dinero < -100 ? -2 : 0)
+        // Crisis: ya no terminan la partida por sí solas, pero hunden la estabilidad hasta que caes.
+        - crisis.total,
       // Los sectores vuelven poco a poco a su punto de equilibrio. Sin sueldo, el ejército se enfada;
       // sin lujos importados, la élite también. Los cuadros viven de los sobornos del mercado negro.
       ejercito: (50 - sec.ejercito) * 0.04 + (deuda ? -1.5 : 0) + (s.inflacion > 30 ? -0.5 : 0) + (RF.politica.regimen(estado) === 'JUNTA' ? 0.5 : 0),
@@ -4799,10 +4817,11 @@ body {
     res.causas = [];
     if (deuda) res.causas.push('Hay deuda: el Banco Central imprime para pagarla (más inflación) y los soldados y funcionarios cobran tarde.');
     if (sanciones) res.causas.push('Sanciones de nivel ' + ec.sanciones + ': cuestan ' + Math.round(sanciones * 10) / 10 + 'M de divisas cada turno y la élite se queda sin lujos.');
-    if (sec.ejercito < 30) res.causas.push('El ejército está descontento: resta estabilidad cada turno. Si llega a 0, habrá golpe.');
-    if (sec.elite < 30) res.causas.push('En Palacio se conspira: la élite resta estabilidad cada turno. Si llega a 0, te traicionan.');
+    if (sec.ejercito < 30) res.causas.push('El ejército está descontento: resta estabilidad cada turno. Si se hunde, empujará al golpe.');
+    if (sec.elite < 30) res.causas.push('En Palacio se conspira: la élite resta estabilidad cada turno. Si se hunde, te traicionarán.');
     if (s.inflacion > 30) res.causas.push('La inflación del ' + Math.round(s.inflacion) + '% encarece todo y amarga a la gente.');
-    if (s.felicidad < 40) res.causas.push('La población no aguanta más: el descontento resta estabilidad cada turno.');
+    if (s.felicidad < 40) res.causas.push(miedo >= 0.3 ? 'La población no aguanta más, pero la represión la mantiene callada: el descontento apenas resta estabilidad.' : 'La población no aguanta más: el descontento resta estabilidad cada turno.');
+    res.causas.push(...crisis.lista);
     if (s.inflacion > 40) res.causas.push('Los precios se retroalimentan: todos suben precios porque esperan que suban.');
 
     // Las potencias vecinas: comercio con China, petróleo, ayuda del Sur, sanciones de Washington.
@@ -4883,9 +4902,8 @@ body {
     // 7. Quiebra y fin.
     estado.diasEnQuiebra = s.dinero <= -150 ? estado.diasEnQuiebra + 1 : 0;
     if (estado.diasEnQuiebra === 1) {
-      res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: T.expandir('{cifuentes} entra sin llamar: "Debemos más de 150 millones y nadie nos presta. Si el turno que viene seguimos así, el país quiebra."'), deltas: {} });
+      res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: T.expandir('{cifuentes} entra sin llamar: "Debemos más de 150 millones y nadie nos presta. Cada turno así nos hunde un poco más."'), deltas: {} });
     }
-    if (hundido && !estado.fin) estado.fin = hundido;
     const fin = comprobarFin(estado);
     if (fin) { estado.fin = fin; res.fin = fin; }
 
@@ -4907,14 +4925,12 @@ body {
   function comprobarFin(estado) {
     const s = estado.stats;
     if (estado.fin) return estado.fin;
-    if (s.estabilidad <= 0) return s.felicidad < 30 ? 'pueblo' : 'ejercito';
-    const sec = estado.sectores || {};
-    if (sec.ejercito <= 0) return 'ejercito';
-    if (sec.elite <= 0) return 'cupula';
-    if (s.felicidad <= 0) return 'pueblo';
-    if (s.inflacion >= 1000) return 'hiperinflacion';
-    if (estado.diasEnQuiebra >= 2) return 'tesoro';
-    // No hay último turno: se gobierna hasta caer (o hasta perder unas elecciones libres, ver politica.js).
+    // Solo se cae cuando la estabilidad llega a 0. Quién te tumba depende del sector más enfadado.
+    if (s.estabilidad <= 0) {
+      const sec = estado.sectores || {};
+      const peor = [['pueblo', s.felicidad], ['ejercito', sec.ejercito == null ? 50 : sec.ejercito], ['cupula', sec.elite == null ? 50 : sec.elite]].sort((a, b) => a[1] - b[1])[0][0];
+      return s.dinero <= -150 ? 'tesoro' : s.inflacion >= 500 ? 'hiperinflacion' : peor;
+    }
     return null;
   }
 
@@ -5030,7 +5046,7 @@ body {
     if (op.apoyo) partes.push({ texto: 'Apoyo en el Congreso ' + (op.apoyo > 0 ? '▲' : '▼'), tono: op.apoyo > 0 ? 'sube' : 'baja' });
     if (op.aprobar) partes.push({ texto: 'La ley se aprueba', tono: 'aviso' });
     if (op.sistema) partes.push({ texto: 'Régimen: ' + RF.REGIMENES[op.sistema].nombre, tono: 'aviso' });
-    if (op.juicio) partes.push({ texto: 'Necesitas un 40% de apoyo o caes', tono: 'aviso' });
+    if (op.juicio) partes.push({ texto: 'Con menos del 40% de apoyo, estabilidad −25', tono: 'aviso' });
     if (op.fin) partes.push({ texto: 'Fin de tu gobierno', tono: 'baja' });
     if (op.programar || op.cadena) partes.push({ texto: '⚠ Traerá consecuencias', tono: 'aviso' });
     return partes;
@@ -5141,8 +5157,9 @@ body {
         RF.consejero.aplicarEfectos(e, { estabilidad: -4 }, deltas);
         pol.apoyo = Math.max(0, pol.apoyo - 10);
       } else {
-        resultado += ' El Congreso vota: solo un ' + Math.round(pol.apoyo) + '% te apoya. Quedas destituido.';
-        e.fin = 'destituido';
+        resultado += ' El Congreso vota: solo un ' + Math.round(pol.apoyo) + '% te apoya y te destituye. Te atrincheras en Palacio y no reconoces la votación. Sigues mandando, pero cada vez menos gente obedece.';
+        RF.consejero.aplicarEfectos(e, { estabilidad: -25 }, deltas);
+        pol.apoyo = Math.max(0, pol.apoyo - 15);
       }
     }
     if (op.fin) e.fin = op.fin;
@@ -5688,7 +5705,7 @@ body {
 
   const CICLO = 20;
 
-  // Libres: si pierdes, se acaba. Amañadas (o en un régimen que no es democracia): un ritual que siempre ganas.
+  // Libres: si pierdes, no reconoces el resultado y la estabilidad se hunde. Amañadas (o en un régimen que no es democracia): un ritual que siempre ganas.
   function elecciones(e, res) {
     const p = iniciar(e);
     const s = e.stats;
@@ -5697,8 +5714,10 @@ body {
       const votos = Math.round(Math.max(5, Math.min(90, s.felicidad + (p.apoyo - 50) * 0.2)));
       if (p.congreso === 'libre') p.apoyo = votos;
       if (votos < 50) {
-        e.fin = 'elecciones_perdidas';
-        res.sucesos.push({ tipo: 'politica', titulo: 'Elecciones generales', texto: 'Se celebran elecciones libres. Tu partido saca el ' + votos + '% de los votos. La oposición gana.', deltas: {} });
+        // Perder no acaba la partida: te niegas a irte, y eso tiene un precio.
+        RF.consejero.aplicarEfectos(e, { estabilidad: -25, felicidad: -5 }, reg);
+        p.apoyo = Math.max(0, votos - 10);
+        res.sucesos.push({ tipo: 'politica', titulo: 'Elecciones generales', texto: 'Se celebran elecciones libres. Tu partido saca el ' + votos + '% de los votos y la oposición gana. Tú no reconoces el resultado: "irregularidades graves". Sigues en Palacio, pero medio país ya no te considera su gobierno.', deltas: reg });
         return;
       }
       RF.consejero.aplicarEfectos(e, { estabilidad: 3 }, reg);
@@ -5730,7 +5749,7 @@ body {
       '  Recaudación ' + f(m.recaudacion) + ' · Inversión ' + f(m.inversion),
       '  Pueblo ' + (m.felicidadTurno >= 0 ? '+' : '−') + Math.abs(m.felicidadTurno) + '/turno · Exterior ' + (m.dineroTurno >= 0 ? '+' : '−') + Math.abs(m.dineroTurno) + 'M/turno',
       '  Represión: lealtad ×' + m.represionEstab + ', pueblo ×' + m.represionFel,
-      '  Elecciones cada ' + CICLO + ' turnos (próximas: turno ' + (p.proximas || CICLO + 1) + '): ' + (p.elecciones === 'disuelto' ? 'suspendidas' : p.elecciones === 'libre' && esDemocracia(e) ? 'libres (si pierdes, se acaba)' : 'amañadas (siempre ganas)')
+      '  Elecciones cada ' + CICLO + ' turnos (próximas: turno ' + (p.proximas || CICLO + 1) + '): ' + (p.elecciones === 'disuelto' ? 'suspendidas' : p.elecciones === 'libre' && esDemocracia(e) ? 'libres (si pierdes, la estabilidad se hunde)' : 'amañadas (siempre ganas)')
     ];
     if (p.secretos.length) lineas.push('', 'Secretos que podrían salir a la luz: ' + p.secretos.length + ' (riesgo por turno: ' + Math.round(riesgo(e) * 100) + '% cada uno)');
     if (p.escandalos) lineas.push('Escándalos que ya estallaron: ' + p.escandalos);
@@ -5908,7 +5927,7 @@ body {
       texto: 'Escribe un decreto con tus palabras y pulsa Decretar. El Intérprete intentará entenderlo.\n' +
         'Ejemplos: ' + EJEMPLOS.map(e => '"' + e + '"').join(', ') + '.\n' +
         'Tres barras: DIVISAS (millones de dólares en las arcas, pese a las sanciones), INFLACIÓN (lo que suben los precios cada turno) y ESTABILIDAD (si llega a 0, caes).\n' +
-        'La estabilidad la sostienen tres sectores, cada uno con su sección en la historia: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN. Su ánimo sube o baja con tus decretos y empuja la estabilidad cada turno. Si uno llega a 0: golpe, traición o revuelta. Escribe "estado" para ver cómo están, las sanciones y el mercado negro.\n' +
+        'La estabilidad la sostienen tres sectores, cada uno con su sección en la historia: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN. Su ánimo sube o baja con tus decretos y empuja la estabilidad cada turno. SOLO PIERDES SI LA ESTABILIDAD LLEGA A 0: un sector hundido, la quiebra, la hiperinflación o unas elecciones perdidas no te echan, pero la desploman. La represión compra estabilidad: sube la barra y el miedo calla el descontento de la gente. Escribe "estado" para verlo todo.\n' +
         'Cada decreto es una LEY que sigue actuando todos los turnos: "regalar arroz" cuesta divisas cada turno, "imprimir wones" dispara el precio del arroz, "vender carbón" da divisas cada turno pero las sanciones acechan. Las leyes se acumulan.\n' +
         'Para quitar una ley: "dejar de regalar arroz", "derogar la ley del carbón" o "derogar el último decreto".\n' +
         'Puedes firmar hasta 3 decretos a la vez: "prohibir el fútbol y subir impuestos a los ricos".\n' +
@@ -6248,10 +6267,11 @@ body {
       (B.inflacion.nombre + '            ').slice(0, 13) + formatoStat('inflacion', s.inflacion),
       fila(B.estabilidad.nombre, s.estabilidad),
       '',
-      'Ánimo de los sectores (empujan la estabilidad; si uno llega a 0, caes):',
+      'Ánimo de los sectores (empujan la estabilidad; si uno se hunde, la desploma):',
       fila(S.ejercito.nombre, sec.ejercito),
       fila(S.elite.nombre, sec.elite),
       fila(S.poblacion.nombre, s.felicidad),
+      'Miedo        ' + Math.round(RF.leyes.miedo(estado) * 100) + '% del descontento callado por la represión',
       '',
       'Sanciones    nivel ' + ec.sanciones + ' de 4 (' + (ec.sanciones * RF.PAIS.economia.costeSancion) + 'M por turno)',
       'Mercado negro ' + Math.round(ec.mercadoNegro) + '% de la economía'
@@ -6816,10 +6836,10 @@ body {
     '- dinero = DIVISAS: millones de dólares en las arcas. Cada turno el motor ya cobra impuestos (menos lo que se escapa por el mercado negro), paga sueldos y resta las sanciones: sin buscar divisas, el país se arruina.',
     '- inflacion = INFLACIÓN: % que suben los precios cada turno (el arroz en el mercado, el won). Por encima de 30 hay hambre; por encima de 40 se retroalimenta.',
     '- estabilidad = ESTABILIDAD del régimen (0-100). A 0 caes. Cada turno la empujan los tres sectores.',
-    'LOS TRES SECTORES (ánimo 0-100; cada uno tiene su sección en la historia y empuja la estabilidad; si uno llega a 0, se acaba):',
-    '- ejercito = el EJÉRCITO: generales, oficiales y soldados. Les gustan los misiles, las medallas, las raciones y el dinero; odian los recortes, las purgas, las milicias rivales y cobrar tarde. A 0, golpe de Estado.',
-    '- elite = el PALACIO: el Partido y la élite. Les gustan los lujos, los sobornos del mercado negro y que no se toque su poder; odian las sanciones, las purgas y perder privilegios. A 0, te traicionan.',
-    '- felicidad = la POBLACIÓN: cómo aguanta la gente (comida, apagones, miedo, mercado). A 0, revuelta. Por debajo de 40 resta estabilidad.',
+    'LOS TRES SECTORES (ánimo 0-100; cada uno tiene su sección en la historia y empuja la estabilidad; si uno se hunde, la desploma. Solo se pierde con la estabilidad a 0. La represión da estabilidad artificial: sube la barra y el miedo calla el descontento):',
+    '- ejercito = el EJÉRCITO: generales, oficiales y soldados. Les gustan los misiles, las medallas, las raciones y el dinero; odian los recortes, las purgas, las milicias rivales y cobrar tarde. Hundido, empuja al golpe.',
+    '- elite = el PALACIO: el Partido y la élite. Les gustan los lujos, los sobornos del mercado negro y que no se toque su poder; odian las sanciones, las purgas y perder privilegios. Hundido, conspira.',
+    '- felicidad = la POBLACIÓN: cómo aguanta la gente (comida, apagones, miedo, mercado). Por debajo de 40 resta estabilidad (menos si hay represión).',
     'DIPLOMACIA (campo "relaciones" de la ficha, opcional): cambios en la relación (0-100) con las potencias vecinas, de -25 a +25 cada una: {"eeuu": ..., "china": ..., "surcorea": ..., "japon": ...}. Lo que quiere y teme cada una viene en "diplomacia". Sé coherente con sus intereses: China quiere estabilidad y odia las pruebas que atraen barcos americanos; Estados Unidos quiere desnuclearización y castiga los misiles con sanciones; el Sur premia los gestos de acercamiento y teme la artillería; Japón exige a los secuestrados y odia los misiles sobre su territorio. Cada turno el motor aplica sus consecuencias: China da comercio y, si se enfada, corta el petróleo; Estados Unidos sube o baja las sanciones; el Sur manda ayuda. Si el decreto desmantela o reconstruye el arsenal nuclear, pon "arsenal": false o true.',
     'ECONOMÍA (campo "economia" de la ficha, opcional): {"sanciones": de -2 a +2 (cambia el nivel de sanciones, 0-4), "mercado_negro": de -40 a +40 (puntos del % de economía que va por el jangmadang)}. Los misiles y la bomba suben sanciones; la diplomacia y el desarme las bajan; legalizar mercados reduce el mercado negro (pasa a pagar impuestos); perseguirlo también lo reduce pero trae hambre.',
     '',

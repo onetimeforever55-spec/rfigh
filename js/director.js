@@ -106,7 +106,7 @@
     if (op.apoyo) partes.push({ texto: 'Apoyo en el Congreso ' + (op.apoyo > 0 ? '▲' : '▼'), tono: op.apoyo > 0 ? 'sube' : 'baja' });
     if (op.aprobar) partes.push({ texto: 'La ley se aprueba', tono: 'aviso' });
     if (op.sistema) partes.push({ texto: 'Régimen: ' + RF.REGIMENES[op.sistema].nombre, tono: 'aviso' });
-    if (op.juicio) partes.push({ texto: 'Necesitas un 40% de apoyo o caes', tono: 'aviso' });
+    if (op.juicio) partes.push({ texto: 'Con menos del 40% de apoyo, estabilidad −25', tono: 'aviso' });
     if (op.fin) partes.push({ texto: 'Fin de tu gobierno', tono: 'baja' });
     if (op.programar || op.cadena) partes.push({ texto: '⚠ Traerá consecuencias', tono: 'aviso' });
     return partes;
@@ -217,8 +217,9 @@
         RF.consejero.aplicarEfectos(e, { estabilidad: -4 }, deltas);
         pol.apoyo = Math.max(0, pol.apoyo - 10);
       } else {
-        resultado += ' El Congreso vota: solo un ' + Math.round(pol.apoyo) + '% te apoya. Quedas destituido.';
-        e.fin = 'destituido';
+        resultado += ' El Congreso vota: solo un ' + Math.round(pol.apoyo) + '% te apoya y te destituye. Te atrincheras en Palacio y no reconoces la votación. Sigues mandando, pero cada vez menos gente obedece.';
+        RF.consejero.aplicarEfectos(e, { estabilidad: -25 }, deltas);
+        pol.apoyo = Math.max(0, pol.apoyo - 15);
       }
     }
     if (op.fin) e.fin = op.fin;

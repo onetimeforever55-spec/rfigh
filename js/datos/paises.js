@@ -26,7 +26,7 @@
         estabilidad: { nombre: 'Estabilidad', corto: 'ESTABILIDAD', ayuda: 'si el régimen aguanta: a 0, caes' }
       },
 
-      // El ánimo de cada sector (0-100) empuja la estabilidad cada turno. Si uno llega a 0, se acabó.
+      // El ánimo de cada sector (0-100) empuja la estabilidad cada turno. Solo se pierde con la estabilidad a 0.
       // "poblacion" es la felicidad de la gente (sin barra propia: se ve en su sección del texto).
       sectores: {
         ejercito: { nombre: 'Ejército', seccion: 'EJÉRCITO', quien: 'el Ejército Popular de Corea: los generales, los oficiales y un millón de soldados', fin: 'ejercito' },

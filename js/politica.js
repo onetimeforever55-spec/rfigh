@@ -292,7 +292,7 @@
 
   const CICLO = 20;
 
-  // Libres: si pierdes, se acaba. Amañadas (o en un régimen que no es democracia): un ritual que siempre ganas.
+  // Libres: si pierdes, no reconoces el resultado y la estabilidad se hunde. Amañadas (o en un régimen que no es democracia): un ritual que siempre ganas.
   function elecciones(e, res) {
     const p = iniciar(e);
     const s = e.stats;
@@ -301,8 +301,10 @@
       const votos = Math.round(Math.max(5, Math.min(90, s.felicidad + (p.apoyo - 50) * 0.2)));
       if (p.congreso === 'libre') p.apoyo = votos;
       if (votos < 50) {
-        e.fin = 'elecciones_perdidas';
-        res.sucesos.push({ tipo: 'politica', titulo: 'Elecciones generales', texto: 'Se celebran elecciones libres. Tu partido saca el ' + votos + '% de los votos. La oposición gana.', deltas: {} });
+        // Perder no acaba la partida: te niegas a irte, y eso tiene un precio.
+        RF.consejero.aplicarEfectos(e, { estabilidad: -25, felicidad: -5 }, reg);
+        p.apoyo = Math.max(0, votos - 10);
+        res.sucesos.push({ tipo: 'politica', titulo: 'Elecciones generales', texto: 'Se celebran elecciones libres. Tu partido saca el ' + votos + '% de los votos y la oposición gana. Tú no reconoces el resultado: "irregularidades graves". Sigues en Palacio, pero medio país ya no te considera su gobierno.', deltas: reg });
         return;
       }
       RF.consejero.aplicarEfectos(e, { estabilidad: 3 }, reg);
@@ -334,7 +336,7 @@
       '  Recaudación ' + f(m.recaudacion) + ' · Inversión ' + f(m.inversion),
       '  Pueblo ' + (m.felicidadTurno >= 0 ? '+' : '−') + Math.abs(m.felicidadTurno) + '/turno · Exterior ' + (m.dineroTurno >= 0 ? '+' : '−') + Math.abs(m.dineroTurno) + 'M/turno',
       '  Represión: lealtad ×' + m.represionEstab + ', pueblo ×' + m.represionFel,
-      '  Elecciones cada ' + CICLO + ' turnos (próximas: turno ' + (p.proximas || CICLO + 1) + '): ' + (p.elecciones === 'disuelto' ? 'suspendidas' : p.elecciones === 'libre' && esDemocracia(e) ? 'libres (si pierdes, se acaba)' : 'amañadas (siempre ganas)')
+      '  Elecciones cada ' + CICLO + ' turnos (próximas: turno ' + (p.proximas || CICLO + 1) + '): ' + (p.elecciones === 'disuelto' ? 'suspendidas' : p.elecciones === 'libre' && esDemocracia(e) ? 'libres (si pierdes, la estabilidad se hunde)' : 'amañadas (siempre ganas)')
     ];
     if (p.secretos.length) lineas.push('', 'Secretos que podrían salir a la luz: ' + p.secretos.length + ' (riesgo por turno: ' + Math.round(riesgo(e) * 100) + '% cada uno)');
     if (p.escandalos) lineas.push('Escándalos que ya estallaron: ' + p.escandalos);

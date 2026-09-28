@@ -23,7 +23,7 @@
       texto: 'Escribe un decreto con tus palabras y pulsa Decretar. El Intérprete intentará entenderlo.\n' +
         'Ejemplos: ' + EJEMPLOS.map(e => '"' + e + '"').join(', ') + '.\n' +
         'Tres barras: DIVISAS (millones de dólares en las arcas, pese a las sanciones), INFLACIÓN (lo que suben los precios cada turno) y ESTABILIDAD (si llega a 0, caes).\n' +
-        'La estabilidad la sostienen tres sectores, cada uno con su sección en la historia: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN. Su ánimo sube o baja con tus decretos y empuja la estabilidad cada turno. Si uno llega a 0: golpe, traición o revuelta. Escribe "estado" para ver cómo están, las sanciones y el mercado negro.\n' +
+        'La estabilidad la sostienen tres sectores, cada uno con su sección en la historia: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN. Su ánimo sube o baja con tus decretos y empuja la estabilidad cada turno. SOLO PIERDES SI LA ESTABILIDAD LLEGA A 0: un sector hundido, la quiebra, la hiperinflación o unas elecciones perdidas no te echan, pero la desploman. La represión compra estabilidad: sube la barra y el miedo calla el descontento de la gente. Escribe "estado" para verlo todo.\n' +
         'Cada decreto es una LEY que sigue actuando todos los turnos: "regalar arroz" cuesta divisas cada turno, "imprimir wones" dispara el precio del arroz, "vender carbón" da divisas cada turno pero las sanciones acechan. Las leyes se acumulan.\n' +
         'Para quitar una ley: "dejar de regalar arroz", "derogar la ley del carbón" o "derogar el último decreto".\n' +
         'Puedes firmar hasta 3 decretos a la vez: "prohibir el fútbol y subir impuestos a los ricos".\n' +
@@ -363,10 +363,11 @@
       (B.inflacion.nombre + '            ').slice(0, 13) + formatoStat('inflacion', s.inflacion),
       fila(B.estabilidad.nombre, s.estabilidad),
       '',
-      'Ánimo de los sectores (empujan la estabilidad; si uno llega a 0, caes):',
+      'Ánimo de los sectores (empujan la estabilidad; si uno se hunde, la desploma):',
       fila(S.ejercito.nombre, sec.ejercito),
       fila(S.elite.nombre, sec.elite),
       fila(S.poblacion.nombre, s.felicidad),
+      'Miedo        ' + Math.round(RF.leyes.miedo(estado) * 100) + '% del descontento callado por la represión',
       '',
       'Sanciones    nivel ' + ec.sanciones + ' de 4 (' + (ec.sanciones * RF.PAIS.economia.costeSancion) + 'M por turno)',
       'Mercado negro ' + Math.round(ec.mercadoNegro) + '% de la economía'

@@ -20,11 +20,11 @@ Resultado del turno:  Divisas +27M   Arroz +6%
 ```
 
 - **Tres barras:** DIVISAS (millones de dólares, pese a las sanciones), INFLACIÓN y ESTABILIDAD (a 0, caes).
-- **Tres sectores con ánimo propio:** EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN. Su ánimo sube o baja con tus decretos, los eventos y la economía, y **empuja la estabilidad cada turno**. Si uno llega a 0: golpe de Estado, traición en Palacio o revuelta. Cada sector tiene su sección en el texto de cada turno, con su ánimo y si sube (▲) o baja (▼).
+- **Tres sectores con ánimo propio:** EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN. Su ánimo sube o baja con tus decretos, los eventos y la economía, y **empuja la estabilidad cada turno**. **Solo pierdes cuando la estabilidad llega a 0**: un sector hundido, la quiebra, la hiperinflación o unas elecciones perdidas no te echan, pero la desploman turno a turno; quién te tumba al final depende del sector más enfadado. **La represión da estabilidad artificial**: sube la barra y el miedo calla el descontento de la población (escribe `estado` para ver el % de miedo). Cada sector tiene su sección en el texto de cada turno, con su ánimo y si sube (▲) o baja (▼).
 - **Cada turno se cuenta por secciones, corto y con humor estilo Tropico:** RADIO PIONYANG (el locutor de propaganda que lo vende todo como una victoria), PALACIO, EJÉRCITO y POBLACIÓN.
 - **Economía real:** las **sanciones** (nivel 0-4) cuestan divisas cada turno y amargan a la élite; los misiles y la bomba las suben, y el desarme y la democracia las bajan. El **mercado negro** (jangmadang, % de la economía) ayuda a la población a sobrevivir y enriquece a los cuadros con sobornos, pero no paga impuestos; legalizarlo lo convierte en recaudación. Escribe `estado` para verlo.
 - **Se empieza en la dinastía Juche:** la Asamblea Popular Suprema aplaude, solo existe la prensa oficial y las elecciones tienen un candidato único. Puedes democratizar el país, proclamarte rey o volver al Juche.
-- **No hay último turno:** el contador sigue para siempre y gobiernas mientras aguantes. Cada 20 turnos hay elecciones: amañadas o rituales (siempre ganas) o, si has democratizado el país, libres (si pierdes, se acaba). Sin buscar divisas, las sanciones te llevan a la quiebra hacia el turno 35.
+- **No hay último turno:** el contador sigue para siempre y gobiernas mientras aguantes. Cada 20 turnos hay elecciones: amañadas o rituales (siempre ganas) o, si has democratizado el país, libres (si pierdes, no reconoces el resultado y la estabilidad se hunde). Sin buscar divisas, las sanciones te llevan a la quiebra hacia el turno 35.
 
 No usa ninguna IA externa: funciona sin internet, gratis y al instante.
 

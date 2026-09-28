@@ -227,8 +227,11 @@ console.log('SECTORES Y ECONOMÍA');
   comprobar(/jangmadang/.test(C.SISTEMA) && /songbun/.test(C.SISTEMA) && /Tropico/.test(C.SISTEMA), 'la IA conoce el contexto real del país y el tono Tropico');
   const k = nuevo(); k.sectores.ejercito = 1;
   C.aplicar(k, { titulo: 'recortar la ración de los soldados', efecto_unico: { ejercito: -10 } });
+  const est0 = k.stats.estabilidad;
   RF.consejero.avanzarDia(k, { sucesos: [] });
-  comprobar(k.fin === 'ejercito', 'si el ánimo del ejército llega a 0, hay golpe de Estado');
+  comprobar(!k.fin && k.stats.estabilidad < est0 - 4, 'si el ejército se hunde, no se acaba al instante: la estabilidad se desploma');
+  k.stats.estabilidad = 0;
+  comprobar(RF.consejero.comprobarFin(k) === 'ejercito', 'y cuando llega a 0, el golpe lo da el sector más enfadado (el ejército)');
 }
 
 console.log('LEER LA RESPUESTA DE LA IA');

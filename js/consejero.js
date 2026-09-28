@@ -409,8 +409,6 @@
     const s = estado.stats;
     asegurar(estado);
     const sec = estado.sectores, ec = estado.economia, P = RF.PAIS.economia;
-    // Si un decreto o un evento ha dejado a un sector a 0, cae el régimen (antes de que se recupere solo).
-    const hundido = sec.ejercito <= 0 ? 'ejercito' : sec.elite <= 0 ? 'cupula' : null;
     estado.dia++;
 
     // 1. Todas las leyes vigentes actúan.
@@ -423,6 +421,15 @@
     const ingresos = P.ingresos * (1 - ec.mercadoNegro / 200) * m.recaudacion * Math.max(0.5, Math.min(1.3, 0.6 + s.estabilidad / 150)) * Math.max(0.4, 1 - s.inflacion / 250);
     const gastos = P.gastos * (1 + s.inflacion / 100);
     const sanciones = ec.sanciones * P.costeSancion;
+    const miedo = RF.leyes.miedo(estado);
+    const crisis = { total: 0, lista: [] };
+    const golpe = (v, t) => { crisis.total += v; crisis.lista.push(t); };
+    if (sec.ejercito <= 10) golpe((11 - sec.ejercito) * 0.6, 'El ejército está al borde del golpe: los cuarteles no obedecen y la estabilidad se desploma.');
+    if (sec.elite <= 10) golpe((11 - sec.elite) * 0.5, 'El Palacio conspira abiertamente: la estabilidad se desploma.');
+    if (s.felicidad <= 10) golpe((11 - s.felicidad) * 0.6 * (1 - miedo), 'La población está en las calles' + (miedo > 0.3 ? ', aunque el miedo contiene a muchos' : '') + ': la estabilidad se desploma.');
+    if (s.inflacion >= 200) golpe(Math.min(8, (s.inflacion - 150) / 60), 'Hiperinflación: nadie acepta wones y el Estado no puede pagar a nadie.');
+    if (estado.diasEnQuiebra >= 1) golpe(4 + 2 * estado.diasEnQuiebra, 'Quiebra: no hay con qué pagar a soldados ni funcionarios.');
+    res.miedo = miedo;
     const deuda = s.dinero < 0;
     const presion = L.total.inflacion + (deuda ? Math.min(12, -s.dinero / 15) : 0) + Math.max(0, s.inflacion - 40) * 0.12;
     const nuevaInflacion = Math.max(0, s.inflacion * 0.8 + 0.8 + presion);
@@ -431,11 +438,14 @@
       // El mercado negro ayuda a la gente a sobrevivir cuando el Estado no llega.
       felicidad: -Math.max(0, s.inflacion - 8) / 18 + (50 - s.felicidad) * 0.04 + m.felicidadTurno + (ec.mercadoNegro - 40) / 100,
       // La estabilidad depende de los tres sectores: la población, el ejército y el Palacio.
+      // El miedo (la represión) tapa el descontento de la gente: estabilidad artificial.
       estabilidad: (m.estabilidadBase - s.estabilidad) * 0.03
-        + (s.felicidad < 40 ? -(40 - s.felicidad) / 8 : s.felicidad > 70 ? 0.5 : 0)
+        + (s.felicidad < 40 ? -(40 - s.felicidad) / 8 * (1 - miedo) : s.felicidad > 70 ? 0.5 : 0)
         + (sec.ejercito - 50) * 0.04 + (sec.elite - 50) * 0.03
         + (s.inflacion > 30 ? -(s.inflacion - 30) / 20 : 0)
-        + (deuda ? -1 : 0) + (s.dinero < -100 ? -2 : 0),
+        + (deuda ? -1 : 0) + (s.dinero < -100 ? -2 : 0)
+        // Crisis: ya no terminan la partida por sí solas, pero hunden la estabilidad hasta que caes.
+        - crisis.total,
       // Los sectores vuelven poco a poco a su punto de equilibrio. Sin sueldo, el ejército se enfada;
       // sin lujos importados, la élite también. Los cuadros viven de los sobornos del mercado negro.
       ejercito: (50 - sec.ejercito) * 0.04 + (deuda ? -1.5 : 0) + (s.inflacion > 30 ? -0.5 : 0) + (RF.politica.regimen(estado) === 'JUNTA' ? 0.5 : 0),
@@ -445,10 +455,11 @@
     res.causas = [];
     if (deuda) res.causas.push('Hay deuda: el Banco Central imprime para pagarla (más inflación) y los soldados y funcionarios cobran tarde.');
     if (sanciones) res.causas.push('Sanciones de nivel ' + ec.sanciones + ': cuestan ' + Math.round(sanciones * 10) / 10 + 'M de divisas cada turno y la élite se queda sin lujos.');
-    if (sec.ejercito < 30) res.causas.push('El ejército está descontento: resta estabilidad cada turno. Si llega a 0, habrá golpe.');
-    if (sec.elite < 30) res.causas.push('En Palacio se conspira: la élite resta estabilidad cada turno. Si llega a 0, te traicionan.');
+    if (sec.ejercito < 30) res.causas.push('El ejército está descontento: resta estabilidad cada turno. Si se hunde, empujará al golpe.');
+    if (sec.elite < 30) res.causas.push('En Palacio se conspira: la élite resta estabilidad cada turno. Si se hunde, te traicionarán.');
     if (s.inflacion > 30) res.causas.push('La inflación del ' + Math.round(s.inflacion) + '% encarece todo y amarga a la gente.');
-    if (s.felicidad < 40) res.causas.push('La población no aguanta más: el descontento resta estabilidad cada turno.');
+    if (s.felicidad < 40) res.causas.push(miedo >= 0.3 ? 'La población no aguanta más, pero la represión la mantiene callada: el descontento apenas resta estabilidad.' : 'La población no aguanta más: el descontento resta estabilidad cada turno.');
+    res.causas.push(...crisis.lista);
     if (s.inflacion > 40) res.causas.push('Los precios se retroalimentan: todos suben precios porque esperan que suban.');
 
     // Las potencias vecinas: comercio con China, petróleo, ayuda del Sur, sanciones de Washington.
@@ -529,9 +540,8 @@
     // 7. Quiebra y fin.
     estado.diasEnQuiebra = s.dinero <= -150 ? estado.diasEnQuiebra + 1 : 0;
     if (estado.diasEnQuiebra === 1) {
-      res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: T.expandir('{cifuentes} entra sin llamar: "Debemos más de 150 millones y nadie nos presta. Si el turno que viene seguimos así, el país quiebra."'), deltas: {} });
+      res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: T.expandir('{cifuentes} entra sin llamar: "Debemos más de 150 millones y nadie nos presta. Cada turno así nos hunde un poco más."'), deltas: {} });
     }
-    if (hundido && !estado.fin) estado.fin = hundido;
     const fin = comprobarFin(estado);
     if (fin) { estado.fin = fin; res.fin = fin; }
 
@@ -553,14 +563,12 @@
   function comprobarFin(estado) {
     const s = estado.stats;
     if (estado.fin) return estado.fin;
-    if (s.estabilidad <= 0) return s.felicidad < 30 ? 'pueblo' : 'ejercito';
-    const sec = estado.sectores || {};
-    if (sec.ejercito <= 0) return 'ejercito';
-    if (sec.elite <= 0) return 'cupula';
-    if (s.felicidad <= 0) return 'pueblo';
-    if (s.inflacion >= 1000) return 'hiperinflacion';
-    if (estado.diasEnQuiebra >= 2) return 'tesoro';
-    // No hay último turno: se gobierna hasta caer (o hasta perder unas elecciones libres, ver politica.js).
+    // Solo se cae cuando la estabilidad llega a 0. Quién te tumba depende del sector más enfadado.
+    if (s.estabilidad <= 0) {
+      const sec = estado.sectores || {};
+      const peor = [['pueblo', s.felicidad], ['ejercito', sec.ejercito == null ? 50 : sec.ejercito], ['cupula', sec.elite == null ? 50 : sec.elite]].sort((a, b) => a[1] - b[1])[0][0];
+      return s.dinero <= -150 ? 'tesoro' : s.inflacion >= 500 ? 'hiperinflacion' : peor;
+    }
     return null;
   }
 
