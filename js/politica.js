@@ -23,11 +23,12 @@
   function iniciar(e) {
     if (!e.politica) {
       e.politica = {
-        // Corea del Norte: la dinastía Juche, con todas las instituciones al servicio del Partido.
-        regimen: 'JUCHE', proclamado: 'JUCHE', desde: 1,
-        congreso: 'controlado', tribunales: 'controlado', prensa: 'controlado', elecciones: 'controlado', constitucion: 'controlado',
-        apoyo: 99, secretos: [], escandalos: 0, crimenes: 0, historia: ['JUCHE']
+        // El régimen y las instituciones de partida vienen del país (en Corea del Norte, la dinastía Juche).
+        regimen: RF.PAIS.inicio.regimen, proclamado: ['JUNTA', 'MONARQUIA', 'TEOCRACIA', 'JUCHE'].includes(RF.PAIS.inicio.regimen) ? RF.PAIS.inicio.regimen : null, desde: 1,
+        congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre',
+        apoyo: RF.PAIS.inicio.apoyo, secretos: [], escandalos: 0, crimenes: 0, historia: [RF.PAIS.inicio.regimen]
       };
+      Object.assign(e.politica, RF.PAIS.inicio.instituciones);
     }
     return e.politica;
   }
@@ -105,7 +106,10 @@
     const de = p.regimen;
     p.proclamado = ['JUNTA', 'MONARQUIA', 'TEOCRACIA', 'JUCHE'].includes(destino) ? destino : null;
     Object.assign(p, d.instituciones);
-    if (destino === 'DEMOCRACIA') { p.apoyo = e.stats.felicidad; RF.leyes.derogar(e, 'SOBORNOS'); }
+    if (destino === 'DEMOCRACIA') {
+      p.apoyo = e.stats.felicidad; RF.leyes.derogar(e, 'SOBORNOS');
+      if (RF.consejero.ajustarEconomia) RF.consejero.ajustarEconomia(e, { sanciones: -2 }); // el mundo premia la apertura
+    }
     const cambio = actualizar(e) || { de, a: destino };
     const out = { efectos: Object.assign({}, d.efectos), texto: textoCambio(destino), cambio, notas: [] };
     if (destino === 'DEMOCRACIA' && (p.crimenes > 0 || p.secretos.length)) out.cadena = { id: 'comision_verdad', en: 3 };

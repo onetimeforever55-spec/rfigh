@@ -23,6 +23,8 @@ function turnos(e, n) { for (let i = 0; i < n && !e.fin; i++) { e.dilemas.pendie
 function democratico(e) {
   Object.assign(e.politica, { regimen: 'DEMOCRACIA', proclamado: null, congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre', historia: ['DEMOCRACIA'] });
   e.stats = { dinero: 100, inflacion: 4, estabilidad: 60, felicidad: 55 };
+  e.sectores = { ejercito: 50, elite: 50 };
+  e.economia = { sanciones: 0, mercadoNegro: 40 };
   return e;
 }
 const nuevo = () => { const e = democratico(RF.consejero.nuevoEstado()); e.dilemas.ultimo = 999; e.politica.apoyo = 100; return e; };
@@ -89,7 +91,8 @@ console.log('REPRESIÓN');
   comprobar(r.porTurno.estabilidad > 0 && r.porTurno.felicidad < 0 && r.porTurno.dinero < 0, 'más estabilidad, menos felicidad y cuesta dinero cada turno');
   const est0 = e.stats.estabilidad, fel0 = e.stats.felicidad;
   turnos(e, 6);
-  comprobar(e.stats.estabilidad > est0 && e.stats.felicidad < fel0 - 3, 'tras 6 turnos: estabilidad ' + est0 + ' → ' + e.stats.estabilidad + ', felicidad ' + fel0 + ' → ' + e.stats.felicidad);
+  // La represión sostiene la estabilidad aunque la gente sufra (y aunque al ejército no le guste un cuerpo rival).
+  comprobar(e.stats.estabilidad >= est0 && e.stats.felicidad < fel0 - 3 && e.sectores.ejercito < 50, 'tras 6 turnos: estabilidad ' + est0 + ' → ' + e.stats.estabilidad + ', felicidad ' + fel0 + ' → ' + e.stats.felicidad + ', ejército ' + e.sectores.ejercito);
   decretar(e, 'disolver el escuadrón');
   comprobar(!RF.leyes.lista(e).some(l => l.clave === 'ESCUADRON'), 'disolver el Escuadrón deroga la ley');
 }

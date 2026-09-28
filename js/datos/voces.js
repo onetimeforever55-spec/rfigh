@@ -174,6 +174,52 @@
     }
   };
 
+  /*
+   * RADIO PIONYANG: el locutor oficial, al estilo de la radio de Tropico. Todo es una victoria,
+   * cada desastre es una oportunidad y el Líder Supremo siempre tiene razón (sobre todo cuando no).
+   * Se arma con: saludo + frase según el tipo de decreto + (a veces) despedida.
+   */
+  RF.RADIO = {
+    saludo: [
+      '¡Buenos días, Corea del Norte! Aquí Radio Pionyang, la única emisora que necesitas porque es la única que sintonizas.',
+      '¡Arriba, camaradas! Radio Pionyang con las noticias que ya sabíais, pero ahora con música de acordeón.',
+      'Radio Pionyang informa, y Radio Pionyang nunca se equivoca. Lo dice Radio Pionyang.',
+      '¡Muy buenas, patria! Son las ocho en punto en el meridiano oficial, que también es mejor que los demás.'
+    ],
+    tipos: {
+      general: ['El Líder Supremo ha decretado {medida}. Los expertos coinciden en que es una idea brillante. Los expertos que no coinciden están de vacaciones.', 'Hoy entra en vigor {medida}. Si no notáis ningún cambio, es que ya estabais cumpliendo la ley. ¡Enhorabuena!'],
+      regalo: ['¡Buenas noticias! {Medida}. El Líder Supremo os lo regala porque os quiere. Por favor, lloren de emoción de forma ordenada.', 'Con {medida}, Corea del Norte vuelve a demostrar que es el país más generoso del mundo. Del mundo que conocemos, que es este.'],
+      impuesto: ['{Medida}: un pequeño esfuerzo patriótico. Recordad: pagar impuestos adelgaza, y estar delgado es muy revolucionario.', 'Nos informan de {medida}. Hacienda asegura que el dinero irá a cosas importantes, como más carteles que digan que el dinero va a cosas importantes.'],
+      represion: ['{Medida}. Las fuerzas del orden os recuerdan que si no habéis hecho nada, no tenéis nada que temer. Y si habéis hecho algo, tampoco lo vais a poder contar.', 'Gracias a {medida}, las calles son más seguras que nunca. Tan seguras que nadie sale a ellas.'],
+      libertad: ['{Medida}. Algunos dirán que es menos libertad. Nosotros decimos que es más tiempo libre para amar al Líder Supremo.', 'Con {medida} acabamos con las distracciones. Ahora tenéis una sola opción, y es la correcta.'],
+      economia: ['Los mercados celebran {medida}. Bueno, el mercado. Bueno, un señor del mercado que dice que está contento.', 'Gracias a {medida}, la economía crece a un ritmo del mil por ciento. La cifra es aproximada. Por arriba.'],
+      esencial: ['{Medida}. Si notáis que falta algo, recordad que la escasez es solo abundancia que todavía no ha llegado.', 'Con {medida}, aprendemos a valorar lo que tenemos. Sobre todo porque ya no lo tenemos.'],
+      obra: ['¡Empiezan las obras de {medida}! Estará listo en un plazo récord. El récord todavía no se ha fijado.', 'El Líder Supremo ha inaugurado {medida} con unas tijeras de oro. Las tijeras son lo único terminado, pero son preciosas.'],
+      culto: ['{Medida}. Un homenaje merecido. Los oyentes que no se emocionen deben presentarse en su comisaría más cercana para emocionarse allí.', 'Hoy, {medida}. El Líder Supremo pidió que no se hiciera ningún homenaje, lo cual demuestra su humildad, que también será homenajeada.'],
+      absurdo: ['{Medida}. Si no lo entendéis, es porque el Líder Supremo piensa diez años por delante. Esperad diez años.', 'Nos confirman {medida}. Sí. En serio. Seguimos con música.'],
+      secreto: ['Hoy no ha pasado nada. Repetimos: hoy no ha pasado absolutamente nada. Seguimos con el parte meteorológico: soleado y tranquilo.', 'Radio Pionyang no tiene ninguna noticia especial que dar. Si habéis oído algo esta noche, eran fuegos artificiales. De celebración.']
+    },
+    despedida: ['Y ahora, música: la Sinfonía del Tractor Feliz, en su versión de cuatro horas.', 'Os dejamos con el himno. Es obligatorio escucharlo de pie. Sí, también vosotros, los de la cama.', 'Radio Pionyang: porque la verdad es la que decimos nosotros.']
+  };
+
+  // EJÉRCITO: cómo reciben el decreto los cuarteles. {garrote} es quien ocupe hoy el ministerio de Defensa.
+  RF.VOCES_EJERCITO = {
+    pos: [
+      'En el cuartel general, {garrote} manda repartir una ración extra de soju. Los generales brindan por ti. Tres veces, por si acaso.',
+      'Los oficiales del distrito militar de Pionyang aplauden al oír {medida}. Aplauden mejor que la Asamblea, y eso ya es decir.',
+      '{garrote} se pone una medalla nueva para celebrar {medida}. No se sabe de dónde la ha sacado. Nadie pregunta.'
+    ],
+    neg: [
+      'En los cuarteles del norte, los soldados comentan {medida} en voz baja. Un coronel apunta quién habla más de la cuenta. Otro coronel apunta al primero.',
+      '{garrote} escucha lo de {medida} sin pestañear. Luego pide los planos del Palacio "para revisar la seguridad".',
+      'Los soldados de la frontera llevan tres semanas comiendo maíz hervido. Con {medida} ya no se lo comen con la misma alegría.'
+    ],
+    neu: [
+      'En los cuarteles, {medida} se lee en la formación de la mañana. Los soldados asienten a la vez, como les enseñaron.',
+      'El ejército toma nota de {medida}. El ejército siempre toma nota. Es lo que más miedo da del ejército.'
+    ]
+  };
+
   // Recuerdos: la gente no olvida tus decretos anteriores.
   RF.ECOS = [
     'En el mercado todavía se habla de {anterior}.',

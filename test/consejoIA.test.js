@@ -10,6 +10,8 @@ const comprobar = (c, t) => { console.log((c ? '  ✓ ' : '  ✗ ') + t); if (!c
 function democratico(e) {
   Object.assign(e.politica, { regimen: 'DEMOCRACIA', proclamado: null, congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre', historia: ['DEMOCRACIA'] });
   e.stats = { dinero: 100, inflacion: 4, estabilidad: 60, felicidad: 55 };
+  e.sectores = { ejercito: 50, elite: 50 };
+  e.economia = { sanciones: 0, mercadoNegro: 40 };
   return e;
 }
 const nuevo = () => { const e = democratico(RF.consejero.nuevoEstado()); e.politica.apoyo = 100; e.iaActiva = true; e.dilemas.ultimo = -99; return e; };
@@ -36,7 +38,8 @@ console.log('UNA LEY NORMAL');
   comprobar(res.porTurno.dinero === 15 && res.porTurno.felicidad === -2, 'informa de lo que hará cada turno');
   comprobar(C.memoria(e).some(m => /Brisa/.test(m.texto)), 'recuerda el hecho en la memoria del mundo');
   const bl = C.bloques(e, AIRE, res);
-  comprobar(['bot', 'gaceta', 'efectos', 'prensa', 'cupula', 'calle'].every(t => bl.some(b => b.tipo === t)) && sinHuecos(bl), 'cuenta gaceta, efectos, titulares, gabinete y calle sin huecos');
+  comprobar(['bot', 'gaceta', 'efectos', 'radio', 'cupula', 'calle'].every(t => bl.some(b => b.tipo === t)) && sinHuecos(bl), 'cuenta gaceta, efectos, radio, Palacio y población sin huecos');
+  comprobar(bl.find(b => b.tipo === 'cupula').titulo.startsWith('PALACIO · ÁNIMO') && bl.find(b => b.tipo === 'calle').titulo.startsWith('POBLACIÓN · ÁNIMO'), 'cada sección lleva el ánimo de su sector');
   const d1 = e.stats.dinero;
   RF.consejero.avanzarDia(e, res);
   RF.consejero.avanzarDia(e, { sucesos: [] });
@@ -207,6 +210,25 @@ console.log('COHERENCIA ABSURDA');
   const inf = C.bloques(e, f, res).find(b => b.tipo === 'logica');
   comprobar(inf && inf.texto.split('\n').length === 4 && !/[{}]/.test(inf.texto), 'muestra el informe con los pasos del razonamiento (máximo 4, limpios)');
   comprobar(C.memoria(e).some(m => /seis días/.test(m.texto)), 'la regla absurda queda en la memoria como realidad del juego');
+}
+
+console.log('SECTORES Y ECONOMÍA');
+{
+  const e = nuevo();
+  const f = { titulo: 'el desfile con misiles', efecto_unico: { ejercito: 50, elite: -5 }, economia: { sanciones: 9, mercado_negro: -10 },
+    radio: '¡Buenos días, camaradas! Hoy desfilan los misiles.', ejercito: { dice: 'Los generales aplauden de pie.' } };
+  const res = C.aplicar(e, f);
+  comprobar(e.sectores.ejercito === 70 && e.sectores.elite === 45, 'la ficha mueve el ánimo del ejército (con tope +20) y del Palacio');
+  comprobar(e.economia.sanciones === 2 && e.economia.mercadoNegro === 30 && res.notas.some(n => /sanciones/.test(n)), 'y la economía: sanciones (+2 como mucho) y mercado negro');
+  const bl = C.bloques(e, f, res);
+  comprobar(bl.some(b => b.tipo === 'ejercito' && b.titulo.startsWith('EJÉRCITO · ÁNIMO 70')) && bl.some(b => b.tipo === 'radio'), 'hay sección de ejército con su ánimo y locutor de radio');
+  const c = C.contexto(e, 'x');
+  comprobar(c.sectores.ejercito === 70 && /de 4/.test(c.economia.sanciones), 'la IA recibe el ánimo de los sectores y la economía');
+  comprobar(/jangmadang/.test(C.SISTEMA) && /songbun/.test(C.SISTEMA) && /Tropico/.test(C.SISTEMA), 'la IA conoce el contexto real del país y el tono Tropico');
+  const k = nuevo(); k.sectores.ejercito = 1;
+  C.aplicar(k, { titulo: 'recortar la ración de los soldados', efecto_unico: { ejercito: -10 } });
+  RF.consejero.avanzarDia(k, { sucesos: [] });
+  comprobar(k.fin === 'ejercito', 'si el ánimo del ejército llega a 0, hay golpe de Estado');
 }
 
 console.log('LEER LA RESPUESTA DE LA IA');

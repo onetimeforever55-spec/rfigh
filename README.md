@@ -19,7 +19,10 @@ Impuestos y gastos del Estado    −6M
 Resultado del turno:  Divisas +27M   Arroz +6%
 ```
 
-- **Cuatro barras:** DIVISAS (millones de dólares, pese a las sanciones), ARROZ (lo que sube cada turno el precio del arroz: la inflación), LEALTAD (de la élite y el ejército; a 0 hay golpe) y PUEBLO (cómo aguanta la gente; a 0 hay revuelta).
+- **Tres barras:** DIVISAS (millones de dólares, pese a las sanciones), INFLACIÓN y ESTABILIDAD (a 0, caes).
+- **Tres sectores con ánimo propio:** EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN. Su ánimo sube o baja con tus decretos, los eventos y la economía, y **empuja la estabilidad cada turno**. Si uno llega a 0: golpe de Estado, traición en Palacio o revuelta. Cada sector tiene su sección en el texto de cada turno, con su ánimo y si sube (▲) o baja (▼).
+- **Cada turno se cuenta por secciones, corto y con humor estilo Tropico:** RADIO PIONYANG (el locutor de propaganda que lo vende todo como una victoria), PALACIO, EJÉRCITO y POBLACIÓN.
+- **Economía real:** las **sanciones** (nivel 0-4) cuestan divisas cada turno y amargan a la élite; los misiles y la bomba las suben, y el desarme y la democracia las bajan. El **mercado negro** (jangmadang, % de la economía) ayuda a la población a sobrevivir y enriquece a los cuadros con sobornos, pero no paga impuestos; legalizarlo lo convierte en recaudación. Escribe `estado` para verlo.
 - **Se empieza en la dinastía Juche:** la Asamblea Popular Suprema aplaude, solo existe la prensa oficial y las elecciones tienen un candidato único. Puedes democratizar el país, proclamarte rey o volver al Juche.
 - **No hay último turno:** el contador sigue para siempre y gobiernas mientras aguantes. Cada 20 turnos hay elecciones: amañadas o rituales (siempre ganas) o, si has democratizado el país, libres (si pierdes, se acaba). Sin buscar divisas, las sanciones te llevan a la quiebra hacia el turno 35.
 
@@ -61,6 +64,18 @@ En GitHub: **Settings → Pages → Deploy from a branch**, elige la rama y la c
 Algunos decretos tienen reglas propias porque el clasificador general no los trata bien: la esclavitud, el trabajo infantil, la guerra, la bomba atómica, los campos de reeducación, la quema de libros, la tortura, el aborto, el matrimonio igualitario, la prostitución, la inmigración, el salario mínimo, las pensiones, la renta básica, los aranceles, la selva, la jornada laboral, el voto de las mujeres, la edad para votar, el bitcoin, el muro y las cárceles.
 
 Cada tema se entiende en las dos direcciones: «legalizar la esclavitud» / «abolir la esclavitud», «declarar la guerra» / «firmar la paz», «talar la selva» / «dejar de talar la selva». Cada dirección tiene sus efectos, lo polémico que es para el Congreso y consecuencias con retraso: sanciones, fugas, bloqueo naval, inundaciones o la huelga de las mujeres. Ir en contra sustituye a la ley anterior, y abolir algo que nunca existió solo lo recuerda. Los temas están en `js/datos/temas.js`; para añadir uno basta con escribir su entrada.
+
+### Perfil de país
+
+Todo lo que hace distinto a un país está en `js/datos/paises.js`:
+- identidad: nombre, capital, moneda y cómo se llama al líder;
+- los nombres de las barras y los sectores;
+- la partida inicial: indicadores, régimen, instituciones, sectores, sanciones y mercado negro;
+- los parámetros económicos que usa el motor: ingresos, gastos, coste de cada nivel de sanciones, socios, exportaciones e importaciones;
+- los **conceptos reales** que el motor y la IA deben entender: sanciones, jangmadang, raciones, songbun, inminban, donju, campos, songun, propaganda y fugas;
+- un **contexto** del país real para la IA.
+
+Hoy solo existe Corea del Norte. Para añadir otro país hay que escribir su perfil; los eventos y personajes (`datos/*.js`) necesitarían sus propios textos.
 
 ## Cómo funciona por dentro
 

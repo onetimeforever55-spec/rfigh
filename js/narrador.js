@@ -22,7 +22,8 @@
       tipo: 'sistema', titulo: 'CÓMO GOBERNAR',
       texto: 'Escribe un decreto con tus palabras y pulsa Decretar. El Intérprete intentará entenderlo.\n' +
         'Ejemplos: ' + EJEMPLOS.map(e => '"' + e + '"').join(', ') + '.\n' +
-        'Cuatro cosas importan: DIVISAS (millones de dólares en las arcas, pese a las sanciones), ARROZ (lo que sube cada turno el precio del arroz en el mercado: la inflación), LEALTAD (de la élite y el ejército) y PUEBLO (cómo aguanta la gente). Si la lealtad llega a 0 hay golpe; si el pueblo llega a 0, revuelta.\n' +
+        'Tres barras: DIVISAS (millones de dólares en las arcas, pese a las sanciones), INFLACIÓN (lo que suben los precios cada turno) y ESTABILIDAD (si llega a 0, caes).\n' +
+        'La estabilidad la sostienen tres sectores, cada uno con su sección en la historia: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN. Su ánimo sube o baja con tus decretos y empuja la estabilidad cada turno. Si uno llega a 0: golpe, traición o revuelta. Escribe "estado" para ver cómo están, las sanciones y el mercado negro.\n' +
         'Cada decreto es una LEY que sigue actuando todos los turnos: "regalar arroz" cuesta divisas cada turno, "imprimir wones" dispara el precio del arroz, "vender carbón" da divisas cada turno pero las sanciones acechan. Las leyes se acumulan.\n' +
         'Para quitar una ley: "dejar de regalar arroz", "derogar la ley del carbón" o "derogar el último decreto".\n' +
         'Puedes firmar hasta 3 decretos a la vez: "prohibir el fútbol y subir impuestos a los ricos".\n' +
@@ -51,13 +52,49 @@
       {
         tipo: 'prensa', titulo: 'LOS DE FUERA Y LOS DE DENTRO',
         texto: 'Song Dae-ho dirige una red clandestina que reparte memorias USB con series del Sur. China compra tu carbón y te presta paciencia. La ONU prepara otra ronda de sanciones. El embajador sueco, que habla en nombre de los que no tienen embajada, observa con cara de preocupación.\n' +
-          'Las arcas tienen 80 millones de dólares en divisas, el arroz sube un 6% cada turno, la élite te es leal... y el pueblo aguanta. De momento.'
+          'Las arcas tienen 80 millones de dólares en divisas, los precios suben un 6% cada turno, el ejército está contento, el Palacio te es fiel... y la población aguanta. De momento.'
       },
       {
         tipo: 'calle', titulo: 'MIENTRAS TANTO, EN LA CALLE',
         texto: Object.values(RF.CIUDADANOS).map(c => c.presentacion).join(' ')
       }
     ].concat(ayuda());
+  }
+
+  // ---------- Las secciones del turno: RADIO, PALACIO, EJÉRCITO y POBLACIÓN ----------
+  // Cada sector tiene un ánimo que empuja la estabilidad; la cabecera de su sección lo enseña.
+  function cabecera(estado, id, res) {
+    const S = RF.PAIS.sectores[id];
+    const v = id === 'poblacion' ? estado.stats.felicidad : (estado.sectores || {})[id];
+    const k = id === 'poblacion' ? 'felicidad' : id;
+    const cambio = ((((res && res.deltas) || {})[k]) || 0) + 3 * ((((res && res.porTurno) || {})[k]) || 0);
+    const flecha = cambio >= 1 ? ' ▲' : cambio <= -1 ? ' ▼' : '';
+    return S.seccion + ' · ÁNIMO ' + Math.round(v) + flecha;
+  }
+
+  function radio(res, tipo) {
+    const R = RF.RADIO;
+    const frases = R.tipos[tipo] || R.tipos.general;
+    let t = T.azar(R.saludo) + ' ' + T.expandir(T.azar(frases), res.vars);
+    if (Math.random() < 0.4) t += ' ' + T.azar(R.despedida);
+    return T.expandir(t);
+  }
+
+  function lineaEjercito(estado, res) {
+    const d = res.deltas || {}, pt = res.porTurno || {};
+    const impacto = (d.ejercito || 0) + 3 * (pt.ejercito || 0) + 0.5 * (d.estabilidad || 0);
+    const pool = impacto >= 1.5 ? RF.VOCES_EJERCITO.pos : impacto <= -1.5 ? RF.VOCES_EJERCITO.neg : RF.VOCES_EJERCITO.neu;
+    return T.expandir(T.azar(pool), res.vars);
+  }
+
+  function secciones(estado, res, tipo) {
+    const out = [{ tipo: 'radio', titulo: RF.PAIS.radio, texto: radio(res, tipo) }];
+    const lm = lineaMinistro(estado, res);
+    out.push({ tipo: 'cupula', titulo: cabecera(estado, 'elite', res), texto: lm.texto });
+    out.push({ tipo: 'ejercito', titulo: cabecera(estado, 'ejercito', res), texto: lineaEjercito(estado, res) });
+    const lc = lineaCiudadano(estado, res);
+    if (lc) out.push({ tipo: 'calle', titulo: cabecera(estado, 'poblacion', res), texto: lc.texto });
+    return out;
   }
 
   function lineaMinistro(estado, res) {
@@ -150,11 +187,7 @@
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
     const tipo = res.secreto ? 'secreto' : TIPO_TRATO[res.trato] || 'general';
-    bloques.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares(res, tipo) });
-    const lm = lineaMinistro(estado, res);
-    bloques.push({ tipo: 'cupula', titulo: lm.titulo, texto: lm.texto });
-    const lc = lineaCiudadano(estado, res);
-    if (lc) bloques.push({ tipo: 'calle', titulo: lc.titulo, texto: lc.texto + (Math.random() < 0.6 ? '\n\n' + vozDeLaCalle(res, tipo) : '') });
+    bloques.push(...secciones(estado, res, tipo));
     return bloques;
   }
 
@@ -180,16 +213,7 @@
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.ley && res.ley.nivel });
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
 
-    bloques.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares(res, tipo) });
-    const lm = lineaMinistro(estado, res);
-    bloques.push({ tipo: 'cupula', titulo: lm.titulo, texto: lm.texto });
-    const lc = lineaCiudadano(estado, res);
-    if (lc) {
-      let calle = lc.texto;
-      if (Math.random() < 0.6) calle += '\n\n' + vozDeLaCalle(res, tipo);
-      bloques.push({ tipo: 'calle', titulo: lc.titulo, texto: calle });
-    }
-    if (Math.random() < 0.3) { const e = eco(estado, res); if (e) bloques.push({ tipo: 'nota', texto: e }); }
+    bloques.push(...secciones(estado, res, tipo));
     if (res.cambioRegimen) bloques.push(bloqueRegimen(res.cambioRegimen));
     return bloques;
   }
@@ -297,14 +321,24 @@
 
   function estadoPais(estado) {
     const s = estado.stats;
+    RF.consejero.asegurar(estado);
+    const sec = estado.sectores, ec = estado.economia, B = RF.PAIS.barras, S = RF.PAIS.sectores;
+    const fila = (n, v) => (n + '            ').slice(0, 13) + String(Math.round(v)).padStart(3) + '  ' + barra(v);
     const lineas = [
       'Régimen      ' + RF.politica.mods(estado).nombre + (estado.politica.congreso === 'libre' ? ' · Congreso: ' + Math.round(estado.politica.apoyo) + '% de apoyo' : ''),
-      'Dinero       ' + formatoStat('dinero', s.dinero),
-      'Inflación    ' + formatoStat('inflacion', s.inflacion),
-      'Estabilidad  ' + String(s.estabilidad).padStart(3) + '  ' + barra(s.estabilidad),
-      'Felicidad    ' + String(s.felicidad).padStart(3) + '  ' + barra(s.felicidad)
+      (B.dinero.nombre + '            ').slice(0, 13) + formatoStat('dinero', s.dinero),
+      (B.inflacion.nombre + '            ').slice(0, 13) + formatoStat('inflacion', s.inflacion),
+      fila(B.estabilidad.nombre, s.estabilidad),
+      '',
+      'Ánimo de los sectores (empujan la estabilidad; si uno llega a 0, caes):',
+      fila(S.ejercito.nombre, sec.ejercito),
+      fila(S.elite.nombre, sec.elite),
+      fila(S.poblacion.nombre, s.felicidad),
+      '',
+      'Sanciones    nivel ' + ec.sanciones + ' de 4 (' + (ec.sanciones * RF.PAIS.economia.costeSancion) + 'M por turno)',
+      'Mercado negro ' + Math.round(ec.mercadoNegro) + '% de la economía'
     ];
-    const t = RF.leyes.lista(estado).reduce((acc, l) => { const ef = RF.leyes.efectoActual(estado, l); for (const k of Object.keys(acc)) acc[k] += ef[k] || 0; return acc; }, { dinero: 0, estabilidad: 0, felicidad: 0, inflacion: 0 });
+    const t = RF.leyes.lista(estado).reduce((acc, l) => { const ef = RF.leyes.efectoActual(estado, l); for (const k of Object.keys(acc)) acc[k] += ef[k] || 0; return acc; }, { dinero: 0, estabilidad: 0, felicidad: 0, inflacion: 0, ejercito: 0, elite: 0 });
     lineas.push('', 'Tus ' + RF.leyes.lista(estado).length + ' leyes suman cada turno:', '   ' + RF.leyes.resumenLey(t));
     lineas.push('Turno ' + estado.dia + ' · Decretos: ' + estado.historial.length);
     const humor = Object.entries(estado.ciudadanos).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + (c.estado && c.estado !== 'libre' ? DESTINOS[c.estado] : c.animo > 25 ? 'te apoya' : c.animo < -25 ? 'te detesta' : 'desconfía'));
@@ -373,9 +407,9 @@
     return [
       { tipo: 'fin', titulo: 'FIN · ' + f.titulo, texto: T.expandir(f.texto) },
       { tipo: 'calle', titulo: 'QUÉ FUE DE ELLOS', texto: epilogos.join('\n\n') },
-      { tipo: 'sistema', titulo: 'TU LEGADO', texto: 'Turnos en el poder: ' + dias + '. Decretos firmados: ' + estado.historial.length + '.\nDivisas ' + formatoStat('dinero', s.dinero) + ' · Arroz ' + formatoStat('inflacion', s.inflacion) + ' · Lealtad ' + s.estabilidad + ' · Pueblo ' + s.felicidad + '.\nEscribe "reiniciar" para gobernar otra vez.' }
+      { tipo: 'sistema', titulo: 'TU LEGADO', texto: 'Turnos en el poder: ' + dias + '. Decretos firmados: ' + estado.historial.length + '.\nDivisas ' + formatoStat('dinero', s.dinero) + ' · Inflación ' + formatoStat('inflacion', s.inflacion) + ' · Estabilidad ' + s.estabilidad + '.\nÁnimo del Ejército ' + Math.round((estado.sectores || {}).ejercito) + ' · del Palacio ' + Math.round((estado.sectores || {}).elite) + ' · de la Población ' + s.felicidad + '.\nEscribe "reiniciar" para gobernar otra vez.' }
     ];
   }
 
-  RF.narrador = { intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
+  RF.narrador = { secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});

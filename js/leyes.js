@@ -132,13 +132,13 @@
         break;
 
       case 'OBLIGAR':
-        if (objId === 'EJERCITO') { ini('felicidad', -4); pt('estabilidad', 0.8); pt('felicidad', -0.8); pt('dinero', -3); break; }
+        if (objId === 'EJERCITO') { ini('felicidad', -4); ini('ejercito', 4); pt('ejercito', 0.5); pt('estabilidad', 0.4); pt('felicidad', -0.8); pt('dinero', -3); break; }
         ini('felicidad', -(3 + 2 * L));
         pt('felicidad', -(0.4 + 0.4 * L)); pt('estabilidad', 0.3); pt('dinero', R);
         break;
 
       case 'SUBSIDIAR': // regalar, subvencionar, subir sueldos
-        if (o.faccion === 'ejercito') { ini('estabilidad', 3); pt('estabilidad', 0.8); pt('dinero', -6); ley.curvas = { estabilidad: 'acostumbra' }; break; }
+        if (o.faccion === 'ejercito') { ini('ejercito', 10); pt('ejercito', 1.2); pt('estabilidad', 0.2); pt('dinero', -6); ley.curvas = { ejercito: 'acostumbra' }; break; }
         ini('felicidad', 3 + 2 * E + P);
         pt('dinero', -(2 + 2.5 * E + 2 * G));
         pt('felicidad', 0.8 + 0.6 * E + 0.3 * P);
@@ -150,7 +150,7 @@
       case 'SUBIR_IMPUESTO':
         if (o.faccion === 'cupula') {
           ini('felicidad', 2);
-          pt('dinero', 8 + 2 * R); pt('felicidad', 0.2); pt('estabilidad', -0.6);
+          pt('dinero', 8 + 2 * R); pt('felicidad', 0.2); pt('elite', -1.2);
         } else if (objId === 'GENERAL') {
           ini('felicidad', -3);
           pt('dinero', 12); pt('felicidad', -1.2); pt('estabilidad', -0.3);
@@ -163,7 +163,7 @@
 
       case 'BAJAR_IMPUESTO':
         if (o.faccion === 'cupula') {
-          pt('dinero', -(8 + 2 * R)); pt('estabilidad', 0.6); pt('felicidad', -0.2);
+          pt('dinero', -(8 + 2 * R)); pt('elite', 1.2); pt('felicidad', -0.2);
         } else if (objId === 'GENERAL') {
           ini('felicidad', 3);
           pt('dinero', -12); pt('felicidad', 1.2);
@@ -199,7 +199,7 @@
 
       case 'CREAR':
       case 'INVERTIR':
-        if (o.faccion === 'ejercito') { ini('dinero', -20); ini('estabilidad', 3); pt('estabilidad', 0.6); pt('dinero', -3); break; }
+        if (o.faccion === 'ejercito') { ini('dinero', -20); ini('ejercito', 8); pt('ejercito', 0.8); pt('dinero', -3); break; }
         ini('dinero', -(25 + 10 * E));
         pt('dinero', 3 + 2 * R + E); pt('felicidad', 0.4 + 0.3 * E); pt('estabilidad', 0.2);
         ley.curvas = { dinero: 'madura', felicidad: 'madura', estabilidad: 'madura' };
@@ -207,7 +207,7 @@
         break;
 
       case 'RECORTAR':
-        if (o.faccion === 'ejercito') { ini('estabilidad', -4); pt('dinero', 6); pt('estabilidad', -1.2); break; }
+        if (o.faccion === 'ejercito') { ini('ejercito', -12); pt('dinero', 6); pt('ejercito', -1.2); break; }
         pt('dinero', 4 + 3 * E); pt('felicidad', -(0.4 + 0.7 * E)); pt('estabilidad', -(0.2 + 0.3 * E));
         pt('inflacion', -0.4);
         break;
@@ -215,7 +215,7 @@
       case 'GLORIFICAR':
         ini('dinero', -15); ini('felicidad', -1);
         pt('dinero', -1);
-        pt('estabilidad', o.faccion === 'ejercito' || o.afecta === 'orden' ? 0.6 : 0.4);
+        if (o.faccion === 'ejercito') { pt('ejercito', 1); pt('estabilidad', 0.2); } else pt('estabilidad', o.afecta === 'orden' ? 0.6 : 0.4);
         pt('felicidad', -0.2);
         break;
 
@@ -237,11 +237,12 @@
     const vigente = lista(e).find(l => l.clave === 'TEMA:' + objId);
     const d = dir === 'contra' && t.sinLey && !(vigente && vigente.accion !== 'PROHIBIR') ? Object.assign({ nombre: t.contra.nombre }, t.sinLey) : t[dir];
     const prensa = d.prensa || (d.controversia >= 3 ? 'represion' : d.controversia === 2 ? 'libertad' : dir === 'contra' ? 'regalo' : 'general');
-    if (d.unaVez) return { unaVez: true, nombre: d.nombre, inicial: Object.assign({}, d.inicial), notas: (d.notas || []).slice(), prensa, controversia: 0 };
+    if (d.unaVez) return { unaVez: true, nombre: d.nombre, inicial: Object.assign({}, d.inicial), notas: (d.notas || []).slice(), prensa, controversia: 0, economia: d.economia };
     return {
       clave: 'TEMA:' + objId, nombre: d.nombre, tema: objId, prensa,
       inicial: Object.assign({}, d.inicial), porTurno: Object.assign({}, d.porTurno), curvas: Object.assign({}, d.curvas),
-      notas: (d.notas || []).slice(), texto: d.texto ? T.expandir(d.texto) : '', programar: d.programar || [], controversia: d.controversia || 0
+      notas: (d.notas || []).slice(), texto: d.texto ? T.expandir(d.texto) : '', programar: d.programar || [], controversia: d.controversia || 0,
+      economia: d.economia || null // sanciones y mercado negro
     };
   }
 
@@ -339,7 +340,7 @@
   function turno(e) {
     const leyes = lista(e);
     const detalle = [];
-    const total = { dinero: 0, estabilidad: 0, felicidad: 0, inflacion: 0 };
+    const total = { dinero: 0, estabilidad: 0, felicidad: 0, inflacion: 0, ejercito: 0, elite: 0 };
     for (const ley of leyes.slice()) {
       const ef = efectoActual(e, ley);
       detalle.push({ nombre: ley.nombre, clave: ley.clave, nivel: ley.nivel, efectos: ef });
@@ -353,9 +354,11 @@
     const f = (v, suf) => (v > 0 ? '+' : '−') + Math.abs(v).toFixed(Math.abs(v) < 10 && suf !== 'M' ? 1 : 0) + suf;
     const partes = [];
     if (Math.abs(ef.dinero || 0) >= 0.5) partes.push(f(ef.dinero, 'M'));
-    if (Math.abs(ef.estabilidad || 0) >= 0.05) partes.push('lealtad ' + f(ef.estabilidad, ''));
-    if (Math.abs(ef.felicidad || 0) >= 0.05) partes.push('pueblo ' + f(ef.felicidad, ''));
-    if (Math.abs(ef.inflacion || 0) >= 0.05) partes.push('arroz ' + f(ef.inflacion, ''));
+    if (Math.abs(ef.estabilidad || 0) >= 0.05) partes.push('estab ' + f(ef.estabilidad, ''));
+    if (Math.abs(ef.felicidad || 0) >= 0.05) partes.push('población ' + f(ef.felicidad, ''));
+    if (Math.abs(ef.inflacion || 0) >= 0.05) partes.push('infl ' + f(ef.inflacion, ''));
+    if (Math.abs(ef.ejercito || 0) >= 0.05) partes.push('ejército ' + f(ef.ejercito, ''));
+    if (Math.abs(ef.elite || 0) >= 0.05) partes.push('palacio ' + f(ef.elite, ''));
     return partes.join('  ') || 'sin efecto este turno';
   }
 

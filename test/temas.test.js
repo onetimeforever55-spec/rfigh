@@ -8,6 +8,8 @@ const comprobar = (c, t) => { console.log((c ? '  ✓ ' : '  ✗ ') + t); if (!c
 function democratico(e) {
   Object.assign(e.politica, { regimen: 'DEMOCRACIA', proclamado: null, congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre', historia: ['DEMOCRACIA'] });
   e.stats = { dinero: 100, inflacion: 4, estabilidad: 60, felicidad: 55 };
+  e.sectores = { ejercito: 50, elite: 50 };
+  e.economia = { sanciones: 0, mercadoNegro: 40 };
   return e;
 }
 const nuevo = (apoyo) => { const e = democratico(RF.consejero.nuevoEstado()); e.politica.apoyo = apoyo == null ? 100 : apoyo; return e; };

@@ -97,7 +97,7 @@ body {
   margin: 10px 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 .stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -242,8 +242,17 @@ body {
 .efecto.baja { color: var(--mal); }
 .efecto.neutro { color: var(--fosforo-tenue); }
 
-.b-cupula, .b-calle { padding-left: 12px; border-left: 2px solid var(--fosforo-oscuro); }
+.b-cupula, .b-calle, .b-ejercito { padding-left: 12px; border-left: 2px solid var(--fosforo-oscuro); }
 .b-calle { border-left-style: dotted; }
+.b-ejercito { border-left-color: var(--aviso); }
+.b-ejercito .etiqueta { color: var(--aviso); }
+/* Radio Pionyang: el locutor de propaganda. */
+.b-radio { font-size: 13.5px; padding: 8px 12px; border: 1px solid var(--fosforo-oscuro); border-radius: 2px; background: rgba(98, 245, 154, 0.04); }
+.b-radio .etiqueta::before { content: '◉ '; color: var(--mal); }
+.b-radio p { font-style: italic; }
+/* Subtítulos de sección dentro de la crónica con IA. */
+.cronica-seccion { display: block; margin-top: 10px; font-family: var(--f-texto); font-size: 11px; letter-spacing: 0.1em; color: var(--fosforo-tenue); font-style: normal; }
+.cronica-seccion:first-child { margin-top: 0; }
 
 .b-suceso { padding: 10px 12px; background: var(--fondo-2); border: 1px solid var(--linea); }
 .b-suceso.umbral { border-color: var(--mal); }
@@ -484,3 +493,11 @@ body {
 .b-consejo .etiqueta { color: var(--fosforo-tenue); }
 .b-consejo p { white-space: pre-line; }
 .b-consejo p.pensando, .b-cronica p.pensando { color: var(--fosforo-tenue); font-style: italic; }
+
+/* Botón para volver al final cuando el jugador ha subido a leer mientras se escribía texto nuevo. */
+.ir-abajo {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 150px; z-index: 5;
+  font: inherit; font-size: 13px; padding: 6px 14px; cursor: pointer;
+  color: var(--fondo); background: var(--fosforo); border: 0; box-shadow: 0 0 12px var(--brillo);
+}
+.ir-abajo[hidden] { display: none; }

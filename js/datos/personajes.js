@@ -6,12 +6,7 @@
 (function (RF) {
   'use strict';
 
-  RF.PAIS = {
-    nombre: 'República Popular Democrática de Corea',
-    corto: 'Corea del Norte',
-    capital: 'Pionyang',
-    moneda: 'wones'
-  };
+  // El país (nombre, capital, moneda...) está en datos/paises.js.
 
   // Cada ministro vigila una estadística y reacciona cuando cambia.
   RF.GABINETE = {

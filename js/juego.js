@@ -51,7 +51,7 @@
   function esBueno(id, d) { return id === 'inflacion' ? d < 0 : d > 0; }
 
   function montarStats() {
-    $('stats').innerHTML = RF.STATS.map(s =>
+    $('stats').innerHTML = RF.STATS.filter(s => !s.oculta).map(s =>
       `<li class="stat" id="st-${s.id}" title="${s.nombre}">
         <span class="stat-nombre">${s.corto}</span>
         <span class="stat-valor">0</span>
@@ -60,7 +60,7 @@
       </li>`).join('');
   }
   function pintarStats(deltas) {
-    for (const s of RF.STATS) {
+    for (const s of RF.STATS.filter(x => !x.oculta)) {
       const v = estado.stats[s.id];
       const li = $('st-' + s.id);
       li.querySelector('.stat-valor').textContent = RF.narrador.formatoStat(s.id, v);
@@ -96,11 +96,13 @@
     return e;
   }
 
-  function nombreStat(id) { return RF.STATS.find(s => s.id === id).nombre; }
+  // Los valores con nombre: las barras, la población y los sectores (ejército, Palacio).
+  const MEDIDAS = () => RF.STATS.concat(RF.SECTORES);
+  function nombreStat(id) { return MEDIDAS().find(s => s.id === id).nombre; }
 
   function listaDeltas(deltas, clase) {
     const cont = el('div', clase);
-    const orden = RF.STATS.map(s => s.id).filter(k => deltas && deltas[k]);
+    const orden = MEDIDAS().map(s => s.id).filter(k => deltas && deltas[k]);
     for (const k of orden) {
       const v = deltas[k];
       cont.appendChild(el('span', (clase === 'mini' ? '' : 'efecto ') + (esBueno(k, v) ? 'sube' : 'baja'), nombreStat(k) + ' ' + textoDelta(k, v)));
@@ -144,7 +146,8 @@
     if (b.tipo === 'dilema') return crearDilema(b, n);
     if (b.tipo === 'cronica') {
       n.appendChild(el('span', 'etiqueta', b.titulo || 'CRÓNICA'));
-      const pc = el('p', b.terminada ? '' : 'cursor' + (b.texto ? '' : ' pensando'), b.texto || 'Claude está escribiendo la crónica del turno…');
+      const pc = el('p', b.terminada ? '' : 'cursor' + (b.texto ? '' : ' pensando'), b.texto ? null : 'Claude está escribiendo la crónica del turno…');
+      if (b.texto) escribirCronica(pc, b.texto);
       n.appendChild(pc);
       nodosCronica.set(b, pc);
       return { nodo: n };
@@ -192,7 +195,7 @@
     return { nodo: n, parrafo: p, texto: b.texto };
   }
 
-  const ANIMADOS = new Set(['gaceta', 'cupula', 'calle', 'suceso', 'fin', 'dilema', 'amanecer', 'prensa', 'regimen']);
+  const ANIMADOS = new Set(['gaceta', 'cupula', 'calle', 'suceso', 'fin', 'dilema', 'amanecer', 'prensa', 'regimen', 'radio', 'ejercito']);
 
   function mostrar(bloques, animar) {
     for (const b of bloques) {
@@ -203,7 +206,23 @@
     if (!escribiendo) siguiente();
   }
 
-  function alFondo() { const r = $('registro'); r.scrollTop = r.scrollHeight; }
+  // La vista sigue el texto que se va escribiendo solo si el jugador está abajo del todo.
+  // Si sube a leer algo, no se le arrastra: aparece un botón para volver al final.
+  let pegado = true;
+  function alFondo(forzar) {
+    const r = $('registro');
+    if (forzar) pegado = true;
+    if (pegado) { r.scrollTop = r.scrollHeight; $('ir-abajo').hidden = true; }
+    else $('ir-abajo').hidden = false;
+  }
+  function vigilarScroll() {
+    const r = $('registro');
+    r.addEventListener('scroll', () => {
+      pegado = r.scrollHeight - r.scrollTop - r.clientHeight < 60;
+      if (pegado) $('ir-abajo').hidden = true;
+    }, { passive: true });
+    $('ir-abajo').addEventListener('click', () => alFondo(true));
+  }
 
   function siguiente() {
     let item;
@@ -272,10 +291,31 @@
   const nodosCronica = new WeakMap();
   let iaPausada = false; // si la conexión falla (por ejemplo, dentro del visor de Claude), no se reintenta en esta sesión
 
+  // Escribe la crónica separando sus secciones (RADIO PIONYANG:, PALACIO:, EJÉRCITO:, POBLACIÓN:) con subtítulos.
+  // Se llama con cada trozo que llega, así que la crónica se va leyendo mientras se escribe.
+  function escribirCronica(pc, texto) {
+    pc.textContent = '';
+    const nombres = RF.narradorIA.SECCIONES.map(n => n.toUpperCase());
+    for (const linea of String(texto).split('\n')) {
+      if (!linea.trim()) continue;
+      const m = /^\s*\**\s*([A-ZÁÉÍÓÚÑ ]{4,30})\s*\**\s*:\s*(.*)$/.exec(linea);
+      const seccion = m && nombres.find(n => n === m[1].trim());
+      const cuerpo = el('span', 'cronica-linea');
+      if (seccion) {
+        pc.appendChild(el('span', 'cronica-seccion', seccion));
+        cuerpo.textContent = m[2];
+      } else {
+        cuerpo.textContent = linea;
+      }
+      pc.appendChild(cuerpo);
+      pc.appendChild(document.createElement('br'));
+    }
+  }
+
   function pintarCronica(b) {
     const pc = nodosCronica.get(b);
     if (!pc) return;
-    pc.textContent = b.texto || 'Claude está escribiendo la crónica del turno…';
+    if (b.texto) escribirCronica(pc, b.texto); else pc.textContent = 'Claude está escribiendo la crónica del turno…';
     pc.classList.toggle('pensando', !b.texto);
     pc.classList.toggle('cursor', !b.terminada);
     alFondo();
@@ -620,7 +660,7 @@
     RF.consejoIA.aplicarMundo(estado, ficha, res);
     RF.consejero.avanzarDia(estado, res);
     const bloques = [{ tipo: 'nota', texto: 'No firmas nada este turno. Dejas que tus leyes trabajen.' }];
-    bloques.push(...RF.narrador.cierreDia(estado, res), ...RF.consejoIA.reacciones(estado, ficha));
+    bloques.push(...RF.narrador.cierreDia(estado, res), ...RF.consejoIA.reacciones(estado, ficha, res));
     // El amanecer va al final, después de las reacciones.
     const i = bloques.findIndex(b => b.tipo === 'amanecer');
     if (i >= 0) bloques.push(bloques.splice(i, 1)[0]);
@@ -685,6 +725,7 @@
   function procesar(entrada) {
     const texto = entrada.trim();
     if (!texto) return;
+    alFondo(true); // quien escribe una orden quiere ver la respuesta
     if (ocupado) { mostrar([{ tipo: 'nota', texto: 'El Consejo de Estado sigue deliberando. Espera a que termine.' }], false); return; }
     const orden = RF.texto.normalizar(texto);
     mostrar([{ tipo: 'eco', texto }], false);
@@ -749,6 +790,7 @@
     RF.interprete.entrenar();
     montarStats();
     montarAtajos();
+    vigilarScroll();
 
     const guardada = cargar();
     if (guardada) {

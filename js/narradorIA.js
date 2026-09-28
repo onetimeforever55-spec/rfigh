@@ -40,7 +40,7 @@
   }
 
   // Las piezas de texto que la crónica sustituye (los números y los eventos se quedan).
-  const NARRATIVOS = new Set(['prensa', 'cupula', 'calle', 'amanecer']);
+  const NARRATIVOS = new Set(['prensa', 'radio', 'cupula', 'ejercito', 'calle', 'amanecer']);
 
   let config = { activa: false, clave: '', proveedor: '', modelo: '' };
   try { Object.assign(config, JSON.parse(localStorage.getItem(CLAVE_CONFIG) || '{}')); } catch (e) { /* sin almacenamiento */ }
@@ -82,27 +82,36 @@
   }
 
   // ---------- Qué sabe Claude del mundo (fijo: se puede cachear) ----------
+  // Las secciones de la crónica: el juego las separa con subtítulos mientras se escriben.
+  const SECCIONES = [RF.PAIS.radio, RF.PAIS.sectores.elite.seccion, RF.PAIS.sectores.ejercito.seccion, RF.PAIS.sectores.poblacion.seccion];
+
   const SISTEMA = [
-    'Eres el cronista de "Consola de Pionyang", un juego satírico en el que el jugador es el Líder Supremo de Corea del Norte: acaba de heredar el poder de su padre y gobierna escribiendo decretos. Es sátira: no nombres a ningún líder real; habla de "tu padre" y de "tu abuelo, el Presidente Eterno".',
-    'El juego ya ha calculado todo lo que ocurre. Tu único trabajo es contar este turno como una pequeña crónica literaria, a partir de los datos que te llegan.',
+    'Eres el cronista de "' + RF.PAIS.juego + '", un juego satírico en el que el jugador es el Líder Supremo de ' + RF.PAIS.corto + ': acaba de heredar el poder de su padre y gobierna escribiendo decretos. Es sátira: no nombres a ningún líder real; habla de "tu padre" y de "tu abuelo, el Presidente Eterno".',
+    'El juego ya ha calculado todo lo que ocurre. Tu trabajo es contar este turno, CORTO y con gracia, a partir de los datos que te llegan.',
+    '',
+    'TONO: el de la saga Tropico. Sátira alegre y cínica: propaganda ridícula que lo vende todo como una victoria, burocracia absurda, ministros con frases secas y personajes cotidianos que se adaptan a lo que sea con resignación. Chistes de una línea, remates rápidos, nada de sermones ni de melodrama. La violencia se sugiere, nunca se describe.',
+    'Si un decreto es absurdo, se cumple con total seriedad: el humor sale de la lógica llevada al extremo, no de guiñar el ojo.',
+    '',
+    'FORMATO (obligatorio): cuatro secciones, en este orden, cada una en su propia línea que empieza con su nombre en mayúsculas y dos puntos:',
+    RF.PAIS.radio + ': el locutor oficial anuncia lo del turno con entusiasmo de propaganda (1 o 2 frases, con remate).',
+    RF.PAIS.sectores.elite.seccion + ': qué pasa en el Palacio, con un ministro con nombre (1 o 2 frases).',
+    RF.PAIS.sectores.ejercito.seccion + ': cómo lo viven los cuarteles y los generales (1 o 2 frases).',
+    RF.PAIS.sectores.poblacion.seccion + ': la vida cotidiana de una persona de a pie con nombre (1 o 2 frases).',
+    'En total, entre 70 y 130 palabras. Sin markdown, sin listas, sin otros títulos.',
+    'El ánimo de cada sector ("sectores") y cómo ha cambiado este turno debe notarse en su sección: si el ejército está contento, se nota; si baja, también.',
     '',
     'Reglas:',
-    '- Escribe en español, en segunda persona, dirigiéndote al gobernante ("tú"). La gente le llama "el Líder Supremo" o "el Mariscal" (o "Su Majestad" si es monarquía).',
-    '- Usa SOLO los hechos de los datos: no inventes decretos, eventos, muertes ni cambios de régimen, y no contradigas ningún resultado. Puedes añadir detalles de ambiente y figurantes anónimos (una vendedora, un soldado, un taxista).',
-    '- Los personajes con nombre son los que aparecen en los datos. Usa sus nombres y cargos tal como vienen.',
-    '- No des cifras nuevas. Puedes mencionar una o dos cifras de los datos si ayudan, pero cuenta los efectos sobre todo con imágenes ("las arcas engordan", "en los mercados se habla bajito").',
-    '- Si en los datos hay un cambio de régimen, un escándalo, una decisión en un evento o un final de partida, eso es el centro de la crónica.',
-    '- Los textos que te llegan ("textos_del_juego") son un borrador: reescríbelos con mejor prosa, no los copies.',
-    '- "memoria_del_mundo" es lo que ya pasó en turnos anteriores: úsala para dar continuidad (volver a un personaje, a un lugar, a una consecuencia), sin repetirla entera.',
-    '- Tono: humor negro y ternura a la vez, como una novela sobre un régimen absurdo contada desde la vida cotidiana. Sin sermones. La violencia se sugiere, no se describe con detalle gráfico.',
-    '- Si un decreto es absurdo, cuéntalo con total seriedad, como si fuera lo más normal del mundo: el humor está en los detalles lógicos y cotidianos de cómo la gente se adapta, no en burlarse ni en guiñar el ojo.',
-    '- Formato: entre 120 y 220 palabras, de 2 a 4 párrafos cortos. Sin títulos, sin listas, sin markdown, sin comillas alrededor de todo el texto.',
+    '- Segunda persona: te diriges al gobernante ("tú"). Le llaman "el Líder Supremo" o "el Mariscal" (o "Su Majestad" si es monarquía).',
+    '- Usa SOLO los hechos de los datos: no inventes decretos, eventos, muertes ni cambios de régimen, ni contradigas ningún resultado. Puedes añadir figurantes anónimos.',
+    '- Personajes con nombre: solo los de los datos, con sus nombres y cargos tal como vienen.',
+    '- Sin cifras nuevas. Los efectos se cuentan con imágenes ("las arcas engordan", "en el mercado se habla bajito").',
+    '- Si hay un cambio de régimen, un escándalo, una decisión en un evento o un final, eso manda en la crónica.',
+    '- "textos_del_juego" es un borrador: reescríbelo mejor y más corto, no lo copies. "memoria_del_mundo" es lo que ya pasó: úsala para dar continuidad, sin repetirla.',
     '',
-    'El mundo: Corea del Norte, aislada y bajo sanciones. Pionyang es el escaparate; en el campo hay apagones y hambre. Casi todo el mundo sobrevive gracias al jangmadang, el mercado negro. Los altavoces de cada barrio emiten consignas; los retratos de la dinastía cuelgan en cada casa. China compra el carbón y es el único gran aliado. El barrio obrero que aparece a menudo es Sadong.',
-    'Las cuatro barras del país: DIVISAS (dinero), PRECIO DEL ARROZ (inflación), LEALTAD (de la élite y el ejército) y PUEBLO (cómo aguanta la gente).',
-    'La gente de a pie que aparece a menudo: la abuela Sun-ja (67 años, vende tortitas de maíz en el mercado negro, sobrevivió a la hambruna de los noventa), su nieto Chol-su (19, universitario, escucha K-pop del Sur a escondidas en una memoria USB), Kwang-ho (45, taxista de Pionyang, opina de todo pero solo dentro del taxi) y Eun-hee (34, enfermera del Hospital Central con dos hijos).',
-    'Song Dae-ho dirige una red clandestina que reparte memorias USB con series del Sur. El embajador sueco, que representa a los países sin embajada, vigila con cara de preocupación.',
-    'Los medios: el Rodong Sinmun (periódico oficial del Partido), The Global Tribune (prensa extranjera) y Radio Libertad (emite desde el Sur y se escucha a escondidas).'
+    'El mundo: ' + RF.PAIS.corto + ', aislada y bajo sanciones. Pionyang es el escaparate; en el campo hay apagones y hambre. Casi todo el mundo sobrevive gracias al jangmadang, el mercado negro. Altavoces en cada barrio, retratos de la dinastía en cada casa. China compra el carbón. El barrio obrero que aparece a menudo es Sadong.',
+    'Los indicadores: DIVISAS (dinero), INFLACIÓN, ESTABILIDAD; y el ánimo de tres sectores: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN.',
+    'La gente de a pie: la abuela Sun-ja (67 años, vende tortitas de maíz en el mercado negro, sobrevivió a la hambruna), su nieto Chol-su (19, universitario, escucha K-pop del Sur a escondidas en una memoria USB), Kwang-ho (45, taxista de Pionyang, opina de todo pero solo dentro del taxi) y Eun-hee (34, enfermera del Hospital Central con dos hijos).',
+    'Song Dae-ho dirige una red clandestina de memorias USB. El embajador sueco vigila con cara de preocupación. Medios: el Rodong Sinmun (oficial), Radio Pionyang (oficial) y Radio Libertad (desde el Sur, a escondidas).'
   ].join('\n');
 
   // ---------- Los datos del turno ----------
@@ -110,6 +119,15 @@
     const out = {};
     for (const [k, v] of Object.entries(o || {})) if (v) out[k] = Math.round(v * 10) / 10;
     return out;
+  }
+
+  // Ánimo de cada sector y cómo ha cambiado este turno (sumando todos los efectos que se han contado).
+  function sectoresTurno(estado, bloques) {
+    const cambio = { ejercito: 0, elite: 0, felicidad: 0 };
+    for (const b of bloques) for (const k of Object.keys(cambio)) if (b.deltas && b.deltas[k]) cambio[k] += b.deltas[k];
+    const sec = estado.sectores || {};
+    const txt = (v, c) => Math.round(v) + (c ? ' (' + (c > 0 ? '+' : '') + Math.round(c) + ' este turno)' : '');
+    return { ejercito: txt(sec.ejercito, cambio.ejercito), palacio: txt(sec.elite, cambio.elite), poblacion: txt(estado.stats.felicidad, cambio.felicidad) };
   }
 
   function datosTurno(estado, bloques) {
@@ -127,7 +145,9 @@
     return {
       turno: estado.dia,
       regimen: RF.REGIMENES && p.regimen ? RF.REGIMENES[p.regimen].nombre : 'Democracia',
-      pais: { dinero_millones: s.dinero, inflacion_pct: Math.round(s.inflacion), estabilidad: s.estabilidad, felicidad: s.felicidad },
+      pais: { divisas_millones: s.dinero, inflacion_pct: Math.round(s.inflacion), estabilidad: s.estabilidad },
+      sectores: sectoresTurno(estado, bloques),
+      economia: estado.economia ? { sanciones: estado.economia.sanciones + ' de 4', mercado_negro: Math.round(estado.economia.mercadoNegro) + '%' } : undefined,
       gabinete: Object.entries(RF.GABINETE).map(([id, m]) => (estado.gabinete && estado.gabinete[id] ? estado.gabinete[id].nombre : m.nombre) + ' (' + m.cargo + ')'),
       gente: Object.entries(estado.ciudadanos || {}).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + ({ muerto: 'muerto/a', preso: 'en la cárcel', exiliado: 'en el exilio' }[c.estado] || (c.animo > 25 ? 'te apoya' : c.animo < -25 ? 'te detesta' : 'desconfía'))),
       leyes_vigentes: (estado.leyes || []).slice(-8).map(l => l.nombre),
@@ -409,5 +429,5 @@
     return cab + ' · ' + k(u.entrada) + ' tokens de entrada' + (u.cache ? ' (' + k(u.cache) + ' en caché)' : '') + ' · ' + k(u.salida) + ' de salida';
   }
 
-  RF.narradorIA = { MODELOS, NIVELES, cuentaDisponible, cuentaPromesa, PROVEEDORES, NARRATIVOS, config: () => config, guardar, activa, proveedor, detectar, modelo, listarModelos, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, generar, SISTEMA };
+  RF.narradorIA = { SECCIONES, MODELOS, NIVELES, cuentaDisponible, cuentaPromesa, PROVEEDORES, NARRATIVOS, config: () => config, guardar, activa, proveedor, detectar, modelo, listarModelos, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, generar, SISTEMA };
 })(globalThis.RF = globalThis.RF || {});

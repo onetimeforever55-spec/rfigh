@@ -17,7 +17,7 @@
     JUCHE: {
       nombre: 'Dinastía Juche', corto: 'JUCHE',
       descripcion: 'El Partido, el Ejército y tu familia son el Estado. La Asamblea aplaude, la prensa repite y las elecciones tienen un solo candidato. Nadie bloquea tus decretos y la represión rinde mucho, pero las sanciones asfixian las divisas y el pueblo vive al límite.',
-      recaudacion: 0.85, inversion: 0.75, felicidadTurno: -0.3, estabilidadBase: 62, represionEstab: 1.5, represionFel: 0.8, dineroTurno: -3,
+      recaudacion: 0.85, inversion: 0.75, felicidadTurno: -0.3, estabilidadBase: 62, represionEstab: 1.5, represionFel: 0.8, dineroTurno: 0,
       elecciones: 'amanables'
     },
     DEMOCRACIA: {

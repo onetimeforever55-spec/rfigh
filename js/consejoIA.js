@@ -14,7 +14,8 @@
   'use strict';
   const T = RF.texto;
   const MAX_MEMORIA = 30;
-  const STATS = ['dinero', 'inflacion', 'estabilidad', 'felicidad'];
+  // Lo que puede mover una ficha: las tres barras, la población (felicidad) y los sectores.
+  const STATS = ['dinero', 'inflacion', 'estabilidad', 'felicidad', 'ejercito', 'elite'];
   const TRATOS = ['matar', 'encarcelar', 'exiliar', 'destituir', 'premiar', 'liberar'];
   const INSTITUCIONES = ['congreso', 'tribunales', 'prensa', 'elecciones', 'constitucion'];
   const VALORES_INST = ['libre', 'controlado', 'disuelto'];
@@ -22,21 +23,28 @@
 
   // Lo máximo que puede mover un decreto. La economía de cada turno la sigue calculando el motor.
   const TOPES = {
-    inicial: { dinero: [-80, 80], inflacion: [-10, 15], estabilidad: [-15, 15], felicidad: [-15, 15] },
-    porTurno: { dinero: [-25, 25], inflacion: [-3, 6], estabilidad: [-3, 3], felicidad: [-3, 3] }
+    inicial: { dinero: [-80, 80], inflacion: [-10, 15], estabilidad: [-15, 15], felicidad: [-15, 15], ejercito: [-20, 20], elite: [-20, 20] },
+    porTurno: { dinero: [-25, 25], inflacion: [-3, 6], estabilidad: [-3, 3], felicidad: [-3, 3], ejercito: [-3, 3], elite: [-3, 3] }
   };
 
   // ---------- Qué sabe la IA de las reglas ----------
   const SISTEMA = [
     'Eres el Consejo de Estado de "Consola de Pionyang", un juego satírico de gobierno. El jugador es el Líder Supremo de Corea del Norte (la República Popular Democrática de Corea): acaba de heredar el poder de su padre y gobierna escribiendo decretos en lenguaje libre. Es sátira: no nombres a ningún líder real; habla de "tu padre" y de "tu abuelo, el Presidente Eterno".',
-    'El país: aislado, bajo sanciones de la ONU, con un ejército enorme, un programa de misiles, apagones, hambre en el campo y un mercado negro (jangmadang) del que vive casi todo el mundo. Exporta carbón, minerales y pesca, casi todo a China, su único gran aliado. La capital es Pionyang; los retratos de la dinastía cuelgan en cada casa; la prensa es la oficial; la Asamblea Popular Suprema aplaude; las elecciones tienen candidato único.',
+    'EL PAÍS REAL (úsalo para que las consecuencias tengan sentido):',
+    ...RF.PAIS.contexto.map(l => '- ' + l),
+    'Conceptos que el motor entiende:',
+    ...Object.values(RF.PAIS.conceptos).map(l => '- ' + l),
     'Tu trabajo: entender el decreto y decidir sus consecuencias de forma REALISTA y COHERENTE con la situación actual y con la memoria de lo que ya pasó. No escribes la historia: devuelves una ficha JSON que el motor del juego aplica con sus propias reglas.',
     '',
-    'EL PAÍS SE MIDE CON CUATRO COSAS (en el JSON usa siempre estas claves):',
-    '- dinero = DIVISAS: millones de dólares en las arcas del Estado. Cada turno ya entran unos 17M y salen unos 20M, y las sanciones restan otros 3M (eso lo calcula el motor, no lo incluyas): sin buscar divisas, el país se arruina.',
-    '- inflacion = PRECIO DEL ARROZ: % que sube cada turno el arroz en el mercado (la inflación del won). Por encima de 30 hay hambre; por encima de 40 se retroalimenta.',
-    '- estabilidad = LEALTAD de la élite, el Partido y el ejército (0-100). A 0 hay golpe.',
-    '- felicidad = PUEBLO: cómo aguanta la gente (0-100). A 0 hay revuelta. Por debajo de 40 hay descontento que resta lealtad.',
+    'EL PAÍS SE MIDE ASÍ (en el JSON usa siempre estas claves):',
+    '- dinero = DIVISAS: millones de dólares en las arcas. Cada turno el motor ya cobra impuestos (menos lo que se escapa por el mercado negro), paga sueldos y resta las sanciones: sin buscar divisas, el país se arruina.',
+    '- inflacion = INFLACIÓN: % que suben los precios cada turno (el arroz en el mercado, el won). Por encima de 30 hay hambre; por encima de 40 se retroalimenta.',
+    '- estabilidad = ESTABILIDAD del régimen (0-100). A 0 caes. Cada turno la empujan los tres sectores.',
+    'LOS TRES SECTORES (ánimo 0-100; cada uno tiene su sección en la historia y empuja la estabilidad; si uno llega a 0, se acaba):',
+    '- ejercito = el EJÉRCITO: generales, oficiales y soldados. Les gustan los misiles, las medallas, las raciones y el dinero; odian los recortes, las purgas, las milicias rivales y cobrar tarde. A 0, golpe de Estado.',
+    '- elite = el PALACIO: el Partido y la élite. Les gustan los lujos, los sobornos del mercado negro y que no se toque su poder; odian las sanciones, las purgas y perder privilegios. A 0, te traicionan.',
+    '- felicidad = la POBLACIÓN: cómo aguanta la gente (comida, apagones, miedo, mercado). A 0, revuelta. Por debajo de 40 resta estabilidad.',
+    'ECONOMÍA (campo "economia" de la ficha, opcional): {"sanciones": de -2 a +2 (cambia el nivel de sanciones, 0-4), "mercado_negro": de -40 a +40 (puntos del % de economía que va por el jangmadang)}. Los misiles y la bomba suben sanciones; la diplomacia y el desarme las bajan; legalizar mercados reduce el mercado negro (pasa a pagar impuestos); perseguirlo también lo reduce pero trae hambre.',
     '',
     'CADA DECRETO SUELE SER UNA LEY VIGENTE: tiene un efecto al firmarse ("inicial") y otro que se repite CADA TURNO ("por_turno") mientras siga vigente. El motor ajusta esos efectos según el régimen, la inflación y la estabilidad.',
     'Escala de referencia (sigue estas magnitudes):',
@@ -81,17 +89,18 @@
     '- Si "turnos_sin_evento" es 4 o más, propón un evento aunque el decreto sea tranquilo: el país no se queda quieto.',
     '- "hechos": 1 a 3 frases cortas y concretas, en pasado, con lo que el mundo debe recordar de este decreto (quién, qué, dónde). Si aparece un personaje nuevo, dale nombre aquí.',
     '',
-    'REACCIONES (para contar el turno):',
-    '- "titulares": 2 o 3 líneas "Medio: titular". Medios: Rodong Sinmun (oficial, siempre te alaba), The Global Tribune (prensa extranjera) y Radio Libertad (radio pirata). Si la prensa está controlada o cerrada, la prensa libre no existe: solo Rodong Sinmun y, clandestina, Radio Libertad.',
-    '- "gabinete": un ministro (id) al que le toque de lleno el decreto y lo que dice o hace (una o dos frases, con su carácter).',
-    '- "calle": una persona de a pie (id) que esté libre y lo que vive por el decreto (dos o tres frases).',
+    'REACCIONES (para contar el turno por secciones; tono de la saga Tropico: sátira alegre, frases cortas y secas, propaganda ridícula, burocracia absurda, sin sermones):',
+    '- "radio": el locutor de Radio Pionyang anuncia el decreto con entusiasmo de propaganda y lo vende como una victoria aunque sea un desastre (una o dos frases, con un remate gracioso).',
+    '- "gabinete": un ministro (id) al que le toque de lleno el decreto y lo que dice o hace (una frase, con su carácter). Es la sección PALACIO.',
+    '- "ejercito": {"dice": "..."} cómo lo reciben los cuarteles, los generales o los soldados (una frase). Es la sección EJÉRCITO.',
+    '- "calle": una persona de a pie (id) que esté libre y lo que vive por el decreto en su día a día (una o dos frases). Es la sección POBLACIÓN.',
     '',
     'RESPONDE SOLO CON EL JSON, sin markdown ni texto alrededor. Usa comillas dobles. No uses llaves ni corchetes dentro de los textos. Esquema:',
     '{"entendido": true, "pregunta": "", "interpretacion": "qué entendiste, en una frase", "logica": ["Paso 1: cómo lo aplica el Estado", "Paso 2: quién gana y quién hace la trampa", "Paso 3: el efecto secundario que nadie previó"], "titulo": "nombre de la medida, en minúscula y con artículo (la privatización del aire)", "gaceta": "1 o 2 frases estilo Boletín Oficial",',
     ' "leyes": [{"nombre": "la privatización del aire", "inicial": {"dinero": 35, "felicidad": -8}, "por_turno": {"dinero": 15, "felicidad": -2, "estabilidad": -1}, "curvas": {}, "duracion": null, "imprime": false, "controversia": 2}],',
     ' "derogar": [], "personas": [], "instituciones": {}, "regimen": null, "secreto": false, "gravedad_secreto": 0, "apoyo_congreso": 0,',
     ' "consecuencias": [], "evento": null, "hechos": ["El Gobierno vendió el aire a la empresa Brisa S.A."],',
-    ' "titulares": ["Rodong Sinmun: ..."], "gabinete": {"id": "cifuentes", "dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
+    ' "economia": {}, "radio": "¡Buenos días, camaradas! ...", "gabinete": {"id": "cifuentes", "dice": "..."}, "ejercito": {"dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
     'Si el decreto no crea una ley duradera (una orden puntual, una fiesta, un castigo a una persona), deja "leyes" vacío y pon el efecto puntual en "efecto_unico": {"dinero": ..., ...} (topes de "inicial").'
   ].join('\n');
 
@@ -136,7 +145,9 @@
       regimen: RF.REGIMENES[p.regimen].nombre,
       instituciones: { congreso: p.congreso, tribunales: p.tribunales, prensa: p.prensa, elecciones: p.elecciones, constitucion: p.constitucion },
       apoyo_en_el_congreso: Math.round(p.apoyo) + '%',
-      pais: { dinero: s.dinero, inflacion: Math.round(s.inflacion), estabilidad: s.estabilidad, felicidad: s.felicidad, balance_por_turno: Math.round(e.balance || 0) },
+      pais: { dinero: s.dinero, inflacion: Math.round(s.inflacion), estabilidad: s.estabilidad, balance_por_turno: Math.round(e.balance || 0) },
+      sectores: { ejercito: Math.round(RF.consejero.asegurar(e).sectores.ejercito), elite: Math.round(e.sectores.elite), felicidad: s.felicidad },
+      economia: { sanciones: e.economia.sanciones + ' de 4', mercado_negro: Math.round(e.economia.mercadoNegro) + '%' },
       leyes_vigentes: RF.leyes.lista(e).map(l => ({ id: l.clave, nombre: l.nombre, desde_turno: l.desde, nivel: l.nivel, por_turno: soloNumeros(RF.leyes.efectoNominal(l)), secreta: l.secreta || undefined })),
       gabinete, gente_de_a_pie: gente, otras_personas: otros,
       secretos_sin_descubrir: p.secretos.length, escandalos: p.escandalos,
@@ -368,6 +379,12 @@
 
     RF.consejero.aplicarEfectos(e, inicial, res.deltas);
 
+    // La economía: sanciones y mercado negro (con topes).
+    const ecf = ficha.economia && typeof ficha.economia === 'object' ? ficha.economia : {};
+    const dSan = Math.max(-2, Math.min(2, Math.round(Number(ecf.sanciones) || 0)));
+    const dMer = Math.max(-40, Math.min(40, Math.round(Number(ecf.mercado_negro) || 0)));
+    if (dSan || dMer) RF.consejero.ajustarEconomia(e, { sanciones: dSan, mercadoNegro: dMer }, res.notas);
+
     // 6. Lo que llega más tarde y lo que hay que recordar.
     programar(e, ficha, res, recortes);
     for (const h of (Array.isArray(ficha.hechos) ? ficha.hechos : []).slice(0, 3)) recordar(e, h);
@@ -399,7 +416,7 @@
     out.push({ tipo: 'gaceta', titulo: cab + res.numero + ' · TURNO ' + res.dia, texto: gaceta });
     out.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.leyes.length === 1 ? res.leyes[0].nivel : undefined });
     for (const n of res.notas) out.push({ tipo: 'nota', texto: n });
-    out.push(...reacciones(e, ficha));
+    out.push(...reacciones(e, ficha, res));
     if (res.cambioRegimen) {
       const a = RF.REGIMENES[res.cambioRegimen.a];
       out.push({ tipo: 'regimen', titulo: 'CAMBIO DE RÉGIMEN · ' + RF.REGIMENES[res.cambioRegimen.de].corto + ' → ' + a.corto, texto: a.descripcion });
@@ -407,19 +424,22 @@
     return out;
   }
 
-  // Titulares, un ministro y la calle (el borrador que la crónica reescribe).
-  function reacciones(e, ficha) {
+  // Las secciones del turno (RADIO, PALACIO, EJÉRCITO, POBLACIÓN): el borrador que la crónica reescribe.
+  function reacciones(e, ficha, res) {
     const out = [];
-    const titulares = (Array.isArray(ficha.titulares) ? ficha.titulares : []).map(x => limpiar(x, 200)).filter(Boolean).slice(0, 3);
-    if (titulares.length) out.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares.join('\n') });
+    const cab = id => RF.narrador.cabecera(e, id, res);
+    const radio = limpiar(ficha.radio, 400) || (Array.isArray(ficha.titulares) ? ficha.titulares : []).map(x => limpiar(x, 200)).filter(Boolean).slice(0, 2).join(' ');
+    if (radio) out.push({ tipo: 'radio', titulo: RF.PAIS.radio, texto: radio });
     const gb = ficha.gabinete && typeof ficha.gabinete === 'object' ? ficha.gabinete : {};
     const gid = String(gb.id || '').toLowerCase();
-    if (RF.GABINETE[gid] && limpiar(gb.dice)) out.push({ tipo: 'cupula', titulo: e.gabinete[gid].nombre.toUpperCase() + ' · ' + RF.GABINETE[gid].cargo.toUpperCase(), texto: limpiar(gb.dice) });
+    if (RF.GABINETE[gid] && limpiar(gb.dice)) out.push({ tipo: 'cupula', titulo: cab('elite'), texto: limpiar(gb.dice) });
+    const ej = ficha.ejercito && typeof ficha.ejercito === 'object' ? ficha.ejercito : {};
+    if (limpiar(ej.dice)) out.push({ tipo: 'ejercito', titulo: cab('ejercito'), texto: limpiar(ej.dice) });
     const ca = ficha.calle && typeof ficha.calle === 'object' ? ficha.calle : {};
     const cid = String(ca.id || '').toLowerCase();
     if (RF.CIUDADANOS[cid] && limpiar(ca.dice) && (e.ciudadanos[cid].estado || 'libre') === 'libre') {
       e.ciudadanos[cid].ultimaVez = e.dia;
-      out.push({ tipo: 'calle', titulo: 'LA CALLE · ' + RF.CIUDADANOS[cid].nombre.toUpperCase(), texto: limpiar(ca.dice) });
+      out.push({ tipo: 'calle', titulo: cab('poblacion'), texto: limpiar(ca.dice) });
     }
     return out;
   }
@@ -440,7 +460,7 @@
   }
 
   // ---------- Un turno sin decretos: el país sigue su curso ----------
-  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Corea del Norte por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "titulares", "gabinete" y "calle". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
+  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Corea del Norte por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Si hay leyes o hechos absurdos vigentes, lo que pase debe seguir su lógica (el siguiente paso lógico del disparate). Debe ser UNA cosa concreta, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "radio", "gabinete", "ejercito", "calle" y "economia". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
 
   async function consultarMundo(e, alTexto) {
     const contenido = 'Situación de Corea del Norte (JSON):\n' + JSON.stringify(contexto(e, '(ninguno: el jugador espera)')) + '\n\n' + MUNDO + '\n\nDevuelve solo la ficha JSON.';

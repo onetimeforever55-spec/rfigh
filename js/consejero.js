@@ -19,17 +19,21 @@
   'use strict';
   const T = RF.texto;
 
+  // Las tres barras de arriba (los nombres vienen del país) y la población, que no tiene barra:
+  // es el ánimo de la gente y se ve en su sección del texto.
+  const B = RF.PAIS.barras, SEC = RF.PAIS.sectores;
   RF.STATS = [
-    // Corea del Norte: las divisas que entran pese a las sanciones, lo que sube el arroz en el mercado,
-    // la lealtad de la élite y el ejército, y el aguante del pueblo.
-    { id: 'dinero', nombre: 'Divisas', corto: 'DIVISAS', formato: 'dinero' },
-    { id: 'inflacion', nombre: 'Precio del arroz', corto: 'ARROZ', formato: 'pct' },
-    { id: 'estabilidad', nombre: 'Lealtad', corto: 'LEALTAD', formato: 'barra' },
-    { id: 'felicidad', nombre: 'Pueblo', corto: 'PUEBLO', formato: 'barra' }
+    { id: 'dinero', nombre: B.dinero.nombre, corto: B.dinero.corto, formato: 'dinero' },
+    { id: 'inflacion', nombre: B.inflacion.nombre, corto: B.inflacion.corto, formato: 'pct' },
+    { id: 'estabilidad', nombre: B.estabilidad.nombre, corto: B.estabilidad.corto, formato: 'barra' },
+    { id: 'felicidad', nombre: SEC.poblacion.nombre, corto: SEC.poblacion.nombre.toUpperCase(), formato: 'barra', oculta: true }
   ];
-
-  const INGRESOS_BASE = 20; // impuestos normales por turno (millones)
-  const GASTOS_BASE = 20;   // sueldos y servicios del Estado por turno (millones)
+  // Sectores con ánimo propio (0-100) que empujan la estabilidad cada turno. La población usa "felicidad".
+  RF.SECTORES = [
+    { id: 'ejercito', nombre: SEC.ejercito.nombre },
+    { id: 'elite', nombre: SEC.elite.nombre }
+  ];
+  const ES_SECTOR = new Set(['ejercito', 'elite']);
 
   function nuevoEstado() {
     const ciudadanos = {};
@@ -37,7 +41,10 @@
     const e = {
       version: 2,
       dia: 1,
-      stats: { dinero: 80, inflacion: 6, estabilidad: 66, felicidad: 45 },
+      pais: RF.PAIS.id,
+      stats: Object.assign({}, RF.PAIS.inicio.stats),
+      sectores: Object.assign({}, RF.PAIS.inicio.sectores),
+      economia: Object.assign({}, RF.PAIS.inicio.economia),
       acum: {},
       leyes: [],
       pendientes: [],
@@ -65,7 +72,8 @@
 
   /*
    * Traduce efectos escritos con las estadísticas antiguas (eventos, sucesos, personas) a las cuatro nuevas.
-   * tesoro → dinero · pueblo y salud → felicidad · orden, ejército, cúpula y mundo → estabilidad (el mundo también cuesta dinero)
+   * tesoro → dinero · pueblo y salud → felicidad (la población) · orden → estabilidad · ejército → ánimo del ejército
+   * cúpula → ánimo del Palacio · mundo → estabilidad y dinero
    */
   function convertir(ef) {
     const d = {};
@@ -76,30 +84,55 @@
         case 'pueblo': sumar(d, 'felicidad', v); break;
         case 'salud': sumar(d, 'felicidad', v * 0.5); break;
         case 'orden': sumar(d, 'estabilidad', v * 0.6); break;
-        case 'ejercito': sumar(d, 'estabilidad', v * 0.4); break;
-        case 'cupula': sumar(d, 'estabilidad', v * 0.35); break;
+        // El ejército y la cúpula son sectores con ánimo propio: su ánimo empuja la estabilidad cada turno.
+        case 'ejercito': sumar(d, 'ejercito', v); break;
+        case 'cupula': case 'elite': sumar(d, 'elite', v); break;
         case 'mundo': sumar(d, 'estabilidad', v * 0.25); sumar(d, 'dinero', v * 0.8); break;
         case 'dinero': case 'inflacion': case 'estabilidad': case 'felicidad': sumar(d, k, v); break;
+        case 'poblacion': sumar(d, 'felicidad', v); break;
       }
     }
     return d;
   }
 
-  const LIMITES = { dinero: [-999, 9999], inflacion: [0, 5000], estabilidad: [0, 100], felicidad: [0, 100] };
+  const LIMITES = { dinero: [-999, 9999], inflacion: [0, 5000], estabilidad: [0, 100], felicidad: [0, 100], ejercito: [0, 100], elite: [0, 100] };
+
+  // Sectores y economía de partidas guardadas antes de que existieran.
+  function asegurar(estado) {
+    if (!estado.sectores) estado.sectores = Object.assign({}, RF.PAIS.inicio.sectores);
+    if (!estado.economia) estado.economia = Object.assign({}, RF.PAIS.inicio.economia);
+    return estado;
+  }
+
+  // Sanciones (0-4) y mercado negro (0-100): los cambian los decretos, los eventos y la IA.
+  function ajustarEconomia(estado, cambios, notas) {
+    const ec = asegurar(estado).economia;
+    if (cambios.sanciones) {
+      const antes = ec.sanciones;
+      ec.sanciones = Math.max(0, Math.min(4, ec.sanciones + Math.round(cambios.sanciones)));
+      if (notas && ec.sanciones !== antes) notas.push(ec.sanciones > antes ? 'Suben las sanciones internacionales (nivel ' + ec.sanciones + ' de 4): costarán divisas cada turno.' : 'Se alivian las sanciones (nivel ' + ec.sanciones + ' de 4).');
+    }
+    if (cambios.mercadoNegro) {
+      ec.mercadoNegro = Math.max(0, Math.min(100, ec.mercadoNegro + cambios.mercadoNegro));
+      if (notas) notas.push('El mercado negro pasa a mover el ' + Math.round(ec.mercadoNegro) + '% de la economía.');
+    }
+  }
 
   // Aplica efectos (acepta los nombres antiguos). Los decimales se acumulan hasta sumar un punto entero.
   function aplicarEfectos(estado, efectos, registro) {
     const ef = convertir(efectos);
     if (!estado.acum) estado.acum = {};
+    asegurar(estado);
     for (const [k, v] of Object.entries(ef)) {
-      if (!(k in estado.stats)) continue;
+      const donde = ES_SECTOR.has(k) ? estado.sectores : k in estado.stats ? estado.stats : null;
+      if (!donde) continue;
       estado.acum[k] = (estado.acum[k] || 0) + v;
       const n = Math.trunc(estado.acum[k]);
       if (!n) continue;
       estado.acum[k] -= n;
-      const antes = estado.stats[k];
-      estado.stats[k] = Math.max(LIMITES[k][0], Math.min(LIMITES[k][1], antes + n));
-      if (registro) registro[k] = (registro[k] || 0) + (estado.stats[k] - antes);
+      const antes = donde[k];
+      donde[k] = Math.max(LIMITES[k][0], Math.min(LIMITES[k][1], antes + n));
+      if (registro) registro[k] = (registro[k] || 0) + (donde[k] - antes);
     }
   }
 
@@ -203,6 +236,7 @@
     } else if (def.unaVez) {
       Object.assign(inicial, def.inicial);
       res.notas.push(...def.notas);
+      if (def.economia) ajustarEconomia(estado, def.economia, res.notas);
     } else if (!op.forzar && RF.politica.bloquea(estado, def, accion, objId, interp)) {
       // En democracia, el Congreso puede tumbar una ley polémica si no tienes votos.
       res.bloqueada = true;
@@ -231,6 +265,7 @@
       // Lo que traen los temas duros más adelante (sanciones, fugas, inundaciones...).
       for (const pr of def.programar || []) estado.pendientes.push({ dia: estado.dia + pr.en, titulo: pr.titulo, texto: T.expandir(pr.texto), efectos: pr.efectos });
       if ((def.programar || []).length) res.programadas = def.programar.length;
+      if (def.economia) ajustarEconomia(estado, def.economia, res.notas);
       RF.politica.tras(estado, def, accion, objId);
       const lat = RF.politica.efectoLateral(estado, accion, objId);
       if (lat) res.cambioRegimen = lat;
@@ -320,6 +355,10 @@
   // Pasa un turno: leyes vigentes, economía, consecuencias, personajes, alertas y eventos.
   function avanzarDia(estado, res) {
     const s = estado.stats;
+    asegurar(estado);
+    const sec = estado.sectores, ec = estado.economia, P = RF.PAIS.economia;
+    // Si un decreto o un evento ha dejado a un sector a 0, cae el régimen (antes de que se recupere solo).
+    const hundido = sec.ejercito <= 0 ? 'ejercito' : sec.elite <= 0 ? 'cupula' : null;
     estado.dia++;
 
     // 1. Todas las leyes vigentes actúan.
@@ -328,31 +367,45 @@
 
     // 2. La economía de fondo y cómo se afectan las cuatro cosas entre sí.
     const m = RF.politica.mods(estado);
-    const ingresos = INGRESOS_BASE * m.recaudacion * Math.max(0.5, Math.min(1.3, 0.6 + s.estabilidad / 150)) * Math.max(0.4, 1 - s.inflacion / 250);
-    const gastos = GASTOS_BASE * (1 + s.inflacion / 100);
+    // Lo que va por el mercado negro no paga impuestos; las sanciones cuestan divisas cada turno.
+    const ingresos = P.ingresos * (1 - ec.mercadoNegro / 200) * m.recaudacion * Math.max(0.5, Math.min(1.3, 0.6 + s.estabilidad / 150)) * Math.max(0.4, 1 - s.inflacion / 250);
+    const gastos = P.gastos * (1 + s.inflacion / 100);
+    const sanciones = ec.sanciones * P.costeSancion;
     const deuda = s.dinero < 0;
     const presion = L.total.inflacion + (deuda ? Math.min(12, -s.dinero / 15) : 0) + Math.max(0, s.inflacion - 40) * 0.12;
     const nuevaInflacion = Math.max(0, s.inflacion * 0.8 + 0.8 + presion);
     const fondo = {
-      dinero: ingresos - gastos + m.dineroTurno,
-      felicidad: -Math.max(0, s.inflacion - 8) / 18 + (50 - s.felicidad) * 0.04 + m.felicidadTurno,
+      dinero: ingresos - gastos + m.dineroTurno - sanciones,
+      // El mercado negro ayuda a la gente a sobrevivir cuando el Estado no llega.
+      felicidad: -Math.max(0, s.inflacion - 8) / 18 + (50 - s.felicidad) * 0.04 + m.felicidadTurno + (ec.mercadoNegro - 40) / 100,
+      // La estabilidad depende de los tres sectores: la población, el ejército y el Palacio.
       estabilidad: (m.estabilidadBase - s.estabilidad) * 0.03
         + (s.felicidad < 40 ? -(40 - s.felicidad) / 8 : s.felicidad > 70 ? 0.5 : 0)
+        + (sec.ejercito - 50) * 0.04 + (sec.elite - 50) * 0.03
         + (s.inflacion > 30 ? -(s.inflacion - 30) / 20 : 0)
-        + (deuda ? -1 : 0) + (s.dinero < -100 ? -2 : 0)
+        + (deuda ? -1 : 0) + (s.dinero < -100 ? -2 : 0),
+      // Los sectores vuelven poco a poco a su punto de equilibrio. Sin sueldo, el ejército se enfada;
+      // sin lujos importados, la élite también. Los cuadros viven de los sobornos del mercado negro.
+      ejercito: (50 - sec.ejercito) * 0.04 + (deuda ? -1.5 : 0) + (s.inflacion > 30 ? -0.5 : 0) + (RF.politica.regimen(estado) === 'JUNTA' ? 0.5 : 0),
+      elite: (50 - sec.elite) * 0.04 + (deuda ? -0.5 : 0) - ec.sanciones * 0.2 + (ec.mercadoNegro > 50 ? 0.3 : 0)
     };
     res.fondo = fondo;
     res.causas = [];
-    if (deuda) res.causas.push('Hay deuda: el Banco Central imprime para pagarla (más inflación) y los funcionarios cobran tarde.');
+    if (deuda) res.causas.push('Hay deuda: el Banco Central imprime para pagarla (más inflación) y los soldados y funcionarios cobran tarde.');
+    if (sanciones) res.causas.push('Sanciones de nivel ' + ec.sanciones + ': cuestan ' + Math.round(sanciones * 10) / 10 + 'M de divisas cada turno y la élite se queda sin lujos.');
+    if (sec.ejercito < 30) res.causas.push('El ejército está descontento: resta estabilidad cada turno. Si llega a 0, habrá golpe.');
+    if (sec.elite < 30) res.causas.push('En Palacio se conspira: la élite resta estabilidad cada turno. Si llega a 0, te traicionan.');
     if (s.inflacion > 30) res.causas.push('La inflación del ' + Math.round(s.inflacion) + '% encarece todo y amarga a la gente.');
-    if (s.felicidad < 40) res.causas.push('La gente está harta: las protestas restan estabilidad cada turno.');
+    if (s.felicidad < 40) res.causas.push('La población no aguanta más: el descontento resta estabilidad cada turno.');
     if (s.inflacion > 40) res.causas.push('Los precios se retroalimentan: todos suben precios porque esperan que suban.');
 
     const cambio = {
       dinero: fondo.dinero + L.total.dinero,
       inflacion: nuevaInflacion - s.inflacion,
       felicidad: fondo.felicidad + L.total.felicidad,
-      estabilidad: fondo.estabilidad + L.total.estabilidad
+      estabilidad: fondo.estabilidad + L.total.estabilidad,
+      ejercito: fondo.ejercito + (L.total.ejercito || 0),
+      elite: fondo.elite + (L.total.elite || 0)
     };
     res.cambioTurno = {};
     aplicarEfectos(estado, cambio, res.cambioTurno);
@@ -360,7 +413,7 @@
     estado.balance = cambio.dinero;
     for (const c of Object.values(estado.ciudadanos)) c.animo = Math.max(-100, Math.min(100, c.animo + (res.cambioTurno.felicidad || 0) * 0.8));
 
-    if (estado.politica.regimen !== 'DEMOCRACIA') res.causas.push(m.nombre + ': recaudación ' + Math.round(m.recaudacion * 100) + '%, ' + (m.dineroTurno < 0 ? 'sanciones y gastos del régimen ' + m.dineroTurno + 'M' : 'sin ayudas del exterior') + ', felicidad ' + (m.felicidadTurno >= 0 ? '+' : '') + m.felicidadTurno + ' por turno.');
+    if (estado.politica.regimen !== 'DEMOCRACIA') res.causas.push(m.nombre + ': recaudación ' + Math.round(m.recaudacion * 100) + '%, ' + (m.dineroTurno < 0 ? 'sanciones y gastos del régimen ' + m.dineroTurno + 'M' : 'sin ayudas del exterior') + ', población ' + (m.felicidadTurno >= 0 ? '+' : '') + m.felicidadTurno + ' por turno.');
 
     // El sistema político: el Congreso, los secretos que salen a la luz, las legislativas.
     RF.politica.turno(estado, res);
@@ -390,7 +443,7 @@
 
     // 5. Alertas cuando algo cruza una línea roja.
     for (const u of RF.UMBRALES) {
-      const v = s[u.stat];
+      const v = u.stat in s ? s[u.stat] : estado.sectores[u.stat];
       const cruza = u.bajo != null ? v < u.bajo : v > u.alto;
       const vuelve = u.bajo != null ? v >= u.bajo + 10 : v <= u.alto * 0.7;
       if (cruza && !estado.umbrales[u.id]) {
@@ -421,6 +474,7 @@
     if (estado.diasEnQuiebra === 1) {
       res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: T.expandir('{cifuentes} entra sin llamar: "Debemos más de 150 millones y nadie nos presta. Si el turno que viene seguimos así, el país quiebra."'), deltas: {} });
     }
+    if (hundido && !estado.fin) estado.fin = hundido;
     const fin = comprobarFin(estado);
     if (fin) { estado.fin = fin; res.fin = fin; }
 
@@ -443,6 +497,9 @@
     const s = estado.stats;
     if (estado.fin) return estado.fin;
     if (s.estabilidad <= 0) return s.felicidad < 30 ? 'pueblo' : 'ejercito';
+    const sec = estado.sectores || {};
+    if (sec.ejercito <= 0) return 'ejercito';
+    if (sec.elite <= 0) return 'cupula';
     if (s.felicidad <= 0) return 'pueblo';
     if (s.inflacion >= 1000) return 'hiperinflacion';
     if (estado.diasEnQuiebra >= 2) return 'tesoro';
@@ -450,5 +507,5 @@
     return null;
   }
 
-  RF.consejero = { nuevoEstado, decretar, decretarPersona, pasarTurno, avanzarDia, aplicarEfectos, convertir, medida, objetoDe, comprobarFin, lealtad };
+  RF.consejero = { asegurar, ajustarEconomia, nuevoEstado, decretar, decretarPersona, pasarTurno, avanzarDia, aplicarEfectos, convertir, medida, objetoDe, comprobarFin, lealtad };
 })(globalThis.RF = globalThis.RF || {});

@@ -7,13 +7,17 @@ const DECRETOS = [
   'construir escuelas', 'vender cocaína', 'imprimir dinero', 'crear una red de espías', 'mano dura contra los ladrones',
   'legalizar la marihuana', 'recortar el ejército', 'subir el sueldo a los soldados', 'economía basada en el turismo',
   'derogar el último decreto', 'dejar de regalar comida', 'dejar de imprimir dinero', 'crear un ministerio de propaganda',
-  'vender carbón a China', 'regalar arroz'
+  'vender carbón a China', 'regalar arroz', 'bajar impuestos a los ricos', 'abrir los mercados', 'lanzar un misil'
 ];
 const TURNOS = 60;
 
 const clonar = e => JSON.parse(JSON.stringify(e));
-// Un país "sano": estabilidad y felicidad altas, algo de dinero y poca inflación.
-const puntuar = e => { const s = e.stats; return Math.min(s.estabilidad, s.felicidad) * 3 + (s.estabilidad + s.felicidad) / 2 + Math.max(-60, Math.min(120, s.dinero)) / 4 - s.inflacion / 2; };
+// Un país "sano": estabilidad y sectores (ejército, Palacio, población) altos, algo de dinero y poca inflación.
+const puntuar = e => {
+  const s = e.stats, sec = e.sectores;
+  const peor = Math.min(s.estabilidad, s.felicidad, sec.ejercito, sec.elite);
+  return peor * 3 + (s.estabilidad + s.felicidad + sec.ejercito + sec.elite) / 4 + Math.max(-60, Math.min(120, s.dinero)) / 4 - s.inflacion / 2;
+};
 
 function jugarDecreto(e, texto) {
   if (texto === 'esperar') { RF.consejero.pasarTurno(e); return true; }

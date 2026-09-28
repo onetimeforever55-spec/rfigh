@@ -50,7 +50,7 @@ RF.narradorIA.cargarSDK = async () => Anthropic.default || Anthropic;
   comprobar(datos.hechos.some(h => h.texto && /privatización del aire/i.test(h.texto)), 'incluyen el decreto de la Gaceta');
   comprobar(datos.hechos.some(h => h.cada_turno && h.cada_turno.dinero > 0), 'incluyen los efectos por turno de la ley');
   comprobar(datos.textos_del_juego.length >= 2, 'incluyen los textos narrativos como borrador');
-  comprobar(datos.gabinete.length === 6 && datos.pais.dinero_millones === e.stats.dinero, 'incluyen el gabinete y los indicadores');
+  comprobar(datos.gabinete.length === 6 && datos.pais.divisas_millones === e.stats.dinero && /\d/.test(datos.sectores.ejercito), 'incluyen el gabinete, los indicadores y el ánimo de los sectores');
 
   console.log('PETICIÓN CON CLAUDE OPUS 5');
   RF.narradorIA.guardar({ activa: true, clave: 'sk-ant-prueba', modelo: 'claude-opus-5' });

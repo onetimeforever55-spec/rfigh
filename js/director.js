@@ -77,7 +77,7 @@
     const ef = RF.consejero.convertir(op.efectos);
     if (op.economia && op.economia.inflacion) ef.inflacion = (ef.inflacion || 0) + op.economia.inflacion;
     if (op.economia && op.economia.paro) ef.felicidad = (ef.felicidad || 0) - op.economia.paro * 0.5;
-    for (const s of RF.STATS) {
+    for (const s of RF.STATS.concat(RF.SECTORES)) {
       const v = ef[s.id];
       if (!v) continue;
       const n = Math.round(v) || Math.sign(v);
