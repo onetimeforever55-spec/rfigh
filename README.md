@@ -82,7 +82,11 @@ Los datos (lo que más se puede ampliar) están separados del código:
 
 ## Crónica con IA (opcional)
 
-El juego funciona entero sin IA. Si quieres, toca el botón **IA** de la cabecera (o escribe `ia`) y pega una clave de API. El juego reconoce el proveedor por la forma de la clave:
+El juego funciona entero sin IA. Si quieres, toca el botón **IA** de la cabecera (o escribe `ia`).
+
+**Dentro de claude.ai** (abriendo el juego como artefacto) no hace falta clave: elige «Tu cuenta de Claude» y Claude escribe la crónica con tu plan de claude.ai. La primera vez te pide permiso. Hay tres niveles: normal, rápido y el mejor. Esta opción solo aparece dentro de claude.ai.
+
+**Fuera de claude.ai**, pega una clave de API. El juego reconoce el proveedor por la forma de la clave:
 
 | Clave | Proveedor | Coste |
 |---|---|---|
@@ -95,7 +99,7 @@ El juego funciona entero sin IA. Si quieres, toca el botón **IA** de la cabecer
 - **Claude** se usa con el SDK oficial, `effort: low`, caché del contexto del mundo y, en Opus 5, el *fallback* del servidor ante rechazos. **Los demás** se usan con su API compatible con OpenAI, en streaming.
 - **Si falla** (sin conexión, clave mala, límite gratis agotado, rechazo), el turno se cuenta con la narración local de siempre. Si el modelo gratis elegido desaparece, el siguiente turno se elige otro.
 - **La clave se guarda solo en el navegador** (`localStorage`). Las llamadas van directas del navegador al proveedor, así que no compartas tu partida con la clave puesta.
-- **Dónde funciona:** en GitHub Pages o abriendo `dist/valdoria.html`. En el visor de artefactos de Claude no funciona, porque bloquea las conexiones externas.
+- **Dónde funciona cada cosa:** la cuenta de Claude, solo dentro de claude.ai. Las claves de API, en GitHub Pages o abriendo `dist/valdoria.html`; dentro de claude.ai no, porque el visor bloquea las conexiones externas.
 
 ## Desarrollo
 

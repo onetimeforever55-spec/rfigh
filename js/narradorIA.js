@@ -7,7 +7,8 @@
  * crónica bonita. Si no hay clave, falla la conexión o la IA no responde, el juego sigue con
  * su narración de siempre.
  *
- * Proveedores: Claude (con el SDK oficial de Anthropic, cargado desde jsDelivr solo cuando se usa)
+ * Fuentes: tu propia cuenta de Claude cuando el juego se abre dentro de claude.ai (sin clave),
+ * Claude por API (con el SDK oficial de Anthropic, cargado desde jsDelivr solo cuando se usa)
  * y los que hablan el formato de OpenAI (OpenRouter, Gemini, Groq), por fetch. El proveedor se
  * reconoce por la forma de la clave. La clave del jugador se guarda únicamente en su navegador.
  */
@@ -26,6 +27,7 @@
 
   // Los proveedores que hablan el formato de OpenAI. "modelo" es el que se usa si el jugador no elige.
   const PROVEEDORES = {
+    cuenta: { nombre: 'Claude (tu cuenta de claude.ai)' }, // sin clave: solo dentro de claude.ai
     anthropic: { nombre: 'Claude (Anthropic)', clave: /^sk-ant-/, ejemplo: 'sk-ant-…' },
     openrouter: { nombre: 'OpenRouter', clave: /^sk-or-/, ejemplo: 'sk-or-…', base: 'https://openrouter.ai/api/v1', soloGratis: true },
     gemini: { nombre: 'Google Gemini', clave: /^AIza/, ejemplo: 'AIza…', base: 'https://generativelanguage.googleapis.com/v1beta/openai', modelo: 'gemini-2.5-flash' },
@@ -33,7 +35,7 @@
   };
 
   function detectar(clave) {
-    for (const [id, p] of Object.entries(PROVEEDORES)) if (p.clave.test((clave || '').trim())) return id;
+    for (const [id, p] of Object.entries(PROVEEDORES)) if (p.clave && p.clave.test((clave || '').trim())) return id;
     return null;
   }
 
@@ -48,10 +50,32 @@
     try { localStorage.setItem(CLAVE_CONFIG, JSON.stringify(config)); } catch (e) { /* sin almacenamiento */ }
   }
 
-  function activa() { return !!(config.activa && config.clave); }
+  // ---------- Tu cuenta de Claude (solo dentro de claude.ai) ----------
+  // Los niveles de modelo que ofrece claude.ai a las páginas.
+  const NIVELES = [
+    { id: 'default', nombre: 'Normal · buena prosa' },
+    { id: 'quick', nombre: 'Rápido · al instante' },
+    { id: 'complex', nombre: 'El mejor · más lento' }
+  ];
+  let cuentaFn = null, cuentaLista = false;
+  const cuentaPromesa = (async () => {
+    try {
+      if (!globalThis.claude || typeof globalThis.claude.use !== 'function') return null;
+      cuentaFn = await globalThis.claude.use('sample');
+    } catch (e) { cuentaFn = null; }
+    return cuentaFn;
+  })().finally(() => { cuentaLista = true; });
+  // true / false; o null mientras claude.ai no ha respondido.
+  function cuentaDisponible() { return cuentaFn ? true : cuentaLista ? false : null; }
+
+  function activa() {
+    if (proveedor() === 'cuenta') return !!config.activa && cuentaDisponible() !== false;
+    return !!(config.activa && config.clave);
+  }
   function proveedor() { return config.proveedor || detectar(config.clave) || 'anthropic'; }
   // El modelo en uso. En Claude es una ficha de MODELOS; en los demás, el nombre que dé el proveedor.
   function modelo() {
+    if (proveedor() === 'cuenta') { const n = NIVELES.find(x => x.id === config.nivel) || NIVELES[0]; return { id: n.id, nombre: n.nombre.split(' · ')[0] }; }
     if (proveedor() === 'anthropic') return MODELOS.find(m => m.id === config.modelo) || MODELOS[0];
     const id = config.modelo || PROVEEDORES[proveedor()].modelo || '';
     return { id, nombre: id || 'automático' };
@@ -315,11 +339,59 @@
     }
   }
 
+  // ---------- Con tu cuenta de Claude ----------
+  // Los errores que significan "aquí no se puede": se pausa la IA para no insistir.
+  const CUENTA_NO = new Set(['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed']);
+  function explicarCuenta(e) {
+    const c = e && e.code;
+    if (c === 'not_granted') return 'No diste permiso para que Claude narre desde esta página.';
+    if (CUENTA_NO.has(c)) return 'Claude no está disponible para esta página ahora mismo.';
+    if (c === 'unavailable') return 'Tu cuenta de Claude solo funciona abriendo el juego dentro de claude.ai.';
+    if (c === 'rate_limited') return 'Has llegado al límite de uso de tu plan de Claude (o hay demasiadas peticiones seguidas). Prueba más tarde.';
+    if (c === 'session_expired') return 'Tu sesión de claude.ai ha caducado: vuelve a iniciar sesión.';
+    if (c === 'refused') return 'Claude prefirió no narrar este turno.';
+    if (c === 'prompt_too_large') return 'Los datos del turno son demasiado largos para Claude.';
+    return 'Claude no pudo terminar la crónica (' + (c || 'error') + ').';
+  }
+
+  async function llamarCuenta(texto, opciones) {
+    const fn = cuentaFn || await cuentaPromesa;
+    if (!fn) { const e = new Error('unavailable'); e.code = 'unavailable'; throw e; }
+    return fn(texto, opciones);
+  }
+
+  async function narrarCuenta(estado, bloques, alTexto) {
+    try {
+      // Aquí no hay "system": las reglas del cronista van delante de los datos.
+      const r = await llamarCuenta(SISTEMA + '\n\n---\n\n' + contenidoTurno(estado, bloques) + ' Responde solo con la crónica.', {
+        modelTier: modelo().id,
+        onText: ({ text }) => { if (alTexto) alTexto(text); }
+      });
+      const n = NIVELES.find(x => x.id === r.modelTierApplied);
+      return { texto: r.text.trim(), uso: null, modelo: 'tu cuenta de Claude · ' + (n ? n.nombre.split(' · ')[0].toLowerCase() : r.modelTierApplied || modelo().id) + (r.truncated ? ' · cortada' : '') };
+    } catch (e) {
+      const err = e instanceof Error ? e : Object.assign(new Error(e && e.message || 'error'), e);
+      err.mensaje = explicarCuenta(err);
+      err.pausar = CUENTA_NO.has(err.code) || err.code === 'unavailable';
+      throw err;
+    }
+  }
+
+  async function probarCuenta() {
+    try {
+      const r = await llamarCuenta('Responde solo con la palabra: Listo', { modelTier: 'quick', cache: false });
+      return { ok: !!r.text, mensaje: 'Conexión correcta con tu cuenta de Claude. La crónica con IA está lista.' };
+    } catch (e) {
+      return { ok: false, mensaje: explicarCuenta(e) };
+    }
+  }
+
   // ---------- Lo que usa el juego ----------
   function narrar(estado, bloques, alTexto) {
-    return proveedor() === 'anthropic' ? narrarClaude(estado, bloques, alTexto) : narrarCompatible(estado, bloques, alTexto);
+    const p = proveedor();
+    return p === 'cuenta' ? narrarCuenta(estado, bloques, alTexto) : p === 'anthropic' ? narrarClaude(estado, bloques, alTexto) : narrarCompatible(estado, bloques, alTexto);
   }
-  function probar() { return proveedor() === 'anthropic' ? probarClaude() : probarCompatible(); }
+  function probar() { const p = proveedor(); return p === 'cuenta' ? probarCuenta() : p === 'anthropic' ? probarClaude() : probarCompatible(); }
 
   function textoUso(r) {
     const u = r.uso;
@@ -329,5 +401,5 @@
     return cab + ' · ' + k(u.entrada) + ' tokens de entrada' + (u.cache ? ' (' + k(u.cache) + ' en caché)' : '') + ' · ' + k(u.salida) + ' de salida';
   }
 
-  RF.narradorIA = { MODELOS, PROVEEDORES, NARRATIVOS, config: () => config, guardar, activa, proveedor, detectar, modelo, listarModelos, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, SISTEMA };
+  RF.narradorIA = { MODELOS, NIVELES, cuentaDisponible, cuentaPromesa, PROVEEDORES, NARRATIVOS, config: () => config, guardar, activa, proveedor, detectar, modelo, listarModelos, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, SISTEMA };
 })(globalThis.RF = globalThis.RF || {});

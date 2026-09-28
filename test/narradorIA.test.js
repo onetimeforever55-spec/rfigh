@@ -2,6 +2,10 @@
 // node test/narradorIA.test.js
 let Anthropic;
 try { Anthropic = require('@anthropic-ai/sdk'); } catch (e) { console.log('Narrador IA: se omite (instala las dependencias con "npm install")'); process.exit(0); }
+// claude.ai simulado: la página puede pedirle texto a Claude con la cuenta del jugador.
+let alSample = null, ultimoSample = null;
+async function sampleFalso(input, opciones) { ultimoSample = { input, opciones }; return alSample(input, opciones); }
+globalThis.claude = { use: async (nombre) => (nombre === 'sample' ? sampleFalso : null) };
 const RF = require('./cargar')();
 
 let fallos = 0;
@@ -140,6 +144,28 @@ RF.narradorIA.cargarSDK = async () => Anthropic.default || Anthropic;
   globalThis.fetch = async (url, init) => { peticiones.push({ url: String(url), init }); return new Response(JSON.stringify({ model: 'gemini-2.5-flash', choices: [{ message: { content: 'Listo' }, finish_reason: 'stop' }] }), { status: 200 }); };
   const pg = await NI.probar();
   comprobar(pg.ok && peticiones[0].url === 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' && JSON.parse(peticiones[0].init.body).model === 'gemini-2.5-flash', 'usa el modelo por defecto de Gemini: "' + pg.mensaje + '"');
+
+  console.log('CON TU CUENTA DE CLAUDE (DENTRO DE CLAUDE.AI)');
+  await NI.cuentaPromesa;
+  comprobar(NI.cuentaDisponible() === true, 'detecta que está dentro de claude.ai');
+  NI.guardar({ proveedor: 'cuenta', nivel: 'default', activa: true, clave: '' });
+  comprobar(NI.activa() && NI.detectar('') === null, 'se activa sin clave');
+  alSample = async (input, o) => { o.onText({ text: 'La ciudad ', delta: 'La ciudad ' }); o.onText({ text: 'La ciudad amanece cara.', delta: 'amanece cara.' }); return { text: 'La ciudad amanece cara.', truncated: false, modelTierApplied: 'default' }; };
+  const trozosC = [];
+  const rc = await NI.narrar(e, bloques, t => trozosC.push(t));
+  comprobar(typeof ultimoSample.input === 'string' && ultimoSample.input.startsWith('Eres el cronista') && ultimoSample.input.includes('"hechos"'), 'le envía las reglas del cronista y los datos del turno');
+  comprobar(ultimoSample.opciones.modelTier === 'default' && typeof ultimoSample.opciones.onText === 'function', 'pide el nivel elegido y el texto en directo');
+  comprobar(rc.texto === 'La ciudad amanece cara.' && trozosC.join('|') === 'La ciudad |La ciudad amanece cara.', 'el texto llega en directo');
+  comprobar(NI.textoUso(rc) === 'CRÓNICA IA · tu cuenta de Claude · normal', 'línea de uso: ' + NI.textoUso(rc));
+  alSample = async () => { throw { code: 'rate_limited', message: 'limit' }; };
+  err = await NI.narrar(e, bloques).catch(x => x);
+  comprobar(/límite de uso/.test(err.mensaje) && !err.pausar, 'límite del plan: avisa y lo reintenta el turno siguiente');
+  alSample = async () => { throw { code: 'not_granted', message: 'no' }; };
+  err = await NI.narrar(e, bloques).catch(x => x);
+  comprobar(/permiso/.test(err.mensaje) && err.pausar === true, 'sin permiso: se pausa la IA y sigue la narración normal');
+  alSample = async (i, o) => ({ text: 'Listo', truncated: false, modelTierApplied: 'quick' });
+  const pc = await NI.probar();
+  comprobar(pc.ok && ultimoSample.opciones.modelTier === 'quick' && ultimoSample.opciones.cache === false, 'el botón Probar hace una petición rápida');
 
   console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
   process.exit(fallos ? 1 : 0);

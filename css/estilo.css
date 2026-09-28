@@ -293,6 +293,9 @@ body {
   color: var(--fosforo-tenue); border: 1px dashed var(--fosforo-oscuro);
 }
 .boton-ia:hover, .boton-ia:focus-visible { color: var(--fosforo); border-color: var(--fosforo); }
+.boton-ia.aviso { color: var(--fosforo); border-color: var(--fosforo); animation: latido 1.6s ease-in-out infinite; }
+@keyframes latido { 50% { box-shadow: 0 0 12px var(--brillo); } }
+@media (prefers-reduced-motion: reduce) { .boton-ia.aviso { animation: none; } }
 .boton-ia.on { color: var(--fondo); background: var(--fosforo); border: 1px solid var(--fosforo); box-shadow: 0 0 10px var(--brillo); }
 
 /* El cuadro donde se pega la clave. */
@@ -319,6 +322,15 @@ body {
 .aviso-ia { margin: 0; font-size: 12px; color: var(--aviso); }
 .form-ia { display: flex; flex-direction: column; gap: 6px; }
 .form-ia label { font-size: 12px; color: var(--fosforo-tenue); letter-spacing: 0.04em; }
+.fuentes-ia { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fuentes-ia[hidden], .seccion-ia[hidden] { display: none; }
+.fuentes-ia legend { font-size: 12px; color: var(--fosforo-tenue); letter-spacing: 0.04em; padding: 0; margin-bottom: 4px; }
+.fuente-ia { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--fosforo-oscuro); cursor: pointer; color: var(--fosforo) !important; font-size: 14px !important; }
+.fuente-ia:has(input:checked) { border-color: var(--fosforo); background: rgba(98, 245, 154, 0.06); }
+.fuente-ia input { margin-top: 3px; accent-color: var(--fosforo); width: 18px; height: 18px; flex: none; }
+.fuente-ia strong { display: block; font-weight: 600; }
+.fuente-ia small { display: block; font-size: 12px; color: var(--fosforo-tenue); }
+.seccion-ia { display: flex; flex-direction: column; gap: 6px; }
 .fila-clave { display: flex; gap: 6px; }
 .fila-clave input { flex: 1; min-width: 0; }
 .form-ia input[type="password"], .form-ia input[type="text"], .form-ia select {
@@ -460,3 +472,5 @@ body {
   .stat-relleno { transition: none; }
   .stat.bajo .stat-valor, .cursor::after { animation: none; }
 }
+
+.b-cronica p.pensando { color: var(--fosforo-tenue); font-style: italic; }
