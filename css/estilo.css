@@ -246,6 +246,7 @@ body {
 .b-suceso.umbral { border-color: var(--mal); }
 .b-suceso.umbral .etiqueta { color: var(--mal); }
 .b-suceso.hito .etiqueta { color: var(--aviso); }
+.b-suceso.mundo { border-left: 3px solid var(--fosforo-tenue); }
 .b-suceso .mini { margin-top: 6px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .mini .sube { color: var(--bien); }
 .mini .baja { color: var(--mal); }

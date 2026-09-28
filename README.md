@@ -94,7 +94,11 @@ Sin IA, el juego entiende los decretos con su Intérprete local y aplica reglas 
 4. Cada turno **el motor sigue haciendo las cuentas**: impuestos, inflación, deuda y desgaste de las leyes.
 5. Lo que pasa (hechos, decisiones en los eventos, consecuencias y escándalos) entra en la **memoria del mundo** (las últimas 30 cosas), que viaja en los turnos siguientes.
 
-Con el Consejo activo, los eventos de catálogo solo saltan si la situación los pide (los urgentes), y no hay noticias al azar: los eventos los propone la IA a partir de lo que va pasando. Si la IA falla o responde algo ilegible, ese decreto lo resuelve el Intérprete local.
+Con el Consejo activo, los eventos de catálogo solo saltan si la situación los pide (los urgentes), y no hay noticias al azar: los eventos los propone la IA a partir de lo que va pasando. Si llevan 4 turnos sin evento, se le pide que proponga uno.
+
+**Al esperar** (sin decreto), el Consejo decide qué pasa en el país por sí solo, como consecuencia de las leyes vigentes y de la memoria: una huelga, una conspiración o algo que se sembró antes. Aparece como suceso «EN EL PAÍS». En esos turnos la IA no puede crear leyes, cambiar instituciones ni tocar personas: solo el ánimo de la gente, consecuencias, eventos y hechos.
+
+Mientras el Consejo delibera, el juego enseña lo que ha entendido en cuanto llega («Entendido: …»). Si la IA falla o responde algo ilegible, ese decreto lo resuelve el Intérprete local.
 
 ## Crónica con IA (opcional)
 

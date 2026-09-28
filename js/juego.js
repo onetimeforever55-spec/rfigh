@@ -499,17 +499,31 @@
   let ocupado = false;
   function consejoActivo() { return RF.narradorIA.activa() && !iaPausada && RF.narradorIA.config().consejo !== false; }
 
-  async function firmarIA(texto) {
+  // Mientras la IA piensa: un aviso que se retira al terminar.
+  function deliberando(texto) {
     ocupado = true;
     $('consola').classList.add('ocupada');
     const espera = el('section', 'bloque b-consejo');
-    espera.append(el('span', 'etiqueta', 'CONSEJO DE ESTADO'), el('p', 'cursor pensando', 'Tus ministros deliberan sobre el decreto y sus consecuencias…'));
+    const p = el('p', 'cursor pensando', texto);
+    espera.append(el('span', 'etiqueta', 'CONSEJO DE ESTADO'), p);
     $('registro').appendChild(espera);
     alFondo();
-    const listo = () => { espera.remove(); ocupado = false; $('consola').classList.remove('ocupada'); };
+    return {
+      // En cuanto llega la interpretación (el primer campo de la ficha), se enseña.
+      alTexto: (t) => {
+        const m = /"interpretacion"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(t);
+        if (m && m[1]) { p.textContent = 'Entendido: ' + m[1].replace(/\\"/g, '"') + '. Calculando las consecuencias…'; alFondo(); }
+      },
+      listo: () => { espera.remove(); ocupado = false; $('consola').classList.remove('ocupada'); }
+    };
+  }
+
+  async function firmarIA(texto) {
+    const aviso = deliberando('Tus ministros deliberan sobre el decreto y sus consecuencias…');
+    const listo = aviso.listo;
     let ficha;
     try {
-      ficha = await RF.consejoIA.consultar(estado, texto);
+      ficha = await RF.consejoIA.consultar(estado, texto, aviso.alTexto);
     } catch (err) {
       listo();
       const conexion = err.pausar || /conectar|cargar/.test(err.mensaje || '');
@@ -580,8 +594,42 @@
     guardar();
   }
 
+  // Un turno sin decretos con el Consejo activo: la IA decide qué pasa en el país por sí solo.
+  async function esperarIA() {
+    const aviso = deliberando('Valdoria sigue su curso. Tus ministros vigilan qué se mueve en el país…');
+    let ficha;
+    try {
+      ficha = await RF.consejoIA.consultarMundo(estado);
+    } catch (err) {
+      aviso.listo();
+      const conexion = err.pausar || /conectar|cargar/.test(err.mensaje || '');
+      if (conexion) { iaPausada = true; pintarBotonIA(); }
+      mostrar([{ tipo: 'nota', texto: (err.mensaje || 'El Consejo no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') }], false);
+      esperar(true);
+      return;
+    }
+    aviso.listo();
+    estado.iaActiva = true;
+    const antes = Object.assign({}, estado.stats);
+    const res = { tipo: 'espera', dia: estado.dia, deltas: {}, sucesos: [], notas: [] };
+    RF.consejoIA.aplicarMundo(estado, ficha, res);
+    RF.consejero.avanzarDia(estado, res);
+    const bloques = [{ tipo: 'nota', texto: 'No firmas nada este turno. Dejas que tus leyes trabajen.' }];
+    bloques.push(...RF.narrador.cierreDia(estado, res), ...RF.consejoIA.reacciones(estado, ficha));
+    // El amanecer va al final, después de las reacciones.
+    const i = bloques.findIndex(b => b.tipo === 'amanecer');
+    if (i >= 0) bloques.push(bloques.splice(i, 1)[0]);
+    const d = RF.director.pendiente(estado);
+    if (d) bloques.push(RF.narrador.dilema(estado, d));
+    publicarTurno(bloques);
+    pintarStats(cambios(antes));
+    actualizarConsola();
+    guardar();
+  }
+
   // Un turno sin decretos nuevos: las leyes vigentes siguen actuando.
-  function esperar() {
+  function esperar(sinIA) {
+    if (!sinIA && consejoActivo()) { esperarIA(); return; }
     estado.iaActiva = consejoActivo();
     const antes = Object.assign({}, estado.stats);
     const res = RF.consejero.pasarTurno(estado);

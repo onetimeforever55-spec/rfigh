@@ -158,6 +158,39 @@ console.log('FICHAS ROTAS');
   comprobar(!e.leyes.some(l => /[{}]/.test(l.nombre)), 'los textos de la IA no cuelan llaves de plantilla');
 }
 
+console.log('NOMBRES PROPIOS');
+{
+  const e = nuevo();
+  const res = C.aplicar(e, { titulo: 'La concesión del aire a Brisa S.A.', leyes: [{ nombre: 'La concesión del aire a Brisa S.A.', por_turno: { dinero: 5 } }] });
+  comprobar(res.medida === 'la concesión del aire a Brisa S.A.' && e.leyes[0].nombre === 'la concesión del aire a Brisa S.A.', 'solo pasa a minúscula la primera letra: "' + res.medida + '"');
+}
+
+console.log('UN TURNO SIN DECRETOS (EL PAÍS SIGUE SU CURSO)');
+{
+  const e = nuevo();
+  C.aplicar(e, AIRE);
+  const leyes = e.leyes.length;
+  const reg = e.politica.congreso;
+  const res = { tipo: 'espera', dia: e.dia, deltas: {}, sucesos: [], notas: [] };
+  const d0 = e.stats.felicidad;
+  C.aplicarMundo(e, {
+    titulo: 'La huelga de los respiradores', gaceta: 'Los vendedores de aire embotellado cortan la avenida principal.',
+    efecto_unico: { felicidad: -4, estabilidad: -2 },
+    leyes: [{ nombre: 'algo que no debe pasar', por_turno: { dinero: 20 } }], instituciones: { congreso: 'disuelto' }, regimen: 'MONARQUIA',
+    personas: [{ id: 'valiente', accion: 'matar' }, { id: 'ramiro', accion: 'animo', valor: 15 }],
+    hechos: ['Los vendedores de aire embotellado se organizaron en un sindicato.'],
+    consecuencias: [{ en_turnos: 1, titulo: 'Avenida cortada', texto: 'El tráfico colapsa.', efectos: { dinero: -3 } }]
+  }, res);
+  comprobar(res.sucesos.length === 1 && res.sucesos[0].tipo === 'mundo' && res.sucesos[0].titulo === 'La huelga de los respiradores', 'lo que pasa aparece como suceso "EN EL PAÍS"');
+  comprobar(e.stats.felicidad === d0 - 4, 'aplica sus efectos');
+  comprobar(e.leyes.length === leyes && e.politica.congreso === reg && e.politica.regimen === 'DEMOCRACIA' && e.personas.valiente === 'libre', 'no crea leyes ni cambia instituciones, régimen o personas: el gobierno no hizo nada');
+  comprobar(e.ciudadanos.ramiro.animo === 15 && e.pendientes.some(p => p.titulo === 'Avenida cortada') && C.memoria(e).some(m => /sindicato/.test(m.texto)), 'sí cambia ánimos, programa consecuencias y recuerda');
+  RF.consejero.avanzarDia(e, res);
+  const bl = RF.narrador.cierreDia(e, res);
+  comprobar(bl.some(b => b.tipo === 'suceso' && /EN EL PAÍS/.test(b.titulo)) && sinHuecos(bl), 'se cuenta en el cierre del turno');
+  comprobar(C.contexto(e, 'x').turnos_sin_evento >= 1, 'el contexto dice cuántos turnos llevan sin evento');
+}
+
 console.log('LEER LA RESPUESTA DE LA IA');
 comprobar(C.extraerJSON('{"a":1}').a === 1, 'JSON limpio');
 comprobar(C.extraerJSON('```json\n{"a":2}\n```').a === 2, 'JSON dentro de un bloque de código');
@@ -176,6 +209,10 @@ comprobar(C.extraerJSON('nada') === null, 'devuelve null si no hay JSON');
   RF.narradorIA.generar = async () => ({ texto: 'no sé' });
   const err = await C.consultar(e, 'x').catch(x => x);
   comprobar(/no pudo leer/.test(err.mensaje), 'si la respuesta no es una ficha, lo dice (y el juego usa el intérprete local)');
+
+  RF.narradorIA.generar = async (sistema, contenido) => { pedido = { sistema, contenido }; return { texto: JSON.stringify({ titulo: 'x', gaceta: 'y' }) }; };
+  const fm = await C.consultarMundo(e);
+  comprobar(fm.titulo === 'x' && /NO firma ningún decreto/.test(pedido.contenido), 'al esperar, pregunta qué pasa en el país sin decreto');
 
   console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
   process.exit(fallos ? 1 : 0);

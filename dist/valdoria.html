@@ -258,6 +258,7 @@ body {
 .b-suceso.umbral { border-color: var(--mal); }
 .b-suceso.umbral .etiqueta { color: var(--mal); }
 .b-suceso.hito .etiqueta { color: var(--aviso); }
+.b-suceso.mundo { border-left: 3px solid var(--fosforo-tenue); }
 .b-suceso .mini { margin-top: 6px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .mini .sube { color: var(--bien); }
 .mini .baja { color: var(--mal); }
@@ -4934,7 +4935,7 @@ body {
     bloques.push({ tipo: 'efectos', rotulo: 'Resultado del turno', deltas: res.cambioTurno || {} });
     for (const c of res.causas || []) bloques.push({ tipo: 'nota', texto: c });
     for (const s of res.sucesos) {
-      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA', escandalo: 'ESCÁNDALO', politica: 'POLÍTICA' }[s.tipo] || 'NOTICIA';
+      const etiqueta = { consecuencia: 'CONSECUENCIA', hito: 'HISTORIAS', umbral: 'ALERTA', azar: 'NOTICIA', escandalo: 'ESCÁNDALO', politica: 'POLÍTICA', mundo: 'EN EL PAÍS' }[s.tipo] || 'NOTICIA';
       bloques.push({ tipo: 'suceso', clase: s.tipo, titulo: etiqueta + ' · ' + s.titulo.toUpperCase(), texto: s.texto, deltas: s.deltas });
     }
     if (res.fin) return bloques.concat(final(estado));
@@ -5581,6 +5582,7 @@ body {
     'CONSECUENCIAS Y EVENTOS:',
     '- "consecuencias": efectos que llegan más tarde (0 a 2), con "en_turnos" (1-6), un "titulo", un "texto" de una o dos frases y "efectos" (topes de "inicial").',
     '- "evento": SOLO si el decreto provoca de inmediato una decisión difícil (más o menos uno de cada tres decretos). Con "titulo", "texto" y 2 o 3 "opciones", cada una con "texto" (la acción, corta), "resultado" (qué pasa, una o dos frases), "efectos" (topes de "inicial"), opcional "por_turno_dinero" (un ingreso o gasto fijo, entre -15 y 15) y opcional "hecho" (qué recordar si se elige).',
+    '- Si "turnos_sin_evento" es 4 o más, propón un evento aunque el decreto sea tranquilo: el país no se queda quieto.',
     '- "hechos": 1 a 3 frases cortas y concretas, en pasado, con lo que el mundo debe recordar de este decreto (quién, qué, dónde). Si aparece un personaje nuevo, dale nombre aquí.',
     '',
     'REACCIONES (para contar el turno):',
@@ -5642,6 +5644,7 @@ body {
       leyes_vigentes: RF.leyes.lista(e).map(l => ({ id: l.clave, nombre: l.nombre, desde_turno: l.desde, nivel: l.nivel, por_turno: soloNumeros(RF.leyes.efectoNominal(l)), secreta: l.secreta || undefined })),
       gabinete, gente_de_a_pie: gente, otras_personas: otros,
       secretos_sin_descubrir: p.secretos.length, escandalos: p.escandalos,
+      turnos_sin_evento: e.dilemas && e.dilemas.ultimo ? e.dia - e.dilemas.ultimo : e.dia,
       consecuencias_ya_programadas: (e.pendientes || []).map(x => x.titulo),
       memoria: memoria(e).map(m => 'Turno ' + m.dia + ': ' + m.texto),
       ultimos_decretos: (e.historial || []).slice(-6).map(h => 'Turno ' + h.dia + ': ' + (h.texto || h.medida)),
@@ -5680,11 +5683,13 @@ body {
     return out;
   }
 
+  // "La privatización del aire de Brisa S.A." → "la privatización del aire de Brisa S.A." (sin romper nombres propios).
+  const minuscula = t => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
   const clave = nombre => 'IA:' + T.normalizar(nombre).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 60);
 
   // ---------- Aplicar una ley de la ficha ----------
   function prepararLey(l, recortes) {
-    const nombre = limpiar(l.nombre, 120).toLowerCase() || 'una medida sin nombre';
+    const nombre = minuscula(limpiar(l.nombre, 120)) || 'una medida sin nombre';
     const curvas = {};
     for (const [k, v] of Object.entries(l.curvas && typeof l.curvas === 'object' ? l.curvas : {})) if (STATS.includes(k) && CURVAS.includes(v)) curvas[k] = v;
     const porTurno = efectos(l.por_turno, TOPES.porTurno, recortes);
@@ -5723,6 +5728,33 @@ body {
     return r.inicial;
   }
 
+  // Consecuencias que llegan más tarde (las cuenta el motor cuando toca).
+  function programar(e, ficha, res, recortes) {
+    for (const c of objetos(ficha.consecuencias, 2)) {
+      const en = Math.max(1, Math.min(6, Math.round(Number(c.en_turnos) || 2)));
+      const tit = limpiar(c.titulo, 80);
+      if (!tit) continue;
+      e.pendientes.push({ dia: e.dia + en, titulo: tit, texto: limpiar(c.texto, 400), efectos: efectos(c.efectos, TOPES.inicial, recortes) });
+      res.programadas = (res.programadas || 0) + 1;
+    }
+  }
+
+  // Un evento propio de la IA: no más de uno cada dos turnos y nunca encima de otro.
+  function crearEvento(e, ev, res, recortes) {
+    const D = e.dilemas;
+    if (ev && typeof ev === 'object' && objetos(ev.opciones, 3).length >= 2 && !D.pendiente && (!D.ultimo || e.dia - D.ultimo >= 2)) {
+      const id = 'ia_' + e.dia + '_' + Math.floor(Math.random() * 1e6);
+      const opciones = objetos(ev.opciones, 3).map(o => {
+        const din = Math.max(-15, Math.min(15, Number(o.por_turno_dinero) || 0));
+        return { texto: limpiar(o.texto, 90) || 'Seguir adelante', resultado: limpiar(o.resultado, 400), efectos: efectos(o.efectos, TOPES.inicial, recortes), ingresos: din ? Math.round(din / 3 * 10) / 10 : 0, hecho: limpiar(o.hecho, 240) };
+      });
+      D.custom = D.custom || {};
+      D.custom[id] = { id, titulo: limpiar(ev.titulo, 80) || 'Una decisión', texto: limpiar(ev.texto, 700), opciones, ia: true };
+      RF.director.forzar(e, id, {});
+      res.dilema = id;
+    }
+  }
+
   // Si el Congreso bloqueó una ley de la IA y luego sale adelante (por un evento).
   function aprobar(e, ficha) {
     const res = { deltas: {}, porTurno: null, notas: [], leyes: [] };
@@ -5740,7 +5772,7 @@ body {
     const p = RF.politica.iniciar(e);
     RF.poder.iniciar(e);
     const recortes = [];
-    const titulo = limpiar(ficha.titulo, 140).toLowerCase() || 'un decreto';
+    const titulo = minuscula(limpiar(ficha.titulo, 140)) || 'un decreto';
     const res = { tipo: 'ia', dia: e.dia, deltas: {}, porTurno: null, sucesos: [], notas: [], leyes: [], medida: titulo, nombreObjeto: titulo };
     const inicial = {};
     const sumar = (o, f) => { for (const [k, v] of Object.entries(o || {})) inicial[k] = (inicial[k] || 0) + v * (f || 1); };
@@ -5841,31 +5873,13 @@ body {
     RF.consejero.aplicarEfectos(e, inicial, res.deltas);
 
     // 6. Lo que llega más tarde y lo que hay que recordar.
-    for (const c of objetos(ficha.consecuencias, 2)) {
-      const en = Math.max(1, Math.min(6, Math.round(Number(c.en_turnos) || 2)));
-      const tit = limpiar(c.titulo, 80);
-      if (!tit) continue;
-      e.pendientes.push({ dia: e.dia + en, titulo: tit, texto: limpiar(c.texto, 400), efectos: efectos(c.efectos, TOPES.inicial, recortes) });
-      res.programadas = (res.programadas || 0) + 1;
-    }
+    programar(e, ficha, res, recortes);
     for (const h of (Array.isArray(ficha.hechos) ? ficha.hechos : []).slice(0, 3)) recordar(e, h);
     if (res.bloqueada) recordar(e, 'El Congreso bloqueó ' + titulo + '.');
     if (res.cambioRegimen) recordar(e, 'Valdoria pasó de ' + RF.REGIMENES[res.cambioRegimen.de].nombre + ' a ' + RF.REGIMENES[res.cambioRegimen.a].nombre + '.');
 
-    // 7. Un evento propio, si toca (no más de uno cada dos turnos y nunca encima de otro).
-    const ev = ficha.evento;
-    const D = e.dilemas;
-    if (ev && typeof ev === 'object' && objetos(ev.opciones, 3).length >= 2 && !D.pendiente && (!D.ultimo || e.dia - D.ultimo >= 2)) {
-      const id = 'ia_' + e.dia + '_' + Math.floor(Math.random() * 1e6);
-      const opciones = objetos(ev.opciones, 3).map(o => {
-        const din = Math.max(-15, Math.min(15, Number(o.por_turno_dinero) || 0));
-        return { texto: limpiar(o.texto, 90) || 'Seguir adelante', resultado: limpiar(o.resultado, 400), efectos: efectos(o.efectos, TOPES.inicial, recortes), ingresos: din ? Math.round(din / 3 * 10) / 10 : 0, hecho: limpiar(o.hecho, 240) };
-      });
-      D.custom = D.custom || {};
-      D.custom[id] = { id, titulo: limpiar(ev.titulo, 80) || 'Una decisión', texto: limpiar(ev.texto, 700), opciones, ia: true };
-      RF.director.forzar(e, id, {});
-      res.dilema = id;
-    }
+    // 7. Un evento propio, si toca.
+    crearEvento(e, ficha.evento, res, recortes);
 
     if (recortes.length) res.notas.push('El motor moderó las cifras del Consejo para que fueran realistas.');
     e.historial.push({ dia: e.dia, accion: 'IA', objeto: 'IA', nombreObjeto: titulo, medida: titulo, texto });
@@ -5887,6 +5901,17 @@ body {
     out.push({ tipo: 'gaceta', titulo: cab + res.numero + ' · TURNO ' + res.dia, texto: gaceta });
     out.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.leyes.length === 1 ? res.leyes[0].nivel : undefined });
     for (const n of res.notas) out.push({ tipo: 'nota', texto: n });
+    out.push(...reacciones(e, ficha));
+    if (res.cambioRegimen) {
+      const a = RF.REGIMENES[res.cambioRegimen.a];
+      out.push({ tipo: 'regimen', titulo: 'CAMBIO DE RÉGIMEN · ' + RF.REGIMENES[res.cambioRegimen.de].corto + ' → ' + a.corto, texto: a.descripcion });
+    }
+    return out;
+  }
+
+  // Titulares, un ministro y la calle (el borrador que la crónica reescribe).
+  function reacciones(e, ficha) {
+    const out = [];
     const titulares = (Array.isArray(ficha.titulares) ? ficha.titulares : []).map(x => limpiar(x, 200)).filter(Boolean).slice(0, 3);
     if (titulares.length) out.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares.join('\n') });
     const gb = ficha.gabinete && typeof ficha.gabinete === 'object' ? ficha.gabinete : {};
@@ -5894,13 +5919,9 @@ body {
     if (RF.GABINETE[gid] && limpiar(gb.dice)) out.push({ tipo: 'cupula', titulo: e.gabinete[gid].nombre.toUpperCase() + ' · ' + RF.GABINETE[gid].cargo.toUpperCase(), texto: limpiar(gb.dice) });
     const ca = ficha.calle && typeof ficha.calle === 'object' ? ficha.calle : {};
     const cid = String(ca.id || '').toLowerCase();
-    if (RF.CIUDADANOS[cid] && limpiar(ca.dice)) {
+    if (RF.CIUDADANOS[cid] && limpiar(ca.dice) && (e.ciudadanos[cid].estado || 'libre') === 'libre') {
       e.ciudadanos[cid].ultimaVez = e.dia;
       out.push({ tipo: 'calle', titulo: 'LA CALLE · ' + RF.CIUDADANOS[cid].nombre.toUpperCase(), texto: limpiar(ca.dice) });
-    }
-    if (res.cambioRegimen) {
-      const a = RF.REGIMENES[res.cambioRegimen.a];
-      out.push({ tipo: 'regimen', titulo: 'CAMBIO DE RÉGIMEN · ' + RF.REGIMENES[res.cambioRegimen.de].corto + ' → ' + a.corto, texto: a.descripcion });
     }
     return out;
   }
@@ -5920,7 +5941,41 @@ body {
     return ficha;
   }
 
-  RF.consejoIA = { limpiarTexto: limpiar, SISTEMA, TOPES, contexto, consultar, aplicar, aprobar, bloques, extraerJSON, recordar, memoria };
+  // ---------- Un turno sin decretos: el país sigue su curso ----------
+  const MUNDO = 'Este turno el jugador NO firma ningún decreto: espera. Decide qué pasa en Valdoria por su propia inercia, como consecuencia lógica de las leyes vigentes, la memoria y la situación: la oposición se mueve, un ministro conspira, un sector protesta o prospera, el extranjero reacciona, algo que se sembró antes da fruto. Debe ser UNA cosa concreta y creíble, no un resumen. En la ficha: "titulo" es el nombre de lo que pasa ("la huelga de los estibadores"), "gaceta" lo cuenta en dos o tres frases, "efecto_unico" sus efectos (topes de "inicial"), y puedes usar "personas" solo con "accion": "animo", "consecuencias", "evento", "hechos", "titulares", "gabinete" y "calle". NO uses "leyes", "derogar", "instituciones" ni "regimen": el gobierno no ha hecho nada.';
+
+  async function consultarMundo(e, alTexto) {
+    const contenido = 'Situación de Valdoria (JSON):\n' + JSON.stringify(contexto(e, '(ninguno: el jugador espera)')) + '\n\n' + MUNDO + '\n\nDevuelve solo la ficha JSON.';
+    const r = await RF.narradorIA.generar(SISTEMA, contenido, alTexto, 2500);
+    const ficha = extraerJSON(r.texto);
+    if (!ficha || typeof ficha !== 'object') {
+      const err = new Error('ficha ilegible');
+      err.mensaje = 'El Consejo respondió algo que el motor no pudo leer.';
+      throw err;
+    }
+    return ficha;
+  }
+
+  // Aplica lo que pasa solo. El gobierno no ha decidido nada: sin leyes, ni instituciones, ni tratos a personas.
+  function aplicarMundo(e, ficha, res) {
+    const recortes = [];
+    const titulo = limpiar(ficha.titulo, 100);
+    const deltas = {};
+    RF.consejero.aplicarEfectos(e, efectos(ficha.efecto_unico, TOPES.inicial, recortes), deltas);
+    for (const pe of objetos(ficha.personas, 3)) {
+      const c = e.ciudadanos[String(pe.id || '').toLowerCase()];
+      if (c && String(pe.accion).toLowerCase() === 'animo') c.animo = Math.max(-100, Math.min(100, c.animo + Math.max(-40, Math.min(40, Number(pe.valor) || 0))));
+    }
+    const texto = limpiar(ficha.gaceta, 600);
+    if (titulo && texto) res.sucesos.push({ tipo: 'mundo', titulo, texto, deltas });
+    programar(e, ficha, res, recortes);
+    crearEvento(e, ficha.evento, res, recortes);
+    for (const h of (Array.isArray(ficha.hechos) ? ficha.hechos : []).slice(0, 3)) recordar(e, h);
+    res.ficha = ficha;
+    return res;
+  }
+
+  RF.consejoIA = { consultarMundo, aplicarMundo, reacciones, limpiarTexto: limpiar, SISTEMA, TOPES, contexto, consultar, aplicar, aprobar, bloques, extraerJSON, recordar, memoria };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/juego.js
@@ -6425,17 +6480,31 @@ body {
   let ocupado = false;
   function consejoActivo() { return RF.narradorIA.activa() && !iaPausada && RF.narradorIA.config().consejo !== false; }
 
-  async function firmarIA(texto) {
+  // Mientras la IA piensa: un aviso que se retira al terminar.
+  function deliberando(texto) {
     ocupado = true;
     $('consola').classList.add('ocupada');
     const espera = el('section', 'bloque b-consejo');
-    espera.append(el('span', 'etiqueta', 'CONSEJO DE ESTADO'), el('p', 'cursor pensando', 'Tus ministros deliberan sobre el decreto y sus consecuencias…'));
+    const p = el('p', 'cursor pensando', texto);
+    espera.append(el('span', 'etiqueta', 'CONSEJO DE ESTADO'), p);
     $('registro').appendChild(espera);
     alFondo();
-    const listo = () => { espera.remove(); ocupado = false; $('consola').classList.remove('ocupada'); };
+    return {
+      // En cuanto llega la interpretación (el primer campo de la ficha), se enseña.
+      alTexto: (t) => {
+        const m = /"interpretacion"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(t);
+        if (m && m[1]) { p.textContent = 'Entendido: ' + m[1].replace(/\\"/g, '"') + '. Calculando las consecuencias…'; alFondo(); }
+      },
+      listo: () => { espera.remove(); ocupado = false; $('consola').classList.remove('ocupada'); }
+    };
+  }
+
+  async function firmarIA(texto) {
+    const aviso = deliberando('Tus ministros deliberan sobre el decreto y sus consecuencias…');
+    const listo = aviso.listo;
     let ficha;
     try {
-      ficha = await RF.consejoIA.consultar(estado, texto);
+      ficha = await RF.consejoIA.consultar(estado, texto, aviso.alTexto);
     } catch (err) {
       listo();
       const conexion = err.pausar || /conectar|cargar/.test(err.mensaje || '');
@@ -6506,8 +6575,42 @@ body {
     guardar();
   }
 
+  // Un turno sin decretos con el Consejo activo: la IA decide qué pasa en el país por sí solo.
+  async function esperarIA() {
+    const aviso = deliberando('Valdoria sigue su curso. Tus ministros vigilan qué se mueve en el país…');
+    let ficha;
+    try {
+      ficha = await RF.consejoIA.consultarMundo(estado);
+    } catch (err) {
+      aviso.listo();
+      const conexion = err.pausar || /conectar|cargar/.test(err.mensaje || '');
+      if (conexion) { iaPausada = true; pintarBotonIA(); }
+      mostrar([{ tipo: 'nota', texto: (err.mensaje || 'El Consejo no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') }], false);
+      esperar(true);
+      return;
+    }
+    aviso.listo();
+    estado.iaActiva = true;
+    const antes = Object.assign({}, estado.stats);
+    const res = { tipo: 'espera', dia: estado.dia, deltas: {}, sucesos: [], notas: [] };
+    RF.consejoIA.aplicarMundo(estado, ficha, res);
+    RF.consejero.avanzarDia(estado, res);
+    const bloques = [{ tipo: 'nota', texto: 'No firmas nada este turno. Dejas que tus leyes trabajen.' }];
+    bloques.push(...RF.narrador.cierreDia(estado, res), ...RF.consejoIA.reacciones(estado, ficha));
+    // El amanecer va al final, después de las reacciones.
+    const i = bloques.findIndex(b => b.tipo === 'amanecer');
+    if (i >= 0) bloques.push(bloques.splice(i, 1)[0]);
+    const d = RF.director.pendiente(estado);
+    if (d) bloques.push(RF.narrador.dilema(estado, d));
+    publicarTurno(bloques);
+    pintarStats(cambios(antes));
+    actualizarConsola();
+    guardar();
+  }
+
   // Un turno sin decretos nuevos: las leyes vigentes siguen actuando.
-  function esperar() {
+  function esperar(sinIA) {
+    if (!sinIA && consejoActivo()) { esperarIA(); return; }
     estado.iaActiva = consejoActivo();
     const antes = Object.assign({}, estado.stats);
     const res = RF.consejero.pasarTurno(estado);
