@@ -93,6 +93,7 @@
     '- No des cifras nuevas. Puedes mencionar una o dos cifras de los datos si ayudan, pero cuenta los efectos sobre todo con imágenes ("las arcas engordan", "en los mercados se habla bajito").',
     '- Si en los datos hay un cambio de régimen, un escándalo, una decisión en un evento o un final de partida, eso es el centro de la crónica.',
     '- Los textos que te llegan ("textos_del_juego") son un borrador: reescríbelos con mejor prosa, no los copies.',
+    '- "memoria_del_mundo" es lo que ya pasó en turnos anteriores: úsala para dar continuidad (volver a un personaje, a un lugar, a una consecuencia), sin repetirla entera.',
     '- Tono: humor negro y ternura a la vez, como una novela latinoamericana sobre un dictador. Sin sermones. La violencia se sugiere, no se describe con detalle gráfico.',
     '- Formato: entre 120 y 220 palabras, de 2 a 4 párrafos cortos. Sin títulos, sin listas, sin markdown, sin comillas alrededor de todo el texto.',
     '',
@@ -128,6 +129,7 @@
       gabinete: Object.entries(RF.GABINETE).map(([id, m]) => (estado.gabinete && estado.gabinete[id] ? estado.gabinete[id].nombre : m.nombre) + ' (' + m.cargo + ')'),
       gente: Object.entries(estado.ciudadanos || {}).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + ({ muerto: 'muerto/a', preso: 'en la cárcel', exiliado: 'en el exilio' }[c.estado] || (c.animo > 25 ? 'te apoya' : c.animo < -25 ? 'te detesta' : 'desconfía'))),
       leyes_vigentes: (estado.leyes || []).slice(-8).map(l => l.nombre),
+      memoria_del_mundo: (estado.memoria || []).slice(-10).map(m => 'Turno ' + m.dia + ': ' + m.texto),
       hechos,
       textos_del_juego: textos
     };
@@ -147,12 +149,12 @@
     return { Anthropic, client: new Anthropic(opciones) };
   }
 
-  function peticion(contenido, maxTokens) {
+  function peticion(contenido, maxTokens, sistema) {
     const m = modelo();
     const params = {
       model: m.id,
       max_tokens: maxTokens,
-      system: [{ type: 'text', text: SISTEMA, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: sistema || SISTEMA, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: contenido }]
     };
     if (m.effort) params.output_config = { effort: m.effort };
@@ -181,12 +183,12 @@
     return 'Datos del turno (JSON):\n' + JSON.stringify(datosTurno(estado, bloques)) + '\n\nEscribe la crónica de este turno.';
   }
 
-  async function narrarClaude(estado, bloques, alTexto) {
+  async function generarClaude(sistema, contenido, alTexto, maxTokens) {
     let Anthropic = null;
     try {
       const c = await cliente();
       Anthropic = c.Anthropic;
-      const params = peticion(contenidoTurno(estado, bloques), 4000);
+      const params = peticion(contenido, maxTokens || 4000, sistema);
       const stream = params.betas ? c.client.beta.messages.stream(params) : c.client.messages.stream(params);
       let texto = '';
       stream.on('text', (delta) => { texto += delta; if (alTexto) alTexto(texto); });
@@ -272,10 +274,10 @@
     return elegido;
   }
 
-  function cuerpo(contenido, maxTokens, stream) {
+  function cuerpo(contenido, maxTokens, stream, sistema) {
     return JSON.stringify({
       model: modelo().id,
-      messages: [{ role: 'system', content: SISTEMA }, { role: 'user', content: contenido }],
+      messages: [{ role: 'system', content: sistema || SISTEMA }, { role: 'user', content: contenido }],
       max_tokens: maxTokens,
       temperature: 0.9,
       stream
@@ -285,10 +287,10 @@
   // Algunos modelos gratis piensan en voz alta dentro de <think>…</think>: eso no es crónica.
   const limpiar = t => t.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').replace(/^\s+/, '');
 
-  async function narrarCompatible(estado, bloques, alTexto) {
+  async function generarCompatible(sistema, contenido, alTexto, maxTokens) {
     try {
       await asegurarModelo();
-      const r = await fetch(PROVEEDORES[proveedor()].base + '/chat/completions', { method: 'POST', headers: cabeceras(), body: cuerpo(contenidoTurno(estado, bloques), 1500, true) });
+      const r = await fetch(PROVEEDORES[proveedor()].base + '/chat/completions', { method: 'POST', headers: cabeceras(), body: cuerpo(contenido, maxTokens || 1500, true, sistema) });
       if (!r.ok) throw await leerError(r);
       const lector = r.body.getReader();
       const dec = new TextDecoder();
@@ -360,10 +362,10 @@
     return fn(texto, opciones);
   }
 
-  async function narrarCuenta(estado, bloques, alTexto) {
+  async function generarCuenta(sistema, contenido, alTexto) {
     try {
-      // Aquí no hay "system": las reglas del cronista van delante de los datos.
-      const r = await llamarCuenta(SISTEMA + '\n\n---\n\n' + contenidoTurno(estado, bloques) + ' Responde solo con la crónica.', {
+      // Aquí no hay "system": las reglas van delante de los datos.
+      const r = await llamarCuenta((sistema || SISTEMA) + '\n\n---\n\n' + contenido, {
         modelTier: modelo().id,
         onText: ({ text }) => { if (alTexto) alTexto(text); }
       });
@@ -387,9 +389,13 @@
   }
 
   // ---------- Lo que usa el juego ----------
-  function narrar(estado, bloques, alTexto) {
+  // Pide un texto a la IA configurada (con sus reglas y los datos). Lanza un error con .mensaje si falla.
+  function generar(sistema, contenido, alTexto, maxTokens) {
     const p = proveedor();
-    return p === 'cuenta' ? narrarCuenta(estado, bloques, alTexto) : p === 'anthropic' ? narrarClaude(estado, bloques, alTexto) : narrarCompatible(estado, bloques, alTexto);
+    return p === 'cuenta' ? generarCuenta(sistema, contenido, alTexto) : p === 'anthropic' ? generarClaude(sistema, contenido, alTexto, maxTokens) : generarCompatible(sistema, contenido, alTexto, maxTokens);
+  }
+  function narrar(estado, bloques, alTexto) {
+    return generar(SISTEMA, contenidoTurno(estado, bloques) + ' Responde solo con la crónica.', alTexto);
   }
   function probar() { const p = proveedor(); return p === 'cuenta' ? probarCuenta() : p === 'anthropic' ? probarClaude() : probarCompatible(); }
 
@@ -401,5 +407,5 @@
     return cab + ' · ' + k(u.entrada) + ' tokens de entrada' + (u.cache ? ' (' + k(u.cache) + ' en caché)' : '') + ' · ' + k(u.salida) + ' de salida';
   }
 
-  RF.narradorIA = { MODELOS, NIVELES, cuentaDisponible, cuentaPromesa, PROVEEDORES, NARRATIVOS, config: () => config, guardar, activa, proveedor, detectar, modelo, listarModelos, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, SISTEMA };
+  RF.narradorIA = { MODELOS, NIVELES, cuentaDisponible, cuentaPromesa, PROVEEDORES, NARRATIVOS, config: () => config, guardar, activa, proveedor, detectar, modelo, listarModelos, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, generar, SISTEMA };
 })(globalThis.RF = globalThis.RF || {});

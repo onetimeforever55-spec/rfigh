@@ -80,6 +80,22 @@ Los datos (lo que más se puede ampliar) están separados del código:
 
 **Para que el bot entienda más:** añade frases a `frases` (acciones) o a `formas` (objetos). Se reentrena solo al cargar la página.
 
+## Consejo de Estado con IA (opcional)
+
+Sin IA, el juego entiende los decretos con su Intérprete local y aplica reglas programadas: funciona, pero solo con lo que tiene previsto. Con la IA activa (y la casilla «La IA decide las consecuencias»), cada decreto pasa por un **Consejo de Estado**:
+
+1. El juego envía a la IA el decreto tal cual, el estado del país, el régimen y las instituciones, las leyes vigentes (con su id), quién está vivo, preso o exiliado, y la **memoria del mundo**.
+2. La IA devuelve una **ficha JSON**: qué significa el decreto, qué leyes crea (efecto inicial, efecto por turno, curvas, lo polémicas que son), qué leyes deroga, qué pasa con cada persona, cambios en las instituciones o el régimen, si es secreto, consecuencias que llegan más tarde, a veces un evento con decisiones propio y los hechos que hay que recordar.
+3. **El motor hace de árbitro** (`js/consejoIA.js`):
+   - pone topes a los números;
+   - no deja tocar a personas que no existen ni matar a quien ya está muerto;
+   - decide si el Congreso bloquea la ley, si un crimen abre un juicio político o si un secreto sale a la luz;
+   - aplica sucesores, mártires y autogolpes.
+4. Cada turno **el motor sigue haciendo las cuentas**: impuestos, inflación, deuda y desgaste de las leyes.
+5. Lo que pasa (hechos, decisiones en los eventos, consecuencias y escándalos) entra en la **memoria del mundo** (las últimas 30 cosas), que viaja en los turnos siguientes.
+
+Con el Consejo activo, los eventos de catálogo solo saltan si la situación los pide (los urgentes), y no hay noticias al azar: los eventos los propone la IA a partir de lo que va pasando. Si la IA falla o responde algo ilegible, ese decreto lo resuelve el Intérprete local.
+
 ## Crónica con IA (opcional)
 
 El juego funciona entero sin IA. Si quieres, toca el botón **IA** de la cabecera (o escribe `ia`).

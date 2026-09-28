@@ -391,7 +391,8 @@
     else if (RF.director.pendiente(estado)) res.dilema = RF.director.pendiente(estado).id;
     if (res.sucesos.length || dilema) estado.diasSinEvento = 0;
     else estado.diasSinEvento++;
-    if (!dilema && estado.diasSinEvento >= 4 && Math.random() < 0.4) {
+    // Las noticias sueltas al azar no pintan nada cuando la IA lleva la historia.
+    if (!dilema && !estado.iaActiva && estado.diasSinEvento >= 4 && Math.random() < 0.4) {
       const ev = T.azar(RF.AZAR);
       const reg = {};
       aplicarEfectos(estado, ev.efectos, reg);
@@ -406,6 +407,13 @@
     }
     const fin = comprobarFin(estado);
     if (fin) { estado.fin = fin; res.fin = fin; }
+
+    // Lo importante del turno pasa a la memoria del mundo (la usa el Consejo de Estado con IA).
+    if (RF.consejoIA) {
+      for (const x of res.sucesos) {
+        if (['consecuencia', 'escandalo', 'hito', 'politica'].includes(x.tipo)) RF.consejoIA.recordar(estado, x.titulo + ': ' + String(x.texto).split(/(?<=\.)\s/)[0]);
+      }
+    }
   }
 
   // Pasar el turno sin firmar nada: las leyes siguen trabajando.

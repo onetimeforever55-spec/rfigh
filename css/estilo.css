@@ -289,7 +289,7 @@ body {
 /* Botón de la IA en la cabecera: apagado en tenue, encendido brilla. */
 .boton-ia {
   font: inherit; font-family: var(--f-terminal); font-size: 18px; line-height: 1;
-  padding: 3px 8px; background: none; cursor: pointer;
+  padding: 3px 8px; background: none; cursor: pointer; white-space: nowrap;
   color: var(--fosforo-tenue); border: 1px dashed var(--fosforo-oscuro);
 }
 .boton-ia:hover, .boton-ia:focus-visible { color: var(--fosforo); border-color: var(--fosforo); }
@@ -342,6 +342,9 @@ body {
 .detectado-ia { margin: 0; min-height: 1.4em; font-size: 13px; color: var(--fosforo); }
 .detectado-ia.mal { color: var(--aviso); }
 .form-ia .fila-ia { font-size: 14px; color: var(--fosforo); display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.form-ia .sub-ia { font-size: 12px; color: var(--fosforo-tenue); margin-left: 24px; margin-top: 0; }
+.form-ia .sub-ia:has(input:disabled) { opacity: 0.5; }
+.consola.ocupada .boton { opacity: 0.5; }
 .form-ia .fila-ia input { width: 18px; height: 18px; accent-color: var(--fosforo); }
 .botones-ia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .guardar-ia { color: var(--fondo) !important; background: var(--fosforo) !important; border-color: var(--fosforo) !important; }
@@ -473,4 +476,6 @@ body {
   .stat.bajo .stat-valor, .cursor::after { animation: none; }
 }
 
-.b-cronica p.pensando { color: var(--fosforo-tenue); font-style: italic; }
+.b-consejo { border-left: 3px solid var(--fosforo-oscuro); padding: 8px 12px; }
+.b-consejo .etiqueta { color: var(--fosforo-tenue); }
+.b-consejo p.pensando, .b-cronica p.pensando { color: var(--fosforo-tenue); font-style: italic; }

@@ -19,7 +19,8 @@
     return e.dilemas;
   }
 
-  function porId(id) { return RF.DILEMAS.find(d => d.id === id); }
+  // Los eventos programados y los que inventa el Consejo de Estado con IA (guardados en la partida).
+  function porId(id, e) { return RF.DILEMAS.find(d => d.id === id) || (e && e.dilemas && e.dilemas.custom && e.dilemas.custom[id]) || null; }
 
   function disponible(e, d) {
     const D = datos(e);
@@ -44,13 +45,15 @@
     const cadena = D.cadena.find(c => c.dia <= e.dia);
     if (cadena) {
       D.cadena = D.cadena.filter(c => c !== cadena);
-      d = porId(cadena.id);
+      d = porId(cadena.id, e);
       if (d) D.datosCadena = cadena.datos || null;
       // Una continuación que ya no tiene sentido (la persona murió, salió de la cárcel...) no salta.
       try { if (d && d.si && !d.si(e)) d = null; } catch (err) { d = null; }
     } else if (e.dia >= PRIMER_DIA) {
       const desde = e.dia - D.ultimo;
-      const candidatos = RF.DILEMAS.filter(x => disponible(e, x));
+      // Con el Consejo de Estado (IA), los eventos de catálogo solo saltan si la situación los pide (urgentes):
+      // los demás los inventa la IA a partir de lo que va pasando.
+      const candidatos = RF.DILEMAS.filter(x => disponible(e, x) && (!e.iaActiva || x.urgente));
       const urgentes = candidatos.filter(x => x.urgente && x.si);
       if (urgentes.length && desde >= INTERVALO_URGENTE) d = elegir(urgentes);
       else if (candidatos.length && (desde >= INTERVALO || (desde === INTERVALO - 1 && Math.random() < 0.25))) d = elegir(candidatos);
@@ -65,7 +68,7 @@
 
   function pendiente(e) {
     const D = datos(e);
-    return D.pendiente ? porId(D.pendiente.id) : null;
+    return D.pendiente ? porId(D.pendiente.id, e) : null;
   }
 
   // Lo que el jugador ve debajo de cada opción: "Tesoro −8 · Pueblo +10 · ⚠ Traerá consecuencias".
@@ -178,7 +181,11 @@
     const pol = RF.politica.iniciar(e);
     if (op.apoyo) pol.apoyo = Math.max(0, Math.min(100, pol.apoyo + op.apoyo));
     let decreto = null;
-    if (op.aprobar && datosEvento.interp) {
+    if (op.aprobar && datosEvento.ficha && RF.consejoIA) {
+      // La ley del Consejo que había bloqueado el Congreso sale adelante.
+      decreto = RF.consejoIA.aprobar(e, datosEvento.ficha);
+      for (const [k, v] of Object.entries(decreto.deltas)) deltas[k] = (deltas[k] || 0) + v;
+    } else if (op.aprobar && datosEvento.interp) {
       // La ley que había bloqueado el Congreso sale adelante.
       decreto = RF.consejero.decretar(e, datosEvento.interp, { avanzar: false, forzar: true });
       for (const [k, v] of Object.entries(decreto.deltas)) deltas[k] = (deltas[k] || 0) + v;
@@ -206,6 +213,12 @@
     }
     if (op.fin) e.fin = op.fin;
     e.decisiones = (e.decisiones || 0) + 1;
+    // La memoria del mundo: qué decidiste y, si el evento lo trae, qué hay que recordar.
+    if (RF.consejoIA) {
+      RF.consejoIA.recordar(e, 'Ante "' + d.titulo + '", elegiste: ' + textoOpcion + '.');
+      if (op.hecho) RF.consejoIA.recordar(e, op.hecho);
+    }
+    if (d.ia && D.custom) delete D.custom[d.id];
     const fin = RF.consejero.comprobarFin(e);
     if (fin) e.fin = fin;
     return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado, decreto, cambio };

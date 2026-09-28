@@ -373,14 +373,18 @@
     const sel = el('select'); sel.id = 'ia-modelo';
     const fila = el('label', 'fila-ia');
     const chk = el('input'); chk.type = 'checkbox'; chk.id = 'ia-activa';
-    fila.append(chk, document.createTextNode(' Contar cada turno con la IA'));
+    fila.append(chk, document.createTextNode(' Usar la IA'));
+    const filaC = el('label', 'fila-ia sub-ia');
+    const chkC = el('input'); chkC.type = 'checkbox'; chkC.id = 'ia-consejo';
+    filaC.append(chkC, document.createTextNode(' La IA decide las consecuencias (Consejo de Estado). Si no, solo cuenta la crónica.'));
+    chk.addEventListener('change', () => { chkC.disabled = !chk.checked; });
     const botones = el('div', 'botones-ia');
     const bGuardar = el('button', 'chip guardar-ia', 'Guardar'); bGuardar.type = 'submit';
     const bProbar = el('button', 'chip', 'Probar'); bProbar.type = 'button';
     const bBorrar = el('button', 'chip cmd', 'Borrar clave'); bBorrar.type = 'button';
     botones.append(bGuardar, bProbar, bBorrar);
     secClave.append(lab1, filaClave, detectado, lab2, sel);
-    form.append(fuentes, secCuenta, secClave, fila, botones);
+    form.append(fuentes, secCuenta, secClave, fila, filaC, botones);
     const fuente = () => (!fuentes.hidden && rCuenta.checked ? 'cuenta' : 'clave');
     const verFuente = () => { const cu = fuente() === 'cuenta'; secCuenta.hidden = !cu; for (const x of [secClave, bBorrar, guia, aviso]) x.hidden = cu; };
     rCuenta.addEventListener('change', verFuente); rClave.addEventListener('change', verFuente);
@@ -430,8 +434,8 @@
     ver.addEventListener('click', () => { clave.type = clave.type === 'password' ? 'text' : 'password'; ver.textContent = clave.type === 'password' ? 'ver' : 'ocultar'; });
 
     const leer = () => (fuente() === 'cuenta'
-      ? { proveedor: 'cuenta', nivel: selN.value, activa: chk.checked }
-      : { clave: clave.value.trim(), proveedor: NI.detectar(clave.value) || '', modelo: sel.value, auto: !sel.value, activa: chk.checked });
+      ? { proveedor: 'cuenta', nivel: selN.value, activa: chk.checked, consejo: chkC.checked }
+      : { clave: clave.value.trim(), proveedor: NI.detectar(clave.value) || '', modelo: sel.value, auto: !sel.value, activa: chk.checked, consejo: chkC.checked });
     const describir = () => NI.PROVEEDORES[NI.proveedor()].nombre + (NI.modelo().id ? ' · ' + NI.modelo().nombre.toLowerCase() : '');
     form.addEventListener('submit', (ev) => {
       ev.preventDefault();
@@ -475,6 +479,7 @@
       selN.value = c.nivel || 'default';
       verFuente();
       chk.checked = !!c.activa || (!c.clave && c.proveedor !== 'cuenta'); // la primera vez, la IA se activa sola
+      chkC.checked = c.consejo !== false; chkC.disabled = !chk.checked;
       proveedorVisto = undefined; alCambiarClave();
       estadoIA.textContent = NI.activa() ? (iaPausada ? 'En pausa por un error de conexión. Pulsa Guardar para reintentar.' : 'Activa con ' + describir() + '.') : 'Apagada: el juego usa su narración normal.';
     };
@@ -490,7 +495,64 @@
     setTimeout(() => (c.value ? modalIA.querySelector('.guardar-ia') : c).focus(), 30);
   }
 
+  // ---------- El Consejo de Estado con IA: la IA decide qué significa el decreto; el motor arbitra ----------
+  let ocupado = false;
+  function consejoActivo() { return RF.narradorIA.activa() && !iaPausada && RF.narradorIA.config().consejo !== false; }
+
+  async function firmarIA(texto) {
+    ocupado = true;
+    $('consola').classList.add('ocupada');
+    const espera = el('section', 'bloque b-consejo');
+    espera.append(el('span', 'etiqueta', 'CONSEJO DE ESTADO'), el('p', 'cursor pensando', 'Tus ministros deliberan sobre el decreto y sus consecuencias…'));
+    $('registro').appendChild(espera);
+    alFondo();
+    const listo = () => { espera.remove(); ocupado = false; $('consola').classList.remove('ocupada'); };
+    let ficha;
+    try {
+      ficha = await RF.consejoIA.consultar(estado, texto);
+    } catch (err) {
+      listo();
+      const conexion = err.pausar || /conectar|cargar/.test(err.mensaje || '');
+      if (conexion) { iaPausada = true; pintarBotonIA(); }
+      mostrar([{ tipo: 'nota', texto: (err.mensaje || 'El Consejo no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') + ' Este decreto lo resuelve el intérprete local.' }], false);
+      firmarLocal(texto);
+      return;
+    }
+    listo();
+    if (ficha.entendido === false) {
+      mostrar([{ tipo: 'cupula', titulo: 'EL GABINETE', texto: RF.consejoIA.limpiarTexto(ficha.pregunta) || 'El gabinete se mira entre sí. Nadie ha entendido el decreto. ¿Puede explicarlo de otra forma, Excelencia?' }], true);
+      guardar();
+      return;
+    }
+    const antes = Object.assign({}, estado.stats);
+    estado.iaActiva = true;
+    const res = RF.consejoIA.aplicar(estado, ficha, texto);
+    const bloques = RF.consejoIA.bloques(estado, ficha, res);
+    RF.consejero.avanzarDia(estado, res);
+    bloques.push(...RF.narrador.cierreDia(estado, res));
+    const d = RF.director.pendiente(estado);
+    if (d) bloques.push(RF.narrador.dilema(estado, d));
+    publicarTurno(bloques);
+    pintarStats(cambios(antes));
+    actualizarConsola();
+    guardar();
+  }
+
+  // El camino de siempre: el Intérprete local entiende el decreto y el Consejero aplica sus reglas.
+  function firmarLocal(texto) {
+    const lista = RF.interprete.interpretarVarios(texto, estado);
+    if (lista.length > 1) { firmar(lista); return; }
+    const interp = lista[0];
+    if (interp.estado === 'ok') { firmar([interp]); return; }
+    if (interp.estado === 'confuso') { mostrar(RF.narrador.confuso(interp), true); guardar(); return; }
+    const q = RF.narrador.pregunta(interp);
+    mostrar(q.bloques, true);
+    if (q.opciones.length) mostrarOpciones(q.opciones);
+    guardar();
+  }
+
   function firmar(lista) {
+    estado.iaActiva = consejoActivo();
     const antes = Object.assign({}, estado.stats);
     const bloques = [];
     if (lista.length > 1) bloques.push({ tipo: 'nota', texto: 'Firmas ' + lista.length + ' decretos de una sentada. El secretario se masajea la muñeca.' });
@@ -520,6 +582,7 @@
 
   // Un turno sin decretos nuevos: las leyes vigentes siguen actuando.
   function esperar() {
+    estado.iaActiva = consejoActivo();
     const antes = Object.assign({}, estado.stats);
     const res = RF.consejero.pasarTurno(estado);
     const bloques = [{ tipo: 'nota', texto: 'No firmas nada este turno. Dejas que tus leyes trabajen.' }].concat(RF.narrador.cierreDia(estado, res));
@@ -569,6 +632,7 @@
   function procesar(entrada) {
     const texto = entrada.trim();
     if (!texto) return;
+    if (ocupado) { mostrar([{ tipo: 'nota', texto: 'El Consejo de Estado sigue deliberando. Espera a que termine.' }], false); return; }
     const orden = RF.texto.normalizar(texto);
     mostrar([{ tipo: 'eco', texto }], false);
 
@@ -607,15 +671,8 @@
 
     if (/^(esperar|espera|pasar|pasar turno|siguiente turno|siguiente|no hacer nada|nada)$/.test(orden)) { esperar(); return; }
 
-    const lista = RF.interprete.interpretarVarios(texto, estado);
-    if (lista.length > 1) { firmar(lista); return; }
-    const interp = lista[0];
-    if (interp.estado === 'ok') { firmar([interp]); return; }
-    if (interp.estado === 'confuso') { mostrar(RF.narrador.confuso(interp), true); guardar(); return; }
-    const q = RF.narrador.pregunta(interp);
-    mostrar(q.bloques, true);
-    if (q.opciones.length) mostrarOpciones(q.opciones);
-    guardar();
+    if (consejoActivo()) { firmarIA(texto); return; }
+    firmarLocal(texto);
   }
 
   // ---------- Controles ----------
@@ -676,7 +733,7 @@
       pintarBotonIA();
       if (!fn || RF.narradorIA.config().activa) return;
       $('boton-ia').classList.add('aviso');
-      mostrar([{ tipo: 'nota', texto: 'Estás jugando dentro de claude.ai: Claude puede escribir la crónica de cada turno con tu cuenta, sin clave. Toca el botón IA de arriba para activarlo.' }], false);
+      mostrar([{ tipo: 'nota', texto: 'Estás jugando dentro de claude.ai: Claude puede entender tus decretos, decidir sus consecuencias y contar cada turno con tu cuenta, sin clave. Toca el botón IA de arriba para activarlo.' }], false);
     });
   }
 

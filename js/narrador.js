@@ -29,7 +29,7 @@
         'Cada pocos turnos surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
         'El SISTEMA POLÍTICO también se cambia con decretos: "disuelvo el congreso", "comprar a los diputados", "controlar los jueces", "suspender las elecciones", "proclamarme rey", "restaurar la democracia". Cada régimen recauda, invierte y reprime distinto.\n' +
         'En democracia, el Congreso puede bloquear leyes polémicas. Lo que haces "en secreto" no pasa por el Congreso, pero puede descubrirse.\n' +
-        'Opcional: toca el botón IA de arriba (o escribe "ia") y pega una clave de API (OpenRouter y Gemini tienen planes gratis) para que una IA convierta cada turno en una crónica escrita.\n' +
+        'Opcional: toca el botón IA de arriba (o escribe "ia"). Con IA, un Consejo de Estado entiende cualquier decreto, decide sus consecuencias (el juego pone las reglas y los límites) y recuerda lo que va pasando; y una crónica cuenta cada turno. Dentro de claude.ai funciona con tu cuenta; fuera, con una clave de API (OpenRouter y Gemini tienen planes gratis).\n' +
         'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
         'Sobrevive ' + RF.PAIS.dias + ' turnos hasta las elecciones.'
     }];

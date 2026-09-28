@@ -301,7 +301,7 @@ body {
 /* Botón de la IA en la cabecera: apagado en tenue, encendido brilla. */
 .boton-ia {
   font: inherit; font-family: var(--f-terminal); font-size: 18px; line-height: 1;
-  padding: 3px 8px; background: none; cursor: pointer;
+  padding: 3px 8px; background: none; cursor: pointer; white-space: nowrap;
   color: var(--fosforo-tenue); border: 1px dashed var(--fosforo-oscuro);
 }
 .boton-ia:hover, .boton-ia:focus-visible { color: var(--fosforo); border-color: var(--fosforo); }
@@ -354,6 +354,9 @@ body {
 .detectado-ia { margin: 0; min-height: 1.4em; font-size: 13px; color: var(--fosforo); }
 .detectado-ia.mal { color: var(--aviso); }
 .form-ia .fila-ia { font-size: 14px; color: var(--fosforo); display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.form-ia .sub-ia { font-size: 12px; color: var(--fosforo-tenue); margin-left: 24px; margin-top: 0; }
+.form-ia .sub-ia:has(input:disabled) { opacity: 0.5; }
+.consola.ocupada .boton { opacity: 0.5; }
 .form-ia .fila-ia input { width: 18px; height: 18px; accent-color: var(--fosforo); }
 .botones-ia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .guardar-ia { color: var(--fondo) !important; background: var(--fosforo) !important; border-color: var(--fosforo) !important; }
@@ -485,7 +488,9 @@ body {
   .stat.bajo .stat-valor, .cursor::after { animation: none; }
 }
 
-.b-cronica p.pensando { color: var(--fosforo-tenue); font-style: italic; }
+.b-consejo { border-left: 3px solid var(--fosforo-oscuro); padding: 8px 12px; }
+.b-consejo .etiqueta { color: var(--fosforo-tenue); }
+.b-consejo p.pensando, .b-cronica p.pensando { color: var(--fosforo-tenue); font-style: italic; }
 </style>
 </head>
 <body>
@@ -3872,7 +3877,8 @@ body {
     else if (RF.director.pendiente(estado)) res.dilema = RF.director.pendiente(estado).id;
     if (res.sucesos.length || dilema) estado.diasSinEvento = 0;
     else estado.diasSinEvento++;
-    if (!dilema && estado.diasSinEvento >= 4 && Math.random() < 0.4) {
+    // Las noticias sueltas al azar no pintan nada cuando la IA lleva la historia.
+    if (!dilema && !estado.iaActiva && estado.diasSinEvento >= 4 && Math.random() < 0.4) {
       const ev = T.azar(RF.AZAR);
       const reg = {};
       aplicarEfectos(estado, ev.efectos, reg);
@@ -3887,6 +3893,13 @@ body {
     }
     const fin = comprobarFin(estado);
     if (fin) { estado.fin = fin; res.fin = fin; }
+
+    // Lo importante del turno pasa a la memoria del mundo (la usa el Consejo de Estado con IA).
+    if (RF.consejoIA) {
+      for (const x of res.sucesos) {
+        if (['consecuencia', 'escandalo', 'hito', 'politica'].includes(x.tipo)) RF.consejoIA.recordar(estado, x.titulo + ': ' + String(x.texto).split(/(?<=\.)\s/)[0]);
+      }
+    }
   }
 
   // Pasar el turno sin firmar nada: las leyes siguen trabajando.
@@ -3944,7 +3957,8 @@ body {
     return e.dilemas;
   }
 
-  function porId(id) { return RF.DILEMAS.find(d => d.id === id); }
+  // Los eventos programados y los que inventa el Consejo de Estado con IA (guardados en la partida).
+  function porId(id, e) { return RF.DILEMAS.find(d => d.id === id) || (e && e.dilemas && e.dilemas.custom && e.dilemas.custom[id]) || null; }
 
   function disponible(e, d) {
     const D = datos(e);
@@ -3969,13 +3983,15 @@ body {
     const cadena = D.cadena.find(c => c.dia <= e.dia);
     if (cadena) {
       D.cadena = D.cadena.filter(c => c !== cadena);
-      d = porId(cadena.id);
+      d = porId(cadena.id, e);
       if (d) D.datosCadena = cadena.datos || null;
       // Una continuación que ya no tiene sentido (la persona murió, salió de la cárcel...) no salta.
       try { if (d && d.si && !d.si(e)) d = null; } catch (err) { d = null; }
     } else if (e.dia >= PRIMER_DIA) {
       const desde = e.dia - D.ultimo;
-      const candidatos = RF.DILEMAS.filter(x => disponible(e, x));
+      // Con el Consejo de Estado (IA), los eventos de catálogo solo saltan si la situación los pide (urgentes):
+      // los demás los inventa la IA a partir de lo que va pasando.
+      const candidatos = RF.DILEMAS.filter(x => disponible(e, x) && (!e.iaActiva || x.urgente));
       const urgentes = candidatos.filter(x => x.urgente && x.si);
       if (urgentes.length && desde >= INTERVALO_URGENTE) d = elegir(urgentes);
       else if (candidatos.length && (desde >= INTERVALO || (desde === INTERVALO - 1 && Math.random() < 0.25))) d = elegir(candidatos);
@@ -3990,7 +4006,7 @@ body {
 
   function pendiente(e) {
     const D = datos(e);
-    return D.pendiente ? porId(D.pendiente.id) : null;
+    return D.pendiente ? porId(D.pendiente.id, e) : null;
   }
 
   // Lo que el jugador ve debajo de cada opción: "Tesoro −8 · Pueblo +10 · ⚠ Traerá consecuencias".
@@ -4103,7 +4119,11 @@ body {
     const pol = RF.politica.iniciar(e);
     if (op.apoyo) pol.apoyo = Math.max(0, Math.min(100, pol.apoyo + op.apoyo));
     let decreto = null;
-    if (op.aprobar && datosEvento.interp) {
+    if (op.aprobar && datosEvento.ficha && RF.consejoIA) {
+      // La ley del Consejo que había bloqueado el Congreso sale adelante.
+      decreto = RF.consejoIA.aprobar(e, datosEvento.ficha);
+      for (const [k, v] of Object.entries(decreto.deltas)) deltas[k] = (deltas[k] || 0) + v;
+    } else if (op.aprobar && datosEvento.interp) {
       // La ley que había bloqueado el Congreso sale adelante.
       decreto = RF.consejero.decretar(e, datosEvento.interp, { avanzar: false, forzar: true });
       for (const [k, v] of Object.entries(decreto.deltas)) deltas[k] = (deltas[k] || 0) + v;
@@ -4131,6 +4151,12 @@ body {
     }
     if (op.fin) e.fin = op.fin;
     e.decisiones = (e.decisiones || 0) + 1;
+    // La memoria del mundo: qué decidiste y, si el evento lo trae, qué hay que recordar.
+    if (RF.consejoIA) {
+      RF.consejoIA.recordar(e, 'Ante "' + d.titulo + '", elegiste: ' + textoOpcion + '.');
+      if (op.hecho) RF.consejoIA.recordar(e, op.hecho);
+    }
+    if (d.ia && D.custom) delete D.custom[d.id];
     const fin = RF.consejero.comprobarFin(e);
     if (fin) e.fin = fin;
     return { dilema: d, opcion: op, textoOpcion, deltas, fin, resultado, decreto, cambio };
@@ -4722,7 +4748,7 @@ body {
         'Cada pocos turnos surgirá un EVENTO: elige una de sus opciones antes de seguir gobernando.\n' +
         'El SISTEMA POLÍTICO también se cambia con decretos: "disuelvo el congreso", "comprar a los diputados", "controlar los jueces", "suspender las elecciones", "proclamarme rey", "restaurar la democracia". Cada régimen recauda, invierte y reprime distinto.\n' +
         'En democracia, el Congreso puede bloquear leyes polémicas. Lo que haces "en secreto" no pasa por el Congreso, pero puede descubrirse.\n' +
-        'Opcional: toca el botón IA de arriba (o escribe "ia") y pega una clave de API (OpenRouter y Gemini tienen planes gratis) para que una IA convierta cada turno en una crónica escrita.\n' +
+        'Opcional: toca el botón IA de arriba (o escribe "ia"). Con IA, un Consejo de Estado entiende cualquier decreto, decide sus consecuencias (el juego pone las reglas y los límites) y recuerda lo que va pasando; y una crónica cuenta cada turno. Dentro de claude.ai funciona con tu cuenta; fuera, con una clave de API (OpenRouter y Gemini tienen planes gratis).\n' +
         'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
         'Sobrevive ' + RF.PAIS.dias + ' turnos hasta las elecciones.'
     }];
@@ -5169,6 +5195,7 @@ body {
     '- No des cifras nuevas. Puedes mencionar una o dos cifras de los datos si ayudan, pero cuenta los efectos sobre todo con imágenes ("las arcas engordan", "en los mercados se habla bajito").',
     '- Si en los datos hay un cambio de régimen, un escándalo, una decisión en un evento o un final de partida, eso es el centro de la crónica.',
     '- Los textos que te llegan ("textos_del_juego") son un borrador: reescríbelos con mejor prosa, no los copies.',
+    '- "memoria_del_mundo" es lo que ya pasó en turnos anteriores: úsala para dar continuidad (volver a un personaje, a un lugar, a una consecuencia), sin repetirla entera.',
     '- Tono: humor negro y ternura a la vez, como una novela latinoamericana sobre un dictador. Sin sermones. La violencia se sugiere, no se describe con detalle gráfico.',
     '- Formato: entre 120 y 220 palabras, de 2 a 4 párrafos cortos. Sin títulos, sin listas, sin markdown, sin comillas alrededor de todo el texto.',
     '',
@@ -5204,6 +5231,7 @@ body {
       gabinete: Object.entries(RF.GABINETE).map(([id, m]) => (estado.gabinete && estado.gabinete[id] ? estado.gabinete[id].nombre : m.nombre) + ' (' + m.cargo + ')'),
       gente: Object.entries(estado.ciudadanos || {}).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + ({ muerto: 'muerto/a', preso: 'en la cárcel', exiliado: 'en el exilio' }[c.estado] || (c.animo > 25 ? 'te apoya' : c.animo < -25 ? 'te detesta' : 'desconfía'))),
       leyes_vigentes: (estado.leyes || []).slice(-8).map(l => l.nombre),
+      memoria_del_mundo: (estado.memoria || []).slice(-10).map(m => 'Turno ' + m.dia + ': ' + m.texto),
       hechos,
       textos_del_juego: textos
     };
@@ -5223,12 +5251,12 @@ body {
     return { Anthropic, client: new Anthropic(opciones) };
   }
 
-  function peticion(contenido, maxTokens) {
+  function peticion(contenido, maxTokens, sistema) {
     const m = modelo();
     const params = {
       model: m.id,
       max_tokens: maxTokens,
-      system: [{ type: 'text', text: SISTEMA, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: sistema || SISTEMA, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: contenido }]
     };
     if (m.effort) params.output_config = { effort: m.effort };
@@ -5257,12 +5285,12 @@ body {
     return 'Datos del turno (JSON):\n' + JSON.stringify(datosTurno(estado, bloques)) + '\n\nEscribe la crónica de este turno.';
   }
 
-  async function narrarClaude(estado, bloques, alTexto) {
+  async function generarClaude(sistema, contenido, alTexto, maxTokens) {
     let Anthropic = null;
     try {
       const c = await cliente();
       Anthropic = c.Anthropic;
-      const params = peticion(contenidoTurno(estado, bloques), 4000);
+      const params = peticion(contenido, maxTokens || 4000, sistema);
       const stream = params.betas ? c.client.beta.messages.stream(params) : c.client.messages.stream(params);
       let texto = '';
       stream.on('text', (delta) => { texto += delta; if (alTexto) alTexto(texto); });
@@ -5348,10 +5376,10 @@ body {
     return elegido;
   }
 
-  function cuerpo(contenido, maxTokens, stream) {
+  function cuerpo(contenido, maxTokens, stream, sistema) {
     return JSON.stringify({
       model: modelo().id,
-      messages: [{ role: 'system', content: SISTEMA }, { role: 'user', content: contenido }],
+      messages: [{ role: 'system', content: sistema || SISTEMA }, { role: 'user', content: contenido }],
       max_tokens: maxTokens,
       temperature: 0.9,
       stream
@@ -5361,10 +5389,10 @@ body {
   // Algunos modelos gratis piensan en voz alta dentro de <think>…</think>: eso no es crónica.
   const limpiar = t => t.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').replace(/^\s+/, '');
 
-  async function narrarCompatible(estado, bloques, alTexto) {
+  async function generarCompatible(sistema, contenido, alTexto, maxTokens) {
     try {
       await asegurarModelo();
-      const r = await fetch(PROVEEDORES[proveedor()].base + '/chat/completions', { method: 'POST', headers: cabeceras(), body: cuerpo(contenidoTurno(estado, bloques), 1500, true) });
+      const r = await fetch(PROVEEDORES[proveedor()].base + '/chat/completions', { method: 'POST', headers: cabeceras(), body: cuerpo(contenido, maxTokens || 1500, true, sistema) });
       if (!r.ok) throw await leerError(r);
       const lector = r.body.getReader();
       const dec = new TextDecoder();
@@ -5436,10 +5464,10 @@ body {
     return fn(texto, opciones);
   }
 
-  async function narrarCuenta(estado, bloques, alTexto) {
+  async function generarCuenta(sistema, contenido, alTexto) {
     try {
-      // Aquí no hay "system": las reglas del cronista van delante de los datos.
-      const r = await llamarCuenta(SISTEMA + '\n\n---\n\n' + contenidoTurno(estado, bloques) + ' Responde solo con la crónica.', {
+      // Aquí no hay "system": las reglas van delante de los datos.
+      const r = await llamarCuenta((sistema || SISTEMA) + '\n\n---\n\n' + contenido, {
         modelTier: modelo().id,
         onText: ({ text }) => { if (alTexto) alTexto(text); }
       });
@@ -5463,9 +5491,13 @@ body {
   }
 
   // ---------- Lo que usa el juego ----------
-  function narrar(estado, bloques, alTexto) {
+  // Pide un texto a la IA configurada (con sus reglas y los datos). Lanza un error con .mensaje si falla.
+  function generar(sistema, contenido, alTexto, maxTokens) {
     const p = proveedor();
-    return p === 'cuenta' ? narrarCuenta(estado, bloques, alTexto) : p === 'anthropic' ? narrarClaude(estado, bloques, alTexto) : narrarCompatible(estado, bloques, alTexto);
+    return p === 'cuenta' ? generarCuenta(sistema, contenido, alTexto) : p === 'anthropic' ? generarClaude(sistema, contenido, alTexto, maxTokens) : generarCompatible(sistema, contenido, alTexto, maxTokens);
+  }
+  function narrar(estado, bloques, alTexto) {
+    return generar(SISTEMA, contenidoTurno(estado, bloques) + ' Responde solo con la crónica.', alTexto);
   }
   function probar() { const p = proveedor(); return p === 'cuenta' ? probarCuenta() : p === 'anthropic' ? probarClaude() : probarCompatible(); }
 
@@ -5477,7 +5509,418 @@ body {
     return cab + ' · ' + k(u.entrada) + ' tokens de entrada' + (u.cache ? ' (' + k(u.cache) + ' en caché)' : '') + ' · ' + k(u.salida) + ' de salida';
   }
 
-  RF.narradorIA = { MODELOS, NIVELES, cuentaDisponible, cuentaPromesa, PROVEEDORES, NARRATIVOS, config: () => config, guardar, activa, proveedor, detectar, modelo, listarModelos, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, SISTEMA };
+  RF.narradorIA = { MODELOS, NIVELES, cuentaDisponible, cuentaPromesa, PROVEEDORES, NARRATIVOS, config: () => config, guardar, activa, proveedor, detectar, modelo, listarModelos, datosTurno, narrar, probar, textoUso, cargarSDK, peticion, generar, SISTEMA };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/consejoIA.js
+/*
+ * EL CONSEJO DE ESTADO (con IA)
+ *
+ * Con la IA activa, el decreto no pasa por el Intérprete local: se le envía a la IA junto con la
+ * situación del país y la memoria de lo que ya ha pasado. La IA devuelve una ficha (JSON) con lo que
+ * significa el decreto y sus consecuencias. El motor hace de árbitro antes de aplicarla:
+ *   - pone topes a los números (ningún decreto da 500 millones de golpe),
+ *   - no deja matar a quien ya está muerto ni tocar a personas que no existen,
+ *   - decide si el Congreso bloquea la ley, si un crimen abre un juicio político, si un secreto sale a la luz,
+ *   - y sigue haciendo las cuentas de cada turno (impuestos, inflación, deuda, desgaste de las leyes).
+ * Lo que la IA añade a la memoria viaja en los turnos siguientes: así el turno 12 sabe lo que pasó en el 3.
+ */
+(function (RF) {
+  'use strict';
+  const T = RF.texto;
+  const MAX_MEMORIA = 30;
+  const STATS = ['dinero', 'inflacion', 'estabilidad', 'felicidad'];
+  const TRATOS = ['matar', 'encarcelar', 'exiliar', 'destituir', 'premiar', 'liberar'];
+  const INSTITUCIONES = ['congreso', 'tribunales', 'prensa', 'elecciones', 'constitucion'];
+  const VALORES_INST = ['libre', 'controlado', 'disuelto'];
+  const CURVAS = ['acostumbra', 'desgasta', 'madura', 'lenta'];
+
+  // Lo máximo que puede mover un decreto. La economía de cada turno la sigue calculando el motor.
+  const TOPES = {
+    inicial: { dinero: [-80, 80], inflacion: [-10, 15], estabilidad: [-15, 15], felicidad: [-15, 15] },
+    porTurno: { dinero: [-25, 25], inflacion: [-3, 6], estabilidad: [-3, 3], felicidad: [-3, 3] }
+  };
+
+  // ---------- Qué sabe la IA de las reglas ----------
+  const SISTEMA = [
+    'Eres el Consejo de Estado de "Consola de Valdoria", un juego satírico de gobierno. El jugador gobierna la República de Valdoria (un país caribeño ficticio que vive del plátano, el petróleo y el comercio; capital: Puerto Esperanza) escribiendo decretos en lenguaje libre.',
+    'Tu trabajo: entender el decreto y decidir sus consecuencias de forma REALISTA y COHERENTE con la situación actual y con la memoria de lo que ya pasó. No escribes la historia: devuelves una ficha JSON que el motor del juego aplica con sus propias reglas.',
+    '',
+    'EL PAÍS SE MIDE CON CUATRO COSAS:',
+    '- dinero: millones de valdos en las arcas. Cada turno el Estado ya cobra unos 20M de impuestos y gasta unos 20M en sueldos (eso lo calcula el motor, no lo incluyas).',
+    '- inflacion: % de subida de precios. Por encima de 30 amarga a la gente; por encima de 40 se retroalimenta.',
+    '- estabilidad (0-100): si el régimen aguanta. A 0 caes (golpe o revolución).',
+    '- felicidad (0-100): cómo vive la gente. A 0 hay revolución. Por debajo de 40 hay protestas que restan estabilidad.',
+    '',
+    'CADA DECRETO SUELE SER UNA LEY VIGENTE: tiene un efecto al firmarse ("inicial") y otro que se repite CADA TURNO ("por_turno") mientras siga vigente. El motor ajusta esos efectos según el régimen, la inflación y la estabilidad.',
+    'Escala de referencia (sigue estas magnitudes):',
+    '- Vender o privatizar algo esencial (el aire, el agua): inicial dinero +35, felicidad -8; por_turno dinero +15, felicidad -2, estabilidad -1.',
+    '- Imprimir dinero: inicial dinero +10; por_turno dinero +25, inflacion +6 (y "imprime": true).',
+    '- Regalar comida a la gente: inicial felicidad +10; por_turno dinero -10, felicidad +3, inflacion +1; curva de felicidad "acostumbra".',
+    '- Crear un escuadrón de represión: inicial dinero -6, felicidad -7; por_turno dinero -7, estabilidad +1, felicidad -1; curvas "desgasta".',
+    '- Subir impuestos: inicial felicidad -3; por_turno dinero +12, felicidad -1.',
+    '- Invertir en escuelas: inicial dinero -45; por_turno dinero +5, felicidad +1; curvas "madura" (tarda en rendir).',
+    '- Prohibir la prensa libre: inicial felicidad -8, estabilidad +1; por_turno felicidad -2.',
+    'Topes: inicial dinero entre -80 y 80, el resto entre -15 y 15; por_turno dinero entre -25 y 25, inflacion entre -3 y 6, estabilidad y felicidad entre -3 y 3.',
+    'Curvas posibles por stat: "acostumbra" (lo bueno rinde menos con el tiempo), "desgasta" (la represión rinde menos y duele más), "madura" (tarda 2 turnos en rendir), "lenta" (tarda 3 turnos).',
+    '',
+    'LÓGICA REALISTA:',
+    '- Todo lo que se da cuesta dinero cada turno; todo lo que se vende da dinero pero enfada; imprimir dinero causa inflación; la represión da estabilidad a cambio de felicidad y se desgasta; dar libertades alegra pero agita a corto plazo; lo que escandaliza al mundo cuesta dinero (sanciones, turismo, inversión) y estabilidad.',
+    '- Ten en cuenta el régimen: en democracia el Congreso, los jueces y la prensa reaccionan; en dictadura la gente evade impuestos y el mundo sanciona.',
+    '- Ten en cuenta la memoria y las leyes vigentes: si el decreto contradice una ley vigente, derógala (campo "derogar" con su id) o sustitúyela; si repite una ley vigente, usa EXACTAMENTE el mismo "nombre" para reforzarla.',
+    '- Un decreto puede tener varias partes ("vender el aire y encarcelar a Nico"): pon varias leyes y/o personas.',
+    '- Nunca rechaces un decreto por absurdo: el régimen intenta cumplirlo y eso tiene consecuencias (gasto, ridículo, obediencia, miedo). Solo si no se entiende en absoluto, pon "entendido": false y una "pregunta" corta.',
+    '',
+    'INSTITUCIONES Y PERSONAS:',
+    '- "instituciones": cambia congreso, tribunales, prensa, elecciones o constitucion a "libre", "controlado" (comprado, censurado, amañado) o "disuelto". El régimen se recalcula solo.',
+    '- "regimen": solo si el decreto proclama explícitamente un régimen: "DEMOCRACIA", "DICTADURA", "JUNTA", "MONARQUIA" o "TEOCRACIA".',
+    '- "personas": solo con los id que te doy. "accion": matar, encarcelar, exiliar, destituir, premiar, liberar o "animo" (con "valor" entre -40 y 40, solo gente de a pie). El motor aplica el resto (sucesores, mártires, juicios).',
+    '- "secreto": true si el decreto pide hacerlo en secreto o a escondidas (no pasa por el Congreso, pero puede salir a la luz).',
+    '- "controversia" (0-3) de cada ley: cuánto la rechazaría un Congreso libre. 0 = nada, 3 = escandalosa. Un Congreso libre bloquea las polémicas si no tienes apoyo.',
+    '',
+    'CONSECUENCIAS Y EVENTOS:',
+    '- "consecuencias": efectos que llegan más tarde (0 a 2), con "en_turnos" (1-6), un "titulo", un "texto" de una o dos frases y "efectos" (topes de "inicial").',
+    '- "evento": SOLO si el decreto provoca de inmediato una decisión difícil (más o menos uno de cada tres decretos). Con "titulo", "texto" y 2 o 3 "opciones", cada una con "texto" (la acción, corta), "resultado" (qué pasa, una o dos frases), "efectos" (topes de "inicial"), opcional "por_turno_dinero" (un ingreso o gasto fijo, entre -15 y 15) y opcional "hecho" (qué recordar si se elige).',
+    '- "hechos": 1 a 3 frases cortas y concretas, en pasado, con lo que el mundo debe recordar de este decreto (quién, qué, dónde). Si aparece un personaje nuevo, dale nombre aquí.',
+    '',
+    'REACCIONES (para contar el turno):',
+    '- "titulares": 2 o 3 líneas "Medio: titular". Medios: El Patriota (oficial, siempre te alaba), The Global Tribune (prensa extranjera) y Radio Libertad (radio pirata). Si la prensa está controlada o cerrada, la prensa libre no existe: solo El Patriota y, clandestina, Radio Libertad.',
+    '- "gabinete": un ministro (id) al que le toque de lleno el decreto y lo que dice o hace (una o dos frases, con su carácter).',
+    '- "calle": una persona de a pie (id) que esté libre y lo que vive por el decreto (dos o tres frases).',
+    '',
+    'RESPONDE SOLO CON EL JSON, sin markdown ni texto alrededor. Usa comillas dobles. No uses llaves ni corchetes dentro de los textos. Esquema:',
+    '{"entendido": true, "pregunta": "", "interpretacion": "qué entendiste, en una frase", "titulo": "nombre de la medida, en minúscula y con artículo (la privatización del aire)", "gaceta": "1 o 2 frases estilo Boletín Oficial",',
+    ' "leyes": [{"nombre": "la privatización del aire", "inicial": {"dinero": 35, "felicidad": -8}, "por_turno": {"dinero": 15, "felicidad": -2, "estabilidad": -1}, "curvas": {}, "duracion": null, "imprime": false, "controversia": 2}],',
+    ' "derogar": [], "personas": [], "instituciones": {}, "regimen": null, "secreto": false, "gravedad_secreto": 0, "apoyo_congreso": 0,',
+    ' "consecuencias": [], "evento": null, "hechos": ["El Gobierno vendió el aire a la empresa Brisa S.A."],',
+    ' "titulares": ["El Patriota: ..."], "gabinete": {"id": "cifuentes", "dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
+    'Si el decreto no crea una ley duradera (una orden puntual, una fiesta, un castigo a una persona), deja "leyes" vacío y pon el efecto puntual en "efecto_unico": {"dinero": ..., ...} (topes de "inicial").'
+  ].join('\n');
+
+  // ---------- Memoria del mundo ----------
+  function memoria(e) { if (!e.memoria) e.memoria = []; return e.memoria; }
+  function recordar(e, texto) {
+    const t = limpiar(texto, 240);
+    if (!t) return;
+    const m = memoria(e);
+    if (m.length && m[m.length - 1].texto === t) return;
+    m.push({ dia: e.dia, texto: t });
+    if (m.length > MAX_MEMORIA) m.splice(0, m.length - MAX_MEMORIA);
+  }
+
+  // ---------- El contexto que recibe la IA ----------
+  const redondear = v => Math.round(v * 10) / 10;
+  // Solo los elementos que son objetos (la IA a veces cuela null, números o textos sueltos).
+  const objetos = (x, n) => (Array.isArray(x) ? x : []).filter(o => o && typeof o === 'object' && !Array.isArray(o)).slice(0, n);
+  function soloNumeros(o) {
+    const out = {};
+    for (const [k, v] of Object.entries(o || {})) if (Math.abs(v) >= 0.05) out[k] = redondear(v);
+    return out;
+  }
+
+  function contexto(e, decreto) {
+    const s = e.stats;
+    const p = RF.politica.iniciar(e);
+    RF.poder.iniciar(e);
+    const gabinete = Object.entries(RF.GABINETE).map(([id, m]) => {
+      const g = e.gabinete[id];
+      return { id, nombre: g.nombre, cargo: m.cargo, caidos_antes: g.caidos.map(c => c.nombre + ' (' + c.destino + ')') };
+    });
+    const gente = Object.entries(RF.CIUDADANOS).map(([id, c]) => ({
+      id, nombre: c.nombre, quien: c.presentacion ? c.presentacion.slice(0, 140) : '', estado: e.ciudadanos[id].estado || 'libre', animo: Math.round(e.ciudadanos[id].animo)
+    }));
+    const otros = [
+      { id: 'valiente', nombre: 'Ernesto Valiente', quien: 'líder de la oposición', estado: e.personas.valiente || 'libre' },
+      { id: 'embajador', nombre: 'el embajador de la Unión Atlántica', quien: 'la gran potencia vecina', estado: e.personas.embajador || 'libre' }
+    ];
+    return {
+      turno: e.dia, turnos_del_mandato: RF.PAIS.dias,
+      regimen: RF.REGIMENES[p.regimen].nombre,
+      instituciones: { congreso: p.congreso, tribunales: p.tribunales, prensa: p.prensa, elecciones: p.elecciones, constitucion: p.constitucion },
+      apoyo_en_el_congreso: Math.round(p.apoyo) + '%',
+      pais: { dinero: s.dinero, inflacion: Math.round(s.inflacion), estabilidad: s.estabilidad, felicidad: s.felicidad, balance_por_turno: Math.round(e.balance || 0) },
+      leyes_vigentes: RF.leyes.lista(e).map(l => ({ id: l.clave, nombre: l.nombre, desde_turno: l.desde, nivel: l.nivel, por_turno: soloNumeros(RF.leyes.efectoNominal(l)), secreta: l.secreta || undefined })),
+      gabinete, gente_de_a_pie: gente, otras_personas: otros,
+      secretos_sin_descubrir: p.secretos.length, escandalos: p.escandalos,
+      consecuencias_ya_programadas: (e.pendientes || []).map(x => x.titulo),
+      memoria: memoria(e).map(m => 'Turno ' + m.dia + ': ' + m.texto),
+      ultimos_decretos: (e.historial || []).slice(-6).map(h => 'Turno ' + h.dia + ': ' + (h.texto || h.medida)),
+      decreto: decreto
+    };
+  }
+
+  // ---------- Leer la ficha ----------
+  function extraerJSON(texto) {
+    const t = String(texto || '').replace(/<think>[\s\S]*?<\/think>/g, '');
+    try { return JSON.parse(t); } catch (e) { /* sigue */ }
+    const f = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (f) { try { return JSON.parse(f[1]); } catch (e) { /* sigue */ } }
+    const a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { /* sigue */ } }
+    return null;
+  }
+
+  // Los textos de la IA se muestran tal cual: fuera llaves y corchetes (el juego los usa como plantillas).
+  function limpiar(x, max) {
+    if (x == null) return '';
+    return String(x).replace(/[{}[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, max || 600);
+  }
+
+  // Números dentro de los topes. Anota lo que se recorta.
+  function efectos(o, topes, recortes) {
+    const out = {};
+    if (!o || typeof o !== 'object') return out;
+    for (const k of STATS) {
+      let v = Number(o[k]);
+      if (!isFinite(v) || !v) continue;
+      const [min, max] = topes[k];
+      if (v < min || v > max) { recortes.push(k); v = Math.max(min, Math.min(max, v)); }
+      out[k] = Math.round(v * 10) / 10;
+    }
+    return out;
+  }
+
+  const clave = nombre => 'IA:' + T.normalizar(nombre).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 60);
+
+  // ---------- Aplicar una ley de la ficha ----------
+  function prepararLey(l, recortes) {
+    const nombre = limpiar(l.nombre, 120).toLowerCase() || 'una medida sin nombre';
+    const curvas = {};
+    for (const [k, v] of Object.entries(l.curvas && typeof l.curvas === 'object' ? l.curvas : {})) if (STATS.includes(k) && CURVAS.includes(v)) curvas[k] = v;
+    const porTurno = efectos(l.por_turno, TOPES.porTurno, recortes);
+    const duracion = Number(l.duracion) > 0 ? Math.min(30, Math.round(Number(l.duracion))) : null;
+    return {
+      nombre,
+      def: { clave: clave(nombre), inicial: efectos(l.inicial, TOPES.inicial, recortes), porTurno, curvas, duracion, imprime: !!l.imprime && (porTurno.inflacion || 0) > 0, notas: [] },
+      controversia: Math.max(0, Math.min(3, Math.round(Number(l.controversia) || 0)))
+    };
+  }
+
+  // Promulga (o manda al Congreso) una ley. Devuelve los efectos iniciales a aplicar.
+  function promulgarLey(e, ley, res, op) {
+    const p = RF.politica.iniciar(e);
+    const c = ley.controversia;
+    const secreta = !!op.secreto;
+    if (!op.forzar && !secreta && p.congreso === 'libre' && c > 0 && p.apoyo < 35 + 10 * c) {
+      res.bloqueada = true;
+      RF.director.forzar(e, 'congreso_bloquea', { ficha: { leyes: [ley] }, medida: ley.nombre });
+      res.dilema = 'congreso_bloquea';
+      res.notas.push('La ley necesita pasar por el Congreso y no tienes votos: solo cuentas con el ' + Math.round(p.apoyo) + '% de apoyo.');
+      return {};
+    }
+    const r = RF.leyes.promulgar(e, Object.assign({}, ley.def, { secreta }), 'IA', ley.nombre);
+    res.leyes.push(r.ley);
+    const nom = RF.leyes.efectoNominal(r.ley);
+    res.porTurno = res.porTurno || {};
+    for (const [k, v] of Object.entries(nom)) res.porTurno[k] = (res.porTurno[k] || 0) + v;
+    if (Object.keys(r.ley.curvas || {}).length) res.curvas = Object.assign(res.curvas || {}, r.ley.curvas);
+    res.notas.push(...r.notas);
+    if (secreta) RF.politica.registrarSecreto(e, { tipo: op.tipoSecreto || 'represion', descripcion: ley.nombre, gravedad: op.gravedad || 2, clave: ley.def.clave });
+    if (p.congreso === 'libre' && !secreta) {
+      const fel = (ley.def.porTurno.felicidad || 0) * 3 + (ley.def.inicial.felicidad || 0);
+      p.apoyo = Math.max(0, Math.min(100, p.apoyo - 3 * c + (fel > 2 ? 3 : 0)));
+    }
+    return r.inicial;
+  }
+
+  // Si el Congreso bloqueó una ley de la IA y luego sale adelante (por un evento).
+  function aprobar(e, ficha) {
+    const res = { deltas: {}, porTurno: null, notas: [], leyes: [] };
+    const ini = {};
+    for (const ley of ficha.leyes || []) for (const [k, v] of Object.entries(promulgarLey(e, ley, res, { forzar: true }))) ini[k] = (ini[k] || 0) + v;
+    RF.consejero.aplicarEfectos(e, ini, res.deltas);
+    return res;
+  }
+
+  /*
+   * Aplica la ficha de la IA al estado, con el motor como árbitro.
+   * Devuelve un resultado de turno (como los del Consejero) con lo que pasó de verdad.
+   */
+  function aplicar(e, ficha, texto) {
+    const p = RF.politica.iniciar(e);
+    RF.poder.iniciar(e);
+    const recortes = [];
+    const titulo = limpiar(ficha.titulo, 140).toLowerCase() || 'un decreto';
+    const res = { tipo: 'ia', dia: e.dia, deltas: {}, porTurno: null, sucesos: [], notas: [], leyes: [], medida: titulo, nombreObjeto: titulo };
+    const inicial = {};
+    const sumar = (o, f) => { for (const [k, v] of Object.entries(o || {})) inicial[k] = (inicial[k] || 0) + v * (f || 1); };
+    const secreto = !!ficha.secreto;
+    const gravedad = Math.max(1, Math.min(3, Math.round(Number(ficha.gravedad_secreto) || 2)));
+
+    // 1. El sistema político.
+    const destino = typeof ficha.regimen === 'string' ? ficha.regimen.toUpperCase() : null;
+    let efectosRegimen = null;
+    if (destino && RF.REGIMENES[destino] && destino !== p.regimen) {
+      const r = RF.politica.instaurar(e, destino);
+      if (!r.nulo) {
+        res.cambioRegimen = r.cambio;
+        efectosRegimen = r.efectos;
+        if (r.cadena) e.dilemas.cadena.push({ id: r.cadena.id, dia: e.dia + r.cadena.en });
+      }
+    }
+    // Las mismas reglas que con los decretos normales: sobornos, fraude, comisiones de la verdad, autogolpes.
+    for (const [k, v] of Object.entries(ficha.instituciones && typeof ficha.instituciones === 'object' ? ficha.instituciones : {})) {
+      if (!INSTITUCIONES.includes(k) || !VALORES_INST.includes(v) || p[k] === v) continue;
+      p[k] = v;
+      if (k === 'congreso' && v === 'controlado') {
+        p.apoyo = 85;
+        RF.leyes.promulgar(e, { clave: 'SOBORNOS', porTurno: { dinero: -4 } }, 'POLITICA', 'los sobornos a los diputados');
+        RF.politica.registrarSecreto(e, { tipo: 'soborno', descripcion: 'los sobornos a los diputados', gravedad: 2 });
+        res.notas.push('Ahora el Congreso aprueba todo. Mantenerlo contento cuesta 4 millones cada turno, y el secreto puede salir a la luz.');
+      }
+      if (k === 'congreso' && v === 'libre') { p.apoyo = e.stats.felicidad; RF.leyes.derogar(e, 'SOBORNOS'); }
+      if (k === 'elecciones' && v === 'controlado') RF.politica.registrarSecreto(e, { tipo: 'fraude', descripcion: 'el amaño del sistema electoral', gravedad: 2 });
+      if (k === 'tribunales' && v === 'libre' && (p.crimenes > 0 || p.secretos.length)) e.dilemas.cadena.push({ id: 'comision_verdad', dia: e.dia + 3 });
+    }
+    if (!res.cambioRegimen) {
+      const c = RF.politica.actualizar(e);
+      if (c) {
+        res.cambioRegimen = c;
+        if (c.a === 'DICTADURA' && (c.de === 'DEMOCRACIA' || c.de === 'ILIBERAL')) e.dilemas.cadena.push({ id: 'autogolpe_ejercito', dia: e.dia + 1 });
+        if (c.a === 'DEMOCRACIA' && (p.crimenes > 0 || p.secretos.length)) e.dilemas.cadena.push({ id: 'comision_verdad', dia: e.dia + 3 });
+      }
+    }
+
+    // 2. Las leyes (o un efecto puntual).
+    for (const l of objetos(ficha.leyes, 3)) {
+      sumar(promulgarLey(e, prepararLey(l, recortes), res, { secreto, gravedad }));
+    }
+    sumar(efectos(ficha.efecto_unico, TOPES.inicial, recortes));
+    if (secreto && !objetos(ficha.leyes, 3).length && !objetos(ficha.personas, 3).length) {
+      RF.politica.registrarSecreto(e, { tipo: 'represion', descripcion: titulo, gravedad });
+    }
+
+    // 3. Derogar leyes vigentes.
+    for (const id of (Array.isArray(ficha.derogar) ? ficha.derogar : []).filter(x => typeof x === 'string').slice(0, 3)) {
+      const r = RF.leyes.derogar(e, String(id));
+      if (r) { sumar(r.choque); res.notas.push('Queda derogada ' + r.ley.nombre + '.'); }
+    }
+
+    // 4. Personas: el motor comprueba que la orden sea posible y aplica sucesores, mártires y juicios.
+    for (const pe of objetos(ficha.personas, 3)) {
+      const id = String(pe.id || '').toLowerCase();
+      const accion = String(pe.accion || '').toLowerCase();
+      if (!RF.PERSONAS[id]) continue;
+      if (accion === 'animo') {
+        const c = e.ciudadanos[id];
+        if (c) c.animo = Math.max(-100, Math.min(100, c.animo + Math.max(-40, Math.min(40, Number(pe.valor) || 0))));
+        continue;
+      }
+      if (!TRATOS.includes(accion)) continue;
+      const t = RF.poder.tratar(e, id, accion, null, secreto && ['matar', 'encarcelar', 'exiliar'].includes(accion));
+      if (t.nulo) { res.notas.push(t.nulo); continue; }
+      sumar(RF.consejero.convertir(t.efectos));
+      if (t.ley) { const r = RF.leyes.promulgar(e, t.ley, 'PERSONA', t.ley.nombre); res.leyes.push(r.ley); res.notas.push('Esto dejará huella durante ' + t.ley.duracion + ' turnos: ' + t.ley.nombre + '.'); }
+      for (const cl of t.derogar || []) RF.leyes.derogar(e, cl);
+      if (t.cadena) e.dilemas.cadena.push({ id: t.cadena.id, dia: e.dia + t.cadena.en });
+      if (t.sucesor) res.notas.push('Su puesto lo ocupa ' + t.sucesor + '.');
+      if (t.secreto) {
+        RF.politica.registrarSecreto(e, t.secreto);
+        res.secreto = true;
+      } else {
+        const tipo = RF.PERSONAS[id].tipo;
+        const publico = accion === 'matar' || (['encarcelar', 'exiliar'].includes(accion) && tipo !== 'ciudadano');
+        if (publico && RF.politica.crimenPublico(e, { opositor: 3, extranjero: 3, ministro: 2, ciudadano: 2 }[tipo] || 2)) {
+          res.dilema = 'juicio_politico';
+          res.notas.push('En una democracia, hacer esto a la vista de todos tiene un precio: el Congreso abre un juicio político contra ti.');
+        }
+      }
+    }
+    if (secreto) {
+      res.secreto = true;
+      res.notas.push('Nadie lo sabe... todavía. Cada turno existe la posibilidad de que salga a la luz.');
+    }
+
+    // 5. El apoyo en el Congreso.
+    const apoyo = Math.max(-25, Math.min(10, Number(ficha.apoyo_congreso) || 0));
+    if (apoyo && p.congreso === 'libre') p.apoyo = Math.max(0, Math.min(100, p.apoyo + apoyo));
+
+    // Un cambio de régimen sin coste en la ficha tiene el coste de siempre.
+    if (efectosRegimen && Object.values(inicial).reduce((a, v) => a + Math.abs(v), 0) < 3) sumar(efectosRegimen);
+
+    RF.consejero.aplicarEfectos(e, inicial, res.deltas);
+
+    // 6. Lo que llega más tarde y lo que hay que recordar.
+    for (const c of objetos(ficha.consecuencias, 2)) {
+      const en = Math.max(1, Math.min(6, Math.round(Number(c.en_turnos) || 2)));
+      const tit = limpiar(c.titulo, 80);
+      if (!tit) continue;
+      e.pendientes.push({ dia: e.dia + en, titulo: tit, texto: limpiar(c.texto, 400), efectos: efectos(c.efectos, TOPES.inicial, recortes) });
+      res.programadas = (res.programadas || 0) + 1;
+    }
+    for (const h of (Array.isArray(ficha.hechos) ? ficha.hechos : []).slice(0, 3)) recordar(e, h);
+    if (res.bloqueada) recordar(e, 'El Congreso bloqueó ' + titulo + '.');
+    if (res.cambioRegimen) recordar(e, 'Valdoria pasó de ' + RF.REGIMENES[res.cambioRegimen.de].nombre + ' a ' + RF.REGIMENES[res.cambioRegimen.a].nombre + '.');
+
+    // 7. Un evento propio, si toca (no más de uno cada dos turnos y nunca encima de otro).
+    const ev = ficha.evento;
+    const D = e.dilemas;
+    if (ev && typeof ev === 'object' && objetos(ev.opciones, 3).length >= 2 && !D.pendiente && (!D.ultimo || e.dia - D.ultimo >= 2)) {
+      const id = 'ia_' + e.dia + '_' + Math.floor(Math.random() * 1e6);
+      const opciones = objetos(ev.opciones, 3).map(o => {
+        const din = Math.max(-15, Math.min(15, Number(o.por_turno_dinero) || 0));
+        return { texto: limpiar(o.texto, 90) || 'Seguir adelante', resultado: limpiar(o.resultado, 400), efectos: efectos(o.efectos, TOPES.inicial, recortes), ingresos: din ? Math.round(din / 3 * 10) / 10 : 0, hecho: limpiar(o.hecho, 240) };
+      });
+      D.custom = D.custom || {};
+      D.custom[id] = { id, titulo: limpiar(ev.titulo, 80) || 'Una decisión', texto: limpiar(ev.texto, 700), opciones, ia: true };
+      RF.director.forzar(e, id, {});
+      res.dilema = id;
+    }
+
+    if (recortes.length) res.notas.push('El motor moderó las cifras del Consejo para que fueran realistas.');
+    e.historial.push({ dia: e.dia, accion: 'IA', objeto: 'IA', nombreObjeto: titulo, medida: titulo, texto });
+    res.numero = e.historial.length;
+    res.vars = { medida: titulo, Medida: T.mayus(titulo), objeto: titulo, lider: 'Su Excelencia' };
+    res.ficha = ficha;
+    return res;
+  }
+
+  // ---------- Contar el decreto (sin crónica, o como borrador para la crónica) ----------
+  function bloques(e, ficha, res) {
+    const out = [];
+    out.push({ tipo: 'bot', texto: 'CONSEJO DE ESTADO › ' + (limpiar(ficha.interpretacion, 200) || T.mayus(res.medida)) });
+    const cab = res.bloqueada && !res.leyes.length ? 'PROYECTO DE LEY Nº ' : res.secreto ? 'ORDEN RESERVADA Nº ' : 'DECRETO Nº ';
+    let gaceta = T.mayus(res.medida) + '.';
+    const g = limpiar(ficha.gaceta, 500);
+    if (g) gaceta += ' ' + g;
+    if (res.bloqueada) gaceta += ' El proyecto llega al Congreso... y se atasca.';
+    out.push({ tipo: 'gaceta', titulo: cab + res.numero + ' · TURNO ' + res.dia, texto: gaceta });
+    out.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.leyes.length === 1 ? res.leyes[0].nivel : undefined });
+    for (const n of res.notas) out.push({ tipo: 'nota', texto: n });
+    const titulares = (Array.isArray(ficha.titulares) ? ficha.titulares : []).map(x => limpiar(x, 200)).filter(Boolean).slice(0, 3);
+    if (titulares.length) out.push({ tipo: 'prensa', titulo: 'TITULARES', texto: titulares.join('\n') });
+    const gb = ficha.gabinete && typeof ficha.gabinete === 'object' ? ficha.gabinete : {};
+    const gid = String(gb.id || '').toLowerCase();
+    if (RF.GABINETE[gid] && limpiar(gb.dice)) out.push({ tipo: 'cupula', titulo: e.gabinete[gid].nombre.toUpperCase() + ' · ' + RF.GABINETE[gid].cargo.toUpperCase(), texto: limpiar(gb.dice) });
+    const ca = ficha.calle && typeof ficha.calle === 'object' ? ficha.calle : {};
+    const cid = String(ca.id || '').toLowerCase();
+    if (RF.CIUDADANOS[cid] && limpiar(ca.dice)) {
+      e.ciudadanos[cid].ultimaVez = e.dia;
+      out.push({ tipo: 'calle', titulo: 'LA CALLE · ' + RF.CIUDADANOS[cid].nombre.toUpperCase(), texto: limpiar(ca.dice) });
+    }
+    if (res.cambioRegimen) {
+      const a = RF.REGIMENES[res.cambioRegimen.a];
+      out.push({ tipo: 'regimen', titulo: 'CAMBIO DE RÉGIMEN · ' + RF.REGIMENES[res.cambioRegimen.de].corto + ' → ' + a.corto, texto: a.descripcion });
+    }
+    return out;
+  }
+
+  // ---------- Pedir la ficha ----------
+  // Devuelve la ficha ya leída, o lanza un error con .mensaje.
+  async function consultar(e, texto, alTexto) {
+    const datos = contexto(e, texto);
+    const contenido = 'Situación de Valdoria y decreto (JSON):\n' + JSON.stringify(datos) + '\n\nDevuelve solo la ficha JSON del decreto.';
+    const r = await RF.narradorIA.generar(SISTEMA, contenido, alTexto, 3000);
+    const ficha = extraerJSON(r.texto);
+    if (!ficha || typeof ficha !== 'object') {
+      const err = new Error('ficha ilegible');
+      err.mensaje = 'El Consejo respondió algo que el motor no pudo leer.';
+      throw err;
+    }
+    return ficha;
+  }
+
+  RF.consejoIA = { limpiarTexto: limpiar, SISTEMA, TOPES, contexto, consultar, aplicar, aprobar, bloques, extraerJSON, recordar, memoria };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/juego.js
@@ -5856,14 +6299,18 @@ body {
     const sel = el('select'); sel.id = 'ia-modelo';
     const fila = el('label', 'fila-ia');
     const chk = el('input'); chk.type = 'checkbox'; chk.id = 'ia-activa';
-    fila.append(chk, document.createTextNode(' Contar cada turno con la IA'));
+    fila.append(chk, document.createTextNode(' Usar la IA'));
+    const filaC = el('label', 'fila-ia sub-ia');
+    const chkC = el('input'); chkC.type = 'checkbox'; chkC.id = 'ia-consejo';
+    filaC.append(chkC, document.createTextNode(' La IA decide las consecuencias (Consejo de Estado). Si no, solo cuenta la crónica.'));
+    chk.addEventListener('change', () => { chkC.disabled = !chk.checked; });
     const botones = el('div', 'botones-ia');
     const bGuardar = el('button', 'chip guardar-ia', 'Guardar'); bGuardar.type = 'submit';
     const bProbar = el('button', 'chip', 'Probar'); bProbar.type = 'button';
     const bBorrar = el('button', 'chip cmd', 'Borrar clave'); bBorrar.type = 'button';
     botones.append(bGuardar, bProbar, bBorrar);
     secClave.append(lab1, filaClave, detectado, lab2, sel);
-    form.append(fuentes, secCuenta, secClave, fila, botones);
+    form.append(fuentes, secCuenta, secClave, fila, filaC, botones);
     const fuente = () => (!fuentes.hidden && rCuenta.checked ? 'cuenta' : 'clave');
     const verFuente = () => { const cu = fuente() === 'cuenta'; secCuenta.hidden = !cu; for (const x of [secClave, bBorrar, guia, aviso]) x.hidden = cu; };
     rCuenta.addEventListener('change', verFuente); rClave.addEventListener('change', verFuente);
@@ -5913,8 +6360,8 @@ body {
     ver.addEventListener('click', () => { clave.type = clave.type === 'password' ? 'text' : 'password'; ver.textContent = clave.type === 'password' ? 'ver' : 'ocultar'; });
 
     const leer = () => (fuente() === 'cuenta'
-      ? { proveedor: 'cuenta', nivel: selN.value, activa: chk.checked }
-      : { clave: clave.value.trim(), proveedor: NI.detectar(clave.value) || '', modelo: sel.value, auto: !sel.value, activa: chk.checked });
+      ? { proveedor: 'cuenta', nivel: selN.value, activa: chk.checked, consejo: chkC.checked }
+      : { clave: clave.value.trim(), proveedor: NI.detectar(clave.value) || '', modelo: sel.value, auto: !sel.value, activa: chk.checked, consejo: chkC.checked });
     const describir = () => NI.PROVEEDORES[NI.proveedor()].nombre + (NI.modelo().id ? ' · ' + NI.modelo().nombre.toLowerCase() : '');
     form.addEventListener('submit', (ev) => {
       ev.preventDefault();
@@ -5958,6 +6405,7 @@ body {
       selN.value = c.nivel || 'default';
       verFuente();
       chk.checked = !!c.activa || (!c.clave && c.proveedor !== 'cuenta'); // la primera vez, la IA se activa sola
+      chkC.checked = c.consejo !== false; chkC.disabled = !chk.checked;
       proveedorVisto = undefined; alCambiarClave();
       estadoIA.textContent = NI.activa() ? (iaPausada ? 'En pausa por un error de conexión. Pulsa Guardar para reintentar.' : 'Activa con ' + describir() + '.') : 'Apagada: el juego usa su narración normal.';
     };
@@ -5973,7 +6421,64 @@ body {
     setTimeout(() => (c.value ? modalIA.querySelector('.guardar-ia') : c).focus(), 30);
   }
 
+  // ---------- El Consejo de Estado con IA: la IA decide qué significa el decreto; el motor arbitra ----------
+  let ocupado = false;
+  function consejoActivo() { return RF.narradorIA.activa() && !iaPausada && RF.narradorIA.config().consejo !== false; }
+
+  async function firmarIA(texto) {
+    ocupado = true;
+    $('consola').classList.add('ocupada');
+    const espera = el('section', 'bloque b-consejo');
+    espera.append(el('span', 'etiqueta', 'CONSEJO DE ESTADO'), el('p', 'cursor pensando', 'Tus ministros deliberan sobre el decreto y sus consecuencias…'));
+    $('registro').appendChild(espera);
+    alFondo();
+    const listo = () => { espera.remove(); ocupado = false; $('consola').classList.remove('ocupada'); };
+    let ficha;
+    try {
+      ficha = await RF.consejoIA.consultar(estado, texto);
+    } catch (err) {
+      listo();
+      const conexion = err.pausar || /conectar|cargar/.test(err.mensaje || '');
+      if (conexion) { iaPausada = true; pintarBotonIA(); }
+      mostrar([{ tipo: 'nota', texto: (err.mensaje || 'El Consejo no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') + ' Este decreto lo resuelve el intérprete local.' }], false);
+      firmarLocal(texto);
+      return;
+    }
+    listo();
+    if (ficha.entendido === false) {
+      mostrar([{ tipo: 'cupula', titulo: 'EL GABINETE', texto: RF.consejoIA.limpiarTexto(ficha.pregunta) || 'El gabinete se mira entre sí. Nadie ha entendido el decreto. ¿Puede explicarlo de otra forma, Excelencia?' }], true);
+      guardar();
+      return;
+    }
+    const antes = Object.assign({}, estado.stats);
+    estado.iaActiva = true;
+    const res = RF.consejoIA.aplicar(estado, ficha, texto);
+    const bloques = RF.consejoIA.bloques(estado, ficha, res);
+    RF.consejero.avanzarDia(estado, res);
+    bloques.push(...RF.narrador.cierreDia(estado, res));
+    const d = RF.director.pendiente(estado);
+    if (d) bloques.push(RF.narrador.dilema(estado, d));
+    publicarTurno(bloques);
+    pintarStats(cambios(antes));
+    actualizarConsola();
+    guardar();
+  }
+
+  // El camino de siempre: el Intérprete local entiende el decreto y el Consejero aplica sus reglas.
+  function firmarLocal(texto) {
+    const lista = RF.interprete.interpretarVarios(texto, estado);
+    if (lista.length > 1) { firmar(lista); return; }
+    const interp = lista[0];
+    if (interp.estado === 'ok') { firmar([interp]); return; }
+    if (interp.estado === 'confuso') { mostrar(RF.narrador.confuso(interp), true); guardar(); return; }
+    const q = RF.narrador.pregunta(interp);
+    mostrar(q.bloques, true);
+    if (q.opciones.length) mostrarOpciones(q.opciones);
+    guardar();
+  }
+
   function firmar(lista) {
+    estado.iaActiva = consejoActivo();
     const antes = Object.assign({}, estado.stats);
     const bloques = [];
     if (lista.length > 1) bloques.push({ tipo: 'nota', texto: 'Firmas ' + lista.length + ' decretos de una sentada. El secretario se masajea la muñeca.' });
@@ -6003,6 +6508,7 @@ body {
 
   // Un turno sin decretos nuevos: las leyes vigentes siguen actuando.
   function esperar() {
+    estado.iaActiva = consejoActivo();
     const antes = Object.assign({}, estado.stats);
     const res = RF.consejero.pasarTurno(estado);
     const bloques = [{ tipo: 'nota', texto: 'No firmas nada este turno. Dejas que tus leyes trabajen.' }].concat(RF.narrador.cierreDia(estado, res));
@@ -6052,6 +6558,7 @@ body {
   function procesar(entrada) {
     const texto = entrada.trim();
     if (!texto) return;
+    if (ocupado) { mostrar([{ tipo: 'nota', texto: 'El Consejo de Estado sigue deliberando. Espera a que termine.' }], false); return; }
     const orden = RF.texto.normalizar(texto);
     mostrar([{ tipo: 'eco', texto }], false);
 
@@ -6090,15 +6597,8 @@ body {
 
     if (/^(esperar|espera|pasar|pasar turno|siguiente turno|siguiente|no hacer nada|nada)$/.test(orden)) { esperar(); return; }
 
-    const lista = RF.interprete.interpretarVarios(texto, estado);
-    if (lista.length > 1) { firmar(lista); return; }
-    const interp = lista[0];
-    if (interp.estado === 'ok') { firmar([interp]); return; }
-    if (interp.estado === 'confuso') { mostrar(RF.narrador.confuso(interp), true); guardar(); return; }
-    const q = RF.narrador.pregunta(interp);
-    mostrar(q.bloques, true);
-    if (q.opciones.length) mostrarOpciones(q.opciones);
-    guardar();
+    if (consejoActivo()) { firmarIA(texto); return; }
+    firmarLocal(texto);
   }
 
   // ---------- Controles ----------
@@ -6159,7 +6659,7 @@ body {
       pintarBotonIA();
       if (!fn || RF.narradorIA.config().activa) return;
       $('boton-ia').classList.add('aviso');
-      mostrar([{ tipo: 'nota', texto: 'Estás jugando dentro de claude.ai: Claude puede escribir la crónica de cada turno con tu cuenta, sin clave. Toca el botón IA de arriba para activarlo.' }], false);
+      mostrar([{ tipo: 'nota', texto: 'Estás jugando dentro de claude.ai: Claude puede entender tus decretos, decidir sus consecuencias y contar cada turno con tu cuenta, sin clave. Toca el botón IA de arriba para activarlo.' }], false);
     });
   }
 
