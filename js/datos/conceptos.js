@@ -432,6 +432,15 @@
       porque: () => 'Lo gastado, gastado está: parar ahorra lo que faltaba, pero deja el hormigón pagado sin servir para nada.'
     },
 
+    {
+      id: 'narcoestado', area: 'exterior', nombre: 'El narcoestado', peso: 3,
+      idea: 'Un Estado sancionado que fabrica drogas para exportar consigue divisas, pero convierte a sus diplomáticos en contrabandistas y parte de la droga siempre se queda dentro: la adicción se extiende por el país.',
+      cuando: c => /\b(opio|droga\w*|metanfetamina\w*|heroina|cristal|bingdu|narco\w*|amapola\w*)\b/.test(c.n) && c.dir !== 'contra' &&
+        (['ENFOCAR', 'LEGALIZAR', 'CREAR', 'INVERTIR', 'PRIVATIZAR', 'NACIONALIZAR'].includes(c.accion) || ['ESCLAVITUD', 'EXPORTACIONES', 'CONTRABANDO', 'TRABAJO_INFANTIL'].includes(c.tema)),
+      ajuste: () => ({ economia: { mercadoNegro: 3 }, relaciones: { eeuu: -3, china: -2 } }),
+      porque: () => 'La droga del Estado se vende fuera, pero una parte siempre se queda dentro: el bingdu, el "hielo", ya corre por los pueblos.'
+    },
+
     // ---------------- HISTORIA (precedentes: solo explican) ----------------
     { id: 'h_hiper', area: 'historia', nombre: 'Weimar y Zimbabue', idea: 'Alemania en 1923 y Zimbabue en 2008 imprimieron hasta que el dinero no valía el papel.', cuando: c => imprime(c), porque: () => 'Ya pasó: en Zimbabue, en 2008, un billete de cien billones no alcanzaba para el autobús.' },
     { id: 'h_reforma2009', area: 'historia', nombre: 'La reforma monetaria de 2009', idea: 'En 2009 Corea del Norte cambió los billetes, arruinó los ahorros de la gente y tuvo que dar marcha atrás.', cuando: c => c.tema === 'REFORMA_MONETARIA' || (c.objeto === 'DINERO' && ['PROHIBIR', 'RECORTAR', 'BAJAR_IMPUESTO', 'CONTROLAR'].includes(c.accion)), porque: () => 'En 2009 tu padre cambió los billetes: los ahorros de la gente se evaporaron y hubo que fusilar al ministro que lo propuso.' },
@@ -461,6 +470,7 @@
     { id: 'h_series', area: 'historia', nombre: 'Las memorias USB', idea: 'Las series surcoreanas entran en Corea del Norte en memorias USB desde China; el régimen aprobó en 2020 una ley con penas durísimas por verlas.', cuando: c => ['INTERNET', 'TECNOLOGIA'].includes(c.objeto), porque: () => 'Las series de Seúl ya entran en memorias USB escondidas en sacos de arroz. En 2020 el régimen tuvo que endurecer la ley para frenarlas.' },
     { id: 'h_chongchongang', area: 'historia', nombre: 'El Chong Chon Gang', idea: 'En 2013 Panamá interceptó el barco norcoreano Chong Chon Gang con cazas MiG y misiles escondidos bajo 200.000 sacos de azúcar cubano.', cuando: c => c.tema === 'VENTA_ARMAS' && c.dir !== 'contra', porque: () => 'En 2013 Panamá paró un barco norcoreano: debajo de 200.000 sacos de azúcar había dos cazas MiG.' },
     { id: 'h_julio2002', area: 'historia', nombre: 'Las medidas de julio de 2002', idea: 'En julio de 2002 Corea del Norte legalizó en parte los mercados y subió precios y salarios: los mercados crecieron y el régimen dio marcha atrás en 2005.', cuando: c => c.tema === 'MERCADOS', porque: () => 'En 2002 el régimen legalizó a medias los mercados. Crecieron tanto que en 2005 se asustó y dio marcha atrás.' },
+    { id: 'h_pongsu', area: 'historia', nombre: 'El Pong Su', idea: 'En 2003 Australia abordó el carguero norcoreano Pong Su, que había desembarcado 150 kilos de heroína; se atribuye al régimen una red estatal de drogas para conseguir divisas.', cuando: c => /\b(opio|droga\w*|metanfetamina\w*|heroina|cristal|narco\w*|amapola\w*)\b/.test(c.n) && c.dir !== 'contra' && c.accion !== 'CASTIGAR' && c.accion !== 'PROHIBIR', porque: () => 'En 2003 Australia abordó el Pong Su, un carguero norcoreano que acababa de desembarcar 150 kilos de heroína.' },
     { id: 'h_sanciones', area: 'historia', nombre: 'Petróleo por alimentos', idea: 'Las sanciones a Irak en los noventa empobrecieron a la población mientras el régimen seguía en pie.', cuando: c => c.tema === 'NUCLEAR' || c.tema === 'MISILES', porque: () => 'Las sanciones rara vez tumban a un líder: suelen empobrecer a su gente. Irak en los noventa lo demostró.' }
   ];
 

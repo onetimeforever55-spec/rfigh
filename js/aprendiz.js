@@ -71,7 +71,9 @@
   let base = null;
   function todos() {
     if (!base) base = (RF.APRENDIDOS || []).map(([texto, et]) => { const v = validar(et); return v && completar(texto, v, 'base'); }).filter(Boolean);
-    return base.concat(cargar());
+    // Las lecciones de fábrica están revisadas: mandan sobre una guardada con el mismo texto.
+    const deFabrica = new Set(base.map(x => x.n));
+    return base.concat(cargar().filter(x => !deFabrica.has(x.n)));
   }
 
   // Guarda un ejemplo. Devuelve true si es nuevo (o corrige uno anterior).
@@ -98,7 +100,7 @@
     let mejor = null, sim = 0;
     for (const x of todos()) {
       const s = x.n === n ? 1 : similitud(r, x.r);
-      if (s > sim || (s === sim && x.origen !== 'base')) { sim = s; mejor = x; }
+      if (s > sim) { sim = s; mejor = x; }
     }
     return mejor && sim >= (minimo || SIMILAR) ? { ejemplo: mejor, sim } : null;
   }

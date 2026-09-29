@@ -17,6 +17,20 @@ const ficha = (clave, extra) => Object.assign({ entendido: true, leyes: [{ nombr
     comprobar(i.accion === 'PROHIBIR' && i.objeto === 'VICIOS', 'generaliza: "nadie puede tomar soju" es prohibir el alcohol (aprendió qué es el soju)');
   }
 
+  console.log('LECCIONES EXPORTADAS DE UNA PARTIDA (revisadas)');
+  {
+    const e = nuevo();
+    const i = RF.interprete.interpretar('Prohibir el consumo de drogas en Corea del Norte es solo para exportaciones', e);
+    const r = RF.consejero.decretar(e, i, { avanzar: false });
+    comprobar(i.accion === 'ENFOCAR' && i.objeto === 'NARCO' && r.porque[0].id === 'narcoestado', 'drogas solo para exportar = narcoestado, y se explica como tal');
+    const j = RF.interprete.interpretar('Fábricas de opio a hasta morir', nuevo());
+    comprobar(j.tema === 'ESCLAVITUD' && j.dir === 'favor', 'fábricas de opio hasta morir = esclavitud (a favor, no en contra)');
+    RF.aprendiz.aprender('Fábricas de opio a hasta morir', { tema: 'ESCLAVITUD', dir: 'contra' }, 'ia');
+    comprobar(RF.interprete.interpretar('Fábricas de opio a hasta morir', nuevo()).dir === 'favor', 'la lección revisada manda sobre la equivocada que quedó guardada');
+    RF.aprendiz.olvidar();
+    comprobar(RF.CONCEPTOS.find(k => k.id === 'narcoestado').cuando({ n: 'mano dura contra los narcos', accion: 'CASTIGAR' }) === false, 'perseguir a los narcos no es un narcoestado');
+  }
+
   console.log('APRENDE DE LA IA');
   {
     const e = nuevo();

@@ -70,6 +70,9 @@
     ['se acabó el alcohol en todo el país', {accion: 'PROHIBIR', objeto: 'VICIOS'}],
     ['prohibir los perros', {accion: 'PROHIBIR', objeto: 'MASCOTAS'}],
     ['sindicatos libres', {accion: 'LEGALIZAR', objeto: 'TRABAJADORES'}],
-    ['prohibir los móviles', {accion: 'PROHIBIR', objeto: 'TECNOLOGIA'}]
+    ['prohibir los móviles', {accion: 'PROHIBIR', objeto: 'TECNOLOGIA'}],
+    // Enseñados jugando (revisados: la IA marcó la 2ª como "en contra" de la esclavitud)
+    ['Prohibir el consumo de drogas en Corea del Norte es solo para exportaciones', {accion: 'ENFOCAR', objeto: 'NARCO', conceptos: ['narcoestado']}],
+    ['Fábricas de opio a hasta morir', {tema: 'ESCLAVITUD', dir: 'favor', conceptos: ['narcoestado']}]
   ];
 })(globalThis.RF = globalThis.RF || {});

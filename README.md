@@ -91,7 +91,8 @@ El intérprete local (el que funciona sin IA) es un clasificador pequeño, pero 
 - **Entrenando:** el comando `entrenar` (o `entrenar 20`) hace que la IA invente decretos variados, coloquiales y con faltas; el bot intenta entenderlos y aprende los que falla. Enseña el resultado: cuántos acertaba antes y cuántos después.
 - **Cómo aprende:** lo aprendido va a un segundo cerebro aparte (otros dos clasificadores), que solo decide cuando el de fábrica no tiene ninguna palabra clara, así que no olvida nada de lo que ya sabía. Además recuerda las frases exactas (o casi) y los conceptos que la IA les asoció.
 - **Dónde se guarda:** en el navegador. `aprendido` enseña lo que sabe, `exportar` da la lista en JSON para pegarla en `js/datos/aprendidos.js` (lo que trae de fábrica) y `olvidar lo aprendido` la borra.
-- De fábrica trae 64 lecciones: con ellas pasa de entender 2 a 15 de 28 frases coloquiales que no había visto nunca.
+- Las lecciones de fábrica están revisadas a mano (la IA también se equivoca: marcó "fábricas de opio hasta morir" como abolir la esclavitud) y mandan sobre las guardadas con el mismo texto.
+- De fábrica trae 66 lecciones: con ellas pasa de entender 2 a 15 de 28 frases coloquiales que no había visto nunca.
 
 ### Conceptos: el porqué de cada decreto
 
