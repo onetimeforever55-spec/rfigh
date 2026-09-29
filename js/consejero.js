@@ -219,7 +219,7 @@
       if (pol.secreto) RF.politica.registrarSecreto(estado, pol.secreto);
       if (pol.cadena) estado.dilemas.cadena.push({ id: pol.cadena.id, dia: estado.dia + pol.cadena.en });
     } else {
-      def = RF.TEMAS && RF.TEMAS[objId] ? RF.leyes.definirTema(estado, objId, accion) : RF.leyes.definir(accion, objId, nombre);
+      def = RF.TEMAS && RF.TEMAS[objId] ? RF.leyes.definirTema(estado, objId, accion, interp.destino) : RF.leyes.definir(accion, objId, nombre);
       if (def && def.nombre) laMedida = def.nombre;
     }
     if (pol) {
@@ -239,6 +239,8 @@
     } else if (def.unaVez) {
       Object.assign(inicial, def.inicial);
       res.notas.push(...def.notas);
+      if (def.texto) res.especial = def.texto;
+      programarTema(estado, def, res);
       if (def.economia) ajustarEconomia(estado, def.economia, res.notas);
       if (def.relaciones && RF.diplomacia) res.relaciones = RF.diplomacia.ajustar(estado, def.relaciones, res.notas);
     } else if (!op.forzar && RF.politica.bloquea(estado, def, accion, objId, interp)) {
@@ -267,8 +269,7 @@
       if (p.sustituye && RF.ACCIONES[accion].inversa === p.sustituye.accion) sumar(inicial, 'estabilidad', -1);
       if (def.texto) res.especial = def.texto;
       // Lo que traen los temas duros más adelante (sanciones, fugas, inundaciones...).
-      for (const pr of def.programar || []) estado.pendientes.push({ dia: estado.dia + pr.en, titulo: pr.titulo, texto: T.expandir(pr.texto), efectos: pr.efectos });
-      if ((def.programar || []).length) res.programadas = def.programar.length;
+      programarTema(estado, def, res);
       if (def.economia) ajustarEconomia(estado, def.economia, res.notas);
       if (def.relaciones && RF.diplomacia) res.relaciones = RF.diplomacia.ajustar(estado, def.relaciones, res.notas);
       RF.politica.tras(estado, def, accion, objId);
@@ -380,6 +381,12 @@
     reacciones(estado, res, tipo === 'opositor' ? 'OPOSICION' : tipo === 'extranjero' ? 'EXTRANJEROS' : 'LIDER');
     if (op.avanzar !== false) avanzarDia(estado, res);
     return res;
+  }
+
+  // Lo que un tema trae más adelante (con sus sanciones y relaciones).
+  function programarTema(estado, def, res) {
+    for (const pr of def.programar || []) estado.pendientes.push(Object.assign({}, pr, { dia: estado.dia + pr.en, texto: T.expandir(pr.texto) }));
+    if ((def.programar || []).length) res.programadas = def.programar.length;
   }
 
   /*

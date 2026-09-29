@@ -83,6 +83,22 @@ Cuatro potencias tienen una relación contigo (0-100), algo que quieren y algo q
 
 Las relaciones vuelven poco a poco a su punto de partida: la memoria diplomática es corta.
 
+### Acciones exteriores
+
+Lo que hace un régimen aislado fuera de sus fronteras (`js/datos/exterior.js`):
+
+| Decreto de ejemplo | Qué pasa |
+|---|---|
+| `vender armas a una guerrilla africana` | divisas ahora y cada turno; suben las sanciones. Luego, al azar: las armas salen en la tele, el cliente repite o no paga |
+| `financiar a la guerrilla de Colombia` | cuesta dinero cada turno; la guerrilla gana (contrato de minas), es aplastada (sanciones) o se eterniza |
+| `apoyar un golpe de estado en X` | el golpe triunfa (un aliado y divisas) o fracasa (sanciones) |
+| `pedir un préstamo a Rusia` | +45M ahora y −5M durante 12 turnos; «no pagar la deuda» enfada al acreedor |
+| `enviar trabajadores a Siberia` | divisas cada turno; algunos acaban desertando |
+| `hackear bancos japoneses` | +35M; puede quedar un rastro digital |
+| `contrabandear carbón a China` | divisas cada turno, hasta que un satélite lo fotografía |
+
+El destino que escribes («una guerrilla africana») aparece en la ley y en los textos. Estas acciones se reconocen antes que el resto, así que «vender armas» ya no se confunde con privatizar la industria de armas.
+
 ### Perfil de país
 
 Todo lo que hace distinto a un país está en `js/datos/paises.js`:

@@ -231,7 +231,7 @@
    * Un tema duro (datos/temas.js). LEGALIZAR = a favor, PROHIBIR = en contra, PRIVATIZAR = su variante privada.
    * Ir "en contra" de algo que nunca estuvo a favor (abolir la esclavitud en un país sin esclavitud) usa "sinLey".
    */
-  function definirTema(e, objId, accion) {
+  function definirTema(e, objId, accion, destino) {
     const t = RF.TEMAS[objId];
     const dir = accion === 'PROHIBIR' ? 'contra' : accion === 'PRIVATIZAR' && t.privada ? 'privada' : 'favor';
     const vigente = lista(e).find(l => l.clave === 'TEMA:' + objId);
@@ -239,11 +239,18 @@
     const heredado = objId === 'NUCLEAR' && e.diplomacia && e.diplomacia.arsenal;
     const d = dir === 'contra' && t.sinLey && !heredado && !(vigente && vigente.accion !== 'PROHIBIR') ? Object.assign({ nombre: t.contra.nombre }, t.sinLey) : t[dir];
     const prensa = d.prensa || (d.controversia >= 3 ? 'represion' : d.controversia === 2 ? 'libertad' : dir === 'contra' ? 'regalo' : 'general');
-    if (d.unaVez) return { unaVez: true, nombre: d.nombre, inicial: Object.assign({}, d.inicial), notas: (d.notas || []).slice(), prensa, controversia: 0, economia: d.economia, relaciones: d.relaciones };
+    // A quién va dirigida (acciones exteriores) y qué pasa después: fijo o una de varias al azar.
+    const dest = destino || t.destino || '';
+    const vars = { destino: dest, Destino: T.mayus(dest) };
+    const x = s => T.expandir(s, vars);
+    const futuras = (d.programar || []).concat(d.programarUno ? [T.azar(d.programarUno)] : [])
+      .map(p => Object.assign({}, p, { titulo: x(p.titulo), texto: p.texto }));
+    for (const p of futuras) p.texto = x(p.texto);
+    if (d.unaVez) return { unaVez: true, nombre: x(d.nombre), inicial: Object.assign({}, d.inicial), notas: (d.notas || []).map(x), prensa, controversia: 0, economia: d.economia, relaciones: d.relaciones, texto: d.texto ? x(d.texto) : '', programar: futuras };
     return {
-      clave: 'TEMA:' + objId, nombre: d.nombre, tema: objId, prensa,
+      clave: 'TEMA:' + objId, nombre: x(d.nombre), tema: objId, prensa, duracion: d.duracion || null,
       inicial: Object.assign({}, d.inicial), porTurno: Object.assign({}, d.porTurno), curvas: Object.assign({}, d.curvas),
-      notas: (d.notas || []).slice(), texto: d.texto ? T.expandir(d.texto) : '', programar: d.programar || [], controversia: d.controversia || 0,
+      notas: (d.notas || []).map(x), texto: d.texto ? x(d.texto) : '', programar: futuras, controversia: d.controversia || 0,
       economia: d.economia || null, // sanciones y mercado negro
       relaciones: d.relaciones || null // con las potencias vecinas
     };

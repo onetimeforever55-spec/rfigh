@@ -40,6 +40,12 @@ const FRASES = [
   ['bajar la edad de voto a 12 años', 'EDAD_VOTO', 'contra'],
   ['cambiar la moneda al bitcoin', 'BITCOIN', 'favor'], ['prohibir las criptomonedas', 'BITCOIN', 'contra'],
   ['construir un muro en la frontera', 'MURO', 'favor'], ['derribar el muro', 'MURO', 'contra'],
+  // Acciones exteriores
+  ['vender armas a una guerrilla africana', 'VENTA_ARMAS', 'favor'], ['vender misiles a Irán', 'VENTA_ARMAS', 'favor'], ['dejar de vender armas', 'VENTA_ARMAS', 'contra'],
+  ['financiar a la guerrilla de Colombia', 'GUERRILLA_FUERA', 'favor'], ['armar a los rebeldes', 'GUERRILLA_FUERA', 'favor'], ['dejar de apoyar a los rebeldes', 'GUERRILLA_FUERA', 'contra'],
+  ['apoyar un golpe de estado en Venezuela', 'GOLPE_FUERA', 'favor'], ['pedir un préstamo a Rusia', 'PRESTAMO', 'favor'], ['no pagar la deuda', 'PRESTAMO', 'contra'],
+  ['enviar trabajadores a Siberia', 'TRABAJADORES_FUERA', 'favor'], ['hackear bancos japoneses', 'CIBERROBO', 'favor'], ['robar criptomonedas', 'CIBERROBO', 'favor'],
+  ['contrabandear carbón a China', 'CONTRABANDO', 'favor'], ['perseguir el contrabando', 'CONTRABANDO', 'contra'],
   ['construir más cárceles', 'CARCELES', 'favor'], ['privatizar las cárceles', 'CARCELES', 'privada'], ['cerrar las cárceles', 'CARCELES', 'contra']
 ];
 
@@ -66,9 +72,26 @@ for (const id of Object.keys(RF.TEMAS)) {
     const res = RF.consejero.decretar(e, interp);
     const bl = RF.narrador.decreto(e, interp, res).concat(RF.narrador.cierreDia(e, res));
     const d = RF.TEMAS[id][dir];
-    const ok = !res.nulo && sinHuecos(bl) && (d.unaVez || e.leyes.some(l => l.nombre === d.nombre)) && (!d.programar || e.pendientes.length >= d.programar.length);
-    comprobar(ok, id + ' ' + dir + ': "' + res.medida + '"' + (d.programar ? ' + ' + d.programar.length + ' consecuencia(s)' : ''));
+    const futuras = (d.programar || []).length + (d.programarUno ? 1 : 0);
+    const ok = !res.nulo && sinHuecos(bl) && !/[{}]/.test(res.medida) && (d.unaVez || e.leyes.some(l => l.clave === 'TEMA:' + id)) && e.pendientes.length >= futuras;
+    comprobar(ok, id + ' ' + dir + ': "' + res.medida + '"' + (futuras ? ' + ' + futuras + ' consecuencia(s)' : ''));
   }
+}
+
+console.log('ACCIONES EXTERIORES');
+{
+  const e = nuevo();
+  const i = RF.interprete.interpretar('vender armas a una guerrilla africana', e);
+  const r = RF.consejero.decretar(e, i);
+  comprobar(i.destino === 'una guerrilla africana' && r.medida === 'la venta de armas a una guerrilla africana' && /guerrilla africana/.test(r.especial), 'el destino del decreto aparece en la ley y en la Gaceta');
+  comprobar(e.stats.dinero > 100 && e.economia.sanciones === 1 && e.pendientes.length === 1, 'da divisas, sube las sanciones y trae una de sus consecuencias posibles');
+  comprobar(RF.interprete.interpretar('privatizar las armas', e).objeto === 'ARMAS', '"privatizar las armas" sigue siendo privatizar');
+  const vistas = new Set();
+  for (let k = 0; k < 40; k++) { const x = nuevo(); RF.consejero.decretar(x, RF.interprete.interpretar('financiar a la guerrilla de Colombia', x)); vistas.add(x.pendientes[0].titulo); }
+  comprobar(vistas.size >= 2 && [...vistas].every(t => !/[{}]/.test(t)), 'las operaciones pueden salir bien o mal (' + [...vistas].join(' / ') + ')');
+  const p = nuevo();
+  RF.consejero.decretar(p, RF.interprete.interpretar('pedir un préstamo a Rusia', p));
+  comprobar(p.leyes.find(l => l.clave === 'TEMA:PRESTAMO').duracion === 12, 'el préstamo se paga durante 12 turnos');
 }
 
 console.log('LÓGICA');

@@ -266,6 +266,12 @@
         nombreObjeto: RF.PAIS.relaciones[dip.pais].nombre, accion: 'DIPLOMACIA', objeto: dip.pais };
     }
     if (tema) {
+      // A quién va dirigida una acción exterior ("vender armas a una guerrilla africana").
+      const t = RF.TEMAS[tema.tema];
+      if (t.destinoRe) {
+        const m = t.destinoRe.exec(texto.trim().replace(/[.!¡?¿]+$/, ''));
+        tema.destino = m ? m[1].trim().replace(/\s+/g, ' ') : t.destino;
+      }
       return Object.assign({
         texto, corregidas, intensidad: 1, negado: false, opciones: [], confianza: 92, estado: 'ok',
         secreto: RF.SECRETO ? RF.SECRETO.test(T.normalizar(texto)) : false
