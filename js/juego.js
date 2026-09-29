@@ -15,7 +15,7 @@
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
     ['Disolver…', 'Disolver '], ['Controlar…', 'Controlar '], ['En secreto…', 'En secreto '],
-    ['esperar', 'esperar', true], ['estado', 'estado', true], ['diplomacia', 'diplomacia', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['entrenar bot', 'entrenar', true], ['lo que sabe el bot', 'aprendido', true], ['ayuda', 'ayuda', true]
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['diplomacia', 'diplomacia', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['entrenar bot', 'entrenar', true], ['lo que sabe el bot', 'aprendido', true], ['revisar bot', 'revisar', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -605,7 +605,11 @@
     const bloques = RF.consejoIA.bloques(estado, ficha, res);
     // El intérprete local aprende de lo que la IA ha entendido.
     const leccion = RF.aprendiz && RF.aprendiz.deFicha(texto, ficha);
-    if (leccion) bloques.push({ tipo: 'aprende', titulo: 'EL BOT APRENDE', texto: '«' + texto + '» = ' + RF.aprendiz.describir(leccion) + '. La próxima vez lo entenderá sin la IA.' });
+    if (leccion) {
+      const sin = RF.aprendiz.resumen().sinRevisar;
+      bloques.push({ tipo: 'aprende', titulo: 'EL BOT APRENDE', texto: '«' + texto + '» = ' + RF.aprendiz.describir(leccion) + '. La próxima vez lo entenderá sin la IA.' +
+        (sin >= 8 && sin % 4 === 0 ? ' Ya hay ' + sin + ' lecciones sin revisar: escribe "revisar" para que la IA las relea.' : '') });
+    }
     RF.consejero.avanzarDia(estado, res);
     bloques.push(...RF.narrador.cierreDia(estado, res));
     const d = RF.director.pendiente(estado);
@@ -623,6 +627,7 @@
       r.mecanicas ? 'Números aprendidos de la IA para ' + r.mecanicas + (r.mecanicas === 1 ? ' tipo de decreto' : ' tipos de decreto') + ': sin la IA, sus consecuencias se parecen a lo que ella decidiría.' : 'Todavía no ha aprendido números: los aprende cada vez que la IA decide un decreto.',
       r.nube ? 'Se guarda en la base de datos del juego en claude.ai: sigue ahí en cualquier dispositivo, y Claude puede revisarlo.' : 'Se guarda solo en este navegador.'];
     if (r.ultimos.length) lineas.push('Lo último:', ...r.ultimos.map(x => '«' + x.texto + '» = ' + RF.aprendiz.describir(x.etiqueta)));
+    if (r.sinRevisar) lineas.push('Lecciones sin revisar: ' + r.sinRevisar + '. Escribe "revisar" para que la IA las relea y corrija las que estén mal.');
     lineas.push('Escribe "entrenar" para que la IA le ponga un examen, "exportar" para copiar lo aprendido u "olvidar lo aprendido" para borrarlo.');
     return [{ tipo: 'aprende', titulo: 'LO QUE SABE EL BOT', texto: lineas.join('\n') }];
   }
@@ -642,10 +647,33 @@
       return;
     }
     aviso.listo();
-    const lineas = ['Decretos del examen: ' + r.total + '. Los entendía bien: ' + r.antes + '. Ahora entiende: ' + r.despues + '.'];
+    const lineas = ['Decretos del examen: ' + r.total + '. Los entendía bien: ' + r.antes + '. Ahora entiende: ' + r.despues + '.' + (r.numeros ? ' Números aprendidos: ' + r.numeros + '.' : '')];
     if (r.aprendidos.length) lineas.push('Ha aprendido:', ...r.aprendidos.slice(0, 10).map(x => '«' + x.texto + '» = ' + RF.aprendiz.describir(x.etiqueta)));
     else lineas.push('No ha fallado nada que aprender. Buen alumno.');
     mostrar([{ tipo: 'aprende', titulo: 'EXAMEN DEL BOT', texto: lineas.join('\n') }], false);
+  }
+
+  async function revisarBot() {
+    if (!RF.narradorIA.activa() || iaPausada) {
+      mostrar([{ tipo: 'nota', texto: 'Para revisar lo aprendido hace falta la IA: ella hace de revisora. Actívala con el botón IA de arriba.' }], false);
+      return;
+    }
+    const aviso = deliberando('La IA relee lo que ha aprendido el bot y busca errores…');
+    let r;
+    try {
+      r = await RF.aprendiz.revisar();
+    } catch (err) {
+      aviso.listo();
+      mostrar([{ tipo: 'nota', texto: (err.mensaje || 'La revisora no respondió.') + ' Prueba otra vez.' }], false);
+      return;
+    }
+    aviso.listo();
+    if (!r.revisadas) { mostrar([{ tipo: 'aprende', titulo: 'REVISIÓN DEL BOT', texto: 'No hay lecciones nuevas que revisar.' }], false); return; }
+    const lineas = ['Lecciones revisadas: ' + r.revisadas + '. Corregidas: ' + r.correcciones.length + '. Borradas: ' + r.borradas.length + '.'];
+    for (const c of r.correcciones.slice(0, 8)) lineas.push('«' + c.texto + '»: ' + RF.aprendiz.describir(c.antes) + ' → ' + RF.aprendiz.describir(c.despues) + (c.motivo ? ' (' + c.motivo + ')' : ''));
+    for (const b of r.borradas.slice(0, 5)) lineas.push('Borrada «' + b.texto + '»' + (b.motivo ? ': ' + b.motivo : ''));
+    if (!r.correcciones.length && !r.borradas.length) lineas.push('Todo estaba bien.');
+    mostrar([{ tipo: 'aprende', titulo: 'REVISIÓN DEL BOT', texto: lineas.join('\n') }], false);
   }
 
   // El camino de siempre: el Intérprete local entiende el decreto y el Consejero aplica sus reglas.
@@ -804,6 +832,7 @@
 
     const ent = orden.match(/^(?:entrenar|entrena|entrenar al bot|examen|examinar al bot|examinar)(?: (\d+))?$/);
     if (ent) { entrenarBot(ent[1] ? +ent[1] : 15); return; }
+    if (/^(revisar|revisar lo aprendido|repasar|repasar lo aprendido|revisa lo aprendido)$/.test(orden)) { revisarBot(); return; }
     if (/^(aprendido|lo aprendido|que has aprendido|que ha aprendido|memoria del bot|el bot)$/.test(orden)) { mostrar(bloquesAprendido(), false); return; }
     if (/^(olvidar lo aprendido|borrar lo aprendido|borrar aprendizaje)$/.test(orden)) { RF.aprendiz.olvidar(); mostrar([{ tipo: 'aprende', titulo: 'EL BOT OLVIDA', texto: 'El intérprete local olvida todo lo que aprendió en este navegador. Conserva lo que traía de fábrica.' }], false); return; }
     if (/^(exportar|exportar lo aprendido|exportar aprendizaje)$/.test(orden)) {

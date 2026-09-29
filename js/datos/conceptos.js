@@ -646,14 +646,17 @@
   // Los conceptos que se aplican a un decreto. Devuelve { ajustes, porque[] } (máximo 2 explicaciones).
   RF.conceptosDe = function (c) {
     // Los conceptos que la IA enseñó para este decreto (c.extra) cuentan aunque su condición no salte.
-    const activos = RF.CONCEPTOS.filter(k => { try { return (c.extra || []).includes(k.id) || k.cuando(c); } catch (err) { return false; } });
-    const ajustes = activos.filter(k => k.ajuste).map(k => ({ id: k.id, a: k.ajuste(c) }));
+    // Si uno de esos no encaja con su propia condición, explica con su idea general (su porqué a medida
+    // podría hablar de otro caso) y no cambia números.
+    const encaja = new Set(RF.CONCEPTOS.filter(k => { try { return k.cuando(c); } catch (err) { return false; } }));
+    const activos = RF.CONCEPTOS.filter(k => encaja.has(k) || (c.extra || []).includes(k.id));
+    const ajustes = activos.filter(k => k.ajuste && encaja.has(k)).map(k => ({ id: k.id, a: k.ajuste(c) }));
     // Primero los que enseñó la IA, luego los que cambian algo (explican un número); la historia, como remate.
     const nota = k => ((c.extra || []).includes(k.id) ? 20 : 0) + (k.ajuste ? 10 : 0) + (k.peso || 1);
     const mecanismos = activos.filter(k => k.area !== 'historia').sort((a, b) => nota(b) - nota(a));
     const historia = activos.filter(k => k.area === 'historia');
     const porque = mecanismos.slice(0, 1).concat(historia.slice(0, 1).length ? historia.slice(0, 1) : mecanismos.slice(1, 2))
-      .map(k => ({ id: k.id, nombre: k.nombre, area: k.area, texto: k.porque(c) }));
+      .map(k => ({ id: k.id, nombre: k.nombre, area: k.area, texto: encaja.has(k) ? k.porque(c) : k.idea }));
     return { activos, ajustes, porque };
   };
 })(globalThis.RF = globalThis.RF || {});

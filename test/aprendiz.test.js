@@ -107,6 +107,57 @@ const ficha = (clave, extra) => Object.assign({ entendido: true, leyes: [{ nombr
     comprobar(!firmar('invertir en hospitales').mecanica, 'olvidar devuelve los números del motor');
   }
 
+  console.log('UN CONCEPTO QUE NO ENCAJA SE EXPLICA CON SU IDEA GENERAL');
+  {
+    RF.aprendiz.olvidar();
+    RF.aprendiz.deFicha('que el arroz se quede en casa', { entendido: true, leyes: [{}], personas: [], clave: { tema: 'EXPORTACIONES', dir: 'contra', conceptos: ['incentivos_campo'] } });
+    const e = nuevo(); const i = RF.interprete.interpretar('que el arroz se quede en casa', e);
+    const r = RF.consejero.decretar(e, i, { avanzar: false });
+    const k = RF.CONCEPTOS.find(x => x.id === 'incentivos_campo');
+    const p = r.porque.find(x => x.id === 'incentivos_campo');
+    comprobar(p && p.texto === k.idea, 'no suelta la frase de otro caso ("la granja colectiva…"), sino la idea general');
+    RF.aprendiz.olvidar();
+  }
+
+  console.log('EL EXAMEN ENSEÑA NÚMEROS');
+  {
+    const e = nuevo();
+    const gen = RF.narradorIA.generar;
+    RF.narradorIA.generar = async () => ({ texto: JSON.stringify({ decretos: [
+      { texto: 'regalar kimchi a los mineros', accion: 'SUBSIDIAR', objeto: 'COMIDA', inicial: { felicidad: 8 }, por_turno: { dinero: -9, felicidad: 2 } }] }) });
+    const r = await RF.aprendiz.examen(5, e);
+    RF.narradorIA.generar = gen;
+    comprobar(r.numeros === 1 && RF.aprendiz.mecanica('A:SUBSIDIAR:COMIDA'), 'guarda los números del examen aunque ya entendiera el decreto');
+    RF.aprendiz.olvidar();
+  }
+
+  console.log('LA IA REVISA LO APRENDIDO');
+  {
+    const docs = new Map();
+    const col = { limit: () => col, get: async () => ({ docs: [] }), doc: id => ({ set: async d => { docs.set(id, JSON.parse(JSON.stringify(d))); }, delete: async () => { docs.delete(id); } }) };
+    globalThis.claude = { use: async n => (n === 'db' ? { collection: () => col } : null) };
+    await RF.aprendiz.conectar();
+    RF.aprendiz.aprender('fábricas de opio hasta morir', { tema: 'ESCLAVITUD', dir: 'contra' }, 'ia');
+    RF.aprendiz.aprender('asdf qwerty', { accion: 'PROHIBIR', objeto: 'COMIDA' }, 'ia');
+    RF.aprendiz.aprender('prohibir el soju los lunes', { accion: 'PROHIBIR', objeto: 'VICIOS' }, 'ia');
+    let pedido = '';
+    const gen = RF.narradorIA.generar;
+    RF.narradorIA.generar = async (sis, contenido) => { pedido = contenido; return { texto: JSON.stringify({ correcciones: [{ n: 0, tema: 'ESCLAVITUD', dir: 'favor', motivo: 'es imponer trabajo forzado, no abolirlo' }], borrar: [{ n: 1, motivo: 'no es un decreto' }] }) }; };
+    const r = await RF.aprendiz.revisar();
+    RF.narradorIA.generar = gen;
+    comprobar(pedido.includes('fábricas de opio hasta morir') && pedido.includes('ESCLAVITUD'), 'le pasa a la IA cada lección con su clave');
+    comprobar(r.revisadas === 3 && r.correcciones.length === 1 && r.borradas.length === 1, 'corrige una, borra otra y deja la buena');
+    comprobar(RF.interprete.interpretar('fábricas de opio hasta morir', nuevo()).dir === 'favor', 'la corrección se aplica al momento');
+    comprobar(!RF.aprendiz.todos().some(x => x.texto === 'asdf qwerty') && ![...docs.values()].some(d => d.texto === 'asdf qwerty'), 'la borrada desaparece también de la base de datos');
+    comprobar([...docs.values()].every(d => d.revisada) && RF.aprendiz.resumen().sinRevisar === 0, 'las revisadas quedan marcadas en la base de datos');
+    RF.narradorIA.generar = async () => { throw new Error('no debería llamarse'); };
+    const otra = await RF.aprendiz.revisar();
+    RF.narradorIA.generar = gen;
+    comprobar(otra.revisadas === 0, 'no vuelve a revisar (ni a gastar IA en) lo ya revisado');
+    RF.aprendiz.olvidar();
+    delete globalThis.claude;
+  }
+
   console.log('SE GUARDA EN LA BASE DE DATOS DEL JUEGO');
   {
     const docs = new Map();

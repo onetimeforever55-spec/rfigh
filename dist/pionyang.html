@@ -4831,14 +4831,17 @@ body {
   // Los conceptos que se aplican a un decreto. Devuelve { ajustes, porque[] } (máximo 2 explicaciones).
   RF.conceptosDe = function (c) {
     // Los conceptos que la IA enseñó para este decreto (c.extra) cuentan aunque su condición no salte.
-    const activos = RF.CONCEPTOS.filter(k => { try { return (c.extra || []).includes(k.id) || k.cuando(c); } catch (err) { return false; } });
-    const ajustes = activos.filter(k => k.ajuste).map(k => ({ id: k.id, a: k.ajuste(c) }));
+    // Si uno de esos no encaja con su propia condición, explica con su idea general (su porqué a medida
+    // podría hablar de otro caso) y no cambia números.
+    const encaja = new Set(RF.CONCEPTOS.filter(k => { try { return k.cuando(c); } catch (err) { return false; } }));
+    const activos = RF.CONCEPTOS.filter(k => encaja.has(k) || (c.extra || []).includes(k.id));
+    const ajustes = activos.filter(k => k.ajuste && encaja.has(k)).map(k => ({ id: k.id, a: k.ajuste(c) }));
     // Primero los que enseñó la IA, luego los que cambian algo (explican un número); la historia, como remate.
     const nota = k => ((c.extra || []).includes(k.id) ? 20 : 0) + (k.ajuste ? 10 : 0) + (k.peso || 1);
     const mecanismos = activos.filter(k => k.area !== 'historia').sort((a, b) => nota(b) - nota(a));
     const historia = activos.filter(k => k.area === 'historia');
     const porque = mecanismos.slice(0, 1).concat(historia.slice(0, 1).length ? historia.slice(0, 1) : mecanismos.slice(1, 2))
-      .map(k => ({ id: k.id, nombre: k.nombre, area: k.area, texto: k.porque(c) }));
+      .map(k => ({ id: k.id, nombre: k.nombre, area: k.area, texto: encaja.has(k) ? k.porque(c) : k.idea }));
     return { activos, ajustes, porque };
   };
 })(globalThis.RF = globalThis.RF || {});
@@ -4998,7 +5001,7 @@ body {
     propios = [];
     try {
       const d = JSON.parse(localStorage.getItem(CLAVE) || '[]');
-      if (Array.isArray(d)) for (const x of d) { const et = validar(x); if (et && x.texto) propios.push(completar(x.texto, et, x.origen || 'ia', x.efectos)); }
+      if (Array.isArray(d)) for (const x of d) { const et = validar(x); if (et && x.texto) propios.push(Object.assign(completar(x.texto, et, x.origen || 'ia', x.efectos), { revisada: !!x.revisada })); }
     } catch (e) { /* sin memoria en este navegador */ }
     return propios;
   }
@@ -5013,6 +5016,7 @@ body {
   function cuerpo(x) {
     const c = Object.assign({ texto: x.texto, origen: x.origen, t: Date.now() }, x.etiqueta);
     if (x.efectos) c.efectos = x.efectos;
+    if (x.revisada) c.revisada = true;
     return c;
   }
 
@@ -5036,7 +5040,7 @@ body {
         const x = d.data() || {};
         const et = validar(x);
         if (!et || typeof x.texto !== 'string') continue;
-        const l = completar(x.texto, et, x.origen || 'ia', x.efectos);
+        const l = Object.assign(completar(x.texto, et, x.origen || 'ia', x.efectos), { revisada: !!x.revisada });
         enNube.add(l.n);
         const i = propios.findIndex(p => p.n === l.n);
         if (i >= 0) propios[i] = l; else propios.push(l); // la nube manda (Claude puede haberla corregido)
@@ -5053,7 +5057,7 @@ body {
 
   function guardar() {
     try {
-      localStorage.setItem(CLAVE, JSON.stringify(propios.map(x => Object.assign({ texto: x.texto, origen: x.origen }, x.etiqueta, x.efectos ? { efectos: x.efectos } : {}))));
+      localStorage.setItem(CLAVE, JSON.stringify(propios.map(x => Object.assign({ texto: x.texto, origen: x.origen }, x.etiqueta, x.efectos ? { efectos: x.efectos } : {}, x.revisada ? { revisada: true } : {}))));
     } catch (e) { /* sin memoria en este navegador */ }
   }
 
@@ -5225,11 +5229,13 @@ body {
   const EXAMEN = 'Eres el profesor del intérprete local de un juego satírico de gobierno de Corea del Norte en español. El jugador escribe decretos en lenguaje libre. ' +
     'Inventa decretos VARIADOS como los escribiría un jugador real: frases cortas y largas, coloquiales, con jerga de España y de Latinoamérica, alguna falta de ortografía, órdenes absurdas, economía, sociedad, ejército, exterior. ' +
     'Evita repetir los ejemplos obvios; busca formas de decirlo que un bot sencillo no entendería. Para cada uno pon su clave: o bien "tema" + "dir" ("favor" o "contra"), o bien "accion" + "objeto", y de 0 a 2 "conceptos" de la lista que expliquen sus consecuencias. ' +
-    'Solo decretos de una orden (no varias a la vez) y sin personas concretas.\n\n';
+    'Solo decretos de una orden (no varias a la vez) y sin personas concretas. ' +
+    'Pon también sus números como los decidiría el Consejo: "inicial" (al firmar) y "por_turno" (mientras siga vigente), con las claves dinero (millones de divisas), inflacion, estabilidad, felicidad (la población), ejercito y elite. ' +
+    'Escala: vender el agua da inicial dinero +35 y felicidad -8, por_turno dinero +15 y felicidad -2; regalar comida da inicial felicidad +10, por_turno dinero -10 y felicidad +3; invertir en escuelas cuesta inicial dinero -45 y da por_turno felicidad +1. Topes: inicial dinero ±80 y el resto ±15; por_turno dinero ±25, inflacion de -3 a 6, el resto ±3.\n\n';
 
   async function examen(n, estado, alTexto) {
     n = Math.max(5, Math.min(30, n || 15));
-    const contenido = EXAMEN + listas() + '\n\nDevuelve SOLO un JSON: {"decretos": [{"texto": "...", "tema": "...", "dir": "favor", "conceptos": []}, {"texto": "...", "accion": "...", "objeto": "...", "conceptos": []}]} con ' + n + ' decretos.';
+    const contenido = EXAMEN + listas() + '\n\nDevuelve SOLO un JSON: {"decretos": [{"texto": "...", "tema": "...", "dir": "favor", "conceptos": [], "inicial": {}, "por_turno": {}}, {"texto": "...", "accion": "...", "objeto": "...", "conceptos": [], "inicial": {}, "por_turno": {}}]} con ' + n + ' decretos.';
     const r = await RF.narradorIA.generar('Responde solo con JSON válido, sin markdown.', contenido, alTexto, 4000);
     const d = RF.consejoIA.extraerJSON(r.texto);
     const lista = (d && Array.isArray(d.decretos) ? d.decretos : []).filter(x => x && typeof x.texto === 'string' && validar(x));
@@ -5238,21 +5244,66 @@ body {
       err.mensaje = 'El profesor respondió algo que el bot no pudo leer.';
       throw err;
     }
-    const res = { total: lista.length, antes: 0, despues: 0, aprendidos: [] };
+    const res = { total: lista.length, antes: 0, despues: 0, aprendidos: [], numeros: 0 };
     for (const x of lista) if (acierta(x.texto, x, estado)) res.antes++;
     for (const x of lista) {
       const sabia = acierta(x.texto, x, estado);
-      if ((!sabia || (x.conceptos || []).length) && aprender(x.texto, x, 'entreno', true) && !sabia) res.aprendidos.push({ texto: x.texto, etiqueta: validar(x) });
+      const ef = limpiarEfectos({ inicial: x.inicial, porTurno: x.por_turno });
+      if (ef) res.numeros++;
+      // Se guarda lo que falló, y también lo que trae números o conceptos: enseña mecánicas.
+      if ((!sabia || ef || (x.conceptos || []).length) && aprender(x.texto, x, 'entreno', true, ef) && !sabia) res.aprendidos.push({ texto: x.texto, etiqueta: validar(x) });
     }
     RF.interprete.entrenar();
     for (const x of lista) if (acierta(x.texto, x, estado)) res.despues++;
     return res;
   }
 
+  // ---------- La revisión: la IA relee lo aprendido y corrige lo que esté mal ----------
+  const REVISION = 'Eres el revisor del intérprete local de un juego satírico de gobierno de Corea del Norte. Otra IA le enseñó estas lecciones: cada una es un decreto escrito por el jugador y cómo debe entenderlo el bot. ' +
+    'Algunas están mal: la dirección al revés (abolir en vez de imponer, abrir en vez de cerrar), un tema que no corresponde o conceptos que no explican nada de ese decreto. ' +
+    'Lee cada una con cuidado, pensando en qué quiso decir el jugador. Corrige SOLO las que estén mal; deja en paz las que estén bien.\n\n';
+
+  async function revisar(alTexto) {
+    const pendientes = cargar().map((x, i) => ({ x, i })).filter(({ x }) => !x.revisada).slice(0, 40);
+    if (!pendientes.length) return { revisadas: 0, correcciones: [], borradas: [] };
+    const lineas = pendientes.map(({ x }, k) => k + '. "' + x.texto + '" = ' + JSON.stringify(x.etiqueta) + ' (' + describir(x.etiqueta) + ')');
+    const contenido = REVISION + listas() + '\n\nLECCIONES:\n' + lineas.join('\n') +
+      '\n\nDevuelve SOLO un JSON: {"correcciones": [{"n": 0, "tema": "...", "dir": "favor", "conceptos": [], "motivo": "corto"}, {"n": 3, "accion": "...", "objeto": "...", "conceptos": [], "motivo": "corto"}], "borrar": [{"n": 5, "motivo": "no se entiende o no es un decreto"}]}. Si todas están bien, listas vacías.';
+    const r = await RF.narradorIA.generar('Responde solo con JSON válido, sin markdown.', contenido, alTexto, 3000);
+    const d = RF.consejoIA.extraerJSON(r.texto);
+    if (!d || typeof d !== 'object') {
+      const err = new Error('revisión ilegible');
+      err.mensaje = 'El revisor respondió algo que el bot no pudo leer.';
+      throw err;
+    }
+    const res = { revisadas: pendientes.length, correcciones: [], borradas: [] };
+    const quitar = new Set();
+    for (const b of Array.isArray(d.borrar) ? d.borrar : []) {
+      const p = pendientes[b && b.n];
+      if (p) { quitar.add(p.x); res.borradas.push({ texto: p.x.texto, motivo: String(b.motivo || '').slice(0, 120) }); }
+    }
+    for (const c of Array.isArray(d.correcciones) ? d.correcciones : []) {
+      const p = pendientes[c && c.n];
+      const et = p && !quitar.has(p.x) && validar(c);
+      if (!et || JSON.stringify(et) === JSON.stringify(p.x.etiqueta)) continue;
+      res.correcciones.push({ texto: p.x.texto, antes: p.x.etiqueta, despues: et, motivo: String(c.motivo || '').slice(0, 120) });
+      p.x.etiqueta = et;
+    }
+    for (const { x } of pendientes) {
+      if (quitar.has(x)) { if (nube) nube.collection(COLECCION).doc(idDe(x.n)).delete().catch(() => {}); continue; }
+      x.revisada = true;
+      subir(x);
+    }
+    propios = propios.filter(x => !quitar.has(x));
+    guardar();
+    if (RF.interprete) RF.interprete.entrenar();
+    return res;
+  }
+
   function resumen() {
     const p = cargar();
     const cuenta = o => p.filter(x => x.origen === o).length;
-    return { base: todos().length - p.length, ia: cuenta('ia'), entreno: cuenta('entreno'), ultimos: p.slice(-5).reverse(), nube: !!nube,
+    return { base: todos().length - p.length, ia: cuenta('ia'), entreno: cuenta('entreno'), sinRevisar: p.filter(x => !x.revisada).length, ultimos: p.slice(-5).reverse(), nube: !!nube,
       mecanicas: new Set(todos().filter(x => x.efectos).map(x => claveDe(x.etiqueta))).size };
   }
 
@@ -5269,7 +5320,7 @@ body {
 
   function recargar() { base = null; if (RF.interprete) RF.interprete.entrenar(); }
 
-  RF.aprendiz = { ajustarDef, mecanica, claveDe, efectosDeFicha, conectar, idDe, recargar, aprender, recordar, deFicha, todos, examen, resumen, olvidar, exportar, describir, acierta, validar, listas, similitud, raices };
+  RF.aprendiz = { revisar, ajustarDef, mecanica, claveDe, efectosDeFicha, conectar, idDe, recargar, aprender, recordar, deFicha, todos, examen, resumen, olvidar, exportar, describir, acierta, validar, listas, similitud, raices };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/interprete.js
@@ -7730,7 +7781,7 @@ body {
         'ACCIONES EXTERIORES: "vender armas a una guerrilla africana", "financiar a los rebeldes de X", "apoyar un golpe en X", "pedir un préstamo a Rusia", "enviar trabajadores a China", "hackear bancos", "contrabandear carbón". Dan divisas o influencia, pero pueden salir mal y subir las sanciones.\n' +
         'DIPLOMACIA: Estados Unidos, China, Corea del Sur y Japón quieren cosas distintas. "negociar con Estados Unidos", "pedir ayuda a China", "visitar Seúl" o "insultar a Japón" cambian las relaciones; los misiles y la bomba también. China da comercio y petróleo; Washington decide las sanciones; el Sur manda ayuda. Escribe "diplomacia" para verlo.\n' +
         'Opcional: toca el botón IA de arriba (o escribe "ia"). Con IA, un Consejo de Estado entiende cualquier decreto, decide sus consecuencias (el juego pone las reglas y los límites) y recuerda lo que va pasando; y una crónica cuenta cada turno. Dentro de claude.ai funciona con tu cuenta; fuera, con una clave de API (OpenRouter y Gemini tienen planes gratis).\n' +
-        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "diplomacia" (relaciones exteriores), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "entrenar" (la IA le pone un examen al bot local y le enseña lo que falla), "aprendido" (lo que sabe el bot), "reiniciar".\n' +
+        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "diplomacia" (relaciones exteriores), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "entrenar" (la IA le pone un examen al bot local y le enseña lo que falla), "aprendido" (lo que sabe el bot), "revisar" (la IA relee lo aprendido y corrige errores), "reiniciar".\n' +
         'No hay último turno: gobiernas mientras aguantes. Cada 20 turnos hay elecciones.'
     }];
   }
@@ -9200,7 +9251,7 @@ body {
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
     ['Disolver…', 'Disolver '], ['Controlar…', 'Controlar '], ['En secreto…', 'En secreto '],
-    ['esperar', 'esperar', true], ['estado', 'estado', true], ['diplomacia', 'diplomacia', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['entrenar bot', 'entrenar', true], ['lo que sabe el bot', 'aprendido', true], ['ayuda', 'ayuda', true]
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['diplomacia', 'diplomacia', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['entrenar bot', 'entrenar', true], ['lo que sabe el bot', 'aprendido', true], ['revisar bot', 'revisar', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -9790,7 +9841,11 @@ body {
     const bloques = RF.consejoIA.bloques(estado, ficha, res);
     // El intérprete local aprende de lo que la IA ha entendido.
     const leccion = RF.aprendiz && RF.aprendiz.deFicha(texto, ficha);
-    if (leccion) bloques.push({ tipo: 'aprende', titulo: 'EL BOT APRENDE', texto: '«' + texto + '» = ' + RF.aprendiz.describir(leccion) + '. La próxima vez lo entenderá sin la IA.' });
+    if (leccion) {
+      const sin = RF.aprendiz.resumen().sinRevisar;
+      bloques.push({ tipo: 'aprende', titulo: 'EL BOT APRENDE', texto: '«' + texto + '» = ' + RF.aprendiz.describir(leccion) + '. La próxima vez lo entenderá sin la IA.' +
+        (sin >= 8 && sin % 4 === 0 ? ' Ya hay ' + sin + ' lecciones sin revisar: escribe "revisar" para que la IA las relea.' : '') });
+    }
     RF.consejero.avanzarDia(estado, res);
     bloques.push(...RF.narrador.cierreDia(estado, res));
     const d = RF.director.pendiente(estado);
@@ -9808,6 +9863,7 @@ body {
       r.mecanicas ? 'Números aprendidos de la IA para ' + r.mecanicas + (r.mecanicas === 1 ? ' tipo de decreto' : ' tipos de decreto') + ': sin la IA, sus consecuencias se parecen a lo que ella decidiría.' : 'Todavía no ha aprendido números: los aprende cada vez que la IA decide un decreto.',
       r.nube ? 'Se guarda en la base de datos del juego en claude.ai: sigue ahí en cualquier dispositivo, y Claude puede revisarlo.' : 'Se guarda solo en este navegador.'];
     if (r.ultimos.length) lineas.push('Lo último:', ...r.ultimos.map(x => '«' + x.texto + '» = ' + RF.aprendiz.describir(x.etiqueta)));
+    if (r.sinRevisar) lineas.push('Lecciones sin revisar: ' + r.sinRevisar + '. Escribe "revisar" para que la IA las relea y corrija las que estén mal.');
     lineas.push('Escribe "entrenar" para que la IA le ponga un examen, "exportar" para copiar lo aprendido u "olvidar lo aprendido" para borrarlo.');
     return [{ tipo: 'aprende', titulo: 'LO QUE SABE EL BOT', texto: lineas.join('\n') }];
   }
@@ -9827,10 +9883,33 @@ body {
       return;
     }
     aviso.listo();
-    const lineas = ['Decretos del examen: ' + r.total + '. Los entendía bien: ' + r.antes + '. Ahora entiende: ' + r.despues + '.'];
+    const lineas = ['Decretos del examen: ' + r.total + '. Los entendía bien: ' + r.antes + '. Ahora entiende: ' + r.despues + '.' + (r.numeros ? ' Números aprendidos: ' + r.numeros + '.' : '')];
     if (r.aprendidos.length) lineas.push('Ha aprendido:', ...r.aprendidos.slice(0, 10).map(x => '«' + x.texto + '» = ' + RF.aprendiz.describir(x.etiqueta)));
     else lineas.push('No ha fallado nada que aprender. Buen alumno.');
     mostrar([{ tipo: 'aprende', titulo: 'EXAMEN DEL BOT', texto: lineas.join('\n') }], false);
+  }
+
+  async function revisarBot() {
+    if (!RF.narradorIA.activa() || iaPausada) {
+      mostrar([{ tipo: 'nota', texto: 'Para revisar lo aprendido hace falta la IA: ella hace de revisora. Actívala con el botón IA de arriba.' }], false);
+      return;
+    }
+    const aviso = deliberando('La IA relee lo que ha aprendido el bot y busca errores…');
+    let r;
+    try {
+      r = await RF.aprendiz.revisar();
+    } catch (err) {
+      aviso.listo();
+      mostrar([{ tipo: 'nota', texto: (err.mensaje || 'La revisora no respondió.') + ' Prueba otra vez.' }], false);
+      return;
+    }
+    aviso.listo();
+    if (!r.revisadas) { mostrar([{ tipo: 'aprende', titulo: 'REVISIÓN DEL BOT', texto: 'No hay lecciones nuevas que revisar.' }], false); return; }
+    const lineas = ['Lecciones revisadas: ' + r.revisadas + '. Corregidas: ' + r.correcciones.length + '. Borradas: ' + r.borradas.length + '.'];
+    for (const c of r.correcciones.slice(0, 8)) lineas.push('«' + c.texto + '»: ' + RF.aprendiz.describir(c.antes) + ' → ' + RF.aprendiz.describir(c.despues) + (c.motivo ? ' (' + c.motivo + ')' : ''));
+    for (const b of r.borradas.slice(0, 5)) lineas.push('Borrada «' + b.texto + '»' + (b.motivo ? ': ' + b.motivo : ''));
+    if (!r.correcciones.length && !r.borradas.length) lineas.push('Todo estaba bien.');
+    mostrar([{ tipo: 'aprende', titulo: 'REVISIÓN DEL BOT', texto: lineas.join('\n') }], false);
   }
 
   // El camino de siempre: el Intérprete local entiende el decreto y el Consejero aplica sus reglas.
@@ -9989,6 +10068,7 @@ body {
 
     const ent = orden.match(/^(?:entrenar|entrena|entrenar al bot|examen|examinar al bot|examinar)(?: (\d+))?$/);
     if (ent) { entrenarBot(ent[1] ? +ent[1] : 15); return; }
+    if (/^(revisar|revisar lo aprendido|repasar|repasar lo aprendido|revisa lo aprendido)$/.test(orden)) { revisarBot(); return; }
     if (/^(aprendido|lo aprendido|que has aprendido|que ha aprendido|memoria del bot|el bot)$/.test(orden)) { mostrar(bloquesAprendido(), false); return; }
     if (/^(olvidar lo aprendido|borrar lo aprendido|borrar aprendizaje)$/.test(orden)) { RF.aprendiz.olvidar(); mostrar([{ tipo: 'aprende', titulo: 'EL BOT OLVIDA', texto: 'El intérprete local olvida todo lo que aprendió en este navegador. Conserva lo que traía de fábrica.' }], false); return; }
     if (/^(exportar|exportar lo aprendido|exportar aprendizaje)$/.test(orden)) {

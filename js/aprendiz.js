@@ -58,7 +58,7 @@
     propios = [];
     try {
       const d = JSON.parse(localStorage.getItem(CLAVE) || '[]');
-      if (Array.isArray(d)) for (const x of d) { const et = validar(x); if (et && x.texto) propios.push(completar(x.texto, et, x.origen || 'ia', x.efectos)); }
+      if (Array.isArray(d)) for (const x of d) { const et = validar(x); if (et && x.texto) propios.push(Object.assign(completar(x.texto, et, x.origen || 'ia', x.efectos), { revisada: !!x.revisada })); }
     } catch (e) { /* sin memoria en este navegador */ }
     return propios;
   }
@@ -73,6 +73,7 @@
   function cuerpo(x) {
     const c = Object.assign({ texto: x.texto, origen: x.origen, t: Date.now() }, x.etiqueta);
     if (x.efectos) c.efectos = x.efectos;
+    if (x.revisada) c.revisada = true;
     return c;
   }
 
@@ -96,7 +97,7 @@
         const x = d.data() || {};
         const et = validar(x);
         if (!et || typeof x.texto !== 'string') continue;
-        const l = completar(x.texto, et, x.origen || 'ia', x.efectos);
+        const l = Object.assign(completar(x.texto, et, x.origen || 'ia', x.efectos), { revisada: !!x.revisada });
         enNube.add(l.n);
         const i = propios.findIndex(p => p.n === l.n);
         if (i >= 0) propios[i] = l; else propios.push(l); // la nube manda (Claude puede haberla corregido)
@@ -113,7 +114,7 @@
 
   function guardar() {
     try {
-      localStorage.setItem(CLAVE, JSON.stringify(propios.map(x => Object.assign({ texto: x.texto, origen: x.origen }, x.etiqueta, x.efectos ? { efectos: x.efectos } : {}))));
+      localStorage.setItem(CLAVE, JSON.stringify(propios.map(x => Object.assign({ texto: x.texto, origen: x.origen }, x.etiqueta, x.efectos ? { efectos: x.efectos } : {}, x.revisada ? { revisada: true } : {}))));
     } catch (e) { /* sin memoria en este navegador */ }
   }
 
@@ -285,11 +286,13 @@
   const EXAMEN = 'Eres el profesor del intérprete local de un juego satírico de gobierno de Corea del Norte en español. El jugador escribe decretos en lenguaje libre. ' +
     'Inventa decretos VARIADOS como los escribiría un jugador real: frases cortas y largas, coloquiales, con jerga de España y de Latinoamérica, alguna falta de ortografía, órdenes absurdas, economía, sociedad, ejército, exterior. ' +
     'Evita repetir los ejemplos obvios; busca formas de decirlo que un bot sencillo no entendería. Para cada uno pon su clave: o bien "tema" + "dir" ("favor" o "contra"), o bien "accion" + "objeto", y de 0 a 2 "conceptos" de la lista que expliquen sus consecuencias. ' +
-    'Solo decretos de una orden (no varias a la vez) y sin personas concretas.\n\n';
+    'Solo decretos de una orden (no varias a la vez) y sin personas concretas. ' +
+    'Pon también sus números como los decidiría el Consejo: "inicial" (al firmar) y "por_turno" (mientras siga vigente), con las claves dinero (millones de divisas), inflacion, estabilidad, felicidad (la población), ejercito y elite. ' +
+    'Escala: vender el agua da inicial dinero +35 y felicidad -8, por_turno dinero +15 y felicidad -2; regalar comida da inicial felicidad +10, por_turno dinero -10 y felicidad +3; invertir en escuelas cuesta inicial dinero -45 y da por_turno felicidad +1. Topes: inicial dinero ±80 y el resto ±15; por_turno dinero ±25, inflacion de -3 a 6, el resto ±3.\n\n';
 
   async function examen(n, estado, alTexto) {
     n = Math.max(5, Math.min(30, n || 15));
-    const contenido = EXAMEN + listas() + '\n\nDevuelve SOLO un JSON: {"decretos": [{"texto": "...", "tema": "...", "dir": "favor", "conceptos": []}, {"texto": "...", "accion": "...", "objeto": "...", "conceptos": []}]} con ' + n + ' decretos.';
+    const contenido = EXAMEN + listas() + '\n\nDevuelve SOLO un JSON: {"decretos": [{"texto": "...", "tema": "...", "dir": "favor", "conceptos": [], "inicial": {}, "por_turno": {}}, {"texto": "...", "accion": "...", "objeto": "...", "conceptos": [], "inicial": {}, "por_turno": {}}]} con ' + n + ' decretos.';
     const r = await RF.narradorIA.generar('Responde solo con JSON válido, sin markdown.', contenido, alTexto, 4000);
     const d = RF.consejoIA.extraerJSON(r.texto);
     const lista = (d && Array.isArray(d.decretos) ? d.decretos : []).filter(x => x && typeof x.texto === 'string' && validar(x));
@@ -298,21 +301,66 @@
       err.mensaje = 'El profesor respondió algo que el bot no pudo leer.';
       throw err;
     }
-    const res = { total: lista.length, antes: 0, despues: 0, aprendidos: [] };
+    const res = { total: lista.length, antes: 0, despues: 0, aprendidos: [], numeros: 0 };
     for (const x of lista) if (acierta(x.texto, x, estado)) res.antes++;
     for (const x of lista) {
       const sabia = acierta(x.texto, x, estado);
-      if ((!sabia || (x.conceptos || []).length) && aprender(x.texto, x, 'entreno', true) && !sabia) res.aprendidos.push({ texto: x.texto, etiqueta: validar(x) });
+      const ef = limpiarEfectos({ inicial: x.inicial, porTurno: x.por_turno });
+      if (ef) res.numeros++;
+      // Se guarda lo que falló, y también lo que trae números o conceptos: enseña mecánicas.
+      if ((!sabia || ef || (x.conceptos || []).length) && aprender(x.texto, x, 'entreno', true, ef) && !sabia) res.aprendidos.push({ texto: x.texto, etiqueta: validar(x) });
     }
     RF.interprete.entrenar();
     for (const x of lista) if (acierta(x.texto, x, estado)) res.despues++;
     return res;
   }
 
+  // ---------- La revisión: la IA relee lo aprendido y corrige lo que esté mal ----------
+  const REVISION = 'Eres el revisor del intérprete local de un juego satírico de gobierno de Corea del Norte. Otra IA le enseñó estas lecciones: cada una es un decreto escrito por el jugador y cómo debe entenderlo el bot. ' +
+    'Algunas están mal: la dirección al revés (abolir en vez de imponer, abrir en vez de cerrar), un tema que no corresponde o conceptos que no explican nada de ese decreto. ' +
+    'Lee cada una con cuidado, pensando en qué quiso decir el jugador. Corrige SOLO las que estén mal; deja en paz las que estén bien.\n\n';
+
+  async function revisar(alTexto) {
+    const pendientes = cargar().map((x, i) => ({ x, i })).filter(({ x }) => !x.revisada).slice(0, 40);
+    if (!pendientes.length) return { revisadas: 0, correcciones: [], borradas: [] };
+    const lineas = pendientes.map(({ x }, k) => k + '. "' + x.texto + '" = ' + JSON.stringify(x.etiqueta) + ' (' + describir(x.etiqueta) + ')');
+    const contenido = REVISION + listas() + '\n\nLECCIONES:\n' + lineas.join('\n') +
+      '\n\nDevuelve SOLO un JSON: {"correcciones": [{"n": 0, "tema": "...", "dir": "favor", "conceptos": [], "motivo": "corto"}, {"n": 3, "accion": "...", "objeto": "...", "conceptos": [], "motivo": "corto"}], "borrar": [{"n": 5, "motivo": "no se entiende o no es un decreto"}]}. Si todas están bien, listas vacías.';
+    const r = await RF.narradorIA.generar('Responde solo con JSON válido, sin markdown.', contenido, alTexto, 3000);
+    const d = RF.consejoIA.extraerJSON(r.texto);
+    if (!d || typeof d !== 'object') {
+      const err = new Error('revisión ilegible');
+      err.mensaje = 'El revisor respondió algo que el bot no pudo leer.';
+      throw err;
+    }
+    const res = { revisadas: pendientes.length, correcciones: [], borradas: [] };
+    const quitar = new Set();
+    for (const b of Array.isArray(d.borrar) ? d.borrar : []) {
+      const p = pendientes[b && b.n];
+      if (p) { quitar.add(p.x); res.borradas.push({ texto: p.x.texto, motivo: String(b.motivo || '').slice(0, 120) }); }
+    }
+    for (const c of Array.isArray(d.correcciones) ? d.correcciones : []) {
+      const p = pendientes[c && c.n];
+      const et = p && !quitar.has(p.x) && validar(c);
+      if (!et || JSON.stringify(et) === JSON.stringify(p.x.etiqueta)) continue;
+      res.correcciones.push({ texto: p.x.texto, antes: p.x.etiqueta, despues: et, motivo: String(c.motivo || '').slice(0, 120) });
+      p.x.etiqueta = et;
+    }
+    for (const { x } of pendientes) {
+      if (quitar.has(x)) { if (nube) nube.collection(COLECCION).doc(idDe(x.n)).delete().catch(() => {}); continue; }
+      x.revisada = true;
+      subir(x);
+    }
+    propios = propios.filter(x => !quitar.has(x));
+    guardar();
+    if (RF.interprete) RF.interprete.entrenar();
+    return res;
+  }
+
   function resumen() {
     const p = cargar();
     const cuenta = o => p.filter(x => x.origen === o).length;
-    return { base: todos().length - p.length, ia: cuenta('ia'), entreno: cuenta('entreno'), ultimos: p.slice(-5).reverse(), nube: !!nube,
+    return { base: todos().length - p.length, ia: cuenta('ia'), entreno: cuenta('entreno'), sinRevisar: p.filter(x => !x.revisada).length, ultimos: p.slice(-5).reverse(), nube: !!nube,
       mecanicas: new Set(todos().filter(x => x.efectos).map(x => claveDe(x.etiqueta))).size };
   }
 
@@ -329,5 +377,5 @@
 
   function recargar() { base = null; if (RF.interprete) RF.interprete.entrenar(); }
 
-  RF.aprendiz = { ajustarDef, mecanica, claveDe, efectosDeFicha, conectar, idDe, recargar, aprender, recordar, deFicha, todos, examen, resumen, olvidar, exportar, describir, acierta, validar, listas, similitud, raices };
+  RF.aprendiz = { revisar, ajustarDef, mecanica, claveDe, efectosDeFicha, conectar, idDe, recargar, aprender, recordar, deFicha, todos, examen, resumen, olvidar, exportar, describir, acierta, validar, listas, similitud, raices };
 })(globalThis.RF = globalThis.RF || {});
