@@ -518,3 +518,9 @@ body {
 .b-detalles summary::before { content: '▸ '; }
 .b-detalles details[open] summary::before { content: '▾ '; }
 .b-detalles details > .bloque { margin-top: 10px; font-size: 13px; }
+
+/* POR QUÉ: los conceptos que explican el decreto. */
+.b-porque { font-size: 13px; padding: 6px 12px; border-left: 2px solid var(--fosforo-tenue); }
+.b-porque .etiqueta { color: var(--fosforo-tenue); letter-spacing: 0.1em; }
+.b-porque p { white-space: pre-line; color: var(--fosforo); }
+.b-porque p::first-letter { color: var(--fosforo); }

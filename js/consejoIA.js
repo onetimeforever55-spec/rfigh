@@ -36,6 +36,11 @@
     ...Object.values(RF.PAIS.conceptos).map(l => '- ' + l),
     'Tu trabajo: entender el decreto y decidir sus consecuencias de forma REALISTA y COHERENTE con la situación actual y con la memoria de lo que ya pasó. No escribes la historia: devuelves una ficha JSON que el motor del juego aplica con sus propias reglas.',
     '',
+    'BIBLIOTECA DE CONCEPTOS (razona con ellos: son mecanismos reales de economía, sociedad, política, exterior e historia; aplícalos a cualquier decreto y combínalos):',
+    ...(RF.CONCEPTOS || []).map(k => '- ' + k.nombre + ' (' + k.area + '): ' + k.idea),
+    'Puedes usar también otros conceptos reales que conozcas (economía, historia de otros países), siempre que encajen.',
+    '"porque": 1 o 2 frases cortas (máx. 25 palabras) que explican al jugador el mecanismo principal de las consecuencias, citando el concepto o un precedente histórico real. Con gracia, sin sermón. Ej.: "Hay más wones pero el mismo arroz: cada billete compra menos. Ya pasó en Zimbabue en 2008."',
+    '',
     'EL PAÍS SE MIDE ASÍ (en el JSON usa siempre estas claves):',
     '- dinero = DIVISAS: millones de dólares en las arcas. Cada turno el motor ya cobra impuestos (menos lo que se escapa por el mercado negro), paga sueldos y resta las sanciones: sin buscar divisas, el país se arruina.',
     '- inflacion = INFLACIÓN: % que suben los precios cada turno (el arroz en el mercado, el won). Por encima de 30 hay hambre; por encima de 40 se retroalimenta.',
@@ -101,7 +106,7 @@
     ' "leyes": [{"nombre": "la privatización del aire", "inicial": {"dinero": 35, "felicidad": -8}, "por_turno": {"dinero": 15, "felicidad": -2, "estabilidad": -1}, "curvas": {}, "duracion": null, "imprime": false, "controversia": 2}],',
     ' "derogar": [], "personas": [], "instituciones": {}, "regimen": null, "secreto": false, "gravedad_secreto": 0, "apoyo_congreso": 0,',
     ' "consecuencias": [], "evento": null, "hechos": ["El Gobierno vendió el aire a la empresa Brisa S.A."],',
-    ' "economia": {}, "relaciones": {}, "radio": "¡Buenos días, camaradas! ...", "gabinete": {"id": "cifuentes", "dice": "..."}, "ejercito": {"dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
+    ' "porque": ["..."], "economia": {}, "relaciones": {}, "radio": "¡Buenos días, camaradas! ...", "gabinete": {"id": "cifuentes", "dice": "..."}, "ejercito": {"dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
     'Si el decreto no crea una ley duradera (una orden puntual, una fiesta, un castigo a una persona), deja "leyes" vacío y pon el efecto puntual en "efecto_unico": {"dinero": ..., ...} (topes de "inicial").'
   ].join('\n');
 
@@ -432,6 +437,8 @@
     out.push({ tipo: 'bot', texto: 'CONSEJO DE ESTADO › ' + (limpiar(ficha.interpretacion, 200) || T.mayus(res.medida)) });
     const pasos = (Array.isArray(ficha.logica) ? ficha.logica : []).map(x => limpiar(x, 220)).filter(Boolean).slice(0, 4);
     if (pasos.length) out.push({ tipo: 'logica', titulo: 'INFORME DEL CONSEJO', texto: pasos.join('\n') });
+    const porque = (Array.isArray(ficha.porque) ? ficha.porque : [ficha.porque]).map(x => limpiar(x, 240)).filter(Boolean).slice(0, 2);
+    if (porque.length) out.push({ tipo: 'porque', titulo: 'POR QUÉ', texto: porque.join('\n') });
     const cab = res.bloqueada && !res.leyes.length ? 'PROYECTO DE LEY Nº ' : res.secreto ? 'ORDEN RESERVADA Nº ' : 'DECRETO Nº ';
     let gaceta = T.mayus(res.medida) + '.';
     const g = limpiar(ficha.gaceta, 500);

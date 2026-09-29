@@ -127,7 +127,7 @@
    * Visible: la Gaceta, los efectos, el Informe del Consejo, la radio y la sección, los sucesos, los eventos,
    * los cambios de régimen, las alertas graves y el final. Plegado: intérprete, notas, relaciones, leyes, causas.
    */
-  const VISIBLES = new Set(['gaceta', 'efectos', 'logica', 'radio', 'cupula', 'ejercito', 'calle', 'suceso', 'dilema', 'regimen', 'fin', 'cronica', 'eco']);
+  const VISIBLES = new Set(['gaceta', 'efectos', 'logica', 'porque', 'radio', 'cupula', 'ejercito', 'calle', 'suceso', 'dilema', 'regimen', 'fin', 'cronica', 'eco']);
   const GRAVE = /desploma|quiebra|golpe|Congreso|bloque|juicio|secreto|Nadie lo sabe/i;
   function compactar(bloques) {
     const vis = [], letra = [];
@@ -233,6 +233,8 @@
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
     bloques.push({ tipo: 'gaceta', titulo: (res.secreto ? 'ORDEN RESERVADA Nº ' : 'ORDEN EJECUTIVA Nº ') + res.numero + ' · TURNO ' + res.dia, texto: T.mayus(res.medida) + '. ' + res.especial });
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno });
+    const pq = bloquePorque(res);
+    if (pq) bloques.push(pq);
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
     const tipo = res.secreto ? 'secreto' : TIPO_TRATO[res.trato] || 'general';
     bloques.push(...secciones(estado, res, tipo));
@@ -249,6 +251,12 @@
       return RF.PAIS.relaciones[id].nombre + ': ' + (d > 0 ? '+' : '−') + Math.abs(d) + ' → ' + v + ' (' + RF.diplomacia.etiqueta(v) + ')';
     });
     return { tipo: 'exterior', titulo: 'RELACIONES EXTERIORES', texto: lineas.join('\n') };
+  }
+
+  // POR QUÉ: los conceptos que han actuado en este decreto.
+  function bloquePorque(res) {
+    if (!res.porque || !res.porque.length) return null;
+    return { tipo: 'porque', titulo: 'POR QUÉ', texto: res.porque.map(p => p.texto).join('\n') };
   }
 
   function decretoDiplomacia(estado, interp, res) {
@@ -283,6 +291,8 @@
     if (res.bloqueada) gaceta += ' El proyecto llega al Congreso... y se atasca.';
     bloques.push({ tipo: 'gaceta', titulo: cabecera + res.numero + ' · TURNO ' + res.dia, texto: gaceta });
     bloques.push({ tipo: 'efectos', deltas: res.deltas, porTurno: res.porTurno, curvas: res.curvas, nivel: res.ley && res.ley.nivel });
+    const pq = bloquePorque(res);
+    if (pq) bloques.push(pq);
     for (const nota of res.notas) bloques.push({ tipo: 'nota', texto: nota });
 
     const ex = bloqueExterior(estado, res.relaciones);
@@ -496,5 +506,5 @@
     ];
   }
 
-  RF.narrador = { compactar, diplomacia, bloqueExterior, secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
+  RF.narrador = { bloquePorque, compactar, diplomacia, bloqueExterior, secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});

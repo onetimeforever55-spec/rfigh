@@ -83,6 +83,18 @@ Cuatro potencias tienen una relación contigo (0-100), algo que quieren y algo q
 
 Las relaciones vuelven poco a poco a su punto de partida: la memoria diplomática es corta.
 
+### Conceptos: el porqué de cada decreto
+
+El juego no se limita a una lista de casos resueltos: razona con una **biblioteca de 38 conceptos reales** (`js/datos/conceptos.js`) de economía, sociedad, política, relaciones exteriores e historia. Cada concepto dice cuándo se aplica, cómo ajusta un poco las consecuencias según la situación del país y cómo se explica.
+
+- **Mecanismos:** dinero sin respaldo, confianza en la moneda, gasto sin dinero, lo prohibido se va al mercado negro, economía sumergida, demasiados impuestos, privatizar para los de siempre, precio máximo y estantería vacía, quien siembra cosecha, el miedo, el mártir, la desigualdad que se ve, el momento más peligroso para un régimen (Tocqueville), la purga…
+- **Precedentes históricos** (solo explican): Weimar y Zimbabue, la reforma monetaria de 2009, la guerra del agua de Cochabamba, la Ley Seca, la Ardua Marcha, Shenzhen, el Gran Salto Adelante, la glásnost, Venezuela, Xiaogang 1978, Irak bajo sanciones.
+- **Se aplican según la situación:** imprimir dinero con la inflación baja solo sube los precios, pero con la inflación ya alta hace que la gente abandone el won y la inflación se acelera sola. Subir impuestos con un mercado negro grande recauda menos.
+- **Cada turno lo explica** en un bloque **POR QUÉ** de una o dos líneas: el mecanismo principal y, si viene a cuento, un precedente real.
+- **El Consejo con IA recibe la misma biblioteca**, razona con ella (y con otros conceptos reales que conozca) y justifica sus consecuencias en el mismo bloque.
+
+Políticas económicas y sociales nuevas (`js/datos/politicas.js`): control de precios, racionamiento, reforma monetaria, reparto de tierras o colectivización, y el songbun.
+
 ### Acciones exteriores
 
 Lo que hace un régimen aislado fuera de sus fronteras (`js/datos/exterior.js`):

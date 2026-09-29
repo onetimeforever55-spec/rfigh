@@ -56,7 +56,7 @@ const CASOS = [
   ['homenaje al ejercito', 'GLORIFICAR', 'EJERCITO'],
   ['amnistia para los opositores', 'LEGALIZAR', 'OPOSICION'],
   ['gasolina gratis', 'SUBSIDIAR', 'ENERGIA'],
-  ['congelar el precio del pan', 'SUBSIDIAR', 'COMIDA'],
+  ['congelar el precio del pan', 'LEGALIZAR', 'CONTROL_PRECIOS'],
   ['prohibir los calcetines rojos', 'PROHIBIR', 'OTRO'],
   ['que todos usen sombrero', 'OBLIGAR', 'ROPA'],
   ['prohibir los paraguas', 'PROHIBIR', 'OTRO'],

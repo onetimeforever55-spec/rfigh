@@ -320,6 +320,11 @@
 
     const factor = op.secundario ? 0.75 : 1;
     for (const k of Object.keys(inicial)) inicial[k] *= factor;
+    // Los conceptos: mecanismos reales que ajustan un poco las consecuencias según la situación, y explican el porqué.
+    if (RF.conceptosDe && !res.bloqueada) {
+      const k = RF.conceptosDe({ e: estado, accion, objeto: objId, o, tema: interp.tema, dir: interp.dir, n: T.normalizar(interp.texto || ''), res });
+      aplicarConceptos(estado, k, res, inicial);
+    }
     aplicarEfectos(estado, inicial, res.deltas);
 
     // Lo que ha cambiado en las relaciones exteriores con este decreto (venga de donde venga).
@@ -355,6 +360,7 @@
     const factor = (op.secundario ? 0.75 : 1) * (publico && RF.politica.esDemocracia(estado) ? 1.3 : 1);
     const efectos = convertir(t.efectos);
     for (const k of Object.keys(efectos)) efectos[k] *= factor;
+    if (RF.conceptosDe) aplicarConceptos(estado, RF.conceptosDe({ e: estado, accion: 'PERSONA', objeto: interp.persona, o: null, n: T.normalizar(interp.texto || ''), res: Object.assign(res, { trato: interp.trato, persona: interp.persona }) }), res, efectos);
     aplicarEfectos(estado, efectos, res.deltas);
     if (t.ley) {
       const p = RF.leyes.promulgar(estado, t.ley, 'PERSONA', t.ley.nombre);
@@ -381,6 +387,19 @@
     reacciones(estado, res, tipo === 'opositor' ? 'OPOSICION' : tipo === 'extranjero' ? 'EXTRANJEROS' : 'LIDER');
     if (op.avanzar !== false) avanzarDia(estado, res);
     return res;
+  }
+
+  // Aplica los ajustes de los conceptos activos y guarda sus explicaciones.
+  function aplicarConceptos(estado, k, res, inicial) {
+    for (const { a } of k.ajustes) {
+      if (!a) continue;
+      if (a.efectos) for (const [kk, v] of Object.entries(convertir(a.efectos))) sumar(inicial, kk, v);
+      if (a.economia) ajustarEconomia(estado, a.economia, null);
+      if (a.relaciones && RF.diplomacia) RF.diplomacia.ajustar(estado, a.relaciones);
+      if (a.factorLey && res.ley) res.ley.factor = Math.round((res.ley.factor || 1) * a.factorLey * 100) / 100;
+    }
+    res.porque = k.porque;
+    res.conceptos = k.activos.map(x => x.id);
   }
 
   // Lo que un tema trae más adelante (con sus sanciones y relaciones).
