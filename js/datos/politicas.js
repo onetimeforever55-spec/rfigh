@@ -324,7 +324,7 @@
 
     CAMPANA_PRODUCCION: {
       nombre: 'la batalla de producción',
-      re: /\b(cultiv\w* mas|producir mas|aument\w* la produccion|batalla de (los )?\d+ dias|campana de (produccion|velocidad)|movilizaci\w* (de|para) (la cosecha|el campo)|mas cosechas?)\b/,
+      re: /\b(cultiv\w* mas|producir mas|aument\w* la produccion|batallas? de (los )?\d+ dias|batallas? de (la )?produccion|campana de (produccion|velocidad)|movilizaci\w* (de|para) (la cosecha|el campo)|mas cosechas?)\b/,
       favor: {
         nombre: 'la batalla de los 70 días', controversia: 0, unaVez: true, prensa: 'culto',
         inicial: { dinero: 8, felicidad: -4, inflacion: -2, estabilidad: 1 },

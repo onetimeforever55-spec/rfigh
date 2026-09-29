@@ -89,6 +89,16 @@ console.log('MÁS POLÍTICAS, TODAS CON SU PORQUÉ');
   comprobar(r.porque[0].texto.includes('imprimiendo'), 'sin divisas, la obra se explica (y se paga) imprimiendo wones');
 }
 
+console.log('LA HISTORIA EXPLICA');
+{
+  const casos = ['desmantelar la bomba', 'declarar la guerra a Corea del Sur', 'campos de trabajo', 'prohibir la religión', 'legalizar la oposición', 'hackear un banco', 'pedir un préstamo a China',
+    'regalar comida', 'subir impuestos', 'encarcelar a los periodistas', 'construir estatuas mías', 'crear milicias populares', 'enviar estudiantes al extranjero', 'construir un muro', 'bitcoin como moneda'];
+  const sin = casos.filter(t => { const e = nuevo(); const i = RF.interprete.interpretar(t, e); const r = RF.consejero.decretar(e, i, { avanzar: false }); return !(r.porque || []).some(p => p.area === 'historia'); });
+  comprobar(!sin.length, casos.length + ' decretos típicos traen un precedente histórico real' + (sin.length ? ': faltan ' + sin.join('; ') : ''));
+  comprobar(RF.CONCEPTOS.filter(k => k.area === 'historia').length >= 80, RF.CONCEPTOS.filter(k => k.area === 'historia').length + ' precedentes históricos');
+  comprobar(RF.consejoIA.SISTEMA.length < 45000, 'las instrucciones de la IA no crecen sin control (' + RF.consejoIA.SISTEMA.length + ' caracteres)');
+}
+
 console.log('LA IA RAZONA CON LA MISMA BIBLIOTECA');
 {
   comprobar(RF.CONCEPTOS.every(k => RF.consejoIA.SISTEMA.includes(k.nombre)), 'el Consejo recibe todos los conceptos');

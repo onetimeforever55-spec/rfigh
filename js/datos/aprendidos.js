@@ -73,6 +73,20 @@
     ['prohibir los móviles', {accion: 'PROHIBIR', objeto: 'TECNOLOGIA'}],
     // Enseñados jugando (revisados: la IA marcó la 2ª como "en contra" de la esclavitud)
     ['Prohibir el consumo de drogas en Corea del Norte es solo para exportaciones', {accion: 'ENFOCAR', objeto: 'NARCO', conceptos: ['narcoestado']}],
-    ['Fábricas de opio a hasta morir', {tema: 'ESCLAVITUD', dir: 'favor', conceptos: ['narcoestado']}]
+    ['Fábricas de opio a hasta morir', {tema: 'ESCLAVITUD', dir: 'favor', conceptos: ['narcoestado']}],
+    // Aprendidos jugando y revisados en la base de datos del juego
+    ['Promover la natalidad', {tema: 'NATALIDAD', dir: 'favor', conceptos: ['natalidad_incentivos']}],
+    ['Enviar a a estudiantes a estudiar afuera', {accion: 'INVERTIR', objeto: 'EDUCACION', conceptos: ['estudiar_fuera', 'informacion_contagiosa']}],
+    ['Pedir inversión china, abrir economía a china totalmente', {tema: 'COMERCIO_EXTERIOR', dir: 'favor', conceptos: ['dependencia_china', 'captura_privatizacion']}],
+    ['Meterle inversión al carbón', {accion: 'INVERTIR', objeto: 'CARBON', conceptos: ['carbon_divisas', 'dependencia_china']}],
+    ['la producción agrícola para consuma nacional', {tema: 'EXPORTACIONES', dir: 'contra'}],
+    // Huecos encontrados al medir la historia
+    ['enviar estudiantes al extranjero', {accion: 'INVERTIR', objeto: 'EDUCACION', conceptos: ['estudiar_fuera']}],
+    ['becas para estudiar en China', {accion: 'INVERTIR', objeto: 'EDUCACION', conceptos: ['estudiar_fuera']}],
+    ['desmantelar la bomba', {tema: 'NUCLEAR', dir: 'contra'}],
+    ['destruir las armas nucleares', {tema: 'NUCLEAR', dir: 'contra'}],
+    ['voto para las mujeres', {tema: 'VOTO_MUJERES', dir: 'favor'}],
+    ['junta militar', {accion: 'CREAR', objeto: 'JUNTA'}],
+    ['que gobiernen los generales', {accion: 'CREAR', objeto: 'JUNTA'}]
   ];
 })(globalThis.RF = globalThis.RF || {});

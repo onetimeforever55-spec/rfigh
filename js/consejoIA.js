@@ -37,7 +37,9 @@
     'Tu trabajo: entender el decreto y decidir sus consecuencias de forma REALISTA y COHERENTE con la situación actual y con la memoria de lo que ya pasó. No escribes la historia: devuelves una ficha JSON que el motor del juego aplica con sus propias reglas.',
     '',
     'BIBLIOTECA DE CONCEPTOS (razona con ellos: son mecanismos reales de economía, sociedad, política, exterior e historia; aplícalos a cualquier decreto y combínalos):',
-    ...(RF.CONCEPTOS || []).map(k => '- ' + k.nombre + ' [' + k.id + '] (' + k.area + '): ' + k.idea),
+    ...(RF.CONCEPTOS || []).filter(k => k.area !== 'historia').map(k => '- ' + k.nombre + ' [' + k.id + '] (' + k.area + '): ' + k.idea),
+    // Los precedentes históricos ya los conoce la IA: basta con nombrarlos.
+    'Precedentes históricos que puedes citar: ' + (RF.CONCEPTOS || []).filter(k => k.area === 'historia').map(k => k.nombre).join('; ') + '.',
     'Puedes usar también otros conceptos reales que conozcas (economía, historia de otros países), siempre que encajen.',
     '"porque": 1 o 2 frases cortas (máx. 25 palabras) que explican al jugador el mecanismo principal de las consecuencias, citando el concepto o un precedente histórico real. Con gracia, sin sermón. Ej.: "Hay más wones pero el mismo arroz: cada billete compra menos. Ya pasó en Zimbabue en 2008."',
     '',
