@@ -15,7 +15,7 @@
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
     ['Disolver…', 'Disolver '], ['Controlar…', 'Controlar '], ['En secreto…', 'En secreto '],
-    ['esperar', 'esperar', true], ['estado', 'estado', true], ['diplomacia', 'diplomacia', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['ayuda', 'ayuda', true]
+    ['esperar', 'esperar', true], ['estado', 'estado', true], ['diplomacia', 'diplomacia', true], ['sistema', 'sistema', true], ['leyes', 'leyes', true], ['poder', 'poder', true], ['historial', 'historial', true], ['entrenar bot', 'entrenar', true], ['lo que sabe el bot', 'aprendido', true], ['ayuda', 'ayuda', true]
   ];
 
   let estado, registro = [], cola = [], escribiendo = null, actual = null, saltar = false, pendienteReinicio = false, tarjetaAbierta = null;
@@ -603,6 +603,9 @@
     estado.iaActiva = true;
     const res = RF.consejoIA.aplicar(estado, ficha, texto);
     const bloques = RF.consejoIA.bloques(estado, ficha, res);
+    // El intérprete local aprende de lo que la IA ha entendido.
+    const leccion = RF.aprendiz && RF.aprendiz.deFicha(texto, ficha);
+    if (leccion) bloques.push({ tipo: 'aprende', titulo: 'EL BOT APRENDE', texto: '«' + texto + '» = ' + RF.aprendiz.describir(leccion) + '. La próxima vez lo entenderá sin la IA.' });
     RF.consejero.avanzarDia(estado, res);
     bloques.push(...RF.narrador.cierreDia(estado, res));
     const d = RF.director.pendiente(estado);
@@ -611,6 +614,36 @@
     pintarStats(cambios(antes));
     actualizarConsola();
     guardar();
+  }
+
+  // ---------- Entrenar al bot: la IA le pone un examen y le enseña lo que falla ----------
+  function bloquesAprendido() {
+    const r = RF.aprendiz.resumen();
+    const lineas = ['De fábrica: ' + r.base + ' ejemplos. Aprendidos jugando con la IA: ' + r.ia + '. En exámenes: ' + r.entreno + '.'];
+    if (r.ultimos.length) lineas.push('Lo último:', ...r.ultimos.map(x => '«' + x.texto + '» = ' + RF.aprendiz.describir(x.etiqueta)));
+    lineas.push('Escribe "entrenar" para que la IA le ponga un examen, "exportar" para copiar lo aprendido u "olvidar lo aprendido" para borrarlo.');
+    return [{ tipo: 'aprende', titulo: 'LO QUE SABE EL BOT', texto: lineas.join('\n') }];
+  }
+
+  async function entrenarBot(n) {
+    if (!RF.narradorIA.activa() || iaPausada) {
+      mostrar([{ tipo: 'nota', texto: 'Para entrenar al bot hace falta la IA: ella es el profesor. Actívala con el botón IA de arriba. Mientras tanto, el bot también aprende solo cada vez que firmas un decreto con la IA activa.' }], false);
+      return;
+    }
+    const aviso = deliberando('La IA prepara un examen de ' + n + ' decretos para el intérprete local…');
+    let r;
+    try {
+      r = await RF.aprendiz.examen(n, estado);
+    } catch (err) {
+      aviso.listo();
+      mostrar([{ tipo: 'nota', texto: (err.mensaje || 'El profesor no respondió.') + ' Prueba otra vez.' }], false);
+      return;
+    }
+    aviso.listo();
+    const lineas = ['Decretos del examen: ' + r.total + '. Los entendía bien: ' + r.antes + '. Ahora entiende: ' + r.despues + '.'];
+    if (r.aprendidos.length) lineas.push('Ha aprendido:', ...r.aprendidos.slice(0, 10).map(x => '«' + x.texto + '» = ' + RF.aprendiz.describir(x.etiqueta)));
+    else lineas.push('No ha fallado nada que aprender. Buen alumno.');
+    mostrar([{ tipo: 'aprende', titulo: 'EXAMEN DEL BOT', texto: lineas.join('\n') }], false);
   }
 
   // El camino de siempre: el Intérprete local entiende el decreto y el Consejero aplica sus reglas.
@@ -766,6 +799,15 @@
     if (/^(gabinete|ministros|poder|instituciones)$/.test(orden)) { mostrar(RF.narrador.gabinete(estado), false); return; }
     if (/^(leyes|ley|leyes vigentes|economia|mercado|balance)$/.test(orden)) { mostrar(RF.narrador.leyes(estado), false); return; }
     if (/^(historial|decretos|archivo)$/.test(orden)) { mostrar(RF.narrador.historial(estado), false); return; }
+
+    const ent = orden.match(/^(?:entrenar|entrena|entrenar al bot|examen|examinar al bot|examinar)(?: (\d+))?$/);
+    if (ent) { entrenarBot(ent[1] ? +ent[1] : 15); return; }
+    if (/^(aprendido|lo aprendido|que has aprendido|que ha aprendido|memoria del bot|el bot)$/.test(orden)) { mostrar(bloquesAprendido(), false); return; }
+    if (/^(olvidar lo aprendido|borrar lo aprendido|borrar aprendizaje)$/.test(orden)) { RF.aprendiz.olvidar(); mostrar([{ tipo: 'aprende', titulo: 'EL BOT OLVIDA', texto: 'El intérprete local olvida todo lo que aprendió en este navegador. Conserva lo que traía de fábrica.' }], false); return; }
+    if (/^(exportar|exportar lo aprendido|exportar aprendizaje)$/.test(orden)) {
+      mostrar([{ tipo: 'detalles', titulo: 'Lo aprendido (JSON para copiar)', hijos: [{ tipo: 'nota', texto: RF.aprendiz.exportar() }] }], false);
+      return;
+    }
 
     if (estado.fin) {
       mostrar([{ tipo: 'nota', texto: 'Tu gobierno ha terminado. Escribe "reiniciar" para empezar otra partida.' }], false);

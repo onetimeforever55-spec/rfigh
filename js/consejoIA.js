@@ -37,7 +37,7 @@
     'Tu trabajo: entender el decreto y decidir sus consecuencias de forma REALISTA y COHERENTE con la situación actual y con la memoria de lo que ya pasó. No escribes la historia: devuelves una ficha JSON que el motor del juego aplica con sus propias reglas.',
     '',
     'BIBLIOTECA DE CONCEPTOS (razona con ellos: son mecanismos reales de economía, sociedad, política, exterior e historia; aplícalos a cualquier decreto y combínalos):',
-    ...(RF.CONCEPTOS || []).map(k => '- ' + k.nombre + ' (' + k.area + '): ' + k.idea),
+    ...(RF.CONCEPTOS || []).map(k => '- ' + k.nombre + ' [' + k.id + '] (' + k.area + '): ' + k.idea),
     'Puedes usar también otros conceptos reales que conozcas (economía, historia de otros países), siempre que encajen.',
     '"porque": 1 o 2 frases cortas (máx. 25 palabras) que explican al jugador el mecanismo principal de las consecuencias, citando el concepto o un precedente histórico real. Con gracia, sin sermón. Ej.: "Hay más wones pero el mismo arroz: cada billete compra menos. Ya pasó en Zimbabue en 2008."',
     '',
@@ -101,12 +101,15 @@
     '- "ejercito": {"dice": "..."} cómo lo reciben los cuarteles, los generales o los soldados (una frase). Es la sección EJÉRCITO.',
     '- "calle": una persona de a pie (id) que esté libre y lo que vive por el decreto en su día a día (una o dos frases). Es la sección POBLACIÓN.',
     '',
+    'CLAVE PARA EL BOT LOCAL (campo "clave"): el juego tiene un intérprete sencillo que aprende de ti. Dile cómo clasificaría él este decreto: o un "tema" de la lista con "dir" ("favor", "contra" o "privada"), o una "accion" + un "objeto" de las listas; y en "conceptos" de 0 a 2 ids de la biblioteca que expliquen las consecuencias. Si el decreto tiene varias órdenes o no encaja en nada, pon "clave": null.',
+    ...(RF.aprendiz ? RF.aprendiz.listas().split('\n').filter(l => !l.startsWith('CONCEPTOS')) : []),
+    '',
     'RESPONDE SOLO CON EL JSON, sin markdown ni texto alrededor. Usa comillas dobles. No uses llaves ni corchetes dentro de los textos. Esquema:',
     '{"entendido": true, "pregunta": "", "interpretacion": "qué entendiste, en una frase", "logica": ["Paso 1: cómo lo aplica el Estado", "Paso 2: quién gana y quién hace la trampa", "Paso 3: el efecto secundario que nadie previó"], "titulo": "nombre de la medida, en minúscula y con artículo (la privatización del aire)", "gaceta": "1 o 2 frases estilo Boletín Oficial",',
     ' "leyes": [{"nombre": "la privatización del aire", "inicial": {"dinero": 35, "felicidad": -8}, "por_turno": {"dinero": 15, "felicidad": -2, "estabilidad": -1}, "curvas": {}, "duracion": null, "imprime": false, "controversia": 2}],',
     ' "derogar": [], "personas": [], "instituciones": {}, "regimen": null, "secreto": false, "gravedad_secreto": 0, "apoyo_congreso": 0,',
     ' "consecuencias": [], "evento": null, "hechos": ["El Gobierno vendió el aire a la empresa Brisa S.A."],',
-    ' "porque": ["..."], "economia": {}, "relaciones": {}, "radio": "¡Buenos días, camaradas! ...", "gabinete": {"id": "cifuentes", "dice": "..."}, "ejercito": {"dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
+    ' "porque": ["..."], "clave": {"tema": null, "dir": null, "accion": "PRIVATIZAR", "objeto": "AIRE", "conceptos": ["captura_privatizacion"]}, "economia": {}, "relaciones": {}, "radio": "¡Buenos días, camaradas! ...", "gabinete": {"id": "cifuentes", "dice": "..."}, "ejercito": {"dice": "..."}, "calle": {"id": "carmen", "dice": "..."}}',
     'Si el decreto no crea una ley duradera (una orden puntual, una fiesta, un castigo a una persona), deja "leyes" vacío y pon el efecto puntual en "efecto_unico": {"dinero": ..., ...} (topes de "inicial").'
   ].join('\n');
 

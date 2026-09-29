@@ -520,6 +520,9 @@ body {
 .b-detalles details > .bloque { margin-top: 10px; font-size: 13px; }
 
 /* POR QUÉ: los conceptos que explican el decreto. */
+.b-aprende { font-size: 12px; padding: 4px 12px; border-left: 2px dashed var(--fosforo-tenue); }
+.b-aprende .etiqueta { color: var(--fosforo-tenue); letter-spacing: 0.1em; }
+.b-aprende p { white-space: pre-line; color: var(--fosforo-tenue); }
 .b-porque { font-size: 13px; padding: 6px 12px; border-left: 2px solid var(--fosforo-tenue); }
 .b-porque .etiqueta { color: var(--fosforo-tenue); letter-spacing: 0.1em; }
 .b-porque p { white-space: pre-line; color: var(--fosforo); }

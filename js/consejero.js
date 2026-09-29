@@ -322,7 +322,7 @@
     for (const k of Object.keys(inicial)) inicial[k] *= factor;
     // Los conceptos: mecanismos reales que ajustan un poco las consecuencias según la situación, y explican el porqué.
     if (RF.conceptosDe && !res.bloqueada) {
-      const k = RF.conceptosDe({ e: estado, accion, objeto: objId, o, tema: interp.tema, dir: interp.dir, n: T.normalizar(interp.texto || ''), res });
+      const k = RF.conceptosDe({ e: estado, accion, objeto: objId, o, tema: interp.tema, dir: interp.dir, n: T.normalizar(interp.texto || ''), res, extra: interp.conceptosExtra });
       aplicarConceptos(estado, k, res, inicial);
     }
     aplicarEfectos(estado, inicial, res.deltas);

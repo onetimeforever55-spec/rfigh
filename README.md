@@ -83,6 +83,16 @@ Cuatro potencias tienen una relación contigo (0-100), algo que quieren y algo q
 
 Las relaciones vuelven poco a poco a su punto de partida: la memoria diplomática es corta.
 
+### El bot aprende de la IA
+
+El intérprete local (el que funciona sin IA) es un clasificador pequeño, pero **aprende de Claude** (`js/aprendiz.js`):
+
+- **Jugando:** con la IA activa, el Consejo devuelve además una `clave` con cómo clasificaría el bot ese decreto (acción + objeto, o tema + dirección) y qué conceptos lo explican. El bot la guarda y avisa en el turno: «EL BOT APRENDE». La próxima vez entiende ese decreto, y los parecidos, sin IA.
+- **Entrenando:** el comando `entrenar` (o `entrenar 20`) hace que la IA invente decretos variados, coloquiales y con faltas; el bot intenta entenderlos y aprende los que falla. Enseña el resultado: cuántos acertaba antes y cuántos después.
+- **Cómo aprende:** lo aprendido va a un segundo cerebro aparte (otros dos clasificadores), que solo decide cuando el de fábrica no tiene ninguna palabra clara, así que no olvida nada de lo que ya sabía. Además recuerda las frases exactas (o casi) y los conceptos que la IA les asoció.
+- **Dónde se guarda:** en el navegador. `aprendido` enseña lo que sabe, `exportar` da la lista en JSON para pegarla en `js/datos/aprendidos.js` (lo que trae de fábrica) y `olvidar lo aprendido` la borra.
+- De fábrica trae 64 lecciones: con ellas pasa de entender 2 a 15 de 28 frases coloquiales que no había visto nunca.
+
 ### Conceptos: el porqué de cada decreto
 
 El juego no se limita a una lista de casos resueltos: razona con una **biblioteca de 88 conceptos reales** (`js/datos/conceptos.js`) de economía, sociedad, política, relaciones exteriores e historia. Cada concepto dice cuándo se aplica, cómo ajusta un poco las consecuencias según la situación del país y cómo se explica.

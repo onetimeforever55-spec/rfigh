@@ -82,9 +82,10 @@ console.log('ACCIONES EXTERIORES');
 {
   const e = nuevo();
   const i = RF.interprete.interpretar('vender armas a una guerrilla africana', e);
-  const r = RF.consejero.decretar(e, i);
+  const s0 = e.economia.sanciones, d0 = e.stats.dinero;
+  const r = RF.consejero.decretar(e, i, { avanzar: false });
   comprobar(i.destino === 'una guerrilla africana' && r.medida === 'la venta de armas a una guerrilla africana' && /guerrilla africana/.test(r.especial), 'el destino del decreto aparece en la ley y en la Gaceta');
-  comprobar(e.stats.dinero > 100 && e.economia.sanciones === 1 && e.pendientes.length === 1, 'da divisas, sube las sanciones y trae una de sus consecuencias posibles');
+  comprobar(e.stats.dinero > d0 && e.economia.sanciones > s0 && e.pendientes.length === 1, 'da divisas, sube las sanciones y trae una de sus consecuencias posibles');
   comprobar(RF.interprete.interpretar('privatizar las armas', e).objeto === 'ARMAS', '"privatizar las armas" sigue siendo privatizar');
   const vistas = new Set();
   for (let k = 0; k < 40; k++) { const x = nuevo(); RF.consejero.decretar(x, RF.interprete.interpretar('financiar a la guerrilla de Colombia', x)); vistas.add(x.pendientes[0].titulo); }

@@ -77,6 +77,15 @@
   }
 
   // Seguridad del bot: margen frente a la segunda opción, y si hubo palabras claras.
+  // Lo aprendido decide por votos: cada palabra que la IA enseñó señala una clase; gana la que tiene
+  // más palabras a favor, si no hay empate.
+  function aprendido(clf, rs) {
+    if (!clf) return null;
+    const votos = Object.entries(clasificar(clf, rs).evidencias).map(([c, l]) => [c, new Set(l.map(r => r.replace('=', ''))).size]).sort((x, y) => y[1] - x[1]);
+    if (!votos.length || (votos[1] && votos[1][1] === votos[0][1])) return null;
+    return votos[0][0];
+  }
+
   function confianza(ra, ro) {
     const parte = r => {
       const [a, b] = r.ranking;
@@ -123,9 +132,28 @@
         entrenarEjemplo(obj, id, rasgos(ps));
       }
     }
+    // Lo que el bot ha aprendido de la IA va a un segundo par de clasificadores, aparte: solo deciden
+    // cuando los de fábrica no tienen ninguna palabra clara. Así lo aprendido amplía lo que entiende
+    // sin mover nada de lo que ya entendía. Sus palabras entran en el vocabulario (para que el
+    // corrector no convierta "soju" en otra cosa).
+    // Los verbos que ya conoce ("subir", "prohibir") no votan por un objeto: "subir el billete del metro"
+    // no debe enseñarle que "subir" significa el transporte.
+    const accL = crearClasificador(), objL = crearClasificador();
+    const deAccion = new Set(acc.vocab);
+    const sin = (rs, ajeno) => rs.filter(r => r.split('_').every(p => !ajeno.has(p)));
+    for (const x of RF.aprendiz ? RF.aprendiz.todos() : []) {
+      const ps = traducir(x.texto);
+      ps.forEach(p => vocabPalabras.add(p));
+      if (x.etiqueta.tema) continue;
+      const rs = rasgos(ps);
+      entrenarEjemplo(accL, x.etiqueta.accion, rs);
+      entrenarEjemplo(objL, x.etiqueta.objeto, sin(rs, deAccion));
+    }
+    if (accL.clases.length > 1) calcularEvidencias(accL);
+    if (objL.clases.length > 1) calcularEvidencias(objL);
     calcularEvidencias(acc);
     calcularEvidencias(obj);
-    modelo = { acc, obj, vocabPalabras };
+    modelo = { acc, obj, vocabPalabras, accL: accL.clases.length > 1 ? accL : null, objL: objL.clases.length > 1 ? objL : null };
     return modelo;
   }
 
@@ -241,7 +269,41 @@
     return r;
   }
 
+  /*
+   * Primero, lo aprendido de la IA: un decreto que la IA ya entendió (o uno casi igual) se entiende igual.
+   * Un recuerdo parecido solo manda si el bot no lo entiende por sí solo o si el parecido es muy alto;
+   * los temas reconocidos por su forma siguen mandando sobre los recuerdos aproximados.
+   */
   function interpretarBase(texto, estado) {
+    const rec = RF.aprendiz && RF.aprendiz.recordar(texto);
+    if (rec && rec.sim >= 0.99) return desdeRecuerdo(texto, rec);
+    const r = interpretarModelo(texto, estado);
+    if (!rec || r.tipo === 'persona' || r.tipo === 'diplomacia' || (r.estado === 'ok' && r.tema)) return r;
+    if (r.estado !== 'ok' || rec.sim >= 0.85) return desdeRecuerdo(texto, rec);
+    return r;
+  }
+
+  function desdeRecuerdo(texto, rec) {
+    const et = rec.ejemplo.etiqueta, n = T.normalizar(texto), ps = traducir(texto);
+    const res = {
+      texto, corregidas: [], intensidad: intensidad(ps, n), negado: false, opciones: [], estado: 'ok',
+      confianza: Math.round(60 + 35 * rec.sim), secreto: RF.SECRETO ? RF.SECRETO.test(n) : false,
+      aprendido: { sim: rec.sim, origen: rec.ejemplo.origen, de: rec.ejemplo.texto }, conceptosExtra: et.conceptos || []
+    };
+    if (et.tema) {
+      const t = RF.TEMAS[et.tema];
+      Object.assign(res, { tema: et.tema, dir: et.dir, accion: { favor: 'LEGALIZAR', contra: 'PROHIBIR', privada: 'PRIVATIZAR' }[et.dir], objeto: et.tema, nombreObjeto: t.nombre });
+      if (t.destinoRe) {
+        const m = t.destinoRe.exec(texto.trim().replace(/[.!¡?¿]+$/, ''));
+        res.destino = m ? m[1].trim().replace(/\s+/g, ' ') : t.destino;
+      }
+    } else {
+      Object.assign(res, { accion: et.accion, objeto: et.objeto, nombreObjeto: formaMostrada(et.objeto, new Set(ps.map(T.raiz))) });
+    }
+    return res;
+  }
+
+  function interpretarModelo(texto, estado) {
     if (!modelo) entrenar();
     const { acc, obj, vocabPalabras } = modelo;
     const crudas = traducir(texto);
@@ -286,8 +348,11 @@
       ra.ranking.unshift(conPalabras);
     }
     let accion = ra.ranking[0].clase;
-    const hayAccion = !!ra.evidencias[accion] || ra.ranking[0].prob >= 0.6;
-    const accionDudosa = !hayAccion && ra.conocidos > 0 && ra.ranking[0].prob >= 0.3;
+    let hayAccion = !!ra.evidencias[accion] || ra.ranking[0].prob >= 0.6;
+    let accionDudosa = !hayAccion && ra.conocidos > 0 && ra.ranking[0].prob >= 0.3;
+    // Sin palabra clara de fábrica: lo aprendido de la IA.
+    const aprendida = !hayAccion && aprendido(modelo.accL, rs);
+    if (aprendida) { accion = aprendida; hayAccion = true; accionDudosa = false; }
 
     // Objeto: evitar que "yo"/"mi" gane cuando hay un objeto claro.
     let objeto = ro.ranking[0].clase;
@@ -296,7 +361,9 @@
       const otro = ro.ranking.find(p => p.clase !== 'LIDER' && evidObj[p.clase]);
       if (otro) objeto = otro.clase;
     }
-    const hayObjeto = !!evidObj[objeto];
+    let hayObjeto = !!evidObj[objeto];
+    const objAprendido = !hayObjeto && aprendido(modelo.objL, rs);
+    if (objAprendido) { objeto = objAprendido; hayObjeto = true; }
 
     const res = {
       texto, corregidas, intensidad: intensidad(ps, T.normalizar(texto)),
@@ -304,6 +371,7 @@
       negado: false, opciones: [],
       confianza: confianza(ra, ro)
     };
+    if (aprendida || objAprendido) res.aprendido = { origen: 'palabras' };
 
     if (!hayAccion && !hayObjeto) { res.estado = 'confuso'; return res; }
 
@@ -318,11 +386,11 @@
 
     // Duda entre dos acciones parecidas sin palabras claras.
     const segunda = ra.ranking[1];
-    if (accionDudosa || (!ra.evidencias[accion] && segunda.prob > ra.ranking[0].prob / 1.6)) {
+    if (!aprendida && (accionDudosa || (!ra.evidencias[accion] && segunda.prob > ra.ranking[0].prob / 1.6))) {
       res.estado = 'preguntar_accion';
     }
 
-    if (estaNegado(ps, acc, accion) && RF.ACCIONES[accion].inversa) {
+    if (!aprendida && estaNegado(ps, acc, accion) && RF.ACCIONES[accion].inversa) {
       accion = RF.ACCIONES[accion].inversa;
       res.negado = true;
     }
@@ -367,6 +435,9 @@
   const RELLENO = /^(y|e|ademas|además|tambien|también|luego|despues|después|que)\s+/i;
 
   function interpretarVarios(texto, estado) {
+    // Una frase que la IA ya enseñó entera no se trocea.
+    const rec = RF.aprendiz && RF.aprendiz.recordar(texto, 0.99);
+    if (rec) return [interpretar(texto, estado)];
     const partes = texto.split(SEPARADOR).map(p => p.replace(RELLENO, '').trim()).filter(Boolean);
     if (partes.length <= 1) return [interpretar(texto, estado)];
     const grupos = [];
@@ -389,5 +460,5 @@
     return grupos.slice(0, 3).map(g => Object.assign(g.r, { texto: g.texto }));
   }
 
-  RF.interprete = { entrenar, interpretar, interpretarVarios };
+  RF.interprete = { entrenar, interpretar, interpretarVarios, modelo: () => modelo, rasgos, traducir, clasificar };
 })(globalThis.RF = globalThis.RF || {});

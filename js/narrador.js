@@ -33,7 +33,7 @@
         'ACCIONES EXTERIORES: "vender armas a una guerrilla africana", "financiar a los rebeldes de X", "apoyar un golpe en X", "pedir un préstamo a Rusia", "enviar trabajadores a China", "hackear bancos", "contrabandear carbón". Dan divisas o influencia, pero pueden salir mal y subir las sanciones.\n' +
         'DIPLOMACIA: Estados Unidos, China, Corea del Sur y Japón quieren cosas distintas. "negociar con Estados Unidos", "pedir ayuda a China", "visitar Seúl" o "insultar a Japón" cambian las relaciones; los misiles y la bomba también. China da comercio y petróleo; Washington decide las sanciones; el Sur manda ayuda. Escribe "diplomacia" para verlo.\n' +
         'Opcional: toca el botón IA de arriba (o escribe "ia"). Con IA, un Consejo de Estado entiende cualquier decreto, decide sus consecuencias (el juego pone las reglas y los límites) y recuerda lo que va pasando; y una crónica cuenta cada turno. Dentro de claude.ai funciona con tu cuenta; fuera, con una clave de API (OpenRouter y Gemini tienen planes gratis).\n' +
-        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "diplomacia" (relaciones exteriores), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "reiniciar".\n' +
+        'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "diplomacia" (relaciones exteriores), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "entrenar" (la IA le pone un examen al bot local y le enseña lo que falla), "aprendido" (lo que sabe el bot), "reiniciar".\n' +
         'No hay último turno: gobiernas mientras aguantes. Cada 20 turnos hay elecciones.'
     }];
   }
@@ -127,7 +127,7 @@
    * Visible: la Gaceta, los efectos, el Informe del Consejo, la radio y la sección, los sucesos, los eventos,
    * los cambios de régimen, las alertas graves y el final. Plegado: intérprete, notas, relaciones, leyes, causas.
    */
-  const VISIBLES = new Set(['gaceta', 'efectos', 'logica', 'porque', 'radio', 'cupula', 'ejercito', 'calle', 'suceso', 'dilema', 'regimen', 'fin', 'cronica', 'eco']);
+  const VISIBLES = new Set(['gaceta', 'efectos', 'logica', 'porque', 'radio', 'cupula', 'ejercito', 'calle', 'suceso', 'dilema', 'regimen', 'fin', 'cronica', 'eco', 'aprende']);
   const GRAVE = /desploma|quiebra|golpe|Congreso|bloque|juicio|secreto|Nadie lo sabe/i;
   function compactar(bloques) {
     const vis = [], letra = [];
@@ -280,6 +280,7 @@
     if (interp.negado) partes.push('negación detectada');
     if (interp.intensidad > 1) partes.push('intensidad alta');
     if (interp.intensidad < 1) partes.push('intensidad baja');
+    if (interp.aprendido) partes.push(interp.aprendido.origen === 'palabras' ? 'usé palabras que me enseñó la IA' : 'lo recordé: me lo enseñó la IA' + (interp.aprendido.sim < 1 ? ' con otras palabras («' + interp.aprendido.de + '»)' : ''));
     if (interp.corregidas && interp.corregidas.length) partes.push('corregí ' + interp.corregidas.map(([a, b]) => a + '→' + b).join(', '));
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
 
