@@ -58,7 +58,7 @@
     propios = [];
     try {
       const d = JSON.parse(localStorage.getItem(CLAVE) || '[]');
-      if (Array.isArray(d)) for (const x of d) { const et = validar(x); if (et && x.texto) propios.push(completar(x.texto, et, x.origen || 'ia')); }
+      if (Array.isArray(d)) for (const x of d) { const et = validar(x); if (et && x.texto) propios.push(completar(x.texto, et, x.origen || 'ia', x.efectos)); }
     } catch (e) { /* sin memoria en este navegador */ }
     return propios;
   }
@@ -71,7 +71,9 @@
   }
 
   function cuerpo(x) {
-    return Object.assign({ texto: x.texto, origen: x.origen, t: Date.now() }, x.etiqueta);
+    const c = Object.assign({ texto: x.texto, origen: x.origen, t: Date.now() }, x.etiqueta);
+    if (x.efectos) c.efectos = x.efectos;
+    return c;
   }
 
   function subir(x) {
@@ -94,7 +96,7 @@
         const x = d.data() || {};
         const et = validar(x);
         if (!et || typeof x.texto !== 'string') continue;
-        const l = completar(x.texto, et, x.origen || 'ia');
+        const l = completar(x.texto, et, x.origen || 'ia', x.efectos);
         enNube.add(l.n);
         const i = propios.findIndex(p => p.n === l.n);
         if (i >= 0) propios[i] = l; else propios.push(l); // la nube manda (Claude puede haberla corregido)
@@ -111,12 +113,92 @@
 
   function guardar() {
     try {
-      localStorage.setItem(CLAVE, JSON.stringify(propios.map(x => Object.assign({ texto: x.texto, origen: x.origen }, x.etiqueta))));
+      localStorage.setItem(CLAVE, JSON.stringify(propios.map(x => Object.assign({ texto: x.texto, origen: x.origen }, x.etiqueta, x.efectos ? { efectos: x.efectos } : {}))));
     } catch (e) { /* sin memoria en este navegador */ }
   }
 
-  function completar(texto, etiqueta, origen) {
-    return { texto, n: T.normalizar(texto), r: raices(texto), etiqueta, origen };
+  function completar(texto, etiqueta, origen, efectos) {
+    return { texto, n: T.normalizar(texto), r: raices(texto), etiqueta, origen, efectos: limpiarEfectos(efectos) };
+  }
+
+  // ---------- Las mecánicas: los números que la IA dio a cada tipo de decreto ----------
+  const STATS = ['dinero', 'inflacion', 'estabilidad', 'felicidad', 'ejercito', 'elite'];
+  // Cuánto puede mover lo aprendido un número del motor, como mucho (por si la IA exagera).
+  const LIMITE = { inicial: { dinero: 20, otro: 5 }, porTurno: { dinero: 6, inflacion: 1.5, otro: 1 } };
+
+  function limpiarEfectos(ef) {
+    if (!ef || typeof ef !== 'object') return null;
+    const topes = RF.consejoIA ? RF.consejoIA.TOPES : null;
+    const out = {};
+    for (const parte of ['inicial', 'porTurno']) {
+      const src = ef[parte];
+      if (!src || typeof src !== 'object') continue;
+      const lim = topes ? topes[parte] : null;
+      const d = {};
+      for (const k of STATS) {
+        const v = Number(src[k]);
+        if (!isFinite(v) || !src[k]) continue;
+        d[k] = lim ? Math.max(lim[k][0], Math.min(lim[k][1], v)) : v;
+      }
+      if (Object.keys(d).length) out[parte] = d;
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
+  // Los números de una ficha de la IA: la ley (efecto al firmar y cada turno) o el efecto único.
+  function efectosDeFicha(ficha) {
+    const ley = Array.isArray(ficha.leyes) && ficha.leyes[0];
+    if (ley) return limpiarEfectos({ inicial: ley.inicial, porTurno: ley.por_turno });
+    if (ficha.efecto_unico) return limpiarEfectos({ inicial: ficha.efecto_unico });
+    return null;
+  }
+
+  function claveDe(et) {
+    return et.tema ? 'T:' + et.tema + ':' + et.dir : 'A:' + et.accion + ':' + et.objeto;
+  }
+
+  // La media de lo que la IA decidió para decretos de este tipo.
+  function mecanica(clave) {
+    const con = todos().filter(x => x.efectos && claveDe(x.etiqueta) === clave);
+    if (!con.length) return null;
+    const media = { inicial: {}, porTurno: {} };
+    for (const parte of ['inicial', 'porTurno']) {
+      for (const k of STATS) {
+        const vs = con.map(x => x.efectos[parte] && x.efectos[parte][k]).filter(v => typeof v === 'number');
+        if (vs.length) media[parte][k] = vs.reduce((a, b) => a + b, 0) / vs.length;
+      }
+    }
+    return { media, n: con.length };
+  }
+
+  /*
+   * Ajusta los números de una ley del motor hacia lo que la IA suele decidir para ese tipo de decreto.
+   * Con 1 decisión de la IA pesa un 25%; con 3 o más, un 60% como mucho. Nunca mueve un número más
+   * allá de LIMITE, y solo toca lo que la IA mencionó (lo que calló no cuenta como cero).
+   */
+  function ajustarDef(def, interp) {
+    if (!def || def.derogar || !interp || interp.objeto === 'OTRO') return null;
+    const et = interp.tema ? { tema: interp.tema, dir: interp.dir || 'favor' } : { accion: interp.accion, objeto: interp.objeto };
+    const m = mecanica(claveDe(et));
+    if (!m) return null;
+    const peso = Math.min(0.6, 0.25 * m.n);
+    const cambios = [];
+    for (const parte of ['inicial', 'porTurno']) {
+      const aprendida = m.media[parte];
+      if (!Object.keys(aprendida).length) continue;
+      if (parte === 'porTurno' && def.unaVez) continue;
+      const nuevo = Object.assign({}, def[parte] || {});
+      for (const [k, v] of Object.entries(aprendida)) {
+        const antes = nuevo[k] || 0;
+        const lim = LIMITE[parte][k] || LIMITE[parte].otro;
+        const d = Math.max(-lim, Math.min(lim, (v - antes) * peso));
+        if (Math.abs(d) < 0.05) continue;
+        nuevo[k] = Math.round((antes + d) * 100) / 100;
+        cambios.push({ parte, stat: k, antes, despues: nuevo[k] });
+      }
+      def[parte] = nuevo;
+    }
+    return cambios.length ? { n: m.n, peso, cambios } : null;
   }
 
   let base = null;
@@ -128,17 +210,22 @@
   }
 
   // Guarda un ejemplo. Devuelve true si es nuevo (o corrige uno anterior).
-  function aprender(texto, etiqueta, origen, diferir) {
+  function aprender(texto, etiqueta, origen, diferir, efectos) {
     const et = validar(etiqueta);
     if (!et || !texto || texto.length > 160) return false;
     cargar();
     const n = T.normalizar(texto);
     const previo = propios.findIndex(x => x.n === n);
     if (previo >= 0) {
-      if (JSON.stringify(propios[previo].etiqueta) === JSON.stringify(et)) return false;
+      if (JSON.stringify(propios[previo].etiqueta) === JSON.stringify(et)) {
+        // La misma lección otra vez: si trae números nuevos, se actualizan (la IA vuelve a decidir).
+        const ef = limpiarEfectos(efectos);
+        if (ef) { propios[previo].efectos = ef; guardar(); subir(propios[previo]); }
+        return false;
+      }
       propios.splice(previo, 1);
     }
-    const nueva = completar(texto, et, origen || 'ia');
+    const nueva = completar(texto, et, origen || 'ia', efectos);
     propios.push(nueva);
     if (propios.length > MAX) propios.splice(0, propios.length - MAX);
     guardar();
@@ -166,7 +253,7 @@
     if (leyes > 1 || personas) return null; // varias órdenes a la vez: no es un buen ejemplo
     const et = validar(ficha.clave);
     if (!et) return null;
-    return aprender(texto, et, 'ia') ? et : null;
+    return aprender(texto, et, 'ia', false, efectosDeFicha(ficha)) ? et : null;
   }
 
   function describir(et) {
@@ -225,7 +312,8 @@
   function resumen() {
     const p = cargar();
     const cuenta = o => p.filter(x => x.origen === o).length;
-    return { base: todos().length - p.length, ia: cuenta('ia'), entreno: cuenta('entreno'), ultimos: p.slice(-5).reverse(), nube: !!nube };
+    return { base: todos().length - p.length, ia: cuenta('ia'), entreno: cuenta('entreno'), ultimos: p.slice(-5).reverse(), nube: !!nube,
+      mecanicas: new Set(todos().filter(x => x.efectos).map(x => claveDe(x.etiqueta))).size };
   }
 
   function olvidar() {
@@ -241,5 +329,5 @@
 
   function recargar() { base = null; if (RF.interprete) RF.interprete.entrenar(); }
 
-  RF.aprendiz = { conectar, idDe, recargar, aprender, recordar, deFicha, todos, examen, resumen, olvidar, exportar, describir, acierta, validar, listas, similitud, raices };
+  RF.aprendiz = { ajustarDef, mecanica, claveDe, efectosDeFicha, conectar, idDe, recargar, aprender, recordar, deFicha, todos, examen, resumen, olvidar, exportar, describir, acierta, validar, listas, similitud, raices };
 })(globalThis.RF = globalThis.RF || {});

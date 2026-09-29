@@ -129,6 +129,8 @@
    */
   const VISIBLES = new Set(['gaceta', 'efectos', 'logica', 'porque', 'radio', 'cupula', 'ejercito', 'calle', 'suceso', 'dilema', 'regimen', 'fin', 'cronica', 'eco', 'aprende']);
   const GRAVE = /desploma|quiebra|golpe|Congreso|bloque|juicio|secreto|Nadie lo sabe/i;
+  const fmtN = v => String(Math.round(v * 10) / 10);
+
   function compactar(bloques) {
     const vis = [], letra = [];
     for (const b of bloques) {
@@ -281,6 +283,7 @@
     if (interp.intensidad > 1) partes.push('intensidad alta');
     if (interp.intensidad < 1) partes.push('intensidad baja');
     if (interp.aprendido) partes.push(interp.aprendido.origen === 'palabras' ? 'usé palabras que me enseñó la IA' : 'lo recordé: me lo enseñó la IA' + (interp.aprendido.sim < 1 ? ' con otras palabras («' + interp.aprendido.de + '»)' : ''));
+    if (res.mecanica) partes.push('números ajustados con ' + (res.mecanica.n === 1 ? 'una decisión' : res.mecanica.n + ' decisiones') + ' de la IA (' + res.mecanica.cambios.map(c => c.stat + ' ' + fmtN(c.antes) + '→' + fmtN(c.despues)).slice(0, 3).join(', ') + ')');
     if (interp.corregidas && interp.corregidas.length) partes.push('corregí ' + interp.corregidas.map(([a, b]) => a + '→' + b).join(', '));
     bloques.push({ tipo: 'bot', texto: partes.join(' · ') });
 

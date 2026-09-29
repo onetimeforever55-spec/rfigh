@@ -620,6 +620,7 @@
   function bloquesAprendido() {
     const r = RF.aprendiz.resumen();
     const lineas = ['De fábrica: ' + r.base + ' ejemplos. Aprendidos jugando con la IA: ' + r.ia + '. En exámenes: ' + r.entreno + '.',
+      r.mecanicas ? 'Números aprendidos de la IA para ' + r.mecanicas + (r.mecanicas === 1 ? ' tipo de decreto' : ' tipos de decreto') + ': sin la IA, sus consecuencias se parecen a lo que ella decidiría.' : 'Todavía no ha aprendido números: los aprende cada vez que la IA decide un decreto.',
       r.nube ? 'Se guarda en la base de datos del juego en claude.ai: sigue ahí en cualquier dispositivo, y Claude puede revisarlo.' : 'Se guarda solo en este navegador.'];
     if (r.ultimos.length) lineas.push('Lo último:', ...r.ultimos.map(x => '«' + x.texto + '» = ' + RF.aprendiz.describir(x.etiqueta)));
     lineas.push('Escribe "entrenar" para que la IA le ponga un examen, "exportar" para copiar lo aprendido u "olvidar lo aprendido" para borrarlo.');

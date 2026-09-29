@@ -221,6 +221,8 @@
     } else {
       def = RF.TEMAS && RF.TEMAS[objId] ? RF.leyes.definirTema(estado, objId, accion, interp.destino) : RF.leyes.definir(accion, objId, nombre);
       if (def && def.nombre) laMedida = def.nombre;
+      // Los números que la IA suele dar a este tipo de decreto corrigen un poco los del motor.
+      if (def && RF.aprendiz) res.mecanica = RF.aprendiz.ajustarDef(def, interp);
     }
     if (pol) {
       res.politico = true;

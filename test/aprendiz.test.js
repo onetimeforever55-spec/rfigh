@@ -83,6 +83,30 @@ const ficha = (clave, extra) => Object.assign({ entendido: true, leyes: [{ nombr
     comprobar(RF.interprete.interpretar('mandar a los chavales al cuartel 12 años', e).tema === 'SERVICIO_MILITAR', 'y lo entiende después');
   }
 
+  console.log('APRENDE LAS MECÁNICAS (los números de la IA)');
+  {
+    RF.aprendiz.olvidar();
+    const firmar = t => { const e = nuevo(); const i = RF.interprete.interpretar(t, e); return RF.consejero.decretar(e, i, { avanzar: false }); };
+    const base = firmar('invertir en hospitales');
+    comprobar(!base.mecanica, 'sin decisiones de la IA, los números son los del motor');
+    const ficha = (d, extra) => Object.assign({ entendido: true, leyes: [{ nombre: 'x', inicial: { dinero: d, felicidad: 6 }, por_turno: { felicidad: 2, estabilidad: 3 } }], personas: [], clave: { accion: 'INVERTIR', objeto: 'SALUD' } }, extra || {});
+    RF.aprendiz.deFicha('más médicos en cada pueblo', ficha(-70));
+    const uno = firmar('invertir en hospitales');
+    comprobar(uno.mecanica && uno.mecanica.n === 1 && uno.mecanica.peso === 0.25, 'con una decisión de la IA, pesa un 25%');
+    const c1 = uno.mecanica.cambios.find(c => c.parte === 'inicial' && c.stat === 'dinero');
+    comprobar(c1 && c1.despues < c1.antes, 'los números se mueven hacia lo que decidió la IA (dinero ' + (c1 && c1.antes) + ' → ' + (c1 && c1.despues) + ')');
+    comprobar(uno.mecanica.cambios.every(c => Math.abs(c.despues - c.antes) <= (c.stat === 'dinero' ? 20 : 5) + 0.01), 'y nunca más allá del límite, aunque la IA exagere');
+    RF.aprendiz.deFicha('construir hospitales en el campo', ficha(-70));
+    RF.aprendiz.deFicha('hospitales nuevos en Pionyang', ficha(-70));
+    const tres = firmar('invertir en hospitales');
+    comprobar(tres.mecanica.n === 3 && tres.mecanica.peso === 0.6, 'con 3 decisiones pesa un 60% (el máximo)');
+    comprobar(!firmar('prohibir el alcohol').mecanica, 'solo cambia el tipo de decreto que la IA decidió');
+    const unica = RF.aprendiz.efectosDeFicha({ efecto_unico: { dinero: 500, felicidad: 3 } });
+    comprobar(unica.inicial.dinero === 80 && !unica.porTurno, 'un efecto único se aprende con los topes del Consejo (500 → 80)');
+    RF.aprendiz.olvidar();
+    comprobar(!firmar('invertir en hospitales').mecanica, 'olvidar devuelve los números del motor');
+  }
+
   console.log('SE GUARDA EN LA BASE DE DATOS DEL JUEGO');
   {
     const docs = new Map();
