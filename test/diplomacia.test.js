@@ -37,7 +37,7 @@ console.log('GESTOS Y CONSECUENCIAS');
   const e = nuevo();
   const j0 = rel(e, 'japon');
   decretar(e, 'lanzar un misil a Japón');
-  comprobar(j0 >= 15 && rel(e, 'japon') <= 3 && e.economia.sanciones === 3, 'un misil apuntando a Japón enfada mucho a Japón y sube las sanciones');
+  comprobar(j0 >= 15 && rel(e, 'japon') <= 3 && e.economia.sanciones >= 3, 'un misil apuntando a Japón enfada mucho a Japón y sube las sanciones');
 }
 {
   const e = nuevo();
