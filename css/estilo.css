@@ -510,3 +510,11 @@ body {
 
 /* Los bloques del registro nunca se encogen (si no, la Gaceta, que recorta su contenido, se quedaba en una línea). */
 .registro > * { flex-shrink: 0; }
+
+/* Letra pequeña del turno: plegada por defecto. */
+.b-detalles details { border-top: 1px dashed var(--fosforo-oscuro); padding-top: 6px; }
+.b-detalles summary { cursor: pointer; font-size: 12px; letter-spacing: 0.08em; color: var(--fosforo-tenue); text-transform: uppercase; list-style: none; }
+.b-detalles summary::-webkit-details-marker { display: none; }
+.b-detalles summary::before { content: '▸ '; }
+.b-detalles details[open] summary::before { content: '▾ '; }
+.b-detalles details > .bloque { margin-top: 10px; font-size: 13px; }

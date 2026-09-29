@@ -47,19 +47,34 @@
           'La Asamblea Popular Suprema aplaudirá lo que firmes. El ejército, los cuadros del Partido y el pueblo decidirán si te dejan seguir.'
       },
       {
-        tipo: 'cupula', titulo: 'TU GABINETE',
-        texto: Object.entries(RF.GABINETE).map(([id, m]) => RF.poder.ministro(estado, id).nombre + ', ' + m.cargo.toLowerCase()).join('. ') + '.'
+        tipo: 'radio', titulo: RF.PAIS.radio,
+        texto: '¡Buenos días, camaradas! El nuevo Líder Supremo ya gobierna. El ejército está contento, el Palacio es fiel y las arcas tienen 80 millones. La población aguanta. Como siempre.'
       },
       {
-        tipo: 'prensa', titulo: 'LOS DE FUERA Y LOS DE DENTRO',
-        texto: 'Song Dae-ho dirige una red clandestina que reparte memorias USB con series del Sur. China compra tu carbón y te presta paciencia. La ONU prepara otra ronda de sanciones. El embajador sueco, que habla en nombre de los que no tienen embajada, observa con cara de preocupación.\n' +
-          'Las arcas tienen 80 millones de dólares en divisas, los precios suben un 6% cada turno, el ejército está contento, el Palacio te es fiel... y la población aguanta. De momento.'
+        tipo: 'sistema', titulo: 'CÓMO SE JUEGA',
+        texto: 'Escribe cualquier orden y pulsa Decretar: "vender carbón a China", "lanzar un misil", "prohibir los lunes", "negociar con Estados Unidos".\n' +
+          'Todo se cumple, y cada ley sigue actuando cada turno. Solo pierdes si la ESTABILIDAD llega a 0.\n' +
+          'Escribe "ayuda" para las reglas completas, "estado" para ver el país.'
       },
       {
-        tipo: 'calle', titulo: 'MIENTRAS TANTO, EN LA CALLE',
-        texto: Object.values(RF.CIUDADANOS).map(c => c.presentacion).join(' ')
+        // Quién es quién: plegado, para quien quiera leerlo.
+        tipo: 'detalles', titulo: 'Quién es quién',
+        hijos: [
+          {
+            tipo: 'cupula', titulo: 'TU GABINETE',
+            texto: Object.entries(RF.GABINETE).map(([id, m]) => RF.poder.ministro(estado, id).nombre + ', ' + m.cargo.toLowerCase()).join('. ') + '.'
+          },
+          {
+            tipo: 'prensa', titulo: 'LOS DE FUERA Y LOS DE DENTRO',
+            texto: 'Song Dae-ho dirige una red clandestina que reparte memorias USB con series del Sur. China compra tu carbón y te presta paciencia. La ONU prepara otra ronda de sanciones. El embajador sueco observa con cara de preocupación.'
+          },
+          {
+            tipo: 'calle', titulo: 'EN LA CALLE',
+            texto: Object.values(RF.CIUDADANOS).map(c => c.presentacion).join('\n\n')
+          }
+        ]
       }
-    ].concat(ayuda());
+    ];
   }
 
   // ---------- Las secciones del turno: RADIO, PALACIO, EJÉRCITO y POBLACIÓN ----------
@@ -76,8 +91,11 @@
   function radio(res, tipo) {
     const R = RF.RADIO;
     const frases = R.tipos[tipo] || R.tipos.general;
-    let t = T.azar(R.saludo) + ' ' + T.expandir(T.azar(frases), res.vars);
-    if (Math.random() < 0.4) t += ' ' + T.azar(R.despedida);
+    // Corta: la frase del día y, a veces, un saludo o una despedida (nunca las dos).
+    let t = T.expandir(T.azar(frases), res.vars);
+    const r = Math.random();
+    if (r < 0.2) t = T.azar(R.saludo) + ' ' + t;
+    else if (r < 0.4) t += ' ' + T.azar(R.despedida);
     return T.expandir(t);
   }
 
@@ -88,14 +106,42 @@
     return T.expandir(T.azar(pool), res.vars);
   }
 
+  // La radio y UNA sección: la del sector al que más le ha tocado este turno (menos texto, más jugo).
   function secciones(estado, res, tipo) {
     const out = [{ tipo: 'radio', titulo: RF.PAIS.radio, texto: radio(res, tipo) }];
-    const lm = lineaMinistro(estado, res);
-    out.push({ tipo: 'cupula', titulo: cabecera(estado, 'elite', res), texto: lm.texto });
-    out.push({ tipo: 'ejercito', titulo: cabecera(estado, 'ejercito', res), texto: lineaEjercito(estado, res) });
+    const d = res.deltas || {}, pt = res.porTurno || {};
+    const peso = k => Math.abs(d[k] || 0) + 3 * Math.abs(pt[k] || 0);
     const lc = lineaCiudadano(estado, res);
-    if (lc) out.push({ tipo: 'calle', titulo: cabecera(estado, 'poblacion', res), texto: lc.texto });
+    const candidatos = [
+      { id: 'poblacion', v: peso('felicidad') + 0.5, bloque: () => lc && { tipo: 'calle', titulo: cabecera(estado, 'poblacion', res), texto: lc.texto } },
+      { id: 'ejercito', v: peso('ejercito'), bloque: () => ({ tipo: 'ejercito', titulo: cabecera(estado, 'ejercito', res), texto: lineaEjercito(estado, res) }) },
+      { id: 'elite', v: peso('elite') + 0.3, bloque: () => ({ tipo: 'cupula', titulo: cabecera(estado, 'elite', res), texto: lineaMinistro(estado, res).texto }) }
+    ].sort((a, b) => b.v - a.v);
+    for (const c of candidatos) { const b = c.bloque(); if (b) { out.push(b); break; } }
     return out;
+  }
+
+  /*
+   * Lo que se ve de un turno: lo divertido arriba y la letra pequeña plegada.
+   * Visible: la Gaceta, los efectos, el Informe del Consejo, la radio y la sección, los sucesos, los eventos,
+   * los cambios de régimen, las alertas graves y el final. Plegado: intérprete, notas, relaciones, leyes, causas.
+   */
+  const VISIBLES = new Set(['gaceta', 'efectos', 'logica', 'radio', 'cupula', 'ejercito', 'calle', 'suceso', 'dilema', 'regimen', 'fin', 'cronica', 'eco']);
+  const GRAVE = /desploma|quiebra|golpe|Congreso|bloque|juicio|secreto|Nadie lo sabe/i;
+  function compactar(bloques) {
+    const vis = [], letra = [];
+    for (const b of bloques) {
+      if (b.tipo === 'amanecer') continue; // el número de turno ya está arriba
+      if (b.tipo === 'efectos' && b.rotulo === 'Resultado del turno') { letra.push(b); continue; }
+      if (VISIBLES.has(b.tipo) || (b.tipo === 'nota' && GRAVE.test(b.texto || '') && vis.filter(x => x.tipo === 'nota').length < 2)) vis.push(b);
+      else letra.push(b);
+    }
+    if (letra.length) {
+      const d = { tipo: 'detalles', titulo: 'Letra pequeña', hijos: letra };
+      const i = vis.findIndex(b => b.tipo === 'dilema' || b.tipo === 'fin');
+      vis.splice(i === -1 ? vis.length : i, 0, d);
+    }
+    return vis;
   }
 
   function lineaMinistro(estado, res) {
@@ -113,7 +159,7 @@
     const c = RF.CIUDADANOS[id];
     const est = estado.ciudadanos[id];
     let texto = T.expandir(T.azar(c[res.ciudadano.sentimiento]), res.vars);
-    if (!est.presentado) { texto = c.presentacion + ' ' + texto; est.presentado = true; }
+    est.presentado = true; // ya se presentan todos en la introducción
     return { titulo: 'LA CALLE · ' + c.nombre.toUpperCase(), texto };
   }
 
@@ -449,5 +495,5 @@
     ];
   }
 
-  RF.narrador = { diplomacia, bloqueExterior, secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
+  RF.narrador = { compactar, diplomacia, bloqueExterior, secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});

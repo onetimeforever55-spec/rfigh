@@ -522,6 +522,14 @@ body {
 
 /* Los bloques del registro nunca se encogen (si no, la Gaceta, que recorta su contenido, se quedaba en una línea). */
 .registro > * { flex-shrink: 0; }
+
+/* Letra pequeña del turno: plegada por defecto. */
+.b-detalles details { border-top: 1px dashed var(--fosforo-oscuro); padding-top: 6px; }
+.b-detalles summary { cursor: pointer; font-size: 12px; letter-spacing: 0.08em; color: var(--fosforo-tenue); text-transform: uppercase; list-style: none; }
+.b-detalles summary::-webkit-details-marker { display: none; }
+.b-detalles summary::before { content: '▸ '; }
+.b-detalles details[open] summary::before { content: '▾ '; }
+.b-detalles details > .bloque { margin-top: 10px; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -2753,16 +2761,16 @@ body {
       '¡Muy buenas, patria! Son las ocho en punto en el meridiano oficial, que también es mejor que los demás.'
     ],
     tipos: {
-      general: ['El Líder Supremo ha decretado {medida}. Los expertos coinciden en que es una idea brillante. Los expertos que no coinciden están de vacaciones.', 'Hoy entra en vigor {medida}. Si no notáis ningún cambio, es que ya estabais cumpliendo la ley. ¡Enhorabuena!'],
-      regalo: ['¡Buenas noticias! {Medida}. El Líder Supremo os lo regala porque os quiere. Por favor, lloren de emoción de forma ordenada.', 'Con {medida}, Corea del Norte vuelve a demostrar que es el país más generoso del mundo. Del mundo que conocemos, que es este.'],
-      impuesto: ['{Medida}: un pequeño esfuerzo patriótico. Recordad: pagar impuestos adelgaza, y estar delgado es muy revolucionario.', 'Nos informan de {medida}. Hacienda asegura que el dinero irá a cosas importantes, como más carteles que digan que el dinero va a cosas importantes.'],
-      represion: ['{Medida}. Las fuerzas del orden os recuerdan que si no habéis hecho nada, no tenéis nada que temer. Y si habéis hecho algo, tampoco lo vais a poder contar.', 'Gracias a {medida}, las calles son más seguras que nunca. Tan seguras que nadie sale a ellas.'],
-      libertad: ['{Medida}. Algunos dirán que es menos libertad. Nosotros decimos que es más tiempo libre para amar al Líder Supremo.', 'Con {medida} acabamos con las distracciones. Ahora tenéis una sola opción, y es la correcta.'],
-      economia: ['Los mercados celebran {medida}. Bueno, el mercado. Bueno, un señor del mercado que dice que está contento.', 'Gracias a {medida}, la economía crece a un ritmo del mil por ciento. La cifra es aproximada. Por arriba.'],
-      esencial: ['{Medida}. Si notáis que falta algo, recordad que la escasez es solo abundancia que todavía no ha llegado.', 'Con {medida}, aprendemos a valorar lo que tenemos. Sobre todo porque ya no lo tenemos.'],
-      obra: ['¡Empiezan las obras de {medida}! Estará listo en un plazo récord. El récord todavía no se ha fijado.', 'El Líder Supremo ha inaugurado {medida} con unas tijeras de oro. Las tijeras son lo único terminado, pero son preciosas.'],
-      culto: ['{Medida}. Un homenaje merecido. Los oyentes que no se emocionen deben presentarse en su comisaría más cercana para emocionarse allí.', 'Hoy, {medida}. El Líder Supremo pidió que no se hiciera ningún homenaje, lo cual demuestra su humildad, que también será homenajeada.'],
-      absurdo: ['{Medida}. Si no lo entendéis, es porque el Líder Supremo piensa diez años por delante. Esperad diez años.', 'Nos confirman {medida}. Sí. En serio. Seguimos con música.'],
+      general: ['{Medida}. Los ciudadanos que no estén de acuerdo pueden expresarlo en el buzón de sugerencias, que está en el fondo del río.', 'Entra en vigor {medida}. El Líder Supremo lo pensó durante casi cuatro segundos. Un récord de reflexión.', '{Medida}. Hemos consultado al pueblo y el pueblo ha dicho que sí. No le hemos dejado decir otra cosa, pero ha dicho que sí.', 'El Líder Supremo ha decretado {medida}. Los expertos coinciden en que es una idea brillante. Los expertos que no coinciden están de vacaciones.', 'Hoy entra en vigor {medida}. Si no notáis ningún cambio, es que ya estabais cumpliendo la ley. ¡Enhorabuena!'],
+      regalo: ['{Medida}. Es gratis. Bueno, lo pagáis vosotros, pero con cariño.', '¡{Medida}! Los vecinos que lo reciban deben dar las gracias en voz alta. Los que no lo reciban, también.', '¡Buenas noticias! {Medida}. El Líder Supremo os lo regala porque os quiere. Por favor, lloren de emoción de forma ordenada.', 'Con {medida}, Corea del Norte vuelve a demostrar que es el país más generoso del mundo. Del mundo que conocemos, que es este.'],
+      impuesto: ['{Medida}. No es un impuesto: es una contribución voluntaria obligatoria.', '{Medida}. Recordad que cada won que pagáis se convierte en una medalla. Para el ministro.', '{Medida}: un pequeño esfuerzo patriótico. Recordad: pagar impuestos adelgaza, y estar delgado es muy revolucionario.', 'Nos informan de {medida}. Hacienda asegura que el dinero irá a cosas importantes, como más carteles que digan que el dinero va a cosas importantes.'],
+      represion: ['{Medida}. Si oís golpes en la puerta esta noche, no os preocupéis: es seguridad. Probablemente la vuestra.', '{Medida}. La cárcel central informa de que ya no caben más traidores, lo que demuestra que hay muy pocos.', '{Medida}. Las fuerzas del orden os recuerdan que si no habéis hecho nada, no tenéis nada que temer. Y si habéis hecho algo, tampoco lo vais a poder contar.', 'Gracias a {medida}, las calles son más seguras que nunca. Tan seguras que nadie sale a ellas.'],
+      libertad: ['{Medida}. Sois libres de estar de acuerdo.', '{Medida}. La libertad de expresión sigue intacta: podéis expresar vuestra gratitud cuando queráis.', '{Medida}. Algunos dirán que es menos libertad. Nosotros decimos que es más tiempo libre para amar al Líder Supremo.', 'Con {medida} acabamos con las distracciones. Ahora tenéis una sola opción, y es la correcta.'],
+      economia: ['{Medida}. Los economistas extranjeros no lo entienden. Eso es buena señal: no entienden nada.', 'Tras {medida}, el won se mantiene firme. Firme, lo que se dice firme, en el suelo.', 'Los mercados celebran {medida}. Bueno, el mercado. Bueno, un señor del mercado que dice que está contento.', 'Gracias a {medida}, la economía crece a un ritmo del mil por ciento. La cifra es aproximada. Por arriba.'],
+      esencial: ['{Medida}. Los que pasen hambre pueden consolarse sabiendo que es hambre patriótica.', '{Medida}. Os recordamos que el agua de lluvia sigue siendo gratis. De momento.', '{Medida}. Si notáis que falta algo, recordad que la escasez es solo abundancia que todavía no ha llegado.', 'Con {medida}, aprendemos a valorar lo que tenemos. Sobre todo porque ya no lo tenemos.'],
+      obra: ['{Medida}: la obra más grande de la historia de la península. La medida es aproximada y la ha hecho el arquitecto.', '¡Empiezan las obras de {medida}! Estará listo en un plazo récord. El récord todavía no se ha fijado.', 'El Líder Supremo ha inaugurado {medida} con unas tijeras de oro. Las tijeras son lo único terminado, pero son preciosas.'],
+      culto: ['{Medida}. El Líder Supremo no quería, pero el pueblo insistió. El pueblo insiste mucho cuando se le pide.', '{Medida}. Para celebrarlo, esta noche habrá luz eléctrica durante una hora entera.', '{Medida}. Un homenaje merecido. Los oyentes que no se emocionen deben presentarse en su comisaría más cercana para emocionarse allí.', 'Hoy, {medida}. El Líder Supremo pidió que no se hiciera ningún homenaje, lo cual demuestra su humildad, que también será homenajeada.'],
+      absurdo: ['{Medida}. Nuestros científicos llevan años esperando esta medida. Nos lo acaban de decir, muy nerviosos.', '{Medida}. Quien se ría será invitado a explicar el chiste a la policía.', '{Medida}. Otros países no se atreverían. Por algo será.', '{Medida}. Si no lo entendéis, es porque el Líder Supremo piensa diez años por delante. Esperad diez años.', 'Nos confirman {medida}. Sí. En serio. Seguimos con música.'],
       secreto: ['Hoy no ha pasado nada. Repetimos: hoy no ha pasado absolutamente nada. Seguimos con el parte meteorológico: soleado y tranquilo.', 'Radio Pionyang no tiene ninguna noticia especial que dar. Si habéis oído algo esta noche, eran fuegos artificiales. De celebración.']
     },
     despedida: ['Y ahora, música: la Sinfonía del Tractor Feliz, en su versión de cuatro horas.', 'Os dejamos con el himno. Es obligatorio escucharlo de pie. Sí, también vosotros, los de la cama.', 'Radio Pionyang: porque la verdad es la que decimos nosotros.']
@@ -5951,19 +5959,34 @@ body {
           'La Asamblea Popular Suprema aplaudirá lo que firmes. El ejército, los cuadros del Partido y el pueblo decidirán si te dejan seguir.'
       },
       {
-        tipo: 'cupula', titulo: 'TU GABINETE',
-        texto: Object.entries(RF.GABINETE).map(([id, m]) => RF.poder.ministro(estado, id).nombre + ', ' + m.cargo.toLowerCase()).join('. ') + '.'
+        tipo: 'radio', titulo: RF.PAIS.radio,
+        texto: '¡Buenos días, camaradas! El nuevo Líder Supremo ya gobierna. El ejército está contento, el Palacio es fiel y las arcas tienen 80 millones. La población aguanta. Como siempre.'
       },
       {
-        tipo: 'prensa', titulo: 'LOS DE FUERA Y LOS DE DENTRO',
-        texto: 'Song Dae-ho dirige una red clandestina que reparte memorias USB con series del Sur. China compra tu carbón y te presta paciencia. La ONU prepara otra ronda de sanciones. El embajador sueco, que habla en nombre de los que no tienen embajada, observa con cara de preocupación.\n' +
-          'Las arcas tienen 80 millones de dólares en divisas, los precios suben un 6% cada turno, el ejército está contento, el Palacio te es fiel... y la población aguanta. De momento.'
+        tipo: 'sistema', titulo: 'CÓMO SE JUEGA',
+        texto: 'Escribe cualquier orden y pulsa Decretar: "vender carbón a China", "lanzar un misil", "prohibir los lunes", "negociar con Estados Unidos".\n' +
+          'Todo se cumple, y cada ley sigue actuando cada turno. Solo pierdes si la ESTABILIDAD llega a 0.\n' +
+          'Escribe "ayuda" para las reglas completas, "estado" para ver el país.'
       },
       {
-        tipo: 'calle', titulo: 'MIENTRAS TANTO, EN LA CALLE',
-        texto: Object.values(RF.CIUDADANOS).map(c => c.presentacion).join(' ')
+        // Quién es quién: plegado, para quien quiera leerlo.
+        tipo: 'detalles', titulo: 'Quién es quién',
+        hijos: [
+          {
+            tipo: 'cupula', titulo: 'TU GABINETE',
+            texto: Object.entries(RF.GABINETE).map(([id, m]) => RF.poder.ministro(estado, id).nombre + ', ' + m.cargo.toLowerCase()).join('. ') + '.'
+          },
+          {
+            tipo: 'prensa', titulo: 'LOS DE FUERA Y LOS DE DENTRO',
+            texto: 'Song Dae-ho dirige una red clandestina que reparte memorias USB con series del Sur. China compra tu carbón y te presta paciencia. La ONU prepara otra ronda de sanciones. El embajador sueco observa con cara de preocupación.'
+          },
+          {
+            tipo: 'calle', titulo: 'EN LA CALLE',
+            texto: Object.values(RF.CIUDADANOS).map(c => c.presentacion).join('\n\n')
+          }
+        ]
       }
-    ].concat(ayuda());
+    ];
   }
 
   // ---------- Las secciones del turno: RADIO, PALACIO, EJÉRCITO y POBLACIÓN ----------
@@ -5980,8 +6003,11 @@ body {
   function radio(res, tipo) {
     const R = RF.RADIO;
     const frases = R.tipos[tipo] || R.tipos.general;
-    let t = T.azar(R.saludo) + ' ' + T.expandir(T.azar(frases), res.vars);
-    if (Math.random() < 0.4) t += ' ' + T.azar(R.despedida);
+    // Corta: la frase del día y, a veces, un saludo o una despedida (nunca las dos).
+    let t = T.expandir(T.azar(frases), res.vars);
+    const r = Math.random();
+    if (r < 0.2) t = T.azar(R.saludo) + ' ' + t;
+    else if (r < 0.4) t += ' ' + T.azar(R.despedida);
     return T.expandir(t);
   }
 
@@ -5992,14 +6018,42 @@ body {
     return T.expandir(T.azar(pool), res.vars);
   }
 
+  // La radio y UNA sección: la del sector al que más le ha tocado este turno (menos texto, más jugo).
   function secciones(estado, res, tipo) {
     const out = [{ tipo: 'radio', titulo: RF.PAIS.radio, texto: radio(res, tipo) }];
-    const lm = lineaMinistro(estado, res);
-    out.push({ tipo: 'cupula', titulo: cabecera(estado, 'elite', res), texto: lm.texto });
-    out.push({ tipo: 'ejercito', titulo: cabecera(estado, 'ejercito', res), texto: lineaEjercito(estado, res) });
+    const d = res.deltas || {}, pt = res.porTurno || {};
+    const peso = k => Math.abs(d[k] || 0) + 3 * Math.abs(pt[k] || 0);
     const lc = lineaCiudadano(estado, res);
-    if (lc) out.push({ tipo: 'calle', titulo: cabecera(estado, 'poblacion', res), texto: lc.texto });
+    const candidatos = [
+      { id: 'poblacion', v: peso('felicidad') + 0.5, bloque: () => lc && { tipo: 'calle', titulo: cabecera(estado, 'poblacion', res), texto: lc.texto } },
+      { id: 'ejercito', v: peso('ejercito'), bloque: () => ({ tipo: 'ejercito', titulo: cabecera(estado, 'ejercito', res), texto: lineaEjercito(estado, res) }) },
+      { id: 'elite', v: peso('elite') + 0.3, bloque: () => ({ tipo: 'cupula', titulo: cabecera(estado, 'elite', res), texto: lineaMinistro(estado, res).texto }) }
+    ].sort((a, b) => b.v - a.v);
+    for (const c of candidatos) { const b = c.bloque(); if (b) { out.push(b); break; } }
     return out;
+  }
+
+  /*
+   * Lo que se ve de un turno: lo divertido arriba y la letra pequeña plegada.
+   * Visible: la Gaceta, los efectos, el Informe del Consejo, la radio y la sección, los sucesos, los eventos,
+   * los cambios de régimen, las alertas graves y el final. Plegado: intérprete, notas, relaciones, leyes, causas.
+   */
+  const VISIBLES = new Set(['gaceta', 'efectos', 'logica', 'radio', 'cupula', 'ejercito', 'calle', 'suceso', 'dilema', 'regimen', 'fin', 'cronica', 'eco']);
+  const GRAVE = /desploma|quiebra|golpe|Congreso|bloque|juicio|secreto|Nadie lo sabe/i;
+  function compactar(bloques) {
+    const vis = [], letra = [];
+    for (const b of bloques) {
+      if (b.tipo === 'amanecer') continue; // el número de turno ya está arriba
+      if (b.tipo === 'efectos' && b.rotulo === 'Resultado del turno') { letra.push(b); continue; }
+      if (VISIBLES.has(b.tipo) || (b.tipo === 'nota' && GRAVE.test(b.texto || '') && vis.filter(x => x.tipo === 'nota').length < 2)) vis.push(b);
+      else letra.push(b);
+    }
+    if (letra.length) {
+      const d = { tipo: 'detalles', titulo: 'Letra pequeña', hijos: letra };
+      const i = vis.findIndex(b => b.tipo === 'dilema' || b.tipo === 'fin');
+      vis.splice(i === -1 ? vis.length : i, 0, d);
+    }
+    return vis;
   }
 
   function lineaMinistro(estado, res) {
@@ -6017,7 +6071,7 @@ body {
     const c = RF.CIUDADANOS[id];
     const est = estado.ciudadanos[id];
     let texto = T.expandir(T.azar(c[res.ciudadano.sentimiento]), res.vars);
-    if (!est.presentado) { texto = c.presentacion + ' ' + texto; est.presentado = true; }
+    est.presentado = true; // ya se presentan todos en la introducción
     return { titulo: 'LA CALLE · ' + c.nombre.toUpperCase(), texto };
   }
 
@@ -6353,7 +6407,7 @@ body {
     ];
   }
 
-  RF.narrador = { diplomacia, bloqueExterior, secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
+  RF.narrador = { compactar, diplomacia, bloqueExterior, secciones, cabecera, intro, turno, decreto, cierreDia, dilema, decision, tipoDecreto, confuso, pregunta, estadoPais, gabinete, leyes, sistema, historial, ayuda, final, formatoStat, EJEMPLOS };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/narradorIA.js
@@ -6451,13 +6505,12 @@ body {
     'TONO: el de la saga Tropico. Sátira alegre y cínica: propaganda ridícula que lo vende todo como una victoria, burocracia absurda, ministros con frases secas y personajes cotidianos que se adaptan a lo que sea con resignación. Chistes de una línea, remates rápidos, nada de sermones ni de melodrama. La violencia se sugiere, nunca se describe.',
     'Si un decreto es absurdo, se cumple con total seriedad: el humor sale de la lógica llevada al extremo, no de guiñar el ojo.',
     '',
-    'FORMATO (obligatorio): cuatro secciones, en este orden, cada una en su propia línea que empieza con su nombre en mayúsculas y dos puntos:',
-    RF.PAIS.radio + ': el locutor oficial anuncia lo del turno con entusiasmo de propaganda (1 o 2 frases, con remate).',
-    RF.PAIS.sectores.elite.seccion + ': qué pasa en el Palacio, con un ministro con nombre (1 o 2 frases).',
-    RF.PAIS.sectores.ejercito.seccion + ': cómo lo viven los cuarteles y los generales (1 o 2 frases).',
-    RF.PAIS.sectores.poblacion.seccion + ': la vida cotidiana de una persona de a pie con nombre (1 o 2 frases).',
-    'En total, entre 70 y 130 palabras. Sin markdown, sin listas, sin otros títulos.',
-    'El ánimo de cada sector ("sectores") y cómo ha cambiado este turno debe notarse en su sección: si el ejército está contento, se nota; si baja, también.',
+    'FORMATO (obligatorio): TRES líneas, cada una empieza con el nombre de su sección en mayúsculas y dos puntos:',
+    '- Primera línea, siempre ' + RF.PAIS.radio + ': el locutor oficial vende lo del turno como una victoria. Una frase y un remate.',
+    '- Luego, las DOS secciones con más gracia este turno, a elegir entre ' + RF.PAIS.sectores.elite.seccion + ' (un ministro con nombre), ' + RF.PAIS.sectores.ejercito.seccion + ' (los cuarteles) y ' + RF.PAIS.sectores.poblacion.seccion + ' (una persona de a pie con nombre). Elige las que más cambian o las más absurdas.',
+    'Cada línea: máximo 25 palabras, una sola idea, y termina en un remate (un giro inesperado, un detalle absurdo, una contradicción). En total, entre 45 y 80 palabras. Mejor un chiste bueno que tres regulares.',
+    'Nada de explicar el chiste, ni de resumir cifras, ni de moralejas. Sin markdown, sin listas, sin otros títulos.',
+    'El ánimo de cada sector ("sectores") y cómo ha cambiado este turno debe notarse en su sección.',
     '',
     'Reglas:',
     '- Segunda persona: te diriges al gobernante ("tú"). Le llaman "el Líder Supremo" o "el Mariscal" (o "Su Majestad" si es monarquía).',
@@ -7464,6 +7517,18 @@ body {
       return { nodo: n };
     }
     if (b.tipo === 'dilema') return crearDilema(b, n);
+    if (b.tipo === 'detalles') {
+      // "▸ Letra pequeña": los bloques técnicos del turno, plegados.
+      const det = el('details', 'detalles');
+      det.appendChild(el('summary', '', b.titulo + ' (' + b.hijos.length + ')'));
+      for (const h of b.hijos) {
+        const x = crearBloque(h);
+        if (x.parrafo) x.parrafo.textContent = x.texto;
+        det.appendChild(x.nodo);
+      }
+      n.appendChild(det);
+      return { nodo: n };
+    }
     if (b.tipo === 'cronica') {
       n.appendChild(el('span', 'etiqueta', b.titulo || 'CRÓNICA'));
       const pc = el('p', b.terminada ? '' : 'cursor' + (b.texto ? '' : ' pensando'), b.texto ? null : 'Claude está escribiendo la crónica del turno…');
@@ -7528,17 +7593,20 @@ body {
 
   // La vista sigue el texto que se va escribiendo solo si el jugador está abajo del todo.
   // Si sube a leer algo, no se le arrastra: aparece un botón para volver al final.
-  let pegado = true;
+  let pegado = true, posAuto = 0;
   function alFondo(forzar) {
     const r = $('registro');
     if (forzar) pegado = true;
-    if (pegado) { r.scrollTop = r.scrollHeight; $('ir-abajo').hidden = true; }
+    if (pegado) { r.scrollTop = r.scrollHeight; posAuto = r.scrollTop; $('ir-abajo').hidden = true; }
     else $('ir-abajo').hidden = false;
   }
   function vigilarScroll() {
     const r = $('registro');
     r.addEventListener('scroll', () => {
-      pegado = r.scrollHeight - r.scrollTop - r.clientHeight < 60;
+      // Solo cuenta como "ha subido a leer" si la vista sube respecto a donde la dejó el juego
+      // (el texto nuevo que se añade mientras tanto no debe despegarla).
+      if (r.scrollHeight - r.scrollTop - r.clientHeight < 60) pegado = true;
+      else if (r.scrollTop < posAuto - 10) pegado = false;
       if (pegado) $('ir-abajo').hidden = true;
     }, { passive: true });
     $('ir-abajo').addEventListener('click', () => alFondo(true));
@@ -7645,9 +7713,11 @@ body {
   function publicarTurno(bloques) {
     const N = RF.narradorIA.NARRATIVOS;
     const narrativos = bloques.filter(b => N.has(b.tipo));
-    if (!RF.narradorIA.activa() || iaPausada || !narrativos.length) { mostrar(bloques, true); return; }
+    // Lo que se ve: lo entretenido; lo técnico, plegado. La IA recibe el turno completo.
+    const visibles = RF.narrador.compactar(bloques);
+    if (!RF.narradorIA.activa() || iaPausada || !narrativos.length) { mostrar(visibles, true); return; }
     const cronica = { tipo: 'cronica', titulo: 'CRÓNICA', texto: '' };
-    const resto = bloques.filter(b => !N.has(b.tipo));
+    const resto = visibles.filter(b => !N.has(b.tipo));
     const i = resto.findIndex(b => b.tipo === 'dilema' || b.tipo === 'fin');
     resto.splice(i === -1 ? resto.length : i, 0, cronica);
     mostrar(resto, true);
@@ -7656,7 +7726,6 @@ body {
         cronica.texto = r.texto;
         cronica.terminada = true;
         pintarCronica(cronica);
-        mostrar([{ tipo: 'bot', texto: RF.narradorIA.textoUso(r) }], false);
         guardar();
       })
       .catch(err => {
@@ -7667,7 +7736,7 @@ body {
         cola = cola.filter(x => x.b !== cronica);
         const conexion = err.pausar || /conectar|cargar/.test(err.mensaje || '');
         if (conexion) { iaPausada = true; pintarBotonIA(); }
-        mostrar([{ tipo: 'nota', texto: (err.mensaje || 'La IA no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') + ' El turno sigue con la narración normal.' }].concat(narrativos), true);
+        mostrar([{ tipo: 'nota', texto: (err.mensaje || 'La IA no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') + ' El turno sigue con la narración normal.' }].concat(visibles.filter(b => N.has(b.tipo))), true);
         guardar();
       });
   }

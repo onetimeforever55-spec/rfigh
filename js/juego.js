@@ -144,6 +144,18 @@
       return { nodo: n };
     }
     if (b.tipo === 'dilema') return crearDilema(b, n);
+    if (b.tipo === 'detalles') {
+      // "▸ Letra pequeña": los bloques técnicos del turno, plegados.
+      const det = el('details', 'detalles');
+      det.appendChild(el('summary', '', b.titulo + ' (' + b.hijos.length + ')'));
+      for (const h of b.hijos) {
+        const x = crearBloque(h);
+        if (x.parrafo) x.parrafo.textContent = x.texto;
+        det.appendChild(x.nodo);
+      }
+      n.appendChild(det);
+      return { nodo: n };
+    }
     if (b.tipo === 'cronica') {
       n.appendChild(el('span', 'etiqueta', b.titulo || 'CRÓNICA'));
       const pc = el('p', b.terminada ? '' : 'cursor' + (b.texto ? '' : ' pensando'), b.texto ? null : 'Claude está escribiendo la crónica del turno…');
@@ -208,17 +220,20 @@
 
   // La vista sigue el texto que se va escribiendo solo si el jugador está abajo del todo.
   // Si sube a leer algo, no se le arrastra: aparece un botón para volver al final.
-  let pegado = true;
+  let pegado = true, posAuto = 0;
   function alFondo(forzar) {
     const r = $('registro');
     if (forzar) pegado = true;
-    if (pegado) { r.scrollTop = r.scrollHeight; $('ir-abajo').hidden = true; }
+    if (pegado) { r.scrollTop = r.scrollHeight; posAuto = r.scrollTop; $('ir-abajo').hidden = true; }
     else $('ir-abajo').hidden = false;
   }
   function vigilarScroll() {
     const r = $('registro');
     r.addEventListener('scroll', () => {
-      pegado = r.scrollHeight - r.scrollTop - r.clientHeight < 60;
+      // Solo cuenta como "ha subido a leer" si la vista sube respecto a donde la dejó el juego
+      // (el texto nuevo que se añade mientras tanto no debe despegarla).
+      if (r.scrollHeight - r.scrollTop - r.clientHeight < 60) pegado = true;
+      else if (r.scrollTop < posAuto - 10) pegado = false;
       if (pegado) $('ir-abajo').hidden = true;
     }, { passive: true });
     $('ir-abajo').addEventListener('click', () => alFondo(true));
@@ -325,9 +340,11 @@
   function publicarTurno(bloques) {
     const N = RF.narradorIA.NARRATIVOS;
     const narrativos = bloques.filter(b => N.has(b.tipo));
-    if (!RF.narradorIA.activa() || iaPausada || !narrativos.length) { mostrar(bloques, true); return; }
+    // Lo que se ve: lo entretenido; lo técnico, plegado. La IA recibe el turno completo.
+    const visibles = RF.narrador.compactar(bloques);
+    if (!RF.narradorIA.activa() || iaPausada || !narrativos.length) { mostrar(visibles, true); return; }
     const cronica = { tipo: 'cronica', titulo: 'CRÓNICA', texto: '' };
-    const resto = bloques.filter(b => !N.has(b.tipo));
+    const resto = visibles.filter(b => !N.has(b.tipo));
     const i = resto.findIndex(b => b.tipo === 'dilema' || b.tipo === 'fin');
     resto.splice(i === -1 ? resto.length : i, 0, cronica);
     mostrar(resto, true);
@@ -336,7 +353,6 @@
         cronica.texto = r.texto;
         cronica.terminada = true;
         pintarCronica(cronica);
-        mostrar([{ tipo: 'bot', texto: RF.narradorIA.textoUso(r) }], false);
         guardar();
       })
       .catch(err => {
@@ -347,7 +363,7 @@
         cola = cola.filter(x => x.b !== cronica);
         const conexion = err.pausar || /conectar|cargar/.test(err.mensaje || '');
         if (conexion) { iaPausada = true; pintarBotonIA(); }
-        mostrar([{ tipo: 'nota', texto: (err.mensaje || 'La IA no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') + ' El turno sigue con la narración normal.' }].concat(narrativos), true);
+        mostrar([{ tipo: 'nota', texto: (err.mensaje || 'La IA no respondió.') + (conexion ? ' Desactivo la IA durante esta sesión.' : '') + ' El turno sigue con la narración normal.' }].concat(visibles.filter(b => N.has(b.tipo))), true);
         guardar();
       });
   }
