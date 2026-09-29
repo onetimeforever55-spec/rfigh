@@ -164,7 +164,7 @@
     },
 
     TORTURA: {
-      nombre: 'la tortura', re: /\b(tortur\w*|interrogatorios? (duros?|mejorados?|especiales?))\b/,
+      nombre: 'la tortura', re: /\b(tortur\w*|interrogatorios? (duros?|mejorados?|especial(es)?))\b/,
       favor: {
         nombre: 'los interrogatorios mejorados', controversia: 3,
         inicial: { estabilidad: 2, felicidad: -5 }, porTurno: { estabilidad: 0.8, felicidad: -1.2 }, curvas: { estabilidad: 'desgasta' },

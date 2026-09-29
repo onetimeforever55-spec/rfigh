@@ -59,6 +59,36 @@ console.log('POLÍTICAS NUEVAS');
   comprobar(p.economia.mercadoNegro > m0 && p.pendientes.some(x => x.titulo === 'Las tiendas vacías'), 'congelar precios: más mercado negro y, después, tiendas vacías');
 }
 
+console.log('MÁS POLÍTICAS, TODAS CON SU PORQUÉ');
+{
+  const casos = [
+    ['construir una presa', 'INFRAESTRUCTURA', 'favor'], ['construir una central nuclear', 'INFRAESTRUCTURA', 'favor'], ['parar las obras de la autopista', 'INFRAESTRUCTURA', 'contra'],
+    ['crear una zona económica especial', 'ZONA_ESPECIAL', 'favor'], ['importar arroz', 'COMERCIO_EXTERIOR', 'favor'], ['exportar arroz', 'EXPORTACIONES', 'favor'],
+    ['pedir ayuda humanitaria', 'AYUDA_HUMANITARIA', 'favor'], ['rechazar la ayuda humanitaria', 'AYUDA_HUMANITARIA', 'contra'],
+    ['bajar los sueldos de los funcionarios', 'SUELDOS_ESTADO', 'contra'], ['reducir el servicio militar', 'SERVICIO_MILITAR', 'contra'],
+    ['amnistía para los presos políticos', 'AMNISTIA', 'favor'], ['luchar contra la corrupción', 'CORRUPCION', 'favor'], ['perdonar la corrupción', 'CORRUPCION', 'contra'],
+    ['despedir funcionarios', 'BUROCRACIA', 'favor'], ['premiar a las familias numerosas', 'NATALIDAD', 'favor'], ['fomentar la emigración', 'EMIGRACION', 'favor'],
+    ['subir los tipos de interés', 'TIPOS_INTERES', 'favor'], ['subir el precio de la gasolina', 'COMBUSTIBLE', 'contra'], ['vacunar a todos', 'CAMPANA_SALUD', 'favor'],
+    ['cultivar más arroz', 'CAMPANA_PRODUCCION', 'favor'], ['legalizar el juego', 'CASINOS', 'favor'], ['espiar a los ministros', 'VIGILANCIA_ELITE', 'favor'],
+    ['abrir el país al turismo', 'TURISMO', 'favor']
+  ];
+  const mal = [];
+  for (const [t, tema, dir] of casos) {
+    const e = nuevo();
+    const i = RF.interprete.interpretar(t, e);
+    const r = RF.consejero.decretar(e, i, { avanzar: false });
+    if (i.tema !== tema || i.dir !== dir || !(r.porque || []).length) mal.push(t + ' → ' + i.tema + ' ' + i.dir + ' (' + (r.porque || []).length + ' porqués)');
+  }
+  comprobar(!mal.length, casos.length + ' decretos nuevos se entienden, en la dirección correcta y con porqué' + (mal.length ? ': ' + mal.join('; ') : ''));
+  const ids = RF.CONCEPTOS.map(k => k.id);
+  comprobar(new Set(ids).size === ids.length, 'no hay conceptos repetidos (' + ids.length + ')');
+  comprobar(RF.CONCEPTOS.filter(k => k.area === 'historia').every(k => !k.ajuste), 'los precedentes históricos solo explican');
+  const pobre = nuevo(); pobre.stats.dinero = 10;
+  const i = RF.interprete.interpretar('construir una autopista', pobre);
+  const r = RF.consejero.decretar(pobre, i, { avanzar: false });
+  comprobar(r.porque[0].texto.includes('imprimiendo'), 'sin divisas, la obra se explica (y se paga) imprimiendo wones');
+}
+
 console.log('LA IA RAZONA CON LA MISMA BIBLIOTECA');
 {
   comprobar(RF.CONCEPTOS.every(k => RF.consejoIA.SISTEMA.includes(k.nombre)), 'el Consejo recibe todos los conceptos');
