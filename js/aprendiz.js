@@ -9,7 +9,10 @@
  *     entendió la IA, con sus mismos conceptos, aunque la IA esté apagada.
  * El comando "entrenar" le pone un examen: la IA inventa decretos variados, el bot intenta entenderlos,
  * y los que falla se aprenden.
- * Lo aprendido vive en este navegador (localStorage); datos/aprendidos.js trae una base ya enseñada.
+ * Dónde vive lo aprendido: dentro de claude.ai, en la base de datos del juego (colección "lecciones"),
+ * que sobrevive a otros dispositivos y a borrar el navegador, y que Claude puede leer y revisar sin que
+ * nadie le pegue nada; fuera de claude.ai (o si no está disponible), en este navegador (localStorage).
+ * datos/aprendidos.js trae una base ya enseñada y revisada.
  */
 (function (RF) {
   'use strict';
@@ -19,7 +22,9 @@
   const SIMILAR = 0.65;
   const NIEGAN = new Set(['no', 'nunca', 'jamas', 'nadie', 'ningun', 'ninguna', 'sin']);
 
-  let propios = null; // lo aprendido en este navegador
+  const COLECCION = 'lecciones';
+  let propios = null; // lo aprendido (copia local; la base de datos manda cuando la hay)
+  let nube = null;    // la base de datos del juego en claude.ai, o null
 
   function raices(texto) {
     return new Set(T.palabras(T.normalizar(texto)).filter(p => !T.VACIAS.has(p) || NIEGAN.has(p)).map(T.raiz));
@@ -58,6 +63,52 @@
     return propios;
   }
 
+  // El id de una lección en la base de datos: un resumen corto de su texto normalizado.
+  function idDe(n) {
+    let h = 2166136261;
+    for (let i = 0; i < n.length; i++) { h ^= n.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return 'l-' + (h >>> 0).toString(36) + '-' + n.length;
+  }
+
+  function cuerpo(x) {
+    return Object.assign({ texto: x.texto, origen: x.origen, t: Date.now() }, x.etiqueta);
+  }
+
+  function subir(x) {
+    if (!nube) return;
+    nube.collection(COLECCION).doc(idDe(x.n)).set(cuerpo(x)).catch(() => { /* queda en la copia local */ });
+  }
+
+  // Dentro de claude.ai: trae las lecciones de la base de datos y sube las que solo estaban en este
+  // navegador. Devuelve cuántas lecciones hay en la nube, o null si no hay base de datos.
+  async function conectar() {
+    try {
+      if (!globalThis.claude || typeof globalThis.claude.use !== 'function') return null;
+      const db = await globalThis.claude.use('db');
+      if (!db) return null;
+      const snap = await db.collection(COLECCION).limit(MAX).get();
+      nube = db;
+      cargar();
+      const enNube = new Set();
+      for (const d of snap.docs) {
+        const x = d.data() || {};
+        const et = validar(x);
+        if (!et || typeof x.texto !== 'string') continue;
+        const l = completar(x.texto, et, x.origen || 'ia');
+        enNube.add(l.n);
+        const i = propios.findIndex(p => p.n === l.n);
+        if (i >= 0) propios[i] = l; else propios.push(l); // la nube manda (Claude puede haberla corregido)
+      }
+      for (const x of propios) if (!enNube.has(x.n)) await nube.collection(COLECCION).doc(idDe(x.n)).set(cuerpo(x)).catch(() => {});
+      guardar();
+      if (RF.interprete) RF.interprete.entrenar();
+      return propios.length;
+    } catch (e) {
+      nube = null;
+      return null;
+    }
+  }
+
   function guardar() {
     try {
       localStorage.setItem(CLAVE, JSON.stringify(propios.map(x => Object.assign({ texto: x.texto, origen: x.origen }, x.etiqueta))));
@@ -87,9 +138,11 @@
       if (JSON.stringify(propios[previo].etiqueta) === JSON.stringify(et)) return false;
       propios.splice(previo, 1);
     }
-    propios.push(completar(texto, et, origen || 'ia'));
+    const nueva = completar(texto, et, origen || 'ia');
+    propios.push(nueva);
     if (propios.length > MAX) propios.splice(0, propios.length - MAX);
     guardar();
+    subir(nueva);
     if (RF.interprete && !diferir) RF.interprete.entrenar();
     return true;
   }
@@ -172,10 +225,11 @@
   function resumen() {
     const p = cargar();
     const cuenta = o => p.filter(x => x.origen === o).length;
-    return { base: todos().length - p.length, ia: cuenta('ia'), entreno: cuenta('entreno'), ultimos: p.slice(-5).reverse() };
+    return { base: todos().length - p.length, ia: cuenta('ia'), entreno: cuenta('entreno'), ultimos: p.slice(-5).reverse(), nube: !!nube };
   }
 
   function olvidar() {
+    if (nube) for (const x of cargar()) nube.collection(COLECCION).doc(idDe(x.n)).delete().catch(() => {});
     propios = [];
     guardar();
     if (RF.interprete) RF.interprete.entrenar();
@@ -187,5 +241,5 @@
 
   function recargar() { base = null; if (RF.interprete) RF.interprete.entrenar(); }
 
-  RF.aprendiz = { recargar, aprender, recordar, deFicha, todos, examen, resumen, olvidar, exportar, describir, acierta, validar, listas, similitud, raices };
+  RF.aprendiz = { conectar, idDe, recargar, aprender, recordar, deFicha, todos, examen, resumen, olvidar, exportar, describir, acierta, validar, listas, similitud, raices };
 })(globalThis.RF = globalThis.RF || {});

@@ -83,6 +83,31 @@ const ficha = (clave, extra) => Object.assign({ entendido: true, leyes: [{ nombr
     comprobar(RF.interprete.interpretar('mandar a los chavales al cuartel 12 años', e).tema === 'SERVICIO_MILITAR', 'y lo entiende después');
   }
 
+  console.log('SE GUARDA EN LA BASE DE DATOS DEL JUEGO');
+  {
+    const docs = new Map();
+    const col = { limit: () => col, get: async () => ({ docs: [...docs.entries()].map(([id, d]) => ({ id, data: () => d })) }),
+      doc: id => ({ set: async d => { docs.set(id, JSON.parse(JSON.stringify(d))); }, delete: async () => { docs.delete(id); } }) };
+    // Una lección que Claude ya corrigió en la base de datos, y otra que solo estaba en este navegador.
+    const corregida = 'poner soju en las escuelas';
+    RF.aprendiz.aprender(corregida, { accion: 'PROHIBIR', objeto: 'EDUCACION' }, 'ia');
+    RF.aprendiz.aprender('fuera el makgeolli', { accion: 'PROHIBIR', objeto: 'VICIOS' }, 'ia');
+    docs.set(RF.aprendiz.idDe(RF.texto.normalizar(corregida)), { texto: corregida, origen: 'ia', accion: 'SUBSIDIAR', objeto: 'VICIOS', revisada: true });
+    globalThis.claude = { use: async n => (n === 'db' ? { collection: () => col } : null) };
+    const n = await RF.aprendiz.conectar();
+    comprobar(n >= 2 && RF.aprendiz.resumen().nube, 'se conecta a la base de datos y junta las lecciones');
+    const i = RF.interprete.interpretar(corregida, nuevo());
+    comprobar(i.accion === 'SUBSIDIAR' && i.objeto === 'VICIOS', 'la corrección hecha en la base de datos manda sobre la copia del navegador');
+    comprobar([...docs.values()].some(d => d.texto === 'fuera el makgeolli'), 'sube lo que solo estaba en este navegador');
+    RF.aprendiz.aprender('prohibir el chamchi', { accion: 'PROHIBIR', objeto: 'COMIDA' }, 'ia');
+    await new Promise(r => setTimeout(r, 0));
+    comprobar([...docs.values()].some(d => d.texto === 'prohibir el chamchi' && d.objeto === 'COMIDA'), 'cada lección nueva se guarda al momento');
+    RF.aprendiz.olvidar();
+    await new Promise(r => setTimeout(r, 0));
+    comprobar(docs.size === 0, 'olvidar también la borra de la base de datos');
+    delete globalThis.claude;
+  }
+
   console.log('LA IA SABE QUE ENSEÑA');
   comprobar(RF.consejoIA.SISTEMA.includes('"clave"') && RF.consejoIA.SISTEMA.includes('SERVICIO_MILITAR') && RF.consejoIA.SISTEMA.includes('[dinero_sin_respaldo]'), 'el Consejo recibe las acciones, objetos, temas e ids de conceptos para dar la clave');
 

@@ -619,7 +619,8 @@
   // ---------- Entrenar al bot: la IA le pone un examen y le enseña lo que falla ----------
   function bloquesAprendido() {
     const r = RF.aprendiz.resumen();
-    const lineas = ['De fábrica: ' + r.base + ' ejemplos. Aprendidos jugando con la IA: ' + r.ia + '. En exámenes: ' + r.entreno + '.'];
+    const lineas = ['De fábrica: ' + r.base + ' ejemplos. Aprendidos jugando con la IA: ' + r.ia + '. En exámenes: ' + r.entreno + '.',
+      r.nube ? 'Se guarda en la base de datos del juego en claude.ai: sigue ahí en cualquier dispositivo, y Claude puede revisarlo.' : 'Se guarda solo en este navegador.'];
     if (r.ultimos.length) lineas.push('Lo último:', ...r.ultimos.map(x => '«' + x.texto + '» = ' + RF.aprendiz.describir(x.etiqueta)));
     lineas.push('Escribe "entrenar" para que la IA le ponga un examen, "exportar" para copiar lo aprendido u "olvidar lo aprendido" para borrarlo.');
     return [{ tipo: 'aprende', titulo: 'LO QUE SABE EL BOT', texto: lineas.join('\n') }];
@@ -847,6 +848,8 @@
 
   function iniciar() {
     RF.interprete.entrenar();
+    // Dentro de claude.ai, lo aprendido vive en la base de datos del juego.
+    if (RF.aprendiz) RF.aprendiz.conectar();
     montarStats();
     montarAtajos();
     vigilarScroll();
