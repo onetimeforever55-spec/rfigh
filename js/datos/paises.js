@@ -103,6 +103,16 @@
         ingresos: 24,          // lo que recaudaría el Estado cada turno si nada se escapara por el mercado negro
         gastos: 20,            // sueldos, raciones y servicios del Estado cada turno
         costeSancion: 1.5,     // millones por turno que cuesta cada nivel de sanciones (0-4)
+        // Sin crédito exterior: el déficit no se acumula como deuda, se imprime (parte cada turno).
+        sinCredito: true,
+        // Las reservas grandes atraen manos: la élite y la caja personal del Líder se llevan una parte.
+        cajaLider: { nombre: 'la Oficina 39', umbral: 150, fuga: 0.08 },
+        // Sin crédito no se puede deber más de esto: lo que falte se queda sin pagar (sueldos, raciones).
+        suelo: -200,
+        // Con el tiempo, las redes de contrabando aprenden a esquivar las sanciones (hasta este tanto por uno).
+        adaptacionSanciones: 0.5,
+        // Un padrino que no deja caer al régimen, y lo que cobra por cada rescate.
+        padrino: { pais: 'china', estabilidad: 20, relacionMinima: 5, espera: 8, ayuda: { dinero: 15, felicidad: 3, estabilidad: 4, inflacion: -2 }, precioPorTurno: 0.8 },
         socio: 'China',        // de quien depende casi todo el comercio
         exporta: ['carbón y minerales (prohibidos por la ONU: salen de contrabando, de barco a barco)', 'textiles', 'marisco', 'trabajadores enviados al extranjero', 'ciberrobos de criptomonedas'],
         importa: ['petróleo', 'arroz y harina', 'maquinaria', 'lujos para la élite']

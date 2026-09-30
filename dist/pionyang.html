@@ -801,6 +801,16 @@ body {
         ingresos: 24,          // lo que recaudaría el Estado cada turno si nada se escapara por el mercado negro
         gastos: 20,            // sueldos, raciones y servicios del Estado cada turno
         costeSancion: 1.5,     // millones por turno que cuesta cada nivel de sanciones (0-4)
+        // Sin crédito exterior: el déficit no se acumula como deuda, se imprime (parte cada turno).
+        sinCredito: true,
+        // Las reservas grandes atraen manos: la élite y la caja personal del Líder se llevan una parte.
+        cajaLider: { nombre: 'la Oficina 39', umbral: 150, fuga: 0.08 },
+        // Sin crédito no se puede deber más de esto: lo que falte se queda sin pagar (sueldos, raciones).
+        suelo: -200,
+        // Con el tiempo, las redes de contrabando aprenden a esquivar las sanciones (hasta este tanto por uno).
+        adaptacionSanciones: 0.5,
+        // Un padrino que no deja caer al régimen, y lo que cobra por cada rescate.
+        padrino: { pais: 'china', estabilidad: 20, relacionMinima: 5, espera: 8, ayuda: { dinero: 15, felicidad: 3, estabilidad: 4, inflacion: -2 }, precioPorTurno: 0.8 },
         socio: 'China',        // de quien depende casi todo el comercio
         exporta: ['carbón y minerales (prohibidos por la ONU: salen de contrabando, de barco a barco)', 'textiles', 'marisco', 'trabajadores enviados al extranjero', 'ciberrobos de criptomonedas'],
         importa: ['petróleo', 'arroz y harina', 'maquinaria', 'lujos para la élite']
@@ -6637,10 +6647,11 @@ body {
     if (estado.diasEnQuiebra >= 1) golpe(4 + 2 * estado.diasEnQuiebra, 'Quiebra: no hay con qué pagar a soldados ni funcionarios.');
     res.miedo = miedo;
     const deuda = s.dinero < 0;
-    const presion = L.total.inflacion + (deuda ? Math.min(12, -s.dinero / 15) : 0) + Math.max(0, s.inflacion - 40) * 0.12;
+    const mec = mecanicasPais(estado);
+    const presion = L.total.inflacion + mec.presion + Math.max(0, s.inflacion - 40) * 0.12;
     const nuevaInflacion = Math.max(0, s.inflacion * 0.8 + 0.8 + presion);
     const fondo = {
-      dinero: ingresos - gastos + m.dineroTurno - sanciones,
+      dinero: ingresos - gastos + m.dineroTurno - sanciones * (1 - mec.adaptacion) + mec.dinero,
       // El mercado negro ayuda a la gente a sobrevivir cuando el Estado no llega.
       felicidad: -Math.max(0, s.inflacion - 8) / 18 + (50 - s.felicidad) * 0.04 + m.felicidadTurno + (ec.mercadoNegro - 40) / 100,
       // La estabilidad depende de los tres sectores: la población, el ejército y el Palacio.
@@ -6655,12 +6666,12 @@ body {
       // Los sectores vuelven poco a poco a su punto de equilibrio. Sin sueldo, el ejército se enfada;
       // sin lujos importados, la élite también. Los cuadros viven de los sobornos del mercado negro.
       ejercito: (50 - sec.ejercito) * 0.04 + (deuda ? -1.5 : 0) + (s.inflacion > 30 ? -0.5 : 0) + (RF.politica.regimen(estado) === 'JUNTA' ? 0.5 : 0),
-      elite: (50 - sec.elite) * 0.04 + (deuda ? -0.5 : 0) - ec.sanciones * 0.2 + (ec.mercadoNegro > 50 ? 0.3 : 0)
+      elite: (50 - sec.elite) * 0.04 + (deuda ? -0.5 : 0) - ec.sanciones * 0.2 * (1 - mec.adaptacion) + (ec.mercadoNegro > 50 ? 0.3 : 0) + mec.elite
     };
     res.fondo = fondo;
-    res.causas = [];
-    if (deuda) res.causas.push('Hay deuda: el Banco Central imprime para pagarla (más inflación) y los soldados y funcionarios cobran tarde.');
-    if (sanciones) res.causas.push('Sanciones de nivel ' + ec.sanciones + ': cuestan ' + Math.round(sanciones * 10) / 10 + 'M de divisas cada turno y la élite se queda sin lujos.');
+    res.causas = mec.causas.slice();
+    if (deuda && !mec.imprime) res.causas.push('Hay deuda: el Banco Central imprime para pagarla (más inflación) y los soldados y funcionarios cobran tarde.');
+    if (sanciones) res.causas.push('Sanciones de nivel ' + ec.sanciones + ': cuestan ' + Math.round(sanciones * (1 - mec.adaptacion) * 10) / 10 + 'M de divisas cada turno y la élite se queda sin lujos.');
     if (sec.ejercito < 30) res.causas.push('El ejército está descontento: resta estabilidad cada turno. Si se hunde, empujará al golpe.');
     if (sec.elite < 30) res.causas.push('En Palacio se conspira: la élite resta estabilidad cada turno. Si se hunde, te traicionarán.');
     if (s.inflacion > 30) res.causas.push('La inflación del ' + Math.round(s.inflacion) + '% encarece todo y amarga a la gente.');
@@ -6671,6 +6682,7 @@ body {
     // Las potencias vecinas: comercio con China, petróleo, ayuda del Sur, sanciones de Washington.
     const ext = RF.diplomacia ? RF.diplomacia.turno(estado, res) : { dinero: 0, inflacion: 0, felicidad: 0, elite: 0 };
     res.exterior = ext;
+    rescate(estado, res);
     const cambio = {
       dinero: fondo.dinero + L.total.dinero + ext.dinero,
       inflacion: nuevaInflacion - s.inflacion + ext.inflacion,
@@ -6681,6 +6693,7 @@ body {
     };
     res.cambioTurno = {};
     aplicarEfectos(estado, cambio, res.cambioTurno);
+    impago(estado, res);
     res.balance = cambio.dinero;
     estado.balance = cambio.dinero;
     for (const c of Object.values(estado.ciudadanos)) c.animo = Math.max(-100, Math.min(100, c.animo + (res.cambioTurno.felicidad || 0) * 0.8));
@@ -6757,6 +6770,76 @@ body {
         if (['consecuencia', 'escandalo', 'hito', 'politica'].includes(x.tipo)) RF.consejoIA.recordar(estado, x.titulo + ': ' + String(x.texto).split(/(?<=\.)\s/)[0]);
       }
     }
+  }
+
+  /*
+   * Mecánicas de fondo del país (datos/paises.js → economia):
+   *  - sin crédito: el déficit no se acumula sin fin; cada turno se imprime una parte (sube la inflación);
+   *  - la caja del Líder: de las reservas por encima de un umbral se escapa una parte a la élite;
+   *    unas reservas sólidas, en cambio, respaldan la moneda y frenan la inflación;
+   *  - las sanciones se esquivan cada vez mejor mientras duran, y se olvida cuando se levantan.
+   */
+  function mecanicasPais(estado) {
+    const s = estado.stats, ec = estado.economia, P = RF.PAIS.economia;
+    const out = { dinero: 0, presion: 0, elite: 0, adaptacion: 0, causas: [], imprime: 0 };
+    if (s.dinero < 0) {
+      if (P.sinCredito) {
+        const imp = Math.min(40, -s.dinero * 0.25);
+        out.dinero += imp; out.presion += imp / 5; out.imprime = imp;
+        out.causas.push('Nadie te presta: el Banco Central imprime ' + Math.round(imp) + 'M de wones para tapar el agujero. Se paga en inflación.');
+      } else out.presion += Math.min(12, -s.dinero / 15);
+    }
+    const caja = P.cajaLider;
+    if (caja && s.dinero > caja.umbral) {
+      const fuga = (s.dinero - caja.umbral) * caja.fuga;
+      out.dinero -= fuga; out.elite += Math.min(1, fuga / 8);
+      out.causas.push('Las reservas pasan de ' + caja.umbral + 'M: ' + T.mayus(caja.nombre) + ' se queda con ' + Math.round(fuga) + 'M para regalos, coñac y relojes suizos. La élite, encantada.');
+    }
+    if (s.dinero > 80) out.presion -= 0.3; // reservas que respaldan el won
+    if (P.adaptacionSanciones) {
+      ec.adaptacion = Math.max(0, Math.min(P.adaptacionSanciones, (ec.adaptacion || 0) + (ec.sanciones >= 2 ? 0.03 : -0.05)));
+      out.adaptacion = ec.adaptacion;
+      if (ec.sanciones && ec.adaptacion >= 0.15) out.causas.push('Las redes de contrabando ya esquivan el ' + Math.round(ec.adaptacion * 100) + '% del coste de las sanciones: transbordos en alta mar y empresas pantalla en Dandong.');
+    }
+    // Lo que se cobra el padrino por los rescates: minas y puertos que ya no son tuyos.
+    if (P.padrino && ec.rescates) out.dinero -= ec.rescates * P.padrino.precioPorTurno;
+    return out;
+  }
+
+  // Sin crédito no se puede deber más que el suelo: lo que falta se queda sin pagar. Se nota en los cuarteles,
+  // en Palacio y en la calle, y la inflación sube porque se paga con vales y wones recién impresos.
+  function impago(estado, res) {
+    const suelo = RF.PAIS.economia.suelo;
+    const s = estado.stats;
+    if (suelo == null || s.dinero >= suelo) return;
+    const falta = suelo - s.dinero;
+    s.dinero = suelo;
+    const reg = {};
+    aplicarEfectos(estado, { ejercito: -Math.min(6, falta / 8), elite: -Math.min(4, falta / 12), felicidad: -Math.min(5, falta / 10), inflacion: Math.min(8, falta / 10) }, reg);
+    res.causas = res.causas || [];
+    res.causas.push('Faltan ' + Math.round(falta) + 'M que nadie presta: soldados, funcionarios y minas cobran en vales. El ejército lo nota primero.');
+    res.impago = { falta, deltas: reg };
+  }
+
+  // El padrino no te deja caer: si la estabilidad se hunde y la relación aguanta, manda ayuda de urgencia.
+  function rescate(estado, res) {
+    const P = RF.PAIS.economia.padrino, ec = estado.economia, s = estado.stats;
+    if (!P || !RF.diplomacia || s.estabilidad >= P.estabilidad) return;
+    const rel = RF.diplomacia.rel ? RF.diplomacia.rel(estado, P.pais) : RF.diplomacia.iniciar(estado).relaciones[P.pais];
+    if (rel == null || rel < P.relacionMinima || estado.dia - (ec.ultimoRescate == null ? -999 : ec.ultimoRescate) < P.espera) return;
+    ec.ultimoRescate = estado.dia;
+    ec.rescates = (ec.rescates || 0) + 1;
+    // Con la relación rota, Pekín rescata a regañadientes: menos ayuda.
+    const f = rel >= 40 ? 1 : 0.6;
+    const ayuda = {};
+    for (const [k, v] of Object.entries(P.ayuda)) ayuda[k] = Math.round(v * f * 10) / 10;
+    const reg = {};
+    aplicarEfectos(estado, ayuda, reg);
+    const concesion = ['las minas de hierro de Musan', 'el puerto de Rason', 'los derechos de pesca del mar del Este', 'las tierras raras de Jongju', 'la mina de cobre de Hyesan'][(ec.rescates - 1) % 5];
+    res.sucesos.push({ tipo: 'diplomacia', titulo: 'China no te deja caer',
+      texto: 'Pekín no quiere refugiados en su frontera ni soldados americanos en el río Yalu. Esta noche cruzan el puente de Dandong cisternas de petróleo y trenes de arroz. A cambio, empresas chinas se quedan con ' + concesion + ' durante cincuenta años. Es el rescate número ' + ec.rescates + ': cada uno te hace un poco menos dueño de tu país.',
+      deltas: reg });
+    if (RF.consejoIA) RF.consejoIA.recordar(estado, 'China rescató al régimen (rescate nº ' + ec.rescates + ') a cambio de ' + concesion + '.');
   }
 
   // Pasar el turno sin firmar nada: las leyes siguen trabajando.
@@ -8178,7 +8261,8 @@ body {
       fila(S.poblacion.nombre, s.felicidad),
       'Miedo        ' + Math.round(RF.leyes.miedo(estado) * 100) + '% del descontento callado por la represión',
       '',
-      'Sanciones    nivel ' + ec.sanciones + ' de 4 (' + (ec.sanciones * RF.PAIS.economia.costeSancion) + 'M por turno)',
+      'Sanciones    nivel ' + ec.sanciones + ' de 4 (' + Math.round(ec.sanciones * RF.PAIS.economia.costeSancion * (1 - (ec.adaptacion || 0)) * 10) / 10 + 'M por turno' + (ec.adaptacion >= 0.05 ? '; el contrabando esquiva el ' + Math.round(ec.adaptacion * 100) + '%' : '') + ')',
+      ...(ec.rescates ? ['Rescates     ' + ec.rescates + ' de China (te cuestan ' + Math.round(ec.rescates * RF.PAIS.economia.padrino.precioPorTurno * 10) / 10 + 'M por turno en minas y puertos cedidos)'] : []),
       'Mercado negro ' + Math.round(ec.mercadoNegro) + '% de la economía'
     ];
     if (RF.diplomacia) {
@@ -8744,7 +8828,7 @@ body {
     '"porque": 1 o 2 frases cortas (máx. 25 palabras) que explican al jugador el mecanismo principal de las consecuencias, citando el concepto o un precedente histórico real. Con gracia, sin sermón. Ej.: "Hay más wones pero el mismo arroz: cada billete compra menos. Ya pasó en Zimbabue en 2008."',
     '',
     'EL PAÍS SE MIDE ASÍ (en el JSON usa siempre estas claves):',
-    '- dinero = DIVISAS: millones de dólares en las arcas. Cada turno el motor ya cobra impuestos (menos lo que se escapa por el mercado negro), paga sueldos y resta las sanciones: sin buscar divisas, el país se arruina.',
+    '- dinero = DIVISAS: millones de dólares en las arcas. Cada turno el motor ya cobra impuestos (menos lo que se escapa por el mercado negro), paga sueldos y resta las sanciones: sin buscar divisas, el país se arruina. Nadie presta al país: el déficit se tapa imprimiendo (inflación) y por debajo de -200 se dejan de pagar sueldos. Por encima de 150, la Oficina 39 (la caja del Líder) se lleva una parte. Con el tiempo el contrabando esquiva parte de las sanciones. Si la estabilidad se hunde, China rescata al régimen a cambio de minas y puertos.',
     '- inflacion = INFLACIÓN: % que suben los precios cada turno (el arroz en el mercado, el won). Por encima de 30 hay hambre; por encima de 40 se retroalimenta.',
     '- estabilidad = ESTABILIDAD del régimen (0-100). A 0 caes. Cada turno la empujan los tres sectores.',
     'LOS TRES SECTORES (ánimo 0-100; cada uno tiene su sección en la historia y empuja la estabilidad; si uno se hunde, la desploma. Solo se pierde con la estabilidad a 0. La represión da estabilidad artificial: sube la barra y el miedo calla el descontento):',
@@ -8858,7 +8942,9 @@ body {
       apoyo_en_el_congreso: Math.round(p.apoyo) + '%',
       pais: { dinero: s.dinero, inflacion: Math.round(s.inflacion), estabilidad: s.estabilidad, balance_por_turno: Math.round(e.balance || 0) },
       sectores: { ejercito: Math.round(RF.consejero.asegurar(e).sectores.ejercito), elite: Math.round(e.sectores.elite), felicidad: s.felicidad },
-      economia: { sanciones: e.economia.sanciones + ' de 4', mercado_negro: Math.round(e.economia.mercadoNegro) + '%' },
+      economia: { sanciones: e.economia.sanciones + ' de 4', mercado_negro: Math.round(e.economia.mercadoNegro) + '%',
+        contrabando_esquiva: Math.round((e.economia.adaptacion || 0) * 100) + '% del coste de las sanciones',
+        rescates_de_china: e.economia.rescates || 0 },
       diplomacia: RF.diplomacia ? RF.diplomacia.paraIA(e) : undefined,
       leyes_vigentes: RF.leyes.lista(e).map(l => ({ id: l.clave, nombre: l.nombre, desde_turno: l.desde, nivel: l.nivel, por_turno: soloNumeros(RF.leyes.efectoNominal(l)), secreta: l.secreta || undefined })),
       gabinete, gente_de_a_pie: gente, otras_personas: otros,

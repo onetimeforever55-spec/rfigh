@@ -83,6 +83,17 @@ Cuatro potencias tienen una relación contigo (0-100), algo que quieren y algo q
 
 Las relaciones vuelven poco a poco a su punto de partida: la memoria diplomática es corta.
 
+### La economía de fondo
+
+Además de las leyes, cada turno actúan mecánicas del propio país (parámetros en `js/datos/paises.js`, para poder cambiarlas en otros países):
+
+- **Sin crédito, el déficit se imprime:** nadie presta a Corea del Norte, así que cada turno un cuarto del agujero se tapa imprimiendo wones (sube la inflación). Por debajo de −200M ya no hay deuda posible: lo que falta se queda sin pagar y el ejército, el Palacio y la calle cobran en vales.
+- **La Oficina 39:** por encima de 150M de reservas, la caja personal del Líder se lleva un 8% del exceso cada turno (la élite, encantada). Unas reservas sólidas, en cambio, respaldan el won y frenan la inflación.
+- **Las sanciones se aprenden a esquivar:** mientras duran, las redes de contrabando mejoran hasta esquivar la mitad de su coste; si se levantan, se oxidan.
+- **China no te deja caer:** si la estabilidad baja de 20 y la relación con Pekín no está rota del todo, China manda petróleo y arroz (menos si la relación es mala), como mucho cada 8 turnos. A cambio se queda con una mina o un puerto: cada rescate cuesta divisas todos los turnos siguientes.
+
+Con estas reglas, jugar como el régimen real (un misil de vez en cuando, carbón de contrabando, obreros en Rusia) aguanta con sanciones al máximo; lanzar misiles y bombas cada turno, no.
+
 ### El bot aprende de la IA
 
 El intérprete local (el que funciona sin IA) es un clasificador pequeño, pero **aprende de Claude** (`js/aprendiz.js`):

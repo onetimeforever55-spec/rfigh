@@ -430,7 +430,8 @@
       fila(S.poblacion.nombre, s.felicidad),
       'Miedo        ' + Math.round(RF.leyes.miedo(estado) * 100) + '% del descontento callado por la represión',
       '',
-      'Sanciones    nivel ' + ec.sanciones + ' de 4 (' + (ec.sanciones * RF.PAIS.economia.costeSancion) + 'M por turno)',
+      'Sanciones    nivel ' + ec.sanciones + ' de 4 (' + Math.round(ec.sanciones * RF.PAIS.economia.costeSancion * (1 - (ec.adaptacion || 0)) * 10) / 10 + 'M por turno' + (ec.adaptacion >= 0.05 ? '; el contrabando esquiva el ' + Math.round(ec.adaptacion * 100) + '%' : '') + ')',
+      ...(ec.rescates ? ['Rescates     ' + ec.rescates + ' de China (te cuestan ' + Math.round(ec.rescates * RF.PAIS.economia.padrino.precioPorTurno * 10) / 10 + 'M por turno en minas y puertos cedidos)'] : []),
       'Mercado negro ' + Math.round(ec.mercadoNegro) + '% de la economía'
     ];
     if (RF.diplomacia) {
