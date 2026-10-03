@@ -89,9 +89,10 @@
     const r = D.relaciones;
     const ec = RF.consejero.asegurar(e).economia;
 
-    if ('china' in r) {
-      out.dinero += (r.china - 50) * 0.1;
-      if (r.china < 25) { out.inflacion += 1.5; out.dinero -= 2; causas.push('China ha cerrado el oleoducto "por mantenimiento": falta petróleo y suben los precios.'); }
+    // El comercio con cada potencia (perfil del país: "comercio"); si la potencia te da el petróleo y se enfada, lo corta.
+    for (const [id, p] of Object.entries(paises())) {
+      if (p.comercio) out.dinero += (r[id] - 50) * p.comercio;
+      if (p.petroleo && r[id] < 25) { out.inflacion += 1.5; out.dinero -= 2; causas.push(p.petroleo); }
     }
     if ('surcorea' in r && r.surcorea >= 60) { out.dinero += 2; out.felicidad += 0.4; out.elite -= 0.2; causas.push('Llega ayuda humanitaria del Sur. Con los sacos de arroz se cuelan memorias USB.'); }
     if ('japon' in r && r.japon >= 60) out.dinero += 1;

@@ -31,7 +31,7 @@
       RF.VARS[id] = g.corto;
       RF.VARS['n_' + id] = g.nombre;
     }
-    RF.VARS.lider = 'Líder Supremo';
+    RF.VARS.lider = RF.PAIS.tratamiento || 'Líder Supremo';
   }
 
   function ministro(e, id) { iniciar(e); return e.gabinete[id]; }
@@ -186,7 +186,7 @@
     } else if (p.tipo === 'opositor') {
       const destino = { matar: 'muerto', encarcelar: 'preso', exiliar: 'exiliado', destituir: 'exiliado', premiar: 'aliado', liberar: 'libre' }[trato];
       e.personas[id] = destino;
-      if (trato === 'matar') out.ley = { clave: 'MARTIR', nombre: 'el recuerdo del mártir Song Dae-ho', porTurno: { estabilidad: -1.2, felicidad: -0.5 }, duracion: 8 };
+      if (trato === 'matar') out.ley = { clave: 'MARTIR', nombre: 'el recuerdo del mártir ' + (RF.PERSONAS.valiente.nombre || 'Song Dae-ho'), porTurno: { estabilidad: -1.2, felicidad: -0.5 }, duracion: 8 };
       if (trato === 'encarcelar') out.ley = { clave: 'PRESO_POLITICO', nombre: 'Song entre rejas', porTurno: { estabilidad: -0.5, felicidad: -0.3 }, duracion: 12 };
       if (trato === 'liberar' || trato === 'matar' || trato === 'exiliar') out.derogar = ['PRESO_POLITICO'];
       out.cadena = { matar: { id: 'funeral_valiente', en: 1 }, encarcelar: { id: 'huelga_hambre', en: 3 }, exiliar: { id: 'gobierno_exilio', en: 4 }, destituir: { id: 'gobierno_exilio', en: 4 } }[trato] || null;

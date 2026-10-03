@@ -4,13 +4,15 @@
  */
 (function (RF) {
   'use strict';
-  const CLAVE = 'pionyang.partida.v1'; // partida nueva: las de Valdoria (con 30 turnos) no son compatibles
+  // Cada escenario guarda su propia partida (cambiar de escenario no borra la otra).
+  const CLAVE = 'pionyang.partida.v1' + (RF.ESCENARIO && RF.ESCENARIO.id !== 'corea' ? '.' + RF.ESCENARIO.id : '');
   const MAX_REGISTRO = 160;
   const $ = (id) => document.getElementById(id);
   const reducirMovimiento = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const ATAJOS = [
-    ['Imprimir wones', 'imprimir wones'], ['Vender carbón a China', 'vender carbón a China'], ['Lanzar un misil', 'lanzar un misil'], ['Regalar…', 'Regalar '], ['Vender…', 'Vender '],
+    // Los primeros, los del país de la partida.
+    ...(RF.PAIS.atajos || [['Imprimir wones', 'imprimir wones'], ['Vender carbón a China', 'vender carbón a China'], ['Lanzar un misil', 'lanzar un misil']]), ['Regalar…', 'Regalar '], ['Vender…', 'Vender '],
     ['Subir impuestos a…', 'Subir impuestos a '], ['Bajar impuestos a…', 'Bajar impuestos a '], ['Invertir en…', 'Invertir en '],
     ['Recortar…', 'Recortar '], ['Represión contra…', 'Mano dura contra '], ['Prohibir…', 'Prohibir '], ['Legalizar…', 'Legalizar '],
     ['Economía al…', 'Que toda la economía sea de '], ['Crear…', 'Crear '], ['Derogar…', 'Derogar '],
@@ -78,7 +80,7 @@
         c._t = setTimeout(() => c.classList.remove('visible'), 4000);
       }
     }
-    $('dia').textContent = 'TURNO ' + estado.dia;
+    $('dia').textContent = (RF.escenario && RF.escenario.fecha(estado.dia, true)) || 'TURNO ' + estado.dia;
     const reg = RF.politica.regimen(estado);
     $('regimen').textContent = RF.REGIMENES[reg].corto;
     $('regimen').className = 'regimen r-' + reg.toLowerCase();
@@ -286,7 +288,7 @@
         cont.querySelectorAll('button').forEach(x => { x.disabled = true; });
         b.classList.add('elegida');
         vaciar();
-        firmar([op.interp]);
+        if (op.accion) op.accion(); else firmar([op.interp]);
       });
       cont.appendChild(b);
     }
@@ -620,6 +622,22 @@
     guardar();
   }
 
+  // ---------- Escenarios: otros momentos de la historia ----------
+  function mostrarEscenarios() {
+    const actual = RF.escenario.actual().id;
+    const lineas = RF.escenario.lista().map(x => (x.id === actual ? '▶ ' : '  ') + x.nombre + ' · ' + x.subtitulo + '\n   ' + x.resumen);
+    mostrar([{ tipo: 'sistema', titulo: 'ESCENARIOS', texto: lineas.join('\n\n') + '\n\nCada escenario guarda su propia partida: puedes ir y volver sin perder nada.' }], false);
+    mostrarOpciones(RF.escenario.lista().filter(x => x.id !== actual).map(x => ({ etiqueta: 'Jugar: ' + x.nombre, accion: () => cambiarEscenario(x.id) })));
+  }
+
+  function cambiarEscenario(id) {
+    if (id === RF.escenario.actual().id) { mostrar([{ tipo: 'nota', texto: 'Ya estás jugando ese escenario.' }], false); return; }
+    guardar();
+    if (!RF.escenario.elegir(id)) { mostrar([{ tipo: 'nota', texto: 'Este navegador no deja guardar la elección del escenario.' }], false); return; }
+    mostrar([{ tipo: 'nota', texto: 'Cambiando de época: ' + RF.ESCENARIOS[id].nombre + '…' }], false);
+    setTimeout(() => location.reload(), 600);
+  }
+
   // ---------- Entrenar al bot: la IA le pone un examen y le enseña lo que falla ----------
   function bloquesAprendido() {
     const r = RF.aprendiz.resumen();
@@ -822,6 +840,12 @@
       return;
     }
     if (/^(ayuda|help|\?)$/.test(orden)) { mostrar(RF.narrador.ayuda(), false); return; }
+    if (/^(escenarios?|cambiar de escenario|otros escenarios|historia|epocas|otro pais)$/.test(orden)) { mostrarEscenarios(); return; }
+    const jugar = orden.match(/^jugar (?:a |en )?(.+)$/);
+    if (jugar) {
+      const id = RF.escenario.lista().map(x => x.id).find(id => id === jugar[1] || RF.texto.normalizar(RF.ESCENARIOS[id].nombre).includes(jugar[1]));
+      if (id) { cambiarEscenario(id); return; }
+    }
     if (/^(estado|informe|situacion)$/.test(orden)) { mostrar(RF.narrador.estadoPais(estado), false); return; }
     if (/^(ia|api|clave|configurar ia|narrador ia|cronica)$/.test(orden)) { mostrarConfigIA(); return; }
     if (/^(diplomacia|relaciones|exterior|relaciones exteriores|paises|el mundo)$/.test(orden)) { mostrar(RF.narrador.diplomacia(estado), false); return; }
@@ -877,6 +901,10 @@
   }
 
   function iniciar() {
+    // El nombre del juego y la marca de arriba, los del país del escenario.
+    document.title = RF.PAIS.juego;
+    const marca = document.querySelector('.marca');
+    if (marca && marca.firstChild && marca.firstChild.nodeType === 3) marca.firstChild.nodeValue = RF.PAIS.marca + ' ';
     RF.interprete.entrenar();
     // Dentro de claude.ai, lo aprendido vive en la base de datos del juego.
     if (RF.aprendiz) RF.aprendiz.conectar();

@@ -62,7 +62,8 @@
           }
         },
         china: {
-          nombre: 'China', inicio: 58, base: 55,
+          nombre: 'China', inicio: 58, base: 55, comercio: 0.1,
+          petroleo: 'China ha cerrado el oleoducto "por mantenimiento": falta petróleo y suben los precios.',
           quiere: 'estabilidad en su frontera: ni guerras, ni refugiados, ni pruebas que atraigan barcos americanos',
           teme: 'que el régimen caiga y haya soldados americanos en el río Yalu',
           claves: /\b(china|chinos?|pekin|beijing|el gigante asiatico)\b/,
@@ -131,6 +132,22 @@
         fuga: 'Los desertores cruzan el río Tumen o el Yalu hacia China; las memorias USB con series del Sur entran por el mismo camino.'
       },
 
+      // Lo que la IA (Consejo de Estado y cronista) tiene que saber de este país, en sus palabras.
+      ia: {
+        consejo: 'Eres el Consejo de Estado de "Consola de Pionyang", un juego satírico de gobierno. El jugador es el Líder Supremo de Corea del Norte (la República Popular Democrática de Corea): acaba de heredar el poder de su padre y gobierna escribiendo decretos en lenguaje libre. Es sátira: no nombres a ningún líder real; habla de "tu padre" y de "tu abuelo, el Presidente Eterno".',
+        dinero: '- dinero = DIVISAS: millones de dólares en las arcas. Cada turno el motor ya cobra impuestos (menos lo que se escapa por el mercado negro), paga sueldos y resta las sanciones: sin buscar divisas, el país se arruina. Nadie presta al país: el déficit se tapa imprimiendo (inflación) y por debajo de -200 se dejan de pagar sueldos. Por encima de 150, la Oficina 39 (la caja del Líder) se lleva una parte. Con el tiempo el contrabando esquiva parte de las sanciones. Si la estabilidad se hunde, China rescata al régimen a cambio de minas y puertos.',
+        diplomacia: 'DIPLOMACIA (campo "relaciones" de la ficha, opcional): cambios en la relación (0-100) con las potencias vecinas, de -25 a +25 cada una: {"eeuu": ..., "china": ..., "surcorea": ..., "japon": ...}. Lo que quiere y teme cada una viene en "diplomacia". Sé coherente con sus intereses: China quiere estabilidad y odia las pruebas que atraen barcos americanos; Estados Unidos quiere desnuclearización y castiga los misiles con sanciones; el Sur premia los gestos de acercamiento y teme la artillería; Japón exige a los secuestrados y odia los misiles sobre su territorio. Cada turno el motor aplica sus consecuencias: China da comercio y, si se enfada, corta el petróleo; Estados Unidos sube o baja las sanciones; el Sur manda ayuda. Si el decreto desmantela o reconstruye el arsenal nuclear, pon "arsenal": false o true.',
+        economia: 'ECONOMÍA (campo "economia" de la ficha, opcional): {"sanciones": de -2 a +2 (cambia el nivel de sanciones, 0-4), "mercado_negro": de -40 a +40 (puntos del % de economía que va por el jangmadang)}. Los misiles y la bomba suben sanciones; la diplomacia y el desarme las bajan; legalizar mercados reduce el mercado negro (pasa a pagar impuestos); perseguirlo también lo reduce pero trae hambre.',
+        cronista: 'Eres el cronista de "Consola de Pionyang", un juego satírico en el que el jugador es el Líder Supremo de Corea del Norte: acaba de heredar el poder de su padre y gobierna escribiendo decretos. Es sátira: no nombres a ningún líder real; habla de "tu padre" y de "tu abuelo, el Presidente Eterno".',
+        tratamiento: '- Segunda persona: te diriges al gobernante ("tú"). Le llaman "el Líder Supremo" o "el Mariscal" (o "Su Majestad" si es monarquía).',
+        mundo: [
+        'El mundo: Corea del Norte, aislada y bajo sanciones. Pionyang es el escaparate; en el campo hay apagones y hambre. Casi todo el mundo sobrevive gracias al jangmadang, el mercado negro. Altavoces en cada barrio, retratos de la dinastía en cada casa. China compra el carbón. El barrio obrero que aparece a menudo es Sadong.',
+        'Los indicadores: DIVISAS (dinero), INFLACIÓN, ESTABILIDAD; y el ánimo de tres sectores: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN.',
+        'La gente de a pie: la abuela Sun-ja (67 años, vende tortitas de maíz en el mercado negro, sobrevivió a la hambruna), su nieto Chol-su (19, universitario, escucha K-pop del Sur a escondidas en una memoria USB), Kwang-ho (45, taxista de Pionyang, opina de todo pero solo dentro del taxi) y Eun-hee (34, enfermera del Hospital Central con dos hijos).',
+        'Fuera: China (el único aliado, que quiere estabilidad), Estados Unidos (quiere que desmanteles la bomba), Corea del Sur y Japón. Si algo de diplomacia pasa en el turno, puede aparecer en PALACIO (la ministra de Exteriores) o en la RADIO.',
+        'Song Dae-ho dirige una red clandestina de memorias USB. El embajador sueco vigila con cara de preocupación. Medios: el Rodong Sinmun (oficial), Radio Pionyang (oficial) y Radio Libertad (desde el Sur, a escondidas).'
+        ]
+      },
       contexto: [
         'Corea del Norte real: régimen hereditario desde 1948, aislado, bajo sanciones de la ONU por sus pruebas nucleares y de misiles. Casi todo su comercio (más del 90%) es con China.',
         'Economía: el Estado ya no alimenta a todo el mundo desde la hambruna de los noventa (la "Ardua Marcha"). La gente vive del jangmadang, el mercado medio tolerado; los donju se enriquecen; los cuadros cobran sobornos. Hay apagones, escasez de petróleo y el won se desploma si se imprime. En 2009 una reforma monetaria arruinó los ahorros de la gente y provocó protestas.',

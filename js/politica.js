@@ -24,7 +24,7 @@
     if (!e.politica) {
       e.politica = {
         // El régimen y las instituciones de partida vienen del país (en Corea del Norte, la dinastía Juche).
-        regimen: RF.PAIS.inicio.regimen, proclamado: ['JUNTA', 'MONARQUIA', 'TEOCRACIA', 'JUCHE'].includes(RF.PAIS.inicio.regimen) ? RF.PAIS.inicio.regimen : null, desde: 1,
+        regimen: RF.PAIS.inicio.regimen, proclamado: ['JUNTA', 'MONARQUIA', 'TEOCRACIA', 'JUCHE', 'PARTIDO'].includes(RF.PAIS.inicio.regimen) ? RF.PAIS.inicio.regimen : null, desde: 1,
         congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre',
         apoyo: RF.PAIS.inicio.apoyo, secretos: [], escandalos: 0, crimenes: 0, historia: [RF.PAIS.inicio.regimen]
       };
@@ -90,6 +90,7 @@
 
   // Efectos al instaurar un régimen de golpe.
   const INSTAURAR = {
+    PARTIDO: { efectos: { estabilidad: 3, felicidad: -5, dinero: -6 }, instituciones: { congreso: 'controlado', tribunales: 'controlado', prensa: 'controlado', elecciones: 'controlado', constitucion: 'controlado' } },
     JUCHE: { efectos: { estabilidad: 4, felicidad: -6, dinero: -10 }, instituciones: { congreso: 'controlado', tribunales: 'controlado', prensa: 'controlado', elecciones: 'controlado', constitucion: 'controlado' } },
     DEMOCRACIA: { efectos: { felicidad: 8, estabilidad: -4, dinero: 10 }, instituciones: { congreso: 'libre', tribunales: 'libre', prensa: 'libre', elecciones: 'libre', constitucion: 'libre' } },
     DICTADURA: { efectos: { estabilidad: -8, felicidad: -10, dinero: -15 }, instituciones: { congreso: 'disuelto', elecciones: 'disuelto' } },
@@ -101,10 +102,10 @@
   // Cambia de régimen por decreto o por un evento. Devuelve lo que pasó.
   function instaurar(e, destino) {
     const p = iniciar(e);
-    if (p.regimen === destino) return { nulo: 'Corea del Norte ya es una ' + RF.REGIMENES[destino].nombre.toLowerCase() + '.' };
+    if (p.regimen === destino) return { nulo: T.mayus(RF.PAIS.corto) + ' ya es ' + (destino === 'PARTIDO' ? 'un ' : 'una ') + '' + RF.REGIMENES[destino].nombre.toLowerCase() + '.' };
     const d = INSTAURAR[destino];
     const de = p.regimen;
-    p.proclamado = ['JUNTA', 'MONARQUIA', 'TEOCRACIA', 'JUCHE'].includes(destino) ? destino : null;
+    p.proclamado = ['JUNTA', 'MONARQUIA', 'TEOCRACIA', 'JUCHE', 'PARTIDO'].includes(destino) ? destino : null;
     Object.assign(p, d.instituciones);
     if (destino === 'DEMOCRACIA') {
       p.apoyo = e.stats.felicidad; RF.leyes.derogar(e, 'SOBORNOS');

@@ -59,6 +59,7 @@
     RF.poder.iniciar(e);
     RF.politica.iniciar(e);
     if (RF.diplomacia) RF.diplomacia.iniciar(e);
+    if (RF.escenario) RF.escenario.preparar(e);
     return e;
   }
 
@@ -446,7 +447,7 @@
     // 2. La economía de fondo y cómo se afectan las cuatro cosas entre sí.
     const m = RF.politica.mods(estado);
     // Lo que va por el mercado negro no paga impuestos; las sanciones cuestan divisas cada turno.
-    const ingresos = P.ingresos * (1 - ec.mercadoNegro / 200) * m.recaudacion * Math.max(0.5, Math.min(1.3, 0.6 + s.estabilidad / 150)) * Math.max(0.4, 1 - s.inflacion / 250);
+    const ingresos = (P.ingresos + (ec.ingresosMod || 0)) * (1 - ec.mercadoNegro / 200) * m.recaudacion * Math.max(0.5, Math.min(1.3, 0.6 + s.estabilidad / 150)) * Math.max(0.4, 1 - s.inflacion / 250);
     const gastos = P.gastos * (1 + s.inflacion / 100);
     const sanciones = ec.sanciones * P.costeSancion;
     const miedo = RF.leyes.miedo(estado);
@@ -522,6 +523,9 @@
       const reg = {};
       aplicarEfectos(estado, p.efectos, reg);
       if (p.sanciones) ajustarEconomia(estado, { sanciones: p.sanciones });
+      if (p.economia) ajustarEconomia(estado, p.economia);
+      // Un cambio duradero en lo que ingresa el Estado cada turno (el precio del petróleo, una mina...).
+      if (p.ingresos) estado.economia.ingresosMod = (estado.economia.ingresosMod || 0) + p.ingresos;
       if (p.relaciones && RF.diplomacia) RF.diplomacia.ajustar(estado, p.relaciones);
       res.sucesos.push({ tipo: 'consecuencia', titulo: p.titulo, texto: T.expandir(p.texto), deltas: reg });
     }
@@ -573,7 +577,7 @@
     if (estado.diasEnQuiebra === 1) {
       res.sucesos.push({ tipo: 'umbral', titulo: 'Al borde de la quiebra', texto: T.expandir('{cifuentes} entra sin llamar: "Debemos más de 150 millones y nadie nos presta. Cada turno así nos hunde un poco más."'), deltas: {} });
     }
-    const fin = comprobarFin(estado);
+    const fin = comprobarFin(estado) || (RF.escenario && RF.escenario.comprobar(estado));
     if (fin) { estado.fin = fin; res.fin = fin; }
 
     // Lo importante del turno pasa a la memoria del mundo (la usa el Consejo de Estado con IA).

@@ -311,7 +311,7 @@
   function miedo(e) {
     let m = 0;
     for (const l of lista(e)) if (esRepresion(l)) m += 0.2 * l.nivel;
-    if (RF.politica && e.politica && ['JUCHE', 'DICTADURA', 'JUNTA'].includes(e.politica.regimen)) m += 0.1;
+    if (RF.politica && e.politica && ['JUCHE', 'PARTIDO', 'DICTADURA', 'JUNTA'].includes(e.politica.regimen)) m += 0.1;
     return Math.min(0.75, m);
   }
 

@@ -34,11 +34,31 @@
         'DIPLOMACIA: Estados Unidos, China, Corea del Sur y Japón quieren cosas distintas. "negociar con Estados Unidos", "pedir ayuda a China", "visitar Seúl" o "insultar a Japón" cambian las relaciones; los misiles y la bomba también. China da comercio y petróleo; Washington decide las sanciones; el Sur manda ayuda. Escribe "diplomacia" para verlo.\n' +
         'Opcional: toca el botón IA de arriba (o escribe "ia"). Con IA, un Consejo de Estado entiende cualquier decreto, decide sus consecuencias (el juego pone las reglas y los límites) y recuerda lo que va pasando; y una crónica cuenta cada turno. Dentro de claude.ai funciona con tu cuenta; fuera, con una clave de API (OpenRouter y Gemini tienen planes gratis).\n' +
         'Comandos: "esperar" (pasar el turno sin decretar), "estado" (cómo va el país), "diplomacia" (relaciones exteriores), "sistema" (régimen e instituciones), "leyes" (tus leyes y lo que hacen cada turno), "poder" (ministros y personas), "historial", "entrenar" (la IA le pone un examen al bot local y le enseña lo que falla), "aprendido" (lo que sabe el bot), "revisar" (la IA relee lo aprendido y corrige errores), "reiniciar".\n' +
-        'No hay último turno: gobiernas mientras aguantes. Cada 20 turnos hay elecciones.'
+        (RF.ESCENARIO && RF.ESCENARIO.turnos ? 'Este escenario dura ' + RF.ESCENARIO.turnos + ' turnos (' + RF.ESCENARIO.calendario.mesesPorTurno + ' meses cada uno). Objetivo: ' + RF.ESCENARIO.objetivo.texto : 'No hay último turno: gobiernas mientras aguantes. Cada 20 turnos hay elecciones.') +
+        '\nEscribe "escenarios" para jugar otros momentos de la historia.'
     }];
   }
 
   function intro(estado) {
+    const P = RF.PAIS, E = RF.ESCENARIO || {};
+    const fecha = RF.escenario && RF.escenario.fecha(1);
+    const objetivo = E.objetivo ? [{ tipo: 'regimen', titulo: 'TU OBJETIVO · ' + E.turnos + ' TURNOS', texto: E.objetivo.texto }] : [];
+    if (P.intro) {
+      // El país del escenario trae su propia presentación.
+      const I = P.intro(estado);
+      return [
+        { tipo: 'titulo', texto: P.nombre.toUpperCase() },
+        { tipo: 'gaceta', titulo: I.periodico + ' · ' + (fecha ? fecha.toUpperCase() : 'TURNO 1'), texto: I.texto },
+        { tipo: 'radio', titulo: P.radio, texto: I.radio },
+        ...objetivo,
+        { tipo: 'sistema', titulo: 'CÓMO SE JUEGA', texto: I.comoSeJuega + '\nEscribe "ayuda" para las reglas, "estado" para ver el país y "escenarios" para cambiar de época.' },
+        { tipo: 'detalles', titulo: 'Quién es quién', hijos: [
+          { tipo: 'cupula', titulo: 'TU GABINETE', texto: Object.entries(RF.GABINETE).map(([id, m]) => RF.poder.ministro(estado, id).nombre + ', ' + m.cargo.toLowerCase()).join('. ') + '.' },
+          { tipo: 'prensa', titulo: 'LOS DE FUERA Y LOS DE DENTRO', texto: I.fuera },
+          { tipo: 'calle', titulo: 'EN LA CALLE', texto: Object.values(RF.CIUDADANOS).map(c => c.presentacion).join('\n\n') }
+        ] }
+      ];
+    }
     return [
       { tipo: 'titulo', texto: RF.PAIS.nombre.toUpperCase() },
       {
@@ -55,7 +75,7 @@
         tipo: 'sistema', titulo: 'CÓMO SE JUEGA',
         texto: 'Escribe cualquier orden y pulsa Decretar: "vender carbón a China", "lanzar un misil", "prohibir los lunes", "negociar con Estados Unidos".\n' +
           'Todo se cumple, y cada ley sigue actuando cada turno. Solo pierdes si la ESTABILIDAD llega a 0.\n' +
-          'Escribe "ayuda" para las reglas completas, "estado" para ver el país.'
+          'Escribe "ayuda" para las reglas completas, "estado" para ver el país y "escenarios" para jugar otros momentos de la historia.'
       },
       {
         // Quién es quién: plegado, para quien quiera leerlo.
@@ -459,7 +479,7 @@
     const inst = RF.leyes.lista(estado).filter(l => l.institucion).map(l => '  ' + T.mayus(RF.INSTITUCIONES[l.clave].nombre) + ' · nivel ' + l.nivel + ' · desde el turno ' + l.desde);
     lineas.push('', 'Instituciones del régimen:', ...(inst.length ? inst : ['  ninguna (prueba "crear una red de espías")']));
     const per = estado.personas || {};
-    lineas.push('', 'Song Dae-ho, líder de la oposición: ' + (DESTINOS[per.valiente] || 'libre'));
+    lineas.push('', (RF.PERSONAS.valiente.nombre || 'Song Dae-ho') + ', líder de la oposición: ' + (DESTINOS[per.valiente] || 'libre'));
     const gente = Object.entries(estado.ciudadanos).map(([id, c]) => RF.CIUDADANOS[id].nombre + ': ' + (DESTINOS[c.estado || 'libre']));
     lineas.push('La gente de a pie: ' + gente.join(' · '));
     return [{ tipo: 'sistema', titulo: 'EL PODER EN COREA DEL NORTE', texto: lineas.join('\n') }];
@@ -487,7 +507,8 @@
   function barra(v) { const n = Math.round(v / 10); return '█'.repeat(n) + '░'.repeat(10 - n); }
 
   function final(estado) {
-    const f = RF.FINALES[estado.fin];
+    const r = estado.resultadoEscenario;
+    const f = RF.FINALES[estado.fin] || (r ? { titulo: r.titulo, texto: r.texto } : { titulo: 'FIN', texto: 'Tu gobierno ha terminado.' });
     const EPITAFIOS = {
       muerto: '{n} no llegó a ver el final de tu gobierno. En su barrio aún dejan flores cada aniversario.',
       preso: '{n} seguía en la cárcel cuando todo terminó. Salió años después, con el pelo blanco y la memoria intacta.',
@@ -499,15 +520,20 @@
       return T.expandir(RF.CIUDADANOS[id].finales[tipo]);
     });
     const v = (estado.personas || {}).valiente;
-    if (v === 'muerto') epilogos.push('Las plazas de medio país llevan hoy el nombre de Song Dae-ho. Ninguna lleva el tuyo.');
-    else if (v === 'aliado') epilogos.push('Song Dae-ho acabó sus días como ministro de un gobierno que había jurado combatir. Nunca se lo perdonó.');
-    else if (v === 'preso' || v === 'exiliado') epilogos.push('Song Dae-ho volvió a la vida pública en cuanto caíste. Ganó las siguientes elecciones.');
+    const opositor = (RF.PERSONAS.valiente && RF.PERSONAS.valiente.nombre) || 'Song Dae-ho';
+    if (v === 'muerto') epilogos.push('Las plazas de medio país llevan hoy el nombre de ' + opositor + '. Ninguna lleva el tuyo.');
+    else if (v === 'aliado') epilogos.push(opositor + ' acabó sus días como ministro de un gobierno que había jurado combatir. Nunca se lo perdonó.');
+    else if (v === 'preso' || v === 'exiliado') epilogos.push(opositor + ' volvió a la vida pública en cuanto caíste. Ganó las siguientes elecciones.');
     const dias = estado.dia - 1;
     const s = estado.stats;
+    // En un escenario histórico: lo que pasó de verdad, y en qué te pareciste.
+    const E = RF.ESCENARIO;
+    const real = E && E.real ? [{ tipo: 'gaceta', titulo: 'LO QUE PASÓ DE VERDAD', texto: E.real + (E.comparar ? '\n\n' + E.comparar(estado).join('\n') : '') }] : [];
     return [
       { tipo: 'fin', titulo: 'FIN · ' + f.titulo, texto: T.expandir(f.texto) },
+      ...real,
       { tipo: 'calle', titulo: 'QUÉ FUE DE ELLOS', texto: epilogos.join('\n\n') },
-      { tipo: 'sistema', titulo: 'TU LEGADO', texto: 'Turnos en el poder: ' + dias + '. Decretos firmados: ' + estado.historial.length + '.\nDivisas ' + formatoStat('dinero', s.dinero) + ' · Inflación ' + formatoStat('inflacion', s.inflacion) + ' · Estabilidad ' + s.estabilidad + '.\nÁnimo del Ejército ' + Math.round((estado.sectores || {}).ejercito) + ' · del Palacio ' + Math.round((estado.sectores || {}).elite) + ' · de la Población ' + s.felicidad + '.\nEscribe "reiniciar" para gobernar otra vez.' }
+      { tipo: 'sistema', titulo: 'TU LEGADO', texto: 'Turnos en el poder: ' + dias + '. Decretos firmados: ' + estado.historial.length + '.\nDivisas ' + formatoStat('dinero', s.dinero) + ' · Inflación ' + formatoStat('inflacion', s.inflacion) + ' · Estabilidad ' + s.estabilidad + '.\nÁnimo: ' + RF.PAIS.sectores.ejercito.nombre + ' ' + Math.round((estado.sectores || {}).ejercito) + ' · ' + RF.PAIS.sectores.elite.nombre + ' ' + Math.round((estado.sectores || {}).elite) + ' · ' + RF.PAIS.sectores.poblacion.nombre + ' ' + s.felicidad + '.\nEscribe "reiniciar" para gobernar otra vez, o "escenarios" para probar otra época.' }
     ];
   }
 

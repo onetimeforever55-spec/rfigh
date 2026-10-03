@@ -73,7 +73,7 @@ body {
 }
 .regimen:hover { color: var(--fosforo); border-color: var(--fosforo); }
 .regimen.r-iliberal { color: var(--aviso); border-color: var(--aviso); }
-.regimen.r-juche, .regimen.r-dictadura, .regimen.r-junta, .regimen.r-monarquia, .regimen.r-teocracia { color: var(--mal); border-color: var(--mal); }
+.regimen.r-juche, .regimen.r-partido, .regimen.r-dictadura, .regimen.r-junta, .regimen.r-monarquia, .regimen.r-teocracia { color: var(--mal); border-color: var(--mal); }
 
 .marca {
   font-family: var(--f-terminal);

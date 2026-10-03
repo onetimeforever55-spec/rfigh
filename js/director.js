@@ -185,6 +185,9 @@
     if (op.arsenal != null && RF.diplomacia) RF.diplomacia.iniciar(e).arsenal = op.arsenal;
     for (const p of op.programar || []) e.pendientes.push(Object.assign({}, p, { dia: e.dia + p.en, texto: T.expandir(p.texto) }));
     if (op.cadena) D.cadena.push({ id: op.cadena.id, dia: e.dia + op.cadena.en });
+    // Lo que se decidió en un momento histórico, para compararlo al final del escenario.
+    for (const [k, v] of Object.entries(op.marca || {})) (e.marcas = e.marcas || {})[k] = v;
+    if (op.ingresosFijos) e.economia.ingresosMod = (e.economia.ingresosMod || 0) + op.ingresosFijos;
     D.pendiente = null;
 
     // El sistema político.

@@ -86,6 +86,31 @@
     return votos[0][0];
   }
 
+  // Un tema aprendido solo cuenta si lo señala una palabra que el bot de fábrica no conocía ("Afganistán", "glásnost").
+  function temaAprendido(m, rs) {
+    if (!m.temaL) return null;
+    const r = clasificar(m.temaL, rs);
+    const c = r.ranking[0].clase, ev = r.evidencias[c] || [];
+    const nuevas = ev.filter(f => !f.includes('_') && !m.conocidas.has(f.replace('=', '')));
+    const rival = Object.entries(r.evidencias).some(([k, l]) => k !== c && l.length >= ev.length);
+    return nuevas.length && !rival && RF.TEMAS[c] ? c : null;
+  }
+
+  // La dirección de un tema aprendido: las palabras del propio tema ("prohibir", "acabar con"...) o, si no las hay,
+  // lo que dicen las lecciones de ese tema que comparten palabras con el decreto.
+  function direccionAprendida(tema, n, raices) {
+    const t = RF.TEMAS[tema];
+    if ((t.contraRe || RF.CONTRA).test(n) || (!t.sinParar && RF.PARAR.test(n))) return 'contra';
+    const votos = { favor: 0, contra: 0, privada: 0 };
+    for (const x of RF.aprendiz ? RF.aprendiz.todos() : []) {
+      if (x.etiqueta.tema !== tema) continue;
+      let comun = 0;
+      for (const r of x.r) if (raices.has(r)) comun++;
+      votos[x.etiqueta.dir] += comun;
+    }
+    return votos.contra > votos.favor ? 'contra' : 'favor';
+  }
+
   function confianza(ra, ro) {
     const parte = r => {
       const [a, b] = r.ranking;
@@ -138,22 +163,25 @@
     // corrector no convierta "soju" en otra cosa).
     // Los verbos que ya conoce ("subir", "prohibir") no votan por un objeto: "subir el billete del metro"
     // no debe enseñarle que "subir" significa el transporte.
-    const accL = crearClasificador(), objL = crearClasificador();
-    const deAccion = new Set(acc.vocab);
+    const accL = crearClasificador(), objL = crearClasificador(), temaL = crearClasificador();
+    const deAccion = new Set(acc.vocab), deObjeto = new Set(obj.vocab);
     const sin = (rs, ajeno) => rs.filter(r => r.split('_').every(p => !ajeno.has(p)));
     for (const x of RF.aprendiz ? RF.aprendiz.todos() : []) {
       const ps = traducir(x.texto);
       ps.forEach(p => vocabPalabras.add(p));
-      if (x.etiqueta.tema) continue;
       const rs = rasgos(ps);
+      // Los temas aprendidos ("retirar las tropas de Afganistán" = la paz) enseñan su vocabulario propio.
+      if (x.etiqueta.tema) { entrenarEjemplo(temaL, x.etiqueta.tema, rs); continue; }
       entrenarEjemplo(accL, x.etiqueta.accion, rs);
       entrenarEjemplo(objL, x.etiqueta.objeto, sin(rs, deAccion));
     }
     if (accL.clases.length > 1) calcularEvidencias(accL);
     if (objL.clases.length > 1) calcularEvidencias(objL);
+    if (temaL.clases.length > 1) calcularEvidencias(temaL);
     calcularEvidencias(acc);
     calcularEvidencias(obj);
-    modelo = { acc, obj, vocabPalabras, accL: accL.clases.length > 1 ? accL : null, objL: objL.clases.length > 1 ? objL : null };
+    modelo = { acc, obj, vocabPalabras, accL: accL.clases.length > 1 ? accL : null, objL: objL.clases.length > 1 ? objL : null,
+      temaL: temaL.clases.length > 1 ? temaL : null, conocidas: new Set([...deAccion, ...deObjeto]) };
     return modelo;
   }
 
@@ -279,8 +307,16 @@
     if (rec && rec.sim >= 0.99) return desdeRecuerdo(texto, rec);
     const r = interpretarModelo(texto, estado);
     if (!rec || r.tipo === 'persona' || r.tipo === 'diplomacia' || (r.estado === 'ok' && r.tema)) return r;
-    if (r.estado !== 'ok' || rec.sim >= 0.85) return desdeRecuerdo(texto, rec);
+    if (r.estado !== 'ok' || rec.sim >= 0.85 || (rec.sim >= 0.7 && comparteNueva(rec.ejemplo, texto))) return desdeRecuerdo(texto, rec);
     return r;
+  }
+
+  // ¿El decreto y el recuerdo comparten una palabra que el bot de fábrica no conocía ("Europa", "Afganistán")?
+  function comparteNueva(ejemplo, texto) {
+    if (!modelo) entrenar();
+    const raices = new Set(traducir(texto).map(T.raiz));
+    for (const r of ejemplo.r) if (raices.has(r) && !modelo.conocidas.has(r)) return true;
+    return false;
   }
 
   function desdeRecuerdo(texto, rec) {
@@ -346,6 +382,16 @@
     if (!ra.evidencias[ra.ranking[0].clase] && conPalabras) {
       ra.ranking.splice(ra.ranking.indexOf(conPalabras), 1);
       ra.ranking.unshift(conPalabras);
+    }
+    // Sin palabra clara de fábrica para la acción o el objeto: ¿hay una palabra nueva que la IA enseñó para un tema?
+    if (!ra.evidencias[ra.ranking[0].clase] || !ro.evidencias[ro.ranking[0].clase]) {
+      const tema = temaAprendido(modelo, rs);
+      if (tema) {
+        const dir = direccionAprendida(tema, T.normalizar(texto), new Set(ps.map(T.raiz)));
+        return { texto, corregidas, intensidad: intensidad(ps, T.normalizar(texto)), negado: false, opciones: [], confianza: 70, estado: 'ok',
+          secreto: RF.SECRETO ? RF.SECRETO.test(T.normalizar(texto)) : false, aprendido: { origen: 'palabras' },
+          tema, dir, accion: { favor: 'LEGALIZAR', contra: 'PROHIBIR', privada: 'PRIVATIZAR' }[dir], objeto: tema, nombreObjeto: RF.TEMAS[tema].nombre };
+      }
     }
     let accion = ra.ranking[0].clase;
     let hayAccion = !!ra.evidencias[accion] || ra.ranking[0].prob >= 0.6;

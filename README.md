@@ -83,6 +83,15 @@ Cuatro potencias tienen una relación contigo (0-100), algo que quieren y algo q
 
 Las relaciones vuelven poco a poco a su punto de partida: la memoria diplomática es corta.
 
+### Escenarios: otros momentos de la historia
+
+Escribe `escenarios` (o "jugar urss") para cambiar de época. Cada escenario guarda su propia partida: puedes ir y volver sin perder nada.
+
+- **Corea del Norte, hoy** — la partida libre de siempre, sin último turno.
+- **La URSS, 1985** — el Politburó te elige Secretario General. Cada turno son tres meses, de marzo de 1985 a diciembre de 1991. Objetivo: que la Unión siga existiendo en diciembre de 1991, el mes en que se disolvió de verdad. La historia llega en su fecha y tú decides qué hacer: la campaña antialcohol, el hundimiento del petróleo, Chernóbil, Reikiavik, Afganistán, el pleno de octubre, el Karabaj, las primeras elecciones, los mineros, el Muro, los bálticos y el golpe de agosto. Al final, **lo que pasó de verdad** y en qué te pareciste a la historia. Tiene sus propios ministros (inventados), gente de a pie, radio, eventos, finales, régimen de partido único, potencias (Estados Unidos, Europa Occidental, China y Europa del Este) y el vocabulario de la época para el bot ("glásnost", "salir de Afganistán", "vender gas a Alemania").
+
+Cómo se añade un país (`js/datos/urss.js` como ejemplo): un perfil en `RF.PAISES` (barras, sectores, inicio, relaciones y gestos, economía, conceptos, contexto e instrucciones para la IA, presentación, botones rápidos y `reemplazos` para los textos generales), un paquete en `RF.PAQUETES` (ministros, gente de a pie, personas, sucesores, eventos, umbrales, azar, finales, radio), lecciones en `RF.APRENDIDOS_PAIS` y el escenario en `RF.ESCENARIOS` (calendario, turnos, objetivo, historia programada, lo que pasó y la comparación). `js/datos/escenarios.js` elige el escenario guardado y carga el país antes que el motor.
+
 ### La economía de fondo
 
 Además de las leyes, cada turno actúan mecánicas del propio país (parámetros en `js/datos/paises.js`, para poder cambiarlas en otros países):

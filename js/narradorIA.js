@@ -86,7 +86,7 @@
   const SECCIONES = [RF.PAIS.radio, RF.PAIS.sectores.elite.seccion, RF.PAIS.sectores.ejercito.seccion, RF.PAIS.sectores.poblacion.seccion];
 
   const SISTEMA = [
-    'Eres el cronista de "' + RF.PAIS.juego + '", un juego satírico en el que el jugador es el Líder Supremo de ' + RF.PAIS.corto + ': acaba de heredar el poder de su padre y gobierna escribiendo decretos. Es sátira: no nombres a ningún líder real; habla de "tu padre" y de "tu abuelo, el Presidente Eterno".',
+    RF.PAIS.ia.cronista,
     'El juego ya ha calculado todo lo que ocurre. Tu trabajo es contar este turno, CORTO y con gracia, a partir de los datos que te llegan.',
     '',
     'TONO: el de la saga Tropico. Sátira alegre y cínica: propaganda ridícula que lo vende todo como una victoria, burocracia absurda, ministros con frases secas y personajes cotidianos que se adaptan a lo que sea con resignación. Chistes de una línea, remates rápidos, nada de sermones ni de melodrama. La violencia se sugiere, nunca se describe.',
@@ -100,18 +100,14 @@
     'El ánimo de cada sector ("sectores") y cómo ha cambiado este turno debe notarse en su sección.',
     '',
     'Reglas:',
-    '- Segunda persona: te diriges al gobernante ("tú"). Le llaman "el Líder Supremo" o "el Mariscal" (o "Su Majestad" si es monarquía).',
+    RF.PAIS.ia.tratamiento,
     '- Usa SOLO los hechos de los datos: no inventes decretos, eventos, muertes ni cambios de régimen, ni contradigas ningún resultado. Puedes añadir figurantes anónimos.',
     '- Personajes con nombre: solo los de los datos, con sus nombres y cargos tal como vienen.',
     '- Sin cifras nuevas. Los efectos se cuentan con imágenes ("las arcas engordan", "en el mercado se habla bajito").',
     '- Si hay un cambio de régimen, un escándalo, una decisión en un evento o un final, eso manda en la crónica.',
     '- "textos_del_juego" es un borrador: reescríbelo mejor y más corto, no lo copies. "memoria_del_mundo" es lo que ya pasó: úsala para dar continuidad, sin repetirla.',
     '',
-    'El mundo: ' + RF.PAIS.corto + ', aislada y bajo sanciones. Pionyang es el escaparate; en el campo hay apagones y hambre. Casi todo el mundo sobrevive gracias al jangmadang, el mercado negro. Altavoces en cada barrio, retratos de la dinastía en cada casa. China compra el carbón. El barrio obrero que aparece a menudo es Sadong.',
-    'Los indicadores: DIVISAS (dinero), INFLACIÓN, ESTABILIDAD; y el ánimo de tres sectores: EJÉRCITO, PALACIO (el Partido y la élite) y POBLACIÓN.',
-    'La gente de a pie: la abuela Sun-ja (67 años, vende tortitas de maíz en el mercado negro, sobrevivió a la hambruna), su nieto Chol-su (19, universitario, escucha K-pop del Sur a escondidas en una memoria USB), Kwang-ho (45, taxista de Pionyang, opina de todo pero solo dentro del taxi) y Eun-hee (34, enfermera del Hospital Central con dos hijos).',
-    'Fuera: China (el único aliado, que quiere estabilidad), Estados Unidos (quiere que desmanteles la bomba), Corea del Sur y Japón. Si algo de diplomacia pasa en el turno, puede aparecer en PALACIO (la ministra de Exteriores) o en la RADIO.',
-    'Song Dae-ho dirige una red clandestina de memorias USB. El embajador sueco vigila con cara de preocupación. Medios: el Rodong Sinmun (oficial), Radio Pionyang (oficial) y Radio Libertad (desde el Sur, a escondidas).'
+    ...RF.PAIS.ia.mundo
   ].join('\n');
 
   // ---------- Los datos del turno ----------
@@ -143,6 +139,7 @@
       else if (b.texto) hechos.push({ tipo: b.tipo, titulo: b.titulo || undefined, texto: b.texto, cambios: b.deltas ? redondear(b.deltas) : undefined });
     }
     return {
+      fecha: RF.escenario ? RF.escenario.fecha(estado.dia) || undefined : undefined,
       turno: estado.dia,
       regimen: RF.REGIMENES && p.regimen ? RF.REGIMENES[p.regimen].nombre : 'Democracia',
       pais: { divisas_millones: s.dinero, inflacion_pct: Math.round(s.inflacion), estabilidad: s.estabilidad },

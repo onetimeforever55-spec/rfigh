@@ -20,6 +20,12 @@
       recaudacion: 0.85, inversion: 0.75, felicidadTurno: -0.3, estabilidadBase: 62, represionEstab: 1.5, represionFel: 0.8, dineroTurno: 0,
       elecciones: 'amanables'
     },
+    PARTIDO: {
+      nombre: 'Partido único', corto: 'PARTIDO ÚNICO',
+      descripcion: 'El Partido es el Estado: el Politburó decide, el Soviet Supremo aplaude y la prensa repite. Nadie bloquea tus decretos y la represión rinde, pero el Politburó que te eligió también puede destituirte.',
+      recaudacion: 0.9, inversion: 0.8, felicidadTurno: -0.2, estabilidadBase: 60, represionEstab: 1.4, represionFel: 0.9, dineroTurno: 0,
+      elecciones: 'amanables'
+    },
     DEMOCRACIA: {
       nombre: 'Democracia', corto: 'DEMOCRACIA',
       descripcion: 'Congreso, jueces y prensa libres. Recaudas bien y llega inversión, pero el Congreso puede bloquear tus leyes y los escándalos pueden tumbarte.',

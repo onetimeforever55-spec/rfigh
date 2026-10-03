@@ -29,7 +29,8 @@
 
   // ---------- Qué sabe la IA de las reglas ----------
   const SISTEMA = [
-    'Eres el Consejo de Estado de "Consola de Pionyang", un juego satírico de gobierno. El jugador es el Líder Supremo de Corea del Norte (la República Popular Democrática de Corea): acaba de heredar el poder de su padre y gobierna escribiendo decretos en lenguaje libre. Es sátira: no nombres a ningún líder real; habla de "tu padre" y de "tu abuelo, el Presidente Eterno".',
+    RF.PAIS.ia.consejo,
+    'Si los datos traen "escenario", la partida transcurre en esa fecha histórica y tiene ese objetivo: respeta la época (nada posterior existe todavía) y deja que las decisiones del jugador cambien la historia.',
     'EL PAÍS REAL (úsalo para que las consecuencias tengan sentido):',
     ...RF.PAIS.contexto.map(l => '- ' + l),
     'Conceptos que el motor entiende:',
@@ -44,15 +45,15 @@
     '"porque": 1 o 2 frases cortas (máx. 25 palabras) que explican al jugador el mecanismo principal de las consecuencias, citando el concepto o un precedente histórico real. Con gracia, sin sermón. Ej.: "Hay más wones pero el mismo arroz: cada billete compra menos. Ya pasó en Zimbabue en 2008."',
     '',
     'EL PAÍS SE MIDE ASÍ (en el JSON usa siempre estas claves):',
-    '- dinero = DIVISAS: millones de dólares en las arcas. Cada turno el motor ya cobra impuestos (menos lo que se escapa por el mercado negro), paga sueldos y resta las sanciones: sin buscar divisas, el país se arruina. Nadie presta al país: el déficit se tapa imprimiendo (inflación) y por debajo de -200 se dejan de pagar sueldos. Por encima de 150, la Oficina 39 (la caja del Líder) se lleva una parte. Con el tiempo el contrabando esquiva parte de las sanciones. Si la estabilidad se hunde, China rescata al régimen a cambio de minas y puertos.',
+    RF.PAIS.ia.dinero,
     '- inflacion = INFLACIÓN: % que suben los precios cada turno (el arroz en el mercado, el won). Por encima de 30 hay hambre; por encima de 40 se retroalimenta.',
     '- estabilidad = ESTABILIDAD del régimen (0-100). A 0 caes. Cada turno la empujan los tres sectores.',
     'LOS TRES SECTORES (ánimo 0-100; cada uno tiene su sección en la historia y empuja la estabilidad; si uno se hunde, la desploma. Solo se pierde con la estabilidad a 0. La represión da estabilidad artificial: sube la barra y el miedo calla el descontento):',
     '- ejercito = el EJÉRCITO: generales, oficiales y soldados. Les gustan los misiles, las medallas, las raciones y el dinero; odian los recortes, las purgas, las milicias rivales y cobrar tarde. Hundido, empuja al golpe.',
     '- elite = el PALACIO: el Partido y la élite. Les gustan los lujos, los sobornos del mercado negro y que no se toque su poder; odian las sanciones, las purgas y perder privilegios. Hundido, conspira.',
     '- felicidad = la POBLACIÓN: cómo aguanta la gente (comida, apagones, miedo, mercado). Por debajo de 40 resta estabilidad (menos si hay represión).',
-    'DIPLOMACIA (campo "relaciones" de la ficha, opcional): cambios en la relación (0-100) con las potencias vecinas, de -25 a +25 cada una: {"eeuu": ..., "china": ..., "surcorea": ..., "japon": ...}. Lo que quiere y teme cada una viene en "diplomacia". Sé coherente con sus intereses: China quiere estabilidad y odia las pruebas que atraen barcos americanos; Estados Unidos quiere desnuclearización y castiga los misiles con sanciones; el Sur premia los gestos de acercamiento y teme la artillería; Japón exige a los secuestrados y odia los misiles sobre su territorio. Cada turno el motor aplica sus consecuencias: China da comercio y, si se enfada, corta el petróleo; Estados Unidos sube o baja las sanciones; el Sur manda ayuda. Si el decreto desmantela o reconstruye el arsenal nuclear, pon "arsenal": false o true.',
-    'ECONOMÍA (campo "economia" de la ficha, opcional): {"sanciones": de -2 a +2 (cambia el nivel de sanciones, 0-4), "mercado_negro": de -40 a +40 (puntos del % de economía que va por el jangmadang)}. Los misiles y la bomba suben sanciones; la diplomacia y el desarme las bajan; legalizar mercados reduce el mercado negro (pasa a pagar impuestos); perseguirlo también lo reduce pero trae hambre.',
+    RF.PAIS.ia.diplomacia,
+    RF.PAIS.ia.economia,
     '',
     'CADA DECRETO SUELE SER UNA LEY VIGENTE: tiene un efecto al firmarse ("inicial") y otro que se repite CADA TURNO ("por_turno") mientras siga vigente. El motor ajusta esos efectos según el régimen, la inflación y la estabilidad.',
     'Escala de referencia (sigue estas magnitudes):',
@@ -148,7 +149,7 @@
       id, nombre: c.nombre, quien: c.presentacion ? c.presentacion.slice(0, 140) : '', estado: e.ciudadanos[id].estado || 'libre', animo: Math.round(e.ciudadanos[id].animo)
     }));
     const otros = [
-      { id: 'valiente', nombre: 'Song Dae-ho', quien: 'líder de la oposición', estado: e.personas.valiente || 'libre' },
+      { id: 'valiente', nombre: RF.PERSONAS.valiente.nombre || 'Song Dae-ho', quien: 'líder de la oposición', estado: e.personas.valiente || 'libre' },
       { id: 'embajador', nombre: 'el embajador sueco', quien: 'la gran potencia vecina', estado: e.personas.embajador || 'libre' }
     ];
     return {
@@ -158,6 +159,7 @@
       apoyo_en_el_congreso: Math.round(p.apoyo) + '%',
       pais: { dinero: s.dinero, inflacion: Math.round(s.inflacion), estabilidad: s.estabilidad, balance_por_turno: Math.round(e.balance || 0) },
       sectores: { ejercito: Math.round(RF.consejero.asegurar(e).sectores.ejercito), elite: Math.round(e.sectores.elite), felicidad: s.felicidad },
+      escenario: RF.escenario ? RF.escenario.paraIA(e) : null,
       economia: { sanciones: e.economia.sanciones + ' de 4', mercado_negro: Math.round(e.economia.mercadoNegro) + '%',
         contrabando_esquiva: Math.round((e.economia.adaptacion || 0) * 100) + '% del coste de las sanciones',
         rescates_de_china: e.economia.rescates || 0 },

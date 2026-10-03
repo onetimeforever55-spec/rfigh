@@ -644,6 +644,7 @@
   ];
 
   // Los conceptos que se aplican a un decreto. Devuelve { ajustes, porque[] } (máximo 2 explicaciones).
+  const localizar = t => (RF.escenario ? RF.escenario.localizar(t) : t);
   RF.conceptosDe = function (c) {
     // Los conceptos que la IA enseñó para este decreto (c.extra) cuentan aunque su condición no salte.
     // Si uno de esos no encaja con su propia condición, explica con su idea general (su porqué a medida
@@ -656,7 +657,7 @@
     const mecanismos = activos.filter(k => k.area !== 'historia').sort((a, b) => nota(b) - nota(a));
     const historia = activos.filter(k => k.area === 'historia');
     const porque = mecanismos.slice(0, 1).concat(historia.slice(0, 1).length ? historia.slice(0, 1) : mecanismos.slice(1, 2))
-      .map(k => ({ id: k.id, nombre: k.nombre, area: k.area, texto: encaja.has(k) ? k.porque(c) : k.idea }));
+      .map(k => ({ id: k.id, nombre: k.nombre, area: k.area, texto: localizar(encaja.has(k) ? k.porque(c) : k.idea) }));
     return { activos, ajustes, porque };
   };
 })(globalThis.RF = globalThis.RF || {});

@@ -204,7 +204,8 @@
 
   let base = null;
   function todos() {
-    if (!base) base = (RF.APRENDIDOS || []).map(([texto, et]) => { const v = validar(et); return v && completar(texto, v, 'base'); }).filter(Boolean);
+    // Las lecciones de fábrica: las generales y las del país de la partida (su vocabulario: "glásnost", "Afganistán"...).
+    if (!base) base = (RF.APRENDIDOS || []).concat((RF.APRENDIDOS_PAIS || {})[RF.PAIS.id] || []).map(([texto, et]) => { const v = validar(et); return v && completar(texto, v, 'base'); }).filter(Boolean);
     // Las lecciones de fábrica están revisadas: mandan sobre una guardada con el mismo texto.
     const deFabrica = new Set(base.map(x => x.n));
     return base.concat(cargar().filter(x => !deFabrica.has(x.n)));
