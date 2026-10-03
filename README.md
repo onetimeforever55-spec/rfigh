@@ -237,3 +237,13 @@ npm run empaquetar  # genera dist/pionyang.html (todo en un archivo)
 ```
 
 Para las pruebas solo hace falta Node.js. `npm install` instala el SDK de Anthropic, que usa la prueba del narrador con IA con respuestas simuladas; sin el SDK, esa prueba se omite.
+
+## Génesis (mundo.html)
+
+Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos inventados que viven la historia humana real**, del Neolítico (4000 a. C.) a la era atómica, y lo cambias escribiendo.
+
+- **El mundo vive solo** (`js/mundo/sim.js`): un mapa de 32×20 casillas con relieve, ríos y desiertos, y cinco pueblos que crecen mientras la tierra les da de comer, se extienden, inventan, se copian los inventos de los vecinos, comercian, guerrean por territorio, se rebelan cuando son demasiado grandes y se hunden. Aparecen pueblos nuevos en las tierras vacías. El calendario está calibrado con la historia real: el Bronce llega hacia el 3000 a. C. y el Renacimiento hacia el siglo XV, aunque cada mundo tiene su propia historia (unos se adelantan, otros se quedan en una Edad Media eterna). Es reproducible: la misma semilla da la misma historia.
+- **La crónica** cuenta cada suceso con su **porqué** y un **precedente real** (`js/mundo/datos.js`): la Peste Negra, Malthus, el colapso de la Edad del Bronce, Pizarro, la imprenta de Gutenberg, Westfalia, Qin...
+- **Tu voluntad** (`js/mundo/dios.js`): "peste sobre el más grande", "que el más atrasado descubra la imprenta", "guerra entre X y Y", "paz para todos", "diluvio en el norte", "que llueva oro sobre X", "un profeta en X", "revolución en X", "que el rey de X se vuelva loco", "unifica a X y Y", "que aparezca un pueblo nuevo"... Un invento regalado fuera de época llega, pero la sociedad no sabe usarlo (el anacronismo se paga). Lo que no se nombra va al pueblo elegido en el mapa.
+- **Con Claude** (dentro de claude.ai): lo que el intérprete no entiende lo decide Claude ("que los gatos gobiernen"), con los efectos recortados por el motor, y un cronista escribe capítulos de historia de lo que va pasando.
+- `node scripts/empaquetar.js --entrada mundo.html` lo junta en `dist/mundo.html`. Pruebas en `test/mundo.test.js`.

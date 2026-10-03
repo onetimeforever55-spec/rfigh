@@ -1,0 +1,116 @@
+/* Génesis · la vista de un dios: el mundo de píxeles en el centro, la noche alrededor, el oro para lo divino.
+   Una sola apariencia, oscura a propósito (el mapa necesita un fondo de noche para que brillen los pueblos). */
+:root {
+  color-scheme: dark;
+  --noche: #0d1322;
+  --panel: #141c31;
+  --linea: #26324f;
+  --pergamino: #ece4d0;
+  --tenue: #9aa3b8;
+  --oro: #f0c05a;
+  --oro-hondo: #3a2f17;
+  --sangre: #ff6a5a;
+  --f-pixel: 'Pixelify Sans', 'Courier New', monospace;
+  --f-libro: 'Literata', Georgia, 'Times New Roman', serif;
+  --f-dato: 'Martian Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --radio: 3px;
+}
+
+* { box-sizing: border-box; }
+html, body { background: var(--noche); color: var(--pergamino); }
+body { margin: 0; font-family: var(--f-libro); font-size: 15px; line-height: 1.5; padding-inline: 16px; padding-block: 12px 32px; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--oro); outline-offset: 2px; }
+
+/* Una columna en el móvil; en pantallas anchas, la crónica a la derecha. */
+.g { max-width: 1240px; margin: 0 auto; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 980px) {
+  .g { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-areas: 'cab cab' 'mapa cronica' 'voluntad cronica' 'pueblos cronica'; align-items: start; }
+  .g-cab { grid-area: cab; } .g-mapa { grid-area: mapa; } .g-voluntad { grid-area: voluntad; } .g-pueblos { grid-area: pueblos; }
+  .g-cronica { grid-area: cronica; position: sticky; top: env(safe-area-inset-top, 0px); max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
+  .g-cronica .cronica { overflow-y: auto; min-height: 0; }
+}
+
+/* ---- Cabecera ---- */
+.g-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.marca { font-family: var(--f-pixel); font-weight: 600; font-size: 30px; letter-spacing: 0.06em; margin: 0; text-transform: uppercase; color: var(--oro); }
+.reloj { display: flex; flex-direction: column; line-height: 1.15; margin-right: auto; min-width: 0; }
+.anio { font-family: var(--f-pixel); font-size: 22px; font-variant-numeric: tabular-nums; }
+.era { font-family: var(--f-dato); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tenue); }
+.mandos { display: flex; gap: 6px; flex-wrap: wrap; }
+.mando { font-family: var(--f-pixel); font-size: 15px; background: var(--panel); border: 1px solid var(--linea); border-radius: var(--radio); padding: 6px 12px; }
+.mando:hover { border-color: var(--oro); }
+.mando.sutil { color: var(--tenue); }
+.mando:disabled { opacity: 0.5; cursor: wait; }
+
+/* ---- El mapa ---- */
+.marco { border: 1px solid var(--linea); border-radius: var(--radio); background: #091020; padding: 4px; line-height: 0; overflow: hidden; }
+#mapa { display: block; max-width: 100%; image-rendering: pixelated; cursor: crosshair; margin: 0 auto; }
+.clave { margin: 6px 0 0; font-family: var(--f-dato); font-size: 11px; color: var(--tenue); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.cuad { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; }
+.cuad.cap { background: #fff6dc; outline: 1px solid var(--noche); }
+.cuad.gue { background: #ff4b3a; }
+.cuad.rio { background: #4f8fd6; }
+
+/* ---- La voluntad ---- */
+.etiqueta { font-family: var(--f-pixel); font-weight: 400; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tenue); margin: 0 0 8px; display: block; }
+.g-voluntad { background: linear-gradient(180deg, var(--oro-hondo), var(--panel) 70%); border: 1px solid var(--oro); border-radius: var(--radio); padding: 14px; }
+.g-voluntad .etiqueta { color: var(--oro); }
+.linea { display: flex; gap: 8px; }
+#orden { flex: 1; min-width: 0; background: var(--noche); border: 1px solid var(--linea); border-radius: var(--radio); padding: 10px 12px; font-family: var(--f-libro); font-size: 16px; }
+#orden::placeholder { color: #6c7690; font-style: italic; }
+.obrar { font-family: var(--f-pixel); font-weight: 600; font-size: 17px; background: var(--oro); color: var(--noche); border: 0; border-radius: var(--radio); padding: 0 18px; }
+.obrar:hover { filter: brightness(1.08); }
+.ejemplos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ejemplo { font-size: 13px; font-family: var(--f-libro); font-style: italic; background: transparent; border: 1px dashed var(--linea); border-radius: var(--radio); padding: 3px 8px; color: var(--tenue); }
+.ejemplo:hover { color: var(--pergamino); border-color: var(--oro); }
+.respuesta { margin: 10px 0 0; font-size: 14px; color: var(--tenue); min-height: 1.5em; }
+.respuesta.bien { color: var(--oro); }
+.respuesta.duda { color: var(--pergamino); }
+.respuesta.espera { color: var(--oro); font-style: italic; }
+
+/* ---- Los pueblos ---- */
+.lista-pueblos { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.pueblo { display: flex; align-items: center; gap: 7px; background: var(--panel); border: 1px solid var(--linea); border-radius: var(--radio); padding: 5px 10px 5px 6px; text-align: left; }
+.pueblo:hover { border-color: var(--tenue); }
+.pueblo.elegido { border-color: var(--pergamino); background: #1c2643; }
+.muestra { width: 12px; height: 12px; flex: none; display: inline-block; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.p-nombre { font-family: var(--f-pixel); font-size: 15px; }
+.p-dato { font-family: var(--f-dato); font-size: 10px; color: var(--tenue); letter-spacing: 0.04em; }
+.ficha { background: var(--panel); border: 1px solid var(--linea); border-radius: var(--radio); padding: 12px 14px; }
+.ficha h3 { font-family: var(--f-pixel); font-weight: 600; font-size: 20px; margin: 0; display: flex; align-items: center; gap: 8px; }
+.ficha .subt { margin: 2px 0 10px; color: var(--tenue); font-style: italic; }
+.ficha dl { margin: 0; display: grid; gap: 4px; }
+.fila { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.fila dt { font-family: var(--f-dato); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--tenue); }
+.fila dd { margin: 0; font-variant-numeric: tabular-nums; min-width: 0; }
+.tenue { color: var(--tenue); font-size: 13px; }
+.rojo { color: var(--sangre); }
+.barra { display: inline-block; width: 90px; height: 8px; background: var(--noche); border: 1px solid var(--linea); vertical-align: 0; }
+.barra span { display: block; height: 100%; background: var(--pergamino); }
+.vacio { margin: 0; color: var(--tenue); font-style: italic; }
+
+/* ---- La crónica ---- */
+.cronica-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cronica { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.suceso { padding: 10px 0 12px; border-top: 1px solid var(--linea); min-width: 0; }
+.s-cab { display: flex; align-items: baseline; gap: 8px; }
+.s-anio { font-family: var(--f-dato); font-size: 11px; color: var(--tenue); font-variant-numeric: tabular-nums; flex: none; min-width: 6.6em; }
+.s-punto { width: 8px; height: 8px; flex: none; align-self: center; }
+.s-titulo { margin: 0; font-family: var(--f-libro); font-weight: 600; font-size: 15px; text-wrap: balance; }
+.s-texto { margin: 4px 0 0; color: var(--pergamino); max-width: 62ch; }
+.s-porque, .s-precedente { margin: 4px 0 0; font-size: 13px; color: var(--tenue); max-width: 62ch; }
+.s-porque b, .s-precedente b { font-family: var(--f-dato); font-weight: 600; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pergamino); margin-right: 4px; }
+.suceso.importante .s-titulo { font-size: 16px; }
+.suceso.divino { border-top-color: var(--oro); }
+.suceso.divino .s-titulo { color: var(--oro); }
+.suceso.cronista .s-texto { font-style: italic; font-size: 15.5px; }
+.suceso.cronista .s-titulo { font-family: var(--f-pixel); font-weight: 400; letter-spacing: 0.04em; }
+
+@media (max-width: 420px) {
+  .marca { font-size: 26px; }
+  .mando { padding: 5px 9px; font-size: 14px; }
+  .s-anio { min-width: 5.8em; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

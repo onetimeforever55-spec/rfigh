@@ -1,18 +1,22 @@
-// Junta el juego en un solo archivo HTML: node scripts/empaquetar.js [salida] [--sin-envoltura]
+// Junta un juego en un solo archivo HTML: node scripts/empaquetar.js [salida] [--sin-envoltura] [--entrada mundo.html]
 // --sin-envoltura quita <!doctype>, <html>, <head> y <body> (para páginas que ya ponen su propio esqueleto).
+// --entrada elige la página (por defecto index.html, la consola; mundo.html es Génesis).
 const fs = require('fs');
 const path = require('path');
 
 const raiz = path.join(__dirname, '..');
 const args = process.argv.slice(2);
 const sinEnvoltura = args.includes('--sin-envoltura');
-const salida = args.find(a => !a.startsWith('--')) || path.join(raiz, 'dist', 'pionyang.html');
+const iEntrada = args.indexOf('--entrada');
+const entrada = iEntrada >= 0 ? args[iEntrada + 1] : 'index.html';
+const salida = args.find((a, i) => !a.startsWith('--') && i !== iEntrada + 1) || path.join(raiz, 'dist', entrada === 'index.html' ? 'pionyang.html' : entrada.replace(/\.html$/, '') + '.html');
 
-let html = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8');
+let html = fs.readFileSync(path.join(raiz, entrada), 'utf8');
 const leer = (rel) => fs.readFileSync(path.join(raiz, rel), 'utf8');
 
-html = html.replace(/<!--ESTILOS-->[\s\S]*?<!--\/ESTILOS-->/, () => {
-  return '<style>\n' + leer('css/estilo.css') + '</style>';
+html = html.replace(/<!--ESTILOS-->([\s\S]*?)<!--\/ESTILOS-->/, (_, bloque) => {
+  const hojas = [...bloque.matchAll(/href="([^"]+)"/g)].map(m => m[1]);
+  return '<style>\n' + hojas.map(leer).join('\n') + '</style>';
 });
 html = html.replace(/<!--SCRIPTS-->([\s\S]*?)<!--\/SCRIPTS-->/, (_, bloque) => {
   const rutas = [...bloque.matchAll(/src="([^"]+)"/g)].map(m => m[1]);

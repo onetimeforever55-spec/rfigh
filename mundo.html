@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Génesis</title>
+<meta name="description" content="Un mundo de pueblos que viven la historia humana real, de la Edad de Piedra a la era atómica. Tú eres su dios y lo cambias escribiendo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Martian+Mono:wght@400;600&display=swap">
+<!--ESTILOS-->
+<link rel="stylesheet" href="css/mundo.css">
+<!--/ESTILOS-->
+</head>
+<body>
+<div class="g">
+  <header class="g-cab">
+    <h1 class="marca">Génesis</h1>
+    <div class="reloj" aria-live="polite"><span class="anio" id="anio">4000 a. C.</span><span class="era" id="era">Neolítico</span></div>
+    <div class="mandos">
+      <button type="button" class="mando" id="play" aria-pressed="false">❚❚ Pausa</button>
+      <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
+      <button type="button" class="mando sutil" id="nuevo">Nuevo mundo</button>
+    </div>
+  </header>
+
+  <section class="g-mapa" aria-label="Mapa del mundo">
+    <div class="marco"><canvas id="mapa" role="img" aria-label="Mapa del mundo: cada color es un pueblo; los cuadrados claros son sus capitales"></canvas></div>
+    <p class="clave"><span class="cuad cap"></span>capital <span class="cuad gue"></span>frontera en guerra <span class="cuad rio"></span>río</p>
+  </section>
+
+  <form class="g-voluntad" id="voluntad" autocomplete="off">
+    <label for="orden" class="etiqueta">Tu voluntad</label>
+    <div class="linea">
+      <input id="orden" name="orden" type="text" maxlength="200" enterkeyhint="send" placeholder="Peste sobre el más grande, que descubran la pólvora…">
+      <button type="submit" class="obrar">Obrar</button>
+    </div>
+    <div class="ejemplos" id="ejemplos" aria-label="Ejemplos"></div>
+    <p class="respuesta" id="respuesta" aria-live="polite">El tiempo corre. Escribe cuando quieras intervenir.</p>
+  </form>
+
+  <section class="g-pueblos" aria-label="Los pueblos">
+    <h2 class="etiqueta">Los pueblos</h2>
+    <ul class="lista-pueblos" id="pueblos"></ul>
+    <div class="ficha" id="ficha"></div>
+  </section>
+
+  <section class="g-cronica" aria-label="Crónica del mundo">
+    <div class="cronica-cab">
+      <h2 class="etiqueta">Crónica del mundo</h2>
+      <button type="button" class="mando sutil" id="cronista" hidden>Pedir un capítulo al cronista</button>
+    </div>
+    <ol class="cronica" id="cronica"></ol>
+  </section>
+</div>
+<!--SCRIPTS-->
+<script src="js/mundo/datos.js"></script>
+<script src="js/mundo/sim.js"></script>
+<script src="js/mundo/dios.js"></script>
+<script src="js/mundo/vista.js"></script>
+<!--/SCRIPTS-->
+</body>
+</html>
