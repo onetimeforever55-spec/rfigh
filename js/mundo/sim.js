@@ -298,7 +298,10 @@
     // La gente crece mientras haya comida; si se pasa, llega el hambre.
     c.pob += c.pob * 0.14 * (1 - c.pob / cap);
     if (c.pob > cap * 1.05) {
-      const muertos = (c.pob - cap) * 0.6;
+      // Lo que queda en los graneros (las cosechas de los granjeros, vida.js) amortigua el hambre.
+      const granero = Math.min(0.4, (c.comida || 0) / 40);
+      if (c.comida) c.comida = Math.max(0, c.comida - 10);
+      const muertos = (c.pob - cap) * 0.6 * (1 - granero);
       c.pob -= muertos; c.estab -= 6;
       if (m.turno - c.ultimaHambre > 6 && muertos > 1) {
         c.ultimaHambre = m.turno;

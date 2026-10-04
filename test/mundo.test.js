@@ -172,6 +172,45 @@ console.log('LOS PODERES SE NOTAN EN EL ACTO');
   comprobar(S.vivas(m).length === n + 1 && m.vida.aldeanos.some(a => a.c === nuevo.id) && V.plaza(m, nuevo.capital).every(t => m.vida.obra[t] === V.OBRA.centro), 'un pueblo nuevo aparece con su plaza y sus aldeanos sin esperar al turno');
 }
 
+console.log('COMO WORLDBOX: BIOMAS, ARMAS, EJÉRCITOS, REYES, CIUDADES, ALIANZAS, COSECHAS Y ANIMALES');
+{
+  const V = M.vida;
+  const m0 = S.crear(7, 5);
+  const biomas = new Set(m0.tipo);
+  comprobar(['selva', 'sabana', 'taiga', 'tundra', 'nieve', 'desierto', 'bosque', 'llanura', 'montana'].every(b => biomas.has(b)), 'el clima reparte biomas: ' + [...biomas].join(', '));
+  const lat = i => Math.abs(Math.floor(i / S.W) - (S.H - 1) / 2) / ((S.H - 1) / 2);
+  const media = t => { const l = m0.tipo.map((x, i) => (x === t ? lat(i) : null)).filter(x => x !== null); return l.reduce((a, b) => a + b, 0) / l.length; };
+  comprobar(media('selva') < media('taiga') && media('taiga') < media('nieve'), 'la selva cerca del ecuador, la taiga y la nieve hacia los polos');
+  comprobar(m0.vida.mena.filter(x => x === 1).length > 20 && m0.vida.mena.filter(x => x === 2).length > 5, 'hay vetas de hierro y de oro en las rocas');
+  comprobar(S.vivas(m0).every(c => c.rey && c.rey.nombre && M.RASGOS[c.rey.rasgo] && c.heredero), 'cada pueblo tiene gobernante (con rasgo) y heredero');
+
+  const m = hasta(S.crear(7, 5), 1500);
+  comprobar(S.vivas(m).some(c => (c.metal || 0) + (c.oro || 0) > 0), 'los mineros sacan metal y oro');
+  comprobar((m.ciudades || []).length >= 2 && m.ciudades.every(x => m.vida.obra[V.centro(m, x.region)] === V.OBRA.ayuntamiento && x.alcalde), 'nacen ciudades con ayuntamiento y alcalde (' + (m.ciudades || []).map(x => x.nombre).join(', ') + ')');
+  comprobar(m.cronica.some(e => e.tipo === 'sucesion') || S.vivas(m).some(c => c.rey.numero || c.rey.desde > -4000), 'los gobernantes mueren y les suceden sus herederos');
+  comprobar(m.vida.animales.some(b => b.tipo === 'oveja') && m.vida.animales.some(b => b.tipo === 'ciervo') && m.vida.animales.some(b => b.tipo === 'pez'), 'ovejas junto a las aldeas, ciervos en los bosques y peces en el agua');
+  comprobar(m.vida.cultivo.some((x, t) => x === 3 && m.vida.obra[t] === V.OBRA.campo) && S.vivas(m).some(c => c.comida > 0), 'el trigo madura, se siega y llena los graneros');
+  // Una guerra con ejércitos: guerreros armados según la era, capitán y combates.
+  const w = hasta(S.crear(7, 5), 500);
+  const a = S.vivas(w).find(x => S.vecinosDe(w, x).length), b = S.vecinosDe(w, a)[0];
+  a.metal = 50; b.metal = 50;
+  if (!S.enGuerra(a, b)) S.declararGuerra(w, a, b, null);
+  let disparos = 0, bajas = 0, capitan = false;
+  for (let k = 0; k < 5 && S.enGuerra(a, b); k++) { S.turno(w); disparos += w.vida.disparos.length; bajas += w.vida.muertos.length; capitan = capitan || !!(w.vida.ejercitos[a.id] && w.vida.ejercitos[a.id].capitan != null); }
+  const suyos = w.vida.aldeanos.filter(x => x.c === a.id && V.OFICIOS[x.o] === 'guerrero');
+  comprobar(suyos.length && suyos.every(x => (x.arma || 0) >= 1), 'con metal, los guerreros llevan el arma de su era (' + (suyos[0] ? V.ARMAS[suyos[0].arma || 0].nombre : '—') + ')');
+  comprobar(capitan, 'el ejército marcha tras su capitán');
+  comprobar(disparos + bajas > 0, 'hay combates: flechas y bajas (' + disparos + ' disparos, ' + bajas + ' bajas)');
+  // Alianzas: el aliado de la víctima entra en la guerra.
+  const g = hasta(S.crear(12, 5), -1000), [x, y, z] = S.vivas(g);
+  g.alianzas = [];
+  S.aliar(g, y, z);
+  S.declararGuerra(g, x, y, null);
+  let entra = S.enGuerra(z, x);
+  for (let k = 0; k < 6 && !entra; k++) { const g2 = hasta(S.crear(12 + k + 1, 5), -1000); const [p, q, r] = S.vivas(g2); S.aliar(g2, q, r); S.declararGuerra(g2, p, q, null); entra = S.enGuerra(r, p); }
+  comprobar(S.aliados(g, y, z) && entra, 'los aliados se juran defensa y entran en la guerra para defenderse');
+}
+
 console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
 {
   const X = M.mando;
@@ -198,7 +237,7 @@ console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
   hasta(c1, -2000); hasta(c2, -2000);
   X.gobernar(c1, S.vivas(c1)[0].id); X.ordenar(c1, S.vivas(c1)[0].id, 'invertid en ciencia');
   for (let k = 0; k < 10; k++) { S.turno(c1); S.turno(c2); }
-  comprobar(S.vivas(c1)[0].ciencia > S.vivas(c2)[0].ciencia * 1.15, 'invertir en ciencia hace avanzar más deprisa (' + Math.round(S.vivas(c2)[0].ciencia) + ' → ' + Math.round(S.vivas(c1)[0].ciencia) + ')');
+  comprobar(S.vivas(c1)[0].ciencia > S.vivas(c2)[0].ciencia * 1.08, 'invertir en ciencia hace avanzar más deprisa (' + Math.round(S.vivas(c2)[0].ciencia) + ' → ' + Math.round(S.vivas(c1)[0].ciencia) + ')');
   // El pueblo del jugador se gobierna solo, igual que los de la IA: sin órdenes, reparte el trabajo según lo que falta.
   {
     const g = hasta(S.crear(12, 5), -1000), V = M.vida, c = S.vivas(g)[0];

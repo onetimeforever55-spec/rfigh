@@ -142,7 +142,7 @@
     const v = m.vida;
     lienzo = document.createElement('canvas'); lienzo.width = v.tw * P; lienzo.height = v.th * P; gl = lienzo.getContext('2d');
     capa = document.createElement('canvas'); capa.width = lienzo.width; capa.height = lienzo.height; gc = capa.getContext('2d');
-    visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice() };
+    visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice() };
     tierra = V.terrenos(m).slice();
     pend = [];
     firma = firmas();
@@ -201,11 +201,17 @@
       gl.drawImage(sprite(nombre), x, y);
     }
   }
+  // El campo según cómo va el trigo: tierra arada, brotes, verde y dorado (listo para segar).
   function campo(x, y, t) {
+    const fase = (visto.cultivo && visto.cultivo[t]) || 0;
     gl.fillStyle = '#86653a'; gl.fillRect(x, y, P, P);
-    const maduro = (t % 3) !== 0;
-    gl.fillStyle = maduro ? '#d9bf4f' : '#7fb04a';
-    for (let k = 0; k < P; k += 2) gl.fillRect(x, y + k, P, 1);
+    gl.fillStyle = '#6e5230';
+    for (let k = 1; k < P; k += 2) gl.fillRect(x, y + k, P, 1);
+    if (fase >= 1) {
+      gl.fillStyle = fase === 1 ? '#8fc35a' : fase === 2 ? '#5f9e3a' : '#e0c050';
+      for (let k = 0; k < P; k += 2) for (let j = (k / 2) % 2; j < P; j += 2) gl.fillRect(x + j, y + k - (fase >= 2 ? 1 : 0), 1, fase >= 2 ? 2 : 1);
+      if (fase === 3) { gl.fillStyle = '#f4dc7a'; for (let k = 0; k < P; k += 4) gl.fillRect(x + ((k + t) % 5), y + k, 1, 1); }
+    }
     gl.fillStyle = 'rgba(0,0,0,0.18)'; gl.fillRect(x, y + P - 1, P, 1);
   }
 
@@ -240,7 +246,7 @@
     let quedan = 0;
     for (const ch of pend) {
       if (ch[4] > hasta || ch.hecho) { if (!ch.hecho) quedan++; continue; }
-      const capaN = ch[0] === 0 ? 'arbol' : ch[0] === 1 ? 'roca' : ch[0] === 2 ? 'obra' : null;
+      const capaN = ch[0] === 0 ? 'arbol' : ch[0] === 1 ? 'roca' : ch[0] === 2 ? 'obra' : ch[0] === 4 ? 'cultivo' : null;
       if (capaN) { visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); }
       ch.hecho = true;
     }
@@ -250,15 +256,15 @@
   function sincronizar(cambios) {
     const v = m.vida, n = v.tw * v.th;
     aplicar(Infinity);
-    const antes = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice() };
-    for (let k = cambios.length - 1; k >= 0; k--) { const [c, t, a] = cambios[k]; if (c <= 2) antes[c === 0 ? 'arbol' : c === 1 ? 'roca' : 'obra'][t] = a; }
+    const antes = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice() };
+    for (let k = cambios.length - 1; k >= 0; k--) { const [c, t, a] = cambios[k]; if (c <= 2 || c === 4) antes[c === 0 ? 'arbol' : c === 1 ? 'roca' : c === 2 ? 'obra' : 'cultivo'][t] = a; }
     const ter = V.terrenos(m), nf = firmas(), cambiadas = new Set();
     for (let r = 0; r < nf.length; r++) if (nf[r] !== firma[r]) cambiadas.add(r);
     firma = nf;
     for (let t = 0; t < n; t++) {
       let distinto = false;
       if (ter[t] !== tierra[t]) { tierra[t] = ter[t]; distinto = true; }
-      for (const c of ['arbol', 'roca', 'obra']) if (visto[c][t] !== antes[c][t]) { visto[c][t] = antes[c][t]; distinto = true; }
+      for (const c of ['arbol', 'roca', 'obra', 'cultivo']) if (visto[c][t] !== antes[c][t]) { visto[c][t] = antes[c][t]; distinto = true; }
       if (!distinto && visto.obra[t] && visto.obra[t] !== V.OBRA.campo && cambiadas.has(V.region(m, t))) distinto = true;
       if (distinto) parcela(t);
     }
@@ -309,10 +315,16 @@
     g.drawImage(lienzo, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
     g.drawImage(capa, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
     banderas(ahora);
+    agua(ahora, x0, y0, x1, y1);
+    animales(k, ahora, x0, y0, x1, y1);
+    humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
     pintarDisparos(k);
     pintarTumbas(ahora);
     pintarEfectos(ahora, x0, y0, x1, y1);
+    nieve(ahora, x0, y0, x1, y1);
+    pajaros(ahora, x0, y0, x1, y1);
+    nubes(ahora, x0, y0, x1, y1);
     marcarPulso(ahora);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
@@ -514,6 +526,109 @@
       g.globalAlpha = 1;
     }
   }
+  // ---------- El ambiente: lo que se mueve aunque nadie lo mande ----------
+  const azarV = n => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul(n ^ (n >>> 12), 0x297a2d39); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
+  const tierraEn = (wx, wy) => { const v = m.vida, tx = Math.floor(wx / P), ty = Math.floor(wy / P); return tx >= 0 && ty >= 0 && tx < v.tw && ty < v.th ? tierra[ty * v.tw + tx] : null; };
+  // Destellos sobre el agua y espuma en la orilla.
+  function agua(ahora, x0, y0, x1, y1) {
+    const cuadro = Math.floor(ahora / 140), n = Math.min(260, Math.round((x1 - x0) * (y1 - y0) / 900));
+    for (let i = 0; i < n; i++) {
+      const wx = x0 + azarV(i * 7919 + cuadro * 31) * (x1 - x0), wy = y0 + azarV(i * 104729 + cuadro * 17) * (y1 - y0);
+      const t = tierraEn(wx, wy);
+      if (t === 'agua' || t === 'bajo') { g.fillStyle = i % 3 ? 'rgba(255,255,255,0.35)' : 'rgba(170,215,255,0.5)'; g.fillRect(Math.floor(wx), Math.floor(wy), i % 4 ? 1 : 2, 1); }
+      else if (t === 'arena' && i % 2) { g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(Math.floor(wx), Math.floor(wy), 1, 1); }
+    }
+  }
+  // Humo de las chimeneas: unas cuantas casas a la vista echan humo.
+  let chimeneas = [], chimeneasHasta = 0;
+  function humo(ahora, x0, y0, x1, y1) {
+    if (reducido) return;
+    if (ahora > chimeneasHasta) {
+      chimeneasHasta = ahora + 1500; chimeneas = [];
+      const v = m.vida, tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if ((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) chimeneas.push(t); if (chimeneas.length > 60) break; }
+    }
+    for (const t of chimeneas) {
+      const x = (t % m.vida.tw) * P + 5, y = Math.floor(t / m.vida.tw) * P;
+      for (let k = 0; k < 3; k++) {
+        const f = ((ahora / 2400 + k / 3 + (t % 7) / 7) % 1);
+        g.fillStyle = 'rgba(210,210,215,' + (0.45 * (1 - f)).toFixed(2) + ')';
+        g.fillRect(Math.round(x + Math.sin(f * 6 + t) * 1.5), Math.round(y - 1 - f * 9), f > 0.5 ? 2 : 1, f > 0.5 ? 2 : 1);
+      }
+    }
+  }
+  // Nieve que cae sobre las tierras frías.
+  function nieve(ahora, x0, y0, x1, y1) {
+    if (reducido) return;
+    const n = Math.min(220, Math.round((x1 - x0) * (y1 - y0) / 1100));
+    g.fillStyle = 'rgba(255,255,255,0.8)';
+    for (let i = 0; i < n; i++) {
+      const wx = x0 + ((azarV(i * 13) * (x1 - x0) + Math.sin(ahora / 900 + i) * 3) % (x1 - x0)), wy = y0 + ((azarV(i * 29) * (y1 - y0) + ahora / 40 * (0.5 + azarV(i))) % (y1 - y0));
+      const t = tierraEn(wx, wy);
+      if (t === 'nieve' || t === 'tundra' || (t === 'taiga' && i % 3 === 0)) g.fillRect(Math.floor(wx), Math.floor(wy), 1, 1);
+    }
+  }
+  // Bandadas de pájaros que cruzan el mapa.
+  function pajaros(ahora, x0, y0, x1, y1) {
+    if (reducido) return;
+    for (let f = 0; f < 3; f++) {
+      const ancho = ancho_(), alto_ = alto(), vel = 0.012 + f * 0.004;
+      const bx = ((ahora * vel + azarV(f * 97) * ancho) % (ancho + 120)) - 60, by = azarV(f * 31 + Math.floor((ahora * vel) / (ancho + 120))) * alto_;
+      if (bx < x0 - 20 || bx > x1 + 20 || by < y0 - 20 || by > y1 + 20) continue;
+      const aleteo = Math.floor(ahora / 180 + f) % 2;
+      g.fillStyle = 'rgba(30,30,40,0.75)';
+      for (let i = 0; i < 5; i++) {
+        const px = Math.round(bx - Math.abs(i - 2) * 4), py = Math.round(by + (i - 2) * 3);
+        g.fillRect(px - 1, py - aleteo, 1, 1); g.fillRect(px, py, 1, 1); g.fillRect(px + 1, py - aleteo, 1, 1);
+      }
+    }
+  }
+  const ancho_ = () => ancho();
+  // Nubes que pasan, con su sombra en el suelo.
+  function nubes(ahora, x0, y0, x1, y1) {
+    if (reducido) return;
+    const W2 = ancho(), H2 = alto();
+    for (let i = 0; i < 6; i++) {
+      const w = 40 + azarV(i * 11) * 50, h = 14 + azarV(i * 23) * 12;
+      const cx = ((azarV(i * 7) * W2 + ahora * (0.004 + azarV(i) * 0.004)) % (W2 + w * 2)) - w, cy = azarV(i * 5) * H2;
+      if (cx + w < x0 - 30 || cx > x1 + 30 || cy + h < y0 - 30 || cy > y1 + 30) continue;
+      const bloques = [[0, 0.3, 0.45, 0.7], [0.2, 0, 0.5, 0.8], [0.5, 0.15, 0.4, 0.75], [0.75, 0.35, 0.25, 0.55]];
+      g.fillStyle = 'rgba(0,0,0,0.12)';
+      for (const [bx, by, bw, bh] of bloques) g.fillRect(Math.round(cx + bx * w + 10), Math.round(cy + by * h + 14), Math.round(bw * w), Math.round(bh * h));
+      g.fillStyle = 'rgba(255,255,255,0.5)';
+      for (const [bx, by, bw, bh] of bloques) g.fillRect(Math.round(cx + bx * w), Math.round(cy + by * h), Math.round(bw * w), Math.round(bh * h));
+    }
+  }
+  // Los animales, interpolando su paseo del turno.
+  function animales(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
+    for (const b of v.animales || []) {
+      let px = b.x * P + 2, py = b.y * P + 3;
+      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 2; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 3; }
+      if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
+      px = Math.round(px); py = Math.round(py);
+      const pata = Math.floor(ahora / 220 + b.id) % 2;
+      if (b.tipo === 'pez') {
+        const fase = (ahora / 2600 + b.id * 0.37) % 1;
+        if (fase < 0.14) { const s2 = fase / 0.14; g.fillStyle = '#d8e4ee'; g.fillRect(px + Math.round(s2 * 4), py - Math.round(Math.sin(s2 * Math.PI) * 5), 2, 1); }
+        else if (fase < 0.22) { g.fillStyle = 'rgba(255,255,255,0.6)'; g.fillRect(px + 3, py, 3, 1); g.fillRect(px + 4, py - 1, 1, 1); }
+        continue;
+      }
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(px - 1, py + 3, b.tipo === 'vaca' ? 6 : 5, 1);
+      if (b.tipo === 'oveja') {
+        g.fillStyle = '#3a3030'; g.fillRect(px, py + 2, 1, 1 + pata); g.fillRect(px + 2, py + 2, 1, 2 - pata);
+        g.fillStyle = '#f4f2ea'; g.fillRect(px - 1, py, 4, 2); g.fillStyle = '#3a3030'; g.fillRect(px + 3, py, 1, 1);
+      } else if (b.tipo === 'vaca') {
+        g.fillStyle = '#3a3030'; g.fillRect(px, py + 2, 1, 1 + pata); g.fillRect(px + 3, py + 2, 1, 2 - pata);
+        g.fillStyle = '#f4f2ea'; g.fillRect(px - 1, py, 5, 2); g.fillStyle = '#6b4a2b'; g.fillRect(px, py, 2, 1); g.fillStyle = '#d9a090'; g.fillRect(px + 4, py, 1, 1);
+      } else if (b.tipo === 'ciervo') {
+        g.fillStyle = '#5a3a22'; g.fillRect(px, py + 2, 1, 1 + pata); g.fillRect(px + 2, py + 2, 1, 2 - pata);
+        g.fillStyle = '#9a6a3a'; g.fillRect(px - 1, py, 4, 2); g.fillRect(px + 3, py - 1, 1, 1);
+        g.fillStyle = '#d8c8a0'; g.fillRect(px + 3, py - 3, 1, 2); g.fillRect(px + 4, py - 3, 1, 1);
+      }
+    }
+  }
+
   // Flechas y balas: vuelan durante el paso en que se dispararon.
   function pintarDisparos(k) {
     const lista = m.vida.disparos || [];
