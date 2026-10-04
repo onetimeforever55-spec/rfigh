@@ -221,7 +221,7 @@
     const siguiendo = P.siguiendoA() === a.id;
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(a.nombre + ' ' + (a.familia || '')) + '</h3>' +
       '<p class="subt">' + esc(etapa) + ' de ' + esc(c ? c.nombre : '—') + (ciudad ? ', vive en ' + esc(ciudad.nombre) : c && a.h === c.capital ? ', vive en la capital' : '') + '</p>' +
-      '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', (a.edad || 0) + ' turnos <span class="tenue">(nació en ' + S.anioTexto(a.nacio != null ? a.nacio : m.anio) + ')</span>') +
+      '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', M.vida.anos(a) + ' años <span class="tenue">(nació ' + (m.libre ? 'el año ' + (a.nacio != null ? a.nacio : m.anio) : 'en ' + M.ERAS[a.eraNacio != null ? a.eraNacio : c.era].con) + ')</span>') +
       fila('Rasgos', a.rasgos && a.rasgos.length ? esc(a.rasgos.join(', ')) : '<span class="tenue">ninguno especial</span>') +
       fila('Familia', (padre ? 'hijo de ' + esc(padre.nombre) + ' · ' : '') + (a.hijos || 0) + ((a.hijos || 0) === 1 ? ' hijo' : ' hijos') + (hijosVivos !== (a.hijos || 0) ? ' <span class="tenue">(' + hijosVivos + ' vivos)</span>' : '')) +
       (a.bajas ? fila('En combate', a.bajas + ' enemigos abatidos') : '') +

@@ -222,7 +222,7 @@
     if (padre && padre.rasgos && padre.rasgos.length && azar(v) < 0.35 && !rasgos.includes(padre.rasgos[0])) rasgos.push(padre.rasgos[0]);
     const familia = padre ? padre.familia : M.PERSONAS.inicio[Math.floor(azar(v) * M.PERSONAS.inicio.length)] + APELLIDOS[Math.floor(azar(v) * APELLIDOS.length)];
     const a = { id: v.sig++, c: c.id, o: GRANJERO, x: casa % v.tw, y: casa / v.tw | 0, h: region(m, casa), casa, e: LIBRE, tx: -1, ty: -1, t: 0, k: 0, q: 0, r: [], edad,
-      nombre: persona(v), familia, rasgos, hijos: 0, bajas: 0, hambre: 0, padre: padre ? padre.id : null, nacio: m.anio };
+      nombre: persona(v), familia, rasgos, hijos: 0, bajas: 0, hambre: 0, padre: padre ? padre.id : null, nacio: m.anio, eraNacio: c.era };
     if (padre) padre.hijos = (padre.hijos || 0) + 1;
     v.aldeanos.push(a);
     return a;
@@ -584,6 +584,7 @@
     naturaleza(m, ter);
     contar(m);
     ciudades(m);
+    abandonos(m);
     planificarRutas(m, terrenos(m));
     fauna(m, ter);
     comer(m);
@@ -1224,6 +1225,23 @@
   }
 
   /*
+   * Una tierra es de un reino mientras vive gente en ella o al lado. La que lleva varios turnos sin nadie
+   * cerca (porque la gente se fue, murió o nunca llegó) vuelve a ser tierra de nadie.
+   */
+  function abandonos(m) {
+    const v = m.vida;
+    v.vacia = v.vacia || new Array(m.W * m.H).fill(0);
+    const poblada = v.poblada || [];
+    for (let r = 0; r < m.W * m.H; r++) {
+      const d = m.dueno[r];
+      if (d < 0) { v.vacia[r] = 0; continue; }
+      const c = S().civ(m, d);
+      if (!c || c.capital === r || poblada[r] || S().vecinos(r).some(w => m.dueno[w] === d && poblada[w])) { v.vacia[r] = 0; continue; }
+      if (++v.vacia[r] >= 4) { m.dueno[r] = -1; v.vacia[r] = 0; }
+    }
+  }
+
+  /*
    * LOS COLONOS, como en WorldBox: cuando un pueblo está lleno (sin camas o al límite de comida), tres aldeanos
    * salen andando hacia una tierra libre y fértil y fundan allí una aldea nueva, con su ayuntamiento y su molino.
    */
@@ -1374,5 +1392,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
