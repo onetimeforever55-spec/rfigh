@@ -254,30 +254,51 @@
   }
 
   // El color de cada pueblo sobre su tierra y las fronteras (rojas donde hay guerra).
+  // El territorio que se ve rodea lo construido (casas, campos, caminos, plazas), como las zonas de WorldBox:
+  // crece parcela a parcela según se levanta el pueblo, aunque el reino reclame regiones enteras.
   function territorio() {
-    const R = V.SUB * A;
+    const v = m.vida, tw = v.tw, n = tw * v.th, RADIO = 3;
     gc.clearRect(0, 0, capa.width, capa.height);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
-    for (let r = 0; r < m.W * m.H; r++) {
-      const d = m.dueno[r];
+    const zona = new Int16Array(n).fill(-1), dist = new Uint8Array(n).fill(255), cola = [];
+    for (let t = 0; t < n; t++) {
+      const d = m.dueno[V.region(m, t)];
+      if (d < 0) continue;
+      const o = visto.obra[t];
+      if ((o && o !== V.OBRA.ruina) || (visto.camino && visto.camino[t])) { zona[t] = d; dist[t] = 0; cola.push(t); }
+    }
+    for (let i = 0; i < cola.length; i++) {
+      const t = cola[i], d = zona[t], x = t % tw;
+      if (dist[t] >= RADIO) continue;
+      for (const nb of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) {
+        if (nb < 0 || nb >= n || zona[nb] >= 0 || m.dueno[V.region(m, nb)] !== d) continue;
+        const tr = tierra[nb];
+        if (tr === 'agua') continue;
+        zona[nb] = d; dist[nb] = dist[t] + 1; cola.push(nb);
+      }
+    }
+    for (let t = 0; t < n; t++) {
+      const d = zona[t];
       if (d < 0 || !color[d]) continue;
-      const x = (r % m.W) * R, y = Math.floor(r / m.W) * R;
+      const x = (t % tw) * A, y = Math.floor(t / tw) * A;
       gc.globalAlpha = sel == null ? 0.2 : sel === d ? 0.32 : 0.1;
-      gc.fillStyle = color[d]; gc.fillRect(x, y, R, R);
+      gc.fillStyle = color[d]; gc.fillRect(x, y, A, A);
       gc.globalAlpha = 1;
-      const lados = [[r % m.W > 0 ? r - 1 : -1, x, y, 2, R], [r % m.W < m.W - 1 ? r + 1 : -1, x + R - 2, y, 2, R], [r >= m.W ? r - m.W : -1, x, y, R, 2], [r < m.W * (m.H - 1) ? r + m.W : -1, x, y + R - 2, R, 2]];
+      const tx = t % tw;
+      const lados = [[tx > 0 ? t - 1 : -1, x, y, 1, A], [tx < tw - 1 ? t + 1 : -1, x + A - 1, y, 1, A], [t - tw, x, y, A, 1], [t + tw < n ? t + tw : -1, x, y + A - 1, A, 1]];
       for (const [o, rx, ry, rw, rh] of lados) {
-        const od = o >= 0 ? m.dueno[o] : -2;
+        const od = o >= 0 ? zona[o] : -2;
         if (od === d) continue;
         const enGuerra = od >= 0 && guerra.has(Math.min(d, od) + ':' + Math.max(d, od));
         gc.fillStyle = enGuerra ? '#ff4b3a' : sel === d ? '#fff6dc' : color[d];
-        gc.globalAlpha = enGuerra || sel === d ? 1 : 0.85;
+        gc.globalAlpha = enGuerra || sel === d ? 1 : 0.9;
         gc.fillRect(rx, ry, rw, rh);
         gc.globalAlpha = 1;
       }
     }
   }
+
 
   // ---------- Un turno nuevo: dejar al día lo pintado y preparar la animación ----------
   function aplicar(hasta) {
@@ -419,6 +440,14 @@
         g.fillStyle = '#f0c8a0'; g.fillRect(px + 1, py + 2, 1, 1); g.fillRect(brazo ? px - 1 : px + 3, py + 3 - brazo, 1, 1);
         continue;
       }
+      // Los niños: más pequeños, sin herramienta, corretean cerca de casa.
+      if ((a.edad || 0) < V.ADULTO) {
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(px, py + 5, 3, 1);
+        g.fillStyle = '#3a2a1e'; g.fillRect(px + (anda && t ? 1 : 0), py + 4, 1, 1); g.fillRect(px + 2, py + 4, 1, 1);
+        g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 3, 3, 1);
+        g.fillStyle = '#f0c8a0'; g.fillRect(px + 1, py + 2, 1, 1);
+        continue;
+      }
       // Piernas, cuerpo y cabeza.
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
       g.fillStyle = '#3a2a1e';
@@ -427,6 +456,8 @@
       const oficio = V.OFICIOS[a.o];
       g.fillStyle = oficio === 'guerrero' ? '#9aa0aa' : oficio === 'granjero' ? '#e2c25a' : '#f0c8a0';
       g.fillRect(px + 1, py, 1, 1);
+      // Los ancianos, con el pelo blanco.
+      if ((a.edad || 0) >= V.VIEJO && oficio !== 'guerrero') { g.fillStyle = '#e8e8ec'; g.fillRect(px + 1, py, 1, 1); g.fillRect(px, py, 1, 1); }
       // La herramienta: arriba y abajo cuando trabaja.
       const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
       if (acc === 3) { g.fillStyle = oficio === 'minero' ? '#a3a1aa' : '#8a5a2b'; g.fillRect(px - 1, py - 1, 5, 1); }

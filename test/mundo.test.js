@@ -271,6 +271,36 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
   comprobar((v2.barcos || []).some(bb => bb.tipo === 'pesca') && (v2.barcos || []).some(bb => bb.tipo === 'mercante'), 'los puertos echan al mar barcos de pesca y mercantes');
 }
 
+console.log('VIDA COMO WORLDBOX: NACER, CRECER, MORIR, CASAS, COLONOS Y FRONTERAS');
+{
+  const V = M.vida;
+  const m = S.crear(7, 5);
+  let nacidos = 0, viejos = 0;
+  const vistos = new Set(m.vida.aldeanos.map(a => a.id));
+  for (let k = 0; k < 40; k++) {
+    S.turno(m);
+    for (const a of m.vida.aldeanos) if (!vistos.has(a.id)) { vistos.add(a.id); if (a.edad <= 1) nacidos++; }
+    viejos += m.vida.muertos.filter(x => x[3] === 'vejez').length;
+  }
+  const casas = new Set(); for (let t = 0; t < m.vida.obra.length; t++) if ([V.OBRA.casa, V.OBRA.centro, V.OBRA.ayuntamiento].includes(m.vida.obra[t])) casas.add(t);
+  comprobar(nacidos > 10 && viejos > 5, 'los aldeanos nacen (' + nacidos + ' bebés) y mueren de viejos (' + viejos + ')');
+  comprobar(m.vida.aldeanos.some(a => a.edad < V.ADULTO) && m.vida.aldeanos.some(a => a.edad >= V.VIEJO), 'hay niños y ancianos');
+  comprobar(S.vivas(m).every(c => m.vida.aldeanos.filter(a => a.c === c.id).length <= c.camas + 3), 'nadie nace sin cama: los pueblos no tienen más gente que camas');
+  // Las casas van pegadas a lo que ya hay.
+  const tw = m.vida.tw, PEGA = [V.OBRA.casa, V.OBRA.centro, V.OBRA.ayuntamiento, V.OBRA.molino, V.OBRA.templo, V.OBRA.torre];
+  const sueltas = [...casas].filter(t => m.vida.obra[t] === V.OBRA.casa && ![-1, 1, -tw, tw, -tw - 1, -tw + 1, tw - 1, tw + 1].some(d => PEGA.includes(m.vida.obra[t + d]) || m.vida.camino[t + d])).length;
+  comprobar(sueltas <= casas.size * 0.15, 'las casas crecen pegadas unas a otras (' + sueltas + ' sueltas de ' + casas.size + ')');
+  comprobar(m.cronica.some(e => /^Colonos de /.test(e.titulo)) && (m.ciudades || []).length >= 2, 'los colonos salen andando y fundan aldeas nuevas (' + (m.ciudades || []).map(x => x.nombre).join(', ') + ')');
+  // El reino solo se extiende junto a tierra poblada.
+  const lejos = [];
+  for (let r = 0; r < S.W * S.H; r++) { const d = m.dueno[r]; if (d < 0 || m.vida.poblada[r]) continue; if (!S.vecinos(r).some(w => m.dueno[w] === d && m.vida.poblada[w])) lejos.push(r); }
+  comprobar(lejos.length <= 6, 'el reino crece junto a donde vive su gente (' + lejos.length + ' regiones aisladas)');
+  // El mundo libre: los años pasan de uno en uno.
+  const l = S.crear(3, 5, { libre: true });
+  for (let k = 0; k < 10; k++) S.turno(l);
+  comprobar(l.libre && l.anio === 11, 'en el mundo libre los años pasan de uno en uno (año ' + l.anio + ')');
+}
+
 console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
 {
   const X = M.mando;

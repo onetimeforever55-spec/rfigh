@@ -59,6 +59,8 @@ button { cursor: pointer; }
 .inicio-caja { max-width: 460px; background: var(--panel); border: 1px solid var(--oro); border-radius: var(--radio); padding: 20px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
 .inicio-titulo { margin: 0 0 8px; font-family: var(--f-pixel); font-weight: 600; font-size: 24px; color: var(--oro); }
 .inicio-texto { margin: 0 0 16px; color: var(--pergamino); }
+.inicio-libre { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 14px; font-size: 14px; color: var(--tenue); cursor: pointer; }
+.inicio-libre input { margin-top: 3px; accent-color: var(--oro); }
 .inicio-botones { display: flex; flex-wrap: wrap; gap: 10px; }
 .inicio-botones .obrar { padding: 10px 18px; }
 .inicio-botones .mando { padding: 10px 16px; }

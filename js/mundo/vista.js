@@ -22,7 +22,9 @@
     return null;
   }
   function mundoNuevo() {
-    m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, 5);
+    let libre = false;
+    try { libre = localStorage.getItem('genesis.libre') === '1'; } catch (e) { /* sin preferencia */ }
+    m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, 5, { libre });
     sel = null; ultimaCronista = 0;
     P.mundo(m); P.seleccionar(null);
   }
@@ -33,11 +35,17 @@
   function pedirModo(titulo, texto) {
     $('inicio-titulo').textContent = titulo || '¿Cómo quieres jugar?';
     $('inicio-texto').textContent = texto || 'Puedes gobernar un solo pueblo con tus órdenes mientras los demás viven a su aire, o ser el dios de todos.';
+    $('mundo-libre').checked = !!m.libre;
     $('inicio').hidden = false;
     corriendo = false; programar();
   }
   function elegirModo(modo, civId) {
     $('inicio').hidden = true;
+    // El mundo libre se puede activar en cualquier momento: desde ahora, los años pasan de uno en uno.
+    const libre = $('mundo-libre').checked;
+    try { localStorage.setItem('genesis.libre', libre ? '1' : '0'); } catch (e) { /* sin guardado */ }
+    if (libre && !m.libre) { m.libre = true; if (m.anio < 1) m.anio = 1; }
+    else if (!libre && m.libre) m.libre = false;
     m.modo = modo;
     if (modo === 'pueblo') {
       // Si no se elige uno, te toca un pueblo al azar entre los que tienen sitio para crecer.
@@ -81,7 +89,7 @@
   const era = c => M.ERAS[c.era];
 
   function pintarCabecera() {
-    if (anioAntes == null || !corriendo) $('anio').textContent = S.anioTexto(m.anio);
+    if (anioAntes == null || !corriendo) $('anio').textContent = m.libre ? 'Año ' + m.anio : S.anioTexto(m.anio);
     const maxEra = Math.max(0, ...S.vivas(m).map(c => c.era));
     $('era').textContent = M.ERAS[maxEra].nombre;
     $('play').textContent = corriendo ? '❚❚ Pausa' : '▶ Seguir';
@@ -206,7 +214,9 @@
     const cuenta = Object.create(null);
     for (const a of m.vida.aldeanos) if (a.c === c.id) { const o = M.vida.OFICIOS[a.o]; cuenta[o] = (cuenta[o] || 0) + 1; }
     const partes = M.vida.OFICIOS.filter(o => cuenta[o]).map(o => cuenta[o] + ' ' + NOMBRES_OFICIO[o]);
-    return partes.length ? esc(partes.join(', ')) : 'ninguno';
+    const suyos = m.vida.aldeanos.filter(a => a.c === c.id), ninos = suyos.filter(a => (a.edad || 0) < M.vida.ADULTO).length, viejos = suyos.filter(a => (a.edad || 0) >= M.vida.VIEJO).length;
+    const colonos = suyos.filter(a => a.colono != null).length;
+    return (partes.length ? esc(partes.join(', ')) : 'ninguno') + ' <span class="tenue">· ' + ninos + ' niños, ' + viejos + ' ancianos · ' + (c.camas || 0) + ' camas' + (c.sinCama ? ' (faltan ' + c.sinCama + ')' : '') + (colonos ? ' · ' + colonos + ' colonos de camino' : '') + '</span>';
   }
 
   function pintarCronica() {
@@ -253,7 +263,7 @@
     if (!m || anioAntes == null) return;
     const f = corriendo ? Math.min(1, (performance.now() - inicioTurno) / VELOCIDADES[vel][0]) : 1;
     const anio = Math.round(anioAntes + (m.anio - anioAntes) * f);
-    const texto = S.anioTexto(anio);
+    const texto = m.libre ? 'Año ' + anio : S.anioTexto(anio);
     if ($('anio').textContent !== texto) $('anio').textContent = texto;
   }
   function paso() {

@@ -250,8 +250,9 @@
   }
 
   // ---------- Crear un mundo ----------
-  function crear(semilla, numPueblos) {
-    const m = { version: 1, semilla: semilla >>> 0, rng: semilla >>> 0, W, H, anio: -4000, turno: 0, civs: [], sig: 0, cronica: [], dueno: new Array(W * H).fill(-1) };
+  function crear(semilla, numPueblos, opciones) {
+    const libre = !!(opciones && opciones.libre);
+    const m = { version: 1, semilla: semilla >>> 0, rng: semilla >>> 0, W, H, anio: libre ? 1 : -4000, libre, turno: 0, civs: [], sig: 0, cronica: [], dueno: new Array(W * H).fill(-1) };
     generarMapa(m);
     // Los primeros pueblos, en tierras fértiles y lejos unos de otros (mejor junto a un río).
     const candidatas = [];
@@ -284,8 +285,10 @@
     sucesosNaturales(m);
     for (const c of vivas(m)) c.efectos = c.efectos.filter(e => e.hasta > m.turno);
     const maxEra = Math.max(0, ...vivas(m).map(c => c.era));
-    for (const c of vivas(m)) reinar(m, c, M.ERAS[maxEra].anios);
-    m.anio += M.ERAS[maxEra].anios;
+    // En el mundo libre (como WorldBox) los años pasan de uno en uno; en la historia real, al ritmo de cada era.
+    const anios = m.libre ? 1 : M.ERAS[maxEra].anios;
+    for (const c of vivas(m)) reinar(m, c, anios);
+    m.anio += anios;
     return m;
   }
 
@@ -329,7 +332,9 @@
     const pe = prio(c, 'expansion');
     if (pe > 0 && c.pob > cap * (0.65 - 0.1 * pe) && !(c.plan && c.plan.expandir === false)) {
       const libres = new Set();
-      for (const i of cs) for (const v of vecinos(i)) if (esTierra(m, v) && m.dueno[v] < 0) libres.add(v);
+      // Con aldeanos (vida.js), el reino solo se extiende junto a regiones donde ya vive gente.
+      const poblada = m.vida && m.vida.poblada;
+      for (const i of cs) if (!poblada || poblada[i]) for (const v of vecinos(i)) if (esTierra(m, v) && m.dueno[v] < 0) libres.add(v);
       // Desde el Renacimiento, también al otro lado del mar.
       if (c.era >= 5 && !libres.size) for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && vecinos(i).some(v => m.tipo[v] === 'costa') && cs.some(j => distancia(i, j) <= 13)) libres.add(i);
       // Un jugador puede marcar un rumbo: hacia un punto cardinal o hacia otro pueblo.

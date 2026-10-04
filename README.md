@@ -266,6 +266,12 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
   | Comida y felicidad | El hambre baja la felicidad y la lealtad | Las cosechas y la pesca llenan los graneros: amortiguan el hambre y suben la lealtad; el hambre la baja |
   | Lo que no está | Razas, magia, criaturas, rasgos individuales de cada aldeano, cultura y religión como sistemas aparte | — |
 
+- **Vida como WorldBox** (el pueblo crece de abajo arriba, por causas que se ven):
+  - **Nacer, crecer y morir**: los bebés nacen en las casas con cama libre si el pueblo tiene con qué alimentarlos; son niños un par de turnos (más pequeños, juegan cerca de casa, no trabajan ni van a la guerra), luego adultos con oficio, y de ancianos tienen el pelo blanco y mueren de viejos. El hambre, las pestes y las guerras se llevan primero a los más viejos. Sin camas no nace nadie.
+  - **Casas por necesidad**: los constructores solo levantan casas cuando faltan camas, y siempre pegadas a otra casa, a la plaza, al molino o a un camino, lo más cerca posible del centro: el pueblo crece como una mancha.
+  - **Colonos**: cuando un pueblo se llena, tres aldeanos cargan sus cosas, cruzan el mapa andando y fundan una aldea nueva en tierra libre y fértil, con su ayuntamiento y su molino. Las ciudades nacen así (como mucho 2 + era/2 por reino).
+  - **Fronteras vivas**: el territorio que se ve rodea las casas, los campos, los caminos y las plazas, y crece parcela a parcela; el reino solo reclama tierras junto a regiones donde ya vive gente.
+  - **Mundo libre** (casilla al empezar): sin calendario histórico, los años pasan de uno en uno como en WorldBox; las eras llegan igual, por la ciencia.
 - **Ritmo y escala como WorldBox**:
   - El suelo, las casas y los árboles se pintan con parcelas el doble de grandes que las personas, así que un aldeano es mucho más pequeño que una casa.
   - Cada aldea nace con su **molino** y los granjeros solo aran a su alrededor; las ciudades nuevas levantan el suyo antes que nada.
