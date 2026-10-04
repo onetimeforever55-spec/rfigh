@@ -315,7 +315,15 @@
     }
   }
 
-  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); }
+  function pintarConsejo() {
+    const c = tuPueblo(), k = c ? X.consejo(m, c.id) : null;
+    $('consejo').hidden = !k;
+    if (!k) return;
+    $('consejo-texto').textContent = k.texto;
+    $('consejo-orden').textContent = '«' + k.orden + '»';
+    $('consejo-orden').onclick = () => { $('orden').value = k.orden; $('orden').focus(); };
+  }
+  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); }
 
   // ---------- El tiempo ----------
   // El año del reloj avanza poco a poco durante el turno, en vez de saltar.

@@ -148,3 +148,8 @@ button { cursor: pointer; }
   .s-anio { min-width: 5.8em; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* El consejero: lo más urgente de tu pueblo y la orden que lo arregla. */
+.consejo { margin: 10px 0 0; font-size: 14px; line-height: 1.45; }
+.consejo-quien { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--oro); margin-right: 4px; }
+.consejo .ejemplo { margin-left: 4px; }

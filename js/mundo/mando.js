@@ -171,7 +171,7 @@
         textos.push('Alianza rota con ' + o.nombre + '. No les va a gustar.');
         o.rel[c.id] = c.rel[o.id] = (o.rel[c.id] || 0) - 30;
       } else if (a.tipo === 'regimen') {
-        if (c.era < a.era) { textos.push('Tu pueblo no está preparado para eso: hace falta llegar a ' + M.ERAS[a.era].con + '.'); continue; }
+        if (c.era < a.era) { textos.push('Tu pueblo no está preparado para eso: hace falta llegar ' + aEra(M.ERAS[a.era].con) + '.'); continue; }
         if (c.regimen === a.a) { textos.push('Ya sois ' + M.unoDe(a.a) + '.'); continue; }
         const antes = c.regimen;
         c.regimen = a.a; c.estab = Math.max(0, c.estab - 15);
@@ -217,6 +217,7 @@
     return textos;
   }
   const T = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const aEra = con => (con.startsWith('el ') ? 'al ' + con.slice(3) : 'a ' + con); // «al Renacimiento», «a la Edad Media»
   // Cuánta gente hay en cada oficio según el gobernador automático, para decir qué cambia con una orden.
   const OFICIO_DE = { madera: [0, 'leñadores'], comida: [1, 'granjeros'], casas: [2, 'constructores'], piedra: [3, 'mineros'], ejercito: [4, 'guerreros'], riqueza: [5, 'comerciantes'] };
   function repartoDe(m, c) {
@@ -239,6 +240,30 @@
     const cambiadas = Object.keys(pr).filter(k => pr[k] !== 1).map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k]));
     return c.nombre + ', ' + M.ERAS[c.era].nombre + ': puesto ' + puesto + ' de ' + lista.length + ' en tierras (' + S().casillas(m, c).length + '), ' + (c.habitantes != null ? c.habitantes + ' aldeanos' : Math.round(c.pob) + ' mil habitantes') + ', estabilidad ' + Math.round(c.estab) + ', madera ' + Math.floor(c.madera || 0) + ', piedra ' + Math.floor(c.piedra || 0) + '. ' +
       (enemigos.length ? 'En guerra con ' + enemigos.join(', ') + '. ' : 'En paz. ') + (cambiadas.length ? 'Prioridades: ' + cambiadas.join(', ') + '.' : 'Todas las prioridades en normal.');
+  }
+
+  // ---------- El consejero: lo más urgente de tu pueblo ahora mismo, y la orden que lo arregla ----------
+  function consejo(m, civId) {
+    const c = S().civ(m, civId);
+    if (!c || !c.viva) return null;
+    const pr = (c.plan && c.plan.prioridad) || {}, hab = c.habitantes || 1;
+    const oferta = m.ofertas && Object.keys(m.ofertas).map(Number).find(id => m.turno - m.ofertas[id] <= 12 && S().civ(m, id) && S().enGuerra(c, S().civ(m, id)));
+    if (oferta != null) { const o = S().civ(m, oferta); return { texto: o.nombre + ' te ofrece la paz.', orden: 'Paz con ' + o.nombre }; }
+    for (const g of c.guerras) {
+      const o = S().civ(m, g.con);
+      if (o && S().fuerza(m, o) > S().fuerza(m, c) * 1.4) return { texto: 'La guerra con ' + o.nombre + ' va mal: son más fuertes que vosotros.', orden: 'Paz con ' + o.nombre };
+      if (o && (pr.ejercito || 1) < 1.5 && (c.guerreros || 0) < hab * 0.2) return { texto: 'Estáis en guerra con ' + o.nombre + ' y solo tenéis ' + (c.guerreros || 0) + ' guerreros.', orden: 'Más soldados' };
+    }
+    if ((c.comida || 0) < hab * 0.15 && (pr.comida || 1) < 2) return { texto: 'Los graneros están casi vacíos (' + Math.floor(c.comida || 0) + ' de comida para ' + hab + ' bocas): si se acaban, la gente muere de hambre.', orden: 'Más comida' };
+    if ((c.madera || 0) < 4 && (pr.madera || 1) < 2) return { texto: 'Sin madera no se levantan casas ni se pagan tierras nuevas.', orden: 'Más madera' };
+    const rebelde = (m.ciudades || []).find(x => x.civ === c.id && x.lealtad != null && x.lealtad < 0);
+    if (rebelde) return { texto: rebelde.nombre + ' no es leal (' + Math.round(rebelde.lealtad) + '): pronto se rebelará. Una corte más estable o un ejército cerca la retienen.', orden: 'Más soldados' };
+    if (c.sinCama > 0 && (pr.casas || 1) < 2) return { texto: 'Hay parejas que quieren tener hijos y no tienen cama: faltan casas.', orden: 'Más casas' };
+    if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : 'Construid un templo' };
+    if (c.plan && c.plan.obra) return { texto: 'Tus constructores esperan madera y piedra para el encargo (' + c.plan.obra + ').', orden: 'Más piedra' };
+    const sig = M.ERAS[c.era + 1];
+    if (sig && (pr.ciencia || 1) < 1.5) return { texto: 'Todo en orden. Si invertís en saber, llegaréis antes ' + aEra(sig.con) + '.', orden: 'Todo a la ciencia' };
+    return { texto: 'Todo en orden. Tu pueblo trabaja solo; tú decides las grandes cosas.', orden: 'Informe' };
   }
 
   function ordenar(m, civId, texto) {
@@ -307,5 +332,5 @@
     return c;
   }
 
-  M.mando = { entender, aplicar, ordenar, informe, gobernar, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
+  M.mando = { entender, aplicar, ordenar, informe, consejo, gobernar, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
 })(globalThis.RF = globalThis.RF || {});
