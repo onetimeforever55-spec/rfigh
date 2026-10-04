@@ -280,6 +280,7 @@
     for (const c of lista) vivir(m, c);
     diplomacia(m);
     for (const c of vivas(m)) guerras(m, c);
+    lealtades(m);
     sucesosNaturales(m);
     for (const c of vivas(m)) c.efectos = c.efectos.filter(e => e.hasta > m.turno);
     const maxEra = Math.max(0, ...vivas(m).map(c => c.era));
@@ -347,8 +348,8 @@
       }
     }
     // Revuelta: las provincias lejanas de un reino grande e inestable se separan.
-    if (c.estab < 22 && n >= 8 * K && azar(m) < 0.3) separar(m, c, cs);
-    else if (c.estab < 8 && azar(m) < 0.25) {
+    // (Las provincias ya no se separan al azar: se rebelan sus ciudades cuando pierden la lealtad; ver lealtades.)
+    if (c.estab < 8 && azar(m) < 0.25) {
       const perdidas = cs.filter(i => i !== c.capital && azar(m) < 0.3);
       for (const i of perdidas) m.dueno[i] = -1;
       if (perdidas.length) cronica(m, 'caida', 'Desorden en ' + c.nombre, 'Nadie obedece a nadie. ' + perdidas.length + ' comarcas quedan abandonadas y los caminos se llenan de bandidos.', c);
@@ -454,6 +455,60 @@
       }
     }
     avanzarComplots(m);
+  }
+
+  /*
+   * LA LEALTAD DE LAS CIUDADES, como en WorldBox: cada ciudad (no la capital) tiene una lealtad hecha de
+   * motivos. Si baja de cero, su alcalde conspira; si el complot llega al 100 %, la ciudad se independiza.
+   */
+  const maxCiudades = c => 2 + Math.floor(c.era / 2) + (c.rey && c.rey.rasgo === 'constructor' ? 1 : 0);
+  function motivosLealtad(m, c, x) {
+    const out = [['base', 30]];
+    const d = distancia(x.region, c.capital);
+    if (d > 6) out.push(['lejos de la capital', -Math.round((d - 6) * 1.5)]);
+    const suyas = (m.ciudades || []).filter(y => y.civ === c.id).length;
+    if (suyas > maxCiudades(c)) out.push(['demasiadas ciudades (' + suyas + ' de ' + maxCiudades(c) + ')', -25 * (suyas - maxCiudades(c))]);
+    const rey = c.rey ? ({ justo: 10, sabio: 5, constructor: 5, cruel: -15, loco: -20, codicioso: -5 }[c.rey.rasgo] || 0) : 0;
+    if (rey) out.push(['su ' + titulo(c) + ' es ' + M.RASGOS[c.rey.rasgo].nombre, rey]);
+    const alcalde = { leal: 15, ambicioso: -15, codicioso: -5 }[x.rasgo] || 0;
+    if (alcalde) out.push(['el alcalde es ' + x.rasgo, alcalde]);
+    if (x.conquistada != null && m.turno - x.conquistada < 10) out.push(['conquistada hace poco', -Math.round(30 * (1 - (m.turno - x.conquistada) / 10))]);
+    if (m.turno - c.ultimaHambre < 4) out.push(['hambre', -15]); else if ((c.comida || 0) > 20) out.push(['graneros llenos', 5]);
+    out.push(['estabilidad del reino', Math.round((c.estab - 50) * 0.4)]);
+    if (c.guerras.some(g => g.cansancio > 4)) out.push(['cansancio de la guerra', -10]);
+    return out;
+  }
+  function lealtades(m) {
+    for (const x of (m.ciudades || []).slice()) {
+      const c = civ(m, x.civ);
+      if (!c || !c.viva || x.region === c.capital) continue;
+      x.motivos = motivosLealtad(m, c, x);
+      x.lealtad = x.motivos.reduce((k, y) => k + y[1], 0);
+      if (x.lealtad < 0) {
+        if (x.complot == null) { x.complot = 0; cronica(m, 'complot', x.alcalde + ' conspira en ' + x.nombre, 'El alcalde de ' + x.nombre + ' reúne a los notables de la ciudad: ya no quieren obedecer a ' + c.nombre + '. ' + (x.motivos.filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0] || ['', 0])[0].replace(/^./, l => l.toUpperCase()) + '.', c, x.region); }
+        x.complot += 20 + Math.min(40, -x.lealtad / 2);
+        if (x.complot >= 100) rebelarCiudad(m, c, x);
+      } else if (x.lealtad >= 10) x.complot = null;
+    }
+  }
+  // La ciudad se independiza con las tierras que tiene alrededor (las que están más cerca de ella que de la capital).
+  function rebelarCiudad(m, c, x) {
+    const cs = casillas(m, c);
+    const parte = cs.filter(i => i !== c.capital && distancia(i, x.region) <= 4 && distancia(i, x.region) < distancia(i, c.capital));
+    if (!parte.includes(x.region)) parte.unshift(x.region);
+    if (parte.length >= cs.length) return;
+    parte.splice(parte.indexOf(x.region), 1); parte.unshift(x.region);
+    const nueva = nuevaCiv(m, x.region, { era: c.era, ciencia: c.ciencia * 0.9, pob: c.pob * parte.length / cs.length, riqueza: c.riqueza * 0.2, estab: 55, inventos: c.inventos.slice(), caracter: c.caracter });
+    if (!m.civs.some(o => o !== nueva && o.nombre === x.nombre)) nueva.nombre = x.nombre;
+    nueva.rey = { nombre: x.alcalde, edad: 40, rasgo: x.rasgo === 'ambicioso' ? 'guerrero' : 'justo', desde: m.anio };
+    for (const i of parte) m.dueno[i] = nueva.id;
+    c.pob -= nueva.pob; c.estab = Math.max(10, c.estab - 10);
+    nueva.regimen = regimenPorEra(m, nueva, parte.length);
+    nueva.rel[c.id] = c.rel[nueva.id] = -50;
+    m.ciudades = m.ciudades.filter(y => y !== x);
+    cronica(m, 'revuelta', x.nombre + ' se independiza de ' + c.nombre, 'El alcalde ' + x.alcalde + ' proclama la independencia de ' + x.nombre + ' y de ' + (parte.length - 1) + ' comarcas de alrededor. ' + c.nombre + ' lo llama traición; ' + x.nombre + ', libertad.', nueva, x.region, { importante: true });
+    // A veces la metrópoli no lo acepta.
+    if (azar(m) < 0.5 && !c.jugador) declararGuerra(m, c, nueva, c.nombre + ' no acepta la independencia de ' + x.nombre + ' y manda a sus ejércitos a recuperarla.', true);
   }
 
   // Un complot nuevo (si no hay ya uno igual): lo trama el gobernante de "de" contra (o con) "contra".
@@ -609,5 +664,5 @@
   }
 
   M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

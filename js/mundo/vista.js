@@ -182,9 +182,15 @@
       return '<span class="' + (p.tipo === 'guerra' ? 'rojo' : '') + '">' + esc(texto) + '</span> <span class="barra"><span style="width:' + Math.min(100, Math.round(p.progreso)) + '%"></span></span> <span class="tenue">' + Math.min(100, Math.round(p.progreso)) + '%</span>';
     }).join('<br>');
   }
+  // Las ciudades con su lealtad (y su peor motivo); las que conspiran, en rojo con el progreso del complot.
   function ciudadesDe(c) {
     const l = (m.ciudades || []).filter(x => x.civ === c.id);
-    return l.length ? esc(l.map(x => x.nombre + ' (alcalde ' + x.alcalde + ')').join(', ')) : '';
+    return l.map(x => {
+      const peor = (x.motivos || []).filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0];
+      const lealtad = x.lealtad != null ? Math.round(x.lealtad) : null;
+      return '<span class="' + (lealtad != null && lealtad < 0 ? 'rojo' : '') + '">' + esc(x.nombre) + '</span> <span class="tenue">alcalde ' + esc(x.alcalde) + (x.rasgo ? ' (' + esc(x.rasgo) + ')' : '') +
+        (lealtad != null ? ' · lealtad ' + lealtad + (peor ? ', ' + esc(peor[0]) : '') : '') + (x.complot != null ? ' · <b class="rojo">conspira ' + Math.min(100, Math.round(x.complot)) + '%</b>' : '') + '</span>';
+    }).join('<br>');
   }
   function aldeanos(c) {
     const cuenta = Object.create(null);
