@@ -527,7 +527,8 @@
         // Cada clase de soldado se reconoce: espadachín con escudo, lancero, arquero con capucha y arco,
         // tirador con arcabuz o fusil. El capitán lleva el estandarte.
         const arma = a.arma || 0, col = color[a.c] || '#ccc';
-        if (a.armadura) { g.fillStyle = '#a3a9b5'; g.fillRect(px, py + 1, 3, 2); g.fillStyle = col; g.fillRect(px + 1, py + 2, 1, 1); }
+        // La armadura, del color de su material: cuero, bronce, hierro, acero.
+        if (a.armadura) { g.fillStyle = ['#a3a9b5', '#8a5a32', '#c89a3a', '#8a909c', '#cfd6e2', '#b8c0cc', '#6a7a5a'][a.armadura] || '#a3a9b5'; g.fillRect(px, py + 1, 3, 2); g.fillStyle = col; g.fillRect(px + 1, py + 2, 1, 1); }
         if (a.tirador && arma >= 5) {
           g.fillStyle = arma >= 7 ? '#5a6a4a' : '#2a2a3a'; g.fillRect(px, py - 1, 3, 1);
           g.fillStyle = '#3a2a1e'; g.fillRect(px + 2, py + 2, 2, 1); g.fillRect(px + 4, py + 1, 2, 1); g.fillRect(px + 6, py, 1, 1);
@@ -904,11 +905,17 @@
   // Los animales, interpolando su paseo del turno.
   function animales(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
+    const ig = golpesDelTurno(v);
     for (const b of v.animales || []) {
       let px = b.x * P + 6, py = b.y * P + 8;
       if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 6; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 8; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
+      // También los animales: retroceden y se ponen rojos al recibir un mordisco o una lanzada; el lobo embiste.
+      const recibe = golpeActivo(ig.golpes.get(b.id), k), pega = golpeActivo(ig.ataques.get(b.id), k);
+      if (recibe) { const [gp, d] = recibe, emp = Math.round(2.5 * (1 - d)); px += Math.sign(b.x - gp[2]) * emp; py -= d < 0.5 ? 1 : 0; }
+      if (pega) { const [at, d] = pega, emb = Math.round(2.5 * Math.sin(Math.PI * d)); px += Math.sign(at[2]) * emb; py += Math.sign(at[3]) * emb; }
       px = Math.round(px); py = Math.round(py);
+      if (recibe && b.tipo !== 'pez') { const d = recibe[1]; g.globalAlpha = d < 0.45 ? 0.9 : 0.5; g.fillStyle = d < 0.45 ? '#ff2a2a' : '#ffffff'; g.fillRect(px - 1, py - 1, 6, 4); g.globalAlpha = 1; g.fillStyle = '#b01818'; g.fillRect(Math.round(px + 2 + 3 * d), Math.round(py - 2 + 6 * d * d), 1, 1); }
       const pata = Math.floor(ahora / 220 + b.id) % 2;
       if (b.tipo === 'pez') {
         const fase = (ahora / 2600 + b.id * 0.37) % 1;

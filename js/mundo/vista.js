@@ -149,6 +149,7 @@
         fila('Minas', Math.floor(c.metal || 0) + ' de ' + (c.era >= 6 ? 'acero' : c.era >= 2 ? 'hierro' : 'bronce') + ' <span class="tenue">· ' + Math.floor(c.oro || 0) + ' de oro</span>') +
         fila('Obras', (c.casas || 0) + ' casas') + fila('Edificios', edificios) + fila('Comercio', comercioDe(c))],
       ejercito: ['Ejército', fila('Ejército', (c.guerreros || 0) + ' guerreros' + (c.guerreros ? ' <span class="tenue">· ' + (c.armados || 0) + ' con ' + esc(M.vida.ARMAS[c.era].nombre) + (c.era >= 1 ? ', tiradores con ' + esc(M.vida.TIROS[c.era]) : '') + '</span>' : '')) +
+        fila('Equipo', esc(M.vida.ARMAS[c.era].nombre) + ' <span class="tenue">(' + M.vida.ARMAS[c.era].dano + ' de daño, ' + esc(M.vida.ARMAS[c.era].material) + ')</span> · ' + esc(M.vida.ARMADURAS[M.vida.armaduraDeEra(c.era)].nombre) + ' <span class="tenue">(−' + Math.round(M.vida.ARMADURAS[M.vida.armaduraDeEra(c.era)].reduce * 100) + ' %)</span>') +
         fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
         (complotsDe(c) ? fila('Complots', complotsDe(c)) : '')],
       diplomacia: ['Diplomacia', (S.aliadosDe(m, c).length ? fila('Aliados', esc(S.aliadosDe(m, c).map(o => o.nombre).join(', '))) : fila('Aliados', '<span class="tenue">ninguno</span>')) +
@@ -226,11 +227,12 @@
     const padre = a.padre != null ? m.vida.aldeanos.find(x => x.id === a.padre) : null;
     const hijosVivos = m.vida.aldeanos.filter(x => x.padre === a.id).length;
     const etapa = (a.edad || 0) < M.vida.ADULTO ? 'niño' : (a.edad || 0) >= M.vida.VIEJO ? 'anciano' : 'adulto';
-    const oficio = (a.edad || 0) < M.vida.ADULTO ? 'juega cerca de casa' : a.colono != null ? 'colono, de camino a tierras nuevas' : OFICIO1[M.vida.OFICIOS[a.o]] + (M.vida.OFICIOS[a.o] === 'guerrero' ? ' (' + (a.tirador ? M.vida.TIROS[c.era] : M.vida.ARMAS[a.arma || 0].nombre) + (a.armadura ? ', con armadura' : '') + ')' : '');
+    const oficio = (a.edad || 0) < M.vida.ADULTO ? 'juega cerca de casa' : a.colono != null ? 'colono, de camino a tierras nuevas' : OFICIO1[M.vida.OFICIOS[a.o]] + (M.vida.OFICIOS[a.o] === 'guerrero' ? (a.tirador ? ' tirador' : ' de cuerpo a cuerpo') : '');
     const siguiendo = P.siguiendoA() === a.id;
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(a.nombre + ' ' + (a.familia || '')) + '</h3>' +
       '<p class="subt">' + esc(etapa) + ' de ' + esc(c ? c.nombre : '—') + (ciudad ? ', vive en ' + esc(ciudad.nombre) : c && a.h === c.capital ? ', vive en la capital' : '') + '</p>' +
       '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', M.vida.anos(a) + ' años <span class="tenue">(nació ' + (m.libre ? 'el año ' + (a.nacio != null ? a.nacio : m.anio) : 'en ' + M.ERAS[a.eraNacio != null ? a.eraNacio : c.era].con) + ')</span>') +
+      fila('Vida', vidaAldeano(a)) + fila('Lleva', equipoAldeano(a)) +
       fila('Rasgos', a.rasgos && a.rasgos.length ? esc(a.rasgos.join(', ')) : '<span class="tenue">ninguno especial</span>') +
       fila('Familia', (padre ? 'hijo de ' + esc(padre.nombre) + ' · ' : '') + (a.hijos || 0) + ((a.hijos || 0) === 1 ? ' hijo' : ' hijos') + (hijosVivos !== (a.hijos || 0) ? ' <span class="tenue">(' + hijosVivos + ' vivos)</span>' : '')) +
       (a.bajas ? fila('En combate', a.bajas + ' enemigos abatidos') : '') +
@@ -249,6 +251,17 @@
       return '<span class="' + (lealtad != null && lealtad < 0 ? 'rojo' : '') + '">' + esc(x.nombre) + '</span> <span class="tenue">alcalde ' + esc(x.alcalde) + (x.rasgo ? ' (' + esc(x.rasgo) + ')' : '') +
         (lealtad != null ? ' · lealtad ' + lealtad + (peor ? ', ' + esc(peor[0]) : '') : '') + (x.complot != null ? ' · <b class="rojo">conspira ' + Math.min(100, Math.round(x.complot)) + '%</b>' : '') + '</span>';
     }).join('<br>');
+  }
+  function vidaAldeano(a) {
+    const max = M.vida.vidaMax(a), pv = a.pv == null ? max : Math.max(0, Math.round(a.pv)), fr = pv / max;
+    return '<span class="barra"><span style="width:' + Math.round(fr * 100) + '%;background:' + (fr > 0.6 ? '#4cd060' : fr > 0.3 ? '#e8c040' : '#e04030') + '"></span></span> ' + pv + ' / ' + max + (pv < max ? ' <span class="tenue">(herido; se cura poco a poco)</span>' : '');
+  }
+  function equipoAldeano(a) {
+    const V = M.vida, arma = V.armaDe(a, false), arm = V.ARMADURAS[a.armadura || 0] || V.ARMADURAS[0];
+    const lejos = a.o === 4 && a.tirador ? V.armaDe(a, true) : null;
+    return esc(arma.nombre) + ' <span class="tenue">(' + arma.dano + ' de daño' + (arma.material ? ', ' + esc(arma.material) : '') + (arma.perfora ? ', atraviesa armaduras' : '') + (arma.bloqueo ? ', el escudo para golpes' : '') + ')</span>' +
+      (lejos ? ' · ' + esc(lejos.nombre) + ' <span class="tenue">(' + lejos.dano + ' de lejos)</span>' : '') +
+      ' · ' + esc(arm.nombre) + (arm.reduce ? ' <span class="tenue">(−' + Math.round(arm.reduce * 100) + ' % de daño, ' + esc(arm.material) + ')</span>' : '');
   }
   function ganado(c) {
     const reses = m.vida.animales.filter(b => b.c === c.id), ovejas = reses.filter(b => b.tipo === 'oveja').length, vacas = reses.length - ovejas;
@@ -338,7 +351,7 @@
   function relojSuave() {
     requestAnimationFrame(relojSuave);
     // Para depurar desde la consola: genesis.mundo() devuelve el mundo vivo.
-    window.genesis = { mundo: () => m };
+    window.genesis = { mundo: () => m, aldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); } };
     if (!m || anioAntes == null) return;
     const f = corriendo ? Math.min(1, (performance.now() - inicioTurno) / VELOCIDADES[vel][0]) : 1;
     const anio = Math.round(anioAntes + (m.anio - anioAntes) * f);

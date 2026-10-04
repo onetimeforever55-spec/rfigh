@@ -29,22 +29,58 @@
   const ACC = { andar: 0, trabajar: 1, luchar: 2, cargar: 3 };
 
   // Las armas de cada era: lo que lleva un guerrero si su pueblo tiene metal para forjarlas (si no, un garrote).
+  /*
+   * ARMAS Y ARMADURAS (como en WorldBox): cada arma hace un daño según su material y cada armadura quita una
+   * parte del golpe según el suyo. Las armas de fuego atraviesan parte de la armadura; el escudo para golpes.
+   * El índice del arma es la era en que se forja (el pintor dibuja cada una).
+   */
   const ARMAS = [
-    { nombre: 'garrote', poder: 1 }, { nombre: 'lanza de bronce', poder: 1.4 }, { nombre: 'espada de hierro', poder: 1.8 }, { nombre: 'espada y escudo', poder: 2.1 },
-    { nombre: 'espada y cota de malla', poder: 2.4 }, { nombre: 'arcabuz y pica', poder: 2.9 }, { nombre: 'mosquete y bayoneta', poder: 3.4 }, { nombre: 'fusil', poder: 4.1 }, { nombre: 'fusil automático', poder: 5 }
+    { nombre: 'garrote', material: 'madera', dano: 8 }, { nombre: 'lanza de bronce', material: 'bronce', dano: 12 },
+    { nombre: 'espada de hierro', material: 'hierro', dano: 16 }, { nombre: 'espada y escudo', material: 'hierro', dano: 17, bloqueo: 0.15 },
+    { nombre: 'espada de acero y escudo', material: 'acero', dano: 22, bloqueo: 0.15 }, { nombre: 'arcabuz y pica', material: 'pólvora', dano: 28, perfora: 0.5 },
+    { nombre: 'mosquete y bayoneta', material: 'pólvora', dano: 33, perfora: 0.5 }, { nombre: 'fusil', material: 'pólvora', dano: 40, perfora: 0.6 },
+    { nombre: 'fusil automático', material: 'pólvora', dano: 48, perfora: 0.7 }
   ];
   const TIROS = ['honda', 'arco', 'arco', 'arco largo', 'ballesta', 'arcabuz', 'mosquete', 'fusil', 'fusil automático'];
-  // Puntos de vida de un guerrero (como en WorldBox: los golpes restan vida y se muere al llegar a cero).
-  const vidaMax = a => 10 + (a.armadura ? 5 : 0) + (a.rasgos && a.rasgos.includes('fuerte') ? 3 : 0);
+  const TIRO = [{ dano: 6 }, { dano: 9 }, { dano: 10 }, { dano: 12 }, { dano: 15, perfora: 0.3 }, { dano: 26, perfora: 0.5 }, { dano: 30, perfora: 0.5 }, { dano: 38, perfora: 0.6 }, { dano: 45, perfora: 0.7 }];
+  const ARMADURAS = [
+    { nombre: 'sin armadura', material: null, reduce: 0 }, { nombre: 'jubón de cuero', material: 'cuero', reduce: 0.15 },
+    { nombre: 'peto de bronce', material: 'bronce', reduce: 0.25 }, { nombre: 'cota de malla', material: 'hierro', reduce: 0.35 },
+    { nombre: 'armadura de placas', material: 'acero', reduce: 0.45 }, { nombre: 'coraza', material: 'acero', reduce: 0.3 },
+    { nombre: 'casco y uniforme', material: 'acero y tela', reduce: 0.15 }
+  ];
+  // La armadura de cada era (con la pólvora las placas ya no sirven y se aligeran).
+  const armaduraDeEra = era => (era <= 0 ? 1 : era === 1 ? 2 : era <= 3 ? 3 : era === 4 ? 4 : era <= 6 ? 5 : 6);
+  // Lo que pega quien no es guerrero: su herramienta.
+  const HERRAMIENTA = { 0: { nombre: 'hacha', dano: 9 }, 1: { nombre: 'azada', dano: 6 }, 2: { nombre: 'martillo', dano: 7 }, 3: { nombre: 'pico', dano: 8 }, 5: { nombre: 'cuchillo', dano: 5 } };
+  const tieneR = (a, r) => !!(a.rasgos && a.rasgos.includes(r));
+  // Puntos de vida de todos: aldeanos (según edad y rasgos) y animales.
+  const VIDA_ANIMAL = { oveja: 25, vaca: 50, ciervo: 35, lobo: 55, pez: 10 };
+  const vidaMax = a => (a.tipo ? VIDA_ANIMAL[a.tipo] || 30 : ((a.edad || 0) < ADULTO ? 25 : (a.edad || 0) >= VIEJO ? 45 : 60) + (tieneR(a, 'fuerte') ? 15 : 0));
+  // El arma con que pega alguien (de lejos, la del tirador).
+  function armaDe(a, lejos) {
+    if (a.tipo === 'lobo') return { nombre: 'colmillos', dano: 14 };
+    if (a.o === GUERRERO) return lejos && a.tirador ? Object.assign({ nombre: TIROS[a.arma || 0] }, TIRO[a.arma || 0]) : ARMAS[a.arma || 0];
+    return HERRAMIENTA[a.o] || { nombre: 'puños', dano: 4 };
+  }
+  // El daño de un golpe que acierta: el del arma (con algo de azar y los rasgos), menos lo que para la armadura.
+  function danoContra(v, at, vic, lejos) {
+    const arma = armaDe(at, lejos), arm = ARMADURAS[vic.armadura || 0] || ARMADURAS[0];
+    const d = arma.dano * (0.8 + azar(v) * 0.4) * (tieneR(at, 'fuerte') ? 1.2 : 1) * (tieneR(at, 'torpe') ? 0.85 : 1) * (tieneR(at, 'valiente') ? 1.1 : 1);
+    return Math.max(1, Math.round(d * (1 - arm.reduce * (1 - (arma.perfora || 0)))));
+  }
+  // ¿Acierta? Los rápidos aciertan más, los torpes menos, y un escudo para algunos golpes.
+  const acierta = (v, at, vic) => azar(v) < 0.62 + (tieneR(at, 'rapido') || tieneR(at, 'rápido') ? 0.1 : 0) - (tieneR(at, 'torpe') ? 0.1 : 0) - ((vic.o === GUERRERO && ARMAS[vic.arma || 0].bloqueo) || 0);
   // Un golpe: resta vida, se anota para que el pintor lo enseñe (destello rojo, retroceso, sangre) y dice si mata.
   function golpear(v, atacante, victima, dano, paso, ax, ay) {
     if (victima.pv == null) victima.pv = vidaMax(victima);
+    if (victima.pv0 == null) victima.pv0 = victima.pv;
     victima.pv -= dano;
     v.golpes.push([victima.id, paso, ax, ay, dano]);
     if (atacante) v.ataques.push([atacante.id, paso, victima.x - atacante.x, victima.y - atacante.y]);
     return victima.pv <= 0;
   }
-  const poder = a => ARMAS[a.arma || 0].poder * (a.armadura ? 1.35 : 1) * (a.rasgos && a.rasgos.includes('fuerte') ? 1.25 : 1) * (a.rasgos && a.rasgos.includes('valiente') ? 1.1 : 1) * (a.rasgos && a.rasgos.includes('torpe') ? 0.85 : 1);
+  const poder = a => armaDe(a).dano / 8 * (1 + (ARMADURAS[a.armadura || 0] || ARMADURAS[0]).reduce);
   // Vetas: en montañas y colinas hay hierro (metal) y oro.
   const MENAS = { montana: [0.22, 0.07], colina: [0.12, 0.03], desierto: [0.05, 0.03], tundra: [0.06, 0.02] };
 
@@ -399,7 +435,12 @@
       if (c.era >= 5 && !a.tirador && a.id % 3 !== 0) a.tirador = true;
       const quiere = c.era;
       if ((a.arma || 0) < quiere && (c.era === 0 || (c.metal || 0) >= 1)) { if (c.era > 0) c.metal -= 1; a.arma = quiere; }
-      if (!a.armadura && c.era >= 2 && (c.metal || 0) >= 2) { c.metal -= 1; a.armadura = 1; }
+      // La armadura de su era: el cuero sale del ganado; el bronce, el hierro y el acero, de la armería.
+      const arm = armaduraDeEra(c.era);
+      if ((a.armadura || 0) !== arm) {
+        if (arm === 1) { if (v.animales.some(b => b.c === c.id)) a.armadura = 1; }
+        else if ((c.metal || 0) >= 2) { c.metal -= 1; a.armadura = arm; }
+      }
     }
   }
 
@@ -616,8 +657,8 @@
       if (blanco && azar(v) < 0.5) {
         v.disparos.push([tx, ty, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
         if (azar(v) < 0.6) {
-          if (blanco.pv0 == null) blanco.pv0 = blanco.pv != null ? blanco.pv : vidaMax(blanco);
-          if (golpear(v, null, blanco, 3 + Math.floor(azar(v) * 3), paso + 0.5, tx, ty)) { v.aldeanos = v.aldeanos.filter(a => a !== blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'torre', paso + 0.5]); }
+          const tiro = c.era >= 5 ? { dano: 30, perfora: 0.5 } : { dano: 14 }, arm = ARMADURAS[blanco.armadura || 0] || ARMADURAS[0];
+          if (golpear(v, null, blanco, Math.max(1, Math.round(tiro.dano * (0.8 + azar(v) * 0.4) * (1 - arm.reduce * (1 - (tiro.perfora || 0))))), paso + 0.5, tx, ty)) { v.aldeanos = v.aldeanos.filter(a => a !== blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'torre', paso + 0.5]); }
         }
       }
       if (cerca) { v.torres[k] -= cerca * 0.4; if (v.torres[k] <= 0) { cambiar(m, 'obra', t, OBRA.ruina, paso); delete v.torres[k]; } }
@@ -659,7 +700,7 @@
     memo = new Map();
     v.cambios = []; v.muertos = []; v.disparos = []; v.golpes = []; v.ataques = [];
     // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
-    for (const a of v.aldeanos) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + 3); a.pv0 = a.pv; if (a.pv >= vidaMax(a) && !((S().civ(m, a.c) || {}).guerras || []).length) { a.pv = null; a.pv0 = null; } }
+    for (const a of v.aldeanos.concat(v.animales || [])) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + (a.tipo ? 5 : 6)); a.pv0 = a.pv; if (a.pv >= vidaMax(a)) { a.pv = null; a.pv0 = null; } }
     for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : a.edad + 1);
     v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.barcos = v.barcos || []; v.torres = v.torres || {}; v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
     centros(m);
@@ -696,9 +737,11 @@
     comer(m);
     // La crónica cuenta los lobos cuando hacen daño de verdad (una vez cada tanto por pueblo).
     for (const c of S().vivas(m)) {
-      const mordidos = (v.mordidos || {})[c.id] || 0, robadas = (v.robadas || {})[c.id] || 0;
-      if ((mordidos || robadas >= 3) && !(c.ultimosLobos > m.turno - 10)) {
-        c.ultimosLobos = m.turno;
+      const mordidos = (v.mordidos || {})[c.id] || 0;
+      c.robadas = (c.robadas || 0) + ((v.robadas || {})[c.id] || 0);
+      const robadas = c.robadas;
+      if ((mordidos || robadas >= 2) && !(c.ultimosLobos > m.turno - 10)) {
+        c.ultimosLobos = m.turno; c.robadas = 0;
         S().cronica(m, 'lobos', 'Lobos en ' + c.nombre, (robadas ? 'Los lobos bajan del bosque y se llevan ' + robadas + (robadas === 1 ? ' res' : ' reses') + ' de los rebaños de ' + c.nombre + '. ' : '') + (mordidos ? (mordidos === 1 ? 'Un aldeano no vuelve a casa. ' : mordidos + ' aldeanos no vuelven a casa. ') : '') + 'Los guerreros salen a darles caza.', c);
       }
     }
@@ -762,12 +805,8 @@
       }
       if (rival) {
         // Cuerpo a cuerpo: se cruzan golpes; el más fuerte acierta más y pega más fuerte.
-        const pa = poder(a), pb = poder(rival);
-        if (azar(v) < 0.75 * pa / (pa + pb) * 2 * 0.6) {
-          const dano = Math.max(1, Math.round((2 + azar(v) * 3) * Math.sqrt(pa / pb)));
-          if (a.pv == null) { a.pv = vidaMax(a); a.pv0 = a.pv; }
-          if (rival.pv0 == null) rival.pv0 = rival.pv != null ? rival.pv : vidaMax(rival);
-          if (golpear(v, a, rival, dano, paso, a.x, a.y)) {
+        if (acierta(v, a, rival)) {
+          if (golpear(v, a, rival, danoContra(v, a, rival, false), paso, a.x, a.y)) {
             muertos.add(rival); v.muertos.push([rival.x, rival.y, rival.c, 'batalla', paso]);
             c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1;
           }
@@ -784,11 +823,9 @@
         if (blanco && azar(v) < 0.6) {
           // Una flecha (o una bala) vuela: se dibuja en este paso.
           v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
-          const pa = poder(a), pb = poder(blanco);
-          if (azar(v) < 0.55 * pa / (pa + pb) * 2) {
-            if (blanco.pv0 == null) blanco.pv0 = blanco.pv != null ? blanco.pv : vidaMax(blanco);
+          if (azar(v) < 0.5 + (tieneR(a, 'sabio') ? 0.05 : 0)) {
             // La flecha llega al final del paso: el golpe se ve un poco después de soltarla.
-            if (golpear(v, null, blanco, Math.round(2 + azar(v) * 3 + (c.era >= 5 ? 3 : 0)), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5]); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+            if (golpear(v, null, blanco, danoContra(v, a, blanco, true), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5]); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
           }
           acc = ACC.luchar;
           // El tirador se para a disparar: deshace el paso de este turno si iba andando.
@@ -1077,7 +1114,12 @@
       const b = v.animales.find(x => x.id === a.caza), seca = c.efectos.some(e => e.sequia);
       a.caza = null;
       if (b && dist(m, t, b.y * v.tw + b.x) <= 4) {
-        if (b.tipo === 'ciervo') { if (azar(v) < 0.6) { v.animales = v.animales.filter(x => x !== b); c.comida = (c.comida || 0) + 4; } }
+        if (b.tipo === 'ciervo') {
+          // Tres lanzadas (o tiros); si no cae, huye herido y otro día será.
+          let muere = false;
+          for (let q = 0; q < 3 && !muere; q++) if (azar(v) < 0.6) muere = golpear(v, a, b, Math.round((12 + c.era * 3) * (0.8 + azar(v) * 0.4) * (tieneR(a, 'fuerte') ? 1.2 : 1)), paso, a.x, a.y);
+          if (muere) { v.animales = v.animales.filter(x => x !== b); c.comida = (c.comida || 0) + 4; }
+        }
         else { c.comida = (c.comida || 0) + (seca ? 0.6 : 1.2); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
       }
       return;
@@ -1302,8 +1344,11 @@
     for (const b of lista) {
       for (const a of cerca) {
         if (Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > 1 || muertos.has(a)) continue;
-        if (a.o === GUERRERO && !esNino(a)) { if (azar(v) < 0.5) { b.muerta = 1; a.bajas = (a.bajas || 0) + 1; } break; }
-        if (azar(v) < (esNino(a) ? 0.04 : 0.015)) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'lobo', paso]); v.mordidos[a.c] = (v.mordidos[a.c] || 0) + 1; break; }
+        // Pelea de verdad: el lobo muerde (si se atreve: con un guerrero o un adulto, menos) y el aldeano le
+        // devuelve el golpe con lo que lleve en la mano.
+        const ataca = esNino(a) ? 0.3 : a.o === GUERRERO ? 0.25 : 0.12;
+        if (azar(v) < ataca && acierta(v, b, a) && golpear(v, b, a, danoContra(v, b, a, false), paso, b.x, b.y)) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'lobo', paso]); v.mordidos[a.c] = (v.mordidos[a.c] || 0) + 1; break; }
+        if (!esNino(a) && acierta(v, a, b) && golpear(v, a, b, danoContra(v, a, b, false), paso, a.x, a.y)) { b.muerta = 1; a.bajas = (a.bajas || 0) + 1; break; }
       }
     }
     if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
@@ -1322,7 +1367,7 @@
       if (o) {
         const dx = Math.sign(o.x - b.x), dy = Math.sign(o.y - b.y), [mx, my] = dx && (!dy || azar(v) < 0.5) ? [dx, 0] : [0, dy];
         if (HABITAT.lobo(ter[(b.y + my) * v.tw + b.x + mx]) || andable(ter[(b.y + my) * v.tw + b.x + mx])) { b.x += mx; b.y += my; }
-        if (Math.abs(o.x - b.x) + Math.abs(o.y - b.y) <= 1 && azar(v) < 0.2) { o.muerta = 1; b.presa = null; v.presas = (v.presas || 0) + 1; if (o.c != null) v.robadas[o.c] = (v.robadas[o.c] || 0) + 1; }
+        if (Math.abs(o.x - b.x) + Math.abs(o.y - b.y) <= 1 && azar(v) < 0.35 && golpear(v, b, o, danoContra(v, b, o, false), (b.r.length >> 1) || 1, b.x, b.y)) { o.muerta = 1; b.presa = null; v.presas = (v.presas || 0) + 1; if (o.c != null) v.robadas[o.c] = (v.robadas[o.c] || 0) + 1; }
         b.r.push(b.x, b.y);
         return;
       }
@@ -1356,7 +1401,7 @@
     // todos los ciervos de una comarca, tardan en volver.
     const habitat = { ciervo: 0, pez: 0, lobo: 0 };
     for (let t = 0; t < ter.length; t += 3) { if (HABITAT.ciervo(ter[t]) && m.dueno[region(m, t)] < 0) habitat.ciervo += 3; if (HABITAT.pez(ter[t])) habitat.pez += 3; if (GUARIDA(ter[t]) && m.dueno[region(m, t)] < 0) habitat.lobo += 3; }
-    const tope = { ciervo: Math.min(70, Math.floor(habitat.ciervo / 120)), pez: Math.min(60, Math.floor(habitat.pez / 250)), lobo: Math.min(12, Math.floor(habitat.lobo / 500)) };
+    const tope = { ciervo: Math.min(70, Math.floor(habitat.ciervo / 120)), pez: Math.min(60, Math.floor(habitat.pez / 250)), lobo: Math.min(16, Math.floor(habitat.lobo / 350)) };
     for (const tipo of ['ciervo', 'pez', 'lobo']) {
       const suyos = v.animales.filter(b => b.tipo === tipo);
       if (suyos.length > tope[tipo] + 2) { v.animales = v.animales.filter(b => b !== suyos[0]); continue; }
@@ -1657,5 +1702,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
