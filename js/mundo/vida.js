@@ -17,7 +17,7 @@
   const M = RF.MUNDO;
   const S = () => M.sim;
   const SUB = 4, TICKS = 8, MAX_ALDEANOS = 260;
-  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4 };
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5 };
   const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero'];
   const [LENADOR, GRANJERO, CONSTRUCTOR, MINERO, GUERRERO] = [0, 1, 2, 3, 4];
   // Estados del aldeano y lo que hace en cada paso (la vista elige el dibujo con esto).
@@ -176,6 +176,8 @@
   function hogar(m, c, cs) {
     const v = m.vida;
     if (azar(v) < 0.4 || cs.length < 2) return c.capital;
+    const suyas = (m.ciudades || []).filter(x => x.civ === c.id);
+    if (suyas.length && azar(v) < 0.4) return suyas[Math.floor(azar(v) * suyas.length)].region;
     return cs[Math.floor(azar(v) * cs.length)];
   }
 
@@ -330,6 +332,7 @@
     }
     naturaleza(m, ter);
     contar(m);
+    ciudades(m);
     // La leña de cada día: cocinar, calentarse y, desde la Edad del Hierro, las forjas; en la era industrial, el carbón vegetal.
     for (const c of S().vivas(m)) c.madera = Math.max(0, c.madera - Math.sqrt(Math.max(0, c.pob)) * 0.18 * (1 + c.era * 0.3));
   }
@@ -534,7 +537,7 @@
       const nuevo = m.tipo[r];
       if (nuevo === 'desierto' || nuevo === 'montana' || esAgua(nuevo)) for (const t of parcelas(m, r)) {
         cambiar(m, 'arbol', t, 0, F);
-        if (v.obra[t] === OBRA.casa || v.obra[t] === OBRA.centro) cambiar(m, 'obra', t, OBRA.ruina, F);
+        if (v.obra[t] === OBRA.casa || v.obra[t] === OBRA.centro || v.obra[t] === OBRA.ayuntamiento) cambiar(m, 'obra', t, OBRA.ruina, F);
         else if (v.obra[t] === OBRA.campo) cambiar(m, 'obra', t, 0, F);
       }
       v.tipoVisto[r] = nuevo;
@@ -591,6 +594,51 @@
     }
   }
 
+  /*
+   * LAS CIUDADES: una región con muchas casas, lejos de la capital y de otras ciudades, se convierte en
+   * ciudad con su ayuntamiento, su nombre y su alcalde. Cambian de dueño con las guerras y son las que se
+   * rebelan cuando el reino se rompe (sim.js las usa en separar).
+   */
+  function nombreCiudad(m) {
+    const v = m.vida, S2 = M.SILABAS;
+    for (let k = 0; k < 20; k++) {
+      const n = S2.inicio[Math.floor(azar(v) * S2.inicio.length)] + (azar(v) < 0.5 ? S2.medio[Math.floor(azar(v) * S2.medio.length)] : '') + S2.fin[Math.floor(azar(v) * S2.fin.length)];
+      if (!m.civs.some(c => c.nombre === n) && !(m.ciudades || []).some(c => c.nombre === n)) return n;
+    }
+    return 'Villa ' + (m.ciudades || []).length;
+  }
+  const persona = v => M.PERSONAS.inicio[Math.floor(azar(v) * M.PERSONAS.inicio.length)] + M.PERSONAS.fin[Math.floor(azar(v) * M.PERSONAS.fin.length)];
+  function ciudades(m) {
+    const v = m.vida;
+    m.ciudades = m.ciudades || [];
+    // Las que cambian de dueño o se abandonan.
+    for (const x of m.ciudades.slice()) {
+      const d = m.dueno[x.region], t = centro(m, x.region);
+      if (d < 0) { if (v.obra[t] === OBRA.ayuntamiento) cambiar(m, 'obra', t, OBRA.ruina, TICKS); m.ciudades = m.ciudades.filter(y => y !== x); S().cronica(m, 'caida', x.nombre + ' queda abandonada', 'La ciudad de ' + x.nombre + ' se vacía: sus calles se llenan de hierba y sus piedras acaban en las casas de los pueblos vecinos.', null, x.region); continue; }
+      if (d !== x.civ) {
+        const antes = S().civ(m, x.civ), ahora = S().civ(m, d);
+        x.civ = d; x.alcalde = persona(v);
+        if (ahora && antes && antes.viva) S().cronica(m, 'conquista', ahora.nombre + ' toma ' + x.nombre, 'La ciudad de ' + x.nombre + ', que era de ' + antes.nombre + ', iza ahora la bandera de ' + ahora.nombre + '. Su nuevo alcalde, ' + x.alcalde + ', promete respetar los mercados (y subir los impuestos).', ahora, x.region);
+      }
+      if (v.obra[t] !== OBRA.ayuntamiento) { cambiar(m, 'arbol', t, 0, TICKS); cambiar(m, 'roca', t, 0, TICKS); cambiar(m, 'obra', t, OBRA.ayuntamiento, TICKS); }
+    }
+    // Las nuevas: donde se juntan casas, lejos de la capital y de otras ciudades.
+    const casasDe = {};
+    for (let r = 0; r < m.W * m.H; r++) { if (m.dueno[r] < 0) continue; let n = 0; for (const t of parcelas(m, r)) if (v.obra[t] === OBRA.casa) n++; if (n) casasDe[r] = n; }
+    for (const c of S().vivas(m)) {
+      const cs = S().casillas(m, c), suyas = m.ciudades.filter(x => x.civ === c.id);
+      if (suyas.length >= Math.floor(cs.length / 12)) continue;
+      const lejos = r => S().distancia(r, c.capital) >= 5 && m.ciudades.every(x => S().distancia(r, x.region) >= 5);
+      const r = cs.filter(r => (casasDe[r] || 0) >= 3 && lejos(r)).sort((a, b) => casasDe[b] - casasDe[a])[0];
+      if (r == null) continue;
+      const x = { region: r, nombre: nombreCiudad(m), civ: c.id, alcalde: persona(v), fundada: m.anio };
+      m.ciudades.push(x);
+      const t = centro(m, r);
+      cambiar(m, 'arbol', t, 0, TICKS); cambiar(m, 'roca', t, 0, TICKS); cambiar(m, 'obra', t, OBRA.ayuntamiento, TICKS);
+      S().cronica(m, 'ciudad', 'Nace la ciudad de ' + x.nombre, 'Las aldeas de ' + c.nombre + ' han crecido tanto que ya son una ciudad: ' + x.nombre + ', con mercado, ayuntamiento y un alcalde, ' + x.alcalde + ', que se cree más importante que el ' + (S().titulo(c)) + '.', c, r);
+    }
+  }
+
   // Lo que cada pueblo tiene levantado en su tierra: lo usa la capacidad (sim.js) y la ficha.
   function contar(m) {
     const v = m.vida, casas = {}, campos = {}, arboles = {};
@@ -598,7 +646,7 @@
       const d = m.dueno[region(m, t)];
       if (d < 0) continue;
       const o = v.obra[t];
-      if (o === OBRA.casa || o === OBRA.centro) casas[d] = (casas[d] || 0) + (o === OBRA.casa ? 1 : 0.5);
+      if (o === OBRA.casa || o === OBRA.centro || o === OBRA.ayuntamiento) casas[d] = (casas[d] || 0) + (o === OBRA.casa ? 1 : 0.5);
       else if (o === OBRA.campo) campos[d] = (campos[d] || 0) + 1;
       if (v.arbol[t] >= 2) arboles[d] = (arboles[d] || 0) + 1;
     }

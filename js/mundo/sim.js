@@ -133,8 +133,48 @@
     }, datos || {});
     m.civs.push(c);
     m.dueno[capital] = id;
+    c.rey = c.rey || gobernante(m, c, 20 + Math.floor(azar(m) * 20));
+    c.heredero = c.heredero || gobernante(m, c, Math.floor(azar(m) * 15));
     for (const o of m.civs) if (o.id !== id) { o.rel[id] = o.rel[id] || 0; c.rel[o.id] = c.rel[o.id] || 0; }
     return c;
+  }
+
+  // ---------- Los gobernantes ----------
+  function nombrePersona(m) { const P = M.PERSONAS; return elegir(m, P.inicio) + elegir(m, P.fin); }
+  function gobernante(m, c, edad) {
+    const rasgos = Object.keys(M.RASGOS).filter(r => r !== 'loco' || azar(m) < 0.15);
+    return { nombre: nombrePersona(m), edad, rasgo: elegir(m, rasgos), desde: m.anio };
+  }
+  const rasgo = (c, k) => { const r = c.rey && M.RASGOS[c.rey.rasgo]; return r && r[k] != null ? r[k] : (k === 'estab' ? 0 : 1); };
+  const titulo = c => M.TITULOS[c.regimen] || 'rey';
+  const ordinales = ['', ' II', ' III', ' IV', ' V', ' VI', ' VII', ' VIII', ' IX', ' X'];
+  function nombreRey(c) { return c.rey ? c.rey.nombre + (ordinales[c.rey.numero || 0] || '') : '—'; }
+  // Pasa el tiempo para el gobernante: envejece, muere y le sucede su heredero; si no hay heredero o el
+  // reino está revuelto, llega una guerra de sucesión.
+  function reinar(m, c, anios) {
+    if (!c.rey) { c.rey = gobernante(m, c, 30); c.heredero = gobernante(m, c, 10); }
+    c.rey.edad += anios; if (c.heredero) c.heredero.edad += anios;
+    const limite = 45 + (c.rey.limite != null ? c.rey.limite : (c.rey.limite = Math.floor(azar(m) * 35)));
+    if (c.rey.edad < limite) return;
+    const viejo = nombreRey(c), cargo = titulo(c), detalle = anios <= 25;
+    // Con turnos de un siglo pasan varios reyes en silencio; las crisis se cuentan cuando el tiempo va más despacio.
+    const crisis = anios <= 50 && ((c.estab < 30 && azar(m) < 0.25) || azar(m) < 0.04);
+    const sucesor = c.heredero || gobernante(m, c, 25);
+    // Si el sucesor se llama como un antepasado, lleva número (Ardan II).
+    c.dinastia = c.dinastia || {};
+    c.dinastia[sucesor.nombre] = (c.dinastia[sucesor.nombre] || 0) + 1;
+    sucesor.numero = c.dinastia[sucesor.nombre] - 1;
+    sucesor.desde = m.anio;
+    sucesor.limite = Math.max(0, Math.round(sucesor.edad - 45) + 6 + Math.floor(azar(m) * 25));
+    c.rey = sucesor; c.heredero = gobernante(m, c, Math.floor(azar(m) * 15));
+    if (crisis) {
+      c.estab -= 8;
+      cronica(m, 'sucesion', 'Guerra de sucesión en ' + c.nombre, 'Muere ' + (cargo === 'rey' ? 'el rey ' : 'el ' + cargo + ' ') + viejo + ' y tres pretendientes reclaman el poder. Gana ' + nombreRey(c) + ', ' + M.RASGOS[c.rey.rasgo].nombre + ', pero el reino queda partido en bandos.', c, null, { importante: true });
+      const cs = casillas(m, c);
+      if (cs.length >= 14 * K && azar(m) < 0.3) separar(m, c, cs);
+    } else if (detalle && (c.jugador || azar(m) < 0.25)) {
+      cronica(m, 'sucesion', nombreRey(c) + ' gobierna ' + c.nombre, 'Muere ' + viejo + ' a los ' + Math.round(c.rey.edad) + ' años, más o menos. Le sucede ' + nombreRey(c) + ', de quien dicen que es ' + M.RASGOS[c.rey.rasgo].nombre + '.', c);
+    }
   }
 
   const civ = (m, id) => m.civs.find(c => c.id === id);
@@ -151,7 +191,7 @@
   }
   function fuerza(m, c, cs) {
     const car = M.CARACTERES[c.caracter];
-    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * Math.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * foco(c, 'fuerza') * (c.guerreros ? 1 + 0.25 * Math.min(1, (c.armados || 0) / Math.max(3, c.guerreros)) : 1));
+    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * Math.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * foco(c, 'fuerza') * rasgo(c, 'fuerza') * (c.guerreros ? 1 + 0.25 * Math.min(1, (c.armados || 0) / Math.max(3, c.guerreros)) : 1));
   }
   function frontera(m, a, b) {
     // Casillas de b que tocan a a.
@@ -228,6 +268,7 @@
     sucesosNaturales(m);
     for (const c of vivas(m)) c.efectos = c.efectos.filter(e => e.hasta > m.turno);
     const maxEra = Math.max(0, ...vivas(m).map(c => c.era));
+    for (const c of vivas(m)) reinar(m, c, M.ERAS[maxEra].anios);
     m.anio += M.ERAS[maxEra].anios;
     return m;
   }
@@ -254,15 +295,15 @@
     const enPaz = vec.filter(v => !enGuerra(c, v));
     // Riqueza: la tierra, el comercio con los vecinos en paz y la caja que se gasta.
     c.riqueza = c.riqueza * 0.93 + n * 0.4 * (c.era + 1) + enPaz.filter(v => (c.rel[v.id] || 0) > 10).length * 2 * car.comercio;
-    c.riqueza *= 1 + (foco(c, 'riqueza') - 1) * 0.1;
+    c.riqueza *= 1 + (foco(c, 'riqueza') * rasgo(c, 'riqueza') - 1) * 0.1;
     // Ciencia: gente, estabilidad, carácter, y los inventos que se copian de vecinos más avanzados.
     const copia = enPaz.reduce((k, v) => k + Math.max(0, v.era - c.era) * 3, 0);
     // Cada era acelera la siguiente: la escritura, la imprenta y la ciencia se apoyan unas en otras.
-    c.ciencia += Math.sqrt(c.pob) * 0.55 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') + copia;
+    c.ciencia += Math.sqrt(c.pob) * 0.55 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia;
     const sig = M.ERAS[c.era + 1];
     if (sig && c.ciencia >= sig.umbral) subirEra(m, c, null);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
-    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
+    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
@@ -325,7 +366,11 @@
     const lejos = cs.filter(i => i !== c.capital).sort((a, b) => distancia(b, c.capital) - distancia(a, c.capital));
     const parte = lejos.slice(0, Math.max(2, Math.floor(cs.length * 0.4)));
     if (parte.length < 2) return;
+    // Si en las tierras rebeldes hay una ciudad, se convierte en la capital del reino nuevo y le da nombre.
+    const ciudad = (m.ciudades || []).find(x => parte.includes(x.region));
+    if (ciudad) { parte.splice(parte.indexOf(ciudad.region), 1); parte.unshift(ciudad.region); }
     const nueva = nuevaCiv(m, parte[0], { era: c.era, ciencia: c.ciencia * 0.9, pob: c.pob * parte.length / cs.length, riqueza: c.riqueza * 0.3, estab: 55, inventos: c.inventos.slice() });
+    if (ciudad && !m.civs.some(x => x !== nueva && x.nombre === ciudad.nombre)) { nueva.nombre = ciudad.nombre; m.ciudades = m.ciudades.filter(x => x !== ciudad); }
     for (const i of parte) m.dueno[i] = nueva.id;
     c.pob -= nueva.pob; c.estab = 40;
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
@@ -361,7 +406,7 @@
         if (!enGuerra(a, b)) {
           const fa = fuerza(m, a), fb = fuerza(m, b);
           const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
-          const ganas = M.CARACTERES[agresor.caracter].agresion * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
+          const ganas = M.CARACTERES[agresor.caracter].agresion * rasgo(agresor, 'agresion') * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
           if (!agresor.jugador && agresor.guerras.length < 2 && (r < -55 || (ganas > 2.2 && r < 10)) && azar(m) < 0.12) declararGuerra(m, agresor, victima, null);
         }
       }
@@ -488,5 +533,5 @@
   }
 
   M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, destinoRumbo, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

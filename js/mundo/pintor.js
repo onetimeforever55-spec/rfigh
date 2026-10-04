@@ -34,6 +34,7 @@
     roca3: ['........', '..rRR...', '.rRHRRr.', 'rRHRRRRr', 'rRRRRRRr', '.rrrrrr.', '........', '........'],
     roca2: ['........', '........', '...rR...', '..rHRr..', '.rRRRRr.', '..rrrr..', '........', '........'],
     roca1: ['........', '........', '........', '...rR...', '..rRRr..', '...rr...', '........', '........'],
+    ayuntamiento: ['...yy...', '...XX...', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wkwwkw.', '.wwddww.', '.wwddww.'],
     ruina: ['........', '........', '.s...S..', '.S..sS..', '.sS.sS..', 'sSsSs.s.', '........', '........'],
     choza: ['...XX...', '..XXXX..', '.XXxxXX.', 'XXXXXXXX', '.wwwwww.', '.wwddww.', '.wwddww.', '........'],
     casa: ['........', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wwwwww.', '.wkwwdw.', '.wwwwdw.', '........'],
@@ -172,6 +173,7 @@
       if (obra === V.OBRA.campo) campo(x, y, t);
       else if (obra === V.OBRA.casa) gl.drawImage(sprite(CASAS[ge], color), x, y);
       else if (obra === V.OBRA.ruina) gl.drawImage(sprite('ruina'), x, y);
+      else if (obra === V.OBRA.ayuntamiento) gl.drawImage(sprite('ayuntamiento', color), x, y);
       else if (obra === V.OBRA.centro) {
         // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
         const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
@@ -320,6 +322,14 @@
   function banderas(ahora) {
     const fase = Math.floor(ahora / 260) % 2;
     for (const c of S.vivas(m)) {
+      // El gobernante pasea delante de su palacio, con capa del color de su pueblo y corona.
+      const R = V.SUB * P, rx = (c.capital % m.W) * R, ry = Math.floor(c.capital / m.W) * R;
+      const kx = Math.round(rx + R / 2 - 1 + Math.sin(ahora / 1100 + c.id) * 5), ky = ry + P * 3 + 1;
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(kx - 1, ky + 6, 5, 1);
+      g.fillStyle = '#3a2a1e'; g.fillRect(kx, ky + 4, 1, 2); g.fillRect(kx + 2, ky + 4, 1, 2);
+      g.fillStyle = c.color; g.fillRect(kx - 1, ky + 1, 5, 4);
+      g.fillStyle = '#f0c8a0'; g.fillRect(kx + 1, ky, 1, 1);
+      g.fillStyle = '#ffd23a'; g.fillRect(kx, ky - 1, 3, 1); g.fillRect(kx + (fase ? 0 : 2), ky - 2, 1, 1);
       const r = c.capital, x = (r % m.W) * V.SUB * P + P + 1, y = Math.floor(r / m.W) * V.SUB * P + P - 6;
       g.fillStyle = '#3a2a1e'; g.fillRect(x, y, 1, 8);
       g.fillStyle = c.color; g.fillRect(x + 1, y, 4, 3);
@@ -380,6 +390,22 @@
 
   function nombres(z, ox, oy, dpr) {
     if (cam.z < zMin() * 1.15 && S.vivas(m).length > 6) return;
+    // Las ciudades, más pequeñas, cuando te acercas.
+    if (cam.z >= 1.3) {
+      const tc = Math.round(10 * dpr);
+      g.font = '400 ' + tc + 'px "Pixelify Sans", "Courier New", monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      for (const x of m.ciudades || []) {
+        const c = S.civ(m, x.civ);
+        if (!c || !c.viva) continue;
+        const wx = (x.region % m.W) * V.SUB * P + V.SUB * P / 2, wy = Math.floor(x.region / m.W) * V.SUB * P + P * 1.6;
+        const sx = ox + wx * z, sy = oy + wy * z;
+        const ancho = g.measureText(x.nombre).width + 8 * dpr;
+        g.fillStyle = 'rgba(13,19,34,0.7)'; g.fillRect(sx - ancho / 2, sy - tc * 0.7, ancho, tc * 1.4);
+        g.fillStyle = c.color; g.fillRect(sx - ancho / 2, sy - tc * 0.7, 2 * dpr, tc * 1.4);
+        g.fillStyle = '#e8e0c8'; g.fillText(x.nombre, sx, sy);
+      }
+    }
     const tam = Math.round(12 * dpr);
     g.font = '600 ' + tam + 'px "Pixelify Sans", "Courier New", monospace';
     g.textAlign = 'center'; g.textBaseline = 'middle';
