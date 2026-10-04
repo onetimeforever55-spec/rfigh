@@ -89,7 +89,27 @@
     if (expandir && !guerra) cambios.expansion = { a: 1.5 };
     if (quieto) cambios.expansion = { a: 0 };
     if (Object.keys(cambios).length) acciones.push({ tipo: 'prioridad', cambios, solo: solo || undefined });
-    if (/\b(cruz\w* el mar|ultramar|colonia|barcos?|flota|navega\w*)\b/.test(n)) acciones.push({ tipo: 'colonia' });
+    const porMar = /\b(cruz\w* el mar|ultramar|colonia|barcos?|flota|navega\w*)\b/.test(n) && !/\bpuerto\b/.test(n);
+    if (porMar) acciones.push({ tipo: 'colonia' });
+    // Edificios concretos: "construid un templo", "levantad murallas", "haced un puerto".
+    const obra = /\b(templos?|iglesias?|santuarios?|altar)\b/.test(n) ? 'templo' : /\b(torres?|murallas?|muros?|defensas|fortific\w*|fuertes?|fortalezas?)\b/.test(n) ? 'torre' : /\b(puertos?|muelles?)\b/.test(n) ? 'puerto' : /\bmolinos?\b/.test(n) ? 'molino' : null;
+    if (obra && !guerra) {
+      acciones.push({ tipo: 'construir', obra });
+      const pr = acciones.find(x => x.tipo === 'prioridad');
+      if (pr) { delete pr.cambios.casas; if (obra === 'torre') delete pr.cambios.ejercito; if (!Object.keys(pr.cambios).length) acciones.splice(acciones.indexOf(pr), 1); }
+    }
+    // Colonos por tierra: "mandad colonos al sur", "fundad una aldea nueva".
+    if (!porMar && !guerra && /\b(colonos?|fund\w*|nuevas? (ciudad|aldea|pueblo)\w*|otra (ciudad|aldea)|asentamiento\w*)\b/.test(n)) {
+      const rumbo = /\bnorte\b/.test(n) ? 'norte' : /\bsur\b/.test(n) ? 'sur' : /\b(este|oriente)\b/.test(n) ? 'este' : /\b(oeste|poniente|occidente)\b/.test(n) ? 'oeste' : /\b(costa|mar|playa)\b/.test(n) ? 'costa' : null;
+      acciones.push({ tipo: 'colonos', rumbo });
+      const ex = acciones.find(x => x.tipo === 'expandir'); if (ex) acciones.splice(acciones.indexOf(ex), 1);
+    }
+    // Más gente: hacen falta comida y camas.
+    if (/\b(hijos|ninos|bebes|familias|natalidad|mas gente|que crezca|crezca la poblacion|mas poblacion)\b/.test(n)) {
+      let pr = acciones.find(x => x.tipo === 'prioridad');
+      if (!pr) acciones.push(pr = { tipo: 'prioridad', cambios: {} });
+      pr.cambios.comida = pr.cambios.comida || { mas: 0.5 }; pr.cambios.casas = pr.cambios.casas || { mas: 0.5 };
+    }
     return acciones;
   }
 
@@ -104,10 +124,10 @@
       else if (a.tipo === 'informe') textos.push(informe(m, c));
       else if (a.tipo === 'normal') { p.prioridad = PRIO_NORMAL(); p.rumbo = null; p.expandir = true; textos.push('Todas las prioridades vuelven a normal: tu pueblo se gobierna solo, como los demás.'); }
       else if (a.tipo === 'prioridad') {
-        const pr = p.prioridad, tocados = Object.keys(a.cambios);
+        const pr = p.prioridad, tocados = Object.keys(a.cambios), antesReparto = repartoDe(m, c);
         if (a.solo) for (const k of Object.keys(pr)) if (!tocados.includes(k) && k !== 'expansion') pr[k] = Math.min(pr[k], 0.5);
         for (const k of tocados) { const ch = a.cambios[k]; pr[k] = Math.max(0, Math.min(2, ch.a != null ? ch.a : (pr[k] != null ? pr[k] : 1) + ch.mas)); }
-        textos.push('Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') + (a.solo ? ' (lo demás, baja)' : '') + '. Tu gente se reorganiza sola según eso.');
+        textos.push('Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') + (a.solo ? ' (lo demás, baja)' : '') + '.' + oficiosNuevos(m, c, antesReparto, tocados));
       }
       else if (a.tipo === 'expandir') {
         p.expandir = a.si; p.rumbo = a.si ? (a.rumbo == null ? null : a.rumbo) : null;
@@ -158,6 +178,25 @@
         if (a.a === 'republica' || a.a === 'democracia') c.ciencia += 20;
         S().cronica(m, 'revolucion', c.nombre + ' cambia de gobierno', T(M.conArticulo(antes)) + ' de ' + c.nombre + ' da paso a ' + M.unoDe(a.a) + '. Unos celebran en las plazas; otros esconden la plata.', c, null, { importante: true });
         textos.push('Proclamada ' + M.unoDe(a.a) + '. La estabilidad cae un poco mientras la gente se acostumbra.');
+      } else if (a.tipo === 'construir') {
+        const NOMBRE = { templo: 'un templo', torre: 'una torre de defensa', puerto: 'un puerto', molino: 'un molino' };
+        const COSTE = { templo: [8, 6], torre: [6, 4], puerto: [10, 0], molino: [3, 0] }[a.obra];
+        if (a.obra !== 'molino' && c.era < 1) { textos.push('Aún no sabéis levantar ' + NOMBRE[a.obra] + ': hace falta llegar a la Edad del Bronce.'); continue; }
+        if (M.vida && m.vida) {
+          const zona = [c.capital, ...S().vecinos(c.capital).filter(r => m.dueno[r] === c.id)].flatMap(r => M.vida.parcelas(m, r));
+          if (zona.some(t => m.vida.obra[t] === M.vida.OBRA[a.obra])) { textos.push('Ya tenéis ' + NOMBRE[a.obra] + ' en la plaza de ' + c.nombre + '.'); continue; }
+        }
+        p.obra = a.obra;
+        const falta = [];
+        if ((c.madera || 0) < COSTE[0]) falta.push((COSTE[0] - Math.floor(c.madera || 0)) + ' de madera');
+        if ((c.piedra || 0) < COSTE[1]) falta.push((COSTE[1] - Math.floor(c.piedra || 0)) + ' de piedra');
+        if (falta.length) { if ((c.madera || 0) < COSTE[0]) p.prioridad.madera = Math.max(p.prioridad.madera, 1.5); if ((c.piedra || 0) < COSTE[1]) p.prioridad.piedra = Math.max(p.prioridad.piedra, 1.5); }
+        textos.push('Tus constructores levantarán ' + NOMBRE[a.obra] + ' en la plaza ' + (falta.length ? 'en cuanto junten lo que falta (' + falta.join(' y ') + '); mientras, más gente a por ello.' : 'ya: tenéis la madera y la piedra.') + (a.obra === 'puerto' ? ' Necesita costa junto a la plaza.' : ''));
+      } else if (a.tipo === 'colonos') {
+        const suyas = (m.ciudades || []).filter(x => x.civ === c.id).length;
+        if (suyas >= S().maxCiudades(c)) { textos.push('Tu reino ya tiene todas las ciudades que puede gobernar (' + suyas + '). Avanzad de era para poder fundar más.'); continue; }
+        p.colonos = a.rumbo || true;
+        textos.push('Tres familias recogen sus cosas y salen ' + (a.rumbo === 'costa' ? 'hacia la costa' : a.rumbo ? 'hacia el ' + a.rumbo : 'hacia la mejor tierra libre cercana') + ' a fundar una aldea. Las verás caminar por el mapa.');
       } else if (a.tipo === 'colonia') {
         if (c.era < 5) { textos.push('Aún no sabéis cruzar el mar: hace falta llegar al Renacimiento (la carabela).'); continue; }
         if ((c.madera || 0) < 15) { textos.push('Una flota cuesta 15 de madera y tienes ' + Math.floor(c.madera || 0) + '. Poned más leñadores.'); continue; }
@@ -178,6 +217,19 @@
     return textos;
   }
   const T = s => s.charAt(0).toUpperCase() + s.slice(1);
+  // Cuánta gente hay en cada oficio según el gobernador automático, para decir qué cambia con una orden.
+  const OFICIO_DE = { madera: [0, 'leñadores'], comida: [1, 'granjeros'], casas: [2, 'constructores'], piedra: [3, 'mineros'], ejercito: [4, 'guerreros'], riqueza: [5, 'comerciantes'] };
+  function repartoDe(m, c) {
+    if (!M.vida || !m.vida) return null;
+    const adultos = m.vida.aldeanos.filter(x => x.c === c.id && (x.edad || 0) >= M.vida.ADULTO && x.colono == null).length;
+    return M.vida.reparto(c, { arboles: 1, rocas: 1 }).map(x => Math.round(x * adultos));
+  }
+  function oficiosNuevos(m, c, antes, tocados) {
+    const ahora = repartoDe(m, c);
+    if (!antes || !ahora) return ' Tu gente se reorganiza sola según eso.';
+    const partes = tocados.filter(k => OFICIO_DE[k] && antes[OFICIO_DE[k][0]] !== ahora[OFICIO_DE[k][0]]).map(k => OFICIO_DE[k][1] + ' ' + antes[OFICIO_DE[k][0]] + ' → ' + ahora[OFICIO_DE[k][0]]);
+    return partes.length ? ' Irán cambiando de oficio: ' + partes.join(', ') + '.' : ' Tu gente se reorganiza sola según eso.';
+  }
 
   function informe(m, c) {
     const lista = S().vivas(m).slice().sort((a, b) => S().casillas(m, b).length - S().casillas(m, a).length);
@@ -205,7 +257,7 @@
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"}; {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"}; {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -214,7 +266,7 @@
       '\nOtros pueblos: ' + JSON.stringify(S().vivas(m).filter(o => o.id !== c.id).map(o => ({ id: o.id, nombre: o.nombre, era: M.ERAS[o.era].nombre, poblacion_miles: Math.round(o.pob), vecino: S().vecinosDe(m, c).includes(o), relacion: Math.round(c.rel[o.id] || 0) }))) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'informe', 'normal']);
+  const TIPOS = new Set(['prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
@@ -232,6 +284,8 @@
       } else if (a.tipo === 'expandir') out.push({ tipo: 'expandir', si: a.si !== false, rumbo: ['norte', 'sur', 'este', 'oeste'].includes(a.rumbo) ? a.rumbo : Number.isFinite(Number(a.rumbo)) && a.rumbo !== null ? Number(a.rumbo) : null });
       else if (a.tipo === 'regimen') { const r = REGIMENES.find(x => x[1] === a.a); if (r) out.push({ tipo: 'regimen', a: r[1], era: r[2] }); }
       else if (['guerra', 'paz', 'comercio', 'alianza', 'romper'].includes(a.tipo)) out.push({ tipo: a.tipo, con: Number(a.con) });
+      else if (a.tipo === 'colonos') out.push({ tipo: 'colonos', rumbo: ['norte', 'sur', 'este', 'oeste', 'costa'].includes(a.rumbo) ? a.rumbo : null });
+      else if (a.tipo === 'construir') { if (['templo', 'torre', 'puerto', 'molino'].includes(a.obra)) out.push({ tipo: 'construir', obra: a.obra }); }
       else out.push({ tipo: a.tipo });
     }
     return out;

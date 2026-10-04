@@ -331,7 +331,7 @@
       const vivos = lista.filter(a => !quitar.has(a));
       const camasLibres = Math.max(0, (c.camas || 6) - vivos.length);
       const tierra = !c.cap || vivos.length * escala(c) < c.cap * 1.05;
-      const comida = (c.comida || 0) > vivos.length * 0.12 || vivos.length < 8;
+      const comida = (c.comida || 0) > vivos.length * 0.2 || vivos.length < 8;
       c.sinCama = 0;
       // Un pueblo de viejos, sin nadie en edad de tener hijos, recibe parejas jóvenes de las aldeas de alrededor.
       const fertiles = vivos.filter(a => (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO).length;
@@ -439,7 +439,8 @@
   const COSTES = { [OBRA.torre]: [6, 4], [OBRA.templo]: [8, 6], [OBRA.molino]: [3, 0], [OBRA.puerto]: [10, 0] };
   function edificioPendiente(m, a, c, ter) {
     const v = m.vida;
-    const plazas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)].sort((p, q) => S().distancia(p, a.h) - S().distancia(q, a.h));
+    // Con un encargo del jugador pendiente, la madera y la piedra se guardan para él (en la capital).
+    const plazas = c.plan && c.plan.obra ? [c.capital] : [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)].sort((p, q) => S().distancia(p, a.h) - S().distancia(q, a.h));
     for (const r of plazas.slice(0, 3)) {
       const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)];
       const tiles = zona.flatMap(z => parcelas(m, z));
@@ -450,6 +451,14 @@
       if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
+      // Lo que pidió el jugador va primero; cuando ya está hecho en la plaza, se olvida el encargo.
+      const encargo = c.plan && c.plan.obra ? OBRA[c.plan.obra] : null;
+      if (encargo && r === c.capital && tiene(encargo)) {
+        const NOMBRES = { [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino' };
+        S().cronica(m, 'obra', (NOMBRES[encargo] || 'La obra') + ' de ' + c.nombre + (encargo === OBRA.torre ? ' está terminada' : ' está terminado'), 'Los constructores de ' + c.nombre + ' terminan lo que su gobierno les encargó y lo celebran con una fiesta en la plaza.', c);
+        c.plan.obra = null;
+      }
+      else if (encargo && r === c.capital) { const solo = pide.filter(x => x[0] === encargo || x[0] === OBRA.molino); pide.length = 0; pide.push(...solo.sort((x, y) => (y[0] === encargo) - (x[0] === encargo))); }
       for (const [obra, donde] of pide) {
         const coste = COSTES[obra];
         if (c.madera < coste[0] || c.piedra < coste[1]) continue;
@@ -807,8 +816,14 @@
     else if (a.o === MINERO) {
       // Con la Edad del Bronce, los mineros buscan vetas de metal para la armería; si no, piedra.
       const faltaMetal = c.era >= 1 && (c.metal || 0) < 8 + 4 * c.era;
-      if (faltaMetal && azar(v) < 0.8) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] > 0, 4, 'mena');
-      if (t < 0 && c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'))) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3, 'roca');
+      // Si el jugador pide piedra (o un edificio que la necesita), las vetas pasan a segundo plano.
+      const quierePiedra = prio(c, 'piedra') > 1 || (c.plan && c.plan.obra && (COSTES[OBRA[c.plan.obra]] || [0, 0])[1] > c.piedra);
+      if (faltaMetal && azar(v) < (quierePiedra ? 0.2 : 0.8)) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] > 0, 4, 'mena');
+      const faltaPiedra = c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'));
+      a.cantera = 0;
+      if (t < 0 && faltaPiedra) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3, 'roca');
+      // Sin piedras sueltas cerca, se abre una cantera en la montaña o la colina: más lejos, pero no se acaba.
+      if (t < 0 && (faltaPiedra || faltaMetal)) { t = cercaDeCasa(m, a, c, rec, x => (ter[x] === 'montana' || ter[x] === 'colina') && !v.obra[x] && !v.arbol[x] && !v.roca[x], 3, 'cantera'); if (t >= 0) a.cantera = 1; }
     }
     else if (a.o === GRANJERO) {
       a.siega = 0;
@@ -830,7 +845,8 @@
         if (t >= 0) a.obraCamino = 1;
       }
       if (t < 0 && (azar(v) < 0.6 || !molinoCerca(m, c, a.h))) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
-      if (t < 0 && faltanCamas(c) && c.madera >= 2 && memo.get('casa:' + a.h) !== -1) { t = casaNueva(m, a, c, rec, ter); if (t < 0) memo.set('casa:' + a.h, -1); }
+      const reserva = c.plan && c.plan.obra ? (COSTES[OBRA[c.plan.obra]] || [0])[0] : 0; // la madera del encargo del jugador no se gasta en casas
+      if (t < 0 && faltanCamas(c) && c.madera >= 2 + reserva && memo.get('casa:' + a.h) !== -1) { t = casaNueva(m, a, c, rec, ter); if (t < 0) memo.set('casa:' + a.h, -1); }
     }
     else if (a.o === COMERCIANTE) {
       // Elige una ruta abierta de su pueblo y sale desde su extremo: la capital propia en las rutas entre reinos.
@@ -946,7 +962,7 @@
     if (a.o === COMERCIANTE && a.viaje) { a.viaje = 0; a.e = VIAJAR; return; }
     if (a.paseo) { a.e = ESPERAR; a.t = a.paseo === 2 ? 3 : 1 + Math.floor(azar(v) * 2); a.paseo = 0; return; }
     if (a.o === LENADOR) { if (v.arbol[t] >= 2) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE; }
-    else if (a.o === MINERO) { if (v.roca[t] > 0) { a.e = TRABAJAR; a.t = 3; } else a.e = LIBRE; }
+    else if (a.o === MINERO) { if (v.roca[t] > 0) { a.e = TRABAJAR; a.t = 3; } else if (a.cantera) { a.e = TRABAJAR; a.t = 4; } else a.e = LIBRE; }
     else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else { a.e = LIBRE; a.siega = 0; } }
     else if (a.o === CONSTRUCTOR && a.edificio) {
       if (!v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, a.edificio, paso); if (a.edificio === OBRA.torre) (v.torres = v.torres || {})[t] = 12; }
@@ -970,7 +986,8 @@
   function terminar(m, a, c, rec, ter, paso) {
     const v = m.vida, t = a.ty * v.tw + a.tx;
     if (a.o === LENADOR && v.arbol[t] >= 2) { a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
-    if (a.o === MINERO && v.roca[t] > 0) { a.k = 1; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === MINERO && a.cantera && !v.roca[t]) { a.cantera = 0; a.k = 2; a.kt = ter[t] === 'montana' && azar(v) < 0.25 ? 1 : 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === MINERO && v.roca[t] > 0) { a.k = v.mena[t] ? 1 : 2; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2 + (c.molinos ? 1 : 0) + (c.era >= 4 ? 1 : 0) + (c.era >= 6 ? 1 : 0); a.siega = 0; }
     else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) {
@@ -1324,7 +1341,9 @@
       if (enCamino.length) continue;
       const suyas = (m.ciudades || []).filter(x => x.civ === c.id).length;
       const lleno = (c.sinCama || 0) > 0 || (c.cap && c.pob > c.cap * 0.5);
-      if (!lleno || suyas >= S().maxCiudades(c) || m.turno - (c.ultimaColonia || -99) < 4) continue;
+      // El jugador puede mandar colonos aunque el pueblo no esté lleno (y hacia donde diga).
+      const pedido = c.plan && c.plan.colonos;
+      if ((!lleno && !pedido) || suyas >= S().maxCiudades(c) || m.turno - (c.ultimaColonia || -99) < (pedido ? 1 : 4)) continue;
       const cs = S().casillas(m, c);
       const destino = [];
       for (let r = 0; r < m.W * m.H; r++) {
@@ -1333,13 +1352,16 @@
         if (d < 4 || d > 12) continue;
         if (S().vecinos(r).some(w => m.dueno[w] >= 0 && m.dueno[w] !== c.id)) continue;
         if (!ter[centro(m, r)] || !andable(ter[centro(m, r)])) continue;
-        destino.push([r, d - S().fertil(m, r) * 0.8 + azar(v) * 2]);
+        const rx = r % m.W - c.capital % m.W, ry = Math.floor(r / m.W) - Math.floor(c.capital / m.W);
+        const fuera = pedido === 'norte' ? ry >= 0 : pedido === 'sur' ? ry <= 0 : pedido === 'este' ? rx <= 0 : pedido === 'oeste' ? rx >= 0 : pedido === 'costa' ? !S().vecinos(r).some(w => m.tipo[w] === 'costa' || m.tipo[w] === 'mar') : false;
+        destino.push([r, d - S().fertil(m, r) * 0.8 + azar(v) * 2 + (fuera ? 30 : 0)]);
       }
       if (!destino.length) continue;
       const r = destino.sort((p, q) => p[1] - q[1])[0][0];
       const elegidos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.o !== GUERRERO && !a.k && a.e !== VIAJAR).slice(0, 3);
       if (elegidos.length < 2) continue;
       c.ultimaColonia = m.turno;
+      if (pedido) c.plan.colonos = null;
       for (const a of elegidos) { a.colono = r; a.e = LIBRE; a.paseo = 0; a.edificio = 0; a.obraCamino = 0; }
       void cs;
     }
@@ -1391,11 +1413,11 @@
   // ---------- Lo que cuesta una tierra nueva (sim.js) ----------
   // Tres de madera; sin madera, cuatro de piedra; y un pueblo sin árboles cerca levanta adobe: una tierra por turno.
   function tierrasPagables(m, c) {
-    return Math.floor((c.madera || 0) / 3) + Math.floor((c.piedra || 0) / 4) + (c.arboles ? 0 : 1);
+    return Math.floor((c.madera || 0) / 3) + (c.plan && c.plan.obra ? 0 : Math.floor((c.piedra || 0) / 4)) + (c.arboles ? 0 : 1);
   }
   function pagarTierra(m, c) {
     if (c.madera >= 3) c.madera -= 3;
-    else if (c.piedra >= 4) c.piedra -= 4;
+    else if (c.piedra >= 4 && !(c.plan && c.plan.obra)) c.piedra -= 4;
   }
 
   // ---------- Poderes del dios sobre la vida ----------
