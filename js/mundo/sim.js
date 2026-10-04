@@ -13,7 +13,10 @@
   const W = 48, H = 30;
   // El mundo se diseñó con 32×20 regiones: K escala lo que depende del tamaño (capacidad, expansión, fronteras).
   const K = (W * H) / 640;
-  const TIERRA = { llanura: 3, bosque: 1.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
+  // Lo que da de comer cada bioma (y los ríos suman encima).
+  const TIERRA = { llanura: 3, sabana: 2.3, bosque: 1.6, selva: 1.7, pantano: 1.3, taiga: 1.0, tundra: 0.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
+  // Los bosques talados dejan otro bioma, y vuelven si se dejan crecer.
+  const TALADO = { bosque: 'llanura', selva: 'sabana', taiga: 'tundra' };
   const RIO = 2.2;
   // Las prioridades de un jugador (mando.js): 0 nada, 1 normal, 2 máxima. Ciencia, riqueza y ejército
   // compiten entre sí: subir las tres a la vez no da nada, lo que cuenta es cuál pesa más que las otras.
@@ -64,7 +67,7 @@
   }
 
   function generarMapa(m) {
-    const n1 = ruido(m, 8), n2 = ruido(m, 4), n3 = ruido(m, 2), hum = ruido(m, 6);
+    const n1 = ruido(m, 8), n2 = ruido(m, 4), n3 = ruido(m, 2), hum = ruido(m, 6), tem = ruido(m, 9);
     const alto = [], tipo = [], rio = new Array(W * H).fill(false);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       // Continentes: más tierra en el centro, mar hacia los bordes.
@@ -73,17 +76,26 @@
       alto.push(n1(x, y) * 0.55 + n2(x, y) * 0.3 + n3(x, y) * 0.15 - borde * borde * 0.45);
     }
     const orden = alto.slice().sort((a, b) => a - b);
-    const nivel = orden[Math.floor(orden.length * 0.47)], cima = orden[Math.floor(orden.length * 0.93)], colina = orden[Math.floor(orden.length * 0.8)];
+    const nivel = orden[Math.floor(orden.length * 0.47)], cima = orden[Math.floor(orden.length * 0.93)], colina = orden[Math.floor(orden.length * 0.84)];
+    // Los biomas salen del clima: la temperatura baja hacia los polos y con la altura; la humedad, lejos del mar.
+    const agua = alto.map(h => h < nivel);
+    const cercaMar = i => { const [x, y] = xy(i); for (let r = 1; r <= 3; r++) for (const [a, b] of [[x - r, y], [x + r, y], [x, y - r], [x, y + r]]) if (a >= 0 && b >= 0 && a < W && b < H && agua[b * W + a]) return 1 - (r - 1) / 3; return 0; };
     for (let i = 0; i < W * H; i++) {
       const [x, y] = xy(i);
-      const h = alto[i], u = hum(x, y), lat = Math.abs(y - (H - 1) / 2) / ((H - 1) / 2);
+      const h = alto[i], lat = Math.abs(y - (H - 1) / 2) / ((H - 1) / 2);
+      const t = 1.12 - Math.pow(lat, 1.5) * 1.08 - Math.max(0, h - nivel) * 0.8 + (tem(x, y) - 0.5) * 0.3;
+      const u = hum(x, y) * 0.8 + cercaMar(i) * 0.25;
       if (h < nivel) tipo.push('mar');
-      else if (lat > 0.88) tipo.push('nieve');
+      else if (t < 0.1) tipo.push('nieve');
       else if (h > cima) tipo.push('montana');
-      else if (h > colina) tipo.push('colina');
-      else if (u < 0.3 && lat < 0.55) tipo.push('desierto');
-      else if (u > 0.62) tipo.push('bosque');
-      else tipo.push('llanura');
+      else if (h > colina) tipo.push(t < 0.3 ? 'tundra' : 'colina');
+      else if (t < 0.24) tipo.push(u > 0.5 ? 'taiga' : 'tundra');
+      else if (t < 0.36) tipo.push(u > 0.48 ? 'taiga' : 'llanura');
+      else if (t > 0.84) tipo.push(u < 0.3 ? 'desierto' : u < 0.5 ? 'sabana' : u > 0.78 && h < nivel + 0.04 ? 'pantano' : 'selva');
+      else if (u < 0.26) tipo.push(t > 0.55 ? 'desierto' : 'llanura');
+      else if (u > 0.74 && h < nivel + 0.035) tipo.push('pantano');
+      else if (u > 0.58) tipo.push('bosque');
+      else tipo.push(t > 0.62 && u < 0.4 ? 'sabana' : 'llanura');
     }
     for (let i = 0; i < W * H; i++) if (tipo[i] === 'mar' && vecinos(i).some(v => tipo[v] !== 'mar' && tipo[v] !== 'costa')) tipo[i] = 'costa';
     m.tipo = tipo; m.alto = alto;
@@ -475,6 +487,6 @@
     });
   }
 
-  M.sim = { W, H, K, TIERRA, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, destinoRumbo, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

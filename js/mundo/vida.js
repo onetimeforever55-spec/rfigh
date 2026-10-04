@@ -25,12 +25,12 @@
   const ACC = { andar: 0, trabajar: 1, luchar: 2, cargar: 3 };
 
   // Árboles y rocas al crear el mundo, según el suelo de la parcela.
-  const ARBOLES = { bosque: 0.78, colina: 0.22, llanura: 0.07, nieve: 0.14, desierto: 0.03 };
-  const ROCAS = { montana: 0.45, colina: 0.12, desierto: 0.06, nieve: 0.05, llanura: 0.015, bosque: 0.02 };
+  const ARBOLES = { bosque: 0.78, selva: 0.85, taiga: 0.7, pantano: 0.32, sabana: 0.1, colina: 0.22, llanura: 0.07, tundra: 0.06, nieve: 0.1, desierto: 0.03 };
+  const ROCAS = { montana: 0.45, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
   // Lo que brota solo cada turno junto a otro árbol (la naturaleza recupera lo que se deja).
-  const BROTE = { bosque: 0.035, colina: 0.025, llanura: 0.006, nieve: 0.008, desierto: 0.0015 };
-  const CONSTRUIBLE = new Set(['llanura', 'colina', 'bosque', 'desierto', 'nieve', 'arena']);
-  const CULTIVABLE = new Set(['llanura', 'colina', 'bosque']);
+  const BROTE = { bosque: 0.035, selva: 0.05, taiga: 0.025, pantano: 0.015, sabana: 0.005, colina: 0.025, llanura: 0.006, tundra: 0.002, nieve: 0.004, desierto: 0.0015 };
+  const CONSTRUIBLE = new Set(['llanura', 'colina', 'bosque', 'desierto', 'nieve', 'arena', 'sabana', 'selva', 'taiga', 'tundra', 'pantano']);
+  const CULTIVABLE = new Set(['llanura', 'colina', 'bosque', 'sabana', 'selva']);
 
   function azar(v) {
     let t = (v.rng = (v.rng + 0x6D2B79F5) >>> 0);
@@ -439,20 +439,22 @@
       if (a === 1 || a === 2) { if (azar(v) < 0.4) cambiar(m, 'arbol', t, a + 1, F); continue; }
       if (a) continue;
       // Un bosque abandonado vuelve a crecer como bosque.
-      const base = (v.fueBosque[r] && dueno < 0) ? BROTE.bosque : BROTE[m.tipo[r]] || 0;
+      const base = (v.fueBosque[r] && dueno < 0) ? BROTE[typeof v.fueBosque[r] === 'string' ? v.fueBosque[r] : 'bosque'] : BROTE[m.tipo[r]] || 0;
       if (!base) continue;
       const x = t % tw, y = t / tw | 0;
       const junto = (x > 0 && v.arbol[t - 1]) || (x < tw - 1 && v.arbol[t + 1]) || (y > 0 && v.arbol[t - tw]) || (y < v.th - 1 && v.arbol[t + tw]);
       if (azar(v) < base * (junto ? 1 : 0.12)) cambiar(m, 'arbol', t, 1, F);
     }
-    // Un bosque sin árboles ya no es bosque (y deja de dar madera, aunque sí da campos).
+    // Un bosque sin árboles ya no es bosque (y deja de dar madera, aunque sí da campos): la selva talada
+    // se queda en sabana, la taiga en tundra. Si se deja crecer, el bosque vuelve.
+    const TALADO = S().TALADO;
     for (let r = 0; r < m.W * m.H; r++) {
-      const tipo = m.tipo[r];
-      if (tipo !== 'bosque' && !(tipo === 'llanura' && v.fueBosque[r])) continue;
+      const tipo = m.tipo[r], original = v.fueBosque[r] ? (typeof v.fueBosque[r] === 'string' ? v.fueBosque[r] : 'bosque') : null;
+      if (!TALADO[tipo] && !(original && tipo === TALADO[original])) continue;
       let quedan = 0;
       for (const t of parcelas(m, r)) if (v.arbol[t]) quedan++;
-      if (tipo === 'bosque' && quedan <= 3) { m.tipo[r] = 'llanura'; v.fueBosque[r] = 1; v.tipoVisto[r] = 'llanura'; v.cambios.push([3, r, 'bosque', 'llanura', F]); }
-      else if (tipo === 'llanura' && quedan >= 10) { m.tipo[r] = 'bosque'; v.tipoVisto[r] = 'bosque'; v.cambios.push([3, r, 'llanura', 'bosque', F]); }
+      if (TALADO[tipo] && quedan <= 3) { m.tipo[r] = TALADO[tipo]; v.fueBosque[r] = tipo; v.tipoVisto[r] = m.tipo[r]; v.cambios.push([3, r, tipo, m.tipo[r], F]); }
+      else if (original && tipo === TALADO[original] && quedan >= 10) { m.tipo[r] = original; v.tipoVisto[r] = original; v.cambios.push([3, r, tipo, original, F]); }
     }
     avisar(m);
   }

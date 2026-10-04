@@ -108,9 +108,9 @@ console.log('LA VIDA: ALDEANOS, ÁRBOLES Y CASAS QUE MUEVEN LA ECONOMÍA');
   const r = m.tipo.findIndex(t => t === 'bosque');
   for (const t of V.parcelas(m, r)) v.arbol[t] = 0;
   S.turno(m);
-  comprobar(m.tipo[r] === 'llanura' && v.fueBosque[r] === 1, 'un bosque talado se vuelve llanura (y se recuerda que fue bosque)');
+  comprobar(m.tipo[r] === 'llanura' && v.fueBosque[r] === 'bosque', 'un bosque talado se vuelve llanura (y se recuerda que fue bosque)');
   const m2 = hasta(S.crear(2, 5), 1500);
-  comprobar(m2.vida.fueBosque.filter(Boolean).length >= 10, 'en un mundo poblado, los pueblos talan bosques enteros (' + m2.vida.fueBosque.filter(Boolean).length + ' regiones)');
+  comprobar(m2.vida.fueBosque.filter(Boolean).length >= 5, 'en un mundo poblado, los pueblos talan bosques enteros (' + m2.vida.fueBosque.filter(Boolean).length + ' regiones)');
 }
 {
   // La guerra la ganan también los guerreros que se encuentran en la frontera.

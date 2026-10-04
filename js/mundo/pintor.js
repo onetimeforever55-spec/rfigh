@@ -17,7 +17,7 @@
   const PALETA = {
     g: '#2f6b34', G: '#3f8a3e', h: '#6cb85a', t: '#6b4a2b', p: '#1f5a3a', P: '#2e7a4a', n: '#f4f8fb', c: '#4f9a4a', C: '#7cc36a',
     r: '#5e5e68', R: '#8a8a96', H: '#b9b9c4', s: '#8f8a80', S: '#b7b0a2', w: '#e3d3b0', W: '#c2ad86', d: '#5a3a22', k: '#2a3550',
-    b: '#7a5232', y: '#f0c05a', m: '#9aa1ad', M: '#c6ccd6', o: '#6d6f78', l: '#ffe9a6', f: '#e0a040'
+    b: '#7a5232', J: '#24702f', j: '#1a5a25', a: '#7d8a2e', A: '#9aa83a', u: '#6f7d5a', U: '#8a9a6e', e: '#4d7a3a', E: '#6a9a48', y: '#f0c05a', m: '#9aa1ad', M: '#c6ccd6', o: '#6d6f78', l: '#ffe9a6', f: '#e0a040'
   };
   const SPRITES = {
     roble3: ['..gGGg..', '.gGGhGg.', 'gGGhGGGg', 'gGGGGGhg', 'ggGGGGgg', '.gggggg.', '...tt...', '...tt...'],
@@ -25,6 +25,11 @@
     nevado3: ['...nn...', '..pnPp..', '..pPPp..', '.nPPnPp.', '.pPPPPp.', 'nPPPPPnp', '...tt...', '...tt...'],
     arbol2: ['........', '........', '...gg...', '..gGhg..', '..gGGg..', '...gg...', '...t....', '...t....'],
     arbol1: ['........', '........', '........', '........', '...g....', '..gGg...', '...t....', '........'],
+    palmera: ['.hG..Gh.', 'GGGhGGGG', 'G.GttG.G', '...tt...', '...t....', '....t...', '....t...', '...tt...'],
+    jungla3: ['.JJjJJ..', 'JjJJJjJ.', 'JJJhJJJJ', 'jJJJJJjJ', '.JjJJJJ.', '..JttJ..', '...tt...', '...tt...'],
+    acacia: ['........', '.aAAAAa.', 'aAAhAAAa', '..ttt...', '....t...', '...t....', '...t....', '........'],
+    sauce: ['..eEEe..', '.eEhEEe.', 'eEeEEeEe', 'e.ettE.e', 'e..tt..e', '...tt...', '........', '........'],
+    matorral: ['........', '........', '........', '...uu...', '..uUuu..', '.uUUuUu.', '..uuuu..', '........'],
     cactus: ['........', '...c....', '.c.cC...', '.ccc.c..', '...ccC..', '...c....', '...c....', '........'],
     roca3: ['........', '..rRR...', '.rRHRRr.', 'rRHRRRRr', 'rRRRRRRr', '.rrrrrr.', '........', '........'],
     roca2: ['........', '........', '...rR...', '..rHRr..', '.rRRRRr.', '..rrrr..', '........', '........'],
@@ -60,7 +65,8 @@
   const SUELO = {
     llanura: ['#6fa34f', '#7fb35a', '#5f9444'], bosque: ['#4f8a3f', '#5d9a49', '#437a36'], colina: ['#9c9a5c', '#aeab6a', '#87864e'],
     montana: ['#85838c', '#a3a1aa', '#6c6a73'], desierto: ['#dcc48a', '#e8d49c', '#c9ae74'], nieve: ['#e9eef2', '#ffffff', '#cfd8e0'],
-    arena: ['#e6d29a', '#f1e0ac', '#d4bd82'], agua: ['#1d4a82', '#24578f', '#183f72'], bajo: ['#2d6aa6', '#3a7bb8', '#255d94'], rio: ['#3d86d0', '#5a9de0', '#3377bf']
+    arena: ['#e6d29a', '#f1e0ac', '#d4bd82'], selva: ['#3d8a38', '#4c9c44', '#2f7a2e'], sabana: ['#b9b25c', '#c9c26c', '#a49d4c'],
+    pantano: ['#4d6b47', '#5b7b52', '#3f5a3b'], taiga: ['#4e7458', '#5c8466', '#41654b'], tundra: ['#9ba596', '#adb6a8', '#8a9485'], agua: ['#1d4a82', '#24578f', '#183f72'], bajo: ['#2d6aa6', '#3a7bb8', '#255d94'], rio: ['#3d86d0', '#5a9de0', '#3377bf']
   };
   const cacheSuelo = {};
   function suelo(tipo, variante) {
@@ -74,7 +80,14 @@
     const r = () => { s = (Math.imul(s ^ (s >>> 13), 1274126177) + 0x9E3779B9) >>> 0; return s / 4294967296; };
     for (let k = 0; k < 7; k++) { g.fillStyle = r() < 0.5 ? claro : oscuro; g.fillRect(Math.floor(r() * P), Math.floor(r() * P), 1, 1); }
     if (tipo === 'agua' || tipo === 'bajo') { g.fillStyle = claro; const y = Math.floor(r() * 6) + 1, x = Math.floor(r() * 5); g.fillRect(x, y, 3, 1); }
-    if (tipo === 'montana') { g.fillStyle = claro; g.fillRect(2, 2, 3, 1); g.fillRect(1, 3, 1, 1); g.fillStyle = oscuro; g.fillRect(4, 5, 3, 1); }
+    if (tipo === 'pantano') { g.fillStyle = '#2f5a5a'; g.fillRect(1 + Math.floor(r() * 3), 2 + Math.floor(r() * 3), 3, 2); g.fillStyle = '#4f8080'; g.fillRect(2, 3, 1, 1); }
+    if (tipo === 'tundra') { g.fillStyle = '#e9eef2'; g.fillRect(Math.floor(r() * 6), Math.floor(r() * 6), 2, 1); }
+    if (tipo === 'montana') {
+      // Un pico con la cumbre nevada en cada parcela de montaña.
+      const pico = variante % 2 ? ['....n...', '...nRr..', '..RRHRr.', '.RRRRHRr', 'RRrRRRRr', 'rRRRrRRr', 'rrRRRRrr', 'rrrrrrrr'] : ['...n....', '..nRr...', '.RHRRr..', '.RRHRRr.', 'RRRRRRrr', 'rRrRRRRr', 'rrRRrRrr', 'rrrrrrrr'];
+      const col = { n: '#f4f8fb', R: '#8a8a96', H: '#b9b9c4', r: '#5e5e68' };
+      for (let yy = 0; yy < P; yy++) for (let xx = 0; xx < P; xx++) { const ch = pico[yy][xx]; if (ch !== '.') { g.fillStyle = col[ch]; g.fillRect(xx, yy, 1, 1); } }
+    }
     return (cacheSuelo[clave] = c);
   }
 
@@ -171,7 +184,12 @@
     const a = visto.arbol[t];
     if (a) {
       const tipo = m.tipo[V.region(m, t)];
-      const nombre = a === 1 ? 'arbol1' : a === 2 ? (tipo === 'desierto' ? 'cactus' : 'arbol2') : tipo === 'desierto' ? 'cactus' : tipo === 'nieve' ? 'nevado3' : (tipo === 'colina' || ((t * 7) % 5 === 0)) ? 'pino3' : 'roble3';
+      const variante = (t * 7) % 5;
+      const maduro = {
+        desierto: 'cactus', nieve: 'nevado3', taiga: variante === 0 ? 'nevado3' : 'pino3', tundra: 'matorral', colina: 'pino3',
+        selva: variante < 2 ? 'palmera' : 'jungla3', sabana: 'acacia', pantano: 'sauce', bosque: variante === 0 ? 'pino3' : 'roble3'
+      }[tipo] || (variante === 0 ? 'pino3' : 'roble3');
+      const nombre = a === 1 ? (tipo === 'tundra' ? 'matorral' : 'arbol1') : a === 2 ? (tipo === 'desierto' ? 'cactus' : tipo === 'tundra' ? 'matorral' : 'arbol2') : maduro;
       gl.drawImage(sprite(nombre), x, y);
     }
   }
