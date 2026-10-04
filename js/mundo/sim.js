@@ -151,7 +151,7 @@
   }
   function fuerza(m, c, cs) {
     const car = M.CARACTERES[c.caracter];
-    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * Math.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * foco(c, 'fuerza'));
+    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * Math.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * foco(c, 'fuerza') * (c.guerreros ? 1 + 0.25 * Math.min(1, (c.armados || 0) / Math.max(3, c.guerreros)) : 1));
   }
   function frontera(m, a, b) {
     // Casillas de b que tocan a a.
@@ -391,7 +391,7 @@
       // Las batallas que ganan los guerreros de cada bando (vida.js) inclinan la guerra.
       const batallas = ((a.victorias || 0) - (b.victorias || 0));
       a.victorias = 0; b.victorias = 0;
-      const empuje = 1 + 0.15 * Math.tanh(batallas / 4);
+      const empuje = 1 + 0.25 * Math.tanh(batallas / 6);
       const fa = fuerza(m, a) * empuje, fb = fuerza(m, b) / empuje;
       const [gana, pierde, ratio] = fa >= fb ? [a, b, fa / fb] : [b, a, fb / fa];
       const k = Math.max(0, Math.min(5, Math.round(((ratio - 1) * 2 + (azar(m) - 0.4)) * 1.5)));

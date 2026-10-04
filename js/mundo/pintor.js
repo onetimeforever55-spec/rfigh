@@ -180,7 +180,13 @@
       }
       return;
     }
-    if (visto.roca[t]) { gl.drawImage(sprite('roca' + Math.min(3, visto.roca[t])), x, y); return; }
+    if (visto.roca[t]) {
+      gl.drawImage(sprite('roca' + Math.min(3, visto.roca[t])), x, y);
+      // Las vetas: motas rojizas de hierro o doradas de oro sobre la roca.
+      const mena = m.vida.mena && m.vida.mena[t];
+      if (mena) { gl.fillStyle = mena === 2 ? '#ffd23a' : '#c8643a'; gl.fillRect(x + 3, y + 3, 1, 1); gl.fillRect(x + 5, y + 4, 1, 1); if (visto.roca[t] > 1) gl.fillRect(x + 2, y + 4, 1, 1); }
+      return;
+    }
     const a = visto.arbol[t];
     if (a) {
       const tipo = m.tipo[V.region(m, t)];
@@ -260,8 +266,8 @@
     if (mundoActual !== m || !listo) { mundo(mundoActual); }
     sincronizar(m.vida.cambios || []);
     territorio();
-    recogerMuertos();
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
+    recogerMuertos(duracion);
   }
   // Tras un poder del dios (fuera del turno): todo al día, sin animación.
   function refrescar() {
@@ -270,9 +276,9 @@
     territorio();
     recogerMuertos();
   }
-  function recogerMuertos() {
+  function recogerMuertos(dur) {
     const ahora = performance.now();
-    for (const [x, y, c] of (m.vida.muertos || [])) tumbas.push({ x, y, c, inicio: ahora + Math.random() * 500 });
+    for (const [x, y, c, tipo, paso] of (m.vida.muertos || [])) tumbas.push({ x, y, c, inicio: ahora + (paso ? (paso / V.TICKS) * (dur || 1000) : Math.random() * 500) });
     m.vida.muertos = [];
     if (tumbas.length > 400) tumbas = tumbas.slice(-400);
   }
@@ -302,6 +308,7 @@
     g.drawImage(capa, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
     banderas(ahora);
     aldeanos(k, ahora, x0, y0, x1, y1);
+    pintarDisparos(k);
     pintarTumbas(ahora);
     pintarEfectos(ahora, x0, y0, x1, y1);
     marcarPulso(ahora);
@@ -355,7 +362,18 @@
       else if (oficio === 'minero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#a3a1aa'; g.fillRect(px + 2, py + alto, 3, 1); }
       else if (oficio === 'granjero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 4); g.fillStyle = '#9aa0aa'; g.fillRect(px + 3, py + 3 + alto, 2, 1); }
       else if (oficio === 'constructor') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#5e5e68'; g.fillRect(px + 3, py + alto, 2, 1); }
-      else if (oficio === 'guerrero') { g.fillStyle = '#e8ecf4'; g.fillRect(px + 3, py - 1 + alto, 1, 4); g.fillStyle = '#7a5232'; g.fillRect(px + 2, py + 2 + alto, 3, 1); }
+      else if (oficio === 'guerrero') {
+        const arma = a.arma || 0;
+        if (a.armadura) { g.fillStyle = '#a3a9b5'; g.fillRect(px, py + 1, 3, 1); }
+        if (a.tirador && arma >= 5) { g.fillStyle = '#3a2a1e'; g.fillRect(px + 2, py + 1, 4, 1); g.fillStyle = '#5e5e68'; g.fillRect(px + 5, py + 1, 1, 1); }
+        else if (a.tirador && arma >= 1) { g.fillStyle = '#8a5a2b'; g.fillRect(px + 3, py - 1, 1, 1); g.fillRect(px + 4, py, 1, 3); g.fillRect(px + 3, py + 3, 1, 1); g.fillStyle = '#e8e0c8'; g.fillRect(px + 3, py, 1, 3); }
+        else if (arma === 0) { g.fillStyle = '#6b4a2b'; g.fillRect(px + 3, py + alto, 1, 3); g.fillRect(px + 3, py + alto, 2, 1); }
+        else if (arma === 1) { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py - 2 + alto, 1, 6); g.fillStyle = '#c8a050'; g.fillRect(px + 3, py - 3 + alto, 1, 1); }
+        else { g.fillStyle = '#e8ecf4'; g.fillRect(px + 3, py - 1 + alto, 1, 4); g.fillStyle = '#7a5232'; g.fillRect(px + 2, py + 2 + alto, 3, 1); if (arma >= 3) { g.fillStyle = color[a.c] || '#ccc'; g.fillRect(px - 2, py + 1, 2, 3); g.fillStyle = '#e8ecf4'; g.fillRect(px - 2, py + 2, 1, 1); } }
+        // El capitán lleva el estandarte de su pueblo.
+        const ej = m.vida.ejercitos && m.vida.ejercitos[a.c];
+        if (ej && ej.capitan === a.id) { g.fillStyle = '#3a2a1e'; g.fillRect(px - 1, py - 6, 1, 7); g.fillStyle = color[a.c] || '#ccc'; g.fillRect(px, py - 6, 4, 3); g.fillStyle = '#fff6dc'; g.fillRect(px + 1, py - 5, 1, 1); }
+      }
       if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px - 2, py + 1, 1, 1); }
     }
   }
@@ -470,6 +488,25 @@
       g.globalAlpha = 1;
     }
   }
+  // Flechas y balas: vuelan durante el paso en que se dispararon.
+  function pintarDisparos(k) {
+    const lista = m.vida.disparos || [];
+    for (const [x1, y1, x2, y2, paso, bala] of lista) {
+      const f = k - (paso - 1);
+      if (f < 0 || f > 1) continue;
+      const ax = x1 * P + 4, ay = y1 * P + 3, bx = x2 * P + 4, by = y2 * P + 3;
+      const x = ax + (bx - ax) * f, y = ay + (by - ay) * f - Math.sin(f * Math.PI) * (bala ? 0 : 6);
+      if (bala) {
+        if (f < 0.25) { g.fillStyle = '#ffd23a'; g.fillRect(ax - 1, ay - 1, 3, 3); g.fillStyle = 'rgba(220,220,230,0.6)'; g.fillRect(ax - 2, ay - 3, 3, 2); }
+        g.fillStyle = '#fff6a0'; g.fillRect(x, y, 2, 1);
+      } else {
+        const dx = Math.sign(bx - ax) || 1;
+        g.fillStyle = '#6b4a2b'; g.fillRect(x - dx * 2, y, 3, 1);
+        g.fillStyle = '#e8ecf4'; g.fillRect(x + dx, y, 1, 1);
+      }
+    }
+  }
+
   // Donde muere un aldeano queda una cruz un rato.
   function pintarTumbas(ahora) {
     tumbas = tumbas.filter(tb => ahora - tb.inicio < 9000);

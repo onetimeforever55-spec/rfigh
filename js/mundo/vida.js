@@ -24,6 +24,16 @@
   const [LIBRE, IR, TRABAJAR, VOLVER, ESPERAR] = [0, 1, 2, 3, 4];
   const ACC = { andar: 0, trabajar: 1, luchar: 2, cargar: 3 };
 
+  // Las armas de cada era: lo que lleva un guerrero si su pueblo tiene metal para forjarlas (si no, un garrote).
+  const ARMAS = [
+    { nombre: 'garrote', poder: 1 }, { nombre: 'lanza de bronce', poder: 1.4 }, { nombre: 'espada de hierro', poder: 1.8 }, { nombre: 'espada y escudo', poder: 2.1 },
+    { nombre: 'espada y cota de malla', poder: 2.4 }, { nombre: 'arcabuz y pica', poder: 2.9 }, { nombre: 'mosquete y bayoneta', poder: 3.4 }, { nombre: 'fusil', poder: 4.1 }, { nombre: 'fusil automático', poder: 5 }
+  ];
+  const TIROS = ['honda', 'arco', 'arco', 'arco largo', 'ballesta', 'arcabuz', 'mosquete', 'fusil', 'fusil automático'];
+  const poder = a => ARMAS[a.arma || 0].poder * (a.armadura ? 1.35 : 1);
+  // Vetas: en montañas y colinas hay hierro (metal) y oro.
+  const MENAS = { montana: [0.22, 0.07], colina: [0.12, 0.03], desierto: [0.05, 0.03], tundra: [0.06, 0.02] };
+
   // Árboles y rocas al crear el mundo, según el suelo de la parcela.
   const ARBOLES = { bosque: 0.78, selva: 0.85, taiga: 0.7, pantano: 0.32, sabana: 0.1, colina: 0.22, llanura: 0.07, tundra: 0.06, nieve: 0.1, desierto: 0.03 };
   const ROCAS = { montana: 0.45, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
@@ -90,7 +100,7 @@
   function crear(m) {
     const tw = m.W * SUB, th = m.H * SUB, n = tw * th;
     const v = {
-      tw, th, rng: (m.semilla ^ 0x9E3779B9) >>> 0, arbol: new Array(n).fill(0), roca: new Array(n).fill(0), obra: new Array(n).fill(0),
+      tw, th, rng: (m.semilla ^ 0x9E3779B9) >>> 0, arbol: new Array(n).fill(0), roca: new Array(n).fill(0), obra: new Array(n).fill(0), mena: new Array(n).fill(0), ejercitos: {}, disparos: [],
       fueBosque: new Array(m.W * m.H).fill(0), tipoVisto: m.tipo.slice(), aldeanos: [], sig: 0, centros: {}, cambios: [], avisos: {}
     };
     m.vida = v;
@@ -98,9 +108,9 @@
     for (let t = 0; t < n; t++) {
       const r = azar(v), pa = ARBOLES[ter[t]] || 0, pr = ROCAS[ter[t]] || 0;
       if (r < pa) v.arbol[t] = azar(v) < 0.75 ? 3 : 2;
-      else if (r < pa + pr) v.roca[t] = 1 + Math.floor(azar(v) * 3);
+      else if (r < pa + pr) { v.roca[t] = 1 + Math.floor(azar(v) * 3); const [ph, po] = MENAS[ter[t]] || [0.04, 0.01], q = azar(v); v.mena[t] = q < po ? 2 : q < po + ph ? 1 : 0; }
     }
-    for (const c of S().vivas(m)) { c.madera = c.madera || 6; c.piedra = c.piedra || 0; }
+    for (const c of S().vivas(m)) { c.madera = c.madera || 6; c.piedra = c.piedra || 0; c.metal = c.metal || 0; c.oro = c.oro || 0; }
     centros(m);
     sincronizar(m);
     contar(m);
@@ -126,6 +136,7 @@
     }
     for (const c of S().vivas(m)) {
       if (c.madera == null) { c.madera = 6; c.piedra = 0; c.casas = 0; c.campos = 0; }
+      if (c.metal == null) { c.metal = 0; c.oro = 0; }
       if (v.centros[c.id] === c.capital) continue;
       for (const t of plaza(m, c.capital)) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.centro, 0); }
       v.centros[c.id] = c.capital;
@@ -152,7 +163,7 @@
       0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0),
       (c.casas || 0) < metaCasas(c) ? 0.16 : 0.06,
       recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) : 0.04) : 0,
-      guerra ? 0.34 : c.era >= 2 ? 0.07 : 0.04
+      guerra ? 0.6 : c.era >= 2 ? 0.07 : 0.04
     ];
     for (let i = 0; i < p.length; i++) {
       const w = prio(c, PRIO_OFICIO[i]);
@@ -202,10 +213,70 @@
       const tiene = [0, 0, 0, 0, 0];
       for (const a of lista) tiene[a.o]++;
       for (const a of lista) {
-        if (a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
+        // En guerra se llama a las armas a cualquiera que no vaya cargado; en paz, solo cambian los que están libres.
+        const llamada = c.guerras.length && !a.k && a.o !== GUERRERO;
+        if (!llamada && a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
         const falta = p.map((x, i) => x * lista.length - tiene[i] + (i === a.o ? 1 : 0));
         const mejor = falta.indexOf(Math.max(...falta));
         if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; }
+      }
+    }
+    equipar(m);
+  }
+
+  // La armería: los guerreros reciben el arma de su era si hay metal (y armadura si sobra); los demás, un garrote.
+  function equipar(m) {
+    const v = m.vida;
+    for (const a of v.aldeanos) {
+      if (a.o !== GUERRERO) continue;
+      const c = S().civ(m, a.c);
+      if (!c) continue;
+      if (a.tirador == null) a.tirador = c.era >= 5 ? a.id % 3 !== 0 : a.id % 3 === 0;
+      if (c.era >= 5 && !a.tirador && a.id % 3 !== 0) a.tirador = true;
+      const quiere = c.era;
+      if ((a.arma || 0) < quiere && (c.era === 0 || (c.metal || 0) >= 1)) { if (c.era > 0) c.metal -= 1; a.arma = quiere; }
+      if (!a.armadura && c.era >= 2 && (c.metal || 0) >= 2) { c.metal -= 1; a.armadura = 1; }
+    }
+  }
+
+  /*
+   * LOS EJÉRCITOS: en guerra, los guerreros de un pueblo se reúnen junto a la frontera tras su capitán y
+   * marchan juntos hacia una región del enemigo (la más cercana a su capital, para llegar al corazón del reino).
+   */
+  function ejercitos(m) {
+    const v = m.vida;
+    for (const id of Object.keys(v.ejercitos)) { const c = S().civ(m, +id); if (!c || !c.viva || !c.guerras.length) delete v.ejercitos[id]; }
+    for (const c of S().vivas(m)) {
+      if (!c.guerras.length) continue;
+      const suyos = v.aldeanos.filter(a => a.c === c.id && a.o === GUERRERO);
+      let e = v.ejercitos[c.id];
+      const o = e && S().civ(m, e.con);
+      const valido = e && o && o.viva && S().enGuerra(c, o) && m.dueno[e.obj] === o.id;
+      if (!valido) {
+        e = null;
+        for (const g of c.guerras) {
+          const enemigo = S().civ(m, g.con);
+          if (!enemigo || !enemigo.viva) continue;
+          const frente = S().frontera(m, c, enemigo);
+          if (!frente.length) continue;
+          const obj = frente.sort((x, y) => S().distancia(x, enemigo.capital) - S().distancia(y, enemigo.capital))[0];
+          const nuestro = S().frontera(m, enemigo, c).sort((x, y) => S().distancia(x, obj) - S().distancia(y, obj))[0];
+          e = { con: enemigo.id, obj, reunion: nuestro != null ? nuestro : c.capital, fase: 'reunion', desde: m.turno };
+          break;
+        }
+        if (e) v.ejercitos[c.id] = e; else { delete v.ejercitos[c.id]; continue; }
+      }
+      // Si un ejército enemigo ataca una de nuestras regiones, vamos a defenderla: ahí se encuentran los dos.
+      for (const g of c.guerras) {
+        const ee = v.ejercitos[g.con];
+        if (ee && ee.con === c.id && m.dueno[ee.obj] === c.id && ee.fase === 'marcha' && e.fase === 'reunion') { e.defiende = ee.obj; e.fase = 'marcha'; }
+      }
+      if (e.defiende != null && m.dueno[e.defiende] !== c.id) e.defiende = null;
+      e.capitan = suyos.length ? Math.min(...suyos.map(a => a.id)) : null;
+      if (e.fase === 'reunion') {
+        const base = centro(m, e.reunion);
+        const juntos = suyos.filter(a => dist(m, a.y * v.tw + a.x, base) <= 5).length;
+        if (juntos >= suyos.length * 0.5 || m.turno - e.desde >= 2) { e.fase = 'marcha'; for (const a of suyos) if (a.e === ESPERAR || a.paseo) a.e = LIBRE; }
       }
     }
   }
@@ -214,7 +285,7 @@
   function recursos(m) {
     const v = m.vida, out = {}, reservadas = new Set();
     for (const a of v.aldeanos) if (a.e === IR || a.e === TRABAJAR) reservadas.add(a.ty * v.tw + a.tx);
-    for (const c of S().vivas(m)) out[c.id] = { arboles: [], rocas: [], cs: [], reservadas, enemigos: [] };
+    for (const c of S().vivas(m)) out[c.id] = { arboles: [], rocas: [], metales: [], cs: [], reservadas, enemigos: [] };
     const ter = terrenos(m);
     // Las regiones propias y las libres que tocan el territorio.
     const alcance = {};
@@ -227,7 +298,7 @@
       for (const t of parcelas(m, +r)) {
         const arbol = v.arbol[t] >= 2, roca = v.roca[t] > 0;
         if (!arbol && !roca) continue;
-        for (const id of alcance[r]) { if (arbol) out[id].arboles.push(t); else if (ter[t] !== 'agua') out[id].rocas.push(t); }
+        for (const id of alcance[r]) { if (arbol) out[id].arboles.push(t); else if (ter[t] !== 'agua') { out[id].rocas.push(t); if (v.mena && v.mena[t]) out[id].metales.push(t); } }
       }
     }
     for (const c of S().vivas(m)) {
@@ -240,11 +311,13 @@
   function turno(m) {
     if (!m.vida) crear(m);
     const v = m.vida;
-    v.cambios = []; v.muertos = [];
+    v.cambios = []; v.muertos = []; v.disparos = [];
+    v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.ejercitos = v.ejercitos || {};
     centros(m);
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
     rec = recursos(m);
+    ejercitos(m);
     const ter = terrenos(m);
     for (const a of v.aldeanos) a.r = [a.x, a.y, a.e === TRABAJAR ? ACC.trabajar : a.k ? ACC.cargar : ACC.andar];
     for (let paso = 1; paso <= TICKS; paso++) {
@@ -267,6 +340,16 @@
     let acc = a.k ? ACC.cargar : ACC.andar;
     if (!rec || !c) return;
     if (a.e === LIBRE) elegirTarea(m, a, c, rec, ter);
+    // Un guerrero que ve a un enemigo cerca carga contra él (los tiradores se quedan a distancia y disparan).
+    if (a.o === GUERRERO && c.guerras.length && !a.tirador && a.e !== TRABAJAR) {
+      let cerca = null;
+      for (let r = 1; r <= 4 && !cerca; r++) for (let dy = -r; dy <= r && !cerca; dy++) for (const dx of [r - Math.abs(dy), -(r - Math.abs(dy))]) {
+        const lista = guerreros.get((a.y + dy) * v.tw + a.x + dx);
+        cerca = lista && lista.find(b => b !== a && !muertos.has(b) && c.guerras.some(g => g.con === b.c));
+        if (cerca) break;
+      }
+      if (cerca) { a.tx = cerca.x; a.ty = cerca.y; a.e = IR; a.q = 0; a.paseo = 0; }
+    }
     if (a.e === IR || a.e === VOLVER) {
       if (a.x === a.tx && a.y === a.ty) llegar(m, a, c, rec, ter, paso);
       else if (!andar(m, a, c, ter)) { a.e = LIBRE; a.k = 0; }
@@ -276,18 +359,38 @@
     } else if (a.e === ESPERAR) {
       if (--a.t <= 0) a.e = LIBRE;
     }
-    // Los guerreros luchan contra los enemigos que encuentran a su lado.
+    // Los guerreros luchan: cuerpo a cuerpo con el enemigo de al lado; los tiradores disparan desde lejos.
     if (a.o === GUERRERO && c.guerras.length) {
+      const enemigo = b => b !== a && !muertos.has(b) && c.guerras.some(g => g.con === b.c);
+      let rival = null;
       for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const lista = guerreros.get((a.y + dy) * v.tw + a.x + dx);
-        const rival = lista && lista.find(b => b !== a && !muertos.has(b) && c.guerras.some(g => g.con === b.c));
-        if (!rival) continue;
-        const o = S().civ(m, rival.c), fa = M.ERAS[c.era].fuerza, fb = M.ERAS[o.era].fuerza;
-        const gana = azar(v) < fa / (fa + fb) ? a : rival, pierde = gana === a ? rival : a;
-        muertos.add(pierde);
+        rival = lista && lista.find(enemigo);
+        if (rival) break;
+      }
+      if (rival) {
+        const pa = poder(a), pb = poder(rival);
+        const gana = azar(v) < pa / (pa + pb) ? a : rival, pierde = gana === a ? rival : a;
+        muertos.add(pierde); v.muertos.push([pierde.x, pierde.y, pierde.c, 'batalla', paso]);
         const g = S().civ(m, gana.c); g.victorias = (g.victorias || 0) + 1;
         acc = ACC.luchar;
-        break;
+      } else if (a.tirador && c.era >= 1) {
+        const alcance = c.era >= 5 ? 4 : 3;
+        let blanco = null;
+        for (let dy = -alcance; dy <= alcance && !blanco; dy++) for (let dx = -alcance; dx <= alcance && !blanco; dx++) {
+          if (Math.abs(dx) + Math.abs(dy) > alcance || (!dx && !dy)) continue;
+          const lista = guerreros.get((a.y + dy) * v.tw + a.x + dx);
+          blanco = lista && lista.find(enemigo);
+        }
+        if (blanco && azar(v) < 0.6) {
+          // Una flecha (o una bala) vuela: se dibuja en este paso.
+          v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
+          const pa = poder(a), pb = poder(blanco);
+          if (azar(v) < 0.3 * pa / (pa + pb) * 2) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso]); c.victorias = (c.victorias || 0) + 1; }
+          acc = ACC.luchar;
+          // El tirador se para a disparar: deshace el paso de este turno si iba andando.
+          if (a.e === IR) { a.x = a.r[a.r.length - 3]; a.y = a.r[a.r.length - 2]; }
+        }
       }
       if (muertos.has(a)) return;
     }
@@ -322,12 +425,21 @@
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
     if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
-    else if (a.o === MINERO && c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'))) t = cercano(m, a, rec.rocas, rec.reservadas, 16);
+    else if (a.o === MINERO) {
+      // Con la Edad del Bronce, los mineros buscan vetas de metal para la armería; si no, piedra.
+      const faltaMetal = c.era >= 1 && (c.metal || 0) < 8 + 4 * c.era;
+      if (faltaMetal && rec.metales.length && azar(v) < 0.7) t = cercano(m, a, rec.metales, rec.reservadas, 18);
+      if (t < 0 && c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'))) t = cercano(m, a, rec.rocas, rec.reservadas, 16);
+    }
     else if (a.o === GRANJERO) t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
     else if (a.o === CONSTRUCTOR) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
-    else if (a.o === GUERRERO && rec.enemigos.length) {
-      const frente = rec.enemigos[Math.floor(azar(v) * rec.enemigos.length)].frente;
-      if (frente.length) t = centro(m, frente[Math.floor(azar(v) * frente.length)]) + Math.floor(azar(v) * 2) - 1;
+    else if (a.o === GUERRERO && v.ejercitos[c.id]) {
+      // En formación detrás del capitán: primero al punto de reunión, luego a por el objetivo.
+      const e = v.ejercitos[c.id], base = centro(m, e.defiende != null ? e.defiende : e.fase === 'reunion' ? e.reunion : e.obj);
+      const dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 3) - 1;
+      t = base + dx + dy * v.tw;
+      if (t < 0 || t >= ter.length || !andable(ter[t], c.era)) t = base;
+      if (a.x === t % v.tw && a.y === (t / v.tw | 0)) { a.e = ESPERAR; a.t = 2; return; }
     }
     if (t >= 0) { ir(a, t, v.tw, IR); rec.reservadas.add(t); return; }
     // Sin tarea: los granjeros cuidan un campo, los demás pasean por su aldea.
@@ -377,7 +489,8 @@
     const v = m.vida, t = a.ty * v.tw + a.tx;
     if (a.e === VOLVER) {
       // Descarga en la aldea: aquí entra la madera y la piedra en la economía del pueblo.
-      if (a.o === LENADOR) c.madera += a.k; else if (a.o === MINERO) { c.piedra += a.k; c.riqueza += a.k * 0.3; }
+      if (a.o === LENADOR) c.madera += a.k;
+      else if (a.o === MINERO) { if (a.kt === 1) c.metal = (c.metal || 0) + a.k; else if (a.kt === 2) { c.oro = (c.oro || 0) + a.k; c.riqueza += 6 * a.k; } else { c.piedra += a.k; c.riqueza += a.k * 0.3; } a.kt = 0; }
       a.k = 0; a.e = ESPERAR; a.t = 1;
       return;
     }
@@ -398,13 +511,14 @@
   function terminar(m, a, c, rec, ter, paso) {
     const v = m.vida, t = a.ty * v.tw + a.tx;
     if (a.o === LENADOR && v.arbol[t] >= 2) { a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
-    if (a.o === MINERO && v.roca[t] > 0) { a.k = 1; cambiar(m, 'roca', t, v.roca[t] - 1, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === MINERO && v.roca[t] > 0) { a.k = 1; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); c.campos++; }
     else if (a.o === CONSTRUCTOR && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.casa, paso); c.casas++; }
     else if (a.o === GUERRERO) {
       const o = S().civ(m, m.dueno[region(m, t)]);
       if (o && c.guerras.some(g => g.con === o.id)) {
-        c.victorias = (c.victorias || 0) + 0.5;
+        // Saquear la capital enemiga (un asedio) pesa más que una aldea de frontera.
+        c.victorias = (c.victorias || 0) + (region(m, t) === o.capital ? 1.5 : 0.5);
         if (v.obra[t] === OBRA.casa && azar(v) < 0.5) cambiar(m, 'obra', t, OBRA.ruina, paso);
         if (v.obra[t] === OBRA.campo && azar(v) < 0.5) cambiar(m, 'obra', t, OBRA.nada, paso);
       }
@@ -488,10 +602,11 @@
       else if (o === OBRA.campo) campos[d] = (campos[d] || 0) + 1;
       if (v.arbol[t] >= 2) arboles[d] = (arboles[d] || 0) + 1;
     }
-    const gente = {};
-    for (const a of v.aldeanos) gente[a.c] = (gente[a.c] || 0) + 1;
+    const gente = {}, guerreros = {}, armados = {};
+    for (const a of v.aldeanos) { gente[a.c] = (gente[a.c] || 0) + 1; if (a.o === GUERRERO) { guerreros[a.c] = (guerreros[a.c] || 0) + 1; if ((a.arma || 0) > 0) armados[a.c] = (armados[a.c] || 0) + 1; } }
     for (const c of m.civs) {
-      c.casas = Math.round(casas[c.id] || 0); c.campos = campos[c.id] || 0; c.arboles = arboles[c.id] || 0; c.aldeanos = gente[c.id] || 0;
+      c.casas = Math.round(casas[c.id] || 0); c.campos = campos[c.id] || 0; c.arboles = arboles[c.id] || 0; c.aldeanos = gente[c.id] || 0; c.guerreros = guerreros[c.id] || 0; c.armados = armados[c.id] || 0;
+      c.metal = c.metal || 0; c.oro = c.oro || 0;
       c.madera = c.madera || 0; c.piedra = c.piedra || 0;
     }
   }
@@ -571,5 +686,5 @@
     contar(m);
   }
 
-  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
