@@ -205,6 +205,21 @@
     return [...s].map(id => civ(m, id)).filter(x => x && x.viva);
   };
   const enGuerra = (a, b) => a.guerras.some(g => g.con === b.id);
+  // ---------- Las alianzas ----------
+  const aliados = (m, a, b) => (m.alianzas || []).some(x => (x.a === a.id && x.b === b.id) || (x.a === b.id && x.b === a.id));
+  const aliadosDe = (m, c) => (m.alianzas || []).filter(x => x.a === c.id || x.b === c.id).map(x => civ(m, x.a === c.id ? x.b : x.a)).filter(o => o && o.viva);
+  function aliar(m, a, b, texto) {
+    if (aliados(m, a, b) || enGuerra(a, b) || a === b) return false;
+    m.alianzas = (m.alianzas || []).concat([{ a: a.id, b: b.id, desde: m.anio }]);
+    a.rel[b.id] = b.rel[a.id] = Math.max(a.rel[b.id] || 0, 60);
+    cronica(m, 'alianza', 'Alianza entre ' + a.nombre + ' y ' + b.nombre, texto || ('Los ' + titulo(a) + 'es de ' + a.nombre + ' y ' + b.nombre + ' juran defenderse el uno al otro. Lo sellan con una boda, un banquete y una lista de enemigos comunes.'), a);
+    return true;
+  }
+  function romper(m, a, b, motivo) {
+    if (!aliados(m, a, b)) return;
+    m.alianzas = m.alianzas.filter(x => !((x.a === a.id && x.b === b.id) || (x.a === b.id && x.b === a.id)));
+    cronica(m, 'alianza', 'Se rompe la alianza entre ' + a.nombre + ' y ' + b.nombre, motivo || 'Los viejos amigos ya no se soportan: se devuelven los regalos y se retiran los embajadores.', a);
+  }
 
   function regimenPorEra(m, c, n) {
     const car = c.caracter;
@@ -384,6 +399,7 @@
     for (let i = 0; i < W * H; i++) if (m.dueno[i] === c.id) m.dueno[i] = quien ? quien.id : -1;
     for (const o of m.civs) o.guerras = o.guerras.filter(g => g.con !== c.id);
     c.guerras = [];
+    m.alianzas = (m.alianzas || []).filter(x => x.a !== c.id && x.b !== c.id);
     cronica(m, 'caida', 'Cae ' + c.nombre, quien ? quien.nombre + ' toma la última ciudad de ' + c.nombre + '. Sus dioses pasan a ser leyendas y su lengua, unas pocas palabras en la de los vencedores.' : c.nombre + ' se deshace sin que nadie lo conquiste: sus aldeas se vacían y sus templos se llenan de hierba.', c, c.capital, { importante: true });
   }
 
@@ -398,11 +414,20 @@
         const ca = M.CARACTERES[a.caracter], cb = M.CARACTERES[b.caracter];
         let r = a.rel[b.id] || 0;
         // La frontera roza; el comercio acerca; el tiempo cura.
-        r += (juntos ? -1.2 * (ca.agresion + cb.agresion) / 2 + 0.8 * (ca.comercio + cb.comercio) / 2 : 0) - r * 0.04 + (azar(m) - 0.5) * 3;
+        // La opinión: la frontera roza y el comercio acerca; también acercan el mismo carácter, los gobernantes
+        // pacíficos y, sobre todo, tener un enemigo común. El tiempo lo cura todo poco a poco.
+        const comun = a.guerras.some(g => b.guerras.some(h => h.con === g.con));
+        const talante = x => (rasgo(x, 'agresion') < 1 ? 0.4 : rasgo(x, 'agresion') > 1.3 ? -0.4 : 0);
+        r += (juntos ? -1.2 * (ca.agresion + cb.agresion) / 2 + 0.8 * (ca.comercio + cb.comercio) / 2 : (a.era >= 2 && b.era >= 2 ? 0.35 * (ca.comercio + cb.comercio) / 2 : 0)) +
+          (a.caracter === b.caracter ? 0.6 : 0) + talante(a) + talante(b) + (comun ? 3 : 0) - r * 0.04 + (azar(m) - 0.5) * 3;
         // Los tratados de comercio de un jugador acercan a los dos pueblos cada año.
         if ((a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id))) r += 3;
+        if (aliados(m, a, b)) r += 2;
         a.rel[b.id] = b.rel[a.id] = Math.max(-100, Math.min(100, r));
-        if (!juntos) continue;
+        // Los que se llevan muy bien acaban aliados (sobre todo si temen a un vecino común); los que se enfrían, rompen.
+        if (aliados(m, a, b)) { if (r < 5) romper(m, a, b); }
+        else if (!a.jugador && !b.jugador && r > 22 && !enGuerra(a, b) && aliadosDe(m, a).length < 2 && aliadosDe(m, b).length < 2 && azar(m) < 0.08) aliar(m, a, b);
+        if (!juntos || aliados(m, a, b)) continue;
         if (!enGuerra(a, b)) {
           const fa = fuerza(m, a), fb = fuerza(m, b);
           const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
@@ -413,12 +438,20 @@
     }
   }
 
-  function declararGuerra(m, a, b, motivo) {
+  function declararGuerra(m, a, b, motivo, sinAliados) {
     if (enGuerra(a, b) || a === b) return;
+    if (aliados(m, a, b)) romper(m, a, b, a.nombre + ' traiciona a su aliado ' + b.nombre + ': la alianza se rompe el mismo día que cruzan la frontera.');
     a.guerras.push({ con: b.id, desde: m.turno, cansancio: 0 });
     b.guerras.push({ con: a.id, desde: m.turno, cansancio: 0 });
     a.rel[b.id] = b.rel[a.id] = Math.min(a.rel[b.id] || 0, -50);
-    cronica(m, 'guerra', 'Guerra entre ' + a.nombre + ' y ' + b.nombre, motivo || (a.nombre + ' cruza la frontera de ' + b.nombre + '. ' + elegir(m, ['Dicen que por un pozo.', 'Dicen que por un insulto a sus dioses.', 'Dicen que por unas ovejas.', 'Dicen que por un matrimonio que no se celebró.', 'Nadie recuerda ya por qué.'])), a, frontera(m, b, a)[0]);
+    const e = cronica(m, 'guerra', 'Guerra entre ' + a.nombre + ' y ' + b.nombre, motivo || (a.nombre + ' cruza la frontera de ' + b.nombre + '. ' + elegir(m, ['Dicen que por un pozo.', 'Dicen que por un insulto a sus dioses.', 'Dicen que por unas ovejas.', 'Dicen que por un matrimonio que no se celebró.', 'Nadie recuerda ya por qué.'])), a, frontera(m, b, a)[0]);
+    // Los aliados entran: los de la víctima casi siempre (para eso juraron), los del agresor a veces.
+    if (!sinAliados) {
+      for (const o of aliadosDe(m, b)) if (o !== a && !aliados(m, o, a) && !enGuerra(o, a) && (o.jugador || azar(m) < 0.75)) declararGuerra(m, o, a, o.nombre + ' cumple su palabra y entra en la guerra para defender a su aliado ' + b.nombre + '.', true);
+      for (const o of aliadosDe(m, a)) if (o !== b && !o.jugador && !aliados(m, o, b) && !enGuerra(o, b) && azar(m) < 0.4) declararGuerra(m, o, b, o.nombre + ' se suma a la guerra de su aliado ' + a.nombre + ' contra ' + b.nombre + '.', true);
+      m.ultimo = e;
+    }
+    return e;
   }
 
   function hacerPaz(m, a, b, motivo) {
@@ -533,5 +566,5 @@
   }
 
   M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, aliados, aliadosDe, aliar, romper, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

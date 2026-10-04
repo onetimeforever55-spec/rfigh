@@ -133,7 +133,9 @@
       fila('Minas', Math.floor(c.metal || 0) + ' de ' + (c.era >= 6 ? 'acero' : c.era >= 2 ? 'hierro' : 'bronce') + ' <span class="tenue">· ' + Math.floor(c.oro || 0) + ' de oro</span>') +
       fila('Ejército', (c.guerreros || 0) + ' guerreros' + (c.guerreros ? ' <span class="tenue">· ' + (c.armados || 0) + ' con ' + esc(M.vida.ARMAS[c.era].nombre) + (c.era >= 1 ? ', tiradores con ' + esc(M.vida.TIROS[c.era]) : '') + '</span>' : '')) +
       fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
-      fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') + '</dl>' +
+      fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
+      (S.aliadosDe(m, c).length ? fila('Aliados', esc(S.aliadosDe(m, c).map(o => o.nombre).join(', '))) : '') +
+      fila('Opinión', opiniones(c)) + '</dl>' +
       (c.jugador ? planDe(c) : '') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
     f.querySelector('.muestra').style.background = c.color;
@@ -160,6 +162,12 @@
   }
 
   const NOMBRES_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros' };
+  // Lo que piensa este pueblo de los demás, de mejor a peor.
+  function opiniones(c) {
+    const palabra = r => (r > 40 ? 'amistad' : r > 15 ? 'cordial' : r > -15 ? 'neutral' : r > -45 ? 'tensa' : 'hostil');
+    const otros = S.vivas(m).filter(o => o.id !== c.id).sort((a, b) => (c.rel[b.id] || 0) - (c.rel[a.id] || 0));
+    return otros.slice(0, 6).map(o => { const r = Math.round(c.rel[o.id] || 0); return '<span class="' + (r <= -45 || S.enGuerra(c, o) ? 'rojo' : '') + '">' + esc(o.nombre) + '</span> <span class="tenue">' + (S.enGuerra(c, o) ? 'en guerra' : palabra(r)) + '</span>'; }).join(' · ') || '<span class="tenue">no conoce a nadie</span>';
+  }
   function ciudadesDe(c) {
     const l = (m.ciudades || []).filter(x => x.civ === c.id);
     return l.length ? esc(l.map(x => x.nombre + ' (alcalde ' + x.alcalde + ')').join(', ')) : '';
