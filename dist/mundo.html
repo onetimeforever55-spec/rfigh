@@ -251,12 +251,12 @@ button { cursor: pointer; }
     { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
     { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', desde: -3500, anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
     { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', desde: -1500, anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', desde: -900, anios: 50, cap: 2.0, fuerza: 2.6, umbral: 425, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1000, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1750, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2300, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 2480, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 2650, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', desde: -900, anios: 50, cap: 2.0, fuerza: 2.6, umbral: 500, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1250, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2050, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2700, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 2900, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 3080, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
@@ -510,6 +510,8 @@ button { cursor: pointer; }
     const rasgos = Object.keys(M.RASGOS).filter(r => r !== 'loco' || azar(m) < 0.15);
     return { nombre: nombrePersona(m), edad, rasgo: elegir(m, rasgos), desde: m.anio };
   }
+  // Busca solo claves propias: un rey «constructor» no debe dar con Object.prototype.constructor.
+  const propio = (obj, k) => (Object.prototype.hasOwnProperty.call(obj, k) ? obj[k] : 0);
   const rasgo = (c, k) => { const r = c.rey && M.RASGOS[c.rey.rasgo]; return r && r[k] != null ? r[k] : (k === 'estab' ? 0 : 1); };
   const titulo = c => M.TITULOS[c.regimen] || 'rey';
   const ordinales = ['', ' II', ' III', ' IV', ' V', ' VI', ' VII', ' VIII', ' IX', ' X'];
@@ -657,6 +659,8 @@ button { cursor: pointer; }
     const anios = m.libre ? 1 : M.ERAS[maxEra].anios;
     for (const c of vivas(m)) reinar(m, c, anios);
     m.anio += anios;
+    // Los pueblos nacidos en este turno (una rebelión, uno nuevo) quedan contados ya: casas, camas, gente.
+    if (m.vida && M.vida) M.vida.contar(m);
     return m;
   }
 
@@ -800,7 +804,7 @@ button { cursor: pointer; }
     out.push(juntos ? ['comparten frontera', -25] : ['no comparten frontera', 10]);
     if (a.guerras.some(g => b.guerras.some(h => h.con === g.con)) && !enGuerra(a, b)) out.push(['enemigo común', 50]);
     out.push(a.caracter === b.caracter ? ['mismo carácter (' + M.CARACTERES[a.caracter].nombre + ')', 15] : ['costumbres distintas', -5]);
-    const talante = x => (x.rey ? ({ pacifico: 10, justo: 5, guerrero: -10, cruel: -10, loco: -15 }[x.rey.rasgo] || 0) : 0);
+    const talante = x => (x.rey ? propio({ pacifico: 10, justo: 5, guerrero: -10, cruel: -10, loco: -15 }, x.rey.rasgo) : 0);
     if (talante(a) + talante(b)) out.push(['el talante de sus gobernantes', talante(a) + talante(b)]);
     if (aliados(m, a, b)) out.push(['son aliados', 30]);
     if ((a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id))) out.push(['tratado de comercio', 20]);
@@ -849,9 +853,9 @@ button { cursor: pointer; }
     if (d > 8) out.push(['lejos de la capital', -Math.round((d - 8) * 1.2)]);
     const suyas = (m.ciudades || []).filter(y => y.civ === c.id).length;
     if (suyas > maxCiudades(c)) out.push(['demasiadas ciudades (' + suyas + ' de ' + maxCiudades(c) + ')', -15 * (suyas - maxCiudades(c))]);
-    const rey = c.rey ? ({ justo: 10, sabio: 5, constructor: 5, cruel: -15, loco: -20, codicioso: -5 }[c.rey.rasgo] || 0) : 0;
+    const rey = c.rey ? propio({ justo: 10, sabio: 5, constructor: 5, cruel: -15, loco: -20, codicioso: -5 }, c.rey.rasgo) : 0;
     if (rey) out.push(['su ' + titulo(c) + ' es ' + M.RASGOS[c.rey.rasgo].nombre, rey]);
-    const alcalde = { leal: 15, ambicioso: -15, codicioso: -5 }[x.rasgo] || 0;
+    const alcalde = propio({ leal: 15, ambicioso: -15, codicioso: -5 }, x.rasgo);
     if (alcalde) out.push(['el alcalde es ' + x.rasgo, alcalde]);
     if (x.conquistada != null && m.turno - x.conquistada < 10) out.push(['conquistada hace poco', -Math.round(30 * (1 - (m.turno - x.conquistada) / 10))]);
     if (m.turno - c.ultimaHambre < 4) out.push(['hambre', -15]); else if ((c.comida || 0) > 20) out.push(['graneros llenos', 5]);
@@ -1371,7 +1375,7 @@ button { cursor: pointer; }
     // Los que viven en tierra que cambia de dueño (conquista, rebelión) pasan a ser de ese pueblo.
     for (const a of v.aldeanos) {
       const d = m.dueno[a.h];
-      if (d >= 0 && d !== a.c && a.colono == null) { const o = S().civ(m, d); if (o && o.viva) { a.c = d; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; } }
+      if (d >= 0 && d !== a.c && a.colono == null) { const o = S().civ(m, d); if (o && o.viva) { a.c = d; a.llego = m.turno; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; } }
     }
     for (const c of vivas) porCiv[c.id] = [];
     for (const a of v.aldeanos) if (porCiv[a.c]) porCiv[a.c].push(a);
@@ -1389,6 +1393,8 @@ button { cursor: pointer; }
         const tipo = c.guerras.length ? 'batalla' : 'vejez';
         for (const a of lista.slice().sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, lista.length - Math.max(1, objetivo))) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, tipo, 0]); }
       } else if (objetivo > lista.length) {
+        // Los que llegan también necesitan cama (salvo un pueblo que casi no tiene a nadie).
+        objetivo = Math.max(Math.min(objetivo, (c.camas || 6) + 5), Math.min(objetivo, 6));
         const casas = casasDe(m, c);
         for (let k = lista.length; k < Math.min(objetivo, lista.length + 30); k++) {
           const casa = casas.length ? casas[Math.floor(azar(v) * casas.length)] : centro(m, hogar(m, c, cs));
@@ -1519,6 +1525,8 @@ button { cursor: pointer; }
       const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
       if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
+      // Si los granjeros no encuentran dónde arar junto a un molino, se levanta otro un poco más lejos: abre tierra nueva.
+      else if (c.sinCampo >= m.turno - 1 && (c.campos || 0) < metaCampos(c) && (c.comida || 0) < (c.habitantes || 10) && (c.molinos || 0) < 2 + Math.floor((c.campos || 0) / 8)) pide.unshift([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]) && !molinoCerca(m, c, null, t) && [1, -1, v.tw, -v.tw].filter(d => CULTIVABLE.has(ter[t + d]) && !v.obra[t + d]).length >= 3)]);
       if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
@@ -1903,7 +1911,7 @@ button { cursor: pointer; }
       if (!memo.has(km)) memo.set(km, [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r)).filter(x => v.obra[x] === OBRA.campo));
       const maduros = memo.get(km).filter(x => v.cultivo[x] >= 3 && v.obra[x] === OBRA.campo && !rec.reservadas.has(x));
       if (maduros.length) { t = maduros[Math.floor(azar(v) * maduros.length)]; a.siega = 1; }
-      else if (c.campos < metaCampos(c) && memo.get('campo:' + a.h) !== -1) { t = libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)); if (t < 0) memo.set('campo:' + a.h, -1); }
+      else if (c.campos < metaCampos(c) && memo.get('campo:' + a.h) !== -1) { t = libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)); if (t < 0) { memo.set('campo:' + a.h, -1); c.sinCampo = m.turno; } }
     }
     else if (a.o === CONSTRUCTOR) {
       a.obraCamino = 0; a.edificio = 0;
@@ -1960,7 +1968,13 @@ button { cursor: pointer; }
       let junto = false;
       for (const d of [-1, 1, -v.tw, v.tw, -v.tw - 1, -v.tw + 1, v.tw - 1, v.tw + 1]) { const n = t + d; if (n < 0 || n >= v.obra.length || Math.abs((n % v.tw) - x) > 1) continue; if (PEGA.has(v.obra[n]) || v.camino[n]) { junto = true; break; } }
       if (!junto) continue;
-      const dd = dist(m, base, t) + azar(v) * 1.2;
+      // Distancia redonda (no en rombo), un sesgo fijo por parcela y ganas de arrimarse a otras casas:
+      // el pueblo crece como una mancha irregular, con callejas y huecos, no en filas.
+      const ty = t / v.tw | 0, bx = base % v.tw, by = base / v.tw | 0;
+      let vecinas = 0;
+      for (const d of [-1, 1, -v.tw, v.tw]) if (v.obra[t + d] === OBRA.casa) vecinas++;
+      const sesgo = ((Math.imul(t, 2654435761) >>> 0) % 1000) / 1000;
+      const dd = Math.hypot(x - bx, ty - by) * (0.75 + sesgo * 0.5) + [0, -0.4, 0.8, 2.5, 4][vecinas] + azar(v) * 3;
       if (dd < md) { md = dd; mejor = t; }
     }
     return mejor;
@@ -2213,7 +2227,11 @@ button { cursor: pointer; }
       const lista = porCiv[c.id] || [];
       const racion = lista.reduce((k, a) => k + (esNino(a) ? 0.15 : 0.3), 0);
       // La recolección: los adultos que no van a la guerra juntan algo de comida aunque no haya campos.
-      const recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * Math.min(1.5, S().fertil(m, c.capital) / 2);
+      const fertil = Math.min(1.5, S().fertil(m, c.capital) / 2);
+      let recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * fertil;
+      // Los granjeros que no tienen campo que trabajar cazan, pescan en el río y recogen bayas.
+      const sobran = Math.max(0, lista.filter(a => a.o === GRANJERO && !esNino(a)).length - (c.campos || 0) * 1.5);
+      recogen += sobran * 0.2 * fertil;
       c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
       if (c.comida < 0) {
         c.comida = 0;
@@ -3405,7 +3423,14 @@ button { cursor: pointer; }
       const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
       const color = c ? c.color : '#9a7a5a', ge = c ? grupoEra(c.era) : 0;
       if (obra === V.OBRA.campo) campo(x, y, t);
-      else if (obra === V.OBRA.casa) gl.drawImage(sprite(CASAS[ge], color), x, y);
+      else if (obra === V.OBRA.casa) {
+        // Cada casa un poco distinta: unas en espejo y con el tejado algo más oscuro.
+        const h = (Math.imul(t, 2246822519) >>> 0) % 4;
+        const img = sprite(CASAS[ge], h === 3 ? mezclar(color, '#000000', 0.18) : h === 2 ? mezclar(color, '#ffffff', 0.12) : color);
+        // Y algunas un píxel más abajo (la última fila del dibujo está vacía): las filas dejan de ser rectas.
+        const oy = ((Math.imul(t, 2654435761) >>> 0) >> 5) % 2;
+        if (h % 2) { gl.save(); gl.translate(x + A, y + oy); gl.scale(-1, 1); gl.drawImage(img, 0, 0); gl.restore(); } else gl.drawImage(img, x, y + oy);
+      }
       else if (obra === V.OBRA.ruina) gl.drawImage(sprite('ruina'), x, y);
       else if (obra === V.OBRA.ayuntamiento) gl.drawImage(sprite('ayuntamiento', color), x, y);
       else if (obra === V.OBRA.torre) gl.drawImage(sprite('torre'), x, y);

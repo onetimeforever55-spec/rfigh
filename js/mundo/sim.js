@@ -145,6 +145,8 @@
     const rasgos = Object.keys(M.RASGOS).filter(r => r !== 'loco' || azar(m) < 0.15);
     return { nombre: nombrePersona(m), edad, rasgo: elegir(m, rasgos), desde: m.anio };
   }
+  // Busca solo claves propias: un rey «constructor» no debe dar con Object.prototype.constructor.
+  const propio = (obj, k) => (Object.prototype.hasOwnProperty.call(obj, k) ? obj[k] : 0);
   const rasgo = (c, k) => { const r = c.rey && M.RASGOS[c.rey.rasgo]; return r && r[k] != null ? r[k] : (k === 'estab' ? 0 : 1); };
   const titulo = c => M.TITULOS[c.regimen] || 'rey';
   const ordinales = ['', ' II', ' III', ' IV', ' V', ' VI', ' VII', ' VIII', ' IX', ' X'];
@@ -292,6 +294,8 @@
     const anios = m.libre ? 1 : M.ERAS[maxEra].anios;
     for (const c of vivas(m)) reinar(m, c, anios);
     m.anio += anios;
+    // Los pueblos nacidos en este turno (una rebelión, uno nuevo) quedan contados ya: casas, camas, gente.
+    if (m.vida && M.vida) M.vida.contar(m);
     return m;
   }
 
@@ -435,7 +439,7 @@
     out.push(juntos ? ['comparten frontera', -25] : ['no comparten frontera', 10]);
     if (a.guerras.some(g => b.guerras.some(h => h.con === g.con)) && !enGuerra(a, b)) out.push(['enemigo común', 50]);
     out.push(a.caracter === b.caracter ? ['mismo carácter (' + M.CARACTERES[a.caracter].nombre + ')', 15] : ['costumbres distintas', -5]);
-    const talante = x => (x.rey ? ({ pacifico: 10, justo: 5, guerrero: -10, cruel: -10, loco: -15 }[x.rey.rasgo] || 0) : 0);
+    const talante = x => (x.rey ? propio({ pacifico: 10, justo: 5, guerrero: -10, cruel: -10, loco: -15 }, x.rey.rasgo) : 0);
     if (talante(a) + talante(b)) out.push(['el talante de sus gobernantes', talante(a) + talante(b)]);
     if (aliados(m, a, b)) out.push(['son aliados', 30]);
     if ((a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id))) out.push(['tratado de comercio', 20]);
@@ -484,9 +488,9 @@
     if (d > 8) out.push(['lejos de la capital', -Math.round((d - 8) * 1.2)]);
     const suyas = (m.ciudades || []).filter(y => y.civ === c.id).length;
     if (suyas > maxCiudades(c)) out.push(['demasiadas ciudades (' + suyas + ' de ' + maxCiudades(c) + ')', -15 * (suyas - maxCiudades(c))]);
-    const rey = c.rey ? ({ justo: 10, sabio: 5, constructor: 5, cruel: -15, loco: -20, codicioso: -5 }[c.rey.rasgo] || 0) : 0;
+    const rey = c.rey ? propio({ justo: 10, sabio: 5, constructor: 5, cruel: -15, loco: -20, codicioso: -5 }, c.rey.rasgo) : 0;
     if (rey) out.push(['su ' + titulo(c) + ' es ' + M.RASGOS[c.rey.rasgo].nombre, rey]);
-    const alcalde = { leal: 15, ambicioso: -15, codicioso: -5 }[x.rasgo] || 0;
+    const alcalde = propio({ leal: 15, ambicioso: -15, codicioso: -5 }, x.rasgo);
     if (alcalde) out.push(['el alcalde es ' + x.rasgo, alcalde]);
     if (x.conquistada != null && m.turno - x.conquistada < 10) out.push(['conquistada hace poco', -Math.round(30 * (1 - (m.turno - x.conquistada) / 10))]);
     if (m.turno - c.ultimaHambre < 4) out.push(['hambre', -15]); else if ((c.comida || 0) > 20) out.push(['graneros llenos', 5]);

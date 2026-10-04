@@ -187,7 +187,14 @@
       const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
       const color = c ? c.color : '#9a7a5a', ge = c ? grupoEra(c.era) : 0;
       if (obra === V.OBRA.campo) campo(x, y, t);
-      else if (obra === V.OBRA.casa) gl.drawImage(sprite(CASAS[ge], color), x, y);
+      else if (obra === V.OBRA.casa) {
+        // Cada casa un poco distinta: unas en espejo y con el tejado algo más oscuro.
+        const h = (Math.imul(t, 2246822519) >>> 0) % 4;
+        const img = sprite(CASAS[ge], h === 3 ? mezclar(color, '#000000', 0.18) : h === 2 ? mezclar(color, '#ffffff', 0.12) : color);
+        // Y algunas un píxel más abajo (la última fila del dibujo está vacía): las filas dejan de ser rectas.
+        const oy = ((Math.imul(t, 2654435761) >>> 0) >> 5) % 2;
+        if (h % 2) { gl.save(); gl.translate(x + A, y + oy); gl.scale(-1, 1); gl.drawImage(img, 0, 0); gl.restore(); } else gl.drawImage(img, x, y + oy);
+      }
       else if (obra === V.OBRA.ruina) gl.drawImage(sprite('ruina'), x, y);
       else if (obra === V.OBRA.ayuntamiento) gl.drawImage(sprite('ayuntamiento', color), x, y);
       else if (obra === V.OBRA.torre) gl.drawImage(sprite('torre'), x, y);

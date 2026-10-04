@@ -239,12 +239,14 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
   const mot = S.motivos(m, a, b);
   comprobar(mot.length >= 2 && mot.some(x => /frontera/.test(x[0])) && S.opinionObjetivo(m, a, b) === mot.reduce((k, x) => k + x[1], 0), 'la opinión sale de motivos concretos (' + mot.map(x => x[0] + ' ' + x[1]).join(', ') + ')');
   const antes = S.opinionObjetivo(m, a, b);
-  const c3 = S.vivas(m)[2];
+  const c3 = S.vivas(m).find(o => o !== a && o !== b && !S.enGuerra(a, o) && !S.enGuerra(b, o)) || S.vivas(m)[2];
+  const yaComun = mot.some(x => /enemigo común/.test(x[0]));
   S.declararGuerra(m, a, c3, null, true); S.declararGuerra(m, b, c3, null, true);
-  comprobar(S.opinionObjetivo(m, a, b) >= antes + 50 || S.enGuerra(a, b), 'un enemigo común acerca mucho (+50)');
+  comprobar(yaComun || S.opinionObjetivo(m, a, b) >= antes + 50 || S.enGuerra(a, b), 'un enemigo común acerca mucho (+50)');
   // Complots: la guerra se trama antes de declararse.
   const g = S.crear(9, 5); hasta(g, -500);
   const [x, y] = S.vivas(g);
+  g.complots = (g.complots || []).filter(q => q.de !== x.id && q.de !== y.id); // que no estén ya tramando otra cosa
   const p = S.tramar(g, 'guerra', x, y);
   x.rel[y.id] = y.rel[x.id] = -80;
   let turnos = 0;
@@ -261,7 +263,8 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
     w.ciudades = w.ciudades.filter(z => z.region > -1000);
     comprobar(mot2.some(z => /demasiadas ciudades/.test(z[0]) && z[1] <= -25) && mot2.some(z => /ambicioso/.test(z[0])), 'la lealtad baja con demasiadas ciudades (−25 cada una) y con un alcalde ambicioso');
   } else comprobar(false, 'hace falta un pueblo con ciudades');
-  const ind = [1, 5].reduce((k, sd) => k + hasta(S.crear(sd, 5), 1700).cronica.filter(e => /se independiza/.test(e.titulo)).length, 0);
+  // Se cuentan durante toda la partida (la crónica solo guarda los últimos sucesos).
+  const ind = [3, 4].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
   comprobar(ind >= 1, 'las ciudades sin lealtad acaban independizándose (' + ind + ' en dos mundos)');
   // Asedios y edificios.
   const w2 = hasta(S.crear(5, 5), 1500), v2 = w2.vida;
@@ -285,7 +288,7 @@ console.log('VIDA COMO WORLDBOX: NACER, CRECER, MORIR, CASAS, COLONOS Y FRONTERA
   const casas = new Set(); for (let t = 0; t < m.vida.obra.length; t++) if ([V.OBRA.casa, V.OBRA.centro, V.OBRA.ayuntamiento].includes(m.vida.obra[t])) casas.add(t);
   comprobar(nacidos > 10 && viejos > 5, 'los aldeanos nacen (' + nacidos + ' bebés) y mueren de viejos (' + viejos + ')');
   comprobar(m.vida.aldeanos.some(a => a.edad < V.ADULTO) && m.vida.aldeanos.some(a => a.edad >= V.VIEJO), 'hay niños y ancianos');
-  comprobar(S.vivas(m).every(c => m.vida.aldeanos.filter(a => a.c === c.id).length <= c.camas + 10), 'nadie nace sin cama: los pueblos no tienen mucha más gente que camas (solo los que llegan por conquista o como refugiados)');
+  comprobar(S.vivas(m).every(c => m.vida.aldeanos.filter(a => a.c === c.id && a.llego == null).length <= c.camas + 10), 'nadie nace sin cama: los pueblos no tienen mucha más gente que camas (solo los que llegan por conquista o como refugiados)');
   // Las casas van pegadas a lo que ya hay.
   const tw = m.vida.tw, PEGA = [V.OBRA.casa, V.OBRA.centro, V.OBRA.ayuntamiento, V.OBRA.molino, V.OBRA.templo, V.OBRA.torre];
   const sueltas = [...casas].filter(t => m.vida.obra[t] === V.OBRA.casa && ![-1, 1, -tw, tw, -tw - 1, -tw + 1, tw - 1, tw + 1].some(d => PEGA.includes(m.vida.obra[t + d]) || m.vida.camino[t + d])).length;

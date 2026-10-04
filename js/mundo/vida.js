@@ -305,7 +305,7 @@
     // Los que viven en tierra que cambia de dueño (conquista, rebelión) pasan a ser de ese pueblo.
     for (const a of v.aldeanos) {
       const d = m.dueno[a.h];
-      if (d >= 0 && d !== a.c && a.colono == null) { const o = S().civ(m, d); if (o && o.viva) { a.c = d; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; } }
+      if (d >= 0 && d !== a.c && a.colono == null) { const o = S().civ(m, d); if (o && o.viva) { a.c = d; a.llego = m.turno; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; } }
     }
     for (const c of vivas) porCiv[c.id] = [];
     for (const a of v.aldeanos) if (porCiv[a.c]) porCiv[a.c].push(a);
@@ -323,6 +323,8 @@
         const tipo = c.guerras.length ? 'batalla' : 'vejez';
         for (const a of lista.slice().sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, lista.length - Math.max(1, objetivo))) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, tipo, 0]); }
       } else if (objetivo > lista.length) {
+        // Los que llegan también necesitan cama (salvo un pueblo que casi no tiene a nadie).
+        objetivo = Math.max(Math.min(objetivo, (c.camas || 6) + 5), Math.min(objetivo, 6));
         const casas = casasDe(m, c);
         for (let k = lista.length; k < Math.min(objetivo, lista.length + 30); k++) {
           const casa = casas.length ? casas[Math.floor(azar(v) * casas.length)] : centro(m, hogar(m, c, cs));
@@ -453,6 +455,8 @@
       const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
       if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
+      // Si los granjeros no encuentran dónde arar junto a un molino, se levanta otro un poco más lejos: abre tierra nueva.
+      else if (c.sinCampo >= m.turno - 1 && (c.campos || 0) < metaCampos(c) && (c.comida || 0) < (c.habitantes || 10) && (c.molinos || 0) < 2 + Math.floor((c.campos || 0) / 8)) pide.unshift([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]) && !molinoCerca(m, c, null, t) && [1, -1, v.tw, -v.tw].filter(d => CULTIVABLE.has(ter[t + d]) && !v.obra[t + d]).length >= 3)]);
       if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
@@ -837,7 +841,7 @@
       if (!memo.has(km)) memo.set(km, [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r)).filter(x => v.obra[x] === OBRA.campo));
       const maduros = memo.get(km).filter(x => v.cultivo[x] >= 3 && v.obra[x] === OBRA.campo && !rec.reservadas.has(x));
       if (maduros.length) { t = maduros[Math.floor(azar(v) * maduros.length)]; a.siega = 1; }
-      else if (c.campos < metaCampos(c) && memo.get('campo:' + a.h) !== -1) { t = libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)); if (t < 0) memo.set('campo:' + a.h, -1); }
+      else if (c.campos < metaCampos(c) && memo.get('campo:' + a.h) !== -1) { t = libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)); if (t < 0) { memo.set('campo:' + a.h, -1); c.sinCampo = m.turno; } }
     }
     else if (a.o === CONSTRUCTOR) {
       a.obraCamino = 0; a.edificio = 0;
@@ -894,7 +898,13 @@
       let junto = false;
       for (const d of [-1, 1, -v.tw, v.tw, -v.tw - 1, -v.tw + 1, v.tw - 1, v.tw + 1]) { const n = t + d; if (n < 0 || n >= v.obra.length || Math.abs((n % v.tw) - x) > 1) continue; if (PEGA.has(v.obra[n]) || v.camino[n]) { junto = true; break; } }
       if (!junto) continue;
-      const dd = dist(m, base, t) + azar(v) * 1.2;
+      // Distancia redonda (no en rombo), un sesgo fijo por parcela y ganas de arrimarse a otras casas:
+      // el pueblo crece como una mancha irregular, con callejas y huecos, no en filas.
+      const ty = t / v.tw | 0, bx = base % v.tw, by = base / v.tw | 0;
+      let vecinas = 0;
+      for (const d of [-1, 1, -v.tw, v.tw]) if (v.obra[t + d] === OBRA.casa) vecinas++;
+      const sesgo = ((Math.imul(t, 2654435761) >>> 0) % 1000) / 1000;
+      const dd = Math.hypot(x - bx, ty - by) * (0.75 + sesgo * 0.5) + [0, -0.4, 0.8, 2.5, 4][vecinas] + azar(v) * 3;
       if (dd < md) { md = dd; mejor = t; }
     }
     return mejor;
@@ -1147,7 +1157,11 @@
       const lista = porCiv[c.id] || [];
       const racion = lista.reduce((k, a) => k + (esNino(a) ? 0.15 : 0.3), 0);
       // La recolección: los adultos que no van a la guerra juntan algo de comida aunque no haya campos.
-      const recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * Math.min(1.5, S().fertil(m, c.capital) / 2);
+      const fertil = Math.min(1.5, S().fertil(m, c.capital) / 2);
+      let recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * fertil;
+      // Los granjeros que no tienen campo que trabajar cazan, pescan en el río y recogen bayas.
+      const sobran = Math.max(0, lista.filter(a => a.o === GRANJERO && !esNino(a)).length - (c.campos || 0) * 1.5);
+      recogen += sobran * 0.2 * fertil;
       c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
       if (c.comida < 0) {
         c.comida = 0;
