@@ -86,6 +86,7 @@
   let lienzo = null, gl = null, capa = null, gc = null;
   let visto = null, tierra = null, firma = [], pend = [], inicio = 0, duracion = 1000;
   let cam = { x: 0, y: 0, z: 2 }, sel = null, pulso = null, reducido = false, listo = false;
+  let efectos = [], tumbas = [], cartel = null;
   const punteros = new Map();
   let arrastre = null;
 
@@ -241,6 +242,7 @@
     if (mundoActual !== m || !listo) { mundo(mundoActual); }
     sincronizar(m.vida.cambios || []);
     territorio();
+    recogerMuertos();
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
   }
   // Tras un poder del dios (fuera del turno): todo al día, sin animación.
@@ -248,6 +250,13 @@
     if (!m) return;
     sincronizar([]);
     territorio();
+    recogerMuertos();
+  }
+  function recogerMuertos() {
+    const ahora = performance.now();
+    for (const [x, y, c] of (m.vida.muertos || [])) tumbas.push({ x, y, c, inicio: ahora + Math.random() * 500 });
+    m.vida.muertos = [];
+    if (tumbas.length > 400) tumbas = tumbas.slice(-400);
   }
 
   // ---------- Cada fotograma ----------
@@ -263,7 +272,9 @@
     const { w, h, dpr } = vista();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = '#0b1830'; g.fillRect(0, 0, cv.width, cv.height);
-    const z = cam.z * dpr, ox = cv.width / 2 - cam.x * z, oy = cv.height / 2 - cam.y * z;
+    const temblor = efectos.find(e => e.tipo === 'terremoto' && ahora - e.inicio < 1400);
+    const sacudir = temblor && !reducido ? (Math.sin(ahora / 22) * 5 + Math.sin(ahora / 37) * 3) * dpr * (1 - (ahora - temblor.inicio) / 1400) : 0;
+    const z = cam.z * dpr, ox = cv.width / 2 - cam.x * z + sacudir, oy = cv.height / 2 - cam.y * z - sacudir * 0.6;
     g.imageSmoothingEnabled = false;
     g.setTransform(z, 0, 0, z, ox, oy);
     // Solo lo que se ve.
@@ -273,9 +284,12 @@
     g.drawImage(capa, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
     banderas(ahora);
     aldeanos(k, ahora, x0, y0, x1, y1);
+    pintarTumbas(ahora);
+    pintarEfectos(ahora, x0, y0, x1, y1);
     marcarPulso(ahora);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
+    pintarCartel(ahora, dpr);
   }
 
   function banderas(ahora) {
@@ -358,6 +372,115 @@
     g.globalAlpha = 1;
   }
 
+  // ---------- Los poderes del dios, a la vista ----------
+  const DURACION = 3200;
+  const ESTILO = {
+    plaga: { tinte: '#7dff6a', particula: ['#9cff7a', '#4fcf3a'], sube: true },
+    hambre: { tinte: '#c9a13a', particula: ['#8a6a2a', '#d9b45a'], sube: false },
+    diluvio: { tinte: '#3a8cff', particula: ['#9cc8ff', '#5aa0ff'], lluvia: true },
+    terremoto: { tinte: '#8a5a2a', particula: ['#b08050', '#6a4a2a'], sube: true },
+    incendio: { tinte: '#ff6a1a', particula: ['#ffd23a', '#ff5a1a', '#c8301a'], sube: true, fuego: true },
+    destruir: { tinte: '#ff2a2a', particula: ['#ffe9a6', '#ff4b3a'], rayos: true, sube: true },
+    matar: { tinte: '#5a0a1a', particula: ['#ff4b3a', '#2a0a10'], rayos: true },
+    oro: { tinte: '#f0c05a', particula: ['#ffe17a', '#f0c05a', '#fff6dc'], lluvia: true },
+    guerra: { tinte: '#ff4b3a', particula: ['#ff4b3a', '#e8ecf4'], sube: true },
+    nuevo: { tinte: '#fff6dc', particula: ['#ffffff', '#f0c05a'], sube: true, haz: true },
+    bueno: { tinte: '#f0c05a', particula: ['#fff6dc', '#ffe17a', '#9cff7a'], sube: true }
+  };
+  function efecto(tipo, ids, titulo) {
+    if (!m) return;
+    const regiones = new Set();
+    const civs = (ids || []).map(id => S.civ(m, id)).filter(Boolean);
+    for (const c of civs) {
+      for (const r of S.casillas(m, c)) regiones.add(r);
+      // Lo que se perdió alrededor de la capital (un terremoto, una destrucción) también se ve.
+      for (let r = 0; r < m.W * m.H; r++) if (S.distancia(r, c.capital) <= 2 && S.esTierra(m, r)) regiones.add(r);
+    }
+    const estilo = ESTILO[tipo] ? tipo : 'bueno';
+    efectos.push({ tipo: estilo, regiones: [...regiones], inicio: performance.now() });
+    if (efectos.length > 6) efectos.shift();
+    if (titulo) cartel = { texto: titulo, inicio: performance.now() };
+    // La cámara va a mirar.
+    if (civs[0] && !visible(civs[0].capital)) centrarEn(civs[0].capital);
+  }
+  function visible(region) {
+    const { w, h } = vista(), R = V.SUB * P;
+    const x = (region % m.W) * R + R / 2, y = Math.floor(region / m.W) * R + R / 2;
+    return Math.abs(x - cam.x) < w / cam.z / 2 - R && Math.abs(y - cam.y) < h / cam.z / 2 - R;
+  }
+  const hash = n => { n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+  function pintarEfectos(ahora, x0, y0, x1, y1) {
+    const R = V.SUB * P;
+    efectos = efectos.filter(e => ahora - e.inicio < DURACION);
+    for (const e of efectos) {
+      const t = (ahora - e.inicio) / DURACION, st = ESTILO[e.tipo];
+      const fuerza = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
+      for (const r of e.regiones) {
+        const rx = (r % m.W) * R, ry = Math.floor(r / m.W) * R;
+        if (rx + R < x0 || ry + R < y0 || rx > x1 || ry > y1) continue;
+        g.globalAlpha = 0.28 * fuerza * (0.75 + 0.25 * Math.sin(ahora / 120 + r));
+        g.fillStyle = st.tinte; g.fillRect(rx, ry, R, R);
+        g.globalAlpha = Math.min(1, fuerza * 1.4);
+        const n = st.fuego ? 10 : 6;
+        for (let k = 0; k < n; k++) {
+          const sem = r * 31 + k * 7, fx = hash(sem) * R, vel = 0.5 + hash(sem + 1);
+          let fy;
+          if (st.lluvia) fy = ((hash(sem + 2) * R + (ahora / 6) * vel) % R);
+          else if (st.sube) fy = R - ((hash(sem + 2) * R + (ahora / 14) * vel) % R);
+          else fy = hash(sem + 2) * R;
+          g.fillStyle = st.particula[(k + Math.floor(ahora / 90)) % st.particula.length];
+          if (st.lluvia && e.tipo === 'diluvio') g.fillRect(rx + fx, ry + fy, 1, 3);
+          else if (st.fuego) { const s = 1 + Math.floor(hash(sem + Math.floor(ahora / 80)) * 2); g.fillRect(rx + fx, ry + fy, s, s + 1); }
+          else g.fillRect(rx + fx, ry + fy, 1, 1);
+        }
+      }
+      // Rayos sobre la capital, un haz de luz para un pueblo nuevo.
+      if ((st.rayos || st.haz) && e.regiones.length) {
+        const r0 = e.regiones[0];
+        for (let k = 0; k < 3; k++) {
+          if (st.rayos && hash(k + Math.floor(ahora / 140)) > 0.45) continue;
+          const r = e.regiones[Math.floor(hash(k * 13 + Math.floor(ahora / 400)) * e.regiones.length)] || r0;
+          const cx = (r % m.W) * R + R / 2, cy = Math.floor(r / m.W) * R + R / 2;
+          g.globalAlpha = fuerza;
+          if (st.haz) { g.fillStyle = 'rgba(255,246,220,0.35)'; g.fillRect(cx - 4, cy - 200, 8, 200); g.fillStyle = '#fff6dc'; g.fillRect(cx - 1, cy - 200, 2, 200); break; }
+          g.fillStyle = '#fff6dc';
+          let x = cx, y = cy - 90;
+          while (y < cy) { const nx = x + (hash(y * 3 + k + Math.floor(ahora / 140)) - 0.5) * 8; g.fillRect(Math.min(x, nx), y, Math.abs(nx - x) + 1, 1); g.fillRect(nx, y, 1, 6); x = nx; y += 6; }
+          g.fillStyle = '#ff4b3a'; g.fillRect(cx - 3, cy - 1, 7, 3);
+        }
+      }
+      g.globalAlpha = 1;
+    }
+  }
+  // Donde muere un aldeano queda una cruz un rato.
+  function pintarTumbas(ahora) {
+    tumbas = tumbas.filter(tb => ahora - tb.inicio < 9000);
+    for (const tb of tumbas) {
+      const t = ahora - tb.inicio;
+      if (t < 0) continue;
+      const x = tb.x * P + 2, y = tb.y * P + 1;
+      g.globalAlpha = t < 400 ? 1 : Math.max(0, 1 - (t - 400) / 8600);
+      if (t < 400) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
+      g.fillStyle = '#d8d8e0'; g.fillRect(x + 1, y, 1, 5); g.fillRect(x, y + 1, 3, 1);
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, y + 5, 3, 1);
+    }
+    g.globalAlpha = 1;
+  }
+  function pintarCartel(ahora, dpr) {
+    if (!cartel) return;
+    const t = (ahora - cartel.inicio) / 3500;
+    if (t >= 1) { cartel = null; return; }
+    const tam = Math.round(20 * dpr);
+    g.font = '600 ' + tam + 'px "Pixelify Sans", "Courier New", monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    const ancho = Math.min(cv.width - 24 * dpr, g.measureText(cartel.texto).width + 32 * dpr), x = cv.width / 2, y = 34 * dpr;
+    g.globalAlpha = t < 0.8 ? 1 : (1 - t) / 0.2;
+    g.fillStyle = 'rgba(13,19,34,0.9)'; g.fillRect(x - ancho / 2, y - tam, ancho, tam * 2);
+    g.fillStyle = '#f0c05a'; g.fillRect(x - ancho / 2, y + tam - 3 * dpr, ancho, 3 * dpr);
+    g.fillText(cartel.texto, x, y, ancho - 16 * dpr);
+    g.globalAlpha = 1;
+  }
+
   // ---------- La cámara ----------
   function centrarEn(region) {
     if (!m) return;
@@ -424,5 +547,5 @@
 
   function seleccionar(id) { sel = id; if (m) territorio(); }
 
-  M.pintor = { P, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, SPRITES };
+  M.pintor = { P, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto, SPRITES };
 })(globalThis.RF = globalThis.RF || {});

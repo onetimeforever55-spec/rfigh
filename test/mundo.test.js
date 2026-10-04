@@ -58,7 +58,9 @@ console.log('LA VOLUNTAD DEL DIOS');
   const r5 = D.obrar(m, 'que llueva oro sobre ' + b.nombre);
   comprobar(r5.ok && r5.poder === 'oro', '"que llueva oro" es oro, no un diluvio');
   const r6 = D.obrar(m, 'peste', null);
-  comprobar(!r6.ok && r6.motivo === 'falta_quien', 'sin saber sobre quién, pregunta');
+  comprobar(r6.ok && r6.porDefecto === 'grande' && r6.objetivos.length === 1, 'sin decir sobre quién, lo malo cae sobre el más grande (y se dice)');
+  const r6b = D.obrar(m, 'que descubran la escritura', null);
+  comprobar(r6b.ok && r6b.porDefecto === 'todos' && r6b.objetivos.length === S.vivas(m).length, 'y lo bueno, para todos');
   const r7 = D.obrar(m, 'peste', b.id);
   comprobar(r7.ok && r7.suceso.civ === b.id, 'con un pueblo elegido en el mapa, va para ese pueblo');
   const n = S.vivas(m).length;
@@ -140,6 +142,34 @@ console.log('LA VIDA: ALDEANOS, ÁRBOLES Y CASAS QUE MUEVEN LA ECONOMÍA');
   const r3 = D.obrar(m, 'incendio en ' + c.nombre);
   comprobar(r3.ok && r3.poder === 'incendio' && arb() < n2 * 0.5, 'y un incendio quema bosques y aldeas');
   comprobar(D.obrar(m, 'lluvia de fuego sobre ' + c.nombre).poder === 'terremoto', '"lluvia de fuego" sigue siendo un castigo del cielo, no un incendio');
+}
+
+console.log('LOS PODERES SE NOTAN EN EL ACTO');
+{
+  const m = hasta(S.crear(9, 5), 0), V = M.vida;
+  const grande = () => D.objetivos(m, 'el mas grande', null)[0];
+  const gente = c => m.vida.aldeanos.filter(a => a.c === c.id).length;
+  let c = grande(), g0 = gente(c), p0 = c.pob;
+  D.obrar(m, 'peste sobre ' + c.nombre);
+  comprobar(gente(c) < g0 && c.pob < p0 && m.vida.muertos.length > 0, 'la peste mata aldeanos en el mapa al momento (' + g0 + ' → ' + gente(c) + ')');
+  c = grande(); const campos0 = c.campos;
+  D.obrar(m, 'sequía en ' + c.nombre);
+  comprobar(c.campos < campos0, 'la sequía seca campos (' + campos0 + ' → ' + c.campos + ')');
+  c = grande(); const casas0 = c.casas;
+  D.obrar(m, 'terremoto en ' + c.nombre);
+  comprobar(c.casas < casas0, 'el terremoto tira casas (' + casas0 + ' → ' + c.casas + ')');
+  c = grande(); p0 = c.pob;
+  const r = D.obrar(m, 'mata a la mitad de ' + c.nombre);
+  comprobar(r.ok && r.poder === 'matar' && c.pob < p0 * 0.55, '"mata a la mitad" mata a la mitad');
+  const d = D.objetivos(m, 'el mas pequeno', null)[0], era0 = d.era, cien0 = d.ciencia;
+  const r2 = D.obrar(m, 'haz que ' + d.nombre + ' sea más fuerte');
+  comprobar(r2.ok && r2.poder === 'potenciar' && (d.ciencia > cien0 || d.era > era0), '"que sea más fuerte" lo hace avanzar');
+  const r3 = D.obrar(m, 'guerra entre el más grande y el más pequeño');
+  comprobar(r3.ok && r3.poder === 'guerra' && r3.objetivos.length === 2 && r3.objetivos[0] !== r3.objetivos[1], 'se pueden juntar descripciones: "guerra entre el más grande y el más pequeño"');
+  const n = S.vivas(m).length;
+  D.obrar(m, 'que aparezca un pueblo nuevo'); V.ajustar(m);
+  const nuevo = S.vivas(m)[S.vivas(m).length - 1];
+  comprobar(S.vivas(m).length === n + 1 && m.vida.aldeanos.some(a => a.c === nuevo.id) && V.plaza(m, nuevo.capital).every(t => m.vida.obra[t] === V.OBRA.centro), 'un pueblo nuevo aparece con su plaza y sus aldeanos sin esperar al turno');
 }
 
 console.log('LO QUE DECIDA CLAUDE, CON LÍMITES');

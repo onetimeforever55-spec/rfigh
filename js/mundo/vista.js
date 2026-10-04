@@ -158,17 +158,59 @@
     p.className = 'respuesta ' + (tipo || '');
   }
 
+  // Lo que tenía cada pueblo antes del poder, para contar después qué cambió.
+  function foto() {
+    const out = {};
+    for (const c of m.civs) out[c.id] = { viva: c.viva, pob: c.pob, aldeanos: m.vida.aldeanos.filter(a => a.c === c.id).length, casas: c.casas || 0, campos: c.campos || 0, arboles: c.arboles || 0, tierras: S.casillas(m, c).length, era: c.era, guerras: c.guerras.length, riqueza: c.riqueza, madera: c.madera || 0 };
+    return out;
+  }
+  function cambios(antes, ids, poder) {
+    const partes = [];
+    for (const id of ids) {
+      const c = S.civ(m, id), a = antes[id];
+      if (!c) continue;
+      if (!a) { partes.push(c.nombre + ' aparece con ' + m.vida.aldeanos.filter(x => x.c === id).length + ' aldeanos'); continue; }
+      if (a.viva && !c.viva) { partes.push(c.nombre + ' desaparece'); continue; }
+      const l = [];
+      const d = (n0, n1) => Math.round(n1) - Math.round(n0);
+      if (Math.abs(c.pob - a.pob) >= Math.max(0.5, a.pob * 0.02)) l.push('población ' + pob(a.pob) + ' → ' + pob(c.pob));
+      const muertos = a.aldeanos - m.vida.aldeanos.filter(x => x.c === id).length;
+      if (muertos > 0) l.push(muertos + ' aldeanos muertos');
+      if (d(a.casas, c.casas) < 0) l.push(-d(a.casas, c.casas) + ' casas en ruinas');
+      if (d(a.campos, c.campos) < 0) l.push(-d(a.campos, c.campos) + ' campos perdidos');
+      const bosques = poder === 'incendio' || poder === 'bosque';
+      if (bosques && d(a.arboles, c.arboles) <= -5) l.push(-d(a.arboles, c.arboles) + ' árboles menos');
+      if (bosques && d(a.arboles, c.arboles) >= 5) l.push(d(a.arboles, c.arboles) + ' árboles nuevos');
+      if (d(a.tierras, S.casillas(m, c).length) < 0) l.push(-d(a.tierras, S.casillas(m, c).length) + ' tierras perdidas');
+      if (c.era > a.era) l.push('entra en ' + M.ERAS[c.era].con);
+      if (c.guerras.length > a.guerras) l.push('en guerra');
+      if (c.riqueza - a.riqueza >= 30) l.push('riqueza +' + Math.round(c.riqueza - a.riqueza));
+      if (d(a.madera, c.madera) >= 10) l.push('madera +' + d(a.madera, c.madera));
+      if (l.length) partes.push(c.nombre + ': ' + l.join(', '));
+    }
+    return partes.slice(0, 4).join('. ');
+  }
+  function mostrarPoder(poder, ids, suceso, antes, porDefecto) {
+    M.vida.ajustar(m);
+    P.refrescar();
+    const nuevos = m.civs.filter(c => !antes[c.id]).map(c => c.id);
+    const todos = [...new Set([...(ids || []), ...nuevos])];
+    P.efecto(nuevos.length && poder === 'nuevo' ? 'nuevo' : poder, todos, suceso.titulo);
+    marcar(suceso);
+    const quien = porDefecto === 'todos' ? ' (para todos los pueblos)' : porDefecto === 'grande' ? ' (sobre el más grande, porque no dijiste sobre quién)' : '';
+    const efectos = cambios(antes, todos, poder);
+    responder('Hecho' + quien + '. ' + suceso.titulo + '.' + (efectos ? ' ' + efectos + '.' : ''), 'bien');
+    pintarTodo(); guardar();
+  }
+
   async function obrar(texto) {
     if (ocupado) return;
+    const antes = foto();
     const r = D.obrar(m, texto, sel);
-    if (r.ok) {
-      responder('Hecho. ' + r.suceso.titulo + '.', 'bien');
-      P.refrescar(); marcar(r.suceso); pintarTodo(); guardar();
-      return;
-    }
+    if (r.ok) { mostrarPoder(r.poder, r.objetivos, r.suceso, antes, r.porDefecto); return; }
     if (r.motivo === 'falta_quien') { responder('¿Sobre quién? Toca un pueblo en el mapa o nómbralo ("peste sobre ' + (S.vivas(m)[0] || { nombre: 'Karenia' }).nombre + '").', 'duda'); return; }
     if (r.motivo === 'faltan_dos') { responder('Para eso hacen falta dos pueblos: nómbralos, o elige uno y nombra al otro.', 'duda'); return; }
-    if (!sample) { responder('Los cielos no entienden esa orden. Prueba con pestes, diluvios, sequías, terremotos, oro, inventos ("que descubran la pólvora"), guerras, paces, profetas, revoluciones o pueblos nuevos.', 'duda'); return; }
+    if (!sample) { responder('Los cielos no entienden esa orden. Prueba con pestes, sequías, diluvios, terremotos, incendios, "mata a la mitad de X", "haz más fuerte a X", oro, inventos ("que descubran la pólvora"), bosques, guerras, paces, profetas, revoluciones o pueblos nuevos.', 'duda'); return; }
     // Lo que el intérprete no entiende, lo decide Claude (con límites).
     ocupado = true;
     const seguia = corriendo; corriendo = false; programar();
@@ -178,7 +220,12 @@
       if (typeof sample.json === 'function') f = await sample.json(D.SISTEMA + '\n\n' + D.paraIA(m, texto));
       else { const res = await sample(D.SISTEMA + '\n\n' + D.paraIA(m, texto)); f = JSON.parse(String(res.text).replace(/^[^{]*/, '').replace(/[^}]*$/, '')); }
       const e = D.aplicarIA(m, f);
-      if (e) { responder('Hecho. ' + e.titulo + '.', 'bien'); P.refrescar(); marcar(e); }
+      if (e) {
+        const ids = (Array.isArray(f.efectos) ? f.efectos : []).map(x => (S.vivas(m).find(c => c.id === Number(x.civ) || D.norm(c.nombre) === D.norm(x.civ)) || {}).id).filter(x => x != null);
+        for (const [a, b] of Array.isArray(f.guerra) ? f.guerra : []) for (const x of [a, b]) { const c = S.vivas(m).find(o => o.id === Number(x)); if (c) ids.push(c.id); }
+        const malo = (Array.isArray(f.efectos) ? f.efectos : []).some(x => Number(x.poblacion) < -10);
+        mostrarPoder(Array.isArray(f.guerra) && f.guerra.length ? 'guerra' : malo ? 'matar' : 'bueno', [...new Set(ids)], e, antes, null);
+      }
       else responder((f && f.pregunta) || 'Ni los cielos entienden esa orden. Dila de otra manera.', 'duda');
     } catch (err) {
       responder(err && err.code === 'rate_limited' ? 'Los cielos están saturados. Espera un poco y vuelve a intentarlo.' : 'Los cielos no responden ahora. Prueba con un poder sencillo: peste, diluvio, oro, un invento, una guerra o la paz.', 'duda');

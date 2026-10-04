@@ -151,7 +151,7 @@
     return cs[Math.floor(azar(v) * cs.length)];
   }
 
-  function sincronizar(m, recursosDe) {
+  function sincronizar(m, recursosDe, soloQuitar) {
     const v = m.vida, vivas = S().vivas(m), porCiv = {};
     // Los aldeanos de pueblos muertos desaparecen; los que perdieron su casa se mudan.
     v.aldeanos = v.aldeanos.filter(a => { const c = S().civ(m, a.c); return c && c.viva; });
@@ -170,8 +170,9 @@
         const orden = lista.slice().sort((x, y) => (x.e === LIBRE ? 0 : 1) - (y.e === LIBRE ? 0 : 1) || y.id - x.id);
         for (const a of orden.slice(0, lista.length - deseados[c.id])) quitar.add(a);
       }
-      // Faltan: nacen en su aldea.
-      for (let k = lista.length; k < deseados[c.id]; k++) {
+      // Faltan: nacen en su aldea (unos pocos por turno: tras una peste, el pueblo tarda en recuperarse).
+      const tope = !lista.length ? deseados[c.id] : soloQuitar ? lista.length : Math.min(deseados[c.id], lista.length + 3);
+      for (let k = lista.length; k < tope; k++) {
         const h = hogar(m, c, cs), t = centro(m, h);
         const a = { id: v.sig++, c: c.id, o: GRANJERO, x: t % v.tw, y: t / v.tw | 0, h, e: LIBRE, tx: -1, ty: -1, t: 0, k: 0, q: 0, r: [] };
         v.aldeanos.push(a); lista.push(a);
@@ -222,7 +223,7 @@
   function turno(m) {
     if (!m.vida) crear(m);
     const v = m.vida;
-    v.cambios = [];
+    v.cambios = []; v.muertos = [];
     centros(m);
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
@@ -512,5 +513,44 @@
     return n;
   }
 
-  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar };
+  /*
+   * Lo que un poder del dios le hace a la tierra y a la gente en el acto: aldeanos que mueren, casas que
+   * caen, campos que se secan. Devuelve cuántos aldeanos murieron y cuántas obras se perdieron.
+   */
+  const DANO = {
+    plaga: { gente: 0.35 }, hambre: { gente: 0.2, campo: 0.6 }, diluvio: { gente: 0.15, campo: 0.45, casa: 0.2 },
+    terremoto: { gente: 0.25, casa: 0.55, campo: 0.2 }, destruir: { gente: 0.7, casa: 0.75, campo: 0.6 }, matar: { gente: 0.5 },
+    guerra: {}, incendio: { gente: 0.1 }
+  };
+  function castigo(m, c, tipo, regiones) {
+    const v = m.vida, d = DANO[tipo];
+    if (!v || !d || !c) return { muertos: 0, obras: 0 };
+    let muertos = 0, obras = 0;
+    if (d.gente) {
+      const suyos = v.aldeanos.filter(a => a.c === c.id);
+      const n = Math.min(suyos.length - 1, Math.round(suyos.length * d.gente));
+      const fuera = new Set(suyos.sort((x, y) => x.id % 7 - y.id % 7).slice(0, Math.max(0, n)));
+      v.muertos = (v.muertos || []).concat([...fuera].map(a => [a.x, a.y, c.id, tipo]));
+      v.aldeanos = v.aldeanos.filter(a => !fuera.has(a));
+      muertos = fuera.size;
+    }
+    for (const r of regiones || S().casillas(m, c)) for (const t of parcelas(m, r)) {
+      const o = v.obra[t];
+      if (o === OBRA.campo && d.campo && azar(v) < d.campo) { cambiar(m, 'obra', t, 0, 0); obras++; }
+      else if (o === OBRA.casa && d.casa && azar(v) < d.casa) { cambiar(m, 'obra', t, OBRA.ruina, 0); obras++; }
+    }
+    contar(m);
+    return { muertos, obras };
+  }
+  // Pone la vida al día tras un cambio fuera del turno: plazas nuevas, aldeanos según la población.
+  function ajustar(m) {
+    if (!m.vida) return;
+    m.vida.cambios = m.vida.cambios || [];
+    centros(m);
+    sincronizar(m, null, true);
+    for (const a of m.vida.aldeanos) if (!a.r || !a.r.length) a.r = [];
+    contar(m);
+  }
+
+  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

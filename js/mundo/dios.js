@@ -9,26 +9,38 @@
   'use strict';
   const M = RF.MUNDO, S = () => M.sim;
   const T = t => t.charAt(0).toUpperCase() + t.slice(1);
+  // Lo que el poder hace en el acto a los aldeanos, las casas y los campos (vida.js), si está cargada.
+  const dano = (m, c, tipo, regiones) => (M.vida && m.vida ? M.vida.castigo(m, c, tipo, regiones) : null);
   const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ\s-]/g, ' ').replace(/\s+/g, ' ').trim();
 
   // ---------- ¿A quién? ----------
   function objetivos(m, n, seleccion) {
     const vivas = S().vivas(m);
     const porNombre = vivas.map(c => ({ c, pos: n.indexOf(norm(c.nombre)) })).filter(x => x.pos >= 0).sort((a, b) => a.pos - b.pos).map(x => x.c);
-    if (porNombre.length) return porNombre;
-    if (/\b(todos|todo el mundo|toda la humanidad|el mundo entero|la humanidad|todas partes|cada pueblo)\b/.test(n)) return vivas;
+    if (/\b(todos|todo el mundo|toda la humanidad|el mundo entero|la humanidad|todas partes|cada pueblo)\b/.test(n) && !porNombre.length) return vivas;
     const tam = c => S().casillas(m, c).length;
     const orden = (f, desc) => vivas.slice().sort((a, b) => (desc ? f(b) - f(a) : f(a) - f(b)));
-    if (/\b(mas grande|mas poderoso|mas fuerte|imperio mayor|el mayor)\b/.test(n)) return orden(c => S().fuerza(m, c) + tam(c), true).slice(0, 1);
-    if (/\b(mas pequeno|mas debil|mas chico|el menor)\b/.test(n)) return orden(tam).slice(0, 1);
-    if (/\b(mas atrasado|mas primitivo|mas pobre)\b/.test(n)) return orden(c => c.era * 1000 + c.ciencia).slice(0, 1);
-    if (/\b(mas avanzado|mas sabio|mas rico)\b/.test(n)) return orden(c => c.era * 1000 + c.ciencia, true).slice(0, 1);
-    if (/\b(mas belicoso|mas guerrero|los guerreros)\b/.test(n)) return vivas.filter(c => c.caracter === 'guerrero').slice(0, 2);
     const pos = c => S().xy(c.capital);
-    if (/\b(del norte|al norte|en el norte|nortenos?|septentrional)\b/.test(n)) return orden(c => pos(c)[1]).slice(0, 1);
-    if (/\b(del sur|al sur|en el sur|surenos?|meridional)\b/.test(n)) return orden(c => pos(c)[1], true).slice(0, 1);
-    if (/\b(del este|al este|en el este|oriente|oriental)\b/.test(n)) return orden(c => pos(c)[0], true).slice(0, 1);
-    if (/\b(del oeste|al oeste|en el oeste|occidente|occidental|poniente)\b/.test(n)) return orden(c => pos(c)[0]).slice(0, 1);
+    // Cada descripción ("el más grande", "el del norte"...) señala a un pueblo; se pueden juntar varias.
+    const DESCRIPCIONES = [
+      [/\b(mas grande|mas poderoso|mas fuerte|imperio mayor|el mayor|mas poblado)\b/, () => orden(c => S().fuerza(m, c) + tam(c), true)],
+      [/\b(mas pequeno|mas debil|mas chico|el menor)\b/, () => orden(tam)],
+      [/\b(mas atrasado|mas primitivo|mas pobre)\b/, () => orden(c => c.era * 1000 + c.ciencia)],
+      [/\b(mas avanzado|mas sabio|mas rico)\b/, () => orden(c => c.era * 1000 + c.ciencia, true)],
+      [/\b(del norte|al norte|en el norte|nortenos?|septentrional)\b/, () => orden(c => pos(c)[1])],
+      [/\b(del sur|al sur|en el sur|surenos?|meridional)\b/, () => orden(c => pos(c)[1], true)],
+      [/\b(del este|al este|en el este|oriente|oriental)\b/, () => orden(c => pos(c)[0], true)],
+      [/\b(del oeste|al oeste|en el oeste|occidente|occidental|poniente)\b/, () => orden(c => pos(c)[0])]
+    ];
+    const hallados = porNombre.map(c => ({ c, pos: n.indexOf(norm(c.nombre)) }));
+    for (const [re, f] of DESCRIPCIONES) {
+      const mt = n.match(re);
+      if (!mt) continue;
+      const c = f().find(x => !hallados.some(h => h.c === x));
+      if (c) hallados.push({ c, pos: mt.index });
+    }
+    if (/\b(mas belicoso|mas guerrero|los guerreros)\b/.test(n)) for (const c of vivas.filter(c => c.caracter === 'guerrero').slice(0, 2)) if (!hallados.some(h => h.c === c)) hallados.push({ c, pos: 999 });
+    if (hallados.length) return hallados.sort((a, b) => a.pos - b.pos).map(h => h.c);
     if (seleccion != null) { const c = S().civ(m, seleccion); if (c && c.viva) return [c]; }
     return [];
   }
@@ -85,11 +97,11 @@
     },
     {
       id: 'plaga', re: /\b(plaga|peste|epidemia|enfermedad|virus|viruela|colera|lepra|pandemia|gripe)\b/, minimo: 1,
-      hacer: (m, cs) => { let e = null; for (const c of cs) { S().plaga(m, c, 0.3, 'Una peste cae del cielo sobre ' + c.nombre + ' como castigo divino. Los sacerdotes rezan; los médicos sangran a los enfermos; los dos tienen el mismo éxito.'); e = m.cronica.find(x => x.civ === c.id); } return e; }
+      hacer: (m, cs) => { let e = null; for (const c of cs) { dano(m, c, 'plaga'); S().plaga(m, c, 0.3, 'Una peste cae del cielo sobre ' + c.nombre + ' como castigo divino. Los sacerdotes rezan; los médicos sangran a los enfermos; los dos tienen el mismo éxito.'); e = m.cronica.find(x => x.civ === c.id); } return e; }
     },
     {
       id: 'hambre', re: /\b(hambruna|hambre|sequia|langosta\w*|malas cosechas|que no llueva)\b/, minimo: 1,
-      hacer: (m, cs) => { let e = null; for (const c of cs) { c.efectos.push({ comida: 0.55, estab: -6, hasta: m.turno + 4 }); c.estab -= 8; e = S().cronica(m, 'hambruna', 'Sequía en ' + c.nombre, 'Durante años no cae una gota sobre ' + c.nombre + '. Los ríos bajan, los campos se agrietan y los profetas del fin del mundo hacen su agosto.', c); } return e; }
+      hacer: (m, cs) => { let e = null; for (const c of cs) { c.efectos.push({ comida: 0.55, estab: -6, hasta: m.turno + 4 }); c.estab -= 8; c.pob *= 0.85; dano(m, c, 'hambre'); e = S().cronica(m, 'hambruna', 'Sequía en ' + c.nombre, 'Durante años no cae una gota sobre ' + c.nombre + '. Los ríos bajan, los campos se agrietan y los profetas del fin del mundo hacen su agosto.', c); } return e; }
     },
     {
       id: 'oro', re: /\b(oro|plata|tesoro|riquezas|diamantes|joyas|dinero del cielo)\b/, minimo: 1,
@@ -97,7 +109,7 @@
     },
     {
       id: 'diluvio', re: /\b(diluvio|inundaci\w*|tsunami|maremoto|crecida|lluvia torrencial|que llueva)\b/, minimo: 1,
-      hacer: (m, cs) => { let e = null; for (const c of cs) { c.pob *= 0.82; c.estab -= 8; c.efectos.push({ comida: 1.35, hasta: m.turno + 6 }); e = S().cronica(m, 'diluvio', 'Diluvio sobre ' + c.nombre, 'Llueve cuarenta días. Las aguas se llevan aldeas, puentes y algún templo. Cuando bajan, dejan los campos cubiertos de un barro negro y fértil.', c); } return e; }
+      hacer: (m, cs) => { let e = null; for (const c of cs) { c.pob *= 0.82; c.estab -= 8; dano(m, c, 'diluvio'); c.efectos.push({ comida: 1.35, hasta: m.turno + 6 }); e = S().cronica(m, 'diluvio', 'Diluvio sobre ' + c.nombre, 'Llueve cuarenta días. Las aguas se llevan aldeas, puentes y algún templo. Cuando bajan, dejan los campos cubiertos de un barro negro y fértil.', c); } return e; }
     },
     {
       id: 'terremoto', re: /\b(terremoto|seismo|sismo|volcan|erupcion|meteor\w*|asteroide|rayo|fuego del cielo|lluvia de fuego|cometa)\b/, minimo: 1,
@@ -106,6 +118,7 @@
         for (const c of cs) {
           const cs2 = S().casillas(m, c).sort((a, b) => S().distancia(a, c.capital) - S().distancia(b, c.capital));
           const destruidas = cs2.slice(0, /meteor|asteroide|cometa/.test(n) ? 4 : 2);
+          dano(m, c, 'terremoto', cs2.slice(0, 8));
           for (const i of destruidas) if (i !== c.capital || destruidas.length < cs2.length) { m.dueno[i] = -1; if (m.tipo[i] !== 'montana') m.tipo[i] = 'desierto'; }
           c.pob *= 0.75; c.estab -= 15;
           if (!S().casillas(m, c).length) { S().morir(m, c, null); e = m.ultimo; continue; }
@@ -199,8 +212,34 @@
       hacer: (m, cs) => { const c = S().nuevoPueblo(m, cs[0] ? cs[0].capital : null); return c ? m.ultimo : S().cronica(m, 'nuevo_pueblo', 'No queda sitio', 'Buscas tierra libre para un pueblo nuevo, pero no queda ni un valle sin dueño.', null); }
     },
     {
+      id: 'matar', re: /\b(mata\w*|masacr\w*|que mueran?|muera la mitad|genocid\w*|asesin\w*|diezm\w*|extermin\w* a la mitad)\b/, minimo: 1,
+      hacer: (m, cs) => {
+        let e = null;
+        for (const c of cs) {
+          const r = dano(m, c, 'matar');
+          c.pob *= 0.5; c.estab -= 20;
+          e = S().cronica(m, 'plaga', 'La mano de los cielos cae sobre ' + c.nombre, 'Muere la mitad de ' + c.nombre + ' en una sola noche' + (r && r.muertos ? ': ' + r.muertos + ' aldeanos no vuelven a casa' : '') + '. Los que quedan no saben si rezar más o rezar menos.', c, null, { importante: true });
+        }
+        return e;
+      }
+    },
+    {
+      id: 'potenciar', re: /\b(mas fuertes?|poderos\w*|fortalec\w*|tecnologia|avanc\w*|avanz\w*|progres\w*|ayud\w*|crezca|que prospere|mejor\w*|ensen\w*)\b/, minimo: 1,
+      hacer: (m, cs) => {
+        let e = null;
+        for (const c of cs) {
+          const sig = M.ERAS[c.era + 1];
+          if (sig) c.ciencia += (sig.umbral - M.ERAS[c.era].umbral) * 0.5 + 10;
+          if (sig && c.ciencia >= sig.umbral) S().subirEra(m, c, null);
+          c.estab = Math.min(100, c.estab + 10); c.riqueza += 60; c.pob *= 1.1; c.madera = (c.madera || 0) + 30; c.piedra = (c.piedra || 0) + 10;
+          e = S().cronica(m, 'abundancia', 'Los cielos favorecen a ' + c.nombre, 'Los sabios de ' + c.nombre + ' tienen ideas, los herreros aciertan con el temple y los graneros se llenan. Los vecinos empiezan a mirarlos con envidia.', c);
+        }
+        return e;
+      }
+    },
+    {
       id: 'destruir', re: /\b(destru\w*|aniquil\w*|borra\w*|extermin\w*|elimin\w*|arrasa\w*|que desaparezca)\b/, minimo: 1,
-      hacer: (m, cs) => { let e = null; for (const c of cs) { for (const i of S().casillas(m, c)) if (S().azar(m) < 0.7) m.dueno[i] = -1; c.pob *= 0.3; c.estab = 10; if (!S().casillas(m, c).length) S().morir(m, c, null); else S().cronica(m, 'destruccion', 'La ira de los cielos sobre ' + c.nombre, 'Fuego, agua y tierra se ponen de acuerdo por una vez. De ' + c.nombre + ' quedan unas pocas aldeas y un miedo que durará generaciones.', c, null, { importante: true }); e = m.ultimo; } return e; }
+      hacer: (m, cs) => { let e = null; for (const c of cs) { dano(m, c, 'destruir'); for (const i of S().casillas(m, c)) if (S().azar(m) < 0.7) m.dueno[i] = -1; c.pob *= 0.3; c.estab = 10; if (!S().casillas(m, c).length) S().morir(m, c, null); else S().cronica(m, 'destruccion', 'La ira de los cielos sobre ' + c.nombre, 'Fuego, agua y tierra se ponen de acuerdo por una vez. De ' + c.nombre + ' quedan unas pocas aldeas y un miedo que durará generaciones.', c, null, { importante: true }); e = m.ultimo; } return e; }
     }
   ];
 
@@ -208,6 +247,7 @@
    * Cumple una orden divina. Devuelve { ok, suceso } si la entendió, o { ok: false, motivo } si no
    * (falta a quién, o no se reconoce el poder: entonces la vista puede preguntarle a Claude).
    */
+  const BUENOS = new Set(['paz', 'invento', 'bendicion', 'potenciar', 'bosque', 'oro', 'profeta']);
   function obrar(m, texto, seleccion) {
     const n = norm(texto);
     if (!n) return { ok: false, motivo: 'vacio' };
@@ -216,11 +256,17 @@
       if (P.invento && !M.INVENTOS.some(([re]) => re.test(n))) continue;
       let cs = objetivos(m, n, seleccion);
       if (P.minimo === 2 && cs.length === 1 && seleccion != null && cs[0].id !== seleccion) cs = [S().civ(m, seleccion), cs[0]].filter(c => c && c.viva);
+      // Sin nombrar a nadie ni tener un pueblo elegido: lo bueno es para todos, lo malo cae sobre el más grande.
+      let porDefecto = null;
+      if (!cs.length && P.minimo === 1 && S().vivas(m).length) {
+        if (BUENOS.has(P.id)) { cs = S().vivas(m); porDefecto = 'todos'; }
+        else { cs = objetivos(m, 'el mas grande', null); porDefecto = 'grande'; }
+      }
       if (cs.length < P.minimo) return { ok: false, motivo: P.minimo === 2 ? 'faltan_dos' : 'falta_quien', poder: P.id };
       const suceso = P.hacer(m, cs, n);
       if (!suceso) continue;
       suceso.divino = true;
-      return { ok: true, poder: P.id, suceso };
+      return { ok: true, poder: P.id, suceso, objetivos: cs.map(c => c.id), porDefecto };
     }
     return { ok: false, motivo: 'no_entiendo' };
   }
