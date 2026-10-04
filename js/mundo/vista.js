@@ -13,6 +13,7 @@
   const VELOCIDADES = [[3400, '1×'], [1200, '3×'], [400, '10×']];
   const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  let aldeanoSel = null;
   let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
 
   // ---------- Guardar y cargar (comodidad de este navegador) ----------
@@ -85,6 +86,7 @@
   }
 
   // ---------- Los números ----------
+  const habitantes = c => { const n = c.habitantes != null ? c.habitantes : (m.vida ? m.vida.aldeanos.filter(a => a.c === c.id).length : 0); return n + (n === 1 ? ' aldeano' : ' aldeanos'); };
   const pob = p => (p >= 1000 ? (Math.round(p / 100) / 10).toLocaleString('es-ES') + ' M' : Math.round(p).toLocaleString('es-ES') + ' mil');
   const era = c => M.ERAS[c.era];
 
@@ -109,7 +111,7 @@
       b.innerHTML = '<span class="muestra"></span><span class="p-nombre"></span><span class="p-dato"></span>';
       b.querySelector('.muestra').style.background = c.color;
       b.querySelector('.p-nombre').textContent = c.nombre + (c.guerras.length ? ' ⚔' : '');
-      b.querySelector('.p-dato').textContent = M.ERAS[c.era].corto + ' · ' + pob(c.pob);
+      b.querySelector('.p-dato').textContent = M.ERAS[c.era].corto + ' · ' + habitantes(c);
       b.addEventListener('click', () => elegir(sel === c.id ? null : c.id, true));
       li.appendChild(b); ul.appendChild(li);
     }
@@ -121,6 +123,7 @@
 
   function pintarFicha() {
     const f = $('ficha');
+    if (aldeanoSel != null && fichaAldeano(f)) return;
     const c = sel != null ? S.civ(m, sel) : tuPueblo();
     if (!c || !c.viva) {
       sel = null;
@@ -133,7 +136,7 @@
       '<p class="subt">' + esc(M.REGIMENES[c.regimen]) + ' ' + esc(c.caracter) + ' · ' + esc(era(c).nombre) + '</p>' +
       '<dl>' + fila('Gobierna', esc(M.TITULOS[c.regimen] ? M.TITULOS[c.regimen].charAt(0).toUpperCase() + M.TITULOS[c.regimen].slice(1) : 'Rey') + ' ' + esc(S.nombreRey(c)) + (c.rey ? ' <span class="tenue">(' + esc(M.RASGOS[c.rey.rasgo].nombre) + ', ' + Math.round(c.rey.edad) + ' años' + (c.heredero ? '; heredero: ' + esc(c.heredero.nombre) : '') + ')</span>' : '')) +
       (ciudadesDe(c) ? fila('Ciudades', ciudadesDe(c)) : '') +
-      fila('Población', pob(c.pob) + ' <span class="tenue">(la tierra da para ' + pob(cap) + ')</span>') +
+      fila('Población', habitantes(c) + ' <span class="tenue">(la tierra da para ' + Math.round(cap / M.vida.escala(c)) + ')</span>') +
       fila('Estabilidad', '<span class="barra"><span style="width:' + Math.round(c.estab) + '%"></span></span> ' + Math.round(c.estab)) +
       fila('Riqueza', Math.round(c.riqueza)) + fila('Tierras', cs.length) +
       fila('Aldeanos', aldeanos(c)) +
@@ -201,6 +204,34 @@
     return rutas.length + ' ruta' + (rutas.length > 1 ? 's' : '') + (fuera.length ? ' (con ' + esc(fuera.join(', ')) + ')' : ' internas') + ' <span class="tenue">· ' + (c.comerciantes || 0) + ' comerciantes con carreta · caminos al ' + hecho + '%</span>';
   }
   // Las ciudades con su lealtad (y su peor motivo); las que conspiran, en rojo con el progreso del complot.
+  // La ficha de un aldeano: es un agente con su vida propia.
+  const OFICIO1 = { lenador: 'leñador', granjero: 'granjero', constructor: 'constructor', minero: 'minero', guerrero: 'guerrero', comerciante: 'comerciante' };
+  function fichaAldeano(f) {
+    const a = m.vida.aldeanos.find(x => x.id === aldeanoSel);
+    if (!a) {
+      f.innerHTML = '<p class="vacio">Ese aldeano ha muerto. Toca a otro en el mapa, o un pueblo para ver cómo vive.</p>';
+      aldeanoSel = null; P.elegirAldeano(null); if (P.siguiendoA() != null) P.seguir(null);
+      return true;
+    }
+    const c = S.civ(m, a.c), ciudad = (m.ciudades || []).find(x => x.region === a.h);
+    const padre = a.padre != null ? m.vida.aldeanos.find(x => x.id === a.padre) : null;
+    const hijosVivos = m.vida.aldeanos.filter(x => x.padre === a.id).length;
+    const etapa = (a.edad || 0) < M.vida.ADULTO ? 'niño' : (a.edad || 0) >= M.vida.VIEJO ? 'anciano' : 'adulto';
+    const oficio = (a.edad || 0) < M.vida.ADULTO ? 'juega cerca de casa' : a.colono != null ? 'colono, de camino a tierras nuevas' : OFICIO1[M.vida.OFICIOS[a.o]] + (M.vida.OFICIOS[a.o] === 'guerrero' ? ' (' + (a.tirador ? M.vida.TIROS[c.era] : M.vida.ARMAS[a.arma || 0].nombre) + (a.armadura ? ', con armadura' : '') + ')' : '');
+    const siguiendo = P.siguiendoA() === a.id;
+    f.innerHTML = '<h3><span class="muestra"></span>' + esc(a.nombre + ' ' + (a.familia || '')) + '</h3>' +
+      '<p class="subt">' + esc(etapa) + ' de ' + esc(c ? c.nombre : '—') + (ciudad ? ', vive en ' + esc(ciudad.nombre) : c && a.h === c.capital ? ', vive en la capital' : '') + '</p>' +
+      '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', (a.edad || 0) + ' turnos <span class="tenue">(nació en ' + S.anioTexto(a.nacio != null ? a.nacio : m.anio) + ')</span>') +
+      fila('Rasgos', a.rasgos && a.rasgos.length ? esc(a.rasgos.join(', ')) : '<span class="tenue">ninguno especial</span>') +
+      fila('Familia', (padre ? 'hijo de ' + esc(padre.nombre) + ' · ' : '') + (a.hijos || 0) + ((a.hijos || 0) === 1 ? ' hijo' : ' hijos') + (hijosVivos !== (a.hijos || 0) ? ' <span class="tenue">(' + hijosVivos + ' vivos)</span>' : '')) +
+      (a.bajas ? fila('En combate', a.bajas + ' enemigos abatidos') : '') +
+      fila('Hambre', a.hambre ? '<span class="rojo">' + a.hambre + ' turnos sin comer bien</span>' : 'bien alimentado') + '</dl>' +
+      '<div class="linea" style="margin-top:10px"><button type="button" class="mando" id="seguir">' + (siguiendo ? 'Dejar de seguir' : 'Seguir con la cámara') + '</button> <button type="button" class="mando sutil" id="volver-pueblo">Ver su pueblo</button></div>';
+    f.querySelector('.muestra').style.background = c ? c.color : '#ccc';
+    f.querySelector('#seguir').addEventListener('click', () => { P.seguir(siguiendo ? null : a.id); pintarFicha(); });
+    f.querySelector('#volver-pueblo').addEventListener('click', () => { aldeanoSel = null; P.elegirAldeano(null); P.seguir(null); elegir(a.c, true); });
+    return true;
+  }
   function ciudadesDe(c) {
     const l = (m.ciudades || []).filter(x => x.civ === c.id);
     return l.map(x => {
@@ -319,9 +350,9 @@
       if (a.viva && !c.viva) { partes.push(c.nombre + ' desaparece'); continue; }
       const l = [];
       const d = (n0, n1) => Math.round(n1) - Math.round(n0);
-      if (Math.abs(c.pob - a.pob) >= Math.max(0.5, a.pob * 0.02)) l.push('población ' + pob(a.pob) + ' → ' + pob(c.pob));
-      const muertos = a.aldeanos - m.vida.aldeanos.filter(x => x.c === id).length;
-      if (muertos > 0) l.push(muertos + ' aldeanos muertos');
+      const h0 = a.aldeanos, h1 = m.vida.aldeanos.filter(x => x.c === id).length;
+      if (h0 !== h1) l.push('habitantes ' + h0 + ' → ' + h1);
+
       if (d(a.casas, c.casas) < 0) l.push(-d(a.casas, c.casas) + ' casas en ruinas');
       if (d(a.campos, c.campos) < 0) l.push(-d(a.campos, c.campos) + ' campos perdidos');
       const bosques = poder === 'incendio' || poder === 'bosque';
@@ -433,7 +464,7 @@
 
   // ---------- Arranque ----------
   function iniciar(datos) {
-    P.iniciar($('mapa'), { reducido, alClicar: region => { const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); } });
+    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); }, alClicarAldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); } });
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);
     if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }

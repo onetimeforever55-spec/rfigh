@@ -103,7 +103,10 @@
   const CASAS = ['choza', 'casa', 'entramado', 'bloque'];
 
   // ---------- Estado ----------
-  let cv = null, g = null, m = null, V = null, S = null, alClicar = null;
+  let cv = null, g = null, m = null, V = null, S = null, alClicar = null, alClicarAldeano = null;
+  // Dónde se dibujó cada aldeano en el último fotograma (para tocarlo y para seguirlo con la cámara).
+  const dibujados = new Map();
+  let siguiendo = null, elegido = null;
   let lienzo = null, gl = null, capa = null, gc = null;
   let visto = null, tierra = null, firma = [], pend = [], inicio = 0, duracion = 1000;
   let cam = { x: 0, y: 0, z: 2 }, sel = null, pulso = null, reducido = false, listo = false;
@@ -114,6 +117,7 @@
   function iniciar(canvas, opciones) {
     cv = canvas; g = cv.getContext('2d');
     alClicar = (opciones && opciones.alClicar) || null;
+    alClicarAldeano = (opciones && opciones.alClicarAldeano) || null;
     reducido = !!(opciones && opciones.reducido);
     S = M.sim; V = M.vida;
     entradas();
@@ -417,6 +421,7 @@
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    dibujados.clear();
     for (const a of v.aldeanos) {
       const r = a.r;
       let px, py, acc;
@@ -427,8 +432,11 @@
         acc = r[j + 2];
         if (j === i) acc = r[i + 2];
       } else { px = a.x * P + 6.5; py = a.y * P + 6; acc = 0; }
+      if (siguiendo === a.id) { cam.x = px; cam.y = py; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       px = Math.round(px); py = Math.round(py);
+      dibujados.set(a.id, [px, py]);
+      if (elegido === a.id) { const f2 = Math.floor(performance.now() / 300) % 2; g.fillStyle = '#ffd23a'; g.fillRect(px, py - 5 - f2, 3, 1); g.fillRect(px + 1, py - 4 - f2, 1, 1); g.strokeStyle = 'rgba(255,210,58,0.8)'; g.lineWidth = 0.6; g.strokeRect(px - 2.5, py - 1.5, 8, 9); }
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
       const t = Math.floor(ahora / 150 + a.id) % 2;
       // En el agua (sin puente) no se camina: se nada, con la cabeza fuera y ondas alrededor.
@@ -889,6 +897,7 @@
   function entradas() {
     cv.style.touchAction = 'none';
     cv.addEventListener('pointerdown', ev => {
+      siguiendo = null;
       cv.setPointerCapture(ev.pointerId);
       punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       if (punteros.size === 1) arrastre = { x: ev.clientX, y: ev.clientY, cx: cam.x, cy: cam.y, movido: 0 };
@@ -917,8 +926,12 @@
       if (eraClic && ev.type === 'pointerup' && alClicar && m) {
         const rect = cv.getBoundingClientRect(), { w, h } = vista();
         const wx = cam.x + (ev.clientX - rect.left - w / 2) / cam.z, wy = cam.y + (ev.clientY - rect.top - h / 2) / cam.z;
+        // ¿Has tocado a un aldeano? (el más cercano, si está a unos pocos píxeles de pantalla)
+        let cerca = null, dmin = Math.max(5, 9 / cam.z);
+        for (const [id, [x, y]] of dibujados) { const d = Math.hypot(x + 1.5 - wx, y + 2.5 - wy); if (d < dmin) { dmin = d; cerca = id; } }
         const R = V.SUB * P, rx = Math.floor(wx / R), ry = Math.floor(wy / R);
-        if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
+        if (cerca != null && alClicarAldeano) alClicarAldeano(cerca);
+        else if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
       }
       if (punteros.size === 1) { const [p] = [...punteros.values()]; arrastre = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, movido: 99 }; }
       else if (!punteros.size) arrastre = null;
@@ -933,6 +946,9 @@
   }
 
   function seleccionar(id) { sel = id; if (m) territorio(); }
+  function elegirAldeano(id) { elegido = id; }
+  function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
+  const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto, SPRITES };
+  M.pintor = { P, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto, SPRITES };
 })(globalThis.RF = globalThis.RF || {});

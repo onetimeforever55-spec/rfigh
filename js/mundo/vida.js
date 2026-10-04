@@ -16,10 +16,10 @@
   'use strict';
   const M = RF.MUNDO;
   const S = () => M.sim;
-  const SUB = 4, TICKS = 8, MAX_ALDEANOS = 420;
+  const SUB = 4, TICKS = 8, MAX_ALDEANOS = 1000;
   // La vida de un aldeano, en turnos: niño hasta ADULTO, anciano desde VIEJO, y muere de viejo hacia el final.
   const ADULTO = 2, VIEJO = 18;
-  const limiteVida = a => 22 + (a.id % 12);
+  const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
   const esNino = a => (a.edad || 0) < ADULTO;
   const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9 };
   const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante'];
@@ -34,7 +34,7 @@
     { nombre: 'espada y cota de malla', poder: 2.4 }, { nombre: 'arcabuz y pica', poder: 2.9 }, { nombre: 'mosquete y bayoneta', poder: 3.4 }, { nombre: 'fusil', poder: 4.1 }, { nombre: 'fusil automático', poder: 5 }
   ];
   const TIROS = ['honda', 'arco', 'arco', 'arco largo', 'ballesta', 'arcabuz', 'mosquete', 'fusil', 'fusil automático'];
-  const poder = a => ARMAS[a.arma || 0].poder * (a.armadura ? 1.35 : 1);
+  const poder = a => ARMAS[a.arma || 0].poder * (a.armadura ? 1.35 : 1) * (a.rasgos && a.rasgos.includes('fuerte') ? 1.25 : 1) * (a.rasgos && a.rasgos.includes('valiente') ? 1.1 : 1) * (a.rasgos && a.rasgos.includes('torpe') ? 0.85 : 1);
   // Vetas: en montañas y colinas hay hierro (metal) y oro.
   const MENAS = { montana: [0.22, 0.07], colina: [0.12, 0.03], desierto: [0.05, 0.03], tundra: [0.06, 0.02] };
 
@@ -116,10 +116,11 @@
       if (r < pa) v.arbol[t] = azar(v) < 0.75 ? 3 : 2;
       else if (r < pa + pr) { v.roca[t] = 1 + Math.floor(azar(v) * 3); const [ph, po] = MENAS[ter[t]] || [0.04, 0.01], q = azar(v); v.mena[t] = q < po ? 2 : q < po + ph ? 1 : 0; }
     }
-    for (const c of S().vivas(m)) { c.madera = c.madera || 6; c.piedra = c.piedra || 0; c.metal = c.metal || 0; c.oro = c.oro || 0; }
+    for (const c of S().vivas(m)) { c.madera = c.madera || 6; c.piedra = c.piedra || 0; c.metal = c.metal || 0; c.oro = c.oro || 0; c.comida = c.comida == null ? 30 : c.comida; }
     centros(m);
     sincronizar(m);
     contar(m);
+    actualizarPoblacion(m);
     return v;
   }
 
@@ -143,6 +144,7 @@
     for (const c of S().vivas(m)) {
       if (c.madera == null) { c.madera = 6; c.piedra = 0; c.casas = 0; c.campos = 0; }
       if (c.metal == null) { c.metal = 0; c.oro = 0; }
+      if (c.comida == null) c.comida = 30;
       if (v.centros[c.id] === c.capital) continue;
       for (const t of plaza(m, c.capital)) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.centro, 0); }
       v.centros[c.id] = c.capital;
@@ -202,41 +204,81 @@
     return cs[Math.floor(azar(v) * cs.length)];
   }
 
+  /*
+   * CADA ALDEANO ES UN AGENTE, como en WorldBox: tiene nombre, familia, edad, rasgos, casa e historia.
+   * La población del pueblo son sus aldeanos: nacen de otros aldeanos (si hay cama, comida y tierra que los
+   * sostenga) y mueren de viejos, de hambre, de peste, en la guerra o en el mar. El motor del reino lee su
+   * población de ellos (cada aldeano cuenta por una familia grande: ver escala).
+   */
+  const RASGOS_ALDEANO = ['fuerte', 'rápido', 'sabio', 'perezoso', 'valiente', 'torpe', 'longevo', 'fértil'];
+  const escala = c => 1.5 * (1 + 0.35 * c.era);
+  const tiene = (a, r) => !!(a.rasgos && a.rasgos.includes(r));
+  const APELLIDOS = ['ez', 'ar', 'in', 'os', 'ani', 'ov', 'eda', 'ur'];
+  function nuevoAldeano(m, c, casa, edad, padre) {
+    const v = m.vida, rasgos = [];
+    if (azar(v) < 0.6) rasgos.push(RASGOS_ALDEANO[Math.floor(azar(v) * RASGOS_ALDEANO.length)]);
+    if (azar(v) < 0.2) { const r = RASGOS_ALDEANO[Math.floor(azar(v) * RASGOS_ALDEANO.length)]; if (!rasgos.includes(r)) rasgos.push(r); }
+    // Los hijos heredan a veces un rasgo de su padre o su madre.
+    if (padre && padre.rasgos && padre.rasgos.length && azar(v) < 0.35 && !rasgos.includes(padre.rasgos[0])) rasgos.push(padre.rasgos[0]);
+    const familia = padre ? padre.familia : M.PERSONAS.inicio[Math.floor(azar(v) * M.PERSONAS.inicio.length)] + APELLIDOS[Math.floor(azar(v) * APELLIDOS.length)];
+    const a = { id: v.sig++, c: c.id, o: GRANJERO, x: casa % v.tw, y: casa / v.tw | 0, h: region(m, casa), casa, e: LIBRE, tx: -1, ty: -1, t: 0, k: 0, q: 0, r: [], edad,
+      nombre: persona(v), familia, rasgos, hijos: 0, bajas: 0, hambre: 0, padre: padre ? padre.id : null, nacio: m.anio };
+    if (padre) padre.hijos = (padre.hijos || 0) + 1;
+    v.aldeanos.push(a);
+    return a;
+  }
+
   function sincronizar(m, recursosDe, soloQuitar) {
     const v = m.vida, vivas = S().vivas(m), porCiv = {};
-    // Los aldeanos de pueblos muertos desaparecen; los que perdieron su casa se mudan.
     v.aldeanos = v.aldeanos.filter(a => { const c = S().civ(m, a.c); return c && c.viva; });
-    const deseados = {};
-    let total = 0;
-    for (const c of vivas) { deseados[c.id] = cuantos(c); total += deseados[c.id]; }
-    const escala = total > MAX_ALDEANOS ? MAX_ALDEANOS / total : 1;
-    for (const c of vivas) { deseados[c.id] = Math.max(2, Math.floor(deseados[c.id] * escala)); porCiv[c.id] = []; }
-    for (const a of v.aldeanos) porCiv[a.c].push(a);
+    // Los que viven en tierra que cambia de dueño (conquista, rebelión) pasan a ser de ese pueblo.
+    for (const a of v.aldeanos) {
+      const d = m.dueno[a.h];
+      if (d >= 0 && d !== a.c && a.colono == null) { const o = S().civ(m, d); if (o && o.viva) { a.c = d; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; } }
+    }
+    for (const c of vivas) porCiv[c.id] = [];
+    for (const a of v.aldeanos) if (porCiv[a.c]) porCiv[a.c].push(a);
     const quitar = new Set();
+    let total = v.aldeanos.length;
     for (const c of vivas) {
       const cs = S().casillas(m, c), lista = porCiv[c.id];
-      for (const a of lista) if (m.dueno[a.h] !== c.id) a.h = hogar(m, c, cs);
-      // Mueren de viejos los que llegan al final de su vida (si el pueblo no se queda sin nadie).
-      for (const a of lista) if ((a.edad || 0) > limiteVida(a) && lista.length - quitar.size > 2) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, 'vejez', 0]); }
-      // Sobran (hambre, peste, guerra): mueren primero los más viejos.
-      const vivosAqui = lista.filter(a => !quitar.has(a));
-      if (vivosAqui.length > deseados[c.id]) {
-        const hambre = m.turno - c.ultimaHambre < 2;
-        const orden = vivosAqui.slice().sort((x, y) => (y.edad || 0) - (x.edad || 0));
-        for (const a of orden.slice(0, vivosAqui.length - deseados[c.id])) { quitar.add(a); if (!soloQuitar) v.muertos.push([a.x, a.y, a.c, hambre ? 'hambre' : 'vejez', 0]); }
+      for (const a of lista) if (m.dueno[a.h] !== c.id && a.colono == null) a.h = hogar(m, c, cs);
+      // Lo que el resto del mundo le hizo a la población desde el último turno (una peste, una batalla perdida,
+      // un milagro) se cumple en los aldeanos: mueren los más viejos, o llegan familias nuevas.
+      let objetivo = c.pobVida ? Math.round(lista.length * c.pob / c.pobVida) : Math.max(lista.length, 6);
+      // Un pueblo que sigue en pie nunca se queda sin nadie: vuelven unas familias de las aldeas de alrededor.
+      if (objetivo < 2 && !soloQuitar) objetivo = Math.max(objetivo, lista.length ? 2 : 3);
+      if (objetivo < lista.length) {
+        const tipo = c.guerras.length ? 'batalla' : 'vejez';
+        for (const a of lista.slice().sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, lista.length - Math.max(1, objetivo))) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, tipo, 0]); }
+      } else if (objetivo > lista.length) {
+        const casas = casasDe(m, c);
+        for (let k = lista.length; k < Math.min(objetivo, lista.length + 30); k++) {
+          const casa = casas.length ? casas[Math.floor(azar(v) * casas.length)] : centro(m, hogar(m, c, cs));
+          lista.push(nuevoAldeano(m, c, casa, ADULTO + Math.floor(azar(v) * 10), null)); total++;
+        }
       }
-      // Faltan: nacen bebés en las casas con cama libre (unos pocos por turno). Sin camas no nace nadie:
-      // entonces los constructores levantan casas (ver casaNueva).
-      const vivos = lista.length - [...quitar].filter(a => a.c === c.id).length;
-      const camasLibres = Math.max(0, (c.camas || 6) - vivos);
-      c.sinCama = Math.max(0, deseados[c.id] - vivos - camasLibres);
-      const tope = !lista.length ? deseados[c.id] : soloQuitar ? vivos : Math.min(deseados[c.id], vivos + 3, vivos + camasLibres);
-      const casasCiv = lista.length ? casasDe(m, c) : [];
-      for (let k = vivos; k < tope; k++) {
-        const primeros = !lista.length;
-        const casa = casasCiv.length ? casasCiv[Math.floor(azar(v) * casasCiv.length)] : centro(m, hogar(m, c, cs));
-        const a = { id: v.sig++, c: c.id, o: GRANJERO, x: casa % v.tw, y: casa / v.tw | 0, h: region(m, casa), casa, e: LIBRE, tx: -1, ty: -1, t: 0, k: 0, q: 0, r: [], edad: primeros ? ADULTO + Math.floor(azar(v) * 12) : 0 };
-        v.aldeanos.push(a); lista.push(a);
+      if (soloQuitar) continue;
+      // Mueren de viejos los que llegan al final de su vida (si el pueblo no se queda sin nadie).
+      for (const a of lista) if (!quitar.has(a) && (a.edad || 0) > limiteVida(a) && lista.length - quitar.size > 2) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, 'vejez', 0]); }
+      // Nacen bebés de los adultos, si hay cama libre, comida en el granero y tierra que los sostenga.
+      const vivos = lista.filter(a => !quitar.has(a));
+      const camasLibres = Math.max(0, (c.camas || 6) - vivos.length);
+      const tierra = !c.cap || vivos.length * escala(c) < c.cap * 1.05;
+      const comida = (c.comida || 0) > vivos.length * 0.3 || vivos.length < 8;
+      c.sinCama = 0;
+      if (tierra && comida && total < MAX_ALDEANOS && vivos.length < 150) {
+        const adultos = vivos.filter(a => (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO && a.colono == null);
+        let nacen = 0, casasCiv = null;
+        for (const a of adultos) {
+          if (nacen >= Math.max(2, adultos.length * 0.25)) break;
+          if (azar(v) >= 0.13 * (tiene(a, 'fértil') ? 1.5 : 1)) continue;
+          if (nacen >= camasLibres) { c.sinCama++; continue; }
+          if (!casasCiv) casasCiv = casasDe(m, c);
+          const casa = a.casa != null && [OBRA.casa, OBRA.centro, OBRA.ayuntamiento].includes(v.obra[a.casa]) ? a.casa : (casasCiv.length ? casasCiv[Math.floor(azar(v) * casasCiv.length)] : centro(m, a.h));
+          const bebe = nuevoAldeano(m, c, casa, 0, a);
+          lista.push(bebe); nacen++; total++;
+        }
       }
     }
     if (quitar.size) v.aldeanos = v.aldeanos.filter(a => !quitar.has(a));
@@ -507,10 +549,13 @@
     return out;
   }
 
+  // Búsquedas que ya fallaron este turno (para no repetirlas en cada paso): se vacía al empezar el turno.
+  let memo = new Map();
   // ---------- Un turno de vida ----------
   function turno(m) {
     if (!m.vida) crear(m);
     const v = m.vida;
+    memo = new Map();
     v.cambios = []; v.muertos = []; v.disparos = [];
     for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : a.edad + 1);
     v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.barcos = v.barcos || []; v.torres = v.torres || {}; v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
@@ -541,7 +586,7 @@
     ciudades(m);
     planificarRutas(m, terrenos(m));
     fauna(m, ter);
-    for (const c of S().vivas(m)) c.comida = Math.min(80, (c.comida || 0) * 0.92);
+    comer(m);
     // La leña de cada día: cocinar, calentarse y, desde la Edad del Hierro, las forjas; en la era industrial, el carbón vegetal.
     for (const c of S().vivas(m)) c.madera = Math.max(0, c.madera - Math.sqrt(Math.max(0, c.pob)) * 0.18 * (1 + c.era * 0.3));
   }
@@ -604,7 +649,7 @@
         const pa = poder(a), pb = poder(rival);
         const gana = azar(v) < pa / (pa + pb) ? a : rival, pierde = gana === a ? rival : a;
         muertos.add(pierde); v.muertos.push([pierde.x, pierde.y, pierde.c, 'batalla', paso]);
-        const g = S().civ(m, gana.c); g.victorias = (g.victorias || 0) + 1;
+        const g = S().civ(m, gana.c); g.victorias = (g.victorias || 0) + 1; gana.bajas = (gana.bajas || 0) + 1;
         acc = ACC.luchar;
       } else if (a.tirador && c.era >= 1) {
         const alcance = c.era >= 5 ? 4 : 3;
@@ -618,7 +663,7 @@
           // Una flecha (o una bala) vuela: se dibuja en este paso.
           v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
           const pa = poder(a), pb = poder(blanco);
-          if (azar(v) < 0.3 * pa / (pa + pb) * 2) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso]); c.victorias = (c.victorias || 0) + 1; }
+          if (azar(v) < 0.3 * pa / (pa + pb) * 2) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso]); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
           acc = ACC.luchar;
           // El tirador se para a disparar: deshace el paso de este turno si iba andando.
           if (a.e === IR) { a.x = a.r[a.r.length - 3]; a.y = a.r[a.r.length - 2]; }
@@ -652,7 +697,14 @@
   }
 
   // Lo más cercano a la aldea del aldeano que cumpla una condición: busca región a región, en anillos.
-  function cercaDeCasa(m, a, c, rec, sirve, maxAnillo) {
+  function cercaDeCasa(m, a, c, rec, sirve, maxAnillo, clave) {
+    const k = clave ? clave + ':' + a.h : null;
+    if (k && memo.get(k) === -1) return -1;
+    const r0 = cercaDeCasa2(m, a, c, rec, sirve, maxAnillo);
+    if (k && r0 < 0) memo.set(k, -1);
+    return r0;
+  }
+  function cercaDeCasa2(m, a, c, rec, sirve, maxAnillo) {
     const v = m.vida, aqui = a.y * v.tw + a.x, [hx, hy] = [a.h % m.W, Math.floor(a.h / m.W)];
     for (let anillo = 0; anillo <= maxAnillo; anillo++) {
       let mejor = -1, md = 1e9;
@@ -678,19 +730,21 @@
     a.paseo = 0;
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
-    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 3);
+    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 3, 'arbol');
     else if (a.o === MINERO) {
       // Con la Edad del Bronce, los mineros buscan vetas de metal para la armería; si no, piedra.
       const faltaMetal = c.era >= 1 && (c.metal || 0) < 8 + 4 * c.era;
-      if (faltaMetal && azar(v) < 0.8) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] > 0, 4);
-      if (t < 0 && c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'))) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3);
+      if (faltaMetal && azar(v) < 0.8) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] > 0, 4, 'mena');
+      if (t < 0 && c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'))) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3, 'roca');
     }
     else if (a.o === GRANJERO) {
       a.siega = 0;
       // Primero se siega lo que está maduro; luego se aran campos nuevos si hacen falta.
-      const maduros = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r)).filter(x => v.obra[x] === OBRA.campo && v.cultivo[x] >= 3 && !rec.reservadas.has(x));
+      const km = 'mad:' + a.h;
+      if (!memo.has(km)) memo.set(km, [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r)).filter(x => v.obra[x] === OBRA.campo));
+      const maduros = memo.get(km).filter(x => v.cultivo[x] >= 3 && v.obra[x] === OBRA.campo && !rec.reservadas.has(x));
       if (maduros.length) { t = maduros[Math.floor(azar(v) * maduros.length)]; a.siega = 1; }
-      else t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)) : -1;
+      else if (c.campos < metaCampos(c) && memo.get('campo:' + a.h) !== -1) { t = libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)); if (t < 0) memo.set('campo:' + a.h, -1); }
     }
     else if (a.o === CONSTRUCTOR) {
       a.obraCamino = 0; a.edificio = 0;
@@ -703,7 +757,7 @@
         if (t >= 0) a.obraCamino = 1;
       }
       if (t < 0 && (azar(v) < 0.6 || !molinoCerca(m, c, a.h))) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
-      if (t < 0) t = faltanCamas(c) && c.madera >= 2 ? casaNueva(m, a, c, rec, ter) : -1;
+      if (t < 0 && faltanCamas(c) && c.madera >= 2 && memo.get('casa:' + a.h) !== -1) { t = casaNueva(m, a, c, rec, ter); if (t < 0) memo.set('casa:' + a.h, -1); }
     }
     else if (a.o === COMERCIANTE) {
       // Elige una ruta abierta de su pueblo y sale desde su extremo: la capital propia en las rutas entre reinos.
@@ -984,6 +1038,42 @@
       }
     }
     for (const c of m.civs) c.rutas = v.rutas.filter(ru => ru.tipo !== 'calle' && (ru.a === c.id || ru.b === c.id) && rutaActiva(m, ru)).length;
+  }
+
+  /*
+   * COMER: cada aldeano se come su ración del granero (los niños, media). Si el granero se vacía, la gente
+   * pasa hambre; quien lleva tres turnos sin comer, muere. Al final, la población del reino son sus aldeanos.
+   */
+  function comer(m) {
+    const v = m.vida, porCiv = {};
+    for (const a of v.aldeanos) (porCiv[a.c] = porCiv[a.c] || []).push(a);
+    const muertos = new Set();
+    for (const c of S().vivas(m)) {
+      const lista = porCiv[c.id] || [];
+      const racion = lista.reduce((k, a) => k + (esNino(a) ? 0.15 : 0.3), 0);
+      // La recolección: los adultos que no van a la guerra juntan algo de comida aunque no haya campos.
+      const recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * Math.min(1.5, S().fertil(m, c.capital) / 2);
+      c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
+      if (c.comida < 0) {
+        c.comida = 0;
+        for (const a of lista) a.hambre = (a.hambre || 0) + 1;
+        const caen = lista.filter(a => a.hambre >= 3).sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, Math.ceil(lista.length * 0.3));
+        if (caen.length && lista.length - caen.length >= 1) {
+          for (const a of caen) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'hambre', TICKS]); }
+          if (m.turno - c.ultimaHambre > 6) S().cronica(m, 'hambruna', 'Hambre en ' + c.nombre, 'Los graneros de ' + c.nombre + ' están vacíos. Mueren ' + caen.length + ' aldeanos, primero los más viejos; los demás comen raíces y miran al cielo.', c);
+          c.ultimaHambre = m.turno;
+        }
+      } else for (const a of lista) a.hambre = Math.max(0, (a.hambre || 0) - 1);
+      c.comida = Math.min(c.comida, 20 + lista.length * 4);
+    }
+    if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
+    actualizarPoblacion(m);
+  }
+  // La población del reino (lo que usa el motor) sale de sus aldeanos.
+  function actualizarPoblacion(m) {
+    const v = m.vida, n = {};
+    for (const a of v.aldeanos) n[a.c] = (n[a.c] || 0) + 1;
+    for (const c of S().vivas(m)) { c.escalaVida = escala(c); c.pob = Math.max(0.5, (n[c.id] || 0) * c.escalaVida); c.pobVida = c.pob; c.habitantes = n[c.id] || 0; }
   }
 
   // ---------- Los animales: ovejas y vacas junto a las aldeas, ciervos en los bosques, peces en el agua ----------
@@ -1281,7 +1371,8 @@
     sincronizar(m, null, true);
     for (const a of m.vida.aldeanos) if (!a.r || !a.r.length) a.r = [];
     contar(m);
+    actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

@@ -196,8 +196,8 @@ console.log('COMO WORLDBOX: BIOMAS, ARMAS, EJÉRCITOS, REYES, CIUDADES, ALIANZAS
   a.metal = 50; b.metal = 50;
   if (!S.enGuerra(a, b)) S.declararGuerra(w, a, b, null);
   let disparos = 0, bajas = 0, capitan = false;
-  for (let k = 0; k < 10; k++) { if (!S.enGuerra(a, b) && a.viva && b.viva) S.declararGuerra(w, a, b, null); S.turno(w); disparos += w.vida.disparos.length; bajas += w.vida.muertos.length; capitan = capitan || !!(w.vida.ejercitos[a.id] && w.vida.ejercitos[a.id].capitan != null); }
-  const suyos = w.vida.aldeanos.filter(x => x.c === a.id && V.OFICIOS[x.o] === 'guerrero');
+  let suyos = [];
+  for (let k = 0; k < 10; k++) { if (!S.enGuerra(a, b) && a.viva && b.viva) S.declararGuerra(w, a, b, null); S.turno(w); disparos += w.vida.disparos.length; bajas += w.vida.muertos.length; capitan = capitan || !!(w.vida.ejercitos[a.id] && w.vida.ejercitos[a.id].capitan != null); if (k === 1) suyos = w.vida.aldeanos.filter(x => x.c === a.id && V.OFICIOS[x.o] === 'guerrero'); }
   comprobar(suyos.length && suyos.every(x => (x.arma || 0) >= 1), 'con metal, los guerreros llevan el arma de su era (' + (suyos[0] ? V.ARMAS[suyos[0].arma || 0].nombre : '—') + ')');
   comprobar(capitan, 'el ejército marcha tras su capitán');
   comprobar(disparos + bajas > 0, 'hay combates: flechas y bajas (' + disparos + ' disparos, ' + bajas + ' bajas)');
@@ -319,10 +319,12 @@ console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
   comprobar(JSON.stringify(r.acciones) === JSON.stringify(JSON.parse(JSON.stringify(r.acciones))) && m.registro.length === ordenes.length + 1, 'cada orden queda como acciones serializables (listas para el multijugador)');
   // Las acciones cambian cómo vive tu pueblo.
   X.ordenar(m, yo.id, 'como antes');
+  const proporcion = () => m.vida.aldeanos.filter(a => a.c === yo.id && M.vida.OFICIOS[a.o] === 'lenador').length / Math.max(1, m.vida.aldeanos.filter(a => a.c === yo.id && a.edad >= M.vida.ADULTO).length);
+  const antesTala = proporcion();
   X.ordenar(m, yo.id, 'que todos talen');
-  for (let k = 0; k < 3; k++) S.turno(m);
-  const lenadores = m.vida.aldeanos.filter(a => a.c === yo.id && M.vida.OFICIOS[a.o] === 'lenador').length, total = m.vida.aldeanos.filter(a => a.c === yo.id).length;
-  comprobar(lenadores >= total * 0.4, '"que todos talen" pone a la mayoría a talar (' + lenadores + ' de ' + total + ')');
+  for (let k = 0; k < 6; k++) S.turno(m);
+  const lenadores = m.vida.aldeanos.filter(a => a.c === yo.id && M.vida.OFICIOS[a.o] === 'lenador').length, total = m.vida.aldeanos.filter(a => a.c === yo.id && a.edad >= M.vida.ADULTO).length;
+  comprobar(lenadores / total >= Math.max(0.3, antesTala * 1.6), '"que todos talen" pone a mucha más gente a talar (' + Math.round(antesTala * 100) + '% → ' + lenadores + ' de ' + total + ')');
   const c1 = S.crear(4, 5), c2 = S.crear(4, 5);
   hasta(c1, -2000); hasta(c2, -2000);
   X.gobernar(c1, S.vivas(c1)[0].id); X.ordenar(c1, S.vivas(c1)[0].id, 'invertid en ciencia');

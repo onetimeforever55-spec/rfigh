@@ -299,9 +299,10 @@
     const n = cs.length, car = M.CARACTERES[c.caracter];
     const cap = capacidad(m, c, cs);
     c.cap = cap;
-    // La gente crece mientras haya comida; si se pasa, llega el hambre.
-    c.pob += c.pob * 0.14 * (1 - c.pob / cap);
-    if (c.pob > cap * 1.05) {
+    // La gente crece mientras haya comida; si se pasa, llega el hambre. (Con aldeanos, vida.js, la población
+    // son ellos: nacen, comen y mueren allí.)
+    if (!(m.vida && M.vida)) c.pob += c.pob * 0.14 * (1 - c.pob / cap);
+    if (!(m.vida && M.vida) && c.pob > cap * 1.05) {
       // Lo que queda en los graneros (las cosechas de los granjeros, vida.js) amortigua el hambre.
       const granero = Math.min(0.4, (c.comida || 0) / 40);
       if (c.comida) c.comida = Math.max(0, c.comida - 10);
@@ -396,7 +397,9 @@
     const nueva = nuevaCiv(m, parte[0], { era: c.era, ciencia: c.ciencia * 0.9, pob: c.pob * parte.length / cs.length, riqueza: c.riqueza * 0.3, estab: 55, inventos: c.inventos.slice() });
     if (ciudad && !m.civs.some(x => x !== nueva && x.nombre === ciudad.nombre)) { nueva.nombre = ciudad.nombre; m.ciudades = m.ciudades.filter(x => x !== ciudad); }
     for (const i of parte) m.dueno[i] = nueva.id;
-    c.pob -= nueva.pob; c.estab = 40;
+    // Con aldeanos (vida.js), la gente se va con su tierra: no hace falta repartir la población a mano.
+    if (m.vida) { nueva.pob = 0.5; nueva.pobVida = null; } else c.pob -= nueva.pob;
+    c.estab = 40;
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
     nueva.rel[c.id] = -40; c.rel[nueva.id] = -40; nueva.origen = c.id;
     cronica(m, 'revuelta', 'Las provincias se rebelan', 'Las tierras lejanas de ' + c.nombre + ' dejan de obedecer a la capital y proclaman un ' + (nueva.regimen === 'republica' ? 'gobierno propio' : 'reino propio') + ': ' + nueva.nombre + '.', c, parte[0]);
@@ -508,7 +511,8 @@
     nueva.rey = { nombre: x.alcalde, edad: 40, rasgo: x.rasgo === 'ambicioso' ? 'guerrero' : 'justo', desde: m.anio };
     nueva.origen = c.id;
     for (const i of parte) m.dueno[i] = nueva.id;
-    c.pob -= nueva.pob; c.estab = Math.max(10, c.estab - 10);
+    if (m.vida) { nueva.pob = 0.5; nueva.pobVida = null; } else c.pob -= nueva.pob;
+    c.estab = Math.max(10, c.estab - 10);
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
     nueva.rel[c.id] = c.rel[nueva.id] = -50;
     m.ciudades = m.ciudades.filter(y => y !== x);

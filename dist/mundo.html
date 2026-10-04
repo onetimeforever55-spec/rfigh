@@ -227,14 +227,14 @@ button { cursor: pointer; }
   // alimenta cada casilla (cap), cuánto pesa en la guerra (fuerza) y cuánta ciencia hace falta para llegar.
   M.ERAS = [
     { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
-    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 15, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
-    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 100, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 238, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 610, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1060, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 1520, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 1610, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 1720, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
+    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 112, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 300, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 800, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1400, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2000, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 2120, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 2260, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
@@ -640,9 +640,10 @@ button { cursor: pointer; }
     const n = cs.length, car = M.CARACTERES[c.caracter];
     const cap = capacidad(m, c, cs);
     c.cap = cap;
-    // La gente crece mientras haya comida; si se pasa, llega el hambre.
-    c.pob += c.pob * 0.14 * (1 - c.pob / cap);
-    if (c.pob > cap * 1.05) {
+    // La gente crece mientras haya comida; si se pasa, llega el hambre. (Con aldeanos, vida.js, la población
+    // son ellos: nacen, comen y mueren allí.)
+    if (!(m.vida && M.vida)) c.pob += c.pob * 0.14 * (1 - c.pob / cap);
+    if (!(m.vida && M.vida) && c.pob > cap * 1.05) {
       // Lo que queda en los graneros (las cosechas de los granjeros, vida.js) amortigua el hambre.
       const granero = Math.min(0.4, (c.comida || 0) / 40);
       if (c.comida) c.comida = Math.max(0, c.comida - 10);
@@ -737,7 +738,9 @@ button { cursor: pointer; }
     const nueva = nuevaCiv(m, parte[0], { era: c.era, ciencia: c.ciencia * 0.9, pob: c.pob * parte.length / cs.length, riqueza: c.riqueza * 0.3, estab: 55, inventos: c.inventos.slice() });
     if (ciudad && !m.civs.some(x => x !== nueva && x.nombre === ciudad.nombre)) { nueva.nombre = ciudad.nombre; m.ciudades = m.ciudades.filter(x => x !== ciudad); }
     for (const i of parte) m.dueno[i] = nueva.id;
-    c.pob -= nueva.pob; c.estab = 40;
+    // Con aldeanos (vida.js), la gente se va con su tierra: no hace falta repartir la población a mano.
+    if (m.vida) { nueva.pob = 0.5; nueva.pobVida = null; } else c.pob -= nueva.pob;
+    c.estab = 40;
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
     nueva.rel[c.id] = -40; c.rel[nueva.id] = -40; nueva.origen = c.id;
     cronica(m, 'revuelta', 'Las provincias se rebelan', 'Las tierras lejanas de ' + c.nombre + ' dejan de obedecer a la capital y proclaman un ' + (nueva.regimen === 'republica' ? 'gobierno propio' : 'reino propio') + ': ' + nueva.nombre + '.', c, parte[0]);
@@ -849,7 +852,8 @@ button { cursor: pointer; }
     nueva.rey = { nombre: x.alcalde, edad: 40, rasgo: x.rasgo === 'ambicioso' ? 'guerrero' : 'justo', desde: m.anio };
     nueva.origen = c.id;
     for (const i of parte) m.dueno[i] = nueva.id;
-    c.pob -= nueva.pob; c.estab = Math.max(10, c.estab - 10);
+    if (m.vida) { nueva.pob = 0.5; nueva.pobVida = null; } else c.pob -= nueva.pob;
+    c.estab = Math.max(10, c.estab - 10);
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
     nueva.rel[c.id] = c.rel[nueva.id] = -50;
     m.ciudades = m.ciudades.filter(y => y !== x);
@@ -1046,10 +1050,10 @@ button { cursor: pointer; }
   'use strict';
   const M = RF.MUNDO;
   const S = () => M.sim;
-  const SUB = 4, TICKS = 8, MAX_ALDEANOS = 420;
+  const SUB = 4, TICKS = 8, MAX_ALDEANOS = 1000;
   // La vida de un aldeano, en turnos: niño hasta ADULTO, anciano desde VIEJO, y muere de viejo hacia el final.
   const ADULTO = 2, VIEJO = 18;
-  const limiteVida = a => 22 + (a.id % 12);
+  const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
   const esNino = a => (a.edad || 0) < ADULTO;
   const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9 };
   const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante'];
@@ -1064,7 +1068,7 @@ button { cursor: pointer; }
     { nombre: 'espada y cota de malla', poder: 2.4 }, { nombre: 'arcabuz y pica', poder: 2.9 }, { nombre: 'mosquete y bayoneta', poder: 3.4 }, { nombre: 'fusil', poder: 4.1 }, { nombre: 'fusil automático', poder: 5 }
   ];
   const TIROS = ['honda', 'arco', 'arco', 'arco largo', 'ballesta', 'arcabuz', 'mosquete', 'fusil', 'fusil automático'];
-  const poder = a => ARMAS[a.arma || 0].poder * (a.armadura ? 1.35 : 1);
+  const poder = a => ARMAS[a.arma || 0].poder * (a.armadura ? 1.35 : 1) * (a.rasgos && a.rasgos.includes('fuerte') ? 1.25 : 1) * (a.rasgos && a.rasgos.includes('valiente') ? 1.1 : 1) * (a.rasgos && a.rasgos.includes('torpe') ? 0.85 : 1);
   // Vetas: en montañas y colinas hay hierro (metal) y oro.
   const MENAS = { montana: [0.22, 0.07], colina: [0.12, 0.03], desierto: [0.05, 0.03], tundra: [0.06, 0.02] };
 
@@ -1146,10 +1150,11 @@ button { cursor: pointer; }
       if (r < pa) v.arbol[t] = azar(v) < 0.75 ? 3 : 2;
       else if (r < pa + pr) { v.roca[t] = 1 + Math.floor(azar(v) * 3); const [ph, po] = MENAS[ter[t]] || [0.04, 0.01], q = azar(v); v.mena[t] = q < po ? 2 : q < po + ph ? 1 : 0; }
     }
-    for (const c of S().vivas(m)) { c.madera = c.madera || 6; c.piedra = c.piedra || 0; c.metal = c.metal || 0; c.oro = c.oro || 0; }
+    for (const c of S().vivas(m)) { c.madera = c.madera || 6; c.piedra = c.piedra || 0; c.metal = c.metal || 0; c.oro = c.oro || 0; c.comida = c.comida == null ? 30 : c.comida; }
     centros(m);
     sincronizar(m);
     contar(m);
+    actualizarPoblacion(m);
     return v;
   }
 
@@ -1173,6 +1178,7 @@ button { cursor: pointer; }
     for (const c of S().vivas(m)) {
       if (c.madera == null) { c.madera = 6; c.piedra = 0; c.casas = 0; c.campos = 0; }
       if (c.metal == null) { c.metal = 0; c.oro = 0; }
+      if (c.comida == null) c.comida = 30;
       if (v.centros[c.id] === c.capital) continue;
       for (const t of plaza(m, c.capital)) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.centro, 0); }
       v.centros[c.id] = c.capital;
@@ -1232,41 +1238,81 @@ button { cursor: pointer; }
     return cs[Math.floor(azar(v) * cs.length)];
   }
 
+  /*
+   * CADA ALDEANO ES UN AGENTE, como en WorldBox: tiene nombre, familia, edad, rasgos, casa e historia.
+   * La población del pueblo son sus aldeanos: nacen de otros aldeanos (si hay cama, comida y tierra que los
+   * sostenga) y mueren de viejos, de hambre, de peste, en la guerra o en el mar. El motor del reino lee su
+   * población de ellos (cada aldeano cuenta por una familia grande: ver escala).
+   */
+  const RASGOS_ALDEANO = ['fuerte', 'rápido', 'sabio', 'perezoso', 'valiente', 'torpe', 'longevo', 'fértil'];
+  const escala = c => 1.5 * (1 + 0.35 * c.era);
+  const tiene = (a, r) => !!(a.rasgos && a.rasgos.includes(r));
+  const APELLIDOS = ['ez', 'ar', 'in', 'os', 'ani', 'ov', 'eda', 'ur'];
+  function nuevoAldeano(m, c, casa, edad, padre) {
+    const v = m.vida, rasgos = [];
+    if (azar(v) < 0.6) rasgos.push(RASGOS_ALDEANO[Math.floor(azar(v) * RASGOS_ALDEANO.length)]);
+    if (azar(v) < 0.2) { const r = RASGOS_ALDEANO[Math.floor(azar(v) * RASGOS_ALDEANO.length)]; if (!rasgos.includes(r)) rasgos.push(r); }
+    // Los hijos heredan a veces un rasgo de su padre o su madre.
+    if (padre && padre.rasgos && padre.rasgos.length && azar(v) < 0.35 && !rasgos.includes(padre.rasgos[0])) rasgos.push(padre.rasgos[0]);
+    const familia = padre ? padre.familia : M.PERSONAS.inicio[Math.floor(azar(v) * M.PERSONAS.inicio.length)] + APELLIDOS[Math.floor(azar(v) * APELLIDOS.length)];
+    const a = { id: v.sig++, c: c.id, o: GRANJERO, x: casa % v.tw, y: casa / v.tw | 0, h: region(m, casa), casa, e: LIBRE, tx: -1, ty: -1, t: 0, k: 0, q: 0, r: [], edad,
+      nombre: persona(v), familia, rasgos, hijos: 0, bajas: 0, hambre: 0, padre: padre ? padre.id : null, nacio: m.anio };
+    if (padre) padre.hijos = (padre.hijos || 0) + 1;
+    v.aldeanos.push(a);
+    return a;
+  }
+
   function sincronizar(m, recursosDe, soloQuitar) {
     const v = m.vida, vivas = S().vivas(m), porCiv = {};
-    // Los aldeanos de pueblos muertos desaparecen; los que perdieron su casa se mudan.
     v.aldeanos = v.aldeanos.filter(a => { const c = S().civ(m, a.c); return c && c.viva; });
-    const deseados = {};
-    let total = 0;
-    for (const c of vivas) { deseados[c.id] = cuantos(c); total += deseados[c.id]; }
-    const escala = total > MAX_ALDEANOS ? MAX_ALDEANOS / total : 1;
-    for (const c of vivas) { deseados[c.id] = Math.max(2, Math.floor(deseados[c.id] * escala)); porCiv[c.id] = []; }
-    for (const a of v.aldeanos) porCiv[a.c].push(a);
+    // Los que viven en tierra que cambia de dueño (conquista, rebelión) pasan a ser de ese pueblo.
+    for (const a of v.aldeanos) {
+      const d = m.dueno[a.h];
+      if (d >= 0 && d !== a.c && a.colono == null) { const o = S().civ(m, d); if (o && o.viva) { a.c = d; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; } }
+    }
+    for (const c of vivas) porCiv[c.id] = [];
+    for (const a of v.aldeanos) if (porCiv[a.c]) porCiv[a.c].push(a);
     const quitar = new Set();
+    let total = v.aldeanos.length;
     for (const c of vivas) {
       const cs = S().casillas(m, c), lista = porCiv[c.id];
-      for (const a of lista) if (m.dueno[a.h] !== c.id) a.h = hogar(m, c, cs);
-      // Mueren de viejos los que llegan al final de su vida (si el pueblo no se queda sin nadie).
-      for (const a of lista) if ((a.edad || 0) > limiteVida(a) && lista.length - quitar.size > 2) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, 'vejez', 0]); }
-      // Sobran (hambre, peste, guerra): mueren primero los más viejos.
-      const vivosAqui = lista.filter(a => !quitar.has(a));
-      if (vivosAqui.length > deseados[c.id]) {
-        const hambre = m.turno - c.ultimaHambre < 2;
-        const orden = vivosAqui.slice().sort((x, y) => (y.edad || 0) - (x.edad || 0));
-        for (const a of orden.slice(0, vivosAqui.length - deseados[c.id])) { quitar.add(a); if (!soloQuitar) v.muertos.push([a.x, a.y, a.c, hambre ? 'hambre' : 'vejez', 0]); }
+      for (const a of lista) if (m.dueno[a.h] !== c.id && a.colono == null) a.h = hogar(m, c, cs);
+      // Lo que el resto del mundo le hizo a la población desde el último turno (una peste, una batalla perdida,
+      // un milagro) se cumple en los aldeanos: mueren los más viejos, o llegan familias nuevas.
+      let objetivo = c.pobVida ? Math.round(lista.length * c.pob / c.pobVida) : Math.max(lista.length, 6);
+      // Un pueblo que sigue en pie nunca se queda sin nadie: vuelven unas familias de las aldeas de alrededor.
+      if (objetivo < 2 && !soloQuitar) objetivo = Math.max(objetivo, lista.length ? 2 : 3);
+      if (objetivo < lista.length) {
+        const tipo = c.guerras.length ? 'batalla' : 'vejez';
+        for (const a of lista.slice().sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, lista.length - Math.max(1, objetivo))) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, tipo, 0]); }
+      } else if (objetivo > lista.length) {
+        const casas = casasDe(m, c);
+        for (let k = lista.length; k < Math.min(objetivo, lista.length + 30); k++) {
+          const casa = casas.length ? casas[Math.floor(azar(v) * casas.length)] : centro(m, hogar(m, c, cs));
+          lista.push(nuevoAldeano(m, c, casa, ADULTO + Math.floor(azar(v) * 10), null)); total++;
+        }
       }
-      // Faltan: nacen bebés en las casas con cama libre (unos pocos por turno). Sin camas no nace nadie:
-      // entonces los constructores levantan casas (ver casaNueva).
-      const vivos = lista.length - [...quitar].filter(a => a.c === c.id).length;
-      const camasLibres = Math.max(0, (c.camas || 6) - vivos);
-      c.sinCama = Math.max(0, deseados[c.id] - vivos - camasLibres);
-      const tope = !lista.length ? deseados[c.id] : soloQuitar ? vivos : Math.min(deseados[c.id], vivos + 3, vivos + camasLibres);
-      const casasCiv = lista.length ? casasDe(m, c) : [];
-      for (let k = vivos; k < tope; k++) {
-        const primeros = !lista.length;
-        const casa = casasCiv.length ? casasCiv[Math.floor(azar(v) * casasCiv.length)] : centro(m, hogar(m, c, cs));
-        const a = { id: v.sig++, c: c.id, o: GRANJERO, x: casa % v.tw, y: casa / v.tw | 0, h: region(m, casa), casa, e: LIBRE, tx: -1, ty: -1, t: 0, k: 0, q: 0, r: [], edad: primeros ? ADULTO + Math.floor(azar(v) * 12) : 0 };
-        v.aldeanos.push(a); lista.push(a);
+      if (soloQuitar) continue;
+      // Mueren de viejos los que llegan al final de su vida (si el pueblo no se queda sin nadie).
+      for (const a of lista) if (!quitar.has(a) && (a.edad || 0) > limiteVida(a) && lista.length - quitar.size > 2) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, 'vejez', 0]); }
+      // Nacen bebés de los adultos, si hay cama libre, comida en el granero y tierra que los sostenga.
+      const vivos = lista.filter(a => !quitar.has(a));
+      const camasLibres = Math.max(0, (c.camas || 6) - vivos.length);
+      const tierra = !c.cap || vivos.length * escala(c) < c.cap * 1.05;
+      const comida = (c.comida || 0) > vivos.length * 0.3 || vivos.length < 8;
+      c.sinCama = 0;
+      if (tierra && comida && total < MAX_ALDEANOS && vivos.length < 150) {
+        const adultos = vivos.filter(a => (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO && a.colono == null);
+        let nacen = 0, casasCiv = null;
+        for (const a of adultos) {
+          if (nacen >= Math.max(2, adultos.length * 0.25)) break;
+          if (azar(v) >= 0.13 * (tiene(a, 'fértil') ? 1.5 : 1)) continue;
+          if (nacen >= camasLibres) { c.sinCama++; continue; }
+          if (!casasCiv) casasCiv = casasDe(m, c);
+          const casa = a.casa != null && [OBRA.casa, OBRA.centro, OBRA.ayuntamiento].includes(v.obra[a.casa]) ? a.casa : (casasCiv.length ? casasCiv[Math.floor(azar(v) * casasCiv.length)] : centro(m, a.h));
+          const bebe = nuevoAldeano(m, c, casa, 0, a);
+          lista.push(bebe); nacen++; total++;
+        }
       }
     }
     if (quitar.size) v.aldeanos = v.aldeanos.filter(a => !quitar.has(a));
@@ -1537,10 +1583,13 @@ button { cursor: pointer; }
     return out;
   }
 
+  // Búsquedas que ya fallaron este turno (para no repetirlas en cada paso): se vacía al empezar el turno.
+  let memo = new Map();
   // ---------- Un turno de vida ----------
   function turno(m) {
     if (!m.vida) crear(m);
     const v = m.vida;
+    memo = new Map();
     v.cambios = []; v.muertos = []; v.disparos = [];
     for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : a.edad + 1);
     v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.barcos = v.barcos || []; v.torres = v.torres || {}; v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
@@ -1571,7 +1620,7 @@ button { cursor: pointer; }
     ciudades(m);
     planificarRutas(m, terrenos(m));
     fauna(m, ter);
-    for (const c of S().vivas(m)) c.comida = Math.min(80, (c.comida || 0) * 0.92);
+    comer(m);
     // La leña de cada día: cocinar, calentarse y, desde la Edad del Hierro, las forjas; en la era industrial, el carbón vegetal.
     for (const c of S().vivas(m)) c.madera = Math.max(0, c.madera - Math.sqrt(Math.max(0, c.pob)) * 0.18 * (1 + c.era * 0.3));
   }
@@ -1634,7 +1683,7 @@ button { cursor: pointer; }
         const pa = poder(a), pb = poder(rival);
         const gana = azar(v) < pa / (pa + pb) ? a : rival, pierde = gana === a ? rival : a;
         muertos.add(pierde); v.muertos.push([pierde.x, pierde.y, pierde.c, 'batalla', paso]);
-        const g = S().civ(m, gana.c); g.victorias = (g.victorias || 0) + 1;
+        const g = S().civ(m, gana.c); g.victorias = (g.victorias || 0) + 1; gana.bajas = (gana.bajas || 0) + 1;
         acc = ACC.luchar;
       } else if (a.tirador && c.era >= 1) {
         const alcance = c.era >= 5 ? 4 : 3;
@@ -1648,7 +1697,7 @@ button { cursor: pointer; }
           // Una flecha (o una bala) vuela: se dibuja en este paso.
           v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
           const pa = poder(a), pb = poder(blanco);
-          if (azar(v) < 0.3 * pa / (pa + pb) * 2) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso]); c.victorias = (c.victorias || 0) + 1; }
+          if (azar(v) < 0.3 * pa / (pa + pb) * 2) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso]); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
           acc = ACC.luchar;
           // El tirador se para a disparar: deshace el paso de este turno si iba andando.
           if (a.e === IR) { a.x = a.r[a.r.length - 3]; a.y = a.r[a.r.length - 2]; }
@@ -1682,7 +1731,14 @@ button { cursor: pointer; }
   }
 
   // Lo más cercano a la aldea del aldeano que cumpla una condición: busca región a región, en anillos.
-  function cercaDeCasa(m, a, c, rec, sirve, maxAnillo) {
+  function cercaDeCasa(m, a, c, rec, sirve, maxAnillo, clave) {
+    const k = clave ? clave + ':' + a.h : null;
+    if (k && memo.get(k) === -1) return -1;
+    const r0 = cercaDeCasa2(m, a, c, rec, sirve, maxAnillo);
+    if (k && r0 < 0) memo.set(k, -1);
+    return r0;
+  }
+  function cercaDeCasa2(m, a, c, rec, sirve, maxAnillo) {
     const v = m.vida, aqui = a.y * v.tw + a.x, [hx, hy] = [a.h % m.W, Math.floor(a.h / m.W)];
     for (let anillo = 0; anillo <= maxAnillo; anillo++) {
       let mejor = -1, md = 1e9;
@@ -1708,19 +1764,21 @@ button { cursor: pointer; }
     a.paseo = 0;
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
-    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 3);
+    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 3, 'arbol');
     else if (a.o === MINERO) {
       // Con la Edad del Bronce, los mineros buscan vetas de metal para la armería; si no, piedra.
       const faltaMetal = c.era >= 1 && (c.metal || 0) < 8 + 4 * c.era;
-      if (faltaMetal && azar(v) < 0.8) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] > 0, 4);
-      if (t < 0 && c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'))) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3);
+      if (faltaMetal && azar(v) < 0.8) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] > 0, 4, 'mena');
+      if (t < 0 && c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'))) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3, 'roca');
     }
     else if (a.o === GRANJERO) {
       a.siega = 0;
       // Primero se siega lo que está maduro; luego se aran campos nuevos si hacen falta.
-      const maduros = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r)).filter(x => v.obra[x] === OBRA.campo && v.cultivo[x] >= 3 && !rec.reservadas.has(x));
+      const km = 'mad:' + a.h;
+      if (!memo.has(km)) memo.set(km, [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r)).filter(x => v.obra[x] === OBRA.campo));
+      const maduros = memo.get(km).filter(x => v.cultivo[x] >= 3 && v.obra[x] === OBRA.campo && !rec.reservadas.has(x));
       if (maduros.length) { t = maduros[Math.floor(azar(v) * maduros.length)]; a.siega = 1; }
-      else t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)) : -1;
+      else if (c.campos < metaCampos(c) && memo.get('campo:' + a.h) !== -1) { t = libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)); if (t < 0) memo.set('campo:' + a.h, -1); }
     }
     else if (a.o === CONSTRUCTOR) {
       a.obraCamino = 0; a.edificio = 0;
@@ -1733,7 +1791,7 @@ button { cursor: pointer; }
         if (t >= 0) a.obraCamino = 1;
       }
       if (t < 0 && (azar(v) < 0.6 || !molinoCerca(m, c, a.h))) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
-      if (t < 0) t = faltanCamas(c) && c.madera >= 2 ? casaNueva(m, a, c, rec, ter) : -1;
+      if (t < 0 && faltanCamas(c) && c.madera >= 2 && memo.get('casa:' + a.h) !== -1) { t = casaNueva(m, a, c, rec, ter); if (t < 0) memo.set('casa:' + a.h, -1); }
     }
     else if (a.o === COMERCIANTE) {
       // Elige una ruta abierta de su pueblo y sale desde su extremo: la capital propia en las rutas entre reinos.
@@ -2014,6 +2072,42 @@ button { cursor: pointer; }
       }
     }
     for (const c of m.civs) c.rutas = v.rutas.filter(ru => ru.tipo !== 'calle' && (ru.a === c.id || ru.b === c.id) && rutaActiva(m, ru)).length;
+  }
+
+  /*
+   * COMER: cada aldeano se come su ración del granero (los niños, media). Si el granero se vacía, la gente
+   * pasa hambre; quien lleva tres turnos sin comer, muere. Al final, la población del reino son sus aldeanos.
+   */
+  function comer(m) {
+    const v = m.vida, porCiv = {};
+    for (const a of v.aldeanos) (porCiv[a.c] = porCiv[a.c] || []).push(a);
+    const muertos = new Set();
+    for (const c of S().vivas(m)) {
+      const lista = porCiv[c.id] || [];
+      const racion = lista.reduce((k, a) => k + (esNino(a) ? 0.15 : 0.3), 0);
+      // La recolección: los adultos que no van a la guerra juntan algo de comida aunque no haya campos.
+      const recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * Math.min(1.5, S().fertil(m, c.capital) / 2);
+      c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
+      if (c.comida < 0) {
+        c.comida = 0;
+        for (const a of lista) a.hambre = (a.hambre || 0) + 1;
+        const caen = lista.filter(a => a.hambre >= 3).sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, Math.ceil(lista.length * 0.3));
+        if (caen.length && lista.length - caen.length >= 1) {
+          for (const a of caen) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'hambre', TICKS]); }
+          if (m.turno - c.ultimaHambre > 6) S().cronica(m, 'hambruna', 'Hambre en ' + c.nombre, 'Los graneros de ' + c.nombre + ' están vacíos. Mueren ' + caen.length + ' aldeanos, primero los más viejos; los demás comen raíces y miran al cielo.', c);
+          c.ultimaHambre = m.turno;
+        }
+      } else for (const a of lista) a.hambre = Math.max(0, (a.hambre || 0) - 1);
+      c.comida = Math.min(c.comida, 20 + lista.length * 4);
+    }
+    if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
+    actualizarPoblacion(m);
+  }
+  // La población del reino (lo que usa el motor) sale de sus aldeanos.
+  function actualizarPoblacion(m) {
+    const v = m.vida, n = {};
+    for (const a of v.aldeanos) n[a.c] = (n[a.c] || 0) + 1;
+    for (const c of S().vivas(m)) { c.escalaVida = escala(c); c.pob = Math.max(0.5, (n[c.id] || 0) * c.escalaVida); c.pobVida = c.pob; c.habitantes = n[c.id] || 0; }
   }
 
   // ---------- Los animales: ovejas y vacas junto a las aldeas, ciervos en los bosques, peces en el agua ----------
@@ -2311,9 +2405,10 @@ button { cursor: pointer; }
     sincronizar(m, null, true);
     for (const a of m.vida.aldeanos) if (!a.r || !a.r.length) a.r = [];
     contar(m);
+    actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -2821,7 +2916,7 @@ button { cursor: pointer; }
     const enemigos = c.guerras.map(g => S().civ(m, g.con)).filter(Boolean).map(o => o.nombre);
     const pr = (c.plan && c.plan.prioridad) || {};
     const cambiadas = Object.keys(pr).filter(k => pr[k] !== 1).map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k]));
-    return c.nombre + ', ' + M.ERAS[c.era].nombre + ': puesto ' + puesto + ' de ' + lista.length + ' en tierras (' + S().casillas(m, c).length + '), ' + Math.round(c.pob) + ' mil habitantes, estabilidad ' + Math.round(c.estab) + ', madera ' + Math.floor(c.madera || 0) + ', piedra ' + Math.floor(c.piedra || 0) + '. ' +
+    return c.nombre + ', ' + M.ERAS[c.era].nombre + ': puesto ' + puesto + ' de ' + lista.length + ' en tierras (' + S().casillas(m, c).length + '), ' + (c.habitantes != null ? c.habitantes + ' aldeanos' : Math.round(c.pob) + ' mil habitantes') + ', estabilidad ' + Math.round(c.estab) + ', madera ' + Math.floor(c.madera || 0) + ', piedra ' + Math.floor(c.piedra || 0) + '. ' +
       (enemigos.length ? 'En guerra con ' + enemigos.join(', ') + '. ' : 'En paz. ') + (cambiadas.length ? 'Prioridades: ' + cambiadas.join(', ') + '.' : 'Todas las prioridades en normal.');
   }
 
@@ -2998,7 +3093,10 @@ button { cursor: pointer; }
   const CASAS = ['choza', 'casa', 'entramado', 'bloque'];
 
   // ---------- Estado ----------
-  let cv = null, g = null, m = null, V = null, S = null, alClicar = null;
+  let cv = null, g = null, m = null, V = null, S = null, alClicar = null, alClicarAldeano = null;
+  // Dónde se dibujó cada aldeano en el último fotograma (para tocarlo y para seguirlo con la cámara).
+  const dibujados = new Map();
+  let siguiendo = null, elegido = null;
   let lienzo = null, gl = null, capa = null, gc = null;
   let visto = null, tierra = null, firma = [], pend = [], inicio = 0, duracion = 1000;
   let cam = { x: 0, y: 0, z: 2 }, sel = null, pulso = null, reducido = false, listo = false;
@@ -3009,6 +3107,7 @@ button { cursor: pointer; }
   function iniciar(canvas, opciones) {
     cv = canvas; g = cv.getContext('2d');
     alClicar = (opciones && opciones.alClicar) || null;
+    alClicarAldeano = (opciones && opciones.alClicarAldeano) || null;
     reducido = !!(opciones && opciones.reducido);
     S = M.sim; V = M.vida;
     entradas();
@@ -3312,6 +3411,7 @@ button { cursor: pointer; }
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    dibujados.clear();
     for (const a of v.aldeanos) {
       const r = a.r;
       let px, py, acc;
@@ -3322,8 +3422,11 @@ button { cursor: pointer; }
         acc = r[j + 2];
         if (j === i) acc = r[i + 2];
       } else { px = a.x * P + 6.5; py = a.y * P + 6; acc = 0; }
+      if (siguiendo === a.id) { cam.x = px; cam.y = py; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       px = Math.round(px); py = Math.round(py);
+      dibujados.set(a.id, [px, py]);
+      if (elegido === a.id) { const f2 = Math.floor(performance.now() / 300) % 2; g.fillStyle = '#ffd23a'; g.fillRect(px, py - 5 - f2, 3, 1); g.fillRect(px + 1, py - 4 - f2, 1, 1); g.strokeStyle = 'rgba(255,210,58,0.8)'; g.lineWidth = 0.6; g.strokeRect(px - 2.5, py - 1.5, 8, 9); }
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
       const t = Math.floor(ahora / 150 + a.id) % 2;
       // En el agua (sin puente) no se camina: se nada, con la cabeza fuera y ondas alrededor.
@@ -3784,6 +3887,7 @@ button { cursor: pointer; }
   function entradas() {
     cv.style.touchAction = 'none';
     cv.addEventListener('pointerdown', ev => {
+      siguiendo = null;
       cv.setPointerCapture(ev.pointerId);
       punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       if (punteros.size === 1) arrastre = { x: ev.clientX, y: ev.clientY, cx: cam.x, cy: cam.y, movido: 0 };
@@ -3812,8 +3916,12 @@ button { cursor: pointer; }
       if (eraClic && ev.type === 'pointerup' && alClicar && m) {
         const rect = cv.getBoundingClientRect(), { w, h } = vista();
         const wx = cam.x + (ev.clientX - rect.left - w / 2) / cam.z, wy = cam.y + (ev.clientY - rect.top - h / 2) / cam.z;
+        // ¿Has tocado a un aldeano? (el más cercano, si está a unos pocos píxeles de pantalla)
+        let cerca = null, dmin = Math.max(5, 9 / cam.z);
+        for (const [id, [x, y]] of dibujados) { const d = Math.hypot(x + 1.5 - wx, y + 2.5 - wy); if (d < dmin) { dmin = d; cerca = id; } }
         const R = V.SUB * P, rx = Math.floor(wx / R), ry = Math.floor(wy / R);
-        if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
+        if (cerca != null && alClicarAldeano) alClicarAldeano(cerca);
+        else if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
       }
       if (punteros.size === 1) { const [p] = [...punteros.values()]; arrastre = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, movido: 99 }; }
       else if (!punteros.size) arrastre = null;
@@ -3828,8 +3936,11 @@ button { cursor: pointer; }
   }
 
   function seleccionar(id) { sel = id; if (m) territorio(); }
+  function elegirAldeano(id) { elegido = id; }
+  function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
+  const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto, SPRITES };
+  M.pintor = { P, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto, SPRITES };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vista.js
@@ -3848,6 +3959,7 @@ button { cursor: pointer; }
   const VELOCIDADES = [[3400, '1×'], [1200, '3×'], [400, '10×']];
   const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  let aldeanoSel = null;
   let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
 
   // ---------- Guardar y cargar (comodidad de este navegador) ----------
@@ -3920,6 +4032,7 @@ button { cursor: pointer; }
   }
 
   // ---------- Los números ----------
+  const habitantes = c => { const n = c.habitantes != null ? c.habitantes : (m.vida ? m.vida.aldeanos.filter(a => a.c === c.id).length : 0); return n + (n === 1 ? ' aldeano' : ' aldeanos'); };
   const pob = p => (p >= 1000 ? (Math.round(p / 100) / 10).toLocaleString('es-ES') + ' M' : Math.round(p).toLocaleString('es-ES') + ' mil');
   const era = c => M.ERAS[c.era];
 
@@ -3944,7 +4057,7 @@ button { cursor: pointer; }
       b.innerHTML = '<span class="muestra"></span><span class="p-nombre"></span><span class="p-dato"></span>';
       b.querySelector('.muestra').style.background = c.color;
       b.querySelector('.p-nombre').textContent = c.nombre + (c.guerras.length ? ' ⚔' : '');
-      b.querySelector('.p-dato').textContent = M.ERAS[c.era].corto + ' · ' + pob(c.pob);
+      b.querySelector('.p-dato').textContent = M.ERAS[c.era].corto + ' · ' + habitantes(c);
       b.addEventListener('click', () => elegir(sel === c.id ? null : c.id, true));
       li.appendChild(b); ul.appendChild(li);
     }
@@ -3956,6 +4069,7 @@ button { cursor: pointer; }
 
   function pintarFicha() {
     const f = $('ficha');
+    if (aldeanoSel != null && fichaAldeano(f)) return;
     const c = sel != null ? S.civ(m, sel) : tuPueblo();
     if (!c || !c.viva) {
       sel = null;
@@ -3968,7 +4082,7 @@ button { cursor: pointer; }
       '<p class="subt">' + esc(M.REGIMENES[c.regimen]) + ' ' + esc(c.caracter) + ' · ' + esc(era(c).nombre) + '</p>' +
       '<dl>' + fila('Gobierna', esc(M.TITULOS[c.regimen] ? M.TITULOS[c.regimen].charAt(0).toUpperCase() + M.TITULOS[c.regimen].slice(1) : 'Rey') + ' ' + esc(S.nombreRey(c)) + (c.rey ? ' <span class="tenue">(' + esc(M.RASGOS[c.rey.rasgo].nombre) + ', ' + Math.round(c.rey.edad) + ' años' + (c.heredero ? '; heredero: ' + esc(c.heredero.nombre) : '') + ')</span>' : '')) +
       (ciudadesDe(c) ? fila('Ciudades', ciudadesDe(c)) : '') +
-      fila('Población', pob(c.pob) + ' <span class="tenue">(la tierra da para ' + pob(cap) + ')</span>') +
+      fila('Población', habitantes(c) + ' <span class="tenue">(la tierra da para ' + Math.round(cap / M.vida.escala(c)) + ')</span>') +
       fila('Estabilidad', '<span class="barra"><span style="width:' + Math.round(c.estab) + '%"></span></span> ' + Math.round(c.estab)) +
       fila('Riqueza', Math.round(c.riqueza)) + fila('Tierras', cs.length) +
       fila('Aldeanos', aldeanos(c)) +
@@ -4036,6 +4150,34 @@ button { cursor: pointer; }
     return rutas.length + ' ruta' + (rutas.length > 1 ? 's' : '') + (fuera.length ? ' (con ' + esc(fuera.join(', ')) + ')' : ' internas') + ' <span class="tenue">· ' + (c.comerciantes || 0) + ' comerciantes con carreta · caminos al ' + hecho + '%</span>';
   }
   // Las ciudades con su lealtad (y su peor motivo); las que conspiran, en rojo con el progreso del complot.
+  // La ficha de un aldeano: es un agente con su vida propia.
+  const OFICIO1 = { lenador: 'leñador', granjero: 'granjero', constructor: 'constructor', minero: 'minero', guerrero: 'guerrero', comerciante: 'comerciante' };
+  function fichaAldeano(f) {
+    const a = m.vida.aldeanos.find(x => x.id === aldeanoSel);
+    if (!a) {
+      f.innerHTML = '<p class="vacio">Ese aldeano ha muerto. Toca a otro en el mapa, o un pueblo para ver cómo vive.</p>';
+      aldeanoSel = null; P.elegirAldeano(null); if (P.siguiendoA() != null) P.seguir(null);
+      return true;
+    }
+    const c = S.civ(m, a.c), ciudad = (m.ciudades || []).find(x => x.region === a.h);
+    const padre = a.padre != null ? m.vida.aldeanos.find(x => x.id === a.padre) : null;
+    const hijosVivos = m.vida.aldeanos.filter(x => x.padre === a.id).length;
+    const etapa = (a.edad || 0) < M.vida.ADULTO ? 'niño' : (a.edad || 0) >= M.vida.VIEJO ? 'anciano' : 'adulto';
+    const oficio = (a.edad || 0) < M.vida.ADULTO ? 'juega cerca de casa' : a.colono != null ? 'colono, de camino a tierras nuevas' : OFICIO1[M.vida.OFICIOS[a.o]] + (M.vida.OFICIOS[a.o] === 'guerrero' ? ' (' + (a.tirador ? M.vida.TIROS[c.era] : M.vida.ARMAS[a.arma || 0].nombre) + (a.armadura ? ', con armadura' : '') + ')' : '');
+    const siguiendo = P.siguiendoA() === a.id;
+    f.innerHTML = '<h3><span class="muestra"></span>' + esc(a.nombre + ' ' + (a.familia || '')) + '</h3>' +
+      '<p class="subt">' + esc(etapa) + ' de ' + esc(c ? c.nombre : '—') + (ciudad ? ', vive en ' + esc(ciudad.nombre) : c && a.h === c.capital ? ', vive en la capital' : '') + '</p>' +
+      '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', (a.edad || 0) + ' turnos <span class="tenue">(nació en ' + S.anioTexto(a.nacio != null ? a.nacio : m.anio) + ')</span>') +
+      fila('Rasgos', a.rasgos && a.rasgos.length ? esc(a.rasgos.join(', ')) : '<span class="tenue">ninguno especial</span>') +
+      fila('Familia', (padre ? 'hijo de ' + esc(padre.nombre) + ' · ' : '') + (a.hijos || 0) + ((a.hijos || 0) === 1 ? ' hijo' : ' hijos') + (hijosVivos !== (a.hijos || 0) ? ' <span class="tenue">(' + hijosVivos + ' vivos)</span>' : '')) +
+      (a.bajas ? fila('En combate', a.bajas + ' enemigos abatidos') : '') +
+      fila('Hambre', a.hambre ? '<span class="rojo">' + a.hambre + ' turnos sin comer bien</span>' : 'bien alimentado') + '</dl>' +
+      '<div class="linea" style="margin-top:10px"><button type="button" class="mando" id="seguir">' + (siguiendo ? 'Dejar de seguir' : 'Seguir con la cámara') + '</button> <button type="button" class="mando sutil" id="volver-pueblo">Ver su pueblo</button></div>';
+    f.querySelector('.muestra').style.background = c ? c.color : '#ccc';
+    f.querySelector('#seguir').addEventListener('click', () => { P.seguir(siguiendo ? null : a.id); pintarFicha(); });
+    f.querySelector('#volver-pueblo').addEventListener('click', () => { aldeanoSel = null; P.elegirAldeano(null); P.seguir(null); elegir(a.c, true); });
+    return true;
+  }
   function ciudadesDe(c) {
     const l = (m.ciudades || []).filter(x => x.civ === c.id);
     return l.map(x => {
@@ -4154,9 +4296,9 @@ button { cursor: pointer; }
       if (a.viva && !c.viva) { partes.push(c.nombre + ' desaparece'); continue; }
       const l = [];
       const d = (n0, n1) => Math.round(n1) - Math.round(n0);
-      if (Math.abs(c.pob - a.pob) >= Math.max(0.5, a.pob * 0.02)) l.push('población ' + pob(a.pob) + ' → ' + pob(c.pob));
-      const muertos = a.aldeanos - m.vida.aldeanos.filter(x => x.c === id).length;
-      if (muertos > 0) l.push(muertos + ' aldeanos muertos');
+      const h0 = a.aldeanos, h1 = m.vida.aldeanos.filter(x => x.c === id).length;
+      if (h0 !== h1) l.push('habitantes ' + h0 + ' → ' + h1);
+
       if (d(a.casas, c.casas) < 0) l.push(-d(a.casas, c.casas) + ' casas en ruinas');
       if (d(a.campos, c.campos) < 0) l.push(-d(a.campos, c.campos) + ' campos perdidos');
       const bosques = poder === 'incendio' || poder === 'bosque';
@@ -4268,7 +4410,7 @@ button { cursor: pointer; }
 
   // ---------- Arranque ----------
   function iniciar(datos) {
-    P.iniciar($('mapa'), { reducido, alClicar: region => { const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); } });
+    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); }, alClicarAldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); } });
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);
     if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
