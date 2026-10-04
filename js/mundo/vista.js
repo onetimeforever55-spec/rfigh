@@ -252,9 +252,9 @@
   }
   function ganado(c) {
     const reses = m.vida.animales.filter(b => b.c === c.id), ovejas = reses.filter(b => b.tipo === 'oveja').length, vacas = reses.length - ovejas;
-    const pastores = m.vida.aldeanos.filter(a => a.c === c.id && a.pastor != null).length;
+    const pastores = m.vida.aldeanos.filter(a => a.c === c.id && a.pastor != null).length, cazan = m.vida.aldeanos.filter(a => a.c === c.id && a.caza != null).length;
     if (!reses.length) return 'ninguno <span class="tenue">(hacen falta pastos libres)</span>';
-    return ovejas + (ovejas === 1 ? ' oveja' : ' ovejas') + (vacas ? ', ' + vacas + (vacas === 1 ? ' vaca' : ' vacas') : '') + ' <span class="tenue">· leche, lana y carne' + (pastores ? ' · ' + pastores + ' granjeros con el rebaño' : '') + '</span>';
+    return ovejas + (ovejas === 1 ? ' oveja' : ' ovejas') + (vacas ? ', ' + vacas + (vacas === 1 ? ' vaca' : ' vacas') : '') + ' <span class="tenue">· leche, lana y carne' + (pastores ? ' · ' + pastores + ' granjeros con el rebaño' : '') + (cazan ? ' · ' + cazan + ' cazando o pescando' : '') + '</span>';
   }
   function aldeanos(c) {
     const cuenta = Object.create(null);

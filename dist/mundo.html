@@ -336,6 +336,7 @@ button { cursor: pointer; }
     profeta: [['Una fe nueva puede unir a pueblos dispersos y lanzarlos más allá de sus fronteras.', 'El islam pasó de Arabia a Hispania y a la India en menos de un siglo.']],
     anacronismo: [['Un invento sin la sociedad que lo aproveche se queda en curiosidad.', 'Herón de Alejandría construyó una máquina de vapor en el siglo I. Se usó como juguete en los templos.']],
     nuevo_pueblo: [['Los pueblos de las estepas y los desiertos aparecen de pronto en la historia y la cambian.', 'Los mongoles de Gengis Kan pasaron de tribus enfrentadas a dominar de Corea a Hungría en cincuenta años.']],
+    lobos: [['Donde hay rebaños junto al bosque hay lobos: el pastor y el perro nacieron para defenderlos.', 'En la Francia del siglo XVIII, la «bestia de Gévaudan», un lobo o varios, mató a unas cien personas y movilizó al ejército del rey.']],
     sequia: [['Sin lluvia no hay cosecha ni pasto: un pueblo vive de lo que guardó en el granero.', 'Una sequía de décadas contribuyó al abandono de las grandes ciudades mayas hacia el año 900.'], ['Los malos años se encadenan: primero se pierde la cosecha, luego el ganado.', 'La Gran Hambruna de 1315-1317, tras tres veranos de lluvia y frío, mató a uno de cada diez europeos del norte.']],
     abundancia: [['Las buenas cosechas llenan los graneros y las cunas.', 'La patata y el maíz de América duplicaron la población de muchos países de Europa y de China en dos siglos.']],
     destruccion: [['Algunas civilizaciones desaparecen de golpe y dejan solo ruinas.', 'La erupción del Vesubio en el año 79 sepultó Pompeya en un día; la de Tera, siglos antes, quizá acabó con la Creta minoica.']],
@@ -661,7 +662,7 @@ button { cursor: pointer; }
     for (const c of vivas(m)) reinar(m, c, anios);
     m.anio += anios;
     // Los pueblos nacidos en este turno (una rebelión, uno nuevo) quedan contados ya: casas, camas, gente.
-    if (m.vida && M.vida) M.vida.contar(m);
+    if (m.vida && M.vida && vivas(m).some(c => c.camas == null)) M.vida.contar(m);
     return m;
   }
 
@@ -1605,7 +1606,7 @@ button { cursor: pointer; }
         const n = (b.y + dy) * v.tw + b.x + dx;
         if (b.x + dx >= 0 && b.x + dx < v.tw && n >= 0 && n < ter.length && navegable(ter, n) && dist(m, n, base) <= 7) { b.x += dx; b.y += dy; break; }
       }
-      if (azar(v) < 0.08) c.comida = (c.comida || 0) + 1;
+      if (azar(v) < 0.15) c.comida = (c.comida || 0) + 1;
     } else {
       if (!b.ruta) {
         if (azar(v) < 0.7) { b.r.push(b.x, b.y); return; }
@@ -1736,8 +1737,11 @@ button { cursor: pointer; }
     barcos(m, ter);
     for (const b of v.animales) b.r = [b.x, b.y];
     for (const b of v.barcos) b.r = [b.x, b.y];
+    v.robadas = {}; v.mordidos = {};
     for (let paso = 1; paso <= TICKS; paso++) {
       for (const b of v.animales) pastar(m, b, ter);
+      if (v.animales.some(b => b.muerta)) v.animales = v.animales.filter(b => !b.muerta);
+      lobos(m, paso);
       for (const b of v.barcos) navegar(m, b, ter);
       // Dónde está cada guerrero, para que se encuentren en la frontera.
       const guerreros = new Map();
@@ -1755,6 +1759,14 @@ button { cursor: pointer; }
     planificarRutas(m, terrenos(m));
     fauna(m, ter);
     comer(m);
+    // La crónica cuenta los lobos cuando hacen daño de verdad (una vez cada tanto por pueblo).
+    for (const c of S().vivas(m)) {
+      const mordidos = (v.mordidos || {})[c.id] || 0, robadas = (v.robadas || {})[c.id] || 0;
+      if ((mordidos || robadas >= 3) && !(c.ultimosLobos > m.turno - 10)) {
+        c.ultimosLobos = m.turno;
+        S().cronica(m, 'lobos', 'Lobos en ' + c.nombre, (robadas ? 'Los lobos bajan del bosque y se llevan ' + robadas + (robadas === 1 ? ' res' : ' reses') + ' de los rebaños de ' + c.nombre + '. ' : '') + (mordidos ? (mordidos === 1 ? 'Un aldeano no vuelve a casa. ' : mordidos + ' aldeanos no vuelven a casa. ') : '') + 'Los guerreros salen a darles caza.', c);
+      }
+    }
     // La leña de cada día: cocinar, calentarse y, desde la Edad del Hierro, las forjas; en la era industrial, el carbón vegetal.
     for (const c of S().vivas(m)) c.madera = Math.max(0, c.madera - Math.sqrt(Math.max(0, c.pob)) * 0.18 * (1 + c.era * 0.3));
   }
@@ -1924,12 +1936,28 @@ button { cursor: pointer; }
       if (t < 0) {
         const aqui = a.y * v.tw + a.x;
         let mejor = null, md = 30;
-        for (const b of v.animales) {
-          if (b.c !== c.id || b.atendido === m.turno) continue;
+        for (const b of rebanosDe(v, c.id)) {
+          if (b.atendido === m.turno) continue;
           const d = dist(m, aqui, b.y * v.tw + b.x);
           if (d < md) { md = d; mejor = b; }
         }
         if (mejor) { mejor.atendido = m.turno; a.pastor = mejor.id; t = mejor.y * v.tw + mejor.x; }
+      }
+      // Ni campo ni rebaño: a cazar ciervos al bosque o a pescar desde la orilla.
+      a.caza = null;
+      if (t < 0) {
+        const aqui = a.y * v.tw + a.x;
+        let mejor = null, md = 26, donde = -1;
+        for (const b of salvajes(v)) {
+          if (b.atendido === m.turno || b.muerta) continue;
+          const bt = b.y * v.tw + b.x, d = dist(m, aqui, bt);
+          if (d >= md) continue;
+          let destino = bt;
+          if (b.tipo === 'pez') { destino = -1; for (const dd of [1, -1, v.tw, -v.tw, 2, -2, 2 * v.tw, -2 * v.tw]) { const n = bt + dd; if (n >= 0 && n < ter.length && andable(ter[n])) { destino = n; break; } } }
+          if (destino < 0) continue;
+          md = d; mejor = b; donde = destino;
+        }
+        if (mejor) { mejor.atendido = m.turno; a.caza = mejor.id; t = donde; }
       }
     }
     else if (a.o === CONSTRUCTOR) {
@@ -1963,6 +1991,11 @@ button { cursor: pointer; }
       t = base + dx + dy * v.tw;
       if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
       if (a.x === t % v.tw && a.y === (t / v.tw | 0)) { a.e = ESPERAR; a.t = 2; return; }
+    }
+    else if (a.o === GUERRERO && !c.guerras.length) {
+      // En paz, los guerreros salen a cazar los lobos que rondan su tierra.
+      let md = 22;
+      for (const b of v.animales) { if (b.tipo !== 'lobo') continue; const d = Math.abs(b.x - a.x) + Math.abs(b.y - a.y); if (d < md && m.dueno[region(m, b.y * v.tw + b.x)] === c.id || d < 8) { md = d; t = b.y * v.tw + b.x; } }
     }
     if (t >= 0) { ir(a, t, v.tw, IR); rec.reservadas.add(t); return; }
     // Sin tarea: los granjeros cuidan un campo, los demás pasean por su aldea.
@@ -2067,7 +2100,7 @@ button { cursor: pointer; }
     if (a.paseo) { a.e = ESPERAR; a.t = a.paseo === 2 ? 3 : 1 + Math.floor(azar(v) * 2); a.paseo = 0; return; }
     if (a.o === LENADOR) { if (v.arbol[t] >= 2) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE; }
     else if (a.o === MINERO) { if (v.roca[t] > 0) { a.e = TRABAJAR; a.t = 3; } else if (a.cantera) { a.e = TRABAJAR; a.t = 4; } else a.e = LIBRE; }
-    else if (a.o === GRANJERO && a.pastor != null) { a.e = TRABAJAR; a.t = 3; }
+    else if (a.o === GRANJERO && (a.pastor != null || a.caza != null)) { a.e = TRABAJAR; a.t = 3; }
     else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else { a.e = LIBRE; a.siega = 0; } }
     else if (a.o === CONSTRUCTOR && a.edificio) {
       if (!v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, a.edificio, paso); if (a.edificio === OBRA.torre) (v.torres = v.torres || {})[t] = 12; }
@@ -2093,6 +2126,16 @@ button { cursor: pointer; }
     if (a.o === LENADOR && v.arbol[t] >= 2) { a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && a.cantera && !v.roca[t]) { a.cantera = 0; a.k = 2; a.kt = ter[t] === 'montana' && azar(v) < 0.25 ? 1 : 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && v.roca[t] > 0) { a.k = v.mena[t] ? 1 : 2; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === GRANJERO && a.caza != null) {
+      // El ciervo se caza (si sigue cerca); el pez se pesca y el banco sigue ahí casi siempre.
+      const b = v.animales.find(x => x.id === a.caza), seca = c.efectos.some(e => e.sequia);
+      a.caza = null;
+      if (b && dist(m, t, b.y * v.tw + b.x) <= 4) {
+        if (b.tipo === 'ciervo') { if (azar(v) < 0.6) { v.animales = v.animales.filter(x => x !== b); c.comida = (c.comida || 0) + 4; } }
+        else { c.comida = (c.comida || 0) + (seca ? 0.6 : 1.2); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
+      }
+      return;
+    }
     if (a.o === GRANJERO && a.pastor != null) {
       // Leche, lana y queso de la res; si el granero está casi vacío y el rebaño es grande, se sacrifica una.
       const b = v.animales.find(x => x.id === a.pastor), hab = c.habitantes || 10;
@@ -2260,9 +2303,7 @@ button { cursor: pointer; }
       // La recolección: los adultos que no van a la guerra juntan algo de comida aunque no haya campos.
       const seca = c.efectos.some(e => e.sequia), fertil = Math.min(1.5, S().fertil(m, c.capital) / 2) * (seca ? 0.3 : 1);
       let recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * fertil;
-      // Los granjeros que no tienen campo que trabajar cazan, pescan en el río y recogen bayas.
-      const sobran = Math.max(0, lista.filter(a => a.o === GRANJERO && !esNino(a)).length - (c.campos || 0) * 1.5);
-      recogen += sobran * 0.1 * fertil;
+
       c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
       if (c.comida < 0) {
         c.comida = 0;
@@ -2291,10 +2332,55 @@ button { cursor: pointer; }
     oveja: t => t === 'llanura' || t === 'sabana' || t === 'colina' || t === 'tundra',
     vaca: t => t === 'llanura' || t === 'sabana' || t === 'pantano',
     ciervo: t => t === 'bosque' || t === 'taiga' || t === 'selva' || t === 'llanura',
-    pez: t => t === 'agua' || t === 'bajo'
+    pez: t => t === 'agua' || t === 'bajo' || t === 'rio',
+    lobo: t => t === 'bosque' || t === 'taiga' || t === 'tundra' || t === 'nieve' || t === 'colina' || t === 'llanura' || t === 'sabana'
   };
+  const GUARIDA = t => t === 'bosque' || t === 'taiga' || t === 'tundra' || t === 'nieve';
+  // Lobos y aldeanos: un lobo a veces muerde a quien anda solo (sobre todo niños); un guerrero que lo
+  // tiene al lado lo mata. Los guerreros sin guerra salen a cazarlos.
+  // Listas de animales por turno (se rehacen cuando cambia la lista): rebaños de cada pueblo y presas salvajes.
+  let cacheAnimales = { lista: null, porCiv: null, salvajes: null };
+  function indiceAnimales(v) {
+    if (cacheAnimales.lista === v.animales) return cacheAnimales;
+    const porCiv = new Map(), salv = [];
+    for (const b of v.animales) { if (b.c != null) (porCiv.get(b.c) || porCiv.set(b.c, []).get(b.c)).push(b); else if (b.tipo === 'ciervo' || b.tipo === 'pez') salv.push(b); }
+    return (cacheAnimales = { lista: v.animales, porCiv, salvajes: salv });
+  }
+  const rebanosDe = (v, id) => indiceAnimales(v).porCiv.get(id) || [];
+  const salvajes = v => indiceAnimales(v).salvajes;
+  function lobos(m, paso) {
+    const v = m.vida, lista = v.animales.filter(b => b.tipo === 'lobo');
+    if (!lista.length) return;
+    const muertos = new Set(), cerca = v.aldeanos.filter(a => lista.some(b => Math.abs(a.x - b.x) + Math.abs(a.y - b.y) <= 1));
+    if (!cerca.length) return;
+    for (const b of lista) {
+      for (const a of cerca) {
+        if (Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > 1 || muertos.has(a)) continue;
+        if (a.o === GUERRERO && !esNino(a)) { if (azar(v) < 0.5) { b.muerta = 1; a.bajas = (a.bajas || 0) + 1; } break; }
+        if (azar(v) < (esNino(a) ? 0.04 : 0.015)) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'lobo', paso]); v.mordidos[a.c] = (v.mordidos[a.c] || 0) + 1; break; }
+      }
+    }
+    if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
+    if (lista.some(b => b.muerta)) v.animales = v.animales.filter(b => !b.muerta);
+  }
   function pastar(m, b, ter) {
     const v = m.vida;
+    if (b.tipo === 'lobo') {
+      // Los lobos rondan los rebaños: se acercan a la oveja o la vaca más cercana y a veces se la llevan.
+      if (b.presa == null || azar(v) < 0.1) {
+        let mejor = null, md = 10;
+        for (const o of v.animales) { if ((o.tipo !== 'oveja' && o.tipo !== 'vaca') || o.muerta) continue; const d = Math.abs(o.x - b.x) + Math.abs(o.y - b.y); if (d < md) { md = d; mejor = o; } }
+        b.presa = mejor ? mejor.id : null;
+      }
+      const o = b.presa != null ? v.animales.find(x => x.id === b.presa && !x.muerta) : null;
+      if (o) {
+        const dx = Math.sign(o.x - b.x), dy = Math.sign(o.y - b.y), [mx, my] = dx && (!dy || azar(v) < 0.5) ? [dx, 0] : [0, dy];
+        if (HABITAT.lobo(ter[(b.y + my) * v.tw + b.x + mx]) || andable(ter[(b.y + my) * v.tw + b.x + mx])) { b.x += mx; b.y += my; }
+        if (Math.abs(o.x - b.x) + Math.abs(o.y - b.y) <= 1 && azar(v) < 0.2) { o.muerta = 1; b.presa = null; v.presas = (v.presas || 0) + 1; if (o.c != null) v.robadas[o.c] = (v.robadas[o.c] || 0) + 1; }
+        b.r.push(b.x, b.y);
+        return;
+      }
+    }
     if (azar(v) < 0.55) {
       const [dx, dy] = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(azar(v) * 4)];
       const x = b.x + dx, y = b.y + dy;
@@ -2320,9 +2406,16 @@ button { cursor: pointer; }
         if (suyos.length > tope[tipo] + 1) v.animales = v.animales.filter(b => b !== suyos[0]);
       }
     }
-    for (const [tipo, n] of [['ciervo', 22], ['pez', 26]]) {
-      const hay = v.animales.filter(b => b.tipo === tipo).length;
-      for (let k = hay; k < n; k++) if (!nacer(m, ter, tipo, null)) break;
+    // Los animales salvajes crían a partir de los que quedan, hasta lo que su hábitat aguanta: si se cazan
+    // todos los ciervos de una comarca, tardan en volver.
+    const habitat = { ciervo: 0, pez: 0, lobo: 0 };
+    for (let t = 0; t < ter.length; t += 3) { if (HABITAT.ciervo(ter[t]) && m.dueno[region(m, t)] < 0) habitat.ciervo += 3; if (HABITAT.pez(ter[t])) habitat.pez += 3; if (GUARIDA(ter[t]) && m.dueno[region(m, t)] < 0) habitat.lobo += 3; }
+    const tope = { ciervo: Math.min(70, Math.floor(habitat.ciervo / 120)), pez: Math.min(60, Math.floor(habitat.pez / 250)), lobo: Math.min(12, Math.floor(habitat.lobo / 500)) };
+    for (const tipo of ['ciervo', 'pez', 'lobo']) {
+      const suyos = v.animales.filter(b => b.tipo === tipo);
+      if (suyos.length > tope[tipo] + 2) { v.animales = v.animales.filter(b => b !== suyos[0]); continue; }
+      const nacen = Math.min(tope[tipo] - suyos.length, suyos.length < 4 ? 2 : Math.ceil(suyos.length * (tipo === 'lobo' ? 0.05 : 0.1)));
+      for (let k = 0; k < nacen; k++) nacer(m, ter, tipo, null, suyos.length >= 4 ? suyos[Math.floor(azar(v) * suyos.length)] : null);
     }
   }
   function nacer(m, ter, tipo, c, madre) {
@@ -2334,6 +2427,7 @@ button { cursor: pointer; }
       else t = Math.floor(azar(v) * ter.length);
       if (!HABITAT[tipo](ter[t]) || v.obra[t]) continue;
       if (tipo === 'ciervo' && m.dueno[region(m, t)] >= 0 && azar(v) < 0.8) continue;
+      if (tipo === 'lobo' && !madre && (!GUARIDA(ter[t]) || m.dueno[region(m, t)] >= 0)) continue;
       if (t < 0 || t >= ter.length) continue;
       v.animales.push({ id: v.sig++, tipo, c: c ? c.id : null, casa: madre ? madre.casa : c ? t : null, x: t % v.tw, y: t / v.tw | 0, r: [] });
       return true;
@@ -4156,6 +4250,12 @@ button { cursor: pointer; }
       } else if (b.tipo === 'vaca') {
         g.fillStyle = '#3a3030'; g.fillRect(px, py + 2, 1, 1 + pata); g.fillRect(px + 3, py + 2, 1, 2 - pata);
         g.fillStyle = '#f4f2ea'; g.fillRect(px - 1, py, 5, 2); g.fillStyle = '#6b4a2b'; g.fillRect(px, py, 2, 1); g.fillStyle = '#d9a090'; g.fillRect(px + 4, py, 1, 1);
+      } else if (b.tipo === 'lobo') {
+        // Lobo gris, más bajo y alargado, con orejas de punta y cola caída.
+        g.fillStyle = '#3a3a40'; g.fillRect(px, py + 2, 1, 1 + pata); g.fillRect(px + 3, py + 2, 1, 2 - pata);
+        g.fillStyle = '#7a7a84'; g.fillRect(px - 1, py, 5, 2); g.fillRect(px + 4, py - 1, 2, 2);
+        g.fillStyle = '#4a4a52'; g.fillRect(px + 4, py - 2, 1, 1); g.fillRect(px - 2, py + 1, 1, 2);
+        g.fillStyle = '#e8d070'; g.fillRect(px + 5, py - 1, 1, 1);
       } else if (b.tipo === 'ciervo') {
         g.fillStyle = '#5a3a22'; g.fillRect(px, py + 2, 1, 1 + pata); g.fillRect(px + 2, py + 2, 1, 2 - pata);
         g.fillStyle = '#9a6a3a'; g.fillRect(px - 1, py, 4, 2); g.fillRect(px + 3, py - 1, 1, 1);
@@ -4639,9 +4739,9 @@ button { cursor: pointer; }
   }
   function ganado(c) {
     const reses = m.vida.animales.filter(b => b.c === c.id), ovejas = reses.filter(b => b.tipo === 'oveja').length, vacas = reses.length - ovejas;
-    const pastores = m.vida.aldeanos.filter(a => a.c === c.id && a.pastor != null).length;
+    const pastores = m.vida.aldeanos.filter(a => a.c === c.id && a.pastor != null).length, cazan = m.vida.aldeanos.filter(a => a.c === c.id && a.caza != null).length;
     if (!reses.length) return 'ninguno <span class="tenue">(hacen falta pastos libres)</span>';
-    return ovejas + (ovejas === 1 ? ' oveja' : ' ovejas') + (vacas ? ', ' + vacas + (vacas === 1 ? ' vaca' : ' vacas') : '') + ' <span class="tenue">· leche, lana y carne' + (pastores ? ' · ' + pastores + ' granjeros con el rebaño' : '') + '</span>';
+    return ovejas + (ovejas === 1 ? ' oveja' : ' ovejas') + (vacas ? ', ' + vacas + (vacas === 1 ? ' vaca' : ' vacas') : '') + ' <span class="tenue">· leche, lana y carne' + (pastores ? ' · ' + pastores + ' granjeros con el rebaño' : '') + (cazan ? ' · ' + cazan + ' cazando o pescando' : '') + '</span>';
   }
   function aldeanos(c) {
     const cuenta = Object.create(null);

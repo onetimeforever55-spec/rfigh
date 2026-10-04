@@ -295,7 +295,7 @@
     for (const c of vivas(m)) reinar(m, c, anios);
     m.anio += anios;
     // Los pueblos nacidos en este turno (una rebelión, uno nuevo) quedan contados ya: casas, camas, gente.
-    if (m.vida && M.vida) M.vida.contar(m);
+    if (m.vida && M.vida && vivas(m).some(c => c.camas == null)) M.vida.contar(m);
     return m;
   }
 

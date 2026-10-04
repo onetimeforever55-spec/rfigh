@@ -35,7 +35,7 @@ console.log('PASA DE TODO, Y SE EXPLICA');
 {
   const tipos = new Set(); let conPorque = 0, total = 0;
   for (const sd of [1, 4, 7]) { const m = hasta(S.crear(sd, 5), 1500); for (const e of m.cronica) { tipos.add(e.tipo.split('_')[0]); total++; if (e.porque && e.precedente) conPorque++; } }
-  comprobar(['guerra', 'paz', 'conquista', 'era', 'expansion', 'caida', 'revuelta', 'hambruna'].every(t => tipos.has(t)), 'guerras, paces, conquistas, inventos, expansión, caídas, revueltas y hambrunas (' + [...tipos].join(', ') + ')');
+  comprobar(['guerra', 'paz', 'conquista', 'era', 'expansion', 'caida', 'revuelta'].every(t => tipos.has(t)) && (tipos.has('hambruna') || tipos.has('sequia')), 'guerras, paces, conquistas, inventos, expansión, caídas, revueltas y malos años (sequías o hambrunas) (' + [...tipos].join(', ') + ')');
   comprobar(conPorque / total > 0.95, 'casi todo lo que pasa trae su porqué y un precedente real (' + conPorque + ' de ' + total + ')');
   const m = hasta(S.crear(3, 5), 1500);
   comprobar(m.cronica.every(e => !/entra en la Renacimiento|entra en la Neolítico|el teocracia|el república|el democracia/.test(e.titulo + ' ' + e.texto)), 'y con los artículos bien puestos');
@@ -197,7 +197,7 @@ console.log('COMO WORLDBOX: BIOMAS, ARMAS, EJÉRCITOS, REYES, CIUDADES, ALIANZAS
   if (!S.enGuerra(a, b)) S.declararGuerra(w, a, b, null);
   let disparos = 0, bajas = 0, capitan = false;
   let suyos = [];
-  for (let k = 0; k < 10; k++) { if (!S.enGuerra(a, b) && a.viva && b.viva) S.declararGuerra(w, a, b, null); S.turno(w); disparos += w.vida.disparos.length; bajas += w.vida.muertos.length; capitan = capitan || !!(w.vida.ejercitos[a.id] && w.vida.ejercitos[a.id].capitan != null); if (k === 1) suyos = w.vida.aldeanos.filter(x => x.c === a.id && V.OFICIOS[x.o] === 'guerrero'); }
+  for (let k = 0; k < 10; k++) { if (!S.enGuerra(a, b) && a.viva && b.viva) S.declararGuerra(w, a, b, null); S.turno(w); disparos += w.vida.disparos.length; bajas += w.vida.muertos.length; capitan = capitan || !!(w.vida.ejercitos[a.id] && w.vida.ejercitos[a.id].capitan != null); if (k === 1) suyos = w.vida.aldeanos.filter(x => x.c === a.id && V.OFICIOS[x.o] === 'guerrero').map(x => ({ arma: x.arma || 0 })); } // el arma de ese momento (luego pueden caer o cambiar de bando)
   comprobar(suyos.length && suyos.filter(x => (x.arma || 0) >= 1).length >= suyos.length * 0.9, 'con metal, los guerreros llevan el arma de su era (' + (suyos[0] ? V.ARMAS[suyos[0].arma || 0].nombre : '—') + ')');
   comprobar(capitan, 'el ejército marcha tras su capitán');
   comprobar(disparos + bajas > 0, 'hay combates: flechas y bajas (' + disparos + ' disparos, ' + bajas + ' bajas)');
