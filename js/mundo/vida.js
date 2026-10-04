@@ -34,6 +34,16 @@
     { nombre: 'espada y cota de malla', poder: 2.4 }, { nombre: 'arcabuz y pica', poder: 2.9 }, { nombre: 'mosquete y bayoneta', poder: 3.4 }, { nombre: 'fusil', poder: 4.1 }, { nombre: 'fusil automático', poder: 5 }
   ];
   const TIROS = ['honda', 'arco', 'arco', 'arco largo', 'ballesta', 'arcabuz', 'mosquete', 'fusil', 'fusil automático'];
+  // Puntos de vida de un guerrero (como en WorldBox: los golpes restan vida y se muere al llegar a cero).
+  const vidaMax = a => 10 + (a.armadura ? 5 : 0) + (a.rasgos && a.rasgos.includes('fuerte') ? 3 : 0);
+  // Un golpe: resta vida, se anota para que el pintor lo enseñe (destello rojo, retroceso, sangre) y dice si mata.
+  function golpear(v, atacante, victima, dano, paso, ax, ay) {
+    if (victima.pv == null) victima.pv = vidaMax(victima);
+    victima.pv -= dano;
+    v.golpes.push([victima.id, paso, ax, ay, dano]);
+    if (atacante) v.ataques.push([atacante.id, paso, victima.x - atacante.x, victima.y - atacante.y]);
+    return victima.pv <= 0;
+  }
   const poder = a => ARMAS[a.arma || 0].poder * (a.armadura ? 1.35 : 1) * (a.rasgos && a.rasgos.includes('fuerte') ? 1.25 : 1) * (a.rasgos && a.rasgos.includes('valiente') ? 1.1 : 1) * (a.rasgos && a.rasgos.includes('torpe') ? 0.85 : 1);
   // Vetas: en montañas y colinas hay hierro (metal) y oro.
   const MENAS = { montana: [0.22, 0.07], colina: [0.12, 0.03], desierto: [0.05, 0.03], tundra: [0.06, 0.02] };
@@ -605,7 +615,10 @@
       }
       if (blanco && azar(v) < 0.5) {
         v.disparos.push([tx, ty, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
-        if (azar(v) < 0.22) { v.aldeanos = v.aldeanos.filter(a => a !== blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'torre', paso]); }
+        if (azar(v) < 0.6) {
+          if (blanco.pv0 == null) blanco.pv0 = blanco.pv != null ? blanco.pv : vidaMax(blanco);
+          if (golpear(v, null, blanco, 3 + Math.floor(azar(v) * 3), paso + 0.5, tx, ty)) { v.aldeanos = v.aldeanos.filter(a => a !== blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'torre', paso + 0.5]); }
+        }
       }
       if (cerca) { v.torres[k] -= cerca * 0.4; if (v.torres[k] <= 0) { cambiar(m, 'obra', t, OBRA.ruina, paso); delete v.torres[k]; } }
     }
@@ -644,7 +657,9 @@
     if (!m.vida) crear(m);
     const v = m.vida;
     memo = new Map();
-    v.cambios = []; v.muertos = []; v.disparos = [];
+    v.cambios = []; v.muertos = []; v.disparos = []; v.golpes = []; v.ataques = [];
+    // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
+    for (const a of v.aldeanos) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + 3); a.pv0 = a.pv; if (a.pv >= vidaMax(a) && !((S().civ(m, a.c) || {}).guerras || []).length) { a.pv = null; a.pv0 = null; } }
     for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : a.edad + 1);
     v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.barcos = v.barcos || []; v.torres = v.torres || {}; v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
     centros(m);
@@ -746,10 +761,17 @@
         if (rival) break;
       }
       if (rival) {
+        // Cuerpo a cuerpo: se cruzan golpes; el más fuerte acierta más y pega más fuerte.
         const pa = poder(a), pb = poder(rival);
-        const gana = azar(v) < pa / (pa + pb) ? a : rival, pierde = gana === a ? rival : a;
-        muertos.add(pierde); v.muertos.push([pierde.x, pierde.y, pierde.c, 'batalla', paso]);
-        const g = S().civ(m, gana.c); g.victorias = (g.victorias || 0) + 1; gana.bajas = (gana.bajas || 0) + 1;
+        if (azar(v) < 0.75 * pa / (pa + pb) * 2 * 0.6) {
+          const dano = Math.max(1, Math.round((2 + azar(v) * 3) * Math.sqrt(pa / pb)));
+          if (a.pv == null) { a.pv = vidaMax(a); a.pv0 = a.pv; }
+          if (rival.pv0 == null) rival.pv0 = rival.pv != null ? rival.pv : vidaMax(rival);
+          if (golpear(v, a, rival, dano, paso, a.x, a.y)) {
+            muertos.add(rival); v.muertos.push([rival.x, rival.y, rival.c, 'batalla', paso]);
+            c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1;
+          }
+        }
         acc = ACC.luchar;
       } else if (a.tirador && c.era >= 1) {
         const alcance = c.era >= 5 ? 4 : 3;
@@ -763,7 +785,11 @@
           // Una flecha (o una bala) vuela: se dibuja en este paso.
           v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
           const pa = poder(a), pb = poder(blanco);
-          if (azar(v) < 0.3 * pa / (pa + pb) * 2) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso]); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+          if (azar(v) < 0.55 * pa / (pa + pb) * 2) {
+            if (blanco.pv0 == null) blanco.pv0 = blanco.pv != null ? blanco.pv : vidaMax(blanco);
+            // La flecha llega al final del paso: el golpe se ve un poco después de soltarla.
+            if (golpear(v, null, blanco, Math.round(2 + azar(v) * 3 + (c.era >= 5 ? 3 : 0)), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5]); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+          }
           acc = ACC.luchar;
           // El tirador se para a disparar: deshace el paso de este turno si iba andando.
           if (a.e === IR) { a.x = a.r[a.r.length - 3]; a.y = a.r[a.r.length - 2]; }
@@ -1631,5 +1657,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

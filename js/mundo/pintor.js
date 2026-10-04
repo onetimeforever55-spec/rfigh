@@ -430,9 +430,32 @@
   }
 
   // Los aldeanos: 3×5 píxeles, con el color de su pueblo y la herramienta de su oficio.
+  // ---------- Golpes como en WorldBox: destello rojo y blanco, retroceso, embestida, sangre y barra de vida ----------
+  const DURA_GOLPE = 0.55; // en pasos
+  let indiceGolpes = { de: null, golpes: new Map(), ataques: new Map() };
+  function golpesDelTurno(v) {
+    if (indiceGolpes.de === v.golpes) return indiceGolpes;
+    const golpes = new Map(), ataques = new Map();
+    for (const gp of v.golpes || []) (golpes.get(gp[0]) || golpes.set(gp[0], []).get(gp[0])).push(gp);
+    for (const at of v.ataques || []) (ataques.get(at[0]) || ataques.set(at[0], []).get(at[0])).push(at);
+    return (indiceGolpes = { de: v.golpes, golpes, ataques });
+  }
+  // El golpe más reciente que se está viendo ahora (o null), y cuánto va de él (0 a 1).
+  function golpeActivo(lista, k) {
+    if (!lista) return null;
+    for (let i = lista.length - 1; i >= 0; i--) { const d = (k - (lista[i][1] - 0.5)) / DURA_GOLPE; if (d >= 0 && d < 1) return [lista[i], d]; }
+    return null;
+  }
+  // La silueta del aldeano en un color (para el destello).
+  function silueta(px, py, col) {
+    g.fillStyle = col;
+    g.fillRect(px + 1, py, 1, 1); g.fillRect(px, py + 1, 3, 2); g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2);
+  }
+
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    const ig = golpesDelTurno(v);
     dibujados.clear();
     for (const a of v.aldeanos) {
       const r = a.r;
@@ -446,6 +469,10 @@
       } else { px = a.x * P + 6.5; py = a.y * P + 6; acc = 0; }
       if (siguiendo === a.id) { cam.x = px; cam.y = py; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
+      // Recibe un golpe: sale despedido un par de píxeles lejos de quien le pega. Pega: embiste hacia el otro.
+      const recibe = golpeActivo(ig.golpes.get(a.id), k), pega = golpeActivo(ig.ataques.get(a.id), k);
+      if (recibe) { const [gp, d] = recibe, emp = Math.round(2.5 * (1 - d)); px += Math.sign(a.x - gp[2]) * emp; py += Math.sign(a.y - gp[3]) * emp - (d < 0.5 ? 1 : 0); }
+      if (pega) { const [at, d] = pega, emb = Math.round(2.5 * Math.sin(Math.PI * d)); px += Math.sign(at[2]) * emb; py += Math.sign(at[3]) * emb; }
       px = Math.round(px); py = Math.round(py);
       dibujados.set(a.id, [px, py]);
       if (elegido === a.id) { const f2 = Math.floor(performance.now() / 300) % 2; g.fillStyle = '#ffd23a'; g.fillRect(px, py - 5 - f2, 3, 1); g.fillRect(px + 1, py - 4 - f2, 1, 1); g.strokeStyle = 'rgba(255,210,58,0.8)'; g.lineWidth = 0.6; g.strokeRect(px - 2.5, py - 1.5, 8, 9); }
@@ -526,6 +553,25 @@
       }
       if (acc === 2 && !(a.tirador)) { const ch = Math.floor(ahora / 90 + a.id) % 4; g.fillStyle = ch % 2 ? '#fff6a0' : '#ffd23a'; g.fillRect(px + 4 + ch, py - 1 - (ch % 2), 1, 1); g.fillRect(px + 5, py + 1 + (ch % 3) - 1, 1, 1); if (ch === 0) { g.fillStyle = '#ffffff'; g.fillRect(px + 4, py, 2, 1); } }
       else if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); }
+      if (recibe) {
+        const [gp, d] = recibe;
+        // Destello: rojo al recibir, luego un parpadeo blanco; y unas gotas de sangre que saltan y caen.
+        g.globalAlpha = d < 0.45 ? 0.9 : d < 0.7 ? 0.65 : 0.35; silueta(px, py, d < 0.45 ? '#ff2a2a' : '#ffffff'); g.globalAlpha = 1;
+        const sx = Math.sign(a.x - gp[2]) || 1;
+        g.fillStyle = '#b01818';
+        for (let q = 0; q < 3; q++) { const vx = sx * (1.5 + q * 1.2), vy = -3 + q; g.fillRect(Math.round(px + 1 + vx * d * 3), Math.round(py + 2 + vy * d * 3 + 7 * d * d), 1, 1); }
+      }
+      // Barra de vida sobre los heridos (la vida que les queda en este momento del turno).
+      if (a.pv0 != null && oficio === 'guerrero') {
+        const max = V.vidaMax(a);
+        let pv = a.pv0;
+        for (const gp of ig.golpes.get(a.id) || []) if (k >= gp[1] - 0.5) pv -= gp[4];
+        if (pv < max) {
+          const fr = Math.max(0, pv / max), ancho = 5;
+          g.fillStyle = 'rgba(40,10,10,0.7)'; g.fillRect(px - 1, py - 3, ancho, 1);
+          g.fillStyle = fr > 0.6 ? '#4cd060' : fr > 0.3 ? '#e8c040' : '#e04030'; g.fillRect(px - 1, py - 3, Math.max(1, Math.round(ancho * fr)), 1);
+        }
+      }
     }
   }
 
@@ -933,8 +979,24 @@
         g.globalAlpha = 1;
         continue;
       }
+      if ((tb.tipo === 'batalla' || tb.tipo === 'flecha' || tb.tipo === 'torre' || tb.tipo === 'lobo') && t < 900) {
+        // Cae de lado: el cuerpo tendido, en rojo al principio, que se desvanece antes de que aparezca la cruz.
+        const civ = m.civs.find(c => c.id === tb.c), col = civ ? civ.color : '#cccccc';
+        g.globalAlpha = t < 600 ? 1 : 1 - (t - 600) / 300;
+        const cae = Math.min(1, t / 160);
+        if (cae < 1) { silueta(x, y - 1 + Math.round(cae * 3), t < 120 ? '#ff2a2a' : col); }
+        else {
+          g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x - 2, y + 5, 7, 1);
+          g.fillStyle = t < 300 ? '#ff4b4b' : col; g.fillRect(x - 1, y + 3, 4, 2);
+          g.fillStyle = '#f0c8a0'; g.fillRect(x + 3, y + 3, 1, 1);
+          g.fillStyle = '#3a2a1e'; g.fillRect(x - 2, y + 4, 1, 1);
+          g.fillStyle = '#9a1414'; g.fillRect(x, y + 5, 3, 1);
+        }
+        g.globalAlpha = 1;
+        if (t < 600) continue;
+      }
       g.globalAlpha = t < 400 ? 1 : Math.max(0, 1 - (t - 400) / 8600);
-      if (t < 400) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
+      if (t < 400 && tb.tipo !== 'batalla' && tb.tipo !== 'flecha' && tb.tipo !== 'torre' && tb.tipo !== 'lobo') { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
       g.fillStyle = '#d8d8e0'; g.fillRect(x + 1, y, 1, 5); g.fillRect(x, y + 1, 3, 1);
       g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, y + 5, 3, 1);
     }
