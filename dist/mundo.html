@@ -64,6 +64,19 @@ button { cursor: pointer; }
 .clave { margin: 8px 0 0; font-size: 13px; color: var(--tenue); max-width: 110ch; }
 @media (max-width: 600px) { .marco { height: clamp(300px, 62vh, 560px); } }
 
+/* ---- Elegir cómo jugar (encima del mapa) ---- */
+.inicio { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
+.inicio[hidden] { display: none; }
+.inicio-caja { max-width: 460px; background: var(--panel); border: 1px solid var(--oro); border-radius: var(--radio); padding: 20px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
+.inicio-titulo { margin: 0 0 8px; font-family: var(--f-pixel); font-weight: 600; font-size: 24px; color: var(--oro); }
+.inicio-texto { margin: 0 0 16px; color: var(--pergamino); }
+.inicio-botones { display: flex; flex-wrap: wrap; gap: 10px; }
+.inicio-botones .obrar { padding: 10px 18px; }
+.inicio-botones .mando { padding: 10px 16px; }
+.plan { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--linea); }
+.gobernar { margin-top: 10px; }
+.tuyo { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--noche); background: var(--oro); padding: 1px 5px; border-radius: 2px; }
+
 /* ---- La voluntad ---- */
 .etiqueta { font-family: var(--f-pixel); font-weight: 400; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tenue); margin: 0 0 8px; display: block; }
 .g-voluntad { background: linear-gradient(180deg, var(--oro-hondo), var(--panel) 70%); border: 1px solid var(--oro); border-radius: var(--radio); padding: 14px; }
@@ -135,6 +148,7 @@ button { cursor: pointer; }
     <div class="mandos">
       <button type="button" class="mando" id="play" aria-pressed="false">❚❚ Pausa</button>
       <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
+      <button type="button" class="mando sutil" id="cambiar-modo">Cambiar de modo</button>
       <button type="button" class="mando sutil" id="nuevo">Nuevo mundo</button>
     </div>
   </header>
@@ -142,6 +156,16 @@ button { cursor: pointer; }
   <section class="g-mapa" aria-label="Mapa del mundo">
     <div class="marco">
       <canvas id="mapa" role="img" aria-label="El mundo visto desde arriba: bosques, montañas, ríos y mares; las aldeas de cada pueblo con su color, y sus aldeanos talando, sembrando, construyendo y luchando"></canvas>
+      <div class="inicio" id="inicio" hidden>
+        <div class="inicio-caja">
+          <h2 class="inicio-titulo" id="inicio-titulo">¿Cómo quieres jugar?</h2>
+          <p class="inicio-texto" id="inicio-texto">Puedes gobernar un solo pueblo con tus órdenes mientras los demás viven a su aire, o ser el dios de todos.</p>
+          <div class="inicio-botones">
+            <button type="button" class="obrar" id="modo-pueblo">Gobernar un pueblo</button>
+            <button type="button" class="mando" id="modo-dios">Ser un dios</button>
+          </div>
+        </div>
+      </div>
       <div class="camara" role="group" aria-label="Cámara">
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
         <button type="button" class="mando cam" id="zoom-menos" aria-label="Alejar">−</button>
@@ -152,10 +176,10 @@ button { cursor: pointer; }
   </section>
 
   <form class="g-voluntad" id="voluntad" autocomplete="off">
-    <label for="orden" class="etiqueta">Tu voluntad</label>
+    <label for="orden" class="etiqueta" id="etiqueta-orden">Tu voluntad</label>
     <div class="linea">
       <input id="orden" name="orden" type="text" maxlength="200" enterkeyhint="send" placeholder="Peste sobre el más grande, que descubran la pólvora…">
-      <button type="submit" class="obrar">Obrar</button>
+      <button type="submit" class="obrar" id="boton-orden">Obrar</button>
     </div>
     <div class="ejemplos" id="ejemplos" aria-label="Ejemplos"></div>
     <p class="respuesta" id="respuesta" aria-live="polite">El tiempo corre. Escribe cuando quieras intervenir.</p>
@@ -303,6 +327,12 @@ button { cursor: pointer; }
   const K = (W * H) / 640;
   const TIERRA = { llanura: 3, bosque: 1.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
   const RIO = 2.2;
+  // Lo que cambia cuando un jugador pone a su pueblo a trabajar en algo (mando.js): ciencia, ejército, crecer, comercio.
+  const FOCOS = {
+    ciencia: { ciencia: 1.5, riqueza: 0.9 }, ejercito: { fuerza: 1.35, ciencia: 0.85, riqueza: 0.92 },
+    crecer: { comida: 1.12, ciencia: 0.85 }, comercio: { riqueza: 1.35, ciencia: 1.05 }, construir: {}
+  };
+  const foco = (c, k) => { const f = c.plan && FOCOS[c.plan.foco]; return f && f[k] != null ? f[k] : 1; };
 
   // ---------- Azar con semilla (mulberry32): el estado vive en el mundo ----------
   function azar(m) {
@@ -411,11 +441,11 @@ button { cursor: pointer; }
     // Las casas y los campos que levantan los aldeanos (vida.js) dan sitio a más gente: una tierra sin
     // obras da un 20 % menos, una tierra bien trabajada, un 20 % más.
     const obras = m.vida ? 0.8 + 0.4 * Math.min(1, ((c.campos || 0) + (c.casas || 0) * 0.5) / ((cs || casillas(m, c)).length * 2.5)) : 1;
-    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 / K * efecto * obras);
+    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 / K * efecto * obras * foco(c, 'comida'));
   }
   function fuerza(m, c, cs) {
     const car = M.CARACTERES[c.caracter];
-    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * Math.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * (cs ? 1 : 1));
+    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * Math.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * foco(c, 'fuerza'));
   }
   function frontera(m, a, b) {
     // Casillas de b que tocan a a.
@@ -517,10 +547,11 @@ button { cursor: pointer; }
     const enPaz = vec.filter(v => !enGuerra(c, v));
     // Riqueza: la tierra, el comercio con los vecinos en paz y la caja que se gasta.
     c.riqueza = c.riqueza * 0.93 + n * 0.4 * (c.era + 1) + enPaz.filter(v => (c.rel[v.id] || 0) > 10).length * 2 * car.comercio;
+    c.riqueza *= 1 + (foco(c, 'riqueza') - 1) * 0.1;
     // Ciencia: gente, estabilidad, carácter, y los inventos que se copian de vecinos más avanzados.
     const copia = enPaz.reduce((k, v) => k + Math.max(0, v.era - c.era) * 3, 0);
     // Cada era acelera la siguiente: la escritura, la imprenta y la ciencia se apoyan unas en otras.
-    c.ciencia += Math.sqrt(c.pob) * 0.55 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) + copia;
+    c.ciencia += Math.sqrt(c.pob) * 0.55 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') + copia;
     const sig = M.ERAS[c.era + 1];
     if (sig && c.ciencia >= sig.umbral) subirEra(m, c, null);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
@@ -528,12 +559,15 @@ button { cursor: pointer; }
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
-    if (c.pob > cap * 0.55) {
+    if (c.pob > cap * 0.55 && !(c.plan && c.plan.expandir === false)) {
       const libres = new Set();
       for (const i of cs) for (const v of vecinos(i)) if (esTierra(m, v) && m.dueno[v] < 0) libres.add(v);
       // Desde el Renacimiento, también al otro lado del mar.
       if (c.era >= 5 && !libres.size) for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && vecinos(i).some(v => m.tipo[v] === 'costa') && cs.some(j => distancia(i, j) <= 13)) libres.add(i);
-      const orden = [...libres].sort((a, b) => fertil(m, b) - fertil(m, a) + distancia(a, c.capital) * 0.15 - distancia(b, c.capital) * 0.15);
+      // Un jugador puede marcar un rumbo: hacia un punto cardinal o hacia otro pueblo.
+      const rumbo = c.plan && c.plan.rumbo != null ? destinoRumbo(m, c, c.plan.rumbo) : null;
+      const tiron = i => (rumbo == null ? 0 : distancia(i, rumbo) * 0.6);
+      const orden = [...libres].sort((a, b) => fertil(m, b) - fertil(m, a) + distancia(a, c.capital) * 0.15 - distancia(b, c.capital) * 0.15 + tiron(a) - tiron(b));
       // Expandirse cuesta madera (o piedra) cuando hay aldeanos que la traen (vida.js).
       const vida = m.vida && M.vida;
       const cuantas = Math.min(c.era >= 3 ? 4 : 2, vida ? vida.tierrasPagables(m, c) : 99);
@@ -552,6 +586,17 @@ button { cursor: pointer; }
       for (const i of perdidas) m.dueno[i] = -1;
       if (perdidas.length) cronica(m, 'caida', 'Desorden en ' + c.nombre, 'Nadie obedece a nadie. ' + perdidas.length + ' comarcas quedan abandonadas y los caminos se llenan de bandidos.', c);
     }
+  }
+
+  // El punto hacia el que tira la expansión: un borde del mapa o la capital de otro pueblo.
+  function destinoRumbo(m, c, rumbo) {
+    const [x, y] = xy(c.capital);
+    if (rumbo === 'norte') return idx(x, 0);
+    if (rumbo === 'sur') return idx(x, H - 1);
+    if (rumbo === 'este') return idx(W - 1, y);
+    if (rumbo === 'oeste') return idx(0, y);
+    const o = civ(m, rumbo);
+    return o && o.viva ? o.capital : null;
   }
 
   function subirEra(m, c, regalo) {
@@ -601,13 +646,15 @@ button { cursor: pointer; }
         let r = a.rel[b.id] || 0;
         // La frontera roza; el comercio acerca; el tiempo cura.
         r += (juntos ? -1.2 * (ca.agresion + cb.agresion) / 2 + 0.8 * (ca.comercio + cb.comercio) / 2 : 0) - r * 0.04 + (azar(m) - 0.5) * 3;
+        // Los tratados de comercio de un jugador acercan a los dos pueblos cada año.
+        if ((a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id))) r += 3;
         a.rel[b.id] = b.rel[a.id] = Math.max(-100, Math.min(100, r));
         if (!juntos) continue;
         if (!enGuerra(a, b)) {
           const fa = fuerza(m, a), fb = fuerza(m, b);
           const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
           const ganas = M.CARACTERES[agresor.caracter].agresion * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
-          if (agresor.guerras.length < 2 && (r < -55 || (ganas > 2.2 && r < 10)) && azar(m) < 0.12) declararGuerra(m, agresor, victima, null);
+          if (!agresor.jugador && agresor.guerras.length < 2 && (r < -55 || (ganas > 2.2 && r < 10)) && azar(m) < 0.12) declararGuerra(m, agresor, victima, null);
         }
       }
     }
@@ -657,7 +704,17 @@ button { cursor: pointer; }
       }
       if (!casillas(m, pierde).length) { morir(m, pierde, gana); continue; }
       const cansancio = Math.max(ga ? ga.cansancio : 0, gb ? gb.cansancio : 0);
-      if (cansancio > 6 + azar(m) * 6 || (ratio < 1.15 && cansancio > 4 && azar(m) < 0.3)) hacerPaz(m, a, b);
+      const cansados = cansancio > 6 + azar(m) * 6 || (ratio < 1.15 && cansancio > 4 && azar(m) < 0.3);
+      // Con un jugador de por medio, la IA no firma sola: ofrece la paz y el jugador decide.
+      const jugador = a.jugador ? a : b.jugador ? b : null;
+      if (cansados && jugador) {
+        const otro = jugador === a ? b : a;
+        m.ofertas = m.ofertas || {};
+        if (!m.ofertas[otro.id] || m.turno - m.ofertas[otro.id] > 12) {
+          m.ofertas[otro.id] = m.turno;
+          cronica(m, 'paz', otro.nombre + ' te ofrece la paz', 'Llegan emisarios de ' + otro.nombre + ' con regalos y cara de cansancio. Si la quieres, escribe «acepto la paz con ' + otro.nombre + '».', otro, null, { importante: true });
+        }
+      } else if (cansados) hacerPaz(m, a, b);
     }
   }
 
@@ -719,7 +776,7 @@ button { cursor: pointer; }
   }
 
   M.sim = { W, H, K, TIERRA, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, destinoRumbo, FOCOS, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vida.js
@@ -867,6 +924,22 @@ button { cursor: pointer; }
     if (!recursos.rocas) { p[LENADOR] += p[MINERO]; p[MINERO] = 0; }
     const resto = 1 - p.reduce((a, b) => a + b, 0);
     p[LENADOR] += resto * (recursos.arboles ? 0.55 : 0); p[GRANJERO] += resto * (recursos.arboles ? 0.45 : 1);
+    // Un jugador reparte los oficios a su gusto (mando.js): pesa tres veces más que la costumbre.
+    const plan = c.plan && c.plan.oficios;
+    if (plan) {
+      // "Más X" se lleva su parte del trabajo; "menos X" lo deja casi a cero.
+      const quiere = OFICIOS.map(o => (typeof plan[o] === 'number' ? plan[o] : null));
+      const total = quiere.reduce((k, w) => k + (w > 0.1 ? w : 0), 0), parte = Math.min(0.9, total);
+      const q = p.map((x, i) => {
+        const w = quiere[i];
+        if (w !== null && w <= 0.1) return w;
+        return x * (1 - parte) + (w !== null ? w / total * parte : 0);
+      });
+      if (!recursos.arboles) q[LENADOR] = 0;
+      if (!recursos.rocas) q[MINERO] = 0;
+      const suma = q.reduce((k, x) => k + x, 0) || 1;
+      return q.map(x => x / suma);
+    }
     return p;
   }
 
@@ -910,10 +983,10 @@ button { cursor: pointer; }
       const tiene = [0, 0, 0, 0, 0];
       for (const a of lista) tiene[a.o]++;
       for (const a of lista) {
-        if (a.e !== LIBRE && a.e !== ESPERAR && !(a.o === GUERRERO && !c.guerras.length)) continue;
+        if (a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && !(c.plan && c.plan.oficios && c.plan.oficios.guerrero))) continue;
         const falta = p.map((x, i) => x * lista.length - tiene[i] + (i === a.o ? 1 : 0));
         const mejor = falta.indexOf(Math.max(...falta));
-        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; }
+        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; }
       }
     }
   }
@@ -1029,7 +1102,7 @@ button { cursor: pointer; }
     a.paseo = 0;
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
-    if (a.o === LENADOR && c.madera < 60 + 20 * c.era) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
+    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * (1 + 4 * ((c.plan && c.plan.oficios && c.plan.oficios.lenador) || 0))) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
     else if (a.o === MINERO && c.piedra < 30 + 10 * c.era) t = cercano(m, a, rec.rocas, rec.reservadas, 16);
     else if (a.o === GRANJERO) t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
     else if (a.o === CONSTRUCTOR) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
@@ -1046,7 +1119,7 @@ button { cursor: pointer; }
     pasear(m, a, ter, c);
   }
   const metaCampos = c => Math.round(4 + c.pob * 0.22);
-  const metaCasas = c => Math.round(2 + c.pob * 0.12);
+  const metaCasas = c => Math.round((2 + c.pob * 0.12) * (c.plan && c.plan.foco === 'construir' ? 1.6 : 1));
 
   // Una parcela libre cerca de casa: primero en su región, luego en las regiones propias de alrededor.
   function libre(m, a, c, rec, ter, sirve) {
@@ -1277,7 +1350,7 @@ button { cursor: pointer; }
     contar(m);
   }
 
-  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -1595,6 +1668,240 @@ button { cursor: pointer; }
   const CRONISTA = 'Eres el cronista de "Génesis", un mundo de pueblos inventados que viven la historia humana real. Escribe un párrafo de historia (80-130 palabras), con el tono de un manual de historia escrito por alguien con mucho sentido del humor y ninguna paciencia con los reyes. Resume la época a partir de los sucesos que te dan, une causas y consecuencias y termina con una frase que dé que pensar. Sin títulos, sin listas, sin markdown. No inventes sucesos que no estén en los datos.';
 
   M.dios = { obrar, objetivos, aplicarIA, SISTEMA, paraIA, CRONISTA, norm, PODERES };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/mundo/mando.js
+/*
+ * GÉNESIS · EL MANDO DE UN PUEBLO
+ * En el modo "Gobernar un pueblo" no eres un dios: eres quien manda en un solo pueblo y lo gobiernas
+ * escribiendo órdenes ("talad el bosque", "construid casas", "expandíos hacia el norte", "atacad a
+ * Karenia", "haced la paz con Ishan", "invertid en ciencia", "proclamad la república"). Los demás pueblos
+ * siguen solos, como siempre.
+ *
+ * Cada orden se traduce a ACCIONES pequeñas y serializables ({ tipo: 'guerra', con: 3 }...). Así, un día,
+ * en multijugador, cada jugador enviará sus acciones y todos los mundos las aplicarán igual, en el mismo
+ * turno (el mundo es reproducible).
+ */
+(function (RF) {
+  'use strict';
+  const M = RF.MUNDO, S = () => M.sim, D = () => M.dios;
+  const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const OFICIOS = {
+    lenador: /\b(tala\w*|tale\w*|talen|talad|talar|lena\w*|madera|arboles?|bosques?|troncos?)\b/,
+    granjero: /\b(sembr\w*|siembr\w*|cultiv\w*|granj\w*|campos?|cosech\w*|agricult\w*|trigo)\b/,
+    constructor: /\b(constru\w*|casas?|edific\w*|levant\w*|obras?|aldeas?)\b/,
+    minero: /\b(minas?|miner\w*|piedra|canteras?|pica\w*|picad)\b/,
+    guerrero: /\b(reclut\w*|ejercitos?|soldados?|guerreros?|arm\w*|milicias?|defen\w*|tropas?)\b/
+  };
+  const NOMBRE_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros' };
+  const FOCOS = {
+    ciencia: /\b(cienc\w*|investig\w*|estudi\w*|sabios?|escuelas?|tecnolog\w*|universidad\w*|inventos?|aprend\w*)\b/,
+    crecer: /\b(crec\w*|poblacion|hijos|natalidad|comida|alimentar)\b/,
+    comercio: /\b(riqueza|oro|dinero|mercados?|comerci\w* con todos|negocios?|enriquec\w*)\b/,
+    ejercito: /\b(ejercitos?|militar\w*|guerreros?|soldados?|reclut\w*|tropas?)\b/,
+    construir: /\b(constru\w*|casas?|edific\w*|obras?)\b/
+  };
+  const NOMBRE_FOCO = { ciencia: 'la ciencia', crecer: 'crecer', comercio: 'la riqueza y el comercio', ejercito: 'el ejército', construir: 'construir' };
+  const REGIMENES = [[/\bdemocracia\b/, 'democracia', 5], [/\brepublica\b/, 'republica', 2], [/\bimperio\b|\bemperador\b/, 'imperio', 2], [/\bdictadura\b|\bdictador\b/, 'dictadura', 5], [/\bteocracia\b/, 'teocracia', 1], [/\bmonarquia\b|\breino\b|\bcorona\w*\b|\brey\b/, 'reino', 1], [/\brepublica popular\b|\bcomunis\w*\b/, 'estado_obrero', 6]];
+
+  const plan = c => (c.plan = c.plan || { foco: null, oficios: null, expandir: true, rumbo: null, socios: [] });
+
+  // ¿A qué otro pueblo se refiere la orden? Por nombre o por descripción, nunca a uno mismo.
+  function otro(m, c, n) {
+    const lista = D().objetivos(m, n, null).filter(o => o.id !== c.id);
+    return lista[0] || null;
+  }
+  function vecinoMasDebil(m, c) {
+    return S().vecinosDe(m, c).filter(o => o.id !== c.id).sort((a, b) => S().fuerza(m, a) - S().fuerza(m, b))[0] || null;
+  }
+
+  // ---------- Del texto a las acciones ----------
+  function entender(m, civId, texto) {
+    const c = S().civ(m, civId), n = norm(texto), acciones = [];
+    if (!c || !c.viva || !n) return acciones;
+    // Aquí no hay milagros: eres quien manda en un pueblo, no un dios.
+    if (/\b(peste|plaga|diluvio|terremoto|llueva|lluvia de|milagro|rayos?|meteorito|que mueran|maldic\w*|bendic\w*|que aparezca)\b/.test(n)) return [{ tipo: 'milagro' }];
+    if (/\b(informe|como vamos|como estamos|estado|situacion|que tal|resumen)\b/.test(n)) acciones.push({ tipo: 'informe' });
+    if (/\b(como antes|lo de siempre|normal|equilibr\w*|a vuestro aire|libres?)\b/.test(n)) { acciones.push({ tipo: 'normal' }); return acciones; }
+
+    const guerra = /\b(ataca\w*|atacar|invad\w*|conquist\w*|declar\w* la guerra|guerra (a|con|contra)|marcha\w* (sobre|contra)|asedi\w*|a por)\b/.test(n);
+    const paz = /\b(paz|tregua|armisticio|acepto|aceptamos)\b/.test(n);
+    const tratado = /\b(comerci\w* con|alianza|alia\w*|amistad|tratado|embajad\w*|regal\w* a)\b/.test(n);
+    if (guerra) { const o = (/\b(mas debil|mas pequeno|el vecino|vecinos?)\b/.test(n) && vecinoMasDebil(m, c)) || otro(m, c, n) || vecinoMasDebil(m, c); acciones.push({ tipo: 'guerra', con: o ? o.id : null }); }
+    else if (paz) { const o = otro(m, c, n) || (c.guerras[0] ? S().civ(m, c.guerras[0].con) : null); acciones.push({ tipo: 'paz', con: o ? o.id : null }); }
+    else if (tratado) { const o = otro(m, c, n); acciones.push({ tipo: 'comercio', con: o ? o.id : null }); }
+
+    for (const [re, regimen, era] of REGIMENES) if (/\b(proclam\w*|revoluc\w*|instaur\w*|cambi\w* a|seamos|convert\w* en|hazte|haz\w* una?|coron\w*)\b/.test(n) && re.test(n)) { acciones.push({ tipo: 'regimen', a: regimen, era }); break; }
+
+    const expandir = /\b(expand\w*|extiend\w*|coloniz\w*|ocupa\w*|nuevas tierras|ve hacia|id hacia|avanz\w* (hacia|al)|crec\w* hacia|hacia el)\b/.test(n);
+    const quieto = /\b(no (os|te|nos) expand\w*|deja\w* de expandi\w*|quiet\w*|no crezc\w*|parad de crecer)\b/.test(n);
+    if (quieto) acciones.push({ tipo: 'expandir', si: false });
+    else if (expandir && !guerra) {
+      const rumbo = /\bnorte\b/.test(n) ? 'norte' : /\bsur\b/.test(n) ? 'sur' : /\b(este|oriente)\b/.test(n) ? 'este' : /\b(oeste|poniente|occidente)\b/.test(n) ? 'oeste' : null;
+      const o = rumbo ? null : otro(m, c, n);
+      acciones.push({ tipo: 'expandir', si: true, rumbo: rumbo || (o ? o.id : null) });
+    }
+
+    // Oficios: "más leñadores", "que todos talen", "menos soldados".
+    const pesos = {};
+    for (const [oficio, re] of Object.entries(OFICIOS)) {
+      if (oficio === 'guerrero' && (guerra || paz)) continue;
+      const mt = n.match(re);
+      if (!mt) continue;
+      const antes = n.slice(Math.max(0, mt.index - 14), mt.index);
+      pesos[oficio] = /\b(menos|no|deja\w* de|sin)\b/.test(antes) ? 0.02 : /\b(todos|todo el mundo|solo)\b/.test(n) ? 0.7 : 0.4;
+    }
+    if (Object.keys(pesos).length && !(Object.keys(pesos).length === 1 && pesos.lenador && expandir)) acciones.push({ tipo: 'oficios', pesos });
+
+    // Foco: en qué invierte el pueblo lo que le sobra.
+    for (const [f, re] of Object.entries(FOCOS)) if (re.test(n) && !(f === 'ejercito' && (paz || guerra) && !/\breclut/.test(n))) {
+      if (f === 'crecer' && expandir) continue;
+      const mt = n.match(re);
+      if (/\b(menos|no|deja\w* de|sin)\b/.test(n.slice(Math.max(0, mt.index - 14), mt.index))) continue;
+      acciones.push({ tipo: 'foco', foco: f }); break;
+    }
+    if (/\b(cruz\w* el mar|ultramar|colonia|barcos?|flota|navega\w*)\b/.test(n)) acciones.push({ tipo: 'colonia' });
+    return acciones;
+  }
+
+  // ---------- Aplicar las acciones (igual para un jugador local que para uno remoto) ----------
+  function aplicar(m, civId, acciones) {
+    const c = S().civ(m, civId), textos = [];
+    if (!c || !c.viva) return ['Tu pueblo ya no existe.'];
+    const p = plan(c);
+    for (const a of acciones || []) {
+      const o = a.con != null ? S().civ(m, Number(a.con)) : null;
+      if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
+      else if (a.tipo === 'informe') textos.push(informe(m, c));
+      else if (a.tipo === 'normal') { c.plan = { foco: null, oficios: null, expandir: true, rumbo: null, socios: p.socios || [] }; textos.push('Tu gente vuelve a sus costumbres: cada uno trabaja en lo que hace falta.'); }
+      else if (a.tipo === 'oficios') {
+        p.oficios = Object.assign({}, p.oficios || {}, a.pesos);
+        const mas = Object.keys(a.pesos).filter(k => a.pesos[k] > 0.1).map(k => NOMBRE_OFICIO[k]), menos = Object.keys(a.pesos).filter(k => a.pesos[k] <= 0.1).map(k => NOMBRE_OFICIO[k]);
+        textos.push((mas.length ? 'Más ' + mas.join(' y ') : '') + (mas.length && menos.length ? '; ' : '') + (menos.length ? 'menos ' + menos.join(' y ') : '') + ': los aldeanos que terminen su tarea cambian de oficio.');
+      } else if (a.tipo === 'foco') { p.foco = a.foco; textos.push('Tu pueblo se vuelca en ' + NOMBRE_FOCO[a.foco] + '.' + (a.foco === 'ciencia' ? ' Más inventos, algo menos de riqueza.' : a.foco === 'ejercito' ? ' Más fuerza en la guerra; cuesta riqueza y frena la ciencia.' : a.foco === 'crecer' ? ' La tierra da más comida; la ciencia va más lenta.' : a.foco === 'comercio' ? ' Más riqueza cada año.' : ' Se levantan más casas (y se gasta más madera).')); }
+      else if (a.tipo === 'expandir') {
+        p.expandir = a.si; p.rumbo = a.si ? (a.rumbo == null ? null : a.rumbo) : null;
+        const destino = typeof p.rumbo === 'number' ? (S().civ(m, p.rumbo) || {}).nombre : p.rumbo;
+        textos.push(a.si ? 'Los colonos salen ' + (destino ? 'hacia ' + (typeof p.rumbo === 'number' ? destino : 'el ' + destino) : 'hacia las mejores tierras libres') + '. Cada tierra nueva cuesta 3 de madera (tienes ' + Math.floor(c.madera || 0) + ').' : 'Tu pueblo deja de expandirse y se queda en sus fronteras.');
+      } else if (a.tipo === 'guerra') {
+        if (!o || !o.viva || o.id === c.id) { textos.push('¿Contra quién? Nombra al pueblo («atacad a ' + ((S().vivas(m).find(x => x.id !== c.id) || {}).nombre || 'Karenia') + '»).'); continue; }
+        if (S().enGuerra(c, o)) { textos.push('Ya estáis en guerra con ' + o.nombre + '.'); continue; }
+        S().declararGuerra(m, c, o, 'Por orden de su gobierno, ' + c.nombre + ' declara la guerra a ' + o.nombre + '. Los heraldos recorren las aldeas llamando a los hombres a las armas.');
+        p.oficios = Object.assign({}, p.oficios || {}, { guerrero: Math.max(0.35, (p.oficios || {}).guerrero || 0) });
+        const frontera = S().vecinosDe(m, c).includes(o);
+        textos.push('¡Guerra contra ' + o.nombre + '! Tus guerreros marchan a la frontera.' + (frontera ? '' : ' Ojo: no tenéis frontera común, así que no podrán llegar hasta que la haya.'));
+      } else if (a.tipo === 'paz') {
+        if (!o || !S().enGuerra(c, o)) { textos.push(o ? 'No estáis en guerra con ' + o.nombre + '.' : 'No estás en guerra con nadie.'); continue; }
+        const g = o.guerras.find(x => x.con === c.id), oferta = m.ofertas && m.ofertas[o.id] != null && m.turno - m.ofertas[o.id] <= 15;
+        const ratio = S().fuerza(m, c) / Math.max(0.1, S().fuerza(m, o));
+        // La IA acepta si te la ofreció, si está agotada o si le va mal; si va ganando, la rechaza.
+        const acepta = oferta || (g && g.cansancio > 3) || ratio > 1.3 || S().azar(m) < 0.25;
+        if (acepta) { S().hacerPaz(m, c, o, c.nombre + ' y ' + o.nombre + ' firman la paz. Los soldados vuelven a casa a tiempo para la cosecha.'); if (m.ofertas) delete m.ofertas[o.id]; textos.push(o.nombre + ' acepta la paz.'); }
+        else { textos.push(o.nombre + ' rechaza la paz: cree que va ganando. Vuelve a intentarlo cuando esté más cansado de la guerra.'); o.rel[c.id] = (o.rel[c.id] || 0) - 5; }
+      } else if (a.tipo === 'comercio') {
+        if (!o || !o.viva || o.id === c.id) { textos.push('¿Con quién? Nombra al pueblo.'); continue; }
+        if (S().enGuerra(c, o)) { textos.push('Primero haced la paz con ' + o.nombre + '.'); continue; }
+        if ((o.rel[c.id] || 0) < -40) { textos.push(o.nombre + ' expulsa a tus embajadores: os odian demasiado. Mejorad las cosas poco a poco.'); o.rel[c.id] = (o.rel[c.id] || 0) + 5; c.rel[o.id] = o.rel[c.id]; continue; }
+        p.socios = [...new Set([...(p.socios || []), o.id])];
+        c.rel[o.id] = o.rel[c.id] = Math.min(100, (o.rel[c.id] || 0) + 25);
+        S().cronica(m, 'comercio', 'Tratado entre ' + c.nombre + ' y ' + o.nombre, 'Los embajadores de ' + c.nombre + ' vuelven con un tratado: caravanas, regalos y la promesa de no atacarse. Mientras dure.', c);
+        textos.push('Tratado con ' + o.nombre + ': comerciaréis y os llevaréis mejor cada año.');
+      } else if (a.tipo === 'regimen') {
+        if (c.era < a.era) { textos.push('Tu pueblo no está preparado para eso: hace falta llegar a ' + M.ERAS[a.era].con + '.'); continue; }
+        if (c.regimen === a.a) { textos.push('Ya sois ' + M.unoDe(a.a) + '.'); continue; }
+        const antes = c.regimen;
+        c.regimen = a.a; c.estab = Math.max(0, c.estab - 15);
+        if (a.a === 'republica' || a.a === 'democracia') c.ciencia += 20;
+        S().cronica(m, 'revolucion', c.nombre + ' cambia de gobierno', T(M.conArticulo(antes)) + ' de ' + c.nombre + ' da paso a ' + M.unoDe(a.a) + '. Unos celebran en las plazas; otros esconden la plata.', c, null, { importante: true });
+        textos.push('Proclamada ' + M.unoDe(a.a) + '. La estabilidad cae un poco mientras la gente se acostumbra.');
+      } else if (a.tipo === 'colonia') {
+        if (c.era < 5) { textos.push('Aún no sabéis cruzar el mar: hace falta llegar al Renacimiento (la carabela).'); continue; }
+        if ((c.madera || 0) < 15) { textos.push('Una flota cuesta 15 de madera y tienes ' + Math.floor(c.madera || 0) + '. Poned más leñadores.'); continue; }
+        const cs = S().casillas(m, c);
+        const libres = [];
+        for (let i = 0; i < m.W * m.H; i++) if (S().esTierra(m, i) && m.dueno[i] < 0 && m.tipo[i] !== 'nieve' && S().vecinos(i).some(v => m.tipo[v] === 'costa')) libres.push(i);
+        libres.sort((x, y) => Math.min(...cs.map(j => S().distancia(x, j))) - Math.min(...cs.map(j => S().distancia(y, j))) - (S().fertil(m, x) - S().fertil(m, y)) * 2);
+        const destino = libres[0];
+        if (destino == null) { textos.push('No queda costa libre en el mundo que colonizar.'); continue; }
+        c.madera -= 15;
+        m.dueno[destino] = c.id;
+        for (const v of S().vecinos(destino)) if (S().esTierra(m, v) && m.dueno[v] < 0) m.dueno[v] = c.id;
+        S().cronica(m, 'expansion', c.nombre + ' funda una colonia', 'Por orden de su gobierno, una flota de ' + c.nombre + ' cruza el mar y planta su bandera en una costa lejana.', c, destino);
+        textos.push('Tu flota funda una colonia al otro lado del mar.');
+      }
+    }
+    if (M.vida && m.vida) M.vida.contar(m);
+    return textos;
+  }
+  const T = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+  function informe(m, c) {
+    const lista = S().vivas(m).slice().sort((a, b) => S().casillas(m, b).length - S().casillas(m, a).length);
+    const puesto = lista.indexOf(c) + 1, p = c.plan || {};
+    const enemigos = c.guerras.map(g => S().civ(m, g.con)).filter(Boolean).map(o => o.nombre);
+    return c.nombre + ', ' + M.ERAS[c.era].nombre + ': puesto ' + puesto + ' de ' + lista.length + ' en tierras (' + S().casillas(m, c).length + '), ' + Math.round(c.pob) + ' mil habitantes, estabilidad ' + Math.round(c.estab) + ', madera ' + Math.floor(c.madera || 0) + ', piedra ' + Math.floor(c.piedra || 0) + '. ' +
+      (enemigos.length ? 'En guerra con ' + enemigos.join(', ') + '. ' : 'En paz. ') + (p.foco ? 'Foco: ' + NOMBRE_FOCO[p.foco] + '. ' : '') + (p.expandir === false ? 'Sin expandirse. ' : '');
+  }
+
+  function ordenar(m, civId, texto) {
+    const acciones = entender(m, civId, texto);
+    if (!acciones.length) return { ok: false, acciones };
+    const textos = aplicar(m, civId, acciones);
+    m.registro = (m.registro || []).concat([{ turno: m.turno, civ: civId, acciones }]).slice(-200);
+    return { ok: true, acciones, respuesta: textos.join(' ') };
+  }
+
+  // ---------- Lo que no entienda el intérprete, lo traduce Claude a las mismas acciones ----------
+  const SISTEMA = [
+    'Eres el consejero de un pueblo en "Génesis", un juego de estrategia por texto en un mundo que vive la historia humana real. El jugador gobierna SOLO su pueblo y te da órdenes en lenguaje natural.',
+    'Traduce la orden a acciones de esta lista y nada más (no puedes hacer milagros ni afectar directamente a otros pueblos):',
+    '{"tipo":"oficios","pesos":{"lenador":0-1,"granjero":0-1,"constructor":0-1,"minero":0-1,"guerrero":0-1}} reparto de trabajo (solo los que cambien);',
+    '{"tipo":"foco","foco":"ciencia"|"crecer"|"comercio"|"ejercito"|"construir"};',
+    '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
+    '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id};',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"}; {"tipo":"informe"}; {"tipo":"normal"}.',
+    'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
+  ].join('\n');
+  function paraIA(m, civId, texto) {
+    const c = S().civ(m, civId);
+    return 'Año ' + S().anioTexto(m.anio) + '. Tu pueblo: ' + JSON.stringify({ id: c.id, nombre: c.nombre, era: M.ERAS[c.era].nombre, poblacion_miles: Math.round(c.pob), estabilidad: Math.round(c.estab), madera: Math.floor(c.madera || 0), piedra: Math.floor(c.piedra || 0), guerras_con: c.guerras.map(g => g.con), plan: c.plan || null }) +
+      '\nOtros pueblos: ' + JSON.stringify(S().vivas(m).filter(o => o.id !== c.id).map(o => ({ id: o.id, nombre: o.nombre, era: M.ERAS[o.era].nombre, poblacion_miles: Math.round(o.pob), vecino: S().vecinosDe(m, c).includes(o), relacion: Math.round(c.rel[o.id] || 0) }))) +
+      '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
+  }
+  const TIPOS = new Set(['oficios', 'foco', 'expandir', 'guerra', 'paz', 'comercio', 'regimen', 'colonia', 'informe', 'normal']);
+  // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
+  function limpiar(acciones) {
+    const out = [];
+    for (const a of Array.isArray(acciones) ? acciones.slice(0, 6) : []) {
+      if (!a || !TIPOS.has(a.tipo)) continue;
+      if (a.tipo === 'oficios') { const pesos = {}; for (const k of Object.keys(OFICIOS)) if (a.pesos && a.pesos[k] != null) pesos[k] = Math.max(0, Math.min(1, Number(a.pesos[k]) || 0)); if (Object.keys(pesos).length) out.push({ tipo: 'oficios', pesos }); }
+      else if (a.tipo === 'foco') { if (FOCOS[a.foco]) out.push({ tipo: 'foco', foco: a.foco }); }
+      else if (a.tipo === 'expandir') out.push({ tipo: 'expandir', si: a.si !== false, rumbo: ['norte', 'sur', 'este', 'oeste'].includes(a.rumbo) ? a.rumbo : Number.isFinite(Number(a.rumbo)) && a.rumbo !== null ? Number(a.rumbo) : null });
+      else if (a.tipo === 'regimen') { const r = REGIMENES.find(x => x[1] === a.a); if (r) out.push({ tipo: 'regimen', a: r[1], era: r[2] }); }
+      else if (a.tipo === 'guerra' || a.tipo === 'paz' || a.tipo === 'comercio') out.push({ tipo: a.tipo, con: Number(a.con) });
+      else out.push({ tipo: a.tipo });
+    }
+    return out;
+  }
+  function aplicarIA(m, civId, f) {
+    const acciones = limpiar(f && f.acciones);
+    if (!acciones.length) return null;
+    const textos = aplicar(m, civId, acciones);
+    m.registro = (m.registro || []).concat([{ turno: m.turno, civ: civId, acciones }]).slice(-200);
+    return { ok: true, acciones, respuesta: (f.respuesta ? String(f.respuesta).slice(0, 300) + ' ' : '') + textos.filter(t => !/^¿/.test(t)).join(' ') };
+  }
+
+  // ---------- Elegir pueblo ----------
+  function gobernar(m, civId) {
+    for (const c of m.civs) { c.jugador = false; }
+    const c = civId != null ? S().civ(m, civId) : null;
+    m.jugador = c && c.viva ? c.id : null;
+    if (c && c.viva) { c.jugador = true; plan(c); }
+    return c;
+  }
+
+  M.mando = { entender, aplicar, ordenar, informe, gobernar, SISTEMA, paraIA, aplicarIA, limpiar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/pintor.js
@@ -1950,11 +2257,11 @@ button { cursor: pointer; }
     for (const c of S.vivas(m)) {
       const r = c.capital, wx = (r % m.W) * V.SUB * P + V.SUB * P / 2, wy = Math.floor(r / m.W) * V.SUB * P + P * 0.6;
       const sx = ox + wx * z, sy = oy + wy * z - 10 * dpr;
-      const texto = c.nombre + (c.guerras.length ? ' ⚔' : '');
+      const texto = (c.jugador ? '★ ' : '') + c.nombre + (c.guerras.length ? ' ⚔' : '');
       const anchoT = g.measureText(texto).width + 10 * dpr;
       g.fillStyle = 'rgba(13,19,34,0.82)'; g.fillRect(sx - anchoT / 2, sy - tam * 0.75, anchoT, tam * 1.5);
       g.fillStyle = c.color; g.fillRect(sx - anchoT / 2, sy + tam * 0.75 - 2 * dpr, anchoT, 2 * dpr);
-      g.fillStyle = sel === c.id ? '#f0c05a' : '#fff6dc'; g.fillText(texto, sx, sy);
+      g.fillStyle = c.jugador || sel === c.id ? '#f0c05a' : '#fff6dc'; g.fillText(texto, sx, sy);
     }
   }
 
@@ -2159,7 +2466,7 @@ button { cursor: pointer; }
  */
 (function (RF) {
   'use strict';
-  const M = RF.MUNDO, S = M.sim, D = M.dios, P = M.pintor;
+  const M = RF.MUNDO, S = M.sim, D = M.dios, P = M.pintor, X = M.mando;
   const $ = id => document.getElementById(id);
   const CLAVE = 'genesis.mundo.v1';
   const VELOCIDADES = [[1100, '1×'], [380, '3×'], [110, '10×']];
@@ -2177,6 +2484,42 @@ button { cursor: pointer; }
     m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, 5);
     sel = null; ultimaCronista = 0;
     P.mundo(m); P.seleccionar(null);
+  }
+
+  // ---------- El modo de juego: dios de todos o gobernante de un pueblo ----------
+  const modoPueblo = () => m.modo === 'pueblo' && m.jugador != null;
+  const tuPueblo = () => { const c = modoPueblo() ? S.civ(m, m.jugador) : null; return c && c.viva ? c : null; };
+  function pedirModo(titulo, texto) {
+    $('inicio-titulo').textContent = titulo || '¿Cómo quieres jugar?';
+    $('inicio-texto').textContent = texto || 'Puedes gobernar un solo pueblo con tus órdenes mientras los demás viven a su aire, o ser el dios de todos.';
+    $('inicio').hidden = false;
+    corriendo = false; programar();
+  }
+  function elegirModo(modo, civId) {
+    $('inicio').hidden = true;
+    m.modo = modo;
+    if (modo === 'pueblo') {
+      // Si no se elige uno, te toca un pueblo al azar entre los que tienen sitio para crecer.
+      const lista = S.vivas(m).slice().sort((a, b) => S.casillas(m, a).length - S.casillas(m, b).length);
+      const c = (civId != null && S.civ(m, civId)) || lista[Math.floor(lista.length / 2)];
+      X.gobernar(m, c ? c.id : null);
+      sel = m.jugador; P.seleccionar(sel);
+      if (c) P.centrarEn(c.capital);
+      responder(c ? 'Gobiernas ' + c.nombre + '. Dale órdenes a tu gente: talar, sembrar, construir, expandirse, guerra o paz con los vecinos, ciencia, comercio… Los demás pueblos viven a su aire.' : '', 'bien');
+    } else {
+      X.gobernar(m, null);
+      responder('Eres el dios de este mundo. Escribe lo que quieras que pase.', 'bien');
+    }
+    pintarModo(); pintarTodo(); guardar();
+    corriendo = true; programar();
+  }
+  function pintarModo() {
+    const c = tuPueblo();
+    $('etiqueta-orden').textContent = c ? 'Tus órdenes a ' + c.nombre : 'Tu voluntad';
+    $('boton-orden').textContent = c ? 'Ordenar' : 'Obrar';
+    $('orden').placeholder = c ? 'Talad el bosque, construid casas, expandíos hacia el norte, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
+    $('voluntad').classList.toggle('es-pueblo', !!c);
+    pintarEjemplos();
   }
 
   // ---------- El mapa (lo dibuja pintor.js) ----------
@@ -2229,7 +2572,7 @@ button { cursor: pointer; }
 
   function pintarFicha() {
     const f = $('ficha');
-    const c = sel != null ? S.civ(m, sel) : null;
+    const c = sel != null ? S.civ(m, sel) : tuPueblo();
     if (!c || !c.viva) {
       sel = null;
       f.innerHTML = '<p class="vacio">Toca un pueblo en el mapa o en la lista para ver cómo vive. Lo que escribas sin nombrar a nadie le pasará al pueblo elegido.</p>';
@@ -2246,8 +2589,28 @@ button { cursor: pointer; }
       fila('Madera', Math.floor(c.madera || 0) + ' <span class="tenue">· piedra ' + Math.floor(c.piedra || 0) + ' · ' + (c.arboles || 0) + ' árboles en su tierra</span>') +
       fila('Obras', (c.casas || 0) + ' casas · ' + (c.campos || 0) + ' campos') +
       fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
-      fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') + '</dl>';
+      fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') + '</dl>' +
+      (c.jugador ? planDe(c) : '') +
+      (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
     f.querySelector('.muestra').style.background = c.color;
+    if (c.jugador) f.querySelector('h3').insertAdjacentHTML('beforeend', ' <span class="tuyo">tu pueblo</span>');
+    const b = f.querySelector('.gobernar');
+    if (b) b.addEventListener('click', () => elegirModo('pueblo', c.id));
+  }
+
+  const FOCO = { ciencia: 'ciencia', crecer: 'crecer', comercio: 'riqueza y comercio', ejercito: 'ejército', construir: 'construir' };
+  function planDe(c) {
+    const p = c.plan || {}, l = [];
+    l.push(fila('Foco', p.foco ? FOCO[p.foco] : 'ninguno (cada uno a lo suyo)'));
+    const of = p.oficios ? Object.keys(p.oficios).filter(k => p.oficios[k] > 0.1).map(k => NOMBRES_OFICIO[k]) : [];
+    if (of.length) l.push(fila('Prioridad', 'más ' + esc(of.join(', '))));
+    const rumbo = typeof p.rumbo === 'number' ? 'hacia ' + ((S.civ(m, p.rumbo) || {}).nombre || '?') : p.rumbo ? 'hacia el ' + p.rumbo : 'a las mejores tierras';
+    l.push(fila('Expansión', p.expandir === false ? 'parada' : esc(rumbo)));
+    const socios = (p.socios || []).map(id => S.civ(m, id)).filter(o => o && o.viva).map(o => o.nombre);
+    if (socios.length) l.push(fila('Tratados', esc(socios.join(', '))));
+    const ofertas = Object.keys(m.ofertas || {}).map(Number).filter(id => S.enGuerra(c, S.civ(m, id) || { id: -1, guerras: [] }) && m.turno - m.ofertas[id] <= 15).map(id => S.civ(m, id).nombre);
+    if (ofertas.length) l.push(fila('Te ofrecen paz', '<span class="rojo">' + esc(ofertas.join(', ')) + '</span>'));
+    return '<dl class="plan">' + l.join('') + '</dl>';
   }
 
   const NOMBRES_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros' };
@@ -2276,7 +2639,10 @@ button { cursor: pointer; }
   }
 
   function pintarEjemplos() {
-    const ej = ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Incendio en el más grande', 'Que planten bosques en el más pequeño', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Que llueva oro sobre el más pobre'];
+    const vecino = tuPueblo() && (S.vecinosDe(m, tuPueblo())[0] || S.vivas(m).find(o => o.id !== m.jugador));
+    const ej = tuPueblo()
+      ? ['Informe', 'Talad el bosque y construid casas', 'Expandíos hacia el norte', 'Invertid en ciencia', 'Reclutad un ejército', vecino ? 'Atacad a ' + vecino.nombre : 'Atacad al vecino más débil', vecino ? 'Comerciad con ' + vecino.nombre : 'Comerciad con el más rico', 'Como antes']
+      : ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Incendio en el más grande', 'Que planten bosques en el más pequeño', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Que llueva oro sobre el más pobre'];
     const cont = $('ejemplos');
     cont.innerHTML = '';
     for (const t of ej) {
@@ -2291,13 +2657,29 @@ button { cursor: pointer; }
 
   // ---------- El tiempo ----------
   function paso() {
-    const antes = m.cronica[0];
+    const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [];
     S.turno(m);
     P.turno(m, VELOCIDADES[vel][0]);
     if (m.cronica[0] !== antes) marcar(m.cronica[0]);
+    if (yo) avisos(yo, guerrasAntes, antes);
     pintarTodo();
     if (m.turno % 5 === 0) guardar();
   }
+  // Lo que le pasa a tu pueblo mientras corre el tiempo: guerras que te declaran, paces que te ofrecen, tu caída.
+  function avisos(yo, guerrasAntes, ultimo) {
+    if (!yo.viva) {
+      pintarModo();
+      pedirModo('Tu pueblo ha caído', yo.nombre + ' ya no existe. Puedes gobernar otro pueblo (te toca uno al azar, o elige uno en la lista y pulsa «Gobernar este pueblo») o seguir mirando como dios.');
+      return;
+    }
+    const nuevas = yo.guerras.filter(g => !guerrasAntes.includes(g.con)).map(g => S.civ(m, g.con)).filter(Boolean);
+    if (nuevas.length) { responder('¡' + nuevas.map(o => o.nombre).join(' y ') + ' te declara la guerra! Reclutad un ejército o pedid la paz.', 'duda'); return; }
+    const recientes = [];
+    for (const e of m.cronica) { if (e === ultimo) break; recientes.push(e); }
+    const oferta = recientes.find(e => / te ofrece la paz$/.test(e.titulo));
+    if (oferta) responder(oferta.titulo + '. Escribe «acepto la paz con ' + oferta.titulo.replace(/ te ofrece la paz$/, '') + '» si la quieres.', 'duda');
+  }
+
   function programar() {
     clearInterval(reloj);
     if (corriendo) reloj = setInterval(paso, VELOCIDADES[vel][0]);
@@ -2359,6 +2741,7 @@ button { cursor: pointer; }
   async function obrar(texto) {
     if (ocupado) return;
     const antes = foto();
+    if (tuPueblo()) { ordenar(texto); return; }
     const r = D.obrar(m, texto, sel);
     if (r.ok) { mostrarPoder(r.poder, r.objetivos, r.suceso, antes, r.porDefecto); return; }
     if (r.motivo === 'falta_quien') { responder('¿Sobre quién? Toca un pueblo en el mapa o nómbralo ("peste sobre ' + (S.vivas(m)[0] || { nombre: 'Karenia' }).nombre + '").', 'duda'); return; }
@@ -2384,6 +2767,36 @@ button { cursor: pointer; }
       responder(err && err.code === 'rate_limited' ? 'Los cielos están saturados. Espera un poco y vuelve a intentarlo.' : 'Los cielos no responden ahora. Prueba con un poder sencillo: peste, diluvio, oro, un invento, una guerra o la paz.', 'duda');
     }
     ocupado = false; corriendo = seguia; programar();
+    pintarTodo(); guardar();
+  }
+
+  // Las órdenes a tu pueblo: el intérprete local, y si no entiende, Claude las traduce a las mismas acciones.
+  async function ordenar(texto) {
+    const yo = tuPueblo();
+    const r = X.ordenar(m, yo.id, texto);
+    if (r.ok) { despuesDeOrden(r); return; }
+    if (!sample) { responder('Tu gente no entiende la orden. Prueba con: talad, sembrad, construid casas, picad piedra, reclutad un ejército, expandíos hacia el norte, atacad a X, haced la paz con X, comerciad con X, invertid en ciencia, proclamad la república, informe.', 'duda'); return; }
+    ocupado = true;
+    responder('Tus consejeros discuten la orden…', 'espera');
+    try {
+      let f;
+      if (typeof sample.json === 'function') f = await sample.json(X.SISTEMA + '\n\n' + X.paraIA(m, yo.id, texto));
+      else { const res = await sample(X.SISTEMA + '\n\n' + X.paraIA(m, yo.id, texto)); f = JSON.parse(String(res.text).replace(/^[^{]*/, '').replace(/[^}]*$/, '')); }
+      const r2 = X.aplicarIA(m, yo.id, f);
+      if (r2) despuesDeOrden(r2);
+      else responder((f && f.respuesta) || 'Tus consejeros no saben cómo cumplir eso. Dilo de otra manera.', 'duda');
+    } catch (err) {
+      responder('Tus consejeros no responden ahora. Prueba con una orden sencilla: talad, construid, atacad a X, haced la paz…', 'duda');
+    }
+    ocupado = false;
+  }
+  function despuesDeOrden(r) {
+    M.vida.ajustar(m); P.refrescar();
+    const guerra = r.acciones.find(a => a.tipo === 'guerra' && a.con != null);
+    if (guerra && S.civ(m, guerra.con)) { P.efecto('guerra', [m.jugador, guerra.con], 'Guerra contra ' + S.civ(m, guerra.con).nombre); }
+    const yo = tuPueblo();
+    responder(r.respuesta || 'Hecho.', 'bien');
+    if (yo) marcar({ casilla: yo.capital, tipo: 'orden' });
     pintarTodo(); guardar();
   }
 
@@ -2413,20 +2826,27 @@ button { cursor: pointer; }
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);
     if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
-    pintarEjemplos(); pintarTodo();
+    pintarModo(); pintarTodo();
     $('play').addEventListener('click', () => { corriendo = !corriendo; programar(); });
     $('vel').addEventListener('click', () => { vel = (vel + 1) % VELOCIDADES.length; programar(); });
     $('nuevo').addEventListener('click', () => {
       if (!confirmarNuevo) { confirmarNuevo = true; $('nuevo').textContent = '¿Seguro? Toca otra vez'; setTimeout(() => { confirmarNuevo = false; $('nuevo').textContent = 'Nuevo mundo'; }, 3500); return; }
       confirmarNuevo = false; $('nuevo').textContent = 'Nuevo mundo';
-      mundoNuevo(); pintarTodo(); guardar(); responder('Un mundo nuevo. Cinco pueblos acaban de aprender a sembrar.', 'bien');
+      mundoNuevo(); pintarModo(); pintarTodo(); guardar(); responder('Un mundo nuevo. Cinco pueblos acaban de aprender a sembrar.', 'bien');
+      pedirModo();
     });
     $('voluntad').addEventListener('submit', ev => { ev.preventDefault(); const t = $('orden').value.trim(); if (!t) return; $('orden').value = ''; obrar(t); });
+    $('modo-pueblo').addEventListener('click', () => elegirModo('pueblo', sel != null && S.civ(m, sel) && S.civ(m, sel).viva ? sel : null));
+    $('modo-dios').addEventListener('click', () => elegirModo('dios'));
+    $('cambiar-modo').addEventListener('click', () => pedirModo());
     $('zoom-mas').addEventListener('click', () => P.zoom(1.5));
     $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
     $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
     programar();
+    // Un mundo nuevo (o uno guardado de antes de los modos) pregunta cómo quieres jugar.
+    if (!m.modo) pedirModo();
+    else if (m.modo === 'pueblo' && tuPueblo()) P.centrarEn(tuPueblo().capital);
     if (window.claude && window.claude.hot) window.claude.hot.snapshot(() => ({ mundo: m, sel }));
     // Dentro de claude.ai, Claude entiende lo que el intérprete no, y escribe capítulos de la crónica.
     if (window.claude && typeof window.claude.use === 'function') {

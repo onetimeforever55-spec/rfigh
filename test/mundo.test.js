@@ -1,7 +1,7 @@
 // Prueba de Génesis: el mundo vive solo la historia humana, es reproducible, explica lo que pasa y obedece al dios.
 // node test/mundo.test.js
 global.RF = global.RF || {};
-for (const f of ['datos', 'sim', 'vida', 'dios']) require('../js/mundo/' + f + '.js');
+for (const f of ['datos', 'sim', 'vida', 'dios', 'mando']) require('../js/mundo/' + f + '.js');
 const M = RF.MUNDO, S = M.sim, D = M.dios;
 
 let fallos = 0;
@@ -170,6 +170,45 @@ console.log('LOS PODERES SE NOTAN EN EL ACTO');
   D.obrar(m, 'que aparezca un pueblo nuevo'); V.ajustar(m);
   const nuevo = S.vivas(m)[S.vivas(m).length - 1];
   comprobar(S.vivas(m).length === n + 1 && m.vida.aldeanos.some(a => a.c === nuevo.id) && V.plaza(m, nuevo.capital).every(t => m.vida.obra[t] === V.OBRA.centro), 'un pueblo nuevo aparece con su plaza y sus aldeanos sin esperar al turno');
+}
+
+console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
+{
+  const X = M.mando;
+  const m = hasta(S.crear(9, 5), 0);
+  const yo = S.vivas(m)[0], otros = S.vivas(m).filter(c => c !== yo);
+  X.gobernar(m, yo.id);
+  comprobar(m.jugador === yo.id && yo.jugador && otros.every(o => !o.jugador), 'eliges un pueblo y pasa a ser el tuyo');
+  const antes = JSON.stringify(otros.map(o => [o.pob, o.estab, o.ciencia, o.riqueza, o.plan || null]));
+  const ordenes = ['talad el bosque y construid casas', 'invertid en ciencia', 'expandíos hacia el norte', 'reclutad un ejército', 'proclamad la república', 'informe'];
+  const res = ordenes.map(o => X.ordenar(m, yo.id, o));
+  comprobar(res.every(r => r.ok && r.respuesta), 'entiende órdenes de gobierno (' + res.map(r => r.acciones.map(a => a.tipo).join('+')).join(', ') + ')');
+  comprobar(JSON.stringify(otros.map(o => [o.pob, o.estab, o.ciencia, o.riqueza, o.plan || null])) === antes, 'y ninguna toca a los demás pueblos');
+  const r = X.ordenar(m, yo.id, 'que caiga una peste sobre ' + otros[0].nombre);
+  comprobar(r.ok && r.acciones[0].tipo === 'milagro' && /dios/.test(r.respuesta), 'los milagros no se pueden: no eres un dios');
+  comprobar(JSON.stringify(r.acciones) === JSON.stringify(JSON.parse(JSON.stringify(r.acciones))) && m.registro.length === ordenes.length + 1, 'cada orden queda como acciones serializables (listas para el multijugador)');
+  // Las acciones cambian cómo vive tu pueblo.
+  X.ordenar(m, yo.id, 'como antes');
+  X.ordenar(m, yo.id, 'que todos talen');
+  for (let k = 0; k < 3; k++) S.turno(m);
+  const lenadores = m.vida.aldeanos.filter(a => a.c === yo.id && M.vida.OFICIOS[a.o] === 'lenador').length, total = m.vida.aldeanos.filter(a => a.c === yo.id).length;
+  comprobar(lenadores >= total * 0.4, '"que todos talen" pone a la mayoría a talar (' + lenadores + ' de ' + total + ')');
+  const c1 = S.crear(4, 5), c2 = S.crear(4, 5);
+  hasta(c1, -2000); hasta(c2, -2000);
+  X.gobernar(c1, S.vivas(c1)[0].id); X.ordenar(c1, S.vivas(c1)[0].id, 'invertid en ciencia');
+  for (let k = 0; k < 10; k++) { S.turno(c1); S.turno(c2); }
+  comprobar(S.vivas(c1)[0].ciencia > S.vivas(c2)[0].ciencia * 1.15, 'invertir en ciencia hace avanzar más deprisa (' + Math.round(S.vivas(c2)[0].ciencia) + ' → ' + Math.round(S.vivas(c1)[0].ciencia) + ')');
+  // Guerra y paz: la IA no firma sola contigo, te ofrece la paz.
+  const w = hasta(S.crear(1, 5), 500);
+  const a = S.vivas(w).find(x => S.vecinosDe(w, x).length), b = S.vecinosDe(w, a)[0];
+  X.gobernar(w, a.id);
+  const rg = X.ordenar(w, a.id, 'atacad a ' + b.nombre);
+  comprobar(rg.ok && S.enGuerra(a, b), 'declaras la guerra a un vecino');
+  for (let k = 0; k < 25 && S.enGuerra(a, b) && a.viva; k++) S.turno(w);
+  comprobar(!a.viva || !b.viva || S.enGuerra(a, b), 'la guerra no se acaba sola: la decides tú (o se acaba cuando cae uno)');
+  comprobar(w.ofertas && w.ofertas[b.id] != null, 'cuando se cansan, te ofrecen la paz');
+  if (a.viva && b.viva) { const rp = X.ordenar(w, a.id, 'acepto la paz con ' + b.nombre); comprobar(rp.ok && !S.enGuerra(a, b), 'y aceptarla la firma'); }
+  comprobar(X.limpiar([{ tipo: 'guerra', con: 2 }, { tipo: 'borrar_mundo' }, { tipo: 'oficios', pesos: { lenador: 9, mago: 1 } }]).length === 2, 'lo que traduzca Claude se filtra (solo acciones conocidas, con valores dentro de lo permitido)');
 }
 
 console.log('LO QUE DECIDA CLAUDE, CON LÍMITES');

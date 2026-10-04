@@ -53,6 +53,19 @@ button { cursor: pointer; }
 .clave { margin: 8px 0 0; font-size: 13px; color: var(--tenue); max-width: 110ch; }
 @media (max-width: 600px) { .marco { height: clamp(300px, 62vh, 560px); } }
 
+/* ---- Elegir cómo jugar (encima del mapa) ---- */
+.inicio { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
+.inicio[hidden] { display: none; }
+.inicio-caja { max-width: 460px; background: var(--panel); border: 1px solid var(--oro); border-radius: var(--radio); padding: 20px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
+.inicio-titulo { margin: 0 0 8px; font-family: var(--f-pixel); font-weight: 600; font-size: 24px; color: var(--oro); }
+.inicio-texto { margin: 0 0 16px; color: var(--pergamino); }
+.inicio-botones { display: flex; flex-wrap: wrap; gap: 10px; }
+.inicio-botones .obrar { padding: 10px 18px; }
+.inicio-botones .mando { padding: 10px 16px; }
+.plan { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--linea); }
+.gobernar { margin-top: 10px; }
+.tuyo { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--noche); background: var(--oro); padding: 1px 5px; border-radius: 2px; }
+
 /* ---- La voluntad ---- */
 .etiqueta { font-family: var(--f-pixel); font-weight: 400; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tenue); margin: 0 0 8px; display: block; }
 .g-voluntad { background: linear-gradient(180deg, var(--oro-hondo), var(--panel) 70%); border: 1px solid var(--oro); border-radius: var(--radio); padding: 14px; }

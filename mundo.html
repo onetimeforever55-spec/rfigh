@@ -20,6 +20,7 @@
     <div class="mandos">
       <button type="button" class="mando" id="play" aria-pressed="false">❚❚ Pausa</button>
       <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
+      <button type="button" class="mando sutil" id="cambiar-modo">Cambiar de modo</button>
       <button type="button" class="mando sutil" id="nuevo">Nuevo mundo</button>
     </div>
   </header>
@@ -27,6 +28,16 @@
   <section class="g-mapa" aria-label="Mapa del mundo">
     <div class="marco">
       <canvas id="mapa" role="img" aria-label="El mundo visto desde arriba: bosques, montañas, ríos y mares; las aldeas de cada pueblo con su color, y sus aldeanos talando, sembrando, construyendo y luchando"></canvas>
+      <div class="inicio" id="inicio" hidden>
+        <div class="inicio-caja">
+          <h2 class="inicio-titulo" id="inicio-titulo">¿Cómo quieres jugar?</h2>
+          <p class="inicio-texto" id="inicio-texto">Puedes gobernar un solo pueblo con tus órdenes mientras los demás viven a su aire, o ser el dios de todos.</p>
+          <div class="inicio-botones">
+            <button type="button" class="obrar" id="modo-pueblo">Gobernar un pueblo</button>
+            <button type="button" class="mando" id="modo-dios">Ser un dios</button>
+          </div>
+        </div>
+      </div>
       <div class="camara" role="group" aria-label="Cámara">
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
         <button type="button" class="mando cam" id="zoom-menos" aria-label="Alejar">−</button>
@@ -37,10 +48,10 @@
   </section>
 
   <form class="g-voluntad" id="voluntad" autocomplete="off">
-    <label for="orden" class="etiqueta">Tu voluntad</label>
+    <label for="orden" class="etiqueta" id="etiqueta-orden">Tu voluntad</label>
     <div class="linea">
       <input id="orden" name="orden" type="text" maxlength="200" enterkeyhint="send" placeholder="Peste sobre el más grande, que descubran la pólvora…">
-      <button type="submit" class="obrar">Obrar</button>
+      <button type="submit" class="obrar" id="boton-orden">Obrar</button>
     </div>
     <div class="ejemplos" id="ejemplos" aria-label="Ejemplos"></div>
     <p class="respuesta" id="respuesta" aria-live="polite">El tiempo corre. Escribe cuando quieras intervenir.</p>
@@ -65,6 +76,7 @@
 <script src="js/mundo/sim.js"></script>
 <script src="js/mundo/vida.js"></script>
 <script src="js/mundo/dios.js"></script>
+<script src="js/mundo/mando.js"></script>
 <script src="js/mundo/pintor.js"></script>
 <script src="js/mundo/vista.js"></script>
 <!--/SCRIPTS-->

@@ -142,6 +142,22 @@
     if (!recursos.rocas) { p[LENADOR] += p[MINERO]; p[MINERO] = 0; }
     const resto = 1 - p.reduce((a, b) => a + b, 0);
     p[LENADOR] += resto * (recursos.arboles ? 0.55 : 0); p[GRANJERO] += resto * (recursos.arboles ? 0.45 : 1);
+    // Un jugador reparte los oficios a su gusto (mando.js): pesa tres veces más que la costumbre.
+    const plan = c.plan && c.plan.oficios;
+    if (plan) {
+      // "Más X" se lleva su parte del trabajo; "menos X" lo deja casi a cero.
+      const quiere = OFICIOS.map(o => (typeof plan[o] === 'number' ? plan[o] : null));
+      const total = quiere.reduce((k, w) => k + (w > 0.1 ? w : 0), 0), parte = Math.min(0.9, total);
+      const q = p.map((x, i) => {
+        const w = quiere[i];
+        if (w !== null && w <= 0.1) return w;
+        return x * (1 - parte) + (w !== null ? w / total * parte : 0);
+      });
+      if (!recursos.arboles) q[LENADOR] = 0;
+      if (!recursos.rocas) q[MINERO] = 0;
+      const suma = q.reduce((k, x) => k + x, 0) || 1;
+      return q.map(x => x / suma);
+    }
     return p;
   }
 
@@ -185,10 +201,10 @@
       const tiene = [0, 0, 0, 0, 0];
       for (const a of lista) tiene[a.o]++;
       for (const a of lista) {
-        if (a.e !== LIBRE && a.e !== ESPERAR && !(a.o === GUERRERO && !c.guerras.length)) continue;
+        if (a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && !(c.plan && c.plan.oficios && c.plan.oficios.guerrero))) continue;
         const falta = p.map((x, i) => x * lista.length - tiene[i] + (i === a.o ? 1 : 0));
         const mejor = falta.indexOf(Math.max(...falta));
-        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; }
+        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; }
       }
     }
   }
@@ -304,7 +320,7 @@
     a.paseo = 0;
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
-    if (a.o === LENADOR && c.madera < 60 + 20 * c.era) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
+    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * (1 + 4 * ((c.plan && c.plan.oficios && c.plan.oficios.lenador) || 0))) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
     else if (a.o === MINERO && c.piedra < 30 + 10 * c.era) t = cercano(m, a, rec.rocas, rec.reservadas, 16);
     else if (a.o === GRANJERO) t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
     else if (a.o === CONSTRUCTOR) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
@@ -321,7 +337,7 @@
     pasear(m, a, ter, c);
   }
   const metaCampos = c => Math.round(4 + c.pob * 0.22);
-  const metaCasas = c => Math.round(2 + c.pob * 0.12);
+  const metaCasas = c => Math.round((2 + c.pob * 0.12) * (c.plan && c.plan.foco === 'construir' ? 1.6 : 1));
 
   // Una parcela libre cerca de casa: primero en su región, luego en las regiones propias de alrededor.
   function libre(m, a, c, rec, ter, sirve) {
@@ -552,5 +568,5 @@
     contar(m);
   }
 
-  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

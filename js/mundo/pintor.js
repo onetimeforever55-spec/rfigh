@@ -350,11 +350,11 @@
     for (const c of S.vivas(m)) {
       const r = c.capital, wx = (r % m.W) * V.SUB * P + V.SUB * P / 2, wy = Math.floor(r / m.W) * V.SUB * P + P * 0.6;
       const sx = ox + wx * z, sy = oy + wy * z - 10 * dpr;
-      const texto = c.nombre + (c.guerras.length ? ' ⚔' : '');
+      const texto = (c.jugador ? '★ ' : '') + c.nombre + (c.guerras.length ? ' ⚔' : '');
       const anchoT = g.measureText(texto).width + 10 * dpr;
       g.fillStyle = 'rgba(13,19,34,0.82)'; g.fillRect(sx - anchoT / 2, sy - tam * 0.75, anchoT, tam * 1.5);
       g.fillStyle = c.color; g.fillRect(sx - anchoT / 2, sy + tam * 0.75 - 2 * dpr, anchoT, 2 * dpr);
-      g.fillStyle = sel === c.id ? '#f0c05a' : '#fff6dc'; g.fillText(texto, sx, sy);
+      g.fillStyle = c.jugador || sel === c.id ? '#f0c05a' : '#fff6dc'; g.fillText(texto, sx, sy);
     }
   }
 
