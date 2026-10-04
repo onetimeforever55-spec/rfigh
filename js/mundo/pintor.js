@@ -1,6 +1,6 @@
 /*
  * GÉNESIS · EL PINTOR
- * Dibuja el mundo como un juego de píxeles visto desde arriba: cada parcela de 8×8 píxeles con su suelo,
+ * Dibuja el mundo como un juego de píxeles visto desde arriba: cada parcela de 16×16 píxeles (arte.js) con su suelo,
  * sus árboles, sus rocas, sus campos y sus casas (con el tejado del color de su pueblo y el estilo de su
  * era), y encima los aldeanos andando, talando, sembrando y luchando.
  *
@@ -14,93 +14,15 @@
   // A: píxeles de arte por parcela (el suelo, las casas y los árboles); P: píxeles del mundo por parcela.
   // Las personas, los animales, los barcos y las flechas se dibujan a la escala fina P, así que una persona
   // queda mucho más pequeña que una casa, como en WorldBox.
-  const A = 8, E = 2, P = A * E;
+  const A = 16, E = 1, P = A * E;
+  // La capa de territorio (colores de los reinos) va a menos resolución: ahorra memoria y no hace falta más.
+  const CA = 8;
+  const ARTE = () => M.arte;
 
-  // ---------- Sprites: cada letra es un color; el punto, transparente ----------
-  const PALETA = {
-    g: '#2f6b34', G: '#3f8a3e', h: '#6cb85a', t: '#6b4a2b', p: '#1f5a3a', P: '#2e7a4a', n: '#f4f8fb', c: '#4f9a4a', C: '#7cc36a',
-    r: '#5e5e68', R: '#8a8a96', H: '#b9b9c4', s: '#8f8a80', S: '#b7b0a2', w: '#e3d3b0', W: '#c2ad86', d: '#5a3a22', k: '#2a3550',
-    b: '#7a5232', J: '#24702f', j: '#1a5a25', a: '#7d8a2e', A: '#9aa83a', u: '#6f7d5a', U: '#8a9a6e', e: '#4d7a3a', E: '#6a9a48', y: '#f0c05a', m: '#9aa1ad', M: '#c6ccd6', o: '#6d6f78', l: '#ffe9a6', f: '#e0a040'
-  };
-  const SPRITES = {
-    roble3: ['..gGGg..', '.gGGhGg.', 'gGGhGGGg', 'gGGGGGhg', 'ggGGGGgg', '.gggggg.', '...tt...', '...tt...'],
-    pino3: ['...pp...', '..pPPp..', '..pPPp..', '.pPPPPp.', '.pPPPPp.', 'pPPPPPPp', '...tt...', '...tt...'],
-    nevado3: ['...nn...', '..pnPp..', '..pPPp..', '.nPPnPp.', '.pPPPPp.', 'nPPPPPnp', '...tt...', '...tt...'],
-    arbol2: ['........', '........', '...gg...', '..gGhg..', '..gGGg..', '...gg...', '...t....', '...t....'],
-    arbol1: ['........', '........', '........', '........', '...g....', '..gGg...', '...t....', '........'],
-    palmera: ['.hG..Gh.', 'GGGhGGGG', 'G.GttG.G', '...tt...', '...t....', '....t...', '....t...', '...tt...'],
-    jungla3: ['.JJjJJ..', 'JjJJJjJ.', 'JJJhJJJJ', 'jJJJJJjJ', '.JjJJJJ.', '..JttJ..', '...tt...', '...tt...'],
-    acacia: ['........', '.aAAAAa.', 'aAAhAAAa', '..ttt...', '....t...', '...t....', '...t....', '........'],
-    sauce: ['..eEEe..', '.eEhEEe.', 'eEeEEeEe', 'e.ettE.e', 'e..tt..e', '...tt...', '........', '........'],
-    matorral: ['........', '........', '........', '...uu...', '..uUuu..', '.uUUuUu.', '..uuuu..', '........'],
-    cactus: ['........', '...c....', '.c.cC...', '.ccc.c..', '...ccC..', '...c....', '...c....', '........'],
-    roca3: ['........', '..rRR...', '.rRHRRr.', 'rRHRRRRr', 'rRRRRRRr', '.rrrrrr.', '........', '........'],
-    roca2: ['........', '........', '...rR...', '..rHRr..', '.rRRRRr.', '..rrrr..', '........', '........'],
-    roca1: ['........', '........', '........', '...rR...', '..rRRr..', '...rr...', '........', '........'],
-    ayuntamiento: ['...yy...', '...XX...', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wkwwkw.', '.wwddww.', '.wwddww.'],
-    torre: ['.s.s.s..', '.sssss..', '..sks...', '..sSs...', '..sks...', '..sSs...', '.sssss..', '.sSdSs..'],
-    templo: ['...XX...', '..XXXX..', '.XXXXXX.', 'XXXXXXXX', '.wSwSwS.', '.wSwSwS.', '.wSwdwS.', 'SSSSSSSS'],
-    molino: ['........', '........', '...XX...', '..XXXX..', '..wwww..', '..wkww..', '..wwdw..', '..wwww..'],
-    puerto: ['........', '........', 'bbbbbbbb', 'tbtbtbtb', 'bbbbbbbb', '.t...t..', '.t...t..', '........'],
-    ruina: ['........', '........', '.s...S..', '.S..sS..', '.sS.sS..', 'sSsSs.s.', '........', '........'],
-    choza: ['...XX...', '..XXXX..', '.XXxxXX.', 'XXXXXXXX', '.wwwwww.', '.wwddww.', '.wwddww.', '........'],
-    casa: ['........', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wwwwww.', '.wkwwdw.', '.wwwwdw.', '........'],
-    entramado: ['..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wbwwbw.', '.wkwbkw.', '.wbwwbw.', '.wkwdbw.', '........'],
-    bloque: ['.xxxxxx.', '.MkMkMk.', '.MMMMMM.', '.MkMkMk.', '.MMMMMM.', '.MkMdMk.', '.MMMMMM.', '........'],
-    centro0: ['................', '................', '.......XX.......', '......XXXX......', '.....XXXXXX.....', '....XXXXXXXX....', '...XXXXxxXXXX...', '..XXXXXXXXXXXX..', '.XXXXXXXXXXXXXX.', 'XXXXXXXXXXXXXXXX', '.wwwwwwwwwwwwww.', '.wwwwwwddwwwwww.', '.wkwwwwddwwwwkw.', '.wwwwwwddwwwwww.', '................', '................'],
-    centro1: ['s.s.........s.s.', 'sss.........sss.', 'sSs..s.s.s..sSs.', 'sss..sssss..sss.', 'sSs..sSSSs..sSs.', 'ssssssssssssssss', 'sSSSSSSSSSSSSSSs', 'sSkSSSSSSSSSSkSs', 'sSSSSSSSSSSSSSSs', 'sSSSSSXXXXSSSSSs', 'sSSSSXXXXXXSSSSs', 'sSSSSSddddSSSSSs', 'sSkSSSddddSSSkSs', 'sSSSSSddddSSSSSs', 'ssssssddddssssss', '................'],
-    centro2: ['.......yy.......', '......XXXX......', '.....XXXXXX.....', '.....XXXXXX.....', '..XX.wwwwww.XX..', '.XXXXwkwwkwXXXX.', '.wwwwwwwwwwwwww.', '.wkwkwkwwkwkwkw.', '.wwwwwwwwwwwwww.', '.wkwkwkwwkwkwkw.', '.wwwwwwwwwwwwww.', '.wkwkwwddwwkwkw.', '.wwwwwwddwwwwww.', 'wwwwwwwddwwwwwww', 'SSSSSSSSSSSSSSSS', '................'],
-    centro3: ['....MM..........', '...MMMM.....MM..', '...MkMM....MMMM.', '...MMMM....MkkM.', '...MkMM....MMMM.', '.MMMMMM....MkkM.', '.MkMkMMMM..MMMM.', '.MMMMMMMMM.MkkM.', '.MkMkMkMkM.MMMM.', '.MMMMMMMMMMMMMMM', '.MkMkMkMkMkMkkMM', '.MMMMMMMMMMMMMMM', '.MkMkMkddMkMkkMM', '.MMMMMMMdMMMMMMM', 'oooooooooooooooo', '................']
-  };
-  const cacheSprites = {};
-  function sprite(nombre, tejado) {
-    const clave = nombre + (tejado || '');
-    if (cacheSprites[clave]) return cacheSprites[clave];
-    const filas = SPRITES[nombre], w = filas[0].length, h = filas.length;
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const g = c.getContext('2d');
-    const pal = Object.assign({}, PALETA, tejado ? { X: tejado, x: mezclar(tejado, '#000000', 0.35) } : { X: '#b5763a', x: '#8a5426' });
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const ch = (filas[y][x] || '.'); if (ch !== '.' && pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); } }
-    return (cacheSprites[clave] = c);
-  }
   function mezclar(a, b, t) {
     const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
     const c = k => Math.round(((pa >> k) & 255) * (1 - t) + ((pb >> k) & 255) * t);
     return '#' + ((1 << 24) | (c(16) << 16) | (c(8) << 8) | c(0)).toString(16).slice(1);
-  }
-
-  // El suelo: un color base con motas, en cuatro variantes para que no se vea la cuadrícula.
-  const SUELO = {
-    llanura: ['#6fa34f', '#7fb35a', '#5f9444'], bosque: ['#4f8a3f', '#5d9a49', '#437a36'], colina: ['#9c9a5c', '#aeab6a', '#87864e'],
-    montana: ['#85838c', '#a3a1aa', '#6c6a73'], desierto: ['#dcc48a', '#e8d49c', '#c9ae74'], nieve: ['#e9eef2', '#ffffff', '#cfd8e0'],
-    arena: ['#e6d29a', '#f1e0ac', '#d4bd82'], selva: ['#3d8a38', '#4c9c44', '#2f7a2e'], sabana: ['#b9b25c', '#c9c26c', '#a49d4c'],
-    pantano: ['#4d6b47', '#5b7b52', '#3f5a3b'], taiga: ['#4e7458', '#5c8466', '#41654b'], tundra: ['#9ba596', '#adb6a8', '#8a9485'], agua: ['#1d4a82', '#24578f', '#183f72'], bajo: ['#2d6aa6', '#3a7bb8', '#255d94'], rio: ['#3d86d0', '#5a9de0', '#3377bf']
-  };
-  const cacheSuelo = {};
-  function suelo(tipo, variante) {
-    const clave = tipo + variante;
-    if (cacheSuelo[clave]) return cacheSuelo[clave];
-    const [base, claro, oscuro] = SUELO[tipo] || SUELO.llanura;
-    const c = document.createElement('canvas'); c.width = A; c.height = A;
-    const g = c.getContext('2d');
-    g.fillStyle = base; g.fillRect(0, 0, A, A);
-    let s = (variante + 1) * 2654435761 + tipo.length * 97;
-    const r = () => { s = (Math.imul(s ^ (s >>> 13), 1274126177) + 0x9E3779B9) >>> 0; return s / 4294967296; };
-    for (let k = 0; k < 7; k++) { g.fillStyle = r() < 0.5 ? claro : oscuro; g.fillRect(Math.floor(r() * A), Math.floor(r() * A), 1, 1); }
-    if (tipo === 'agua' || tipo === 'bajo') { g.fillStyle = claro; const y = Math.floor(r() * 6) + 1, x = Math.floor(r() * 5); g.fillRect(x, y, 3, 1); }
-    if (tipo === 'pantano') { g.fillStyle = '#2f5a5a'; g.fillRect(1 + Math.floor(r() * 3), 2 + Math.floor(r() * 3), 3, 2); g.fillStyle = '#4f8080'; g.fillRect(2, 3, 1, 1); }
-    if (tipo === 'tundra') { g.fillStyle = '#e9eef2'; g.fillRect(Math.floor(r() * 6), Math.floor(r() * 6), 2, 1); }
-    if (tipo === 'montana' && variante < 2) {
-      // Roca con grietas: no todas las parcelas tienen pico, así la cordillera no parece una cuadrícula.
-      g.fillStyle = '#6c6a73'; g.fillRect(1 + variante * 3, 2, 1, 3); g.fillRect(2 + variante * 3, 5, 2, 1);
-      g.fillStyle = '#a3a1aa'; g.fillRect(5 - variante * 3, 1, 2, 1);
-    } else if (tipo === 'montana') {
-      // Un pico con la cumbre nevada en cada parcela de montaña.
-      const pico = variante % 2 ? ['....n...', '...nRr..', '..RRHRr.', '.RRRRHRr', 'RRrRRRRr', 'rRRRrRRr', 'rrRRRRrr', 'rrrrrrrr'] : ['...n....', '..nRr...', '.RHRRr..', '.RRHRRr.', 'RRRRRRrr', 'rRrRRRRr', 'rrRRrRrr', 'rrrrrrrr'];
-      const col = { n: '#f4f8fb', R: '#8a8a96', H: '#b9b9c4', r: '#5e5e68' };
-      for (let yy = 0; yy < A; yy++) for (let xx = 0; xx < A; xx++) { const ch = pico[yy][xx]; if (ch !== '.') { g.fillStyle = col[ch]; g.fillRect(xx, yy, 1, 1); } }
-    }
-    return (cacheSuelo[clave] = c);
   }
 
   const grupoEra = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
@@ -156,7 +78,7 @@
     if (!m.vida) V.crear(m);
     const v = m.vida;
     lienzo = document.createElement('canvas'); lienzo.width = v.tw * A; lienzo.height = v.th * A; gl = lienzo.getContext('2d');
-    capa = document.createElement('canvas'); capa.width = lienzo.width; capa.height = lienzo.height; gc = capa.getContext('2d');
+    capa = document.createElement('canvas'); capa.width = v.tw * CA; capa.height = v.th * CA; gc = capa.getContext('2d');
     visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice(), camino: (v.camino || []).slice() };
     tierra = V.terrenos(m).slice();
     pend = [];
@@ -179,43 +101,37 @@
   }
 
   function parcela(t) {
-    const v = m.vida, x = (t % v.tw) * A, y = Math.floor(t / v.tw) * A, ter = tierra[t];
-    gl.drawImage(suelo(ter, ((t * 2654435761) >>> 0) % 4), x, y);
+    const v = m.vida, x = (t % v.tw) * A, y = Math.floor(t / v.tw) * A, ter = tierra[t], h = (Math.imul(t, 2654435761) >>> 0);
+    gl.clearRect(x, y, A, A);
+    gl.drawImage(ARTE().suelo(ter, h % 4), x, y);
     if (visto.camino && visto.camino[t]) caminoEn(t, x, y, ter);
     const obra = visto.obra[t];
     if (obra) {
       const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
       const color = c ? c.color : '#9a7a5a', ge = c ? grupoEra(c.era) : 0;
-      if (obra === V.OBRA.campo) campo(x, y, t);
+      if (obra === V.OBRA.campo) gl.drawImage(ARTE().campo((visto.cultivo && visto.cultivo[t]) || 0, t % 2), x, y);
       else if (obra === V.OBRA.casa) {
-        // Cada casa un poco distinta: unas en espejo y con el tejado algo más oscuro.
-        const h = (Math.imul(t, 2246822519) >>> 0) % 4;
-        const img = sprite(CASAS[ge], h === 3 ? mezclar(color, '#000000', 0.18) : h === 2 ? mezclar(color, '#ffffff', 0.12) : color);
-        // Y algunas un píxel más abajo (la última fila del dibujo está vacía): las filas dejan de ser rectas.
-        const oy = ((Math.imul(t, 2654435761) >>> 0) >> 5) % 2;
-        if (h % 2) { gl.save(); gl.translate(x + A, y + oy); gl.scale(-1, 1); gl.drawImage(img, 0, 0); gl.restore(); } else gl.drawImage(img, x, y + oy);
+        // Cada casa un poco distinta: unas en espejo, con el tejado más claro u oscuro, y algunas un píxel más abajo.
+        const hv = (Math.imul(t, 2246822519) >>> 0) % 4;
+        const img = ARTE().casa(CASAS[ge], hv === 3 ? mezclar(color, '#000000', 0.18) : hv === 2 ? mezclar(color, '#ffffff', 0.12) : color, (h >>> 7) % 4);
+        const oy = (h >>> 5) % 2;
+        if (hv % 2) { gl.save(); gl.translate(x + A, y + oy); gl.scale(-1, 1); gl.drawImage(img, 0, 0); gl.restore(); } else gl.drawImage(img, x, y + oy);
       }
-      else if (obra === V.OBRA.ruina) gl.drawImage(sprite('ruina'), x, y);
-      else if (obra === V.OBRA.ayuntamiento) gl.drawImage(sprite('ayuntamiento', color), x, y);
-      else if (obra === V.OBRA.torre) gl.drawImage(sprite('torre'), x, y);
-      else if (obra === V.OBRA.templo) gl.drawImage(sprite('templo', '#e8e0c8'), x, y);
-      else if (obra === V.OBRA.molino) gl.drawImage(sprite('molino', color), x, y);
-      else if (obra === V.OBRA.puerto) gl.drawImage(sprite('puerto'), x, y);
+      else if (obra === V.OBRA.ruina) gl.drawImage(ARTE().edificio('ruina', '#888888'), x, y);
+      else if (obra === V.OBRA.ayuntamiento) gl.drawImage(ARTE().edificio('ayuntamiento', color), x, y);
+      else if (obra === V.OBRA.torre) gl.drawImage(ARTE().edificio('torre', color), x, y);
+      else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color), x, y);
+      else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color), x, y);
+      else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color), x, y);
       else if (obra === V.OBRA.centro) {
         // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
         const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
-        if (lx >= 0 && ly >= 0 && lx < 2 && ly < 2) gl.drawImage(sprite('centro' + ge, color), lx * A, ly * A, A, A, x, y, A, A);
-        else gl.drawImage(sprite('ruina'), x, y);
+        if (lx >= 0 && ly >= 0 && lx < 2 && ly < 2) gl.drawImage(ARTE().plaza(ge, color), lx * A, ly * A, A, A, x, y, A, A);
+        else gl.drawImage(ARTE().edificio('ruina', '#888888'), x, y);
       }
       return;
     }
-    if (visto.roca[t]) {
-      gl.drawImage(sprite('roca' + Math.min(3, visto.roca[t])), x, y);
-      // Las vetas: motas rojizas de hierro o doradas de oro sobre la roca.
-      const mena = m.vida.mena && m.vida.mena[t];
-      if (mena) { gl.fillStyle = mena === 2 ? '#ffd23a' : '#c8643a'; gl.fillRect(x + 3, y + 3, 1, 1); gl.fillRect(x + 5, y + 4, 1, 1); if (visto.roca[t] > 1) gl.fillRect(x + 2, y + 4, 1, 1); }
-      return;
-    }
+    if (visto.roca[t]) { gl.drawImage(ARTE().roca(Math.min(3, visto.roca[t]), (m.vida.mena && m.vida.mena[t]) || 0), x, y); return; }
     const a = visto.arbol[t];
     if (a) {
       const tipo = m.tipo[V.region(m, t)];
@@ -225,8 +141,11 @@
         selva: variante < 2 ? 'palmera' : 'jungla3', sabana: 'acacia', pantano: 'sauce', bosque: variante === 0 ? 'pino3' : 'roble3'
       }[tipo] || (variante === 0 ? 'pino3' : 'roble3');
       const nombre = a === 1 ? (tipo === 'tundra' ? 'matorral' : 'arbol1') : a === 2 ? (tipo === 'desierto' ? 'cactus' : tipo === 'tundra' ? 'matorral' : 'arbol2') : maduro;
-      gl.drawImage(sprite(nombre), x, y);
+      gl.drawImage(ARTE().arbol(nombre, (h >>> 3) % 5), x, y);
+      return;
     }
+    // Flores, setas, helechos, piedrecitas: un adorno en una de cada tres o cuatro parcelas vacías.
+    if ((h >>> 11) % 100 < (ARTE().HIERBA.has(ter) ? 34 : 14) && ter !== 'agua' && ter !== 'bajo' && ter !== 'rio' && ter !== 'montana') gl.drawImage(ARTE().adorno(ter, (h >>> 4) % 6), x, y);
   }
   // Un tramo de camino: tierra al principio, empedrado desde la Antigüedad, asfalto en la era moderna,
   // y puente de tablas sobre los ríos. Se une con los tramos vecinos y con las plazas.
@@ -234,38 +153,30 @@
     const v = m.vida, tw = v.tw, c = m.dueno[V.region(m, t)] >= 0 ? S.civ(m, m.dueno[V.region(m, t)]) : null, era = c ? c.era : 0;
     const une = n => n >= 0 && n < tw * v.th && (visto.camino[n] || visto.obra[n] === V.OBRA.centro || visto.obra[n] === V.OBRA.ayuntamiento);
     const tx = t % tw;
-    const lados = [[tx > 0 && une(t - 1), 0, 2, 2, 4], [tx < tw - 1 && une(t + 1), 6, 2, 2, 4], [une(t - tw), 2, 0, 4, 2], [une(t + tw), 2, 6, 4, 2]];
+    // Centro de 8×8 y brazos hacia los vecinos (izquierda, derecha, arriba, abajo).
+    const lados = [[tx > 0 && une(t - 1), 0, 4, 4, 8], [tx < tw - 1 && une(t + 1), 12, 4, 4, 8], [une(t - tw), 4, 0, 8, 4], [une(t + tw), 4, 12, 8, 4]];
     if (ter === 'rio') {
-      gl.fillStyle = '#7a5232'; gl.fillRect(x, y + 1, A, 6); gl.fillStyle = '#5a3a22'; for (let k = 1; k < A; k += 2) gl.fillRect(x + k, y + 1, 1, 6);
-      gl.fillStyle = '#3a2a1e'; gl.fillRect(x, y + 1, A, 1); gl.fillRect(x, y + 6, A, 1);
+      // Puente de tablas con barandilla.
+      gl.fillStyle = '#8a5a2a'; gl.fillRect(x, y + 3, A, 10);
+      gl.fillStyle = '#6a4220'; for (let k = 1; k < A; k += 3) gl.fillRect(x + k, y + 3, 1, 10);
+      gl.fillStyle = '#a8784a'; gl.fillRect(x, y + 3, A, 1);
+      gl.fillStyle = '#3a2a1e'; gl.fillRect(x, y + 2, A, 1); gl.fillRect(x, y + 13, A, 1);
+      for (let k = 0; k < A; k += 5) { gl.fillRect(x + k, y + 1, 1, 2); gl.fillRect(x + k, y + 13, 1, 2); }
       return;
     }
-    const [base, borde, marca] = era >= 7 ? ['#55585f', '#3f4248', '#e8d070'] : era >= 3 ? ['#b9ad94', '#948a74', '#d4cab2'] : ['#a7855a', '#8a6a42', '#b8966a'];
-    gl.fillStyle = borde; gl.fillRect(x + 1, y + 1, 6, 6);
-    for (const [si, lx, ly, w, h] of lados) if (si) gl.fillRect(x + lx, y + ly, w, h);
-    gl.fillStyle = base; gl.fillRect(x + 2, y + 2, 4, 4);
-    for (const [si, lx, ly, w, h] of lados) if (si) gl.fillRect(x + lx + (w === 2 ? 0 : 0), y + ly, w, h);
+    const [base, borde, marca] = era >= 7 ? ['#55585f', '#3f4248', '#e8d070'] : era >= 3 ? ['#b9ad94', '#8a8070', '#d4cab2'] : ['#a7855a', '#86683f', '#bc9a6a'];
+    gl.fillStyle = borde; gl.fillRect(x + 3, y + 3, 10, 10);
+    for (const [si, lx, ly, w, hh] of lados) if (si) gl.fillRect(x + lx + (w === 4 ? 0 : -1), y + ly + (hh === 4 ? 0 : -1), w + (w === 4 ? 0 : 2), hh + (hh === 4 ? 0 : 2));
+    gl.fillStyle = base; gl.fillRect(x + 4, y + 4, 8, 8);
+    for (const [si, lx, ly, w, hh] of lados) if (si) gl.fillRect(x + lx, y + ly, w, hh);
     gl.fillStyle = marca;
-    if (era >= 7) { if (lados[0][0] || lados[1][0]) gl.fillRect(x + 1, y + 4, 2, 1); if (lados[2][0] || lados[3][0]) gl.fillRect(x + 4, y + 1, 1, 2); }
-    else { gl.fillRect(x + 3, y + 3, 1, 1); gl.fillRect(x + 5, y + 4, 1, 1); if (era >= 3) gl.fillRect(x + 2, y + 5, 1, 1); }
+    if (era >= 7) { if (lados[0][0] || lados[1][0]) for (let k = 1; k < A; k += 4) gl.fillRect(x + k, y + 7, 2, 1); if (lados[2][0] || lados[3][0]) for (let k = 1; k < A; k += 4) gl.fillRect(x + 7, y + k, 1, 2); }
+    else if (era >= 3) { for (let j = 4; j < 12; j += 2) for (let i = 4 + (j % 4 ? 1 : 0); i < 12; i += 3) gl.fillRect(x + i, y + j, 2, 1); }
+    else { gl.fillRect(x + 6, y + 6, 1, 1); gl.fillRect(x + 9, y + 8, 1, 1); gl.fillRect(x + 5, y + 10, 1, 1); }
   }
   function vecinasCamino(t) {
     const tw = m.vida.tw;
     for (const n of [t - 1, t + 1, t - tw, t + tw]) if (n >= 0 && n < tw * m.vida.th && visto.camino[n]) parcela(n);
-  }
-
-  // El campo según cómo va el trigo: tierra arada, brotes, verde y dorado (listo para segar).
-  function campo(x, y, t) {
-    const fase = (visto.cultivo && visto.cultivo[t]) || 0;
-    gl.fillStyle = '#86653a'; gl.fillRect(x, y, A, A);
-    gl.fillStyle = '#6e5230';
-    for (let k = 1; k < A; k += 2) gl.fillRect(x, y + k, A, 1);
-    if (fase >= 1) {
-      gl.fillStyle = fase === 1 ? '#8fc35a' : fase === 2 ? '#5f9e3a' : '#e0c050';
-      for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 2) gl.fillRect(x + j, y + k - (fase >= 2 ? 1 : 0), 1, fase >= 2 ? 2 : 1);
-      if (fase === 3) { gl.fillStyle = '#f4dc7a'; for (let k = 0; k < A; k += 4) gl.fillRect(x + ((k + t) % 5), y + k, 1, 1); }
-    }
-    gl.fillStyle = 'rgba(0,0,0,0.18)'; gl.fillRect(x, y + A - 1, A, 1);
   }
 
   // El color de cada pueblo sobre su tierra y las fronteras (rojas donde hay guerra).
@@ -296,12 +207,12 @@
     for (let t = 0; t < n; t++) {
       const d = zona[t];
       if (d < 0 || !color[d]) continue;
-      const x = (t % tw) * A, y = Math.floor(t / tw) * A;
+      const x = (t % tw) * CA, y = Math.floor(t / tw) * CA;
       gc.globalAlpha = sel == null ? 0.18 : sel === d ? 0.24 : 0.1;
-      gc.fillStyle = color[d]; gc.fillRect(x, y, A, A);
+      gc.fillStyle = color[d]; gc.fillRect(x, y, CA, CA);
       gc.globalAlpha = 1;
       const tx = t % tw;
-      const lados = [[tx > 0 ? t - 1 : -1, x, y, 1, A], [tx < tw - 1 ? t + 1 : -1, x + A - 1, y, 1, A], [t - tw, x, y, A, 1], [t + tw < n ? t + tw : -1, x, y + A - 1, A, 1]];
+      const lados = [[tx > 0 ? t - 1 : -1, x, y, 1, CA], [tx < tw - 1 ? t + 1 : -1, x + CA - 1, y, 1, CA], [t - tw, x, y, CA, 1], [t + tw < n ? t + tw : -1, x, y + CA - 1, CA, 1]];
       for (const [o, rx, ry, rw, rh] of lados) {
         const od = o >= 0 ? zona[o] : -2;
         if (od === d) continue;
@@ -389,7 +300,8 @@
     const x1 = Math.min(ancho(), Math.ceil(cam.x + w / cam.z / 2) + P), y1 = Math.min(alto(), Math.ceil(cam.y + h / cam.z / 2) + P);
     // El suelo y las obras están pintados a escala de arte (A): se amplían al mundo (P).
     g.drawImage(lienzo, x0 / E, y0 / E, (x1 - x0) / E, (y1 - y0) / E, x0, y0, x1 - x0, y1 - y0);
-    g.drawImage(capa, x0 / E, y0 / E, (x1 - x0) / E, (y1 - y0) / E, x0, y0, x1 - x0, y1 - y0);
+    const ec = P / CA;
+    g.drawImage(capa, x0 / ec, y0 / ec, (x1 - x0) / ec, (y1 - y0) / ec, x0, y0, x1 - x0, y1 - y0);
     banderas(ahora);
     agua(ahora, x0, y0, x1, y1);
     barcos(k, ahora, x0, y0, x1, y1);
@@ -475,7 +387,7 @@
       if (pega) { const [at, d] = pega, emb = Math.round(2.5 * Math.sin(Math.PI * d)); px += Math.sign(at[2]) * emb; py += Math.sign(at[3]) * emb; }
       px = Math.round(px); py = Math.round(py);
       dibujados.set(a.id, [px, py]);
-      if (elegido === a.id) { const f2 = Math.floor(performance.now() / 300) % 2; g.fillStyle = '#ffd23a'; g.fillRect(px, py - 5 - f2, 3, 1); g.fillRect(px + 1, py - 4 - f2, 1, 1); g.strokeStyle = 'rgba(255,210,58,0.8)'; g.lineWidth = 0.6; g.strokeRect(px - 2.5, py - 1.5, 8, 9); }
+      if (elegido === a.id) { const f2 = Math.floor(performance.now() / 300) % 2; g.fillStyle = '#ffd23a'; g.fillRect(px, py - 6 - f2, 3, 1); g.fillRect(px + 1, py - 5 - f2, 1, 1); g.strokeStyle = 'rgba(255,210,58,0.8)'; g.lineWidth = 0.6; g.strokeRect(px - 2.5, py - 2, 8, 8.5); }
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
       const t = Math.floor(ahora / 150 + a.id) % 2;
       // En el agua (sin puente) no se camina: se nada, con la cabeza fuera y ondas alrededor.
@@ -487,77 +399,39 @@
         g.fillStyle = '#f0c8a0'; g.fillRect(px + 1, py + 2, 1, 1); g.fillRect(brazo ? px - 1 : px + 3, py + 3 - brazo, 1, 1);
         continue;
       }
-      // Los niños: más pequeños, sin herramienta, corretean cerca de casa.
-      if ((a.edad || 0) < V.ADULTO) {
-        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(px, py + 5, 3, 1);
-        g.fillStyle = '#3a2a1e'; g.fillRect(px + (anda && t ? 1 : 0), py + 4, 1, 1); g.fillRect(px + 2, py + 4, 1, 1);
-        g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 3, 3, 1);
-        g.fillStyle = '#f0c8a0'; g.fillRect(px + 1, py + 2, 1, 1);
-        continue;
-      }
-      // Piernas, cuerpo y cabeza.
-      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
-      g.fillStyle = '#3a2a1e';
-      if (anda && t) { g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 1); } else { g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2); }
-      g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 1, 3, 2);
-      const oficio = V.OFICIOS[a.o];
-      g.fillStyle = oficio === 'guerrero' ? '#9aa0aa' : oficio === 'granjero' ? '#e2c25a' : '#f0c8a0';
-      g.fillRect(px + 1, py, 1, 1);
-      // Los ancianos, con el pelo blanco.
-      if ((a.edad || 0) >= V.VIEJO && oficio !== 'guerrero') { g.fillStyle = '#e8e8ec'; g.fillRect(px + 1, py, 1, 1); g.fillRect(px, py, 1, 1); }
-      // La herramienta: arriba y abajo cuando trabaja.
+      // El aldeano: un dibujo de 12×14 con contorno (arte.js), según su oficio, edad, equipo y lo que hace.
+      const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
       const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
-      if (acc === 3) { g.fillStyle = oficio === 'minero' ? '#a3a1aa' : '#8a5a2b'; g.fillRect(px - 1, py - 1, 5, 1); }
-      else if (oficio === 'comerciante') {
+      const img = ARTE().aldeano({
+        col: color[a.c] || '#cccccc', oficio: nino ? 'nino' : oficio, edad: nino ? 'nino' : (a.edad || 0) >= V.VIEJO ? 'viejo' : 'adulto',
+        paso: anda && t ? 1 : 0, alto, carga: acc === 3 ? (oficio === 'minero' ? 2 : 1) : 0,
+        arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
+        piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4
+      });
+      // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
+      const ix = px - 1.5, iy = py - 1, EA = 0.5;
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
+      if (oficio === 'comerciante' && !nino) {
         // La carreta va detrás del comerciante, según hacia dónde camina.
         const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
         const dirX = r && r.length >= 6 ? Math.sign(r[j] - r[i]) : 0, dirY = r && r.length >= 6 ? Math.sign(r[j + 1] - r[i + 1]) : 0;
         const cx = px - (dirX || (dirY ? 0 : 1)) * 6 - 1, cy = py + 1 - dirY * 5;
+        g.fillStyle = '#2a1e14'; g.fillRect(cx - 0.5, cy + 0.5, 7, 4);
         g.fillStyle = '#3a2a1e'; g.fillRect(cx + 1, cy + 4, 1, 1); g.fillRect(cx + 4, cy + 4, 1, 1);
-        g.fillStyle = '#8a5a2b'; g.fillRect(cx, cy + 1, 6, 3);
-        g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 2, 1); g.fillStyle = '#c84a3a'; g.fillRect(cx + 3, cy, 1, 1); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1, 1);
-        g.fillStyle = '#6b4a2b'; g.fillRect(cx + (dirX > 0 ? 6 : -1), cy + 2, 1, 1);
-        g.fillStyle = '#7a3a1a'; g.fillRect(px, py - 1, 3, 1);
+        g.fillStyle = '#9a6a3a'; g.fillRect(cx, cy + 1, 6, 3); g.fillStyle = '#7a5028'; g.fillRect(cx, cy + 3, 6, 0.5);
+        g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 1.5, 1.5); g.fillStyle = '#c84a3a'; g.fillRect(cx + 2.5, cy, 1.5, 1.5); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1.5, 1.5);
       }
-      else if (oficio === 'lenador') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 3); g.fillStyle = '#c8ccd6'; g.fillRect(px + 3, py + alto, 2, 1); }
-      else if (oficio === 'minero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#a3a1aa'; g.fillRect(px + 2, py + alto, 3, 1); }
-      else if (oficio === 'granjero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 4); g.fillStyle = '#9aa0aa'; g.fillRect(px + 3, py + 3 + alto, 2, 1); }
-      else if (oficio === 'constructor') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#5e5e68'; g.fillRect(px + 3, py + alto, 2, 1); }
-      else if (oficio === 'guerrero') {
-        // Cada clase de soldado se reconoce: espadachín con escudo, lancero, arquero con capucha y arco,
-        // tirador con arcabuz o fusil. El capitán lleva el estandarte.
-        const arma = a.arma || 0, col = color[a.c] || '#ccc';
-        // La armadura, del color de su material: cuero, bronce, hierro, acero.
-        if (a.armadura) { g.fillStyle = ['#a3a9b5', '#8a5a32', '#c89a3a', '#8a909c', '#cfd6e2', '#b8c0cc', '#6a7a5a'][a.armadura] || '#a3a9b5'; g.fillRect(px, py + 1, 3, 2); g.fillStyle = col; g.fillRect(px + 1, py + 2, 1, 1); }
-        if (a.tirador && arma >= 5) {
-          g.fillStyle = arma >= 7 ? '#5a6a4a' : '#2a2a3a'; g.fillRect(px, py - 1, 3, 1);
-          g.fillStyle = '#3a2a1e'; g.fillRect(px + 2, py + 2, 2, 1); g.fillRect(px + 4, py + 1, 2, 1); g.fillRect(px + 6, py, 1, 1);
-          g.fillStyle = '#9aa0aa'; g.fillRect(px + 7, py - 1, 1, 1);
-        } else if (a.tirador && arma >= 1) {
-          g.fillStyle = '#4a7a3a'; g.fillRect(px, py - 1, 3, 1); g.fillRect(px + 1, py - 2, 1, 1);
-          g.fillStyle = '#7a5232'; g.fillRect(px - 1, py, 1, 3);
-          g.fillStyle = '#8a5a2b'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px + 5, py, 1, 3); g.fillRect(px + 4, py + 3, 1, 1);
-          g.fillStyle = '#e8e0c8'; g.fillRect(px + 4, py, 1, 3);
-          if (acc === 2) { g.fillStyle = '#6b4a2b'; g.fillRect(px + 3, py + 1, 3, 1); }
-        } else if (arma === 0) {
-          g.fillStyle = '#6b4a2b'; g.fillRect(px + 3, py - 1 + alto, 1, 4); g.fillRect(px + 3, py - 2 + alto, 2, 2);
-        } else if (arma === 1) {
-          g.fillStyle = '#7a5232'; g.fillRect(px + 3, py - 4 + alto, 1, 9);
-          g.fillStyle = '#d8b060'; g.fillRect(px + 3, py - 6 + alto, 1, 2);
-        } else {
-          g.fillStyle = '#8a8f9a'; g.fillRect(px, py - 1, 3, 1); g.fillStyle = col; g.fillRect(px + 1, py - 2, 1, 1);
-          g.fillStyle = '#eef1f6'; g.fillRect(px + 4, py - 3 + alto, 1, 5); g.fillStyle = '#c8a050'; g.fillRect(px + 3, py + 1 + alto, 3, 1);
-          g.fillStyle = col; g.fillRect(px - 3, py, 2, 4); g.fillStyle = '#f4ecd8'; g.fillRect(px - 3, py + 1, 1, 1);
-        }
-        const ej = m.vida.ejercitos && m.vida.ejercitos[a.c];
-        if (ej && ej.capitan === a.id) { g.fillStyle = '#3a2a1e'; g.fillRect(px - 1, py - 9, 1, 10); g.fillStyle = col; g.fillRect(px, py - 9, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 8, 2, 2); }
+      g.drawImage(img, ix, iy, img.width * EA, img.height * EA);
+      if (oficio === 'guerrero' && !nino) {
+        const ej = m.vida.ejercitos && m.vida.ejercitos[a.c], col = color[a.c] || '#ccc';
+        if (ej && ej.capitan === a.id) { g.fillStyle = '#2a1e14'; g.fillRect(px - 1, py - 8, 1, 13); g.fillStyle = col; g.fillRect(px, py - 8, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 7, 2, 2); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(px, py - 5, 6, 0.5); }
       }
       if (acc === 2 && !(a.tirador)) { const ch = Math.floor(ahora / 90 + a.id) % 4; g.fillStyle = ch % 2 ? '#fff6a0' : '#ffd23a'; g.fillRect(px + 4 + ch, py - 1 - (ch % 2), 1, 1); g.fillRect(px + 5, py + 1 + (ch % 3) - 1, 1, 1); if (ch === 0) { g.fillStyle = '#ffffff'; g.fillRect(px + 4, py, 2, 1); } }
       else if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); }
       if (recibe) {
         const [gp, d] = recibe;
         // Destello: rojo al recibir, luego un parpadeo blanco; y unas gotas de sangre que saltan y caen.
-        g.globalAlpha = d < 0.45 ? 0.9 : d < 0.7 ? 0.65 : 0.35; silueta(px, py, d < 0.45 ? '#ff2a2a' : '#ffffff'); g.globalAlpha = 1;
+        g.globalAlpha = d < 0.45 ? 0.9 : d < 0.7 ? 0.65 : 0.35; g.drawImage(ARTE().tenido(img, d < 0.45 ? '#ff2a2a' : '#ffffff'), ix, iy, img.width * EA, img.height * EA); g.globalAlpha = 1;
         const sx = Math.sign(a.x - gp[2]) || 1;
         g.fillStyle = '#b01818';
         for (let q = 0; q < 3; q++) { const vx = sx * (1.5 + q * 1.2), vy = -3 + q; g.fillRect(Math.round(px + 1 + vx * d * 3), Math.round(py + 2 + vy * d * 3 + 7 * d * d), 1, 1); }
@@ -569,7 +443,7 @@
         for (const gp of ig.golpes.get(a.id) || []) if (k >= gp[1] - 0.5) pv -= gp[4];
         if (pv < max) {
           const fr = Math.max(0, pv / max), ancho = 5;
-          g.fillStyle = 'rgba(40,10,10,0.7)'; g.fillRect(px - 1, py - 3, ancho, 1);
+          g.fillStyle = 'rgba(40,10,10,0.75)'; g.fillRect(px - 1, py - 3, ancho, 1);
           g.fillStyle = fr > 0.6 ? '#4cd060' : fr > 0.3 ? '#e8c040' : '#e04030'; g.fillRect(px - 1, py - 3, Math.max(1, Math.round(ancho * fr)), 1);
         }
       }
@@ -993,11 +867,11 @@
         const cae = Math.min(1, t / 160);
         if (cae < 1) { silueta(x, y - 1 + Math.round(cae * 3), t < 120 ? '#ff2a2a' : col); }
         else {
-          g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x - 2, y + 5, 7, 1);
+          g.fillStyle = '#1e1a24'; g.fillRect(x - 2.5, y + 2.5, 8, 3);
           g.fillStyle = t < 300 ? '#ff4b4b' : col; g.fillRect(x - 1, y + 3, 4, 2);
-          g.fillStyle = '#f0c8a0'; g.fillRect(x + 3, y + 3, 1, 1);
-          g.fillStyle = '#3a2a1e'; g.fillRect(x - 2, y + 4, 1, 1);
-          g.fillStyle = '#9a1414'; g.fillRect(x, y + 5, 3, 1);
+          g.fillStyle = '#f0c8a0'; g.fillRect(x + 3, y + 3, 1.5, 2);
+          g.fillStyle = '#4a3a2e'; g.fillRect(x - 2, y + 3, 1, 2);
+          g.fillStyle = '#9a1414'; g.fillRect(x, y + 5.5, 3, 0.5);
         }
         g.globalAlpha = 1;
         if (t < 600) continue;
@@ -1099,5 +973,5 @@
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto, SPRITES };
+  M.pintor = { P, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});
