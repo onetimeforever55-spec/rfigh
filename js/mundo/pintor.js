@@ -1,0 +1,428 @@
+/*
+ * GÉNESIS · EL PINTOR
+ * Dibuja el mundo como un juego de píxeles visto desde arriba: cada parcela de 8×8 píxeles con su suelo,
+ * sus árboles, sus rocas, sus campos y sus casas (con el tejado del color de su pueblo y el estilo de su
+ * era), y encima los aldeanos andando, talando, sembrando y luchando.
+ *
+ * El suelo y las obras se pintan una vez en un lienzo grande y solo se retocan las parcelas que cambian;
+ * cada fotograma se recorta lo que ve la cámara (arrastrar, rueda, pellizco y botones) y se dibujan los
+ * aldeanos interpolando su recorrido del turno.
+ */
+(function (RF) {
+  'use strict';
+  const M = RF.MUNDO;
+  const P = 8;
+
+  // ---------- Sprites: cada letra es un color; el punto, transparente ----------
+  const PALETA = {
+    g: '#2f6b34', G: '#3f8a3e', h: '#6cb85a', t: '#6b4a2b', p: '#1f5a3a', P: '#2e7a4a', n: '#f4f8fb', c: '#4f9a4a', C: '#7cc36a',
+    r: '#5e5e68', R: '#8a8a96', H: '#b9b9c4', s: '#8f8a80', S: '#b7b0a2', w: '#e3d3b0', W: '#c2ad86', d: '#5a3a22', k: '#2a3550',
+    b: '#7a5232', y: '#f0c05a', m: '#9aa1ad', M: '#c6ccd6', o: '#6d6f78', l: '#ffe9a6', f: '#e0a040'
+  };
+  const SPRITES = {
+    roble3: ['..gGGg..', '.gGGhGg.', 'gGGhGGGg', 'gGGGGGhg', 'ggGGGGgg', '.gggggg.', '...tt...', '...tt...'],
+    pino3: ['...pp...', '..pPPp..', '..pPPp..', '.pPPPPp.', '.pPPPPp.', 'pPPPPPPp', '...tt...', '...tt...'],
+    nevado3: ['...nn...', '..pnPp..', '..pPPp..', '.nPPnPp.', '.pPPPPp.', 'nPPPPPnp', '...tt...', '...tt...'],
+    arbol2: ['........', '........', '...gg...', '..gGhg..', '..gGGg..', '...gg...', '...t....', '...t....'],
+    arbol1: ['........', '........', '........', '........', '...g....', '..gGg...', '...t....', '........'],
+    cactus: ['........', '...c....', '.c.cC...', '.ccc.c..', '...ccC..', '...c....', '...c....', '........'],
+    roca3: ['........', '..rRR...', '.rRHRRr.', 'rRHRRRRr', 'rRRRRRRr', '.rrrrrr.', '........', '........'],
+    roca2: ['........', '........', '...rR...', '..rHRr..', '.rRRRRr.', '..rrrr..', '........', '........'],
+    roca1: ['........', '........', '........', '...rR...', '..rRRr..', '...rr...', '........', '........'],
+    ruina: ['........', '........', '.s...S..', '.S..sS..', '.sS.sS..', 'sSsSs.s.', '........', '........'],
+    choza: ['...XX...', '..XXXX..', '.XXxxXX.', 'XXXXXXXX', '.wwwwww.', '.wwddww.', '.wwddww.', '........'],
+    casa: ['........', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wwwwww.', '.wkwwdw.', '.wwwwdw.', '........'],
+    entramado: ['..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wbwwbw.', '.wkwbkw.', '.wbwwbw.', '.wkwdbw.', '........'],
+    bloque: ['.xxxxxx.', '.MkMkMk.', '.MMMMMM.', '.MkMkMk.', '.MMMMMM.', '.MkMdMk.', '.MMMMMM.', '........'],
+    centro0: ['................', '................', '.......XX.......', '......XXXX......', '.....XXXXXX.....', '....XXXXXXXX....', '...XXXXxxXXXX...', '..XXXXXXXXXXXX..', '.XXXXXXXXXXXXXX.', 'XXXXXXXXXXXXXXXX', '.wwwwwwwwwwwwww.', '.wwwwwwddwwwwww.', '.wkwwwwddwwwwkw.', '.wwwwwwddwwwwww.', '................', '................'],
+    centro1: ['s.s.........s.s.', 'sss.........sss.', 'sSs..s.s.s..sSs.', 'sss..sssss..sss.', 'sSs..sSSSs..sSs.', 'ssssssssssssssss', 'sSSSSSSSSSSSSSSs', 'sSkSSSSSSSSSSkSs', 'sSSSSSSSSSSSSSSs', 'sSSSSSXXXXSSSSSs', 'sSSSSXXXXXXSSSSs', 'sSSSSSddddSSSSSs', 'sSkSSSddddSSSkSs', 'sSSSSSddddSSSSSs', 'ssssssddddssssss', '................'],
+    centro2: ['.......yy.......', '......XXXX......', '.....XXXXXX.....', '.....XXXXXX.....', '..XX.wwwwww.XX..', '.XXXXwkwwkwXXXX.', '.wwwwwwwwwwwwww.', '.wkwkwkwwkwkwkw.', '.wwwwwwwwwwwwww.', '.wkwkwkwwkwkwkw.', '.wwwwwwwwwwwwww.', '.wkwkwwddwwkwkw.', '.wwwwwwddwwwwww.', 'wwwwwwwddwwwwwww', 'SSSSSSSSSSSSSSSS', '................'],
+    centro3: ['....MM..........', '...MMMM.....MM..', '...MkMM....MMMM.', '...MMMM....MkkM.', '...MkMM....MMMM.', '.MMMMMM....MkkM.', '.MkMkMMMM..MMMM.', '.MMMMMMMMM.MkkM.', '.MkMkMkMkM.MMMM.', '.MMMMMMMMMMMMMMM', '.MkMkMkMkMkMkkMM', '.MMMMMMMMMMMMMMM', '.MkMkMkddMkMkkMM', '.MMMMMMMdMMMMMMM', 'oooooooooooooooo', '................']
+  };
+  const cacheSprites = {};
+  function sprite(nombre, tejado) {
+    const clave = nombre + (tejado || '');
+    if (cacheSprites[clave]) return cacheSprites[clave];
+    const filas = SPRITES[nombre], w = filas[0].length, h = filas.length;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    const pal = Object.assign({}, PALETA, tejado ? { X: tejado, x: mezclar(tejado, '#000000', 0.35) } : { X: '#b5763a', x: '#8a5426' });
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const ch = (filas[y][x] || '.'); if (ch !== '.' && pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); } }
+    return (cacheSprites[clave] = c);
+  }
+  function mezclar(a, b, t) {
+    const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+    const c = k => Math.round(((pa >> k) & 255) * (1 - t) + ((pb >> k) & 255) * t);
+    return '#' + ((1 << 24) | (c(16) << 16) | (c(8) << 8) | c(0)).toString(16).slice(1);
+  }
+
+  // El suelo: un color base con motas, en cuatro variantes para que no se vea la cuadrícula.
+  const SUELO = {
+    llanura: ['#6fa34f', '#7fb35a', '#5f9444'], bosque: ['#4f8a3f', '#5d9a49', '#437a36'], colina: ['#9c9a5c', '#aeab6a', '#87864e'],
+    montana: ['#85838c', '#a3a1aa', '#6c6a73'], desierto: ['#dcc48a', '#e8d49c', '#c9ae74'], nieve: ['#e9eef2', '#ffffff', '#cfd8e0'],
+    arena: ['#e6d29a', '#f1e0ac', '#d4bd82'], agua: ['#1d4a82', '#24578f', '#183f72'], bajo: ['#2d6aa6', '#3a7bb8', '#255d94'], rio: ['#3d86d0', '#5a9de0', '#3377bf']
+  };
+  const cacheSuelo = {};
+  function suelo(tipo, variante) {
+    const clave = tipo + variante;
+    if (cacheSuelo[clave]) return cacheSuelo[clave];
+    const [base, claro, oscuro] = SUELO[tipo] || SUELO.llanura;
+    const c = document.createElement('canvas'); c.width = P; c.height = P;
+    const g = c.getContext('2d');
+    g.fillStyle = base; g.fillRect(0, 0, P, P);
+    let s = (variante + 1) * 2654435761 + tipo.length * 97;
+    const r = () => { s = (Math.imul(s ^ (s >>> 13), 1274126177) + 0x9E3779B9) >>> 0; return s / 4294967296; };
+    for (let k = 0; k < 7; k++) { g.fillStyle = r() < 0.5 ? claro : oscuro; g.fillRect(Math.floor(r() * P), Math.floor(r() * P), 1, 1); }
+    if (tipo === 'agua' || tipo === 'bajo') { g.fillStyle = claro; const y = Math.floor(r() * 6) + 1, x = Math.floor(r() * 5); g.fillRect(x, y, 3, 1); }
+    if (tipo === 'montana') { g.fillStyle = claro; g.fillRect(2, 2, 3, 1); g.fillRect(1, 3, 1, 1); g.fillStyle = oscuro; g.fillRect(4, 5, 3, 1); }
+    return (cacheSuelo[clave] = c);
+  }
+
+  const grupoEra = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
+  const CASAS = ['choza', 'casa', 'entramado', 'bloque'];
+
+  // ---------- Estado ----------
+  let cv = null, g = null, m = null, V = null, S = null, alClicar = null;
+  let lienzo = null, gl = null, capa = null, gc = null;
+  let visto = null, tierra = null, firma = [], pend = [], inicio = 0, duracion = 1000;
+  let cam = { x: 0, y: 0, z: 2 }, sel = null, pulso = null, reducido = false, listo = false;
+  const punteros = new Map();
+  let arrastre = null;
+
+  function iniciar(canvas, opciones) {
+    cv = canvas; g = cv.getContext('2d');
+    alClicar = (opciones && opciones.alClicar) || null;
+    reducido = !!(opciones && opciones.reducido);
+    S = M.sim; V = M.vida;
+    entradas();
+    if (window.ResizeObserver) new ResizeObserver(() => medir()).observe(cv.parentElement);
+    else window.addEventListener('resize', medir);
+    medir();
+    requestAnimationFrame(fotograma);
+  }
+
+  function medir() {
+    const caja = cv.parentElement, dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.max(200, caja.clientWidth), h = Math.max(200, caja.clientHeight);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    cv.style.width = w + 'px'; cv.style.height = h + 'px';
+    limitar();
+  }
+  const vista = () => { const dpr = cv.width / Math.max(1, cv.clientWidth); return { w: cv.width / dpr, h: cv.height / dpr, dpr }; };
+  const ancho = () => (m ? m.vida.tw * P : 1), alto = () => (m ? m.vida.th * P : 1);
+  const zMin = () => { const { w, h } = vista(); return Math.min(w / ancho(), h / alto()); };
+  function limitar() {
+    if (!m) return;
+    const { w, h } = vista();
+    cam.z = Math.max(zMin(), Math.min(8, cam.z));
+    const mx = w / cam.z / 2, my = h / cam.z / 2;
+    cam.x = ancho() <= w / cam.z ? ancho() / 2 : Math.max(mx, Math.min(ancho() - mx, cam.x));
+    cam.y = alto() <= h / cam.z ? alto() / 2 : Math.max(my, Math.min(alto() - my, cam.y));
+  }
+
+  // ---------- Pintar el suelo y las obras ----------
+  function mundo(nuevo, enfocar) {
+    m = nuevo;
+    if (!m.vida) V.crear(m);
+    const v = m.vida;
+    lienzo = document.createElement('canvas'); lienzo.width = v.tw * P; lienzo.height = v.th * P; gl = lienzo.getContext('2d');
+    capa = document.createElement('canvas'); capa.width = lienzo.width; capa.height = lienzo.height; gc = capa.getContext('2d');
+    visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice() };
+    tierra = V.terrenos(m).slice();
+    pend = [];
+    firma = firmas();
+    for (let t = 0; t < v.tw * v.th; t++) parcela(t);
+    territorio();
+    listo = true;
+    if (enfocar !== false) enfocarInicio();
+  }
+  function enfocarInicio() {
+    const vivas = S.vivas(m).slice().sort((a, b) => S.casillas(m, b).length - S.casillas(m, a).length);
+    cam.z = Math.max(zMin(), 2);
+    if (vivas[0]) centrarEn(vivas[0].capital); else { cam.x = ancho() / 2; cam.y = alto() / 2; }
+    limitar();
+  }
+  function firmas() {
+    const out = [];
+    for (let r = 0; r < m.W * m.H; r++) { const c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null; out.push(c ? c.id + ':' + grupoEra(c.era) : '-'); }
+    return out;
+  }
+
+  function parcela(t) {
+    const v = m.vida, x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, ter = tierra[t];
+    gl.drawImage(suelo(ter, ((t * 2654435761) >>> 0) % 4), x, y);
+    const obra = visto.obra[t];
+    if (obra) {
+      const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
+      const color = c ? c.color : '#9a7a5a', ge = c ? grupoEra(c.era) : 0;
+      if (obra === V.OBRA.campo) campo(x, y, t);
+      else if (obra === V.OBRA.casa) gl.drawImage(sprite(CASAS[ge], color), x, y);
+      else if (obra === V.OBRA.ruina) gl.drawImage(sprite('ruina'), x, y);
+      else if (obra === V.OBRA.centro) {
+        // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
+        const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
+        if (lx >= 0 && ly >= 0 && lx < 2 && ly < 2) gl.drawImage(sprite('centro' + ge, color), lx * P, ly * P, P, P, x, y, P, P);
+        else gl.drawImage(sprite('ruina'), x, y);
+      }
+      return;
+    }
+    if (visto.roca[t]) { gl.drawImage(sprite('roca' + Math.min(3, visto.roca[t])), x, y); return; }
+    const a = visto.arbol[t];
+    if (a) {
+      const tipo = m.tipo[V.region(m, t)];
+      const nombre = a === 1 ? 'arbol1' : a === 2 ? (tipo === 'desierto' ? 'cactus' : 'arbol2') : tipo === 'desierto' ? 'cactus' : tipo === 'nieve' ? 'nevado3' : (tipo === 'colina' || ((t * 7) % 5 === 0)) ? 'pino3' : 'roble3';
+      gl.drawImage(sprite(nombre), x, y);
+    }
+  }
+  function campo(x, y, t) {
+    gl.fillStyle = '#86653a'; gl.fillRect(x, y, P, P);
+    const maduro = (t % 3) !== 0;
+    gl.fillStyle = maduro ? '#d9bf4f' : '#7fb04a';
+    for (let k = 0; k < P; k += 2) gl.fillRect(x, y + k, P, 1);
+    gl.fillStyle = 'rgba(0,0,0,0.18)'; gl.fillRect(x, y + P - 1, P, 1);
+  }
+
+  // El color de cada pueblo sobre su tierra y las fronteras (rojas donde hay guerra).
+  function territorio() {
+    const R = V.SUB * P;
+    gc.clearRect(0, 0, capa.width, capa.height);
+    const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
+    for (let r = 0; r < m.W * m.H; r++) {
+      const d = m.dueno[r];
+      if (d < 0 || !color[d]) continue;
+      const x = (r % m.W) * R, y = Math.floor(r / m.W) * R;
+      gc.globalAlpha = sel == null ? 0.2 : sel === d ? 0.32 : 0.1;
+      gc.fillStyle = color[d]; gc.fillRect(x, y, R, R);
+      gc.globalAlpha = 1;
+      const lados = [[r % m.W > 0 ? r - 1 : -1, x, y, 2, R], [r % m.W < m.W - 1 ? r + 1 : -1, x + R - 2, y, 2, R], [r >= m.W ? r - m.W : -1, x, y, R, 2], [r < m.W * (m.H - 1) ? r + m.W : -1, x, y + R - 2, R, 2]];
+      for (const [o, rx, ry, rw, rh] of lados) {
+        const od = o >= 0 ? m.dueno[o] : -2;
+        if (od === d) continue;
+        const enGuerra = od >= 0 && guerra.has(Math.min(d, od) + ':' + Math.max(d, od));
+        gc.fillStyle = enGuerra ? '#ff4b3a' : sel === d ? '#fff6dc' : color[d];
+        gc.globalAlpha = enGuerra || sel === d ? 1 : 0.85;
+        gc.fillRect(rx, ry, rw, rh);
+        gc.globalAlpha = 1;
+      }
+    }
+  }
+
+  // ---------- Un turno nuevo: dejar al día lo pintado y preparar la animación ----------
+  function aplicar(hasta) {
+    let quedan = 0;
+    for (const ch of pend) {
+      if (ch[4] > hasta || ch.hecho) { if (!ch.hecho) quedan++; continue; }
+      const capaN = ch[0] === 0 ? 'arbol' : ch[0] === 1 ? 'roca' : ch[0] === 2 ? 'obra' : null;
+      if (capaN) { visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); }
+      ch.hecho = true;
+    }
+    if (!quedan) pend = [];
+  }
+  // Compara lo pintado con el mundo (menos los cambios de este turno, que se irán aplicando) y repinta lo distinto.
+  function sincronizar(cambios) {
+    const v = m.vida, n = v.tw * v.th;
+    aplicar(Infinity);
+    const antes = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice() };
+    for (let k = cambios.length - 1; k >= 0; k--) { const [c, t, a] = cambios[k]; if (c <= 2) antes[c === 0 ? 'arbol' : c === 1 ? 'roca' : 'obra'][t] = a; }
+    const ter = V.terrenos(m), nf = firmas(), cambiadas = new Set();
+    for (let r = 0; r < nf.length; r++) if (nf[r] !== firma[r]) cambiadas.add(r);
+    firma = nf;
+    for (let t = 0; t < n; t++) {
+      let distinto = false;
+      if (ter[t] !== tierra[t]) { tierra[t] = ter[t]; distinto = true; }
+      for (const c of ['arbol', 'roca', 'obra']) if (visto[c][t] !== antes[c][t]) { visto[c][t] = antes[c][t]; distinto = true; }
+      if (!distinto && visto.obra[t] && visto.obra[t] !== V.OBRA.campo && cambiadas.has(V.region(m, t))) distinto = true;
+      if (distinto) parcela(t);
+    }
+    pend = cambios.map(c => c.slice());
+  }
+  function turno(mundoActual, ms) {
+    if (mundoActual !== m || !listo) { mundo(mundoActual); }
+    sincronizar(m.vida.cambios || []);
+    territorio();
+    inicio = performance.now(); duracion = Math.max(80, ms || 1000);
+  }
+  // Tras un poder del dios (fuera del turno): todo al día, sin animación.
+  function refrescar() {
+    if (!m) return;
+    sincronizar([]);
+    territorio();
+  }
+
+  // ---------- Cada fotograma ----------
+  function progreso() {
+    if (reducido) return V.TICKS;
+    return Math.max(0, Math.min(1, (performance.now() - inicio) / duracion)) * V.TICKS;
+  }
+  function fotograma(ahora) {
+    requestAnimationFrame(fotograma);
+    if (!m || !listo) return;
+    const k = progreso();
+    if (pend.length) aplicar(Math.floor(k));
+    const { w, h, dpr } = vista();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#0b1830'; g.fillRect(0, 0, cv.width, cv.height);
+    const z = cam.z * dpr, ox = cv.width / 2 - cam.x * z, oy = cv.height / 2 - cam.y * z;
+    g.imageSmoothingEnabled = false;
+    g.setTransform(z, 0, 0, z, ox, oy);
+    // Solo lo que se ve.
+    const x0 = Math.max(0, Math.floor(cam.x - w / cam.z / 2) - P), y0 = Math.max(0, Math.floor(cam.y - h / cam.z / 2) - P);
+    const x1 = Math.min(ancho(), Math.ceil(cam.x + w / cam.z / 2) + P), y1 = Math.min(alto(), Math.ceil(cam.y + h / cam.z / 2) + P);
+    g.drawImage(lienzo, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    g.drawImage(capa, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    banderas(ahora);
+    aldeanos(k, ahora, x0, y0, x1, y1);
+    marcarPulso(ahora);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    nombres(z, ox, oy, dpr);
+  }
+
+  function banderas(ahora) {
+    const fase = Math.floor(ahora / 260) % 2;
+    for (const c of S.vivas(m)) {
+      const r = c.capital, x = (r % m.W) * V.SUB * P + P + 1, y = Math.floor(r / m.W) * V.SUB * P + P - 6;
+      g.fillStyle = '#3a2a1e'; g.fillRect(x, y, 1, 8);
+      g.fillStyle = c.color; g.fillRect(x + 1, y, 4, 3);
+      g.fillStyle = mezclar(c.color, '#000000', 0.3); g.fillRect(x + 1 + 3, y + (fase ? 1 : 0), 1, 2);
+    }
+  }
+
+  // Los aldeanos: 3×5 píxeles, con el color de su pueblo y la herramienta de su oficio.
+  function aldeanos(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
+    const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    for (const a of v.aldeanos) {
+      const r = a.r;
+      let px, py, acc;
+      if (r && r.length >= 6) {
+        const i = paso * 3, j = Math.min(r.length - 3, i + 3);
+        const ax = r[i], ay = r[i + 1], bx = r[j], by = r[j + 1];
+        px = (ax + (bx - ax) * f) * P + 2.5; py = (ay + (by - ay) * f) * P + 2;
+        acc = r[j + 2];
+        if (j === i) acc = r[i + 2];
+      } else { px = a.x * P + 2.5; py = a.y * P + 2; acc = 0; }
+      if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
+      px = Math.round(px); py = Math.round(py);
+      const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
+      const t = Math.floor(ahora / 150 + a.id) % 2;
+      const enAgua = tierra[a.y * v.tw + a.x] === 'bajo';
+      if (enAgua) { g.fillStyle = '#6b4a2b'; g.fillRect(px - 2, py + 3, 7, 2); }
+      // Piernas, cuerpo y cabeza.
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
+      g.fillStyle = '#3a2a1e';
+      if (anda && t) { g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 1); } else { g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2); }
+      g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 1, 3, 2);
+      const oficio = V.OFICIOS[a.o];
+      g.fillStyle = oficio === 'guerrero' ? '#9aa0aa' : oficio === 'granjero' ? '#e2c25a' : '#f0c8a0';
+      g.fillRect(px + 1, py, 1, 1);
+      // La herramienta: arriba y abajo cuando trabaja.
+      const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
+      if (acc === 3) { g.fillStyle = oficio === 'minero' ? '#a3a1aa' : '#8a5a2b'; g.fillRect(px - 1, py - 1, 5, 1); }
+      else if (oficio === 'lenador') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 3); g.fillStyle = '#c8ccd6'; g.fillRect(px + 3, py + alto, 2, 1); }
+      else if (oficio === 'minero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#a3a1aa'; g.fillRect(px + 2, py + alto, 3, 1); }
+      else if (oficio === 'granjero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 4); g.fillStyle = '#9aa0aa'; g.fillRect(px + 3, py + 3 + alto, 2, 1); }
+      else if (oficio === 'constructor') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#5e5e68'; g.fillRect(px + 3, py + alto, 2, 1); }
+      else if (oficio === 'guerrero') { g.fillStyle = '#e8ecf4'; g.fillRect(px + 3, py - 1 + alto, 1, 4); g.fillStyle = '#7a5232'; g.fillRect(px + 2, py + 2 + alto, 3, 1); }
+      if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px - 2, py + 1, 1, 1); }
+    }
+  }
+
+  function nombres(z, ox, oy, dpr) {
+    if (cam.z < zMin() * 1.15 && S.vivas(m).length > 6) return;
+    const tam = Math.round(12 * dpr);
+    g.font = '600 ' + tam + 'px "Pixelify Sans", "Courier New", monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (const c of S.vivas(m)) {
+      const r = c.capital, wx = (r % m.W) * V.SUB * P + V.SUB * P / 2, wy = Math.floor(r / m.W) * V.SUB * P + P * 0.6;
+      const sx = ox + wx * z, sy = oy + wy * z - 10 * dpr;
+      const texto = c.nombre + (c.guerras.length ? ' ⚔' : '');
+      const anchoT = g.measureText(texto).width + 10 * dpr;
+      g.fillStyle = 'rgba(13,19,34,0.82)'; g.fillRect(sx - anchoT / 2, sy - tam * 0.75, anchoT, tam * 1.5);
+      g.fillStyle = c.color; g.fillRect(sx - anchoT / 2, sy + tam * 0.75 - 2 * dpr, anchoT, 2 * dpr);
+      g.fillStyle = sel === c.id ? '#f0c05a' : '#fff6dc'; g.fillText(texto, sx, sy);
+    }
+  }
+
+  function marcar(region, color) {
+    if (region == null || reducido) return;
+    pulso = { region, color: color || '#fff6dc', inicio: performance.now() };
+  }
+  function marcarPulso(ahora) {
+    if (!pulso) return;
+    const t = (ahora - pulso.inicio) / 1600;
+    if (t >= 1) { pulso = null; return; }
+    const R = V.SUB * P, x = (pulso.region % m.W) * R + R / 2, y = Math.floor(pulso.region / m.W) * R + R / 2, s = R * (0.6 + t * 2.4);
+    g.strokeStyle = pulso.color; g.globalAlpha = 1 - t; g.lineWidth = 2 / cam.z * 1.5;
+    g.strokeRect(x - s, y - s, s * 2, s * 2);
+    g.globalAlpha = 1;
+  }
+
+  // ---------- La cámara ----------
+  function centrarEn(region) {
+    if (!m) return;
+    const R = V.SUB * P;
+    cam.x = (region % m.W) * R + R / 2; cam.y = Math.floor(region / m.W) * R + R / 2;
+    if (cam.z < 1.5) cam.z = Math.max(zMin(), 2);
+    limitar();
+  }
+  function zoom(factor, sx, sy) {
+    if (!m) return;
+    const { w, h } = vista();
+    const px = sx == null ? w / 2 : sx, py = sy == null ? h / 2 : sy;
+    const wx = cam.x + (px - w / 2) / cam.z, wy = cam.y + (py - h / 2) / cam.z;
+    cam.z *= factor; limitar();
+    cam.x = wx - (px - w / 2) / cam.z; cam.y = wy - (py - h / 2) / cam.z; limitar();
+  }
+  function verTodo() { cam.z = zMin(); limitar(); }
+
+  function entradas() {
+    cv.style.touchAction = 'none';
+    cv.addEventListener('pointerdown', ev => {
+      cv.setPointerCapture(ev.pointerId);
+      punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (punteros.size === 1) arrastre = { x: ev.clientX, y: ev.clientY, cx: cam.x, cy: cam.y, movido: 0 };
+      else arrastre = null;
+    });
+    cv.addEventListener('pointermove', ev => {
+      if (!punteros.has(ev.pointerId)) return;
+      if (punteros.size === 2) {
+        const [a, b] = [...punteros.values()];
+        const d0 = Math.hypot(a.x - b.x, a.y - b.y);
+        punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+        const [c, d] = [...punteros.values()];
+        const d1 = Math.hypot(c.x - d.x, c.y - d.y), rect = cv.getBoundingClientRect();
+        if (d0 > 0) zoom(d1 / d0, (c.x + d.x) / 2 - rect.left, (c.y + d.y) / 2 - rect.top);
+        return;
+      }
+      punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (!arrastre) return;
+      arrastre.movido = Math.max(arrastre.movido, Math.hypot(ev.clientX - arrastre.x, ev.clientY - arrastre.y));
+      cam.x = arrastre.cx - (ev.clientX - arrastre.x) / cam.z; cam.y = arrastre.cy - (ev.clientY - arrastre.y) / cam.z;
+      limitar();
+    });
+    const soltar = ev => {
+      const eraClic = arrastre && arrastre.movido < 6 && punteros.size === 1;
+      punteros.delete(ev.pointerId);
+      if (eraClic && ev.type === 'pointerup' && alClicar && m) {
+        const rect = cv.getBoundingClientRect(), { w, h } = vista();
+        const wx = cam.x + (ev.clientX - rect.left - w / 2) / cam.z, wy = cam.y + (ev.clientY - rect.top - h / 2) / cam.z;
+        const R = V.SUB * P, rx = Math.floor(wx / R), ry = Math.floor(wy / R);
+        if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
+      }
+      if (punteros.size === 1) { const [p] = [...punteros.values()]; arrastre = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, movido: 99 }; }
+      else if (!punteros.size) arrastre = null;
+    };
+    cv.addEventListener('pointerup', soltar);
+    cv.addEventListener('pointercancel', soltar);
+    cv.addEventListener('wheel', ev => {
+      ev.preventDefault();
+      const rect = cv.getBoundingClientRect();
+      zoom(Math.exp(-ev.deltaY * 0.0015), ev.clientX - rect.left, ev.clientY - rect.top);
+    }, { passive: false });
+  }
+
+  function seleccionar(id) { sel = id; if (m) territorio(); }
+
+  M.pintor = { P, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, SPRITES };
+})(globalThis.RF = globalThis.RF || {});

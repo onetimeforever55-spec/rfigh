@@ -10,7 +10,9 @@
 (function (RF) {
   'use strict';
   const M = RF.MUNDO;
-  const W = 32, H = 20;
+  const W = 48, H = 30;
+  // El mundo se diseñó con 32×20 regiones: K escala lo que depende del tamaño (capacidad, expansión, fronteras).
+  const K = (W * H) / 640;
   const TIERRA = { llanura: 3, bosque: 1.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
   const RIO = 2.2;
 
@@ -75,9 +77,9 @@
     m.tipo = tipo; m.alto = alto;
     // Ríos: nacen en las montañas y bajan siempre hacia lo más bajo hasta el mar.
     const fuentes = tipo.map((t, i) => (t === 'montana' || t === 'colina' ? i : -1)).filter(i => i >= 0);
-    for (let r = 0; r < 6 && fuentes.length; r++) {
+    for (let r = 0; r < 12 && fuentes.length; r++) {
       let i = fuentes.splice(Math.floor(azar(m) * fuentes.length), 1)[0];
-      for (let paso = 0; paso < 40; paso++) {
+      for (let paso = 0; paso < 60; paso++) {
         const sig = vecinos(i).sort((a, b) => alto[a] - alto[b])[0];
         if (!esTierra(m, sig) || alto[sig] >= alto[i]) break;
         rio[sig] = true; i = sig;
@@ -118,7 +120,10 @@
     let f = 0;
     for (const i of cs || casillas(m, c)) f += fertil(m, i);
     const efecto = c.efectos.reduce((k, e) => k * (e.comida || 1), 1);
-    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 * efecto);
+    // Las casas y los campos que levantan los aldeanos (vida.js) dan sitio a más gente: una tierra sin
+    // obras da un 20 % menos, una tierra bien trabajada, un 20 % más.
+    const obras = m.vida ? 0.8 + 0.4 * Math.min(1, ((c.campos || 0) + (c.casas || 0) * 0.5) / ((cs || casillas(m, c)).length * 2.5)) : 1;
+    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 / K * efecto * obras);
   }
   function fuerza(m, c, cs) {
     const car = M.CARACTERES[c.caracter];
@@ -139,6 +144,7 @@
 
   function regimenPorEra(m, c, n) {
     const car = c.caracter;
+    n = n / K;
     if (c.era === 0) return n < 6 ? 'tribu' : 'jefatura';
     if (c.era >= 7) return c.estab < 30 ? 'dictadura' : car === 'guerrero' && azar(m) < 0.5 ? 'dictadura' : 'democracia';
     if (c.era === 6) return car === 'mercader' || car === 'sabio' ? 'republica' : n >= 35 ? 'imperio' : 'reino';
@@ -174,7 +180,7 @@
     candidatas.sort((a, b) => fertil(m, b) - fertil(m, a) + (azar(m) - 0.5));
     const elegidas = [];
     for (const i of candidatas) {
-      if (elegidas.every(j => distancia(i, j) >= 8)) elegidas.push(i);
+      if (elegidas.every(j => distancia(i, j) >= 12)) elegidas.push(i);
       if (elegidas.length >= (numPueblos || 5)) break;
     }
     for (const cap of elegidas) {
@@ -182,12 +188,15 @@
       for (const v of vecinos(cap)) if (esTierra(m, v) && m.dueno[v] < 0 && azar(m) < 0.7) m.dueno[v] = c.id;
       cronica(m, 'fundacion', 'Nace ' + c.nombre, 'Un pueblo ' + c.caracter + ' se asienta ' + (m.rio[cap] ? 'junto a un río' : 'en una llanura fértil') + ' y empieza a sembrar. Lo llamarán ' + c.nombre + '.', c);
     }
+    // Los aldeanos, los árboles y las casas (vida.js), si está cargada.
+    if (M.vida) M.vida.crear(m);
     return m;
   }
 
   // ---------- Un turno del mundo ----------
   function turno(m) {
     m.turno++;
+    if (m.vida && M.vida) M.vida.turno(m);
     const lista = vivas(m);
     for (const c of lista) vivir(m, c);
     diplomacia(m);
@@ -227,7 +236,7 @@
     const sig = M.ERAS[c.era + 1];
     if (sig && c.ciencia >= sig.umbral) subirEra(m, c, null);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
-    const objetivo = 62 + car.estab - Math.max(0, n - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
+    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
@@ -235,18 +244,21 @@
       const libres = new Set();
       for (const i of cs) for (const v of vecinos(i)) if (esTierra(m, v) && m.dueno[v] < 0) libres.add(v);
       // Desde el Renacimiento, también al otro lado del mar.
-      if (c.era >= 5 && !libres.size) for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && vecinos(i).some(v => m.tipo[v] === 'costa') && cs.some(j => distancia(i, j) <= 9)) libres.add(i);
+      if (c.era >= 5 && !libres.size) for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && vecinos(i).some(v => m.tipo[v] === 'costa') && cs.some(j => distancia(i, j) <= 13)) libres.add(i);
       const orden = [...libres].sort((a, b) => fertil(m, b) - fertil(m, a) + distancia(a, c.capital) * 0.15 - distancia(b, c.capital) * 0.15);
-      const cuantas = c.era >= 3 ? 2 : 1;
+      // Expandirse cuesta madera (o piedra) cuando hay aldeanos que la traen (vida.js).
+      const vida = m.vida && M.vida;
+      const cuantas = Math.min(c.era >= 3 ? 4 : 2, vida ? vida.tierrasPagables(m, c) : 99);
       for (const i of orden.slice(0, cuantas)) {
         m.dueno[i] = c.id;
+        if (vida) vida.pagarTierra(m, c);
         const ultramar = !cs.some(j => vecinos(i).includes(j));
         if (ultramar) cronica(m, 'expansion', c.nombre + ' cruza el mar', 'Sus barcos fundan una colonia en tierras lejanas. Los que ya vivían allí no han sido consultados.', c, i);
         else if (azar(m) < 0.05) cronica(m, 'expansion', c.nombre + ' se extiende', 'Los colonos de ' + c.nombre + ' talan, siembran y levantan aldeas nuevas. Ya ocupan ' + (cs.length + 1) + ' tierras.', c, i);
       }
     }
     // Revuelta: las provincias lejanas de un reino grande e inestable se separan.
-    if (c.estab < 22 && n >= 8 && azar(m) < 0.3) separar(m, c, cs);
+    if (c.estab < 22 && n >= 8 * K && azar(m) < 0.3) separar(m, c, cs);
     else if (c.estab < 8 && azar(m) < 0.25) {
       const perdidas = cs.filter(i => i !== c.capital && azar(m) < 0.3);
       for (const i of perdidas) m.dueno[i] = -1;
@@ -333,9 +345,13 @@
       const b = civ(m, g.con);
       if (!b || !b.viva) { a.guerras = a.guerras.filter(x => x !== g); continue; }
       if (a.id > b.id) continue; // cada guerra se resuelve una vez por turno
-      const fa = fuerza(m, a), fb = fuerza(m, b);
+      // Las batallas que ganan los guerreros de cada bando (vida.js) inclinan la guerra.
+      const batallas = ((a.victorias || 0) - (b.victorias || 0));
+      a.victorias = 0; b.victorias = 0;
+      const empuje = 1 + 0.15 * Math.tanh(batallas / 4);
+      const fa = fuerza(m, a) * empuje, fb = fuerza(m, b) / empuje;
       const [gana, pierde, ratio] = fa >= fb ? [a, b, fa / fb] : [b, a, fb / fa];
-      const k = Math.max(0, Math.min(3, Math.round((ratio - 1) * 2 + (azar(m) - 0.4))));
+      const k = Math.max(0, Math.min(5, Math.round(((ratio - 1) * 2 + (azar(m) - 0.4)) * 1.5)));
       const fr = frontera(m, gana, pierde);
       const tomadas = fr.sort(() => azar(m) - 0.5).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;
@@ -373,7 +389,7 @@
     // Pueblos nuevos en tierras vacías (nómadas, colonos, refugiados).
     let libres = 0;
     for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && m.tipo[i] !== 'nieve') libres++;
-    if (libres > 25 && lista.length < 8 && azar(m) < 0.04) nuevoPueblo(m, null);
+    if (libres > 25 * K && lista.length < 9 && azar(m) < 0.04) nuevoPueblo(m, null);
     if (azar(m) < 0.02) {
       const c = elegir(m, lista);
       c.efectos.push({ comida: 1.4, hasta: m.turno + 4 });
@@ -414,6 +430,6 @@
     });
   }
 
-  M.sim = { W, H, TIERRA, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

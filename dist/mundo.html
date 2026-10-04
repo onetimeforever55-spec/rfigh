@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Génesis</title>
-<meta name="description" content="Un mundo de pueblos que viven la historia humana real, de la Edad de Piedra a la era atómica. Tú eres su dios y lo cambias escribiendo.">
+<meta name="description" content="Un mundo de píxeles donde pueblos de aldeanos talan, siembran, construyen y guerrean viviendo la historia humana real, de la Edad de Piedra a la era atómica. Tú eres su dios y lo cambias escribiendo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Martian+Mono:wght@400;600&display=swap">
@@ -34,10 +34,10 @@ button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--oro); outline-offset: 2px; }
 
-/* Una columna en el móvil; en pantallas anchas, la crónica a la derecha. */
-.g { max-width: 1240px; margin: 0 auto; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+/* Una columna en el móvil; en pantallas anchas, el mapa a todo lo ancho y la crónica a la derecha. */
+.g { max-width: 1400px; margin: 0 auto; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 980px) {
-  .g { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-areas: 'cab cab' 'mapa cronica' 'voluntad cronica' 'pueblos cronica'; align-items: start; }
+  .g { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-areas: 'cab cab' 'mapa mapa' 'voluntad cronica' 'pueblos cronica'; align-items: start; }
   .g-cab { grid-area: cab; } .g-mapa { grid-area: mapa; } .g-voluntad { grid-area: voluntad; } .g-pueblos { grid-area: pueblos; }
   .g-cronica { grid-area: cronica; position: sticky; top: env(safe-area-inset-top, 0px); max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
   .g-cronica .cronica { overflow-y: auto; min-height: 0; }
@@ -56,13 +56,13 @@ button { cursor: pointer; }
 .mando:disabled { opacity: 0.5; cursor: wait; }
 
 /* ---- El mapa ---- */
-.marco { border: 1px solid var(--linea); border-radius: var(--radio); background: #091020; padding: 4px; line-height: 0; overflow: hidden; }
-#mapa { display: block; max-width: 100%; image-rendering: pixelated; cursor: crosshair; margin: 0 auto; }
-.clave { margin: 6px 0 0; font-family: var(--f-dato); font-size: 11px; color: var(--tenue); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
-.cuad { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; }
-.cuad.cap { background: #fff6dc; outline: 1px solid var(--noche); }
-.cuad.gue { background: #ff4b3a; }
-.cuad.rio { background: #4f8fd6; }
+.marco { position: relative; height: clamp(320px, 70vh, 780px); border: 1px solid var(--linea); border-radius: var(--radio); background: #0b1830; overflow: hidden; }
+#mapa { display: block; width: 100%; height: 100%; image-rendering: pixelated; cursor: grab; touch-action: none; }
+#mapa:active { cursor: grabbing; }
+.camara { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.mando.cam { width: 38px; height: 38px; padding: 0; font-size: 20px; line-height: 1; background: rgba(20, 28, 49, 0.88); }
+.clave { margin: 8px 0 0; font-size: 13px; color: var(--tenue); max-width: 110ch; }
+@media (max-width: 600px) { .marco { height: clamp(300px, 62vh, 560px); } }
 
 /* ---- La voluntad ---- */
 .etiqueta { font-family: var(--f-pixel); font-weight: 400; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tenue); margin: 0 0 8px; display: block; }
@@ -140,8 +140,15 @@ button { cursor: pointer; }
   </header>
 
   <section class="g-mapa" aria-label="Mapa del mundo">
-    <div class="marco"><canvas id="mapa" role="img" aria-label="Mapa del mundo: cada color es un pueblo; los cuadrados claros son sus capitales"></canvas></div>
-    <p class="clave"><span class="cuad cap"></span>capital <span class="cuad gue"></span>frontera en guerra <span class="cuad rio"></span>río</p>
+    <div class="marco">
+      <canvas id="mapa" role="img" aria-label="El mundo visto desde arriba: bosques, montañas, ríos y mares; las aldeas de cada pueblo con su color, y sus aldeanos talando, sembrando, construyendo y luchando"></canvas>
+      <div class="camara" role="group" aria-label="Cámara">
+        <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
+        <button type="button" class="mando cam" id="zoom-menos" aria-label="Alejar">−</button>
+        <button type="button" class="mando cam" id="ver-todo" aria-label="Ver todo el mundo" title="Ver todo el mundo">⤢</button>
+      </div>
+    </div>
+    <p class="clave">Arrastra para moverte; rueda, pellizca o usa + y − para acercarte. Toca una tierra para elegir a su pueblo. Los leñadores llevan hacha, los mineros pico, los granjeros sombrero de paja y los guerreros casco y espada: la madera que talan paga las tierras nuevas y las casas.</p>
   </section>
 
   <form class="g-voluntad" id="voluntad" autocomplete="off">
@@ -184,14 +191,14 @@ button { cursor: pointer; }
   // alimenta cada casilla (cap), cuánto pesa en la guerra (fuerza) y cuánta ciencia hace falta para llegar.
   M.ERAS = [
     { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
-    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 19, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
-    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 118, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 270, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 696, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1237, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 1594, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 2054, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 2544, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 15, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
+    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 105, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 225, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 530, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 880, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 1260, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 1330, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 1430, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
@@ -260,6 +267,10 @@ button { cursor: pointer; }
     nuevo_pueblo: [['Los pueblos de las estepas y los desiertos aparecen de pronto en la historia y la cambian.', 'Los mongoles de Gengis Kan pasaron de tribus enfrentadas a dominar de Corea a Hungría en cincuenta años.']],
     abundancia: [['Las buenas cosechas llenan los graneros y las cunas.', 'La patata y el maíz de América duplicaron la población de muchos países de Europa y de China en dos siglos.']],
     destruccion: [['Algunas civilizaciones desaparecen de golpe y dejan solo ruinas.', 'La erupción del Vesubio en el año 79 sepultó Pompeya en un día; la de Tera, siglos antes, quizá acabó con la Creta minoica.']],
+    deforestacion: [['Un pueblo que crece tala para sembrar, construir y calentarse; si tala más deprisa de lo que el bosque crece, un día se queda sin madera.', 'En la isla de Pascua talaron hasta la última palmera: sin troncos no hubo más canoas ni más moáis.'], ['Sin bosques no hay barcos ni casas: la madera fue el petróleo de la Edad Media.', 'Inglaterra taló tanto que en el siglo XVII tuvo que pasarse al carbón, y del carbón salió la máquina de vapor.']],
+    incendio: [['El fuego limpia el bosque, pero se lleva también las casas y la cosecha.', 'El gran incendio de Roma del año 64 ardió seis días; Nerón culpó a los cristianos.']],
+    reforestacion: [['Donde se deja de talar, el bosque vuelve antes de lo que parece.', 'Tras la Peste Negra, media Europa quedó vacía y los bosques recuperaron los campos abandonados en pocas décadas.']],
+    tala: [['La madera es riqueza inmediata; el bosque perdido, una deuda que pagan los nietos.', 'Los venecianos talaron los bosques de Dalmacia para sus galeras; la costa todavía está pelada.']],
     dictadura: [['En tiempos de crisis, la gente cambia libertad por orden.', 'La República de Weimar, con la hiperinflación y el paro, acabó en manos de un dictador en 1933.']]
   };
 
@@ -287,7 +298,9 @@ button { cursor: pointer; }
 (function (RF) {
   'use strict';
   const M = RF.MUNDO;
-  const W = 32, H = 20;
+  const W = 48, H = 30;
+  // El mundo se diseñó con 32×20 regiones: K escala lo que depende del tamaño (capacidad, expansión, fronteras).
+  const K = (W * H) / 640;
   const TIERRA = { llanura: 3, bosque: 1.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
   const RIO = 2.2;
 
@@ -352,9 +365,9 @@ button { cursor: pointer; }
     m.tipo = tipo; m.alto = alto;
     // Ríos: nacen en las montañas y bajan siempre hacia lo más bajo hasta el mar.
     const fuentes = tipo.map((t, i) => (t === 'montana' || t === 'colina' ? i : -1)).filter(i => i >= 0);
-    for (let r = 0; r < 6 && fuentes.length; r++) {
+    for (let r = 0; r < 12 && fuentes.length; r++) {
       let i = fuentes.splice(Math.floor(azar(m) * fuentes.length), 1)[0];
-      for (let paso = 0; paso < 40; paso++) {
+      for (let paso = 0; paso < 60; paso++) {
         const sig = vecinos(i).sort((a, b) => alto[a] - alto[b])[0];
         if (!esTierra(m, sig) || alto[sig] >= alto[i]) break;
         rio[sig] = true; i = sig;
@@ -395,7 +408,10 @@ button { cursor: pointer; }
     let f = 0;
     for (const i of cs || casillas(m, c)) f += fertil(m, i);
     const efecto = c.efectos.reduce((k, e) => k * (e.comida || 1), 1);
-    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 * efecto);
+    // Las casas y los campos que levantan los aldeanos (vida.js) dan sitio a más gente: una tierra sin
+    // obras da un 20 % menos, una tierra bien trabajada, un 20 % más.
+    const obras = m.vida ? 0.8 + 0.4 * Math.min(1, ((c.campos || 0) + (c.casas || 0) * 0.5) / ((cs || casillas(m, c)).length * 2.5)) : 1;
+    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 / K * efecto * obras);
   }
   function fuerza(m, c, cs) {
     const car = M.CARACTERES[c.caracter];
@@ -416,6 +432,7 @@ button { cursor: pointer; }
 
   function regimenPorEra(m, c, n) {
     const car = c.caracter;
+    n = n / K;
     if (c.era === 0) return n < 6 ? 'tribu' : 'jefatura';
     if (c.era >= 7) return c.estab < 30 ? 'dictadura' : car === 'guerrero' && azar(m) < 0.5 ? 'dictadura' : 'democracia';
     if (c.era === 6) return car === 'mercader' || car === 'sabio' ? 'republica' : n >= 35 ? 'imperio' : 'reino';
@@ -451,7 +468,7 @@ button { cursor: pointer; }
     candidatas.sort((a, b) => fertil(m, b) - fertil(m, a) + (azar(m) - 0.5));
     const elegidas = [];
     for (const i of candidatas) {
-      if (elegidas.every(j => distancia(i, j) >= 8)) elegidas.push(i);
+      if (elegidas.every(j => distancia(i, j) >= 12)) elegidas.push(i);
       if (elegidas.length >= (numPueblos || 5)) break;
     }
     for (const cap of elegidas) {
@@ -459,12 +476,15 @@ button { cursor: pointer; }
       for (const v of vecinos(cap)) if (esTierra(m, v) && m.dueno[v] < 0 && azar(m) < 0.7) m.dueno[v] = c.id;
       cronica(m, 'fundacion', 'Nace ' + c.nombre, 'Un pueblo ' + c.caracter + ' se asienta ' + (m.rio[cap] ? 'junto a un río' : 'en una llanura fértil') + ' y empieza a sembrar. Lo llamarán ' + c.nombre + '.', c);
     }
+    // Los aldeanos, los árboles y las casas (vida.js), si está cargada.
+    if (M.vida) M.vida.crear(m);
     return m;
   }
 
   // ---------- Un turno del mundo ----------
   function turno(m) {
     m.turno++;
+    if (m.vida && M.vida) M.vida.turno(m);
     const lista = vivas(m);
     for (const c of lista) vivir(m, c);
     diplomacia(m);
@@ -504,7 +524,7 @@ button { cursor: pointer; }
     const sig = M.ERAS[c.era + 1];
     if (sig && c.ciencia >= sig.umbral) subirEra(m, c, null);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
-    const objetivo = 62 + car.estab - Math.max(0, n - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
+    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
@@ -512,18 +532,21 @@ button { cursor: pointer; }
       const libres = new Set();
       for (const i of cs) for (const v of vecinos(i)) if (esTierra(m, v) && m.dueno[v] < 0) libres.add(v);
       // Desde el Renacimiento, también al otro lado del mar.
-      if (c.era >= 5 && !libres.size) for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && vecinos(i).some(v => m.tipo[v] === 'costa') && cs.some(j => distancia(i, j) <= 9)) libres.add(i);
+      if (c.era >= 5 && !libres.size) for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && vecinos(i).some(v => m.tipo[v] === 'costa') && cs.some(j => distancia(i, j) <= 13)) libres.add(i);
       const orden = [...libres].sort((a, b) => fertil(m, b) - fertil(m, a) + distancia(a, c.capital) * 0.15 - distancia(b, c.capital) * 0.15);
-      const cuantas = c.era >= 3 ? 2 : 1;
+      // Expandirse cuesta madera (o piedra) cuando hay aldeanos que la traen (vida.js).
+      const vida = m.vida && M.vida;
+      const cuantas = Math.min(c.era >= 3 ? 4 : 2, vida ? vida.tierrasPagables(m, c) : 99);
       for (const i of orden.slice(0, cuantas)) {
         m.dueno[i] = c.id;
+        if (vida) vida.pagarTierra(m, c);
         const ultramar = !cs.some(j => vecinos(i).includes(j));
         if (ultramar) cronica(m, 'expansion', c.nombre + ' cruza el mar', 'Sus barcos fundan una colonia en tierras lejanas. Los que ya vivían allí no han sido consultados.', c, i);
         else if (azar(m) < 0.05) cronica(m, 'expansion', c.nombre + ' se extiende', 'Los colonos de ' + c.nombre + ' talan, siembran y levantan aldeas nuevas. Ya ocupan ' + (cs.length + 1) + ' tierras.', c, i);
       }
     }
     // Revuelta: las provincias lejanas de un reino grande e inestable se separan.
-    if (c.estab < 22 && n >= 8 && azar(m) < 0.3) separar(m, c, cs);
+    if (c.estab < 22 && n >= 8 * K && azar(m) < 0.3) separar(m, c, cs);
     else if (c.estab < 8 && azar(m) < 0.25) {
       const perdidas = cs.filter(i => i !== c.capital && azar(m) < 0.3);
       for (const i of perdidas) m.dueno[i] = -1;
@@ -610,9 +633,13 @@ button { cursor: pointer; }
       const b = civ(m, g.con);
       if (!b || !b.viva) { a.guerras = a.guerras.filter(x => x !== g); continue; }
       if (a.id > b.id) continue; // cada guerra se resuelve una vez por turno
-      const fa = fuerza(m, a), fb = fuerza(m, b);
+      // Las batallas que ganan los guerreros de cada bando (vida.js) inclinan la guerra.
+      const batallas = ((a.victorias || 0) - (b.victorias || 0));
+      a.victorias = 0; b.victorias = 0;
+      const empuje = 1 + 0.15 * Math.tanh(batallas / 4);
+      const fa = fuerza(m, a) * empuje, fb = fuerza(m, b) / empuje;
       const [gana, pierde, ratio] = fa >= fb ? [a, b, fa / fb] : [b, a, fb / fa];
-      const k = Math.max(0, Math.min(3, Math.round((ratio - 1) * 2 + (azar(m) - 0.4))));
+      const k = Math.max(0, Math.min(5, Math.round(((ratio - 1) * 2 + (azar(m) - 0.4)) * 1.5)));
       const fr = frontera(m, gana, pierde);
       const tomadas = fr.sort(() => azar(m) - 0.5).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;
@@ -650,7 +677,7 @@ button { cursor: pointer; }
     // Pueblos nuevos en tierras vacías (nómadas, colonos, refugiados).
     let libres = 0;
     for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && m.tipo[i] !== 'nieve') libres++;
-    if (libres > 25 && lista.length < 8 && azar(m) < 0.04) nuevoPueblo(m, null);
+    if (libres > 25 * K && lista.length < 9 && azar(m) < 0.04) nuevoPueblo(m, null);
     if (azar(m) < 0.02) {
       const c = elegir(m, lista);
       c.efectos.push({ comida: 1.4, hasta: m.turno + 4 });
@@ -691,8 +718,526 @@ button { cursor: pointer; }
     });
   }
 
-  M.sim = { W, H, TIERRA, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+})(globalThis.RF = globalThis.RF || {});
+
+// js/mundo/vida.js
+/*
+ * GÉNESIS · LA VIDA
+ * Cada región del mapa se parte en 4×4 parcelas con su árbol, su roca o su obra, y por ellas caminan los
+ * aldeanos de cada pueblo: leñadores que talan, granjeros que siembran, constructores que levantan casas,
+ * mineros que pican piedra y guerreros que marchan a la frontera cuando hay guerra.
+ *
+ * Lo que hacen mueve la economía: la madera y la piedra pagan las tierras nuevas y las casas, las casas y
+ * los campos dan sitio a más gente, las batallas que ganan los guerreros inclinan la guerra, y un bosque
+ * talado hasta el último árbol se queda en llanura.
+ *
+ * Todo pasa dentro del turno (TICKS pasos) con un azar propio guardado en el mundo: sigue siendo
+ * reproducible. Cada aldeano guarda su recorrido del turno y cada parcela que cambia queda anotada con el
+ * paso en que cambió, para que la vista lo anime sin adelantarse.
+ */
+(function (RF) {
+  'use strict';
+  const M = RF.MUNDO;
+  const S = () => M.sim;
+  const SUB = 4, TICKS = 8, MAX_ALDEANOS = 260;
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4 };
+  const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero'];
+  const [LENADOR, GRANJERO, CONSTRUCTOR, MINERO, GUERRERO] = [0, 1, 2, 3, 4];
+  // Estados del aldeano y lo que hace en cada paso (la vista elige el dibujo con esto).
+  const [LIBRE, IR, TRABAJAR, VOLVER, ESPERAR] = [0, 1, 2, 3, 4];
+  const ACC = { andar: 0, trabajar: 1, luchar: 2, cargar: 3 };
+
+  // Árboles y rocas al crear el mundo, según el suelo de la parcela.
+  const ARBOLES = { bosque: 0.78, colina: 0.22, llanura: 0.07, nieve: 0.14, desierto: 0.03 };
+  const ROCAS = { montana: 0.45, colina: 0.12, desierto: 0.06, nieve: 0.05, llanura: 0.015, bosque: 0.02 };
+  // Lo que brota solo cada turno junto a otro árbol (la naturaleza recupera lo que se deja).
+  const BROTE = { bosque: 0.035, colina: 0.025, llanura: 0.006, nieve: 0.008, desierto: 0.0015 };
+  const CONSTRUIBLE = new Set(['llanura', 'colina', 'bosque', 'desierto', 'nieve', 'arena']);
+  const CULTIVABLE = new Set(['llanura', 'colina', 'bosque']);
+
+  function azar(v) {
+    let t = (v.rng = (v.rng + 0x6D2B79F5) >>> 0);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
+  // ---------- El suelo de cada parcela ----------
+  const esAgua = t => t === 'mar' || t === 'costa';
+  function aguaEn(m, rx, ry) { return rx >= 0 && ry >= 0 && rx < m.W && ry < m.H && esAgua(m.tipo[ry * m.W + rx]); }
+  function uneRio(m, rx, ry) {
+    if (rx < 0 || ry < 0 || rx >= m.W || ry >= m.H) return false;
+    const j = ry * m.W + rx;
+    return m.rio[j] || esAgua(m.tipo[j]);
+  }
+  // Los ríos pasan por la fila y la columna 1 de cada región y se unen con los vecinos que también son río o mar.
+  function esRio(m, rx, ry, lx, ly) {
+    if (lx === 1 && ly === 1) return true;
+    if (ly === 1 && lx < 1) return uneRio(m, rx - 1, ry);
+    if (ly === 1 && lx > 1) return uneRio(m, rx + 1, ry);
+    if (lx === 1 && ly < 1) return uneRio(m, rx, ry - 1);
+    if (lx === 1 && ly > 1) return uneRio(m, rx, ry + 1);
+    return false;
+  }
+  function terreno(m, tx, ty) {
+    const rx = (tx / SUB) | 0, ry = (ty / SUB) | 0, tipo = m.tipo[ry * m.W + rx];
+    if (tipo === 'mar') return 'agua';
+    if (tipo === 'costa') return 'bajo';
+    const lx = tx - rx * SUB, ly = ty - ry * SUB;
+    if (m.rio[ry * m.W + rx] && esRio(m, rx, ry, lx, ly)) return 'rio';
+    if (tipo !== 'nieve' && tipo !== 'montana' &&
+      ((lx === 0 && aguaEn(m, rx - 1, ry)) || (lx === SUB - 1 && aguaEn(m, rx + 1, ry)) || (ly === 0 && aguaEn(m, rx, ry - 1)) || (ly === SUB - 1 && aguaEn(m, rx, ry + 1)))) return 'arena';
+    return tipo;
+  }
+  // El suelo solo cambia cuando cambia una región (un bosque talado, un terremoto): se guarda calculado.
+  let cache = { m: null, firma: '', arr: null };
+  function terrenos(m) {
+    const firma = m.tipo.join(',');
+    if (cache.m === m && cache.firma === firma) return cache.arr;
+    const tw = m.W * SUB, th = m.H * SUB, arr = new Array(tw * th);
+    for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) arr[ty * tw + tx] = terreno(m, tx, ty);
+    cache = { m, firma, arr };
+    return arr;
+  }
+  const region = (m, t) => { const tw = m.W * SUB; return (((t / tw) | 0) / SUB | 0) * m.W + ((t % tw) / SUB | 0); };
+  const centro = (m, r) => { const tw = m.W * SUB; return ((r / m.W | 0) * SUB + 2) * tw + (r % m.W) * SUB + 2; };
+  const parcelas = (m, r) => {
+    const tw = m.W * SUB, x0 = (r % m.W) * SUB, y0 = (r / m.W | 0) * SUB, out = [];
+    for (let y = 0; y < SUB; y++) for (let x = 0; x < SUB; x++) out.push((y0 + y) * tw + x0 + x);
+    return out;
+  };
+  const dist = (m, a, b) => { const tw = m.W * SUB; return Math.abs(a % tw - b % tw) + Math.abs((a / tw | 0) - (b / tw | 0)); };
+  const andable = (ter, era) => ter !== 'agua' && (ter !== 'bajo' || era >= 5);
+
+  // ---------- Crear la vida de un mundo ----------
+  function crear(m) {
+    const tw = m.W * SUB, th = m.H * SUB, n = tw * th;
+    const v = {
+      tw, th, rng: (m.semilla ^ 0x9E3779B9) >>> 0, arbol: new Array(n).fill(0), roca: new Array(n).fill(0), obra: new Array(n).fill(0),
+      fueBosque: new Array(m.W * m.H).fill(0), tipoVisto: m.tipo.slice(), aldeanos: [], sig: 0, centros: {}, cambios: [], avisos: {}
+    };
+    m.vida = v;
+    const ter = terrenos(m);
+    for (let t = 0; t < n; t++) {
+      const r = azar(v), pa = ARBOLES[ter[t]] || 0, pr = ROCAS[ter[t]] || 0;
+      if (r < pa) v.arbol[t] = azar(v) < 0.75 ? 3 : 2;
+      else if (r < pa + pr) v.roca[t] = 1 + Math.floor(azar(v) * 3);
+    }
+    for (const c of S().vivas(m)) { c.madera = c.madera || 6; c.piedra = c.piedra || 0; }
+    centros(m);
+    sincronizar(m);
+    contar(m);
+    return v;
+  }
+
+  // Anota un cambio de parcela con el paso en que ocurre (la vista lo aplica en ese momento).
+  function cambiar(m, capa, t, valor, paso) {
+    const v = m.vida;
+    if (v[capa][t] === valor) return;
+    v.cambios.push([capa === 'arbol' ? 0 : capa === 'roca' ? 1 : 2, t, v[capa][t], valor, paso]);
+    v[capa][t] = valor;
+  }
+
+  // La plaza de cada capital: 2×2 parcelas en el centro de su región. Las capitales perdidas quedan en ruinas.
+  function centros(m) {
+    const v = m.vida;
+    for (const id of Object.keys(v.centros)) {
+      const c = S().civ(m, +id), r = v.centros[id];
+      if (c && c.viva && c.capital === r) continue;
+      for (const t of plaza(m, r)) if (v.obra[t] === OBRA.centro) cambiar(m, 'obra', t, OBRA.ruina, 0);
+      delete v.centros[id];
+    }
+    for (const c of S().vivas(m)) {
+      if (c.madera == null) { c.madera = 6; c.piedra = 0; c.casas = 0; c.campos = 0; }
+      if (v.centros[c.id] === c.capital) continue;
+      for (const t of plaza(m, c.capital)) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.centro, 0); }
+      v.centros[c.id] = c.capital;
+    }
+  }
+  function plaza(m, r) { const tw = m.W * SUB, x = (r % m.W) * SUB + 1, y = (r / m.W | 0) * SUB + 1; return [y * tw + x, y * tw + x + 1, (y + 1) * tw + x, (y + 1) * tw + x + 1]; }
+
+  // ---------- Los aldeanos de cada pueblo ----------
+  const cuantos = c => Math.max(3, Math.min(40, Math.round(2 + Math.sqrt(Math.max(0, c.pob)) * 1.5)));
+
+  function reparto(c, recursos) {
+    const guerra = c.guerras.length > 0;
+    const p = [0, 0, 0.15, c.era >= 1 ? 0.14 : 0.05, guerra ? 0.34 : c.era >= 2 ? 0.08 : 0.05];
+    if (!recursos.rocas) { p[LENADOR] += p[MINERO]; p[MINERO] = 0; }
+    const resto = 1 - p.reduce((a, b) => a + b, 0);
+    p[LENADOR] += resto * (recursos.arboles ? 0.55 : 0); p[GRANJERO] += resto * (recursos.arboles ? 0.45 : 1);
+    return p;
+  }
+
+  function hogar(m, c, cs) {
+    const v = m.vida;
+    if (azar(v) < 0.4 || cs.length < 2) return c.capital;
+    return cs[Math.floor(azar(v) * cs.length)];
+  }
+
+  function sincronizar(m, recursosDe) {
+    const v = m.vida, vivas = S().vivas(m), porCiv = {};
+    // Los aldeanos de pueblos muertos desaparecen; los que perdieron su casa se mudan.
+    v.aldeanos = v.aldeanos.filter(a => { const c = S().civ(m, a.c); return c && c.viva; });
+    const deseados = {};
+    let total = 0;
+    for (const c of vivas) { deseados[c.id] = cuantos(c); total += deseados[c.id]; }
+    const escala = total > MAX_ALDEANOS ? MAX_ALDEANOS / total : 1;
+    for (const c of vivas) { deseados[c.id] = Math.max(2, Math.floor(deseados[c.id] * escala)); porCiv[c.id] = []; }
+    for (const a of v.aldeanos) porCiv[a.c].push(a);
+    const quitar = new Set();
+    for (const c of vivas) {
+      const cs = S().casillas(m, c), lista = porCiv[c.id];
+      for (const a of lista) if (m.dueno[a.h] !== c.id) a.h = hogar(m, c, cs);
+      // Sobran: se van los que están libres primero.
+      if (lista.length > deseados[c.id]) {
+        const orden = lista.slice().sort((x, y) => (x.e === LIBRE ? 0 : 1) - (y.e === LIBRE ? 0 : 1) || y.id - x.id);
+        for (const a of orden.slice(0, lista.length - deseados[c.id])) quitar.add(a);
+      }
+      // Faltan: nacen en su aldea.
+      for (let k = lista.length; k < deseados[c.id]; k++) {
+        const h = hogar(m, c, cs), t = centro(m, h);
+        const a = { id: v.sig++, c: c.id, o: GRANJERO, x: t % v.tw, y: t / v.tw | 0, h, e: LIBRE, tx: -1, ty: -1, t: 0, k: 0, q: 0, r: [] };
+        v.aldeanos.push(a); lista.push(a);
+      }
+    }
+    if (quitar.size) v.aldeanos = v.aldeanos.filter(a => !quitar.has(a));
+    // Oficios: los libres cambian de oficio para cubrir lo que falta en su pueblo.
+    for (const c of vivas) {
+      const lista = v.aldeanos.filter(a => a.c === c.id), p = reparto(c, recursosDe ? recursosDe[c.id] : { arboles: 1, rocas: 1 });
+      const tiene = [0, 0, 0, 0, 0];
+      for (const a of lista) tiene[a.o]++;
+      for (const a of lista) {
+        if (a.e !== LIBRE && a.e !== ESPERAR && !(a.o === GUERRERO && !c.guerras.length)) continue;
+        const falta = p.map((x, i) => x * lista.length - tiene[i] + (i === a.o ? 1 : 0));
+        const mejor = falta.indexOf(Math.max(...falta));
+        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; }
+      }
+    }
+  }
+
+  // ---------- Lo que hay al alcance de cada pueblo ----------
+  function recursos(m) {
+    const v = m.vida, out = {}, reservadas = new Set();
+    for (const a of v.aldeanos) if (a.e === IR || a.e === TRABAJAR) reservadas.add(a.ty * v.tw + a.tx);
+    for (const c of S().vivas(m)) out[c.id] = { arboles: [], rocas: [], cs: [], reservadas, enemigos: [] };
+    const ter = terrenos(m);
+    // Las regiones propias y las libres que tocan el territorio.
+    const alcance = {};
+    for (let r = 0; r < m.W * m.H; r++) {
+      const d = m.dueno[r];
+      if (d >= 0 && out[d]) { out[d].cs.push(r); (alcance[r] = alcance[r] || new Set()).add(d); }
+      if (d < 0 && !esAgua(m.tipo[r])) for (const w of S().vecinos(r)) { const o = m.dueno[w]; if (o >= 0 && out[o]) (alcance[r] = alcance[r] || new Set()).add(o); }
+    }
+    for (const r of Object.keys(alcance)) {
+      for (const t of parcelas(m, +r)) {
+        const arbol = v.arbol[t] >= 2, roca = v.roca[t] > 0;
+        if (!arbol && !roca) continue;
+        for (const id of alcance[r]) { if (arbol) out[id].arboles.push(t); else if (ter[t] !== 'agua') out[id].rocas.push(t); }
+      }
+    }
+    for (const c of S().vivas(m)) {
+      for (const g of c.guerras) { const o = S().civ(m, g.con); if (o && o.viva) out[c.id].enemigos.push({ id: o.id, frente: S().frontera(m, c, o) }); }
+    }
+    return out;
+  }
+
+  // ---------- Un turno de vida ----------
+  function turno(m) {
+    if (!m.vida) crear(m);
+    const v = m.vida;
+    v.cambios = [];
+    centros(m);
+    let rec = recursos(m);
+    sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
+    rec = recursos(m);
+    const ter = terrenos(m);
+    for (const a of v.aldeanos) a.r = [a.x, a.y, a.e === TRABAJAR ? ACC.trabajar : a.k ? ACC.cargar : ACC.andar];
+    for (let paso = 1; paso <= TICKS; paso++) {
+      // Dónde está cada guerrero, para que se encuentren en la frontera.
+      const guerreros = new Map();
+      for (const a of v.aldeanos) if (a.o === GUERRERO) { const t = a.y * v.tw + a.x; (guerreros.get(t) || guerreros.set(t, []).get(t)).push(a); }
+      const muertos = new Set();
+      for (const a of v.aldeanos) if (!muertos.has(a)) actuar(m, a, rec[a.c], ter, paso, guerreros, muertos);
+      if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
+    }
+    naturaleza(m, ter);
+    contar(m);
+    // La leña de cada día: cocinar, calentarse y, desde la Edad del Hierro, las forjas; en la era industrial, el carbón vegetal.
+    for (const c of S().vivas(m)) c.madera = Math.max(0, c.madera - Math.sqrt(Math.max(0, c.pob)) * 0.18 * (1 + c.era * 0.3));
+  }
+  const mapa = (o, f) => { const r = {}; for (const k of Object.keys(o)) r[k] = f(o[k]); return r; };
+
+  function actuar(m, a, rec, ter, paso, guerreros, muertos) {
+    const v = m.vida, c = S().civ(m, a.c);
+    let acc = a.k ? ACC.cargar : ACC.andar;
+    if (!rec || !c) return;
+    if (a.e === LIBRE) elegirTarea(m, a, c, rec, ter);
+    if (a.e === IR || a.e === VOLVER) {
+      if (a.x === a.tx && a.y === a.ty) llegar(m, a, c, rec, ter, paso);
+      else if (!andar(m, a, c, ter)) { a.e = LIBRE; a.k = 0; }
+    } else if (a.e === TRABAJAR) {
+      acc = ACC.trabajar;
+      if (--a.t <= 0) terminar(m, a, c, rec, ter, paso);
+    } else if (a.e === ESPERAR) {
+      if (--a.t <= 0) a.e = LIBRE;
+    }
+    // Los guerreros luchan contra los enemigos que encuentran a su lado.
+    if (a.o === GUERRERO && c.guerras.length) {
+      for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const lista = guerreros.get((a.y + dy) * v.tw + a.x + dx);
+        const rival = lista && lista.find(b => b !== a && !muertos.has(b) && c.guerras.some(g => g.con === b.c));
+        if (!rival) continue;
+        const o = S().civ(m, rival.c), fa = M.ERAS[c.era].fuerza, fb = M.ERAS[o.era].fuerza;
+        const gana = azar(v) < fa / (fa + fb) ? a : rival, pierde = gana === a ? rival : a;
+        muertos.add(pierde);
+        const g = S().civ(m, gana.c); g.victorias = (g.victorias || 0) + 1;
+        acc = ACC.luchar;
+        break;
+      }
+      if (muertos.has(a)) return;
+    }
+    a.r.push(a.x, a.y, acc);
+  }
+
+  function ir(a, t, tw, estado) { a.tx = t % tw; a.ty = t / tw | 0; a.e = estado; a.q = 0; }
+  function pasear(m, a, ter, c) {
+    const v = m.vida, base = centro(m, a.h);
+    for (let k = 0; k < 6; k++) {
+      const t = base + Math.round((azar(v) - 0.5) * 6) + Math.round((azar(v) - 0.5) * 6) * v.tw;
+      if (t >= 0 && t < ter.length && andable(ter[t], c.era) && dist(m, t, base) <= 4) { ir(a, t, v.tw, IR); a.paseo = 1; return; }
+    }
+    a.e = ESPERAR; a.t = 2;
+  }
+  function cercano(m, a, lista, reservadas, max) {
+    const v = m.vida, aqui = a.y * v.tw + a.x;
+    let mejor = -1, md = max;
+    const n = Math.min(14, lista.length);
+    for (let k = 0; k < n; k++) {
+      const t = lista[Math.floor(azar(v) * lista.length)];
+      if (reservadas.has(t)) continue;
+      const d = dist(m, aqui, t);
+      if (d < md) { md = d; mejor = t; }
+    }
+    return mejor;
+  }
+
+  function elegirTarea(m, a, c, rec, ter) {
+    const v = m.vida;
+    a.paseo = 0;
+    if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    let t = -1;
+    if (a.o === LENADOR && c.madera < 60 + 20 * c.era) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
+    else if (a.o === MINERO && c.piedra < 30 + 10 * c.era) t = cercano(m, a, rec.rocas, rec.reservadas, 16);
+    else if (a.o === GRANJERO) t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
+    else if (a.o === CONSTRUCTOR) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
+    else if (a.o === GUERRERO && rec.enemigos.length) {
+      const frente = rec.enemigos[Math.floor(azar(v) * rec.enemigos.length)].frente;
+      if (frente.length) t = centro(m, frente[Math.floor(azar(v) * frente.length)]) + Math.floor(azar(v) * 2) - 1;
+    }
+    if (t >= 0) { ir(a, t, v.tw, IR); rec.reservadas.add(t); return; }
+    // Sin tarea: los granjeros cuidan un campo, los demás pasean por su aldea.
+    if (a.o === GRANJERO && c.campos > 0 && azar(v) < 0.7) {
+      const campos = parcelas(m, a.h).filter(x => v.obra[x] === OBRA.campo);
+      if (campos.length) { ir(a, campos[Math.floor(azar(v) * campos.length)], v.tw, IR); a.paseo = 2; return; }
+    }
+    pasear(m, a, ter, c);
+  }
+  const metaCampos = c => Math.round(4 + c.pob * 0.22);
+  const metaCasas = c => Math.round(2 + c.pob * 0.12);
+
+  // Una parcela libre cerca de casa: primero en su región, luego en las regiones propias de alrededor.
+  function libre(m, a, c, rec, ter, sirve) {
+    const v = m.vida, base = centro(m, a.h);
+    const regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
+    let mejor = -1, md = 99;
+    for (const r of regiones) for (const t of parcelas(m, r)) {
+      if (v.obra[t] || v.roca[t] || v.arbol[t] >= 2 || !sirve.has(ter[t]) || rec.reservadas.has(t)) continue;
+      const d = dist(m, base, t) + azar(v) * 1.5;
+      if (d < md) { md = d; mejor = t; }
+    }
+    return mejor;
+  }
+
+  // Un paso hacia el destino por tierra (o en barca desde el Renacimiento).
+  function andar(m, a, c, ter) {
+    const v = m.vida;
+    if (++a.q > 40) return false;
+    const opciones = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const ahora = Math.abs(a.tx - a.x) + Math.abs(a.ty - a.y);
+    let mejor = null, mv = 1e9;
+    for (const [dx, dy] of opciones) {
+      const x = a.x + dx, y = a.y + dy;
+      if (x < 0 || y < 0 || x >= v.tw || y >= v.th || !andable(ter[y * v.tw + x], c.era)) continue;
+      const d = Math.abs(a.tx - x) + Math.abs(a.ty - y) + azar(v) * 0.9;
+      if (d < mv) { mv = d; mejor = [x, y]; }
+    }
+    if (!mejor) return false;
+    // Atascado detrás de agua: un paso a un lado para rodearla.
+    if (mv >= ahora + 0.9 && a.q > 20) return false;
+    a.x = mejor[0]; a.y = mejor[1];
+    return true;
+  }
+
+  function llegar(m, a, c, rec, ter, paso) {
+    const v = m.vida, t = a.ty * v.tw + a.tx;
+    if (a.e === VOLVER) {
+      // Descarga en la aldea: aquí entra la madera y la piedra en la economía del pueblo.
+      if (a.o === LENADOR) c.madera += a.k; else if (a.o === MINERO) { c.piedra += a.k; c.riqueza += a.k * 0.3; }
+      a.k = 0; a.e = ESPERAR; a.t = 1;
+      return;
+    }
+    if (a.paseo) { a.e = ESPERAR; a.t = a.paseo === 2 ? 3 : 1 + Math.floor(azar(v) * 2); a.paseo = 0; return; }
+    if (a.o === LENADOR) { if (v.arbol[t] >= 2) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE; }
+    else if (a.o === MINERO) { if (v.roca[t] > 0) { a.e = TRABAJAR; a.t = 3; } else a.e = LIBRE; }
+    else if (a.o === GRANJERO) { if (!v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else a.e = LIBRE; }
+    else if (a.o === CONSTRUCTOR) {
+      const piedra = c.era >= 2 && c.piedra >= 1;
+      if (!v.obra[t] && v.arbol[t] < 2 && c.madera >= (piedra ? 2 : 3)) { c.madera -= piedra ? 2 : 3; if (piedra) c.piedra -= 1; a.e = TRABAJAR; a.t = 4; } else a.e = LIBRE;
+    } else if (a.o === GUERRERO) {
+      // En tierra enemiga sin nadie que la defienda: saquea la aldea y empuja la frontera.
+      const r = region(m, t), o = S().civ(m, m.dueno[r]);
+      if (o && c.guerras.some(g => g.con === o.id)) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE;
+    }
+  }
+
+  function terminar(m, a, c, rec, ter, paso) {
+    const v = m.vida, t = a.ty * v.tw + a.tx;
+    if (a.o === LENADOR && v.arbol[t] >= 2) { a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === MINERO && v.roca[t] > 0) { a.k = 1; cambiar(m, 'roca', t, v.roca[t] - 1, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); c.campos++; }
+    else if (a.o === CONSTRUCTOR && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.casa, paso); c.casas++; }
+    else if (a.o === GUERRERO) {
+      const o = S().civ(m, m.dueno[region(m, t)]);
+      if (o && c.guerras.some(g => g.con === o.id)) {
+        c.victorias = (c.victorias || 0) + 0.5;
+        if (v.obra[t] === OBRA.casa && azar(v) < 0.5) cambiar(m, 'obra', t, OBRA.ruina, paso);
+        if (v.obra[t] === OBRA.campo && azar(v) < 0.5) cambiar(m, 'obra', t, OBRA.nada, paso);
+      }
+    }
+    a.e = LIBRE;
+  }
+
+  // ---------- Lo que pasa solo: los árboles crecen, las ruinas se cubren, los bosques se acaban ----------
+  function naturaleza(m, ter) {
+    const v = m.vida, tw = v.tw, n = tw * v.th, F = TICKS;
+    // Las regiones que cambiaron de suelo (un terremoto las volvió desierto) pierden sus árboles y sus casas.
+    for (let r = 0; r < m.W * m.H; r++) if (v.tipoVisto[r] !== m.tipo[r]) {
+      const nuevo = m.tipo[r];
+      if (nuevo === 'desierto' || nuevo === 'montana' || esAgua(nuevo)) for (const t of parcelas(m, r)) {
+        cambiar(m, 'arbol', t, 0, F);
+        if (v.obra[t] === OBRA.casa || v.obra[t] === OBRA.centro) cambiar(m, 'obra', t, OBRA.ruina, F);
+        else if (v.obra[t] === OBRA.campo) cambiar(m, 'obra', t, 0, F);
+      }
+      v.tipoVisto[r] = nuevo;
+    }
+    for (let t = 0; t < n; t++) {
+      const r = region(m, t), dueno = m.dueno[r], tierra = ter[t];
+      const ob = v.obra[t];
+      // Lo abandonado se arruina, y las ruinas acaban bajo la hierba.
+      if (dueno < 0) {
+        if (ob === OBRA.casa && azar(v) < 0.2) cambiar(m, 'obra', t, OBRA.ruina, F);
+        else if (ob === OBRA.campo && azar(v) < 0.25) cambiar(m, 'obra', t, 0, F);
+        else if (ob === OBRA.ruina && azar(v) < 0.04) cambiar(m, 'obra', t, 0, F);
+      } else if (ob === OBRA.ruina && azar(v) < 0.02) cambiar(m, 'obra', t, 0, F);
+      if (v.obra[t] || v.roca[t] || tierra === 'rio' || tierra === 'arena' || tierra === 'agua' || tierra === 'bajo') continue;
+      const a = v.arbol[t];
+      if (a === 1 || a === 2) { if (azar(v) < 0.4) cambiar(m, 'arbol', t, a + 1, F); continue; }
+      if (a) continue;
+      // Un bosque abandonado vuelve a crecer como bosque.
+      const base = (v.fueBosque[r] && dueno < 0) ? BROTE.bosque : BROTE[m.tipo[r]] || 0;
+      if (!base) continue;
+      const x = t % tw, y = t / tw | 0;
+      const junto = (x > 0 && v.arbol[t - 1]) || (x < tw - 1 && v.arbol[t + 1]) || (y > 0 && v.arbol[t - tw]) || (y < v.th - 1 && v.arbol[t + tw]);
+      if (azar(v) < base * (junto ? 1 : 0.12)) cambiar(m, 'arbol', t, 1, F);
+    }
+    // Un bosque sin árboles ya no es bosque (y deja de dar madera, aunque sí da campos).
+    for (let r = 0; r < m.W * m.H; r++) {
+      const tipo = m.tipo[r];
+      if (tipo !== 'bosque' && !(tipo === 'llanura' && v.fueBosque[r])) continue;
+      let quedan = 0;
+      for (const t of parcelas(m, r)) if (v.arbol[t]) quedan++;
+      if (tipo === 'bosque' && quedan <= 3) { m.tipo[r] = 'llanura'; v.fueBosque[r] = 1; v.tipoVisto[r] = 'llanura'; v.cambios.push([3, r, 'bosque', 'llanura', F]); }
+      else if (tipo === 'llanura' && quedan >= 10) { m.tipo[r] = 'bosque'; v.tipoVisto[r] = 'bosque'; v.cambios.push([3, r, 'llanura', 'bosque', F]); }
+    }
+    avisar(m);
+  }
+
+  // Cuando un pueblo se queda sin bosques y sin madera, la crónica lo cuenta (una vez cada tanto).
+  function avisar(m) {
+    const v = m.vida;
+    for (const c of S().vivas(m)) {
+      const cs = S().casillas(m, c);
+      if (cs.length < 6) continue;
+      let arboles = 0;
+      for (const r of cs) for (const t of parcelas(m, r)) if (v.arbol[t] >= 2) arboles++;
+      c.arboles = arboles;
+      const talado = cs.filter(r => v.fueBosque[r]).length;
+      if (arboles < cs.length * 0.6 && talado >= 3 && c.madera < 6 && m.turno - (v.avisos[c.id] || -99) > 25) {
+        v.avisos[c.id] = m.turno;
+        c.efectos.push({ estab: -5, hasta: m.turno + 5 });
+        S().cronica(m, 'deforestacion', c.nombre + ' tala su último bosque', 'Los leñadores de ' + c.nombre + ' vuelven con las manos vacías: donde había bosque hay campos, pastos y tocones. Sin madera no hay casas nuevas, ni barcos, ni leña para el invierno.', c, cs.find(r => v.fueBosque[r]));
+      }
+    }
+  }
+
+  // Lo que cada pueblo tiene levantado en su tierra: lo usa la capacidad (sim.js) y la ficha.
+  function contar(m) {
+    const v = m.vida, casas = {}, campos = {}, arboles = {};
+    for (let t = 0; t < v.tw * v.th; t++) {
+      const d = m.dueno[region(m, t)];
+      if (d < 0) continue;
+      const o = v.obra[t];
+      if (o === OBRA.casa || o === OBRA.centro) casas[d] = (casas[d] || 0) + (o === OBRA.casa ? 1 : 0.5);
+      else if (o === OBRA.campo) campos[d] = (campos[d] || 0) + 1;
+      if (v.arbol[t] >= 2) arboles[d] = (arboles[d] || 0) + 1;
+    }
+    const gente = {};
+    for (const a of v.aldeanos) gente[a.c] = (gente[a.c] || 0) + 1;
+    for (const c of m.civs) {
+      c.casas = Math.round(casas[c.id] || 0); c.campos = campos[c.id] || 0; c.arboles = arboles[c.id] || 0; c.aldeanos = gente[c.id] || 0;
+      c.madera = c.madera || 0; c.piedra = c.piedra || 0;
+    }
+  }
+
+  // ---------- Lo que cuesta una tierra nueva (sim.js) ----------
+  // Tres de madera; sin madera, cuatro de piedra; y un pueblo sin árboles cerca levanta adobe: una tierra por turno.
+  function tierrasPagables(m, c) {
+    return Math.floor((c.madera || 0) / 3) + Math.floor((c.piedra || 0) / 4) + (c.arboles ? 0 : 1);
+  }
+  function pagarTierra(m, c) {
+    if (c.madera >= 3) c.madera -= 3;
+    else if (c.piedra >= 4) c.piedra -= 4;
+  }
+
+  // ---------- Poderes del dios sobre la vida ----------
+  function incendio(m, c) {
+    const v = m.vida;
+    let quemados = 0;
+    if (!v) return 0;
+    for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) {
+      if (v.arbol[t] && azar(v) < 0.75) { cambiar(m, 'arbol', t, 0, 0); quemados++; }
+      if (v.obra[t] === OBRA.casa && azar(v) < 0.3) cambiar(m, 'obra', t, OBRA.ruina, 0);
+      if (v.obra[t] === OBRA.campo && azar(v) < 0.4) cambiar(m, 'obra', t, 0, 0);
+    }
+    contar(m);
+    return quemados;
+  }
+  function plantar(m, regiones) {
+    const v = m.vida;
+    let n = 0;
+    if (!v) return 0;
+    const ter = terrenos(m);
+    for (const r of regiones) for (const t of parcelas(m, r)) {
+      if (v.obra[t] || v.roca[t] || v.arbol[t] || !(ter[t] in ARBOLES) || azar(v) < 0.25) continue;
+      cambiar(m, 'arbol', t, 3, 0); n++;
+    }
+    contar(m);
+    return n;
+  }
+
+  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -808,6 +1353,41 @@ button { cursor: pointer; }
           c.pob *= 0.75; c.estab -= 15;
           if (!S().casillas(m, c).length) { S().morir(m, c, null); e = m.ultimo; continue; }
           e = S().cronica(m, 'terremoto', (/volcan|erupcion/.test(n) ? 'Erupción en ' : /meteor|asteroide|cometa/.test(n) ? 'Cae una estrella sobre ' : 'Terremoto en ') + c.nombre, 'La tierra se abre bajo la capital de ' + c.nombre + '. Donde había campos queda ceniza; donde había templos, la pregunta de qué han hecho para merecerlo.', c, destruidas[0]);
+        }
+        return e;
+      }
+    },
+    {
+      id: 'incendio', re: /\b(incendi\w*|fuego|quem\w*|arda|ardan|llamas)\b/, minimo: 1,
+      hacer: (m, cs) => {
+        let e = null;
+        for (const c of cs) {
+          const n = M.vida ? M.vida.incendio(m, c) : 0;
+          c.pob *= 0.93; c.estab -= 8;
+          e = S().cronica(m, 'incendio', 'Arde ' + c.nombre, 'Un fuego que nadie sabe quién encendió corre por los bosques y las aldeas de ' + c.nombre + (n ? ': se lleva unos ' + n + ' árboles, graneros y tejados.' : '.') + ' Los leñadores, por una vez, no tienen trabajo.', c);
+        }
+        return e;
+      }
+    },
+    {
+      id: 'bosque', re: /\b(bosques?|arbol\w*|selvas?|plant\w*|reforest\w*)\b/, minimo: 1,
+      hacer: (m, cs, n) => {
+        let e = null;
+        const talar = /\b(tal\w*|cort\w*|derrib\w*)\b/.test(n);
+        for (const c of cs) {
+          const regiones = S().casillas(m, c);
+          if (talar) {
+            let troncos = 0;
+            const v = m.vida;
+            if (v) for (const r of regiones) for (const t of M.vida.parcelas(m, r)) if (v.arbol[t] >= 2 && S().azar(m) < 0.8) { v.cambios.push([0, t, v.arbol[t], 0, 0]); v.arbol[t] = 0; troncos++; }
+            c.madera = (c.madera || 0) + troncos * 2; c.riqueza += troncos * 0.2;
+            if (M.vida) M.vida.contar(m);
+            e = S().cronica(m, 'tala', c.nombre + ' tala sus bosques', 'Por orden de los cielos, ' + c.nombre + ' corta ' + (troncos ? 'unos ' + troncos + ' árboles' : 'los pocos árboles que le quedaban') + '. Hay madera para barcos, casas y hogueras durante años; lo que no habrá es sombra.', c);
+          } else {
+            const n2 = M.vida ? M.vida.plantar(m, regiones) : 0;
+            c.estab += 3;
+            e = S().cronica(m, 'reforestacion', 'Brotan bosques en ' + c.nombre, 'De la noche a la mañana crecen ' + (n2 ? 'unos ' + n2 + ' árboles' : 'árboles') + ' en las tierras de ' + c.nombre + '. Los leñadores no se lo creen; los granjeros, tampoco, pero por otros motivos.', c);
+          }
         }
         return e;
       }
@@ -931,6 +1511,436 @@ button { cursor: pointer; }
   M.dios = { obrar, objetivos, aplicarIA, SISTEMA, paraIA, CRONISTA, norm, PODERES };
 })(globalThis.RF = globalThis.RF || {});
 
+// js/mundo/pintor.js
+/*
+ * GÉNESIS · EL PINTOR
+ * Dibuja el mundo como un juego de píxeles visto desde arriba: cada parcela de 8×8 píxeles con su suelo,
+ * sus árboles, sus rocas, sus campos y sus casas (con el tejado del color de su pueblo y el estilo de su
+ * era), y encima los aldeanos andando, talando, sembrando y luchando.
+ *
+ * El suelo y las obras se pintan una vez en un lienzo grande y solo se retocan las parcelas que cambian;
+ * cada fotograma se recorta lo que ve la cámara (arrastrar, rueda, pellizco y botones) y se dibujan los
+ * aldeanos interpolando su recorrido del turno.
+ */
+(function (RF) {
+  'use strict';
+  const M = RF.MUNDO;
+  const P = 8;
+
+  // ---------- Sprites: cada letra es un color; el punto, transparente ----------
+  const PALETA = {
+    g: '#2f6b34', G: '#3f8a3e', h: '#6cb85a', t: '#6b4a2b', p: '#1f5a3a', P: '#2e7a4a', n: '#f4f8fb', c: '#4f9a4a', C: '#7cc36a',
+    r: '#5e5e68', R: '#8a8a96', H: '#b9b9c4', s: '#8f8a80', S: '#b7b0a2', w: '#e3d3b0', W: '#c2ad86', d: '#5a3a22', k: '#2a3550',
+    b: '#7a5232', y: '#f0c05a', m: '#9aa1ad', M: '#c6ccd6', o: '#6d6f78', l: '#ffe9a6', f: '#e0a040'
+  };
+  const SPRITES = {
+    roble3: ['..gGGg..', '.gGGhGg.', 'gGGhGGGg', 'gGGGGGhg', 'ggGGGGgg', '.gggggg.', '...tt...', '...tt...'],
+    pino3: ['...pp...', '..pPPp..', '..pPPp..', '.pPPPPp.', '.pPPPPp.', 'pPPPPPPp', '...tt...', '...tt...'],
+    nevado3: ['...nn...', '..pnPp..', '..pPPp..', '.nPPnPp.', '.pPPPPp.', 'nPPPPPnp', '...tt...', '...tt...'],
+    arbol2: ['........', '........', '...gg...', '..gGhg..', '..gGGg..', '...gg...', '...t....', '...t....'],
+    arbol1: ['........', '........', '........', '........', '...g....', '..gGg...', '...t....', '........'],
+    cactus: ['........', '...c....', '.c.cC...', '.ccc.c..', '...ccC..', '...c....', '...c....', '........'],
+    roca3: ['........', '..rRR...', '.rRHRRr.', 'rRHRRRRr', 'rRRRRRRr', '.rrrrrr.', '........', '........'],
+    roca2: ['........', '........', '...rR...', '..rHRr..', '.rRRRRr.', '..rrrr..', '........', '........'],
+    roca1: ['........', '........', '........', '...rR...', '..rRRr..', '...rr...', '........', '........'],
+    ruina: ['........', '........', '.s...S..', '.S..sS..', '.sS.sS..', 'sSsSs.s.', '........', '........'],
+    choza: ['...XX...', '..XXXX..', '.XXxxXX.', 'XXXXXXXX', '.wwwwww.', '.wwddww.', '.wwddww.', '........'],
+    casa: ['........', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wwwwww.', '.wkwwdw.', '.wwwwdw.', '........'],
+    entramado: ['..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wbwwbw.', '.wkwbkw.', '.wbwwbw.', '.wkwdbw.', '........'],
+    bloque: ['.xxxxxx.', '.MkMkMk.', '.MMMMMM.', '.MkMkMk.', '.MMMMMM.', '.MkMdMk.', '.MMMMMM.', '........'],
+    centro0: ['................', '................', '.......XX.......', '......XXXX......', '.....XXXXXX.....', '....XXXXXXXX....', '...XXXXxxXXXX...', '..XXXXXXXXXXXX..', '.XXXXXXXXXXXXXX.', 'XXXXXXXXXXXXXXXX', '.wwwwwwwwwwwwww.', '.wwwwwwddwwwwww.', '.wkwwwwddwwwwkw.', '.wwwwwwddwwwwww.', '................', '................'],
+    centro1: ['s.s.........s.s.', 'sss.........sss.', 'sSs..s.s.s..sSs.', 'sss..sssss..sss.', 'sSs..sSSSs..sSs.', 'ssssssssssssssss', 'sSSSSSSSSSSSSSSs', 'sSkSSSSSSSSSSkSs', 'sSSSSSSSSSSSSSSs', 'sSSSSSXXXXSSSSSs', 'sSSSSXXXXXXSSSSs', 'sSSSSSddddSSSSSs', 'sSkSSSddddSSSkSs', 'sSSSSSddddSSSSSs', 'ssssssddddssssss', '................'],
+    centro2: ['.......yy.......', '......XXXX......', '.....XXXXXX.....', '.....XXXXXX.....', '..XX.wwwwww.XX..', '.XXXXwkwwkwXXXX.', '.wwwwwwwwwwwwww.', '.wkwkwkwwkwkwkw.', '.wwwwwwwwwwwwww.', '.wkwkwkwwkwkwkw.', '.wwwwwwwwwwwwww.', '.wkwkwwddwwkwkw.', '.wwwwwwddwwwwww.', 'wwwwwwwddwwwwwww', 'SSSSSSSSSSSSSSSS', '................'],
+    centro3: ['....MM..........', '...MMMM.....MM..', '...MkMM....MMMM.', '...MMMM....MkkM.', '...MkMM....MMMM.', '.MMMMMM....MkkM.', '.MkMkMMMM..MMMM.', '.MMMMMMMMM.MkkM.', '.MkMkMkMkM.MMMM.', '.MMMMMMMMMMMMMMM', '.MkMkMkMkMkMkkMM', '.MMMMMMMMMMMMMMM', '.MkMkMkddMkMkkMM', '.MMMMMMMdMMMMMMM', 'oooooooooooooooo', '................']
+  };
+  const cacheSprites = {};
+  function sprite(nombre, tejado) {
+    const clave = nombre + (tejado || '');
+    if (cacheSprites[clave]) return cacheSprites[clave];
+    const filas = SPRITES[nombre], w = filas[0].length, h = filas.length;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    const pal = Object.assign({}, PALETA, tejado ? { X: tejado, x: mezclar(tejado, '#000000', 0.35) } : { X: '#b5763a', x: '#8a5426' });
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const ch = (filas[y][x] || '.'); if (ch !== '.' && pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); } }
+    return (cacheSprites[clave] = c);
+  }
+  function mezclar(a, b, t) {
+    const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+    const c = k => Math.round(((pa >> k) & 255) * (1 - t) + ((pb >> k) & 255) * t);
+    return '#' + ((1 << 24) | (c(16) << 16) | (c(8) << 8) | c(0)).toString(16).slice(1);
+  }
+
+  // El suelo: un color base con motas, en cuatro variantes para que no se vea la cuadrícula.
+  const SUELO = {
+    llanura: ['#6fa34f', '#7fb35a', '#5f9444'], bosque: ['#4f8a3f', '#5d9a49', '#437a36'], colina: ['#9c9a5c', '#aeab6a', '#87864e'],
+    montana: ['#85838c', '#a3a1aa', '#6c6a73'], desierto: ['#dcc48a', '#e8d49c', '#c9ae74'], nieve: ['#e9eef2', '#ffffff', '#cfd8e0'],
+    arena: ['#e6d29a', '#f1e0ac', '#d4bd82'], agua: ['#1d4a82', '#24578f', '#183f72'], bajo: ['#2d6aa6', '#3a7bb8', '#255d94'], rio: ['#3d86d0', '#5a9de0', '#3377bf']
+  };
+  const cacheSuelo = {};
+  function suelo(tipo, variante) {
+    const clave = tipo + variante;
+    if (cacheSuelo[clave]) return cacheSuelo[clave];
+    const [base, claro, oscuro] = SUELO[tipo] || SUELO.llanura;
+    const c = document.createElement('canvas'); c.width = P; c.height = P;
+    const g = c.getContext('2d');
+    g.fillStyle = base; g.fillRect(0, 0, P, P);
+    let s = (variante + 1) * 2654435761 + tipo.length * 97;
+    const r = () => { s = (Math.imul(s ^ (s >>> 13), 1274126177) + 0x9E3779B9) >>> 0; return s / 4294967296; };
+    for (let k = 0; k < 7; k++) { g.fillStyle = r() < 0.5 ? claro : oscuro; g.fillRect(Math.floor(r() * P), Math.floor(r() * P), 1, 1); }
+    if (tipo === 'agua' || tipo === 'bajo') { g.fillStyle = claro; const y = Math.floor(r() * 6) + 1, x = Math.floor(r() * 5); g.fillRect(x, y, 3, 1); }
+    if (tipo === 'montana') { g.fillStyle = claro; g.fillRect(2, 2, 3, 1); g.fillRect(1, 3, 1, 1); g.fillStyle = oscuro; g.fillRect(4, 5, 3, 1); }
+    return (cacheSuelo[clave] = c);
+  }
+
+  const grupoEra = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
+  const CASAS = ['choza', 'casa', 'entramado', 'bloque'];
+
+  // ---------- Estado ----------
+  let cv = null, g = null, m = null, V = null, S = null, alClicar = null;
+  let lienzo = null, gl = null, capa = null, gc = null;
+  let visto = null, tierra = null, firma = [], pend = [], inicio = 0, duracion = 1000;
+  let cam = { x: 0, y: 0, z: 2 }, sel = null, pulso = null, reducido = false, listo = false;
+  const punteros = new Map();
+  let arrastre = null;
+
+  function iniciar(canvas, opciones) {
+    cv = canvas; g = cv.getContext('2d');
+    alClicar = (opciones && opciones.alClicar) || null;
+    reducido = !!(opciones && opciones.reducido);
+    S = M.sim; V = M.vida;
+    entradas();
+    if (window.ResizeObserver) new ResizeObserver(() => medir()).observe(cv.parentElement);
+    else window.addEventListener('resize', medir);
+    medir();
+    requestAnimationFrame(fotograma);
+  }
+
+  function medir() {
+    const caja = cv.parentElement, dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.max(200, caja.clientWidth), h = Math.max(200, caja.clientHeight);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    cv.style.width = w + 'px'; cv.style.height = h + 'px';
+    limitar();
+  }
+  const vista = () => { const dpr = cv.width / Math.max(1, cv.clientWidth); return { w: cv.width / dpr, h: cv.height / dpr, dpr }; };
+  const ancho = () => (m ? m.vida.tw * P : 1), alto = () => (m ? m.vida.th * P : 1);
+  const zMin = () => { const { w, h } = vista(); return Math.min(w / ancho(), h / alto()); };
+  function limitar() {
+    if (!m) return;
+    const { w, h } = vista();
+    cam.z = Math.max(zMin(), Math.min(8, cam.z));
+    const mx = w / cam.z / 2, my = h / cam.z / 2;
+    cam.x = ancho() <= w / cam.z ? ancho() / 2 : Math.max(mx, Math.min(ancho() - mx, cam.x));
+    cam.y = alto() <= h / cam.z ? alto() / 2 : Math.max(my, Math.min(alto() - my, cam.y));
+  }
+
+  // ---------- Pintar el suelo y las obras ----------
+  function mundo(nuevo, enfocar) {
+    m = nuevo;
+    if (!m.vida) V.crear(m);
+    const v = m.vida;
+    lienzo = document.createElement('canvas'); lienzo.width = v.tw * P; lienzo.height = v.th * P; gl = lienzo.getContext('2d');
+    capa = document.createElement('canvas'); capa.width = lienzo.width; capa.height = lienzo.height; gc = capa.getContext('2d');
+    visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice() };
+    tierra = V.terrenos(m).slice();
+    pend = [];
+    firma = firmas();
+    for (let t = 0; t < v.tw * v.th; t++) parcela(t);
+    territorio();
+    listo = true;
+    if (enfocar !== false) enfocarInicio();
+  }
+  function enfocarInicio() {
+    const vivas = S.vivas(m).slice().sort((a, b) => S.casillas(m, b).length - S.casillas(m, a).length);
+    cam.z = Math.max(zMin(), 2);
+    if (vivas[0]) centrarEn(vivas[0].capital); else { cam.x = ancho() / 2; cam.y = alto() / 2; }
+    limitar();
+  }
+  function firmas() {
+    const out = [];
+    for (let r = 0; r < m.W * m.H; r++) { const c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null; out.push(c ? c.id + ':' + grupoEra(c.era) : '-'); }
+    return out;
+  }
+
+  function parcela(t) {
+    const v = m.vida, x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, ter = tierra[t];
+    gl.drawImage(suelo(ter, ((t * 2654435761) >>> 0) % 4), x, y);
+    const obra = visto.obra[t];
+    if (obra) {
+      const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
+      const color = c ? c.color : '#9a7a5a', ge = c ? grupoEra(c.era) : 0;
+      if (obra === V.OBRA.campo) campo(x, y, t);
+      else if (obra === V.OBRA.casa) gl.drawImage(sprite(CASAS[ge], color), x, y);
+      else if (obra === V.OBRA.ruina) gl.drawImage(sprite('ruina'), x, y);
+      else if (obra === V.OBRA.centro) {
+        // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
+        const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
+        if (lx >= 0 && ly >= 0 && lx < 2 && ly < 2) gl.drawImage(sprite('centro' + ge, color), lx * P, ly * P, P, P, x, y, P, P);
+        else gl.drawImage(sprite('ruina'), x, y);
+      }
+      return;
+    }
+    if (visto.roca[t]) { gl.drawImage(sprite('roca' + Math.min(3, visto.roca[t])), x, y); return; }
+    const a = visto.arbol[t];
+    if (a) {
+      const tipo = m.tipo[V.region(m, t)];
+      const nombre = a === 1 ? 'arbol1' : a === 2 ? (tipo === 'desierto' ? 'cactus' : 'arbol2') : tipo === 'desierto' ? 'cactus' : tipo === 'nieve' ? 'nevado3' : (tipo === 'colina' || ((t * 7) % 5 === 0)) ? 'pino3' : 'roble3';
+      gl.drawImage(sprite(nombre), x, y);
+    }
+  }
+  function campo(x, y, t) {
+    gl.fillStyle = '#86653a'; gl.fillRect(x, y, P, P);
+    const maduro = (t % 3) !== 0;
+    gl.fillStyle = maduro ? '#d9bf4f' : '#7fb04a';
+    for (let k = 0; k < P; k += 2) gl.fillRect(x, y + k, P, 1);
+    gl.fillStyle = 'rgba(0,0,0,0.18)'; gl.fillRect(x, y + P - 1, P, 1);
+  }
+
+  // El color de cada pueblo sobre su tierra y las fronteras (rojas donde hay guerra).
+  function territorio() {
+    const R = V.SUB * P;
+    gc.clearRect(0, 0, capa.width, capa.height);
+    const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
+    for (let r = 0; r < m.W * m.H; r++) {
+      const d = m.dueno[r];
+      if (d < 0 || !color[d]) continue;
+      const x = (r % m.W) * R, y = Math.floor(r / m.W) * R;
+      gc.globalAlpha = sel == null ? 0.2 : sel === d ? 0.32 : 0.1;
+      gc.fillStyle = color[d]; gc.fillRect(x, y, R, R);
+      gc.globalAlpha = 1;
+      const lados = [[r % m.W > 0 ? r - 1 : -1, x, y, 2, R], [r % m.W < m.W - 1 ? r + 1 : -1, x + R - 2, y, 2, R], [r >= m.W ? r - m.W : -1, x, y, R, 2], [r < m.W * (m.H - 1) ? r + m.W : -1, x, y + R - 2, R, 2]];
+      for (const [o, rx, ry, rw, rh] of lados) {
+        const od = o >= 0 ? m.dueno[o] : -2;
+        if (od === d) continue;
+        const enGuerra = od >= 0 && guerra.has(Math.min(d, od) + ':' + Math.max(d, od));
+        gc.fillStyle = enGuerra ? '#ff4b3a' : sel === d ? '#fff6dc' : color[d];
+        gc.globalAlpha = enGuerra || sel === d ? 1 : 0.85;
+        gc.fillRect(rx, ry, rw, rh);
+        gc.globalAlpha = 1;
+      }
+    }
+  }
+
+  // ---------- Un turno nuevo: dejar al día lo pintado y preparar la animación ----------
+  function aplicar(hasta) {
+    let quedan = 0;
+    for (const ch of pend) {
+      if (ch[4] > hasta || ch.hecho) { if (!ch.hecho) quedan++; continue; }
+      const capaN = ch[0] === 0 ? 'arbol' : ch[0] === 1 ? 'roca' : ch[0] === 2 ? 'obra' : null;
+      if (capaN) { visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); }
+      ch.hecho = true;
+    }
+    if (!quedan) pend = [];
+  }
+  // Compara lo pintado con el mundo (menos los cambios de este turno, que se irán aplicando) y repinta lo distinto.
+  function sincronizar(cambios) {
+    const v = m.vida, n = v.tw * v.th;
+    aplicar(Infinity);
+    const antes = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice() };
+    for (let k = cambios.length - 1; k >= 0; k--) { const [c, t, a] = cambios[k]; if (c <= 2) antes[c === 0 ? 'arbol' : c === 1 ? 'roca' : 'obra'][t] = a; }
+    const ter = V.terrenos(m), nf = firmas(), cambiadas = new Set();
+    for (let r = 0; r < nf.length; r++) if (nf[r] !== firma[r]) cambiadas.add(r);
+    firma = nf;
+    for (let t = 0; t < n; t++) {
+      let distinto = false;
+      if (ter[t] !== tierra[t]) { tierra[t] = ter[t]; distinto = true; }
+      for (const c of ['arbol', 'roca', 'obra']) if (visto[c][t] !== antes[c][t]) { visto[c][t] = antes[c][t]; distinto = true; }
+      if (!distinto && visto.obra[t] && visto.obra[t] !== V.OBRA.campo && cambiadas.has(V.region(m, t))) distinto = true;
+      if (distinto) parcela(t);
+    }
+    pend = cambios.map(c => c.slice());
+  }
+  function turno(mundoActual, ms) {
+    if (mundoActual !== m || !listo) { mundo(mundoActual); }
+    sincronizar(m.vida.cambios || []);
+    territorio();
+    inicio = performance.now(); duracion = Math.max(80, ms || 1000);
+  }
+  // Tras un poder del dios (fuera del turno): todo al día, sin animación.
+  function refrescar() {
+    if (!m) return;
+    sincronizar([]);
+    territorio();
+  }
+
+  // ---------- Cada fotograma ----------
+  function progreso() {
+    if (reducido) return V.TICKS;
+    return Math.max(0, Math.min(1, (performance.now() - inicio) / duracion)) * V.TICKS;
+  }
+  function fotograma(ahora) {
+    requestAnimationFrame(fotograma);
+    if (!m || !listo) return;
+    const k = progreso();
+    if (pend.length) aplicar(Math.floor(k));
+    const { w, h, dpr } = vista();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#0b1830'; g.fillRect(0, 0, cv.width, cv.height);
+    const z = cam.z * dpr, ox = cv.width / 2 - cam.x * z, oy = cv.height / 2 - cam.y * z;
+    g.imageSmoothingEnabled = false;
+    g.setTransform(z, 0, 0, z, ox, oy);
+    // Solo lo que se ve.
+    const x0 = Math.max(0, Math.floor(cam.x - w / cam.z / 2) - P), y0 = Math.max(0, Math.floor(cam.y - h / cam.z / 2) - P);
+    const x1 = Math.min(ancho(), Math.ceil(cam.x + w / cam.z / 2) + P), y1 = Math.min(alto(), Math.ceil(cam.y + h / cam.z / 2) + P);
+    g.drawImage(lienzo, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    g.drawImage(capa, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    banderas(ahora);
+    aldeanos(k, ahora, x0, y0, x1, y1);
+    marcarPulso(ahora);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    nombres(z, ox, oy, dpr);
+  }
+
+  function banderas(ahora) {
+    const fase = Math.floor(ahora / 260) % 2;
+    for (const c of S.vivas(m)) {
+      const r = c.capital, x = (r % m.W) * V.SUB * P + P + 1, y = Math.floor(r / m.W) * V.SUB * P + P - 6;
+      g.fillStyle = '#3a2a1e'; g.fillRect(x, y, 1, 8);
+      g.fillStyle = c.color; g.fillRect(x + 1, y, 4, 3);
+      g.fillStyle = mezclar(c.color, '#000000', 0.3); g.fillRect(x + 1 + 3, y + (fase ? 1 : 0), 1, 2);
+    }
+  }
+
+  // Los aldeanos: 3×5 píxeles, con el color de su pueblo y la herramienta de su oficio.
+  function aldeanos(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
+    const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    for (const a of v.aldeanos) {
+      const r = a.r;
+      let px, py, acc;
+      if (r && r.length >= 6) {
+        const i = paso * 3, j = Math.min(r.length - 3, i + 3);
+        const ax = r[i], ay = r[i + 1], bx = r[j], by = r[j + 1];
+        px = (ax + (bx - ax) * f) * P + 2.5; py = (ay + (by - ay) * f) * P + 2;
+        acc = r[j + 2];
+        if (j === i) acc = r[i + 2];
+      } else { px = a.x * P + 2.5; py = a.y * P + 2; acc = 0; }
+      if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
+      px = Math.round(px); py = Math.round(py);
+      const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
+      const t = Math.floor(ahora / 150 + a.id) % 2;
+      const enAgua = tierra[a.y * v.tw + a.x] === 'bajo';
+      if (enAgua) { g.fillStyle = '#6b4a2b'; g.fillRect(px - 2, py + 3, 7, 2); }
+      // Piernas, cuerpo y cabeza.
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
+      g.fillStyle = '#3a2a1e';
+      if (anda && t) { g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 1); } else { g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2); }
+      g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 1, 3, 2);
+      const oficio = V.OFICIOS[a.o];
+      g.fillStyle = oficio === 'guerrero' ? '#9aa0aa' : oficio === 'granjero' ? '#e2c25a' : '#f0c8a0';
+      g.fillRect(px + 1, py, 1, 1);
+      // La herramienta: arriba y abajo cuando trabaja.
+      const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
+      if (acc === 3) { g.fillStyle = oficio === 'minero' ? '#a3a1aa' : '#8a5a2b'; g.fillRect(px - 1, py - 1, 5, 1); }
+      else if (oficio === 'lenador') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 3); g.fillStyle = '#c8ccd6'; g.fillRect(px + 3, py + alto, 2, 1); }
+      else if (oficio === 'minero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#a3a1aa'; g.fillRect(px + 2, py + alto, 3, 1); }
+      else if (oficio === 'granjero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 4); g.fillStyle = '#9aa0aa'; g.fillRect(px + 3, py + 3 + alto, 2, 1); }
+      else if (oficio === 'constructor') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#5e5e68'; g.fillRect(px + 3, py + alto, 2, 1); }
+      else if (oficio === 'guerrero') { g.fillStyle = '#e8ecf4'; g.fillRect(px + 3, py - 1 + alto, 1, 4); g.fillStyle = '#7a5232'; g.fillRect(px + 2, py + 2 + alto, 3, 1); }
+      if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px - 2, py + 1, 1, 1); }
+    }
+  }
+
+  function nombres(z, ox, oy, dpr) {
+    if (cam.z < zMin() * 1.15 && S.vivas(m).length > 6) return;
+    const tam = Math.round(12 * dpr);
+    g.font = '600 ' + tam + 'px "Pixelify Sans", "Courier New", monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (const c of S.vivas(m)) {
+      const r = c.capital, wx = (r % m.W) * V.SUB * P + V.SUB * P / 2, wy = Math.floor(r / m.W) * V.SUB * P + P * 0.6;
+      const sx = ox + wx * z, sy = oy + wy * z - 10 * dpr;
+      const texto = c.nombre + (c.guerras.length ? ' ⚔' : '');
+      const anchoT = g.measureText(texto).width + 10 * dpr;
+      g.fillStyle = 'rgba(13,19,34,0.82)'; g.fillRect(sx - anchoT / 2, sy - tam * 0.75, anchoT, tam * 1.5);
+      g.fillStyle = c.color; g.fillRect(sx - anchoT / 2, sy + tam * 0.75 - 2 * dpr, anchoT, 2 * dpr);
+      g.fillStyle = sel === c.id ? '#f0c05a' : '#fff6dc'; g.fillText(texto, sx, sy);
+    }
+  }
+
+  function marcar(region, color) {
+    if (region == null || reducido) return;
+    pulso = { region, color: color || '#fff6dc', inicio: performance.now() };
+  }
+  function marcarPulso(ahora) {
+    if (!pulso) return;
+    const t = (ahora - pulso.inicio) / 1600;
+    if (t >= 1) { pulso = null; return; }
+    const R = V.SUB * P, x = (pulso.region % m.W) * R + R / 2, y = Math.floor(pulso.region / m.W) * R + R / 2, s = R * (0.6 + t * 2.4);
+    g.strokeStyle = pulso.color; g.globalAlpha = 1 - t; g.lineWidth = 2 / cam.z * 1.5;
+    g.strokeRect(x - s, y - s, s * 2, s * 2);
+    g.globalAlpha = 1;
+  }
+
+  // ---------- La cámara ----------
+  function centrarEn(region) {
+    if (!m) return;
+    const R = V.SUB * P;
+    cam.x = (region % m.W) * R + R / 2; cam.y = Math.floor(region / m.W) * R + R / 2;
+    if (cam.z < 1.5) cam.z = Math.max(zMin(), 2);
+    limitar();
+  }
+  function zoom(factor, sx, sy) {
+    if (!m) return;
+    const { w, h } = vista();
+    const px = sx == null ? w / 2 : sx, py = sy == null ? h / 2 : sy;
+    const wx = cam.x + (px - w / 2) / cam.z, wy = cam.y + (py - h / 2) / cam.z;
+    cam.z *= factor; limitar();
+    cam.x = wx - (px - w / 2) / cam.z; cam.y = wy - (py - h / 2) / cam.z; limitar();
+  }
+  function verTodo() { cam.z = zMin(); limitar(); }
+
+  function entradas() {
+    cv.style.touchAction = 'none';
+    cv.addEventListener('pointerdown', ev => {
+      cv.setPointerCapture(ev.pointerId);
+      punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (punteros.size === 1) arrastre = { x: ev.clientX, y: ev.clientY, cx: cam.x, cy: cam.y, movido: 0 };
+      else arrastre = null;
+    });
+    cv.addEventListener('pointermove', ev => {
+      if (!punteros.has(ev.pointerId)) return;
+      if (punteros.size === 2) {
+        const [a, b] = [...punteros.values()];
+        const d0 = Math.hypot(a.x - b.x, a.y - b.y);
+        punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+        const [c, d] = [...punteros.values()];
+        const d1 = Math.hypot(c.x - d.x, c.y - d.y), rect = cv.getBoundingClientRect();
+        if (d0 > 0) zoom(d1 / d0, (c.x + d.x) / 2 - rect.left, (c.y + d.y) / 2 - rect.top);
+        return;
+      }
+      punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (!arrastre) return;
+      arrastre.movido = Math.max(arrastre.movido, Math.hypot(ev.clientX - arrastre.x, ev.clientY - arrastre.y));
+      cam.x = arrastre.cx - (ev.clientX - arrastre.x) / cam.z; cam.y = arrastre.cy - (ev.clientY - arrastre.y) / cam.z;
+      limitar();
+    });
+    const soltar = ev => {
+      const eraClic = arrastre && arrastre.movido < 6 && punteros.size === 1;
+      punteros.delete(ev.pointerId);
+      if (eraClic && ev.type === 'pointerup' && alClicar && m) {
+        const rect = cv.getBoundingClientRect(), { w, h } = vista();
+        const wx = cam.x + (ev.clientX - rect.left - w / 2) / cam.z, wy = cam.y + (ev.clientY - rect.top - h / 2) / cam.z;
+        const R = V.SUB * P, rx = Math.floor(wx / R), ry = Math.floor(wy / R);
+        if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
+      }
+      if (punteros.size === 1) { const [p] = [...punteros.values()]; arrastre = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, movido: 99 }; }
+      else if (!punteros.size) arrastre = null;
+    };
+    cv.addEventListener('pointerup', soltar);
+    cv.addEventListener('pointercancel', soltar);
+    cv.addEventListener('wheel', ev => {
+      ev.preventDefault();
+      const rect = cv.getBoundingClientRect();
+      zoom(Math.exp(-ev.deltaY * 0.0015), ev.clientX - rect.left, ev.clientY - rect.top);
+    }, { passive: false });
+  }
+
+  function seleccionar(id) { sel = id; if (m) territorio(); }
+
+  M.pintor = { P, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, SPRITES };
+})(globalThis.RF = globalThis.RF || {});
+
 // js/mundo/vista.js
 /*
  * GÉNESIS · LA VISTA
@@ -940,93 +1950,37 @@ button { cursor: pointer; }
  */
 (function (RF) {
   'use strict';
-  const M = RF.MUNDO, S = M.sim, D = M.dios;
+  const M = RF.MUNDO, S = M.sim, D = M.dios, P = M.pintor;
   const $ = id => document.getElementById(id);
   const CLAVE = 'genesis.mundo.v1';
   const VELOCIDADES = [[1100, '1×'], [380, '3×'], [110, '10×']];
-  const COLOR_TIERRA = { mar: '#173257', costa: '#21497a', llanura: '#7ba65e', bosque: '#3d7547', colina: '#a0935f', montana: '#8b8a93', desierto: '#d8c08a', nieve: '#e9eef2' };
   const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, pulso = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
+  let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
 
   // ---------- Guardar y cargar (comodidad de este navegador) ----------
   function guardar() { try { localStorage.setItem(CLAVE, JSON.stringify(m)); } catch (e) { /* sin guardado */ } }
   function cargar() {
-    try { const d = JSON.parse(localStorage.getItem(CLAVE) || 'null'); if (d && d.version === 1 && d.tipo && d.civs) return d; } catch (e) { /* mundo corrupto */ }
+    try { const d = JSON.parse(localStorage.getItem(CLAVE) || 'null'); if (d && d.version === 1 && d.tipo && d.civs && d.W === S.W && d.H === S.H && d.vida) return d; } catch (e) { /* mundo corrupto */ }
     return null;
   }
   function mundoNuevo() {
     m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, 5);
     sel = null; ultimaCronista = 0;
+    P.mundo(m); P.seleccionar(null);
   }
 
-  // ---------- El mapa ----------
-  function mezclar(a, b, t) {
-    const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
-    const c = k => Math.round(((pa >> k) & 255) * (1 - t) + ((pb >> k) & 255) * t);
-    return '#' + ((1 << 24) | (c(16) << 16) | (c(8) << 8) | c(0)).toString(16).slice(1);
-  }
-  function oscuro(a, t) { return mezclar(a, '#000000', t); }
-
-  function pintarMapa() {
-    const cv = $('mapa'), caja = cv.parentElement;
-    const lado = Math.max(6, Math.floor(caja.clientWidth / S.W));
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.style.width = lado * S.W + 'px'; cv.style.height = lado * S.H + 'px';
-    cv.width = lado * S.W * dpr; cv.height = lado * S.H * dpr;
-    const g = cv.getContext('2d');
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.imageSmoothingEnabled = false;
-    const color = {}; for (const c of m.civs) color[c.id] = c.color;
-    const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
-    for (let i = 0; i < S.W * S.H; i++) {
-      const [x, y] = S.xy(i), px = x * lado, py = y * lado, d = m.dueno[i];
-      let base = COLOR_TIERRA[m.tipo[i]];
-      // Un poco de textura de píxel: cada casilla, un tono apenas distinto.
-      const ruido = ((i * 2654435761) >>> 0) % 7 / 100;
-      base = mezclar(base, i % 2 ? '#ffffff' : '#000000', ruido);
-      g.fillStyle = base; g.fillRect(px, py, lado, lado);
-      if (m.rio[i]) { g.fillStyle = '#4f8fd6'; g.fillRect(px + Math.floor(lado * 0.35), py, Math.max(1, Math.floor(lado * 0.3)), lado); }
-      if (d >= 0 && color[d]) {
-        g.globalAlpha = sel == null || sel === d ? 0.62 : 0.36;
-        g.fillStyle = color[d]; g.fillRect(px, py, lado, lado);
-        g.globalAlpha = 1;
-        // Fronteras: más gruesas y rojas si hay guerra al otro lado.
-        const lados = [[x > 0 ? i - 1 : -1, px, py, 2, lado], [x < S.W - 1 ? i + 1 : -1, px + lado - 2, py, 2, lado], [y > 0 ? i - S.W : -1, px, py, lado, 2], [y < S.H - 1 ? i + S.W : -1, px, py + lado - 2, lado, 2]];
-        for (const [v, rx, ry, rw, rh] of lados) {
-          const o = v >= 0 ? m.dueno[v] : -2;
-          if (o === d) continue;
-          const enGuerra = o >= 0 && guerra.has(Math.min(d, o) + ':' + Math.max(d, o));
-          g.fillStyle = enGuerra ? '#ff4b3a' : sel === d ? '#fff6dc' : oscuro(color[d], 0.45);
-          g.fillRect(rx, ry, rw, rh);
-        }
-      }
-    }
-    // Capitales.
-    for (const c of S.vivas(m)) {
-      const [x, y] = S.xy(c.capital), s = Math.max(3, Math.floor(lado * 0.42)), px = x * lado + (lado - s) / 2, py = y * lado + (lado - s) / 2;
-      g.fillStyle = '#0d1322'; g.fillRect(px - 1, py - 1, s + 2, s + 2);
-      g.fillStyle = '#fff6dc'; g.fillRect(px, py, s, s);
-    }
-    // El pulso del último suceso.
-    if (pulso && m.casillaPulso != null) {
-      const t = (performance.now() - pulso.inicio) / 1400;
-      if (t < 1) {
-        const [x, y] = S.xy(m.casillaPulso), r = lado * (0.6 + t * 2.4);
-        g.strokeStyle = pulso.color; g.globalAlpha = 1 - t; g.lineWidth = 2;
-        g.strokeRect(x * lado + lado / 2 - r, y * lado + lado / 2 - r, r * 2, r * 2);
-        g.globalAlpha = 1;
-        requestAnimationFrame(pintarMapa);
-      } else pulso = null;
-    }
-  }
-
+  // ---------- El mapa (lo dibuja pintor.js) ----------
   function marcar(e) {
     if (!e || e.casilla == null) return;
-    m.casillaPulso = e.casilla;
-    if (reducido) return;
-    pulso = { inicio: performance.now(), color: e.divino ? '#f0c05a' : e.tipo === 'guerra' || e.tipo === 'conquista' || e.tipo === 'caida' ? '#ff4b3a' : '#fff6dc' };
-    requestAnimationFrame(pintarMapa);
+    P.marcar(e.casilla, e.divino ? '#f0c05a' : e.tipo === 'guerra' || e.tipo === 'conquista' || e.tipo === 'caida' ? '#ff4b3a' : '#fff6dc');
+  }
+  function elegir(id, centrar) {
+    sel = id;
+    P.seleccionar(sel);
+    const c = sel != null ? S.civ(m, sel) : null;
+    if (centrar && c) P.centrarEn(c.capital);
+    pintarPueblos();
   }
 
   // ---------- Los números ----------
@@ -1055,7 +2009,7 @@ button { cursor: pointer; }
       b.querySelector('.muestra').style.background = c.color;
       b.querySelector('.p-nombre').textContent = c.nombre + (c.guerras.length ? ' ⚔' : '');
       b.querySelector('.p-dato').textContent = M.ERAS[c.era].corto + ' · ' + pob(c.pob);
-      b.addEventListener('click', () => { sel = sel === c.id ? null : c.id; pintarTodo(); });
+      b.addEventListener('click', () => elegir(sel === c.id ? null : c.id, true));
       li.appendChild(b); ul.appendChild(li);
     }
     pintarFicha();
@@ -1079,9 +2033,20 @@ button { cursor: pointer; }
       '<dl>' + fila('Población', pob(c.pob) + ' <span class="tenue">(la tierra da para ' + pob(cap) + ')</span>') +
       fila('Estabilidad', '<span class="barra"><span style="width:' + Math.round(c.estab) + '%"></span></span> ' + Math.round(c.estab)) +
       fila('Riqueza', Math.round(c.riqueza)) + fila('Tierras', cs.length) +
+      fila('Aldeanos', aldeanos(c)) +
+      fila('Madera', Math.floor(c.madera || 0) + ' <span class="tenue">· piedra ' + Math.floor(c.piedra || 0) + ' · ' + (c.arboles || 0) + ' árboles en su tierra</span>') +
+      fila('Obras', (c.casas || 0) + ' casas · ' + (c.campos || 0) + ' campos') +
       fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
       fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') + '</dl>';
     f.querySelector('.muestra').style.background = c.color;
+  }
+
+  const NOMBRES_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros' };
+  function aldeanos(c) {
+    const cuenta = Object.create(null);
+    for (const a of m.vida.aldeanos) if (a.c === c.id) { const o = M.vida.OFICIOS[a.o]; cuenta[o] = (cuenta[o] || 0) + 1; }
+    const partes = M.vida.OFICIOS.filter(o => cuenta[o]).map(o => cuenta[o] + ' ' + NOMBRES_OFICIO[o]);
+    return partes.length ? esc(partes.join(', ')) : 'ninguno';
   }
 
   function pintarCronica() {
@@ -1102,7 +2067,7 @@ button { cursor: pointer; }
   }
 
   function pintarEjemplos() {
-    const ej = ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Diluvio en el norte', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Un profeta en el más pequeño', 'Que llueva oro sobre el más pobre'];
+    const ej = ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Incendio en el más grande', 'Que planten bosques en el más pequeño', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Que llueva oro sobre el más pobre'];
     const cont = $('ejemplos');
     cont.innerHTML = '';
     for (const t of ej) {
@@ -1113,12 +2078,13 @@ button { cursor: pointer; }
     }
   }
 
-  function pintarTodo() { pintarCabecera(); pintarMapa(); pintarPueblos(); pintarCronica(); }
+  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); }
 
   // ---------- El tiempo ----------
   function paso() {
     const antes = m.cronica[0];
     S.turno(m);
+    P.turno(m, VELOCIDADES[vel][0]);
     if (m.cronica[0] !== antes) marcar(m.cronica[0]);
     pintarTodo();
     if (m.turno % 5 === 0) guardar();
@@ -1141,7 +2107,7 @@ button { cursor: pointer; }
     const r = D.obrar(m, texto, sel);
     if (r.ok) {
       responder('Hecho. ' + r.suceso.titulo + '.', 'bien');
-      marcar(r.suceso); pintarTodo(); guardar();
+      P.refrescar(); marcar(r.suceso); pintarTodo(); guardar();
       return;
     }
     if (r.motivo === 'falta_quien') { responder('¿Sobre quién? Toca un pueblo en el mapa o nómbralo ("peste sobre ' + (S.vivas(m)[0] || { nombre: 'Karenia' }).nombre + '").', 'duda'); return; }
@@ -1156,7 +2122,7 @@ button { cursor: pointer; }
       if (typeof sample.json === 'function') f = await sample.json(D.SISTEMA + '\n\n' + D.paraIA(m, texto));
       else { const res = await sample(D.SISTEMA + '\n\n' + D.paraIA(m, texto)); f = JSON.parse(String(res.text).replace(/^[^{]*/, '').replace(/[^}]*$/, '')); }
       const e = D.aplicarIA(m, f);
-      if (e) { responder('Hecho. ' + e.titulo + '.', 'bien'); marcar(e); }
+      if (e) { responder('Hecho. ' + e.titulo + '.', 'bien'); P.refrescar(); marcar(e); }
       else responder((f && f.pregunta) || 'Ni los cielos entienden esa orden. Dila de otra manera.', 'duda');
     } catch (err) {
       responder(err && err.code === 'rate_limited' ? 'Los cielos están saturados. Espera un poco y vuelve a intentarlo.' : 'Los cielos no responden ahora. Prueba con un poder sencillo: peste, diluvio, oro, un invento, una guerra o la paz.', 'duda');
@@ -1187,9 +2153,10 @@ button { cursor: pointer; }
 
   // ---------- Arranque ----------
   function iniciar(datos) {
-    m = (datos && datos.mundo) || cargar();
-    if (!m) mundoNuevo();
-    if (datos && datos.sel != null) sel = datos.sel;
+    P.iniciar($('mapa'), { reducido, alClicar: region => { const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); } });
+    m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
+    if (!m) mundoNuevo(); else P.mundo(m);
+    if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
     pintarEjemplos(); pintarTodo();
     $('play').addEventListener('click', () => { corriendo = !corriendo; programar(); });
     $('vel').addEventListener('click', () => { vel = (vel + 1) % VELOCIDADES.length; programar(); });
@@ -1199,15 +2166,10 @@ button { cursor: pointer; }
       mundoNuevo(); pintarTodo(); guardar(); responder('Un mundo nuevo. Cinco pueblos acaban de aprender a sembrar.', 'bien');
     });
     $('voluntad').addEventListener('submit', ev => { ev.preventDefault(); const t = $('orden').value.trim(); if (!t) return; $('orden').value = ''; obrar(t); });
-    $('mapa').addEventListener('click', ev => {
-      const r = ev.currentTarget.getBoundingClientRect();
-      const x = Math.floor((ev.clientX - r.left) / r.width * S.W), y = Math.floor((ev.clientY - r.top) / r.height * S.H);
-      const d = m.dueno[S.idx(x, y)];
-      sel = d >= 0 ? (sel === d ? null : d) : null;
-      pintarTodo();
-    });
+    $('zoom-mas').addEventListener('click', () => P.zoom(1.5));
+    $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
+    $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
-    window.addEventListener('resize', () => pintarMapa());
     programar();
     if (window.claude && window.claude.hot) window.claude.hot.snapshot(() => ({ mundo: m, sel }));
     // Dentro de claude.ai, Claude entiende lo que el intérprete no, y escribe capítulos de la crónica.

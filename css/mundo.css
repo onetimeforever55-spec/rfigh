@@ -23,10 +23,10 @@ button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--oro); outline-offset: 2px; }
 
-/* Una columna en el móvil; en pantallas anchas, la crónica a la derecha. */
-.g { max-width: 1240px; margin: 0 auto; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+/* Una columna en el móvil; en pantallas anchas, el mapa a todo lo ancho y la crónica a la derecha. */
+.g { max-width: 1400px; margin: 0 auto; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 980px) {
-  .g { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-areas: 'cab cab' 'mapa cronica' 'voluntad cronica' 'pueblos cronica'; align-items: start; }
+  .g { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-areas: 'cab cab' 'mapa mapa' 'voluntad cronica' 'pueblos cronica'; align-items: start; }
   .g-cab { grid-area: cab; } .g-mapa { grid-area: mapa; } .g-voluntad { grid-area: voluntad; } .g-pueblos { grid-area: pueblos; }
   .g-cronica { grid-area: cronica; position: sticky; top: env(safe-area-inset-top, 0px); max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
   .g-cronica .cronica { overflow-y: auto; min-height: 0; }
@@ -45,13 +45,13 @@ button { cursor: pointer; }
 .mando:disabled { opacity: 0.5; cursor: wait; }
 
 /* ---- El mapa ---- */
-.marco { border: 1px solid var(--linea); border-radius: var(--radio); background: #091020; padding: 4px; line-height: 0; overflow: hidden; }
-#mapa { display: block; max-width: 100%; image-rendering: pixelated; cursor: crosshair; margin: 0 auto; }
-.clave { margin: 6px 0 0; font-family: var(--f-dato); font-size: 11px; color: var(--tenue); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
-.cuad { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; }
-.cuad.cap { background: #fff6dc; outline: 1px solid var(--noche); }
-.cuad.gue { background: #ff4b3a; }
-.cuad.rio { background: #4f8fd6; }
+.marco { position: relative; height: clamp(320px, 70vh, 780px); border: 1px solid var(--linea); border-radius: var(--radio); background: #0b1830; overflow: hidden; }
+#mapa { display: block; width: 100%; height: 100%; image-rendering: pixelated; cursor: grab; touch-action: none; }
+#mapa:active { cursor: grabbing; }
+.camara { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.mando.cam { width: 38px; height: 38px; padding: 0; font-size: 20px; line-height: 1; background: rgba(20, 28, 49, 0.88); }
+.clave { margin: 8px 0 0; font-size: 13px; color: var(--tenue); max-width: 110ch; }
+@media (max-width: 600px) { .marco { height: clamp(300px, 62vh, 560px); } }
 
 /* ---- La voluntad ---- */
 .etiqueta { font-family: var(--f-pixel); font-weight: 400; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tenue); margin: 0 0 8px; display: block; }

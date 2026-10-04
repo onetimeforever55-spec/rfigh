@@ -115,6 +115,41 @@
       }
     },
     {
+      id: 'incendio', re: /\b(incendi\w*|fuego|quem\w*|arda|ardan|llamas)\b/, minimo: 1,
+      hacer: (m, cs) => {
+        let e = null;
+        for (const c of cs) {
+          const n = M.vida ? M.vida.incendio(m, c) : 0;
+          c.pob *= 0.93; c.estab -= 8;
+          e = S().cronica(m, 'incendio', 'Arde ' + c.nombre, 'Un fuego que nadie sabe quién encendió corre por los bosques y las aldeas de ' + c.nombre + (n ? ': se lleva unos ' + n + ' árboles, graneros y tejados.' : '.') + ' Los leñadores, por una vez, no tienen trabajo.', c);
+        }
+        return e;
+      }
+    },
+    {
+      id: 'bosque', re: /\b(bosques?|arbol\w*|selvas?|plant\w*|reforest\w*)\b/, minimo: 1,
+      hacer: (m, cs, n) => {
+        let e = null;
+        const talar = /\b(tal\w*|cort\w*|derrib\w*)\b/.test(n);
+        for (const c of cs) {
+          const regiones = S().casillas(m, c);
+          if (talar) {
+            let troncos = 0;
+            const v = m.vida;
+            if (v) for (const r of regiones) for (const t of M.vida.parcelas(m, r)) if (v.arbol[t] >= 2 && S().azar(m) < 0.8) { v.cambios.push([0, t, v.arbol[t], 0, 0]); v.arbol[t] = 0; troncos++; }
+            c.madera = (c.madera || 0) + troncos * 2; c.riqueza += troncos * 0.2;
+            if (M.vida) M.vida.contar(m);
+            e = S().cronica(m, 'tala', c.nombre + ' tala sus bosques', 'Por orden de los cielos, ' + c.nombre + ' corta ' + (troncos ? 'unos ' + troncos + ' árboles' : 'los pocos árboles que le quedaban') + '. Hay madera para barcos, casas y hogueras durante años; lo que no habrá es sombra.', c);
+          } else {
+            const n2 = M.vida ? M.vida.plantar(m, regiones) : 0;
+            c.estab += 3;
+            e = S().cronica(m, 'reforestacion', 'Brotan bosques en ' + c.nombre, 'De la noche a la mañana crecen ' + (n2 ? 'unos ' + n2 + ' árboles' : 'árboles') + ' en las tierras de ' + c.nombre + '. Los leñadores no se lo creen; los granjeros, tampoco, pero por otros motivos.', c);
+          }
+        }
+        return e;
+      }
+    },
+    {
       id: 'bendicion', re: /\b(bendi\w*|cosecha|abundancia|fertil\w*|prosper\w*|riqueza de tierras|que crezca|que florezca|salud)\b/, minimo: 1,
       hacer: (m, cs) => { let e = null; for (const c of cs) { c.efectos.push({ comida: 1.6, estab: 5, hasta: m.turno + 8 }); c.estab += 8; e = S().cronica(m, 'abundancia', 'Los cielos bendicen a ' + c.nombre, 'Las cosechas se doblan, las vacas paren gemelos y los niños nacen sanos. En ' + c.nombre + ' se levantan templos nuevos para dar las gracias, por si acaso.', c); } return e; }
     },

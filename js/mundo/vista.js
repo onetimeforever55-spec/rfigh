@@ -6,93 +6,37 @@
  */
 (function (RF) {
   'use strict';
-  const M = RF.MUNDO, S = M.sim, D = M.dios;
+  const M = RF.MUNDO, S = M.sim, D = M.dios, P = M.pintor;
   const $ = id => document.getElementById(id);
   const CLAVE = 'genesis.mundo.v1';
   const VELOCIDADES = [[1100, '1×'], [380, '3×'], [110, '10×']];
-  const COLOR_TIERRA = { mar: '#173257', costa: '#21497a', llanura: '#7ba65e', bosque: '#3d7547', colina: '#a0935f', montana: '#8b8a93', desierto: '#d8c08a', nieve: '#e9eef2' };
   const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, pulso = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
+  let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
 
   // ---------- Guardar y cargar (comodidad de este navegador) ----------
   function guardar() { try { localStorage.setItem(CLAVE, JSON.stringify(m)); } catch (e) { /* sin guardado */ } }
   function cargar() {
-    try { const d = JSON.parse(localStorage.getItem(CLAVE) || 'null'); if (d && d.version === 1 && d.tipo && d.civs) return d; } catch (e) { /* mundo corrupto */ }
+    try { const d = JSON.parse(localStorage.getItem(CLAVE) || 'null'); if (d && d.version === 1 && d.tipo && d.civs && d.W === S.W && d.H === S.H && d.vida) return d; } catch (e) { /* mundo corrupto */ }
     return null;
   }
   function mundoNuevo() {
     m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, 5);
     sel = null; ultimaCronista = 0;
+    P.mundo(m); P.seleccionar(null);
   }
 
-  // ---------- El mapa ----------
-  function mezclar(a, b, t) {
-    const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
-    const c = k => Math.round(((pa >> k) & 255) * (1 - t) + ((pb >> k) & 255) * t);
-    return '#' + ((1 << 24) | (c(16) << 16) | (c(8) << 8) | c(0)).toString(16).slice(1);
-  }
-  function oscuro(a, t) { return mezclar(a, '#000000', t); }
-
-  function pintarMapa() {
-    const cv = $('mapa'), caja = cv.parentElement;
-    const lado = Math.max(6, Math.floor(caja.clientWidth / S.W));
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    cv.style.width = lado * S.W + 'px'; cv.style.height = lado * S.H + 'px';
-    cv.width = lado * S.W * dpr; cv.height = lado * S.H * dpr;
-    const g = cv.getContext('2d');
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.imageSmoothingEnabled = false;
-    const color = {}; for (const c of m.civs) color[c.id] = c.color;
-    const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
-    for (let i = 0; i < S.W * S.H; i++) {
-      const [x, y] = S.xy(i), px = x * lado, py = y * lado, d = m.dueno[i];
-      let base = COLOR_TIERRA[m.tipo[i]];
-      // Un poco de textura de píxel: cada casilla, un tono apenas distinto.
-      const ruido = ((i * 2654435761) >>> 0) % 7 / 100;
-      base = mezclar(base, i % 2 ? '#ffffff' : '#000000', ruido);
-      g.fillStyle = base; g.fillRect(px, py, lado, lado);
-      if (m.rio[i]) { g.fillStyle = '#4f8fd6'; g.fillRect(px + Math.floor(lado * 0.35), py, Math.max(1, Math.floor(lado * 0.3)), lado); }
-      if (d >= 0 && color[d]) {
-        g.globalAlpha = sel == null || sel === d ? 0.62 : 0.36;
-        g.fillStyle = color[d]; g.fillRect(px, py, lado, lado);
-        g.globalAlpha = 1;
-        // Fronteras: más gruesas y rojas si hay guerra al otro lado.
-        const lados = [[x > 0 ? i - 1 : -1, px, py, 2, lado], [x < S.W - 1 ? i + 1 : -1, px + lado - 2, py, 2, lado], [y > 0 ? i - S.W : -1, px, py, lado, 2], [y < S.H - 1 ? i + S.W : -1, px, py + lado - 2, lado, 2]];
-        for (const [v, rx, ry, rw, rh] of lados) {
-          const o = v >= 0 ? m.dueno[v] : -2;
-          if (o === d) continue;
-          const enGuerra = o >= 0 && guerra.has(Math.min(d, o) + ':' + Math.max(d, o));
-          g.fillStyle = enGuerra ? '#ff4b3a' : sel === d ? '#fff6dc' : oscuro(color[d], 0.45);
-          g.fillRect(rx, ry, rw, rh);
-        }
-      }
-    }
-    // Capitales.
-    for (const c of S.vivas(m)) {
-      const [x, y] = S.xy(c.capital), s = Math.max(3, Math.floor(lado * 0.42)), px = x * lado + (lado - s) / 2, py = y * lado + (lado - s) / 2;
-      g.fillStyle = '#0d1322'; g.fillRect(px - 1, py - 1, s + 2, s + 2);
-      g.fillStyle = '#fff6dc'; g.fillRect(px, py, s, s);
-    }
-    // El pulso del último suceso.
-    if (pulso && m.casillaPulso != null) {
-      const t = (performance.now() - pulso.inicio) / 1400;
-      if (t < 1) {
-        const [x, y] = S.xy(m.casillaPulso), r = lado * (0.6 + t * 2.4);
-        g.strokeStyle = pulso.color; g.globalAlpha = 1 - t; g.lineWidth = 2;
-        g.strokeRect(x * lado + lado / 2 - r, y * lado + lado / 2 - r, r * 2, r * 2);
-        g.globalAlpha = 1;
-        requestAnimationFrame(pintarMapa);
-      } else pulso = null;
-    }
-  }
-
+  // ---------- El mapa (lo dibuja pintor.js) ----------
   function marcar(e) {
     if (!e || e.casilla == null) return;
-    m.casillaPulso = e.casilla;
-    if (reducido) return;
-    pulso = { inicio: performance.now(), color: e.divino ? '#f0c05a' : e.tipo === 'guerra' || e.tipo === 'conquista' || e.tipo === 'caida' ? '#ff4b3a' : '#fff6dc' };
-    requestAnimationFrame(pintarMapa);
+    P.marcar(e.casilla, e.divino ? '#f0c05a' : e.tipo === 'guerra' || e.tipo === 'conquista' || e.tipo === 'caida' ? '#ff4b3a' : '#fff6dc');
+  }
+  function elegir(id, centrar) {
+    sel = id;
+    P.seleccionar(sel);
+    const c = sel != null ? S.civ(m, sel) : null;
+    if (centrar && c) P.centrarEn(c.capital);
+    pintarPueblos();
   }
 
   // ---------- Los números ----------
@@ -121,7 +65,7 @@
       b.querySelector('.muestra').style.background = c.color;
       b.querySelector('.p-nombre').textContent = c.nombre + (c.guerras.length ? ' ⚔' : '');
       b.querySelector('.p-dato').textContent = M.ERAS[c.era].corto + ' · ' + pob(c.pob);
-      b.addEventListener('click', () => { sel = sel === c.id ? null : c.id; pintarTodo(); });
+      b.addEventListener('click', () => elegir(sel === c.id ? null : c.id, true));
       li.appendChild(b); ul.appendChild(li);
     }
     pintarFicha();
@@ -145,9 +89,20 @@
       '<dl>' + fila('Población', pob(c.pob) + ' <span class="tenue">(la tierra da para ' + pob(cap) + ')</span>') +
       fila('Estabilidad', '<span class="barra"><span style="width:' + Math.round(c.estab) + '%"></span></span> ' + Math.round(c.estab)) +
       fila('Riqueza', Math.round(c.riqueza)) + fila('Tierras', cs.length) +
+      fila('Aldeanos', aldeanos(c)) +
+      fila('Madera', Math.floor(c.madera || 0) + ' <span class="tenue">· piedra ' + Math.floor(c.piedra || 0) + ' · ' + (c.arboles || 0) + ' árboles en su tierra</span>') +
+      fila('Obras', (c.casas || 0) + ' casas · ' + (c.campos || 0) + ' campos') +
       fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
       fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') + '</dl>';
     f.querySelector('.muestra').style.background = c.color;
+  }
+
+  const NOMBRES_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros' };
+  function aldeanos(c) {
+    const cuenta = Object.create(null);
+    for (const a of m.vida.aldeanos) if (a.c === c.id) { const o = M.vida.OFICIOS[a.o]; cuenta[o] = (cuenta[o] || 0) + 1; }
+    const partes = M.vida.OFICIOS.filter(o => cuenta[o]).map(o => cuenta[o] + ' ' + NOMBRES_OFICIO[o]);
+    return partes.length ? esc(partes.join(', ')) : 'ninguno';
   }
 
   function pintarCronica() {
@@ -168,7 +123,7 @@
   }
 
   function pintarEjemplos() {
-    const ej = ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Diluvio en el norte', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Un profeta en el más pequeño', 'Que llueva oro sobre el más pobre'];
+    const ej = ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Incendio en el más grande', 'Que planten bosques en el más pequeño', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Que llueva oro sobre el más pobre'];
     const cont = $('ejemplos');
     cont.innerHTML = '';
     for (const t of ej) {
@@ -179,12 +134,13 @@
     }
   }
 
-  function pintarTodo() { pintarCabecera(); pintarMapa(); pintarPueblos(); pintarCronica(); }
+  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); }
 
   // ---------- El tiempo ----------
   function paso() {
     const antes = m.cronica[0];
     S.turno(m);
+    P.turno(m, VELOCIDADES[vel][0]);
     if (m.cronica[0] !== antes) marcar(m.cronica[0]);
     pintarTodo();
     if (m.turno % 5 === 0) guardar();
@@ -207,7 +163,7 @@
     const r = D.obrar(m, texto, sel);
     if (r.ok) {
       responder('Hecho. ' + r.suceso.titulo + '.', 'bien');
-      marcar(r.suceso); pintarTodo(); guardar();
+      P.refrescar(); marcar(r.suceso); pintarTodo(); guardar();
       return;
     }
     if (r.motivo === 'falta_quien') { responder('¿Sobre quién? Toca un pueblo en el mapa o nómbralo ("peste sobre ' + (S.vivas(m)[0] || { nombre: 'Karenia' }).nombre + '").', 'duda'); return; }
@@ -222,7 +178,7 @@
       if (typeof sample.json === 'function') f = await sample.json(D.SISTEMA + '\n\n' + D.paraIA(m, texto));
       else { const res = await sample(D.SISTEMA + '\n\n' + D.paraIA(m, texto)); f = JSON.parse(String(res.text).replace(/^[^{]*/, '').replace(/[^}]*$/, '')); }
       const e = D.aplicarIA(m, f);
-      if (e) { responder('Hecho. ' + e.titulo + '.', 'bien'); marcar(e); }
+      if (e) { responder('Hecho. ' + e.titulo + '.', 'bien'); P.refrescar(); marcar(e); }
       else responder((f && f.pregunta) || 'Ni los cielos entienden esa orden. Dila de otra manera.', 'duda');
     } catch (err) {
       responder(err && err.code === 'rate_limited' ? 'Los cielos están saturados. Espera un poco y vuelve a intentarlo.' : 'Los cielos no responden ahora. Prueba con un poder sencillo: peste, diluvio, oro, un invento, una guerra o la paz.', 'duda');
@@ -253,9 +209,10 @@
 
   // ---------- Arranque ----------
   function iniciar(datos) {
-    m = (datos && datos.mundo) || cargar();
-    if (!m) mundoNuevo();
-    if (datos && datos.sel != null) sel = datos.sel;
+    P.iniciar($('mapa'), { reducido, alClicar: region => { const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); } });
+    m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
+    if (!m) mundoNuevo(); else P.mundo(m);
+    if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
     pintarEjemplos(); pintarTodo();
     $('play').addEventListener('click', () => { corriendo = !corriendo; programar(); });
     $('vel').addEventListener('click', () => { vel = (vel + 1) % VELOCIDADES.length; programar(); });
@@ -265,15 +222,10 @@
       mundoNuevo(); pintarTodo(); guardar(); responder('Un mundo nuevo. Cinco pueblos acaban de aprender a sembrar.', 'bien');
     });
     $('voluntad').addEventListener('submit', ev => { ev.preventDefault(); const t = $('orden').value.trim(); if (!t) return; $('orden').value = ''; obrar(t); });
-    $('mapa').addEventListener('click', ev => {
-      const r = ev.currentTarget.getBoundingClientRect();
-      const x = Math.floor((ev.clientX - r.left) / r.width * S.W), y = Math.floor((ev.clientY - r.top) / r.height * S.H);
-      const d = m.dueno[S.idx(x, y)];
-      sel = d >= 0 ? (sel === d ? null : d) : null;
-      pintarTodo();
-    });
+    $('zoom-mas').addEventListener('click', () => P.zoom(1.5));
+    $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
+    $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
-    window.addEventListener('resize', () => pintarMapa());
     programar();
     if (window.claude && window.claude.hot) window.claude.hot.snapshot(() => ({ mundo: m, sel }));
     // Dentro de claude.ai, Claude entiende lo que el intérprete no, y escribe capítulos de la crónica.
