@@ -9,7 +9,8 @@
   const M = RF.MUNDO, S = M.sim, D = M.dios, P = M.pintor, X = M.mando;
   const $ = id => document.getElementById(id);
   const CLAVE = 'genesis.mundo.v1';
-  const VELOCIDADES = [[1100, '1×'], [380, '3×'], [110, '10×']];
+  // Como en WorldBox, el tiempo pasa despacio: a 1×, cada turno dura más de tres segundos.
+  const VELOCIDADES = [[3400, '1×'], [1200, '3×'], [400, '10×']];
   const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
@@ -80,7 +81,7 @@
   const era = c => M.ERAS[c.era];
 
   function pintarCabecera() {
-    $('anio').textContent = S.anioTexto(m.anio);
+    if (anioAntes == null || !corriendo) $('anio').textContent = S.anioTexto(m.anio);
     const maxEra = Math.max(0, ...S.vivas(m).map(c => c.era));
     $('era').textContent = M.ERAS[maxEra].nombre;
     $('play').textContent = corriendo ? '❚❚ Pausa' : '▶ Seguir';
@@ -180,7 +181,8 @@
     return l.map(p => {
       const a = S.civ(m, p.de), b = S.civ(m, p.contra);
       const texto = p.tipo === 'guerra' ? (p.de === c.id ? 'trama una guerra contra ' + b.nombre : a.nombre + ' trama una guerra contra él') : 'negocia una alianza con ' + (p.de === c.id ? b.nombre : a.nombre);
-      return '<span class="' + (p.tipo === 'guerra' ? 'rojo' : '') + '">' + esc(texto) + '</span> <span class="barra"><span style="width:' + Math.min(100, Math.round(p.progreso)) + '%"></span></span> <span class="tenue">' + Math.min(100, Math.round(p.progreso)) + '%</span>';
+      const porque = p.motivo ? ' <span class="tenue">(' + esc(p.motivo) + ')</span>' : '';
+      return '<span class="' + (p.tipo === 'guerra' ? 'rojo' : '') + '">' + esc(texto) + '</span> <span class="barra"><span style="width:' + Math.min(100, Math.round(p.progreso)) + '%"></span></span> <span class="tenue">' + Math.min(100, Math.round(p.progreso)) + '%</span>' + porque;
     }).join('<br>');
   }
   function comercioDe(c) {
@@ -242,7 +244,20 @@
   function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); }
 
   // ---------- El tiempo ----------
+  // El año del reloj avanza poco a poco durante el turno, en vez de saltar.
+  let anioAntes = null, inicioTurno = 0;
+  function relojSuave() {
+    requestAnimationFrame(relojSuave);
+    // Para depurar desde la consola: genesis.mundo() devuelve el mundo vivo.
+    window.genesis = { mundo: () => m };
+    if (!m || anioAntes == null) return;
+    const f = corriendo ? Math.min(1, (performance.now() - inicioTurno) / VELOCIDADES[vel][0]) : 1;
+    const anio = Math.round(anioAntes + (m.anio - anioAntes) * f);
+    const texto = S.anioTexto(anio);
+    if ($('anio').textContent !== texto) $('anio').textContent = texto;
+  }
   function paso() {
+    anioAntes = m.anio; inicioTurno = performance.now();
     const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [];
     S.turno(m);
     P.turno(m, VELOCIDADES[vel][0]);
@@ -430,6 +445,7 @@
     $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
     programar();
+    requestAnimationFrame(relojSuave);
     // Un mundo nuevo (o uno guardado de antes de los modos) pregunta cómo quieres jugar.
     if (!m.modo) pedirModo();
     else if (m.modo === 'pueblo' && tuPueblo()) P.centrarEn(tuPueblo().capital);

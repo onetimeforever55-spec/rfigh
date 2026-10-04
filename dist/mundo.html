@@ -731,7 +731,7 @@ button { cursor: pointer; }
     for (const i of parte) m.dueno[i] = nueva.id;
     c.pob -= nueva.pob; c.estab = 40;
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
-    nueva.rel[c.id] = -40; c.rel[nueva.id] = -40;
+    nueva.rel[c.id] = -40; c.rel[nueva.id] = -40; nueva.origen = c.id;
     cronica(m, 'revuelta', 'Las provincias se rebelan', 'Las tierras lejanas de ' + c.nombre + ' dejan de obedecer a la capital y proclaman un ' + (nueva.regimen === 'republica' ? 'gobierno propio' : 'reino propio') + ': ' + nueva.nombre + '.', c, parte[0]);
   }
 
@@ -789,7 +789,7 @@ button { cursor: pointer; }
         const fa = fuerza(m, a), fb = fuerza(m, b);
         const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
         const ganas = M.CARACTERES[agresor.caracter].agresion * rasgo(agresor, 'agresion') * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
-        if (!agresor.jugador && agresor.guerras.length < 2 && (r < -40 || (ganas > 2.2 && r < 10)) && azar(m) < 0.15) tramar(m, 'guerra', agresor, victima);
+        if (!agresor.jugador && agresor.guerras.length < 2 && (r < -40 || (ganas > 2.2 && r < 10)) && azar(m) < 0.08) { const motivo = casusBelli(m, agresor, victima, r, fAg / fVi); if (motivo) tramar(m, 'guerra', agresor, victima, motivo); }
       }
     }
     avanzarComplots(m);
@@ -839,6 +839,7 @@ button { cursor: pointer; }
     const nueva = nuevaCiv(m, x.region, { era: c.era, ciencia: c.ciencia * 0.9, pob: c.pob * parte.length / cs.length, riqueza: c.riqueza * 0.2, estab: 55, inventos: c.inventos.slice(), caracter: c.caracter });
     if (!m.civs.some(o => o !== nueva && o.nombre === x.nombre)) nueva.nombre = x.nombre;
     nueva.rey = { nombre: x.alcalde, edad: 40, rasgo: x.rasgo === 'ambicioso' ? 'guerrero' : 'justo', desde: m.anio };
+    nueva.origen = c.id;
     for (const i of parte) m.dueno[i] = nueva.id;
     c.pob -= nueva.pob; c.estab = Math.max(10, c.estab - 10);
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
@@ -849,13 +850,25 @@ button { cursor: pointer; }
     if (azar(m) < 0.5 && !c.jugador) declararGuerra(m, c, nueva, c.nombre + ' no acepta la independencia de ' + x.nombre + ' y manda a sus ejércitos a recuperarla.', true);
   }
 
+  // Una guerra necesita un motivo (como los "casus belli" de los complots de WorldBox); sin motivo, no hay complot.
+  function casusBelli(m, a, b, r, ratio) {
+    if (b.origen === a.id || a.origen === b.id) return 'recuperar las tierras que se independizaron';
+    if (r < -40) return 'el odio entre los dos pueblos (opinión ' + Math.round(r) + ')';
+    const ambicioso = a.rey && ['guerrero', 'cruel', 'loco'].includes(a.rey.rasgo);
+    if (ambicioso && ratio > 1.6 && r < 10) return 'la ambición de ' + nombreRey(a) + ', que ve débil a su vecino';
+    const sinMadera = (a.madera || 0) < 5 && (a.arboles || 0) < casillas(m, a).length, sinMetal = a.era >= 1 && (a.metal || 0) < 2;
+    if ((sinMadera && (b.arboles || 0) > (a.arboles || 0) * 2) || (sinMetal && (b.metal || 0) > 10)) return 'la codicia de los ' + (sinMadera ? 'bosques' : 'metales') + ' de ' + b.nombre;
+    if (ratio > 2.5 && r < 0 && azar(m) < 0.3) return 'la debilidad de ' + b.nombre;
+    return null;
+  }
+
   // Un complot nuevo (si no hay ya uno igual): lo trama el gobernante de "de" contra (o con) "contra".
-  function tramar(m, tipo, de, contra) {
+  function tramar(m, tipo, de, contra, motivo) {
     m.complots = m.complots || [];
     if (m.complots.some(p => p.de === de.id && p.tipo === tipo) || m.complots.some(p => p.tipo === tipo && p.de === contra.id && p.contra === de.id)) return;
-    const p = { tipo, de: de.id, contra: contra.id, progreso: 0, desde: m.turno };
+    const p = { tipo, de: de.id, contra: contra.id, progreso: 0, desde: m.turno, motivo: motivo || null };
     m.complots.push(p);
-    if (tipo === 'guerra') cronica(m, 'complot', nombreRey(de) + ' trama una guerra contra ' + contra.nombre, 'En la corte de ' + de.nombre + ' se habla de mapas, de levas y de una afrenta que nadie recuerda bien. Si nada lo impide, habrá guerra.', de);
+    if (tipo === 'guerra') cronica(m, 'complot', nombreRey(de) + ' trama una guerra contra ' + contra.nombre, 'En la corte de ' + de.nombre + ' se habla de mapas y de levas. El motivo: ' + (motivo || 'una afrenta que nadie recuerda bien') + '. Si nada lo impide, habrá guerra.', de);
     return p;
   }
   function avanzarComplots(m) {
@@ -864,10 +877,10 @@ button { cursor: pointer; }
       // Se abandonan si las cosas cambian: la opinión mejora, o empeora para una alianza.
       const sigue = p.tipo === 'guerra' ? r < 25 && !aliados(m, a, b) && a.guerras.length < 2 && !enGuerra(a, b) : r > 10 && !enGuerra(a, b) && !aliados(m, a, b);
       if (!sigue) { m.complots = m.complots.filter(x => x !== p); continue; }
-      p.progreso += p.tipo === 'guerra' ? 15 + 10 * rasgo(a, 'agresion') + azar(m) * 10 : 20 + azar(m) * 15;
+      p.progreso += p.tipo === 'guerra' ? 7 + 5 * rasgo(a, 'agresion') + azar(m) * 6 : 12 + azar(m) * 10;
       if (p.progreso < 100) continue;
       m.complots = m.complots.filter(x => x !== p);
-      if (p.tipo === 'guerra') declararGuerra(m, a, b, 'El complot de ' + nombreRey(a) + ' culmina: ' + a.nombre + ' declara la guerra a ' + b.nombre + '.');
+      if (p.tipo === 'guerra') declararGuerra(m, a, b, a.nombre + ' declara la guerra a ' + b.nombre + '. Motivo: ' + (p.motivo || 'una vieja afrenta') + '.');
       else aliar(m, a, b);
     }
   }
@@ -1003,7 +1016,7 @@ button { cursor: pointer; }
   }
 
   M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vida.js
@@ -1149,6 +1162,13 @@ button { cursor: pointer; }
       if (v.centros[c.id] === c.capital) continue;
       for (const t of plaza(m, c.capital)) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.centro, 0); }
       v.centros[c.id] = c.capital;
+      // Como en WorldBox, la aldea nace con su molino: alrededor de él se siembran los primeros campos.
+      const zona = [c.capital, ...S().vecinos(c.capital).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r));
+      if (!zona.some(t => v.obra[t] === OBRA.molino)) {
+        const ter = terrenos(m), pl = plaza(m, c.capital);
+        const t = zona.filter(x => !v.obra[x] && !pl.includes(x) && CONSTRUIBLE.has(ter[x]) && ter[x] !== 'arena').sort((p, q) => dist(m, p, pl[3]) - dist(m, q, pl[3]))[0];
+        if (t != null) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.molino, 0); }
+      }
     }
   }
   function plaza(m, r) { const tw = m.W * SUB, x = (r % m.W) * SUB + 1, y = (r / m.W | 0) * SUB + 1; return [y * tw + x, y * tw + x + 1, (y + 1) * tw + x, (y + 1) * tw + x + 1]; }
@@ -1302,7 +1322,7 @@ button { cursor: pointer; }
    * LOS EDIFICIOS DE CADA PLAZA (capital y ciudades), como en WorldBox: una torre de vigilancia, un templo,
    * un molino junto a los campos (desde la Edad Media) y un puerto si hay costa. Cuestan madera y piedra.
    */
-  const COSTES = { [OBRA.torre]: [6, 4], [OBRA.templo]: [8, 6], [OBRA.molino]: [8, 2], [OBRA.puerto]: [10, 0] };
+  const COSTES = { [OBRA.torre]: [6, 4], [OBRA.templo]: [8, 6], [OBRA.molino]: [3, 0], [OBRA.puerto]: [10, 0] };
   function edificioPendiente(m, a, c, ter) {
     const v = m.vida;
     const plazas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)].sort((p, q) => S().distancia(p, a.h) - S().distancia(q, a.h));
@@ -1312,9 +1332,9 @@ button { cursor: pointer; }
       const tiene = o => tiles.some(t => v.obra[t] === o);
       const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
+      if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
-      if (c.era >= 4 && !tiene(OBRA.molino) && tiles.filter(t => v.obra[t] === OBRA.campo).length >= 4) pide.push([OBRA.molino, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]) && [1, -1, v.tw, -v.tw].some(d => v.obra[t + d] === OBRA.campo))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
       for (const [obra, donde] of pide) {
         const coste = COSTES[obra];
@@ -1666,7 +1686,7 @@ button { cursor: pointer; }
       // Primero se siega lo que está maduro; luego se aran campos nuevos si hacen falta.
       const maduros = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r)).filter(x => v.obra[x] === OBRA.campo && v.cultivo[x] >= 3 && !rec.reservadas.has(x));
       if (maduros.length) { t = maduros[Math.floor(azar(v) * maduros.length)]; a.siega = 1; }
-      else t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
+      else t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)) : -1;
     }
     else if (a.o === CONSTRUCTOR) {
       a.obraCamino = 0; a.edificio = 0;
@@ -1678,7 +1698,7 @@ button { cursor: pointer; }
         for (const x of pend) { if (rec.reservadas.has(x) || v.camino[x]) continue; const d = dist(m, aqui, x); if (d < md) { md = d; t = x; } }
         if (t >= 0) a.obraCamino = 1;
       }
-      if (t < 0 && azar(v) < 0.6) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
+      if (t < 0 && (azar(v) < 0.6 || !molinoCerca(m, c, a.h))) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
       if (t < 0) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
     }
     else if (a.o === COMERCIANTE) {
@@ -1711,12 +1731,22 @@ button { cursor: pointer; }
   const metaCasas = c => Math.round((2 + c.pob * 0.12) * (0.4 + 0.6 * prio(c, 'casas')));
 
   // Una parcela libre cerca de casa: primero en su región, luego en las regiones propias de alrededor.
-  function libre(m, a, c, rec, ter, sirve) {
+  // ¿Hay un molino cerca? (de la región de la aldea, o a 3 parcelas de una parcela concreta)
+  function molinoCerca(m, c, r, t) {
+    const v = m.vida;
+    if (t != null) {
+      const tx = t % v.tw, ty = t / v.tw | 0;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { if (Math.abs(dx) + Math.abs(dy) > 4) continue; const n = (ty + dy) * v.tw + tx + dx; if (n >= 0 && n < v.obra.length && v.obra[n] === OBRA.molino) return true; }
+      return false;
+    }
+    return [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)].some(z => parcelas(m, z).some(x => v.obra[x] === OBRA.molino));
+  }
+  function libre(m, a, c, rec, ter, sirve, filtro) {
     const v = m.vida, base = centro(m, a.h);
     const regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 99;
     for (const r of regiones) for (const t of parcelas(m, r)) {
-      if (v.obra[t] || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !sirve.has(ter[t]) || rec.reservadas.has(t)) continue;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
       const d = dist(m, base, t) + azar(v) * 1.5;
       if (d < md) { md = d; mejor = t; }
     }
@@ -2775,7 +2805,10 @@ button { cursor: pointer; }
 (function (RF) {
   'use strict';
   const M = RF.MUNDO;
-  const P = 8;
+  // A: píxeles de arte por parcela (el suelo, las casas y los árboles); P: píxeles del mundo por parcela.
+  // Las personas, los animales, los barcos y las flechas se dibujan a la escala fina P, así que una persona
+  // queda mucho más pequeña que una casa, como en WorldBox.
+  const A = 8, E = 2, P = A * E;
 
   // ---------- Sprites: cada letra es un color; el punto, transparente ----------
   const PALETA = {
@@ -2842,12 +2875,12 @@ button { cursor: pointer; }
     const clave = tipo + variante;
     if (cacheSuelo[clave]) return cacheSuelo[clave];
     const [base, claro, oscuro] = SUELO[tipo] || SUELO.llanura;
-    const c = document.createElement('canvas'); c.width = P; c.height = P;
+    const c = document.createElement('canvas'); c.width = A; c.height = A;
     const g = c.getContext('2d');
-    g.fillStyle = base; g.fillRect(0, 0, P, P);
+    g.fillStyle = base; g.fillRect(0, 0, A, A);
     let s = (variante + 1) * 2654435761 + tipo.length * 97;
     const r = () => { s = (Math.imul(s ^ (s >>> 13), 1274126177) + 0x9E3779B9) >>> 0; return s / 4294967296; };
-    for (let k = 0; k < 7; k++) { g.fillStyle = r() < 0.5 ? claro : oscuro; g.fillRect(Math.floor(r() * P), Math.floor(r() * P), 1, 1); }
+    for (let k = 0; k < 7; k++) { g.fillStyle = r() < 0.5 ? claro : oscuro; g.fillRect(Math.floor(r() * A), Math.floor(r() * A), 1, 1); }
     if (tipo === 'agua' || tipo === 'bajo') { g.fillStyle = claro; const y = Math.floor(r() * 6) + 1, x = Math.floor(r() * 5); g.fillRect(x, y, 3, 1); }
     if (tipo === 'pantano') { g.fillStyle = '#2f5a5a'; g.fillRect(1 + Math.floor(r() * 3), 2 + Math.floor(r() * 3), 3, 2); g.fillStyle = '#4f8080'; g.fillRect(2, 3, 1, 1); }
     if (tipo === 'tundra') { g.fillStyle = '#e9eef2'; g.fillRect(Math.floor(r() * 6), Math.floor(r() * 6), 2, 1); }
@@ -2855,7 +2888,7 @@ button { cursor: pointer; }
       // Un pico con la cumbre nevada en cada parcela de montaña.
       const pico = variante % 2 ? ['....n...', '...nRr..', '..RRHRr.', '.RRRRHRr', 'RRrRRRRr', 'rRRRrRRr', 'rrRRRRrr', 'rrrrrrrr'] : ['...n....', '..nRr...', '.RHRRr..', '.RRHRRr.', 'RRRRRRrr', 'rRrRRRRr', 'rrRRrRrr', 'rrrrrrrr'];
       const col = { n: '#f4f8fb', R: '#8a8a96', H: '#b9b9c4', r: '#5e5e68' };
-      for (let yy = 0; yy < P; yy++) for (let xx = 0; xx < P; xx++) { const ch = pico[yy][xx]; if (ch !== '.') { g.fillStyle = col[ch]; g.fillRect(xx, yy, 1, 1); } }
+      for (let yy = 0; yy < A; yy++) for (let xx = 0; xx < A; xx++) { const ch = pico[yy][xx]; if (ch !== '.') { g.fillStyle = col[ch]; g.fillRect(xx, yy, 1, 1); } }
     }
     return (cacheSuelo[clave] = c);
   }
@@ -2908,7 +2941,7 @@ button { cursor: pointer; }
     m = nuevo;
     if (!m.vida) V.crear(m);
     const v = m.vida;
-    lienzo = document.createElement('canvas'); lienzo.width = v.tw * P; lienzo.height = v.th * P; gl = lienzo.getContext('2d');
+    lienzo = document.createElement('canvas'); lienzo.width = v.tw * A; lienzo.height = v.th * A; gl = lienzo.getContext('2d');
     capa = document.createElement('canvas'); capa.width = lienzo.width; capa.height = lienzo.height; gc = capa.getContext('2d');
     visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice(), camino: (v.camino || []).slice() };
     tierra = V.terrenos(m).slice();
@@ -2921,7 +2954,7 @@ button { cursor: pointer; }
   }
   function enfocarInicio() {
     const vivas = S.vivas(m).slice().sort((a, b) => S.casillas(m, b).length - S.casillas(m, a).length);
-    cam.z = Math.max(zMin(), 2);
+    cam.z = Math.max(zMin(), 1.5);
     if (vivas[0]) centrarEn(vivas[0].capital); else { cam.x = ancho() / 2; cam.y = alto() / 2; }
     limitar();
   }
@@ -2932,7 +2965,7 @@ button { cursor: pointer; }
   }
 
   function parcela(t) {
-    const v = m.vida, x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, ter = tierra[t];
+    const v = m.vida, x = (t % v.tw) * A, y = Math.floor(t / v.tw) * A, ter = tierra[t];
     gl.drawImage(suelo(ter, ((t * 2654435761) >>> 0) % 4), x, y);
     if (visto.camino && visto.camino[t]) caminoEn(t, x, y, ter);
     const obra = visto.obra[t];
@@ -2950,7 +2983,7 @@ button { cursor: pointer; }
       else if (obra === V.OBRA.centro) {
         // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
         const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
-        if (lx >= 0 && ly >= 0 && lx < 2 && ly < 2) gl.drawImage(sprite('centro' + ge, color), lx * P, ly * P, P, P, x, y, P, P);
+        if (lx >= 0 && ly >= 0 && lx < 2 && ly < 2) gl.drawImage(sprite('centro' + ge, color), lx * A, ly * A, A, A, x, y, A, A);
         else gl.drawImage(sprite('ruina'), x, y);
       }
       return;
@@ -2982,8 +3015,8 @@ button { cursor: pointer; }
     const tx = t % tw;
     const lados = [[tx > 0 && une(t - 1), 0, 2, 2, 4], [tx < tw - 1 && une(t + 1), 6, 2, 2, 4], [une(t - tw), 2, 0, 4, 2], [une(t + tw), 2, 6, 4, 2]];
     if (ter === 'rio') {
-      gl.fillStyle = '#7a5232'; gl.fillRect(x, y + 1, P, 6); gl.fillStyle = '#5a3a22'; for (let k = 1; k < P; k += 2) gl.fillRect(x + k, y + 1, 1, 6);
-      gl.fillStyle = '#3a2a1e'; gl.fillRect(x, y + 1, P, 1); gl.fillRect(x, y + 6, P, 1);
+      gl.fillStyle = '#7a5232'; gl.fillRect(x, y + 1, A, 6); gl.fillStyle = '#5a3a22'; for (let k = 1; k < A; k += 2) gl.fillRect(x + k, y + 1, 1, 6);
+      gl.fillStyle = '#3a2a1e'; gl.fillRect(x, y + 1, A, 1); gl.fillRect(x, y + 6, A, 1);
       return;
     }
     const [base, borde, marca] = era >= 7 ? ['#55585f', '#3f4248', '#e8d070'] : era >= 3 ? ['#b9ad94', '#948a74', '#d4cab2'] : ['#a7855a', '#8a6a42', '#b8966a'];
@@ -3003,20 +3036,20 @@ button { cursor: pointer; }
   // El campo según cómo va el trigo: tierra arada, brotes, verde y dorado (listo para segar).
   function campo(x, y, t) {
     const fase = (visto.cultivo && visto.cultivo[t]) || 0;
-    gl.fillStyle = '#86653a'; gl.fillRect(x, y, P, P);
+    gl.fillStyle = '#86653a'; gl.fillRect(x, y, A, A);
     gl.fillStyle = '#6e5230';
-    for (let k = 1; k < P; k += 2) gl.fillRect(x, y + k, P, 1);
+    for (let k = 1; k < A; k += 2) gl.fillRect(x, y + k, A, 1);
     if (fase >= 1) {
       gl.fillStyle = fase === 1 ? '#8fc35a' : fase === 2 ? '#5f9e3a' : '#e0c050';
-      for (let k = 0; k < P; k += 2) for (let j = (k / 2) % 2; j < P; j += 2) gl.fillRect(x + j, y + k - (fase >= 2 ? 1 : 0), 1, fase >= 2 ? 2 : 1);
-      if (fase === 3) { gl.fillStyle = '#f4dc7a'; for (let k = 0; k < P; k += 4) gl.fillRect(x + ((k + t) % 5), y + k, 1, 1); }
+      for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 2) gl.fillRect(x + j, y + k - (fase >= 2 ? 1 : 0), 1, fase >= 2 ? 2 : 1);
+      if (fase === 3) { gl.fillStyle = '#f4dc7a'; for (let k = 0; k < A; k += 4) gl.fillRect(x + ((k + t) % 5), y + k, 1, 1); }
     }
-    gl.fillStyle = 'rgba(0,0,0,0.18)'; gl.fillRect(x, y + P - 1, P, 1);
+    gl.fillStyle = 'rgba(0,0,0,0.18)'; gl.fillRect(x, y + A - 1, A, 1);
   }
 
   // El color de cada pueblo sobre su tierra y las fronteras (rojas donde hay guerra).
   function territorio() {
-    const R = V.SUB * P;
+    const R = V.SUB * A;
     gc.clearRect(0, 0, capa.width, capa.height);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
@@ -3112,8 +3145,9 @@ button { cursor: pointer; }
     // Solo lo que se ve.
     const x0 = Math.max(0, Math.floor(cam.x - w / cam.z / 2) - P), y0 = Math.max(0, Math.floor(cam.y - h / cam.z / 2) - P);
     const x1 = Math.min(ancho(), Math.ceil(cam.x + w / cam.z / 2) + P), y1 = Math.min(alto(), Math.ceil(cam.y + h / cam.z / 2) + P);
-    g.drawImage(lienzo, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
-    g.drawImage(capa, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    // El suelo y las obras están pintados a escala de arte (A): se amplían al mundo (P).
+    g.drawImage(lienzo, x0 / E, y0 / E, (x1 - x0) / E, (y1 - y0) / E, x0, y0, x1 - x0, y1 - y0);
+    g.drawImage(capa, x0 / E, y0 / E, (x1 - x0) / E, (y1 - y0) / E, x0, y0, x1 - x0, y1 - y0);
     banderas(ahora);
     agua(ahora, x0, y0, x1, y1);
     barcos(k, ahora, x0, y0, x1, y1);
@@ -3139,16 +3173,16 @@ button { cursor: pointer; }
     for (const c of S.vivas(m)) {
       // El gobernante pasea delante de su palacio, con capa del color de su pueblo y corona.
       const R = V.SUB * P, rx = (c.capital % m.W) * R, ry = Math.floor(c.capital / m.W) * R;
-      const kx = Math.round(rx + R / 2 - 1 + Math.sin(ahora / 1100 + c.id) * 5), ky = ry + P * 3 + 1;
+      const kx = Math.round(rx + R / 2 - 1 + Math.sin(ahora / 1100 + c.id) * 8), ky = ry + P * 3 + 4;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(kx - 1, ky + 6, 5, 1);
       g.fillStyle = '#3a2a1e'; g.fillRect(kx, ky + 4, 1, 2); g.fillRect(kx + 2, ky + 4, 1, 2);
       g.fillStyle = c.color; g.fillRect(kx - 1, ky + 1, 5, 4);
       g.fillStyle = '#f0c8a0'; g.fillRect(kx + 1, ky, 1, 1);
       g.fillStyle = '#ffd23a'; g.fillRect(kx, ky - 1, 3, 1); g.fillRect(kx + (fase ? 0 : 2), ky - 2, 1, 1);
-      const r = c.capital, x = (r % m.W) * V.SUB * P + P + 1, y = Math.floor(r / m.W) * V.SUB * P + P - 6;
-      g.fillStyle = '#3a2a1e'; g.fillRect(x, y, 1, 8);
-      g.fillStyle = c.color; g.fillRect(x + 1, y, 4, 3);
-      g.fillStyle = mezclar(c.color, '#000000', 0.3); g.fillRect(x + 1 + 3, y + (fase ? 1 : 0), 1, 2);
+      const r = c.capital, x = (r % m.W) * V.SUB * P + P + 2, y = Math.floor(r / m.W) * V.SUB * P + P - 12;
+      g.fillStyle = '#3a2a1e'; g.fillRect(x, y, 1, 14);
+      g.fillStyle = c.color; g.fillRect(x + 1, y, 7, 5);
+      g.fillStyle = mezclar(c.color, '#000000', 0.3); g.fillRect(x + 6, y + (fase ? 1 : 0), 2, 4);
     }
   }
 
@@ -3162,10 +3196,10 @@ button { cursor: pointer; }
       if (r && r.length >= 6) {
         const i = paso * 3, j = Math.min(r.length - 3, i + 3);
         const ax = r[i], ay = r[i + 1], bx = r[j], by = r[j + 1];
-        px = (ax + (bx - ax) * f) * P + 2.5; py = (ay + (by - ay) * f) * P + 2;
+        px = (ax + (bx - ax) * f) * P + 6.5; py = (ay + (by - ay) * f) * P + 6;
         acc = r[j + 2];
         if (j === i) acc = r[i + 2];
-      } else { px = a.x * P + 2.5; py = a.y * P + 2; acc = 0; }
+      } else { px = a.x * P + 6.5; py = a.y * P + 6; acc = 0; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       px = Math.round(px); py = Math.round(py);
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
@@ -3199,16 +3233,32 @@ button { cursor: pointer; }
       else if (oficio === 'granjero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 4); g.fillStyle = '#9aa0aa'; g.fillRect(px + 3, py + 3 + alto, 2, 1); }
       else if (oficio === 'constructor') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#5e5e68'; g.fillRect(px + 3, py + alto, 2, 1); }
       else if (oficio === 'guerrero') {
-        const arma = a.arma || 0;
-        if (a.armadura) { g.fillStyle = '#a3a9b5'; g.fillRect(px, py + 1, 3, 1); }
-        if (a.tirador && arma >= 5) { g.fillStyle = '#3a2a1e'; g.fillRect(px + 2, py + 1, 4, 1); g.fillStyle = '#5e5e68'; g.fillRect(px + 5, py + 1, 1, 1); }
-        else if (a.tirador && arma >= 1) { g.fillStyle = '#8a5a2b'; g.fillRect(px + 3, py - 1, 1, 1); g.fillRect(px + 4, py, 1, 3); g.fillRect(px + 3, py + 3, 1, 1); g.fillStyle = '#e8e0c8'; g.fillRect(px + 3, py, 1, 3); }
-        else if (arma === 0) { g.fillStyle = '#6b4a2b'; g.fillRect(px + 3, py + alto, 1, 3); g.fillRect(px + 3, py + alto, 2, 1); }
-        else if (arma === 1) { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py - 2 + alto, 1, 6); g.fillStyle = '#c8a050'; g.fillRect(px + 3, py - 3 + alto, 1, 1); }
-        else { g.fillStyle = '#e8ecf4'; g.fillRect(px + 3, py - 1 + alto, 1, 4); g.fillStyle = '#7a5232'; g.fillRect(px + 2, py + 2 + alto, 3, 1); if (arma >= 3) { g.fillStyle = color[a.c] || '#ccc'; g.fillRect(px - 2, py + 1, 2, 3); g.fillStyle = '#e8ecf4'; g.fillRect(px - 2, py + 2, 1, 1); } }
-        // El capitán lleva el estandarte de su pueblo.
+        // Cada clase de soldado se reconoce: espadachín con escudo, lancero, arquero con capucha y arco,
+        // tirador con arcabuz o fusil. El capitán lleva el estandarte.
+        const arma = a.arma || 0, col = color[a.c] || '#ccc';
+        if (a.armadura) { g.fillStyle = '#a3a9b5'; g.fillRect(px, py + 1, 3, 2); g.fillStyle = col; g.fillRect(px + 1, py + 2, 1, 1); }
+        if (a.tirador && arma >= 5) {
+          g.fillStyle = arma >= 7 ? '#5a6a4a' : '#2a2a3a'; g.fillRect(px, py - 1, 3, 1);
+          g.fillStyle = '#3a2a1e'; g.fillRect(px + 2, py + 2, 2, 1); g.fillRect(px + 4, py + 1, 2, 1); g.fillRect(px + 6, py, 1, 1);
+          g.fillStyle = '#9aa0aa'; g.fillRect(px + 7, py - 1, 1, 1);
+        } else if (a.tirador && arma >= 1) {
+          g.fillStyle = '#4a7a3a'; g.fillRect(px, py - 1, 3, 1); g.fillRect(px + 1, py - 2, 1, 1);
+          g.fillStyle = '#7a5232'; g.fillRect(px - 1, py, 1, 3);
+          g.fillStyle = '#8a5a2b'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px + 5, py, 1, 3); g.fillRect(px + 4, py + 3, 1, 1);
+          g.fillStyle = '#e8e0c8'; g.fillRect(px + 4, py, 1, 3);
+          if (acc === 2) { g.fillStyle = '#6b4a2b'; g.fillRect(px + 3, py + 1, 3, 1); }
+        } else if (arma === 0) {
+          g.fillStyle = '#6b4a2b'; g.fillRect(px + 3, py - 1 + alto, 1, 4); g.fillRect(px + 3, py - 2 + alto, 2, 2);
+        } else if (arma === 1) {
+          g.fillStyle = '#7a5232'; g.fillRect(px + 3, py - 4 + alto, 1, 9);
+          g.fillStyle = '#d8b060'; g.fillRect(px + 3, py - 6 + alto, 1, 2);
+        } else {
+          g.fillStyle = '#8a8f9a'; g.fillRect(px, py - 1, 3, 1); g.fillStyle = col; g.fillRect(px + 1, py - 2, 1, 1);
+          g.fillStyle = '#eef1f6'; g.fillRect(px + 4, py - 3 + alto, 1, 5); g.fillStyle = '#c8a050'; g.fillRect(px + 3, py + 1 + alto, 3, 1);
+          g.fillStyle = col; g.fillRect(px - 3, py, 2, 4); g.fillStyle = '#f4ecd8'; g.fillRect(px - 3, py + 1, 1, 1);
+        }
         const ej = m.vida.ejercitos && m.vida.ejercitos[a.c];
-        if (ej && ej.capitan === a.id) { g.fillStyle = '#3a2a1e'; g.fillRect(px - 1, py - 6, 1, 7); g.fillStyle = color[a.c] || '#ccc'; g.fillRect(px, py - 6, 4, 3); g.fillStyle = '#fff6dc'; g.fillRect(px + 1, py - 5, 1, 1); }
+        if (ej && ej.capitan === a.id) { g.fillStyle = '#3a2a1e'; g.fillRect(px - 1, py - 9, 1, 10); g.fillStyle = col; g.fillRect(px, py - 9, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 8, 2, 2); }
       }
       if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px - 2, py + 1, 1, 1); }
     }
@@ -3354,15 +3404,14 @@ button { cursor: pointer; }
       const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, o = visto.obra[t];
       if (o === V.OBRA.molino) {
         // Cuatro aspas que giran.
-        const cx = x + 4, cy = y + 3;
-        g.fillStyle = '#e8dcc0';
-        for (let k = 0; k < 4; k++) { const ang = fase + k * Math.PI / 2; for (let d = 1; d <= 4; d++) g.fillRect(Math.round(cx + Math.cos(ang) * d), Math.round(cy + Math.sin(ang) * d), 1, 1); }
-        g.fillStyle = '#5a3a22'; g.fillRect(cx, cy, 1, 1);
+        const cx = x + 8, cy = y + 6;
+        for (let k = 0; k < 4; k++) { const ang = fase + k * Math.PI / 2; for (let d = 1; d <= 8; d++) { g.fillStyle = d > 3 ? '#f0e6cc' : '#7a5232'; g.fillRect(Math.round(cx + Math.cos(ang) * d), Math.round(cy + Math.sin(ang) * d), d > 3 ? 2 : 1, d > 3 ? 2 : 1); } }
+        g.fillStyle = '#5a3a22'; g.fillRect(cx - 1, cy - 1, 2, 2);
       } else {
         const c = S.civ(m, m.dueno[V.region(m, t)]);
         if (!c) continue;
-        g.fillStyle = '#3a2a1e'; g.fillRect(x + 4, y - 4, 1, 4);
-        g.fillStyle = c.color; g.fillRect(x + 5, y - 4 + (Math.floor(ahora / 300) % 2), 3, 2);
+        g.fillStyle = '#3a2a1e'; g.fillRect(x + 8, y - 6, 1, 7);
+        g.fillStyle = c.color; g.fillRect(x + 9, y - 6 + (Math.floor(ahora / 300) % 2), 5, 3);
       }
     }
   }
@@ -3373,7 +3422,7 @@ button { cursor: pointer; }
       let px = b.x * P, py = b.y * P;
       if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P; }
       if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;
-      px = Math.round(px); py = Math.round(py + Math.sin(ahora / 500 + b.id) * 0.8);
+      px = Math.round(px + 4); py = Math.round(py + 4 + Math.sin(ahora / 500 + b.id) * 0.8);
       const c = S.civ(m, b.c), color = c ? c.color : '#ccc';
       g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px, py + 6, 7, 1);
       if (b.tipo === 'pesca') {
@@ -3430,7 +3479,7 @@ button { cursor: pointer; }
       for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if ((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) chimeneas.push(t); if (chimeneas.length > 60) break; }
     }
     for (const t of chimeneas) {
-      const x = (t % m.vida.tw) * P + 5, y = Math.floor(t / m.vida.tw) * P;
+      const x = (t % m.vida.tw) * P + 10, y = Math.floor(t / m.vida.tw) * P + 2;
       for (let k = 0; k < 3; k++) {
         const f = ((ahora / 2400 + k / 3 + (t % 7) / 7) % 1);
         g.fillStyle = 'rgba(210,210,215,' + (0.45 * (1 - f)).toFixed(2) + ')';
@@ -3470,7 +3519,7 @@ button { cursor: pointer; }
     if (reducido) return;
     const W2 = ancho(), H2 = alto();
     for (let i = 0; i < 6; i++) {
-      const w = 40 + azarV(i * 11) * 50, h = 14 + azarV(i * 23) * 12;
+      const w = 80 + azarV(i * 11) * 100, h = 28 + azarV(i * 23) * 24;
       const cx = ((azarV(i * 7) * W2 + ahora * (0.004 + azarV(i) * 0.004)) % (W2 + w * 2)) - w, cy = azarV(i * 5) * H2;
       if (cx + w < x0 - 30 || cx > x1 + 30 || cy + h < y0 - 30 || cy > y1 + 30) continue;
       const bloques = [[0, 0.3, 0.45, 0.7], [0.2, 0, 0.5, 0.8], [0.5, 0.15, 0.4, 0.75], [0.75, 0.35, 0.25, 0.55]];
@@ -3484,8 +3533,8 @@ button { cursor: pointer; }
   function animales(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     for (const b of v.animales || []) {
-      let px = b.x * P + 2, py = b.y * P + 3;
-      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 2; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 3; }
+      let px = b.x * P + 6, py = b.y * P + 8;
+      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 6; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 8; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       px = Math.round(px); py = Math.round(py);
       const pata = Math.floor(ahora / 220 + b.id) % 2;
@@ -3516,15 +3565,21 @@ button { cursor: pointer; }
     for (const [x1, y1, x2, y2, paso, bala] of lista) {
       const f = k - (paso - 1);
       if (f < 0 || f > 1) continue;
-      const ax = x1 * P + 4, ay = y1 * P + 3, bx = x2 * P + 4, by = y2 * P + 3;
-      const x = ax + (bx - ax) * f, y = ay + (by - ay) * f - Math.sin(f * Math.PI) * (bala ? 0 : 6);
+      const ax = x1 * P + 8, ay = y1 * P + 7, bx = x2 * P + 8, by = y2 * P + 7;
+      const arco = bala ? 0 : Math.min(14, Math.hypot(bx - ax, by - ay) * 0.25);
+      const pos = q => [ax + (bx - ax) * q, ay + (by - ay) * q - Math.sin(q * Math.PI) * arco];
+      const [x, y] = pos(f), [xa, ya] = pos(Math.max(0, f - 0.08));
+      const ang = Math.atan2(y - ya, x - xa), cx = Math.cos(ang), cy = Math.sin(ang);
       if (bala) {
-        if (f < 0.25) { g.fillStyle = '#ffd23a'; g.fillRect(ax - 1, ay - 1, 3, 3); g.fillStyle = 'rgba(220,220,230,0.6)'; g.fillRect(ax - 2, ay - 3, 3, 2); }
-        g.fillStyle = '#fff6a0'; g.fillRect(x, y, 2, 1);
+        if (f < 0.3) { g.fillStyle = '#ffd23a'; g.fillRect(ax + 2, ay - 2, 3, 3); g.fillStyle = 'rgba(220,220,230,' + (0.7 - f * 2).toFixed(2) + ')'; g.fillRect(ax + 1, ay - 6 - f * 10, 4, 3); }
+        g.fillStyle = 'rgba(255,240,160,0.5)'; for (let d = 1; d <= 4; d++) g.fillRect(Math.round(x - cx * d), Math.round(y - cy * d), 1, 1);
+        g.fillStyle = '#fff6a0'; g.fillRect(Math.round(x), Math.round(y), 2, 2);
       } else {
-        const dx = Math.sign(bx - ax) || 1;
-        g.fillStyle = '#6b4a2b'; g.fillRect(x - dx * 2, y, 3, 1);
-        g.fillStyle = '#e8ecf4'; g.fillRect(x + dx, y, 1, 1);
+        // La flecha: astil, punta y plumas, apuntando hacia donde vuela, con una estela tenue.
+        g.fillStyle = 'rgba(255,255,255,0.25)'; for (let d = 6; d <= 10; d++) g.fillRect(Math.round(x - cx * d), Math.round(y - cy * d), 1, 1);
+        g.fillStyle = '#6b4a2b'; for (let d = -3; d <= 2; d++) g.fillRect(Math.round(x + cx * d), Math.round(y + cy * d), 1, 1);
+        g.fillStyle = '#e8ecf4'; g.fillRect(Math.round(x + cx * 3), Math.round(y + cy * 3), 2, 2);
+        g.fillStyle = '#f4f4f4'; g.fillRect(Math.round(x - cx * 4), Math.round(y - cy * 4 - 1), 1, 1); g.fillRect(Math.round(x - cx * 4), Math.round(y - cy * 4 + 1), 1, 1);
       }
     }
   }
@@ -3535,7 +3590,7 @@ button { cursor: pointer; }
     for (const tb of tumbas) {
       const t = ahora - tb.inicio;
       if (t < 0) continue;
-      const x = tb.x * P + 2, y = tb.y * P + 1;
+      const x = tb.x * P + 6, y = tb.y * P + 5;
       g.globalAlpha = t < 400 ? 1 : Math.max(0, 1 - (t - 400) / 8600);
       if (t < 400) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
       g.fillStyle = '#d8d8e0'; g.fillRect(x + 1, y, 1, 5); g.fillRect(x, y + 1, 3, 1);
@@ -3563,7 +3618,7 @@ button { cursor: pointer; }
     if (!m) return;
     const R = V.SUB * P;
     cam.x = (region % m.W) * R + R / 2; cam.y = Math.floor(region / m.W) * R + R / 2;
-    if (cam.z < 1.5) cam.z = Math.max(zMin(), 2);
+    if (cam.z < 1) cam.z = Math.max(zMin(), 1.5);
     limitar();
   }
   function zoom(factor, sx, sy) {
@@ -3639,7 +3694,8 @@ button { cursor: pointer; }
   const M = RF.MUNDO, S = M.sim, D = M.dios, P = M.pintor, X = M.mando;
   const $ = id => document.getElementById(id);
   const CLAVE = 'genesis.mundo.v1';
-  const VELOCIDADES = [[1100, '1×'], [380, '3×'], [110, '10×']];
+  // Como en WorldBox, el tiempo pasa despacio: a 1×, cada turno dura más de tres segundos.
+  const VELOCIDADES = [[3400, '1×'], [1200, '3×'], [400, '10×']];
   const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
@@ -3710,7 +3766,7 @@ button { cursor: pointer; }
   const era = c => M.ERAS[c.era];
 
   function pintarCabecera() {
-    $('anio').textContent = S.anioTexto(m.anio);
+    if (anioAntes == null || !corriendo) $('anio').textContent = S.anioTexto(m.anio);
     const maxEra = Math.max(0, ...S.vivas(m).map(c => c.era));
     $('era').textContent = M.ERAS[maxEra].nombre;
     $('play').textContent = corriendo ? '❚❚ Pausa' : '▶ Seguir';
@@ -3810,7 +3866,8 @@ button { cursor: pointer; }
     return l.map(p => {
       const a = S.civ(m, p.de), b = S.civ(m, p.contra);
       const texto = p.tipo === 'guerra' ? (p.de === c.id ? 'trama una guerra contra ' + b.nombre : a.nombre + ' trama una guerra contra él') : 'negocia una alianza con ' + (p.de === c.id ? b.nombre : a.nombre);
-      return '<span class="' + (p.tipo === 'guerra' ? 'rojo' : '') + '">' + esc(texto) + '</span> <span class="barra"><span style="width:' + Math.min(100, Math.round(p.progreso)) + '%"></span></span> <span class="tenue">' + Math.min(100, Math.round(p.progreso)) + '%</span>';
+      const porque = p.motivo ? ' <span class="tenue">(' + esc(p.motivo) + ')</span>' : '';
+      return '<span class="' + (p.tipo === 'guerra' ? 'rojo' : '') + '">' + esc(texto) + '</span> <span class="barra"><span style="width:' + Math.min(100, Math.round(p.progreso)) + '%"></span></span> <span class="tenue">' + Math.min(100, Math.round(p.progreso)) + '%</span>' + porque;
     }).join('<br>');
   }
   function comercioDe(c) {
@@ -3872,7 +3929,20 @@ button { cursor: pointer; }
   function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); }
 
   // ---------- El tiempo ----------
+  // El año del reloj avanza poco a poco durante el turno, en vez de saltar.
+  let anioAntes = null, inicioTurno = 0;
+  function relojSuave() {
+    requestAnimationFrame(relojSuave);
+    // Para depurar desde la consola: genesis.mundo() devuelve el mundo vivo.
+    window.genesis = { mundo: () => m };
+    if (!m || anioAntes == null) return;
+    const f = corriendo ? Math.min(1, (performance.now() - inicioTurno) / VELOCIDADES[vel][0]) : 1;
+    const anio = Math.round(anioAntes + (m.anio - anioAntes) * f);
+    const texto = S.anioTexto(anio);
+    if ($('anio').textContent !== texto) $('anio').textContent = texto;
+  }
   function paso() {
+    anioAntes = m.anio; inicioTurno = performance.now();
     const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [];
     S.turno(m);
     P.turno(m, VELOCIDADES[vel][0]);
@@ -4060,6 +4130,7 @@ button { cursor: pointer; }
     $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
     programar();
+    requestAnimationFrame(relojSuave);
     // Un mundo nuevo (o uno guardado de antes de los modos) pregunta cómo quieres jugar.
     if (!m.modo) pedirModo();
     else if (m.modo === 'pueblo' && tuPueblo()) P.centrarEn(tuPueblo().capital);

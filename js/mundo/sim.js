@@ -393,7 +393,7 @@
     for (const i of parte) m.dueno[i] = nueva.id;
     c.pob -= nueva.pob; c.estab = 40;
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
-    nueva.rel[c.id] = -40; c.rel[nueva.id] = -40;
+    nueva.rel[c.id] = -40; c.rel[nueva.id] = -40; nueva.origen = c.id;
     cronica(m, 'revuelta', 'Las provincias se rebelan', 'Las tierras lejanas de ' + c.nombre + ' dejan de obedecer a la capital y proclaman un ' + (nueva.regimen === 'republica' ? 'gobierno propio' : 'reino propio') + ': ' + nueva.nombre + '.', c, parte[0]);
   }
 
@@ -451,7 +451,7 @@
         const fa = fuerza(m, a), fb = fuerza(m, b);
         const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
         const ganas = M.CARACTERES[agresor.caracter].agresion * rasgo(agresor, 'agresion') * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
-        if (!agresor.jugador && agresor.guerras.length < 2 && (r < -40 || (ganas > 2.2 && r < 10)) && azar(m) < 0.15) tramar(m, 'guerra', agresor, victima);
+        if (!agresor.jugador && agresor.guerras.length < 2 && (r < -40 || (ganas > 2.2 && r < 10)) && azar(m) < 0.08) { const motivo = casusBelli(m, agresor, victima, r, fAg / fVi); if (motivo) tramar(m, 'guerra', agresor, victima, motivo); }
       }
     }
     avanzarComplots(m);
@@ -501,6 +501,7 @@
     const nueva = nuevaCiv(m, x.region, { era: c.era, ciencia: c.ciencia * 0.9, pob: c.pob * parte.length / cs.length, riqueza: c.riqueza * 0.2, estab: 55, inventos: c.inventos.slice(), caracter: c.caracter });
     if (!m.civs.some(o => o !== nueva && o.nombre === x.nombre)) nueva.nombre = x.nombre;
     nueva.rey = { nombre: x.alcalde, edad: 40, rasgo: x.rasgo === 'ambicioso' ? 'guerrero' : 'justo', desde: m.anio };
+    nueva.origen = c.id;
     for (const i of parte) m.dueno[i] = nueva.id;
     c.pob -= nueva.pob; c.estab = Math.max(10, c.estab - 10);
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
@@ -511,13 +512,25 @@
     if (azar(m) < 0.5 && !c.jugador) declararGuerra(m, c, nueva, c.nombre + ' no acepta la independencia de ' + x.nombre + ' y manda a sus ejércitos a recuperarla.', true);
   }
 
+  // Una guerra necesita un motivo (como los "casus belli" de los complots de WorldBox); sin motivo, no hay complot.
+  function casusBelli(m, a, b, r, ratio) {
+    if (b.origen === a.id || a.origen === b.id) return 'recuperar las tierras que se independizaron';
+    if (r < -40) return 'el odio entre los dos pueblos (opinión ' + Math.round(r) + ')';
+    const ambicioso = a.rey && ['guerrero', 'cruel', 'loco'].includes(a.rey.rasgo);
+    if (ambicioso && ratio > 1.6 && r < 10) return 'la ambición de ' + nombreRey(a) + ', que ve débil a su vecino';
+    const sinMadera = (a.madera || 0) < 5 && (a.arboles || 0) < casillas(m, a).length, sinMetal = a.era >= 1 && (a.metal || 0) < 2;
+    if ((sinMadera && (b.arboles || 0) > (a.arboles || 0) * 2) || (sinMetal && (b.metal || 0) > 10)) return 'la codicia de los ' + (sinMadera ? 'bosques' : 'metales') + ' de ' + b.nombre;
+    if (ratio > 2.5 && r < 0 && azar(m) < 0.3) return 'la debilidad de ' + b.nombre;
+    return null;
+  }
+
   // Un complot nuevo (si no hay ya uno igual): lo trama el gobernante de "de" contra (o con) "contra".
-  function tramar(m, tipo, de, contra) {
+  function tramar(m, tipo, de, contra, motivo) {
     m.complots = m.complots || [];
     if (m.complots.some(p => p.de === de.id && p.tipo === tipo) || m.complots.some(p => p.tipo === tipo && p.de === contra.id && p.contra === de.id)) return;
-    const p = { tipo, de: de.id, contra: contra.id, progreso: 0, desde: m.turno };
+    const p = { tipo, de: de.id, contra: contra.id, progreso: 0, desde: m.turno, motivo: motivo || null };
     m.complots.push(p);
-    if (tipo === 'guerra') cronica(m, 'complot', nombreRey(de) + ' trama una guerra contra ' + contra.nombre, 'En la corte de ' + de.nombre + ' se habla de mapas, de levas y de una afrenta que nadie recuerda bien. Si nada lo impide, habrá guerra.', de);
+    if (tipo === 'guerra') cronica(m, 'complot', nombreRey(de) + ' trama una guerra contra ' + contra.nombre, 'En la corte de ' + de.nombre + ' se habla de mapas y de levas. El motivo: ' + (motivo || 'una afrenta que nadie recuerda bien') + '. Si nada lo impide, habrá guerra.', de);
     return p;
   }
   function avanzarComplots(m) {
@@ -526,10 +539,10 @@
       // Se abandonan si las cosas cambian: la opinión mejora, o empeora para una alianza.
       const sigue = p.tipo === 'guerra' ? r < 25 && !aliados(m, a, b) && a.guerras.length < 2 && !enGuerra(a, b) : r > 10 && !enGuerra(a, b) && !aliados(m, a, b);
       if (!sigue) { m.complots = m.complots.filter(x => x !== p); continue; }
-      p.progreso += p.tipo === 'guerra' ? 15 + 10 * rasgo(a, 'agresion') + azar(m) * 10 : 20 + azar(m) * 15;
+      p.progreso += p.tipo === 'guerra' ? 7 + 5 * rasgo(a, 'agresion') + azar(m) * 6 : 12 + azar(m) * 10;
       if (p.progreso < 100) continue;
       m.complots = m.complots.filter(x => x !== p);
-      if (p.tipo === 'guerra') declararGuerra(m, a, b, 'El complot de ' + nombreRey(a) + ' culmina: ' + a.nombre + ' declara la guerra a ' + b.nombre + '.');
+      if (p.tipo === 'guerra') declararGuerra(m, a, b, a.nombre + ' declara la guerra a ' + b.nombre + '. Motivo: ' + (p.motivo || 'una vieja afrenta') + '.');
       else aliar(m, a, b);
     }
   }
@@ -665,5 +678,5 @@
   }
 
   M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

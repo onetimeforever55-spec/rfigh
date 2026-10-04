@@ -140,6 +140,13 @@
       if (v.centros[c.id] === c.capital) continue;
       for (const t of plaza(m, c.capital)) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.centro, 0); }
       v.centros[c.id] = c.capital;
+      // Como en WorldBox, la aldea nace con su molino: alrededor de él se siembran los primeros campos.
+      const zona = [c.capital, ...S().vecinos(c.capital).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r));
+      if (!zona.some(t => v.obra[t] === OBRA.molino)) {
+        const ter = terrenos(m), pl = plaza(m, c.capital);
+        const t = zona.filter(x => !v.obra[x] && !pl.includes(x) && CONSTRUIBLE.has(ter[x]) && ter[x] !== 'arena').sort((p, q) => dist(m, p, pl[3]) - dist(m, q, pl[3]))[0];
+        if (t != null) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.molino, 0); }
+      }
     }
   }
   function plaza(m, r) { const tw = m.W * SUB, x = (r % m.W) * SUB + 1, y = (r / m.W | 0) * SUB + 1; return [y * tw + x, y * tw + x + 1, (y + 1) * tw + x, (y + 1) * tw + x + 1]; }
@@ -293,7 +300,7 @@
    * LOS EDIFICIOS DE CADA PLAZA (capital y ciudades), como en WorldBox: una torre de vigilancia, un templo,
    * un molino junto a los campos (desde la Edad Media) y un puerto si hay costa. Cuestan madera y piedra.
    */
-  const COSTES = { [OBRA.torre]: [6, 4], [OBRA.templo]: [8, 6], [OBRA.molino]: [8, 2], [OBRA.puerto]: [10, 0] };
+  const COSTES = { [OBRA.torre]: [6, 4], [OBRA.templo]: [8, 6], [OBRA.molino]: [3, 0], [OBRA.puerto]: [10, 0] };
   function edificioPendiente(m, a, c, ter) {
     const v = m.vida;
     const plazas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)].sort((p, q) => S().distancia(p, a.h) - S().distancia(q, a.h));
@@ -303,9 +310,9 @@
       const tiene = o => tiles.some(t => v.obra[t] === o);
       const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
+      if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
-      if (c.era >= 4 && !tiene(OBRA.molino) && tiles.filter(t => v.obra[t] === OBRA.campo).length >= 4) pide.push([OBRA.molino, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]) && [1, -1, v.tw, -v.tw].some(d => v.obra[t + d] === OBRA.campo))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
       for (const [obra, donde] of pide) {
         const coste = COSTES[obra];
@@ -657,7 +664,7 @@
       // Primero se siega lo que está maduro; luego se aran campos nuevos si hacen falta.
       const maduros = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r)).filter(x => v.obra[x] === OBRA.campo && v.cultivo[x] >= 3 && !rec.reservadas.has(x));
       if (maduros.length) { t = maduros[Math.floor(azar(v) * maduros.length)]; a.siega = 1; }
-      else t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
+      else t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)) : -1;
     }
     else if (a.o === CONSTRUCTOR) {
       a.obraCamino = 0; a.edificio = 0;
@@ -669,7 +676,7 @@
         for (const x of pend) { if (rec.reservadas.has(x) || v.camino[x]) continue; const d = dist(m, aqui, x); if (d < md) { md = d; t = x; } }
         if (t >= 0) a.obraCamino = 1;
       }
-      if (t < 0 && azar(v) < 0.6) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
+      if (t < 0 && (azar(v) < 0.6 || !molinoCerca(m, c, a.h))) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
       if (t < 0) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
     }
     else if (a.o === COMERCIANTE) {
@@ -702,12 +709,22 @@
   const metaCasas = c => Math.round((2 + c.pob * 0.12) * (0.4 + 0.6 * prio(c, 'casas')));
 
   // Una parcela libre cerca de casa: primero en su región, luego en las regiones propias de alrededor.
-  function libre(m, a, c, rec, ter, sirve) {
+  // ¿Hay un molino cerca? (de la región de la aldea, o a 3 parcelas de una parcela concreta)
+  function molinoCerca(m, c, r, t) {
+    const v = m.vida;
+    if (t != null) {
+      const tx = t % v.tw, ty = t / v.tw | 0;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { if (Math.abs(dx) + Math.abs(dy) > 4) continue; const n = (ty + dy) * v.tw + tx + dx; if (n >= 0 && n < v.obra.length && v.obra[n] === OBRA.molino) return true; }
+      return false;
+    }
+    return [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)].some(z => parcelas(m, z).some(x => v.obra[x] === OBRA.molino));
+  }
+  function libre(m, a, c, rec, ter, sirve, filtro) {
     const v = m.vida, base = centro(m, a.h);
     const regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 99;
     for (const r of regiones) for (const t of parcelas(m, r)) {
-      if (v.obra[t] || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !sirve.has(ter[t]) || rec.reservadas.has(t)) continue;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
       const d = dist(m, base, t) + azar(v) * 1.5;
       if (d < md) { md = d; mejor = t; }
     }

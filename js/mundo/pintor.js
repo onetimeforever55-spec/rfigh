@@ -11,7 +11,10 @@
 (function (RF) {
   'use strict';
   const M = RF.MUNDO;
-  const P = 8;
+  // A: píxeles de arte por parcela (el suelo, las casas y los árboles); P: píxeles del mundo por parcela.
+  // Las personas, los animales, los barcos y las flechas se dibujan a la escala fina P, así que una persona
+  // queda mucho más pequeña que una casa, como en WorldBox.
+  const A = 8, E = 2, P = A * E;
 
   // ---------- Sprites: cada letra es un color; el punto, transparente ----------
   const PALETA = {
@@ -78,12 +81,12 @@
     const clave = tipo + variante;
     if (cacheSuelo[clave]) return cacheSuelo[clave];
     const [base, claro, oscuro] = SUELO[tipo] || SUELO.llanura;
-    const c = document.createElement('canvas'); c.width = P; c.height = P;
+    const c = document.createElement('canvas'); c.width = A; c.height = A;
     const g = c.getContext('2d');
-    g.fillStyle = base; g.fillRect(0, 0, P, P);
+    g.fillStyle = base; g.fillRect(0, 0, A, A);
     let s = (variante + 1) * 2654435761 + tipo.length * 97;
     const r = () => { s = (Math.imul(s ^ (s >>> 13), 1274126177) + 0x9E3779B9) >>> 0; return s / 4294967296; };
-    for (let k = 0; k < 7; k++) { g.fillStyle = r() < 0.5 ? claro : oscuro; g.fillRect(Math.floor(r() * P), Math.floor(r() * P), 1, 1); }
+    for (let k = 0; k < 7; k++) { g.fillStyle = r() < 0.5 ? claro : oscuro; g.fillRect(Math.floor(r() * A), Math.floor(r() * A), 1, 1); }
     if (tipo === 'agua' || tipo === 'bajo') { g.fillStyle = claro; const y = Math.floor(r() * 6) + 1, x = Math.floor(r() * 5); g.fillRect(x, y, 3, 1); }
     if (tipo === 'pantano') { g.fillStyle = '#2f5a5a'; g.fillRect(1 + Math.floor(r() * 3), 2 + Math.floor(r() * 3), 3, 2); g.fillStyle = '#4f8080'; g.fillRect(2, 3, 1, 1); }
     if (tipo === 'tundra') { g.fillStyle = '#e9eef2'; g.fillRect(Math.floor(r() * 6), Math.floor(r() * 6), 2, 1); }
@@ -91,7 +94,7 @@
       // Un pico con la cumbre nevada en cada parcela de montaña.
       const pico = variante % 2 ? ['....n...', '...nRr..', '..RRHRr.', '.RRRRHRr', 'RRrRRRRr', 'rRRRrRRr', 'rrRRRRrr', 'rrrrrrrr'] : ['...n....', '..nRr...', '.RHRRr..', '.RRHRRr.', 'RRRRRRrr', 'rRrRRRRr', 'rrRRrRrr', 'rrrrrrrr'];
       const col = { n: '#f4f8fb', R: '#8a8a96', H: '#b9b9c4', r: '#5e5e68' };
-      for (let yy = 0; yy < P; yy++) for (let xx = 0; xx < P; xx++) { const ch = pico[yy][xx]; if (ch !== '.') { g.fillStyle = col[ch]; g.fillRect(xx, yy, 1, 1); } }
+      for (let yy = 0; yy < A; yy++) for (let xx = 0; xx < A; xx++) { const ch = pico[yy][xx]; if (ch !== '.') { g.fillStyle = col[ch]; g.fillRect(xx, yy, 1, 1); } }
     }
     return (cacheSuelo[clave] = c);
   }
@@ -144,7 +147,7 @@
     m = nuevo;
     if (!m.vida) V.crear(m);
     const v = m.vida;
-    lienzo = document.createElement('canvas'); lienzo.width = v.tw * P; lienzo.height = v.th * P; gl = lienzo.getContext('2d');
+    lienzo = document.createElement('canvas'); lienzo.width = v.tw * A; lienzo.height = v.th * A; gl = lienzo.getContext('2d');
     capa = document.createElement('canvas'); capa.width = lienzo.width; capa.height = lienzo.height; gc = capa.getContext('2d');
     visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice(), camino: (v.camino || []).slice() };
     tierra = V.terrenos(m).slice();
@@ -157,7 +160,7 @@
   }
   function enfocarInicio() {
     const vivas = S.vivas(m).slice().sort((a, b) => S.casillas(m, b).length - S.casillas(m, a).length);
-    cam.z = Math.max(zMin(), 2);
+    cam.z = Math.max(zMin(), 1.5);
     if (vivas[0]) centrarEn(vivas[0].capital); else { cam.x = ancho() / 2; cam.y = alto() / 2; }
     limitar();
   }
@@ -168,7 +171,7 @@
   }
 
   function parcela(t) {
-    const v = m.vida, x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, ter = tierra[t];
+    const v = m.vida, x = (t % v.tw) * A, y = Math.floor(t / v.tw) * A, ter = tierra[t];
     gl.drawImage(suelo(ter, ((t * 2654435761) >>> 0) % 4), x, y);
     if (visto.camino && visto.camino[t]) caminoEn(t, x, y, ter);
     const obra = visto.obra[t];
@@ -186,7 +189,7 @@
       else if (obra === V.OBRA.centro) {
         // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
         const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
-        if (lx >= 0 && ly >= 0 && lx < 2 && ly < 2) gl.drawImage(sprite('centro' + ge, color), lx * P, ly * P, P, P, x, y, P, P);
+        if (lx >= 0 && ly >= 0 && lx < 2 && ly < 2) gl.drawImage(sprite('centro' + ge, color), lx * A, ly * A, A, A, x, y, A, A);
         else gl.drawImage(sprite('ruina'), x, y);
       }
       return;
@@ -218,8 +221,8 @@
     const tx = t % tw;
     const lados = [[tx > 0 && une(t - 1), 0, 2, 2, 4], [tx < tw - 1 && une(t + 1), 6, 2, 2, 4], [une(t - tw), 2, 0, 4, 2], [une(t + tw), 2, 6, 4, 2]];
     if (ter === 'rio') {
-      gl.fillStyle = '#7a5232'; gl.fillRect(x, y + 1, P, 6); gl.fillStyle = '#5a3a22'; for (let k = 1; k < P; k += 2) gl.fillRect(x + k, y + 1, 1, 6);
-      gl.fillStyle = '#3a2a1e'; gl.fillRect(x, y + 1, P, 1); gl.fillRect(x, y + 6, P, 1);
+      gl.fillStyle = '#7a5232'; gl.fillRect(x, y + 1, A, 6); gl.fillStyle = '#5a3a22'; for (let k = 1; k < A; k += 2) gl.fillRect(x + k, y + 1, 1, 6);
+      gl.fillStyle = '#3a2a1e'; gl.fillRect(x, y + 1, A, 1); gl.fillRect(x, y + 6, A, 1);
       return;
     }
     const [base, borde, marca] = era >= 7 ? ['#55585f', '#3f4248', '#e8d070'] : era >= 3 ? ['#b9ad94', '#948a74', '#d4cab2'] : ['#a7855a', '#8a6a42', '#b8966a'];
@@ -239,20 +242,20 @@
   // El campo según cómo va el trigo: tierra arada, brotes, verde y dorado (listo para segar).
   function campo(x, y, t) {
     const fase = (visto.cultivo && visto.cultivo[t]) || 0;
-    gl.fillStyle = '#86653a'; gl.fillRect(x, y, P, P);
+    gl.fillStyle = '#86653a'; gl.fillRect(x, y, A, A);
     gl.fillStyle = '#6e5230';
-    for (let k = 1; k < P; k += 2) gl.fillRect(x, y + k, P, 1);
+    for (let k = 1; k < A; k += 2) gl.fillRect(x, y + k, A, 1);
     if (fase >= 1) {
       gl.fillStyle = fase === 1 ? '#8fc35a' : fase === 2 ? '#5f9e3a' : '#e0c050';
-      for (let k = 0; k < P; k += 2) for (let j = (k / 2) % 2; j < P; j += 2) gl.fillRect(x + j, y + k - (fase >= 2 ? 1 : 0), 1, fase >= 2 ? 2 : 1);
-      if (fase === 3) { gl.fillStyle = '#f4dc7a'; for (let k = 0; k < P; k += 4) gl.fillRect(x + ((k + t) % 5), y + k, 1, 1); }
+      for (let k = 0; k < A; k += 2) for (let j = (k / 2) % 2; j < A; j += 2) gl.fillRect(x + j, y + k - (fase >= 2 ? 1 : 0), 1, fase >= 2 ? 2 : 1);
+      if (fase === 3) { gl.fillStyle = '#f4dc7a'; for (let k = 0; k < A; k += 4) gl.fillRect(x + ((k + t) % 5), y + k, 1, 1); }
     }
-    gl.fillStyle = 'rgba(0,0,0,0.18)'; gl.fillRect(x, y + P - 1, P, 1);
+    gl.fillStyle = 'rgba(0,0,0,0.18)'; gl.fillRect(x, y + A - 1, A, 1);
   }
 
   // El color de cada pueblo sobre su tierra y las fronteras (rojas donde hay guerra).
   function territorio() {
-    const R = V.SUB * P;
+    const R = V.SUB * A;
     gc.clearRect(0, 0, capa.width, capa.height);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
@@ -348,8 +351,9 @@
     // Solo lo que se ve.
     const x0 = Math.max(0, Math.floor(cam.x - w / cam.z / 2) - P), y0 = Math.max(0, Math.floor(cam.y - h / cam.z / 2) - P);
     const x1 = Math.min(ancho(), Math.ceil(cam.x + w / cam.z / 2) + P), y1 = Math.min(alto(), Math.ceil(cam.y + h / cam.z / 2) + P);
-    g.drawImage(lienzo, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
-    g.drawImage(capa, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    // El suelo y las obras están pintados a escala de arte (A): se amplían al mundo (P).
+    g.drawImage(lienzo, x0 / E, y0 / E, (x1 - x0) / E, (y1 - y0) / E, x0, y0, x1 - x0, y1 - y0);
+    g.drawImage(capa, x0 / E, y0 / E, (x1 - x0) / E, (y1 - y0) / E, x0, y0, x1 - x0, y1 - y0);
     banderas(ahora);
     agua(ahora, x0, y0, x1, y1);
     barcos(k, ahora, x0, y0, x1, y1);
@@ -375,16 +379,16 @@
     for (const c of S.vivas(m)) {
       // El gobernante pasea delante de su palacio, con capa del color de su pueblo y corona.
       const R = V.SUB * P, rx = (c.capital % m.W) * R, ry = Math.floor(c.capital / m.W) * R;
-      const kx = Math.round(rx + R / 2 - 1 + Math.sin(ahora / 1100 + c.id) * 5), ky = ry + P * 3 + 1;
+      const kx = Math.round(rx + R / 2 - 1 + Math.sin(ahora / 1100 + c.id) * 8), ky = ry + P * 3 + 4;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(kx - 1, ky + 6, 5, 1);
       g.fillStyle = '#3a2a1e'; g.fillRect(kx, ky + 4, 1, 2); g.fillRect(kx + 2, ky + 4, 1, 2);
       g.fillStyle = c.color; g.fillRect(kx - 1, ky + 1, 5, 4);
       g.fillStyle = '#f0c8a0'; g.fillRect(kx + 1, ky, 1, 1);
       g.fillStyle = '#ffd23a'; g.fillRect(kx, ky - 1, 3, 1); g.fillRect(kx + (fase ? 0 : 2), ky - 2, 1, 1);
-      const r = c.capital, x = (r % m.W) * V.SUB * P + P + 1, y = Math.floor(r / m.W) * V.SUB * P + P - 6;
-      g.fillStyle = '#3a2a1e'; g.fillRect(x, y, 1, 8);
-      g.fillStyle = c.color; g.fillRect(x + 1, y, 4, 3);
-      g.fillStyle = mezclar(c.color, '#000000', 0.3); g.fillRect(x + 1 + 3, y + (fase ? 1 : 0), 1, 2);
+      const r = c.capital, x = (r % m.W) * V.SUB * P + P + 2, y = Math.floor(r / m.W) * V.SUB * P + P - 12;
+      g.fillStyle = '#3a2a1e'; g.fillRect(x, y, 1, 14);
+      g.fillStyle = c.color; g.fillRect(x + 1, y, 7, 5);
+      g.fillStyle = mezclar(c.color, '#000000', 0.3); g.fillRect(x + 6, y + (fase ? 1 : 0), 2, 4);
     }
   }
 
@@ -398,10 +402,10 @@
       if (r && r.length >= 6) {
         const i = paso * 3, j = Math.min(r.length - 3, i + 3);
         const ax = r[i], ay = r[i + 1], bx = r[j], by = r[j + 1];
-        px = (ax + (bx - ax) * f) * P + 2.5; py = (ay + (by - ay) * f) * P + 2;
+        px = (ax + (bx - ax) * f) * P + 6.5; py = (ay + (by - ay) * f) * P + 6;
         acc = r[j + 2];
         if (j === i) acc = r[i + 2];
-      } else { px = a.x * P + 2.5; py = a.y * P + 2; acc = 0; }
+      } else { px = a.x * P + 6.5; py = a.y * P + 6; acc = 0; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       px = Math.round(px); py = Math.round(py);
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
@@ -435,16 +439,32 @@
       else if (oficio === 'granjero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 4); g.fillStyle = '#9aa0aa'; g.fillRect(px + 3, py + 3 + alto, 2, 1); }
       else if (oficio === 'constructor') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#5e5e68'; g.fillRect(px + 3, py + alto, 2, 1); }
       else if (oficio === 'guerrero') {
-        const arma = a.arma || 0;
-        if (a.armadura) { g.fillStyle = '#a3a9b5'; g.fillRect(px, py + 1, 3, 1); }
-        if (a.tirador && arma >= 5) { g.fillStyle = '#3a2a1e'; g.fillRect(px + 2, py + 1, 4, 1); g.fillStyle = '#5e5e68'; g.fillRect(px + 5, py + 1, 1, 1); }
-        else if (a.tirador && arma >= 1) { g.fillStyle = '#8a5a2b'; g.fillRect(px + 3, py - 1, 1, 1); g.fillRect(px + 4, py, 1, 3); g.fillRect(px + 3, py + 3, 1, 1); g.fillStyle = '#e8e0c8'; g.fillRect(px + 3, py, 1, 3); }
-        else if (arma === 0) { g.fillStyle = '#6b4a2b'; g.fillRect(px + 3, py + alto, 1, 3); g.fillRect(px + 3, py + alto, 2, 1); }
-        else if (arma === 1) { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py - 2 + alto, 1, 6); g.fillStyle = '#c8a050'; g.fillRect(px + 3, py - 3 + alto, 1, 1); }
-        else { g.fillStyle = '#e8ecf4'; g.fillRect(px + 3, py - 1 + alto, 1, 4); g.fillStyle = '#7a5232'; g.fillRect(px + 2, py + 2 + alto, 3, 1); if (arma >= 3) { g.fillStyle = color[a.c] || '#ccc'; g.fillRect(px - 2, py + 1, 2, 3); g.fillStyle = '#e8ecf4'; g.fillRect(px - 2, py + 2, 1, 1); } }
-        // El capitán lleva el estandarte de su pueblo.
+        // Cada clase de soldado se reconoce: espadachín con escudo, lancero, arquero con capucha y arco,
+        // tirador con arcabuz o fusil. El capitán lleva el estandarte.
+        const arma = a.arma || 0, col = color[a.c] || '#ccc';
+        if (a.armadura) { g.fillStyle = '#a3a9b5'; g.fillRect(px, py + 1, 3, 2); g.fillStyle = col; g.fillRect(px + 1, py + 2, 1, 1); }
+        if (a.tirador && arma >= 5) {
+          g.fillStyle = arma >= 7 ? '#5a6a4a' : '#2a2a3a'; g.fillRect(px, py - 1, 3, 1);
+          g.fillStyle = '#3a2a1e'; g.fillRect(px + 2, py + 2, 2, 1); g.fillRect(px + 4, py + 1, 2, 1); g.fillRect(px + 6, py, 1, 1);
+          g.fillStyle = '#9aa0aa'; g.fillRect(px + 7, py - 1, 1, 1);
+        } else if (a.tirador && arma >= 1) {
+          g.fillStyle = '#4a7a3a'; g.fillRect(px, py - 1, 3, 1); g.fillRect(px + 1, py - 2, 1, 1);
+          g.fillStyle = '#7a5232'; g.fillRect(px - 1, py, 1, 3);
+          g.fillStyle = '#8a5a2b'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px + 5, py, 1, 3); g.fillRect(px + 4, py + 3, 1, 1);
+          g.fillStyle = '#e8e0c8'; g.fillRect(px + 4, py, 1, 3);
+          if (acc === 2) { g.fillStyle = '#6b4a2b'; g.fillRect(px + 3, py + 1, 3, 1); }
+        } else if (arma === 0) {
+          g.fillStyle = '#6b4a2b'; g.fillRect(px + 3, py - 1 + alto, 1, 4); g.fillRect(px + 3, py - 2 + alto, 2, 2);
+        } else if (arma === 1) {
+          g.fillStyle = '#7a5232'; g.fillRect(px + 3, py - 4 + alto, 1, 9);
+          g.fillStyle = '#d8b060'; g.fillRect(px + 3, py - 6 + alto, 1, 2);
+        } else {
+          g.fillStyle = '#8a8f9a'; g.fillRect(px, py - 1, 3, 1); g.fillStyle = col; g.fillRect(px + 1, py - 2, 1, 1);
+          g.fillStyle = '#eef1f6'; g.fillRect(px + 4, py - 3 + alto, 1, 5); g.fillStyle = '#c8a050'; g.fillRect(px + 3, py + 1 + alto, 3, 1);
+          g.fillStyle = col; g.fillRect(px - 3, py, 2, 4); g.fillStyle = '#f4ecd8'; g.fillRect(px - 3, py + 1, 1, 1);
+        }
         const ej = m.vida.ejercitos && m.vida.ejercitos[a.c];
-        if (ej && ej.capitan === a.id) { g.fillStyle = '#3a2a1e'; g.fillRect(px - 1, py - 6, 1, 7); g.fillStyle = color[a.c] || '#ccc'; g.fillRect(px, py - 6, 4, 3); g.fillStyle = '#fff6dc'; g.fillRect(px + 1, py - 5, 1, 1); }
+        if (ej && ej.capitan === a.id) { g.fillStyle = '#3a2a1e'; g.fillRect(px - 1, py - 9, 1, 10); g.fillStyle = col; g.fillRect(px, py - 9, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 8, 2, 2); }
       }
       if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px - 2, py + 1, 1, 1); }
     }
@@ -590,15 +610,14 @@
       const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, o = visto.obra[t];
       if (o === V.OBRA.molino) {
         // Cuatro aspas que giran.
-        const cx = x + 4, cy = y + 3;
-        g.fillStyle = '#e8dcc0';
-        for (let k = 0; k < 4; k++) { const ang = fase + k * Math.PI / 2; for (let d = 1; d <= 4; d++) g.fillRect(Math.round(cx + Math.cos(ang) * d), Math.round(cy + Math.sin(ang) * d), 1, 1); }
-        g.fillStyle = '#5a3a22'; g.fillRect(cx, cy, 1, 1);
+        const cx = x + 8, cy = y + 6;
+        for (let k = 0; k < 4; k++) { const ang = fase + k * Math.PI / 2; for (let d = 1; d <= 8; d++) { g.fillStyle = d > 3 ? '#f0e6cc' : '#7a5232'; g.fillRect(Math.round(cx + Math.cos(ang) * d), Math.round(cy + Math.sin(ang) * d), d > 3 ? 2 : 1, d > 3 ? 2 : 1); } }
+        g.fillStyle = '#5a3a22'; g.fillRect(cx - 1, cy - 1, 2, 2);
       } else {
         const c = S.civ(m, m.dueno[V.region(m, t)]);
         if (!c) continue;
-        g.fillStyle = '#3a2a1e'; g.fillRect(x + 4, y - 4, 1, 4);
-        g.fillStyle = c.color; g.fillRect(x + 5, y - 4 + (Math.floor(ahora / 300) % 2), 3, 2);
+        g.fillStyle = '#3a2a1e'; g.fillRect(x + 8, y - 6, 1, 7);
+        g.fillStyle = c.color; g.fillRect(x + 9, y - 6 + (Math.floor(ahora / 300) % 2), 5, 3);
       }
     }
   }
@@ -609,7 +628,7 @@
       let px = b.x * P, py = b.y * P;
       if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P; }
       if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;
-      px = Math.round(px); py = Math.round(py + Math.sin(ahora / 500 + b.id) * 0.8);
+      px = Math.round(px + 4); py = Math.round(py + 4 + Math.sin(ahora / 500 + b.id) * 0.8);
       const c = S.civ(m, b.c), color = c ? c.color : '#ccc';
       g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px, py + 6, 7, 1);
       if (b.tipo === 'pesca') {
@@ -666,7 +685,7 @@
       for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if ((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) chimeneas.push(t); if (chimeneas.length > 60) break; }
     }
     for (const t of chimeneas) {
-      const x = (t % m.vida.tw) * P + 5, y = Math.floor(t / m.vida.tw) * P;
+      const x = (t % m.vida.tw) * P + 10, y = Math.floor(t / m.vida.tw) * P + 2;
       for (let k = 0; k < 3; k++) {
         const f = ((ahora / 2400 + k / 3 + (t % 7) / 7) % 1);
         g.fillStyle = 'rgba(210,210,215,' + (0.45 * (1 - f)).toFixed(2) + ')';
@@ -706,7 +725,7 @@
     if (reducido) return;
     const W2 = ancho(), H2 = alto();
     for (let i = 0; i < 6; i++) {
-      const w = 40 + azarV(i * 11) * 50, h = 14 + azarV(i * 23) * 12;
+      const w = 80 + azarV(i * 11) * 100, h = 28 + azarV(i * 23) * 24;
       const cx = ((azarV(i * 7) * W2 + ahora * (0.004 + azarV(i) * 0.004)) % (W2 + w * 2)) - w, cy = azarV(i * 5) * H2;
       if (cx + w < x0 - 30 || cx > x1 + 30 || cy + h < y0 - 30 || cy > y1 + 30) continue;
       const bloques = [[0, 0.3, 0.45, 0.7], [0.2, 0, 0.5, 0.8], [0.5, 0.15, 0.4, 0.75], [0.75, 0.35, 0.25, 0.55]];
@@ -720,8 +739,8 @@
   function animales(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     for (const b of v.animales || []) {
-      let px = b.x * P + 2, py = b.y * P + 3;
-      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 2; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 3; }
+      let px = b.x * P + 6, py = b.y * P + 8;
+      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 6; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 8; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       px = Math.round(px); py = Math.round(py);
       const pata = Math.floor(ahora / 220 + b.id) % 2;
@@ -752,15 +771,21 @@
     for (const [x1, y1, x2, y2, paso, bala] of lista) {
       const f = k - (paso - 1);
       if (f < 0 || f > 1) continue;
-      const ax = x1 * P + 4, ay = y1 * P + 3, bx = x2 * P + 4, by = y2 * P + 3;
-      const x = ax + (bx - ax) * f, y = ay + (by - ay) * f - Math.sin(f * Math.PI) * (bala ? 0 : 6);
+      const ax = x1 * P + 8, ay = y1 * P + 7, bx = x2 * P + 8, by = y2 * P + 7;
+      const arco = bala ? 0 : Math.min(14, Math.hypot(bx - ax, by - ay) * 0.25);
+      const pos = q => [ax + (bx - ax) * q, ay + (by - ay) * q - Math.sin(q * Math.PI) * arco];
+      const [x, y] = pos(f), [xa, ya] = pos(Math.max(0, f - 0.08));
+      const ang = Math.atan2(y - ya, x - xa), cx = Math.cos(ang), cy = Math.sin(ang);
       if (bala) {
-        if (f < 0.25) { g.fillStyle = '#ffd23a'; g.fillRect(ax - 1, ay - 1, 3, 3); g.fillStyle = 'rgba(220,220,230,0.6)'; g.fillRect(ax - 2, ay - 3, 3, 2); }
-        g.fillStyle = '#fff6a0'; g.fillRect(x, y, 2, 1);
+        if (f < 0.3) { g.fillStyle = '#ffd23a'; g.fillRect(ax + 2, ay - 2, 3, 3); g.fillStyle = 'rgba(220,220,230,' + (0.7 - f * 2).toFixed(2) + ')'; g.fillRect(ax + 1, ay - 6 - f * 10, 4, 3); }
+        g.fillStyle = 'rgba(255,240,160,0.5)'; for (let d = 1; d <= 4; d++) g.fillRect(Math.round(x - cx * d), Math.round(y - cy * d), 1, 1);
+        g.fillStyle = '#fff6a0'; g.fillRect(Math.round(x), Math.round(y), 2, 2);
       } else {
-        const dx = Math.sign(bx - ax) || 1;
-        g.fillStyle = '#6b4a2b'; g.fillRect(x - dx * 2, y, 3, 1);
-        g.fillStyle = '#e8ecf4'; g.fillRect(x + dx, y, 1, 1);
+        // La flecha: astil, punta y plumas, apuntando hacia donde vuela, con una estela tenue.
+        g.fillStyle = 'rgba(255,255,255,0.25)'; for (let d = 6; d <= 10; d++) g.fillRect(Math.round(x - cx * d), Math.round(y - cy * d), 1, 1);
+        g.fillStyle = '#6b4a2b'; for (let d = -3; d <= 2; d++) g.fillRect(Math.round(x + cx * d), Math.round(y + cy * d), 1, 1);
+        g.fillStyle = '#e8ecf4'; g.fillRect(Math.round(x + cx * 3), Math.round(y + cy * 3), 2, 2);
+        g.fillStyle = '#f4f4f4'; g.fillRect(Math.round(x - cx * 4), Math.round(y - cy * 4 - 1), 1, 1); g.fillRect(Math.round(x - cx * 4), Math.round(y - cy * 4 + 1), 1, 1);
       }
     }
   }
@@ -771,7 +796,7 @@
     for (const tb of tumbas) {
       const t = ahora - tb.inicio;
       if (t < 0) continue;
-      const x = tb.x * P + 2, y = tb.y * P + 1;
+      const x = tb.x * P + 6, y = tb.y * P + 5;
       g.globalAlpha = t < 400 ? 1 : Math.max(0, 1 - (t - 400) / 8600);
       if (t < 400) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
       g.fillStyle = '#d8d8e0'; g.fillRect(x + 1, y, 1, 5); g.fillRect(x, y + 1, 3, 1);
@@ -799,7 +824,7 @@
     if (!m) return;
     const R = V.SUB * P;
     cam.x = (region % m.W) * R + R / 2; cam.y = Math.floor(region / m.W) * R + R / 2;
-    if (cam.z < 1.5) cam.z = Math.max(zMin(), 2);
+    if (cam.z < 1) cam.z = Math.max(zMin(), 1.5);
     limitar();
   }
   function zoom(factor, sx, sy) {
