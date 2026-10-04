@@ -87,13 +87,18 @@
       if (k > 0 && (arr[t] === 'agua' || arr[t] === 'bajo')) return;
       if (arr[t] !== 'agua' && arr[t] !== 'bajo') arr[t] = 'rio';
       const ddx = x1 - x, ddy = y1 - y, h = hashR(sem, x, y + k);
-      if (ddx && (!ddy || h < Math.abs(ddx) / (Math.abs(ddx) + Math.abs(ddy)))) x += Math.sign(ddx); else y += Math.sign(ddy);
+      let enX = ddx && (!ddy || h < Math.abs(ddx) / (Math.abs(ddx) + Math.abs(ddy)));
+      // El cuadrado del medio de cada región (la plaza) se rodea si se puede.
+      if (ddx && ddy) { const cx = enX ? x + Math.sign(ddx) : x, cy = enX ? y : y + Math.sign(ddy); if (medio(cx, cy)) enX = !enX; }
+      if (enX) x += Math.sign(ddx); else y += Math.sign(ddy);
       k++;
     }
     const t = y * tw + x;
     if (arr[t] !== 'agua' && arr[t] !== 'bajo') arr[t] = 'rio';
   }
-  function centroRio(m, rx, ry) { const h = hashR((m.semilla | 0) + 31, rx, ry); return [rx * SUB + 1 + (h < 0.5 ? 0 : 1), ry * SUB + 1 + ((h * 4 | 0) % 2)]; }
+  const medio = (x, y) => { const lx = x % SUB, ly = y % SUB; return lx >= 1 && lx <= 2 && ly >= 1 && ly <= 2; };
+  // El río pasa por una esquina de cada región, nunca por su centro.
+  function centroRio(m, rx, ry) { const h = hashR((m.semilla | 0) + 31, rx, ry); return [rx * SUB + (h < 0.5 ? 0 : 3), ry * SUB + ((h * 4 | 0) % 2 ? 3 : 0)]; }
   function rios(m, arr, tw) {
     const sem = (m.semilla | 0) + 57;
     for (let ry = 0; ry < m.H; ry++) for (let rx = 0; rx < m.W; rx++) {

@@ -193,7 +193,7 @@ console.log('COMO WORLDBOX: BIOMAS, ARMAS, EJÉRCITOS, REYES, CIUDADES, ALIANZAS
   // Una guerra con ejércitos: guerreros armados según la era, capitán y combates.
   const w = hasta(S.crear(7, 5), 500);
   const a = S.vivas(w).find(x => S.vecinosDe(w, x).length), b = S.vecinosDe(w, a)[0];
-  a.metal = 50; b.metal = 50;
+  a.metal = 200; b.metal = 200;
   if (!S.enGuerra(a, b)) S.declararGuerra(w, a, b, null);
   let disparos = 0, bajas = 0, capitan = false;
   let suyos = [];
