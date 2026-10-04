@@ -143,7 +143,8 @@
         fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
         (ciudadesDe(c) ? fila('Ciudades', ciudadesDe(c)) : '')],
       economia: ['Economía', fila('Aldeanos', aldeanos(c)) +
-        fila('Comida', Math.floor(c.comida || 0) + ' en el granero <span class="tenue">· ' + (c.campos || 0) + ' campos</span>') +
+        fila('Comida', Math.floor(c.comida || 0) + ' en el granero <span class="tenue">· ' + (c.campos || 0) + ' campos' + (c.efectos.some(e => e.sequia) ? ' · <b class="rojo">sequía</b>' : '') + '</span>') +
+        fila('Ganado', ganado(c)) +
         fila('Madera', Math.floor(c.madera || 0) + ' <span class="tenue">· piedra ' + Math.floor(c.piedra || 0) + ' · ' + (c.arboles || 0) + ' árboles en su tierra</span>') +
         fila('Minas', Math.floor(c.metal || 0) + ' de ' + (c.era >= 6 ? 'acero' : c.era >= 2 ? 'hierro' : 'bronce') + ' <span class="tenue">· ' + Math.floor(c.oro || 0) + ' de oro</span>') +
         fila('Obras', (c.casas || 0) + ' casas') + fila('Edificios', edificios) + fila('Comercio', comercioDe(c))],
@@ -249,6 +250,12 @@
         (lealtad != null ? ' · lealtad ' + lealtad + (peor ? ', ' + esc(peor[0]) : '') : '') + (x.complot != null ? ' · <b class="rojo">conspira ' + Math.min(100, Math.round(x.complot)) + '%</b>' : '') + '</span>';
     }).join('<br>');
   }
+  function ganado(c) {
+    const reses = m.vida.animales.filter(b => b.c === c.id), ovejas = reses.filter(b => b.tipo === 'oveja').length, vacas = reses.length - ovejas;
+    const pastores = m.vida.aldeanos.filter(a => a.c === c.id && a.pastor != null).length;
+    if (!reses.length) return 'ninguno <span class="tenue">(hacen falta pastos libres)</span>';
+    return ovejas + (ovejas === 1 ? ' oveja' : ' ovejas') + (vacas ? ', ' + vacas + (vacas === 1 ? ' vaca' : ' vacas') : '') + ' <span class="tenue">· leche, lana y carne' + (pastores ? ' · ' + pastores + ' granjeros con el rebaño' : '') + '</span>';
+  }
   function aldeanos(c) {
     const cuenta = Object.create(null);
     for (const a of m.vida.aldeanos) if (a.c === c.id) { const o = M.vida.OFICIOS[a.o]; cuenta[o] = (cuenta[o] || 0) + 1; }
@@ -259,7 +266,7 @@
   }
 
   // La crónica: lo que pasa, y al tocarlo, por qué pasó, qué precedente tiene y dónde (la cámara va a mirar).
-  const GRANDES = new Set(['guerra', 'paz', 'conquista', 'caida', 'revuelta', 'plaga', 'hambruna', 'alianza', 'nuevo_pueblo', 'fundacion', 'cronista']);
+  const GRANDES = new Set(['guerra', 'paz', 'conquista', 'caida', 'revuelta', 'plaga', 'hambruna', 'sequia', 'alianza', 'nuevo_pueblo', 'fundacion', 'cronista']);
   let filtroCronica = 'todo', cuantosCronica = 20;
   const abiertos = new Set();
   function pintarCronica() {

@@ -15,11 +15,11 @@
     { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', desde: -3500, anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
     { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', desde: -1500, anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
     { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', desde: -900, anios: 50, cap: 2.0, fuerza: 2.6, umbral: 500, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1250, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2050, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2700, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 2900, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 3080, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1320, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2200, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2900, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 3100, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 3300, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
@@ -99,6 +99,7 @@
     profeta: [['Una fe nueva puede unir a pueblos dispersos y lanzarlos más allá de sus fronteras.', 'El islam pasó de Arabia a Hispania y a la India en menos de un siglo.']],
     anacronismo: [['Un invento sin la sociedad que lo aproveche se queda en curiosidad.', 'Herón de Alejandría construyó una máquina de vapor en el siglo I. Se usó como juguete en los templos.']],
     nuevo_pueblo: [['Los pueblos de las estepas y los desiertos aparecen de pronto en la historia y la cambian.', 'Los mongoles de Gengis Kan pasaron de tribus enfrentadas a dominar de Corea a Hungría en cincuenta años.']],
+    sequia: [['Sin lluvia no hay cosecha ni pasto: un pueblo vive de lo que guardó en el granero.', 'Una sequía de décadas contribuyó al abandono de las grandes ciudades mayas hacia el año 900.'], ['Los malos años se encadenan: primero se pierde la cosecha, luego el ganado.', 'La Gran Hambruna de 1315-1317, tras tres veranos de lluvia y frío, mató a uno de cada diez europeos del norte.']],
     abundancia: [['Las buenas cosechas llenan los graneros y las cunas.', 'La patata y el maíz de América duplicaron la población de muchos países de Europa y de China en dos siglos.']],
     destruccion: [['Algunas civilizaciones desaparecen de golpe y dejan solo ruinas.', 'La erupción del Vesubio en el año 79 sepultó Pompeya en un día; la de Tera, siglos antes, quizá acabó con la Creta minoica.']],
     complot: [['Las guerras rara vez estallan de repente: antes se traman en las cortes, y quien las ve venir puede evitarlas.', 'El plan Schlieffen para invadir Francia por Bélgica se preparó durante casi diez años antes de 1914.']],

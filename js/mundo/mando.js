@@ -254,6 +254,7 @@
       if (o && S().fuerza(m, o) > S().fuerza(m, c) * 1.4) return { texto: 'La guerra con ' + o.nombre + ' va mal: son más fuertes que vosotros.', orden: 'Paz con ' + o.nombre };
       if (o && (pr.ejercito || 1) < 1.5 && (c.guerreros || 0) < hab * 0.2) return { texto: 'Estáis en guerra con ' + o.nombre + ' y solo tenéis ' + (c.guerreros || 0) + ' guerreros.', orden: 'Más soldados' };
     }
+    if (c.efectos.some(e => e.sequia) && (pr.comida || 1) < 2) return { texto: 'Hay sequía: el trigo se agosta y mueren reses. El granero tiene ' + Math.floor(c.comida || 0) + ' de comida para ' + hab + ' bocas; más gente al campo y al ganado.', orden: 'Más comida' };
     if ((c.comida || 0) < hab * 0.15 && (pr.comida || 1) < 2) return { texto: 'Los graneros están casi vacíos (' + Math.floor(c.comida || 0) + ' de comida para ' + hab + ' bocas): si se acaban, la gente muere de hambre.', orden: 'Más comida' };
     if ((c.madera || 0) < 4 && (pr.madera || 1) < 2) return { texto: 'Sin madera no se levantan casas ni se pagan tierras nuevas.', orden: 'Más madera' };
     const rebelde = (m.ciudades || []).find(x => x.civ === c.id && x.lealtad != null && x.lealtad < 0);

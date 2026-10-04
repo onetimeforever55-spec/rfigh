@@ -658,6 +658,14 @@
     let libres = 0;
     for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && m.tipo[i] !== 'nieve') libres++;
     if (libres > 25 * K && lista.length < 9 && azar(m) < 0.04) nuevoPueblo(m, null);
+    // Sequías: unos años sin lluvia, sin cosecha y sin pasto (vida.js los cumple en los campos y los rebaños).
+    if (m.vida && azar(m) < 0.04) {
+      const c = elegir(m, lista);
+      if (!c.efectos.some(e => e.sequia)) {
+        c.efectos.push({ sequia: true, hasta: m.turno + 3 + Math.floor(azar(m) * 4) });
+        cronica(m, 'sequia', 'Sequía en ' + c.nombre, 'No llueve. El trigo se seca en los campos de ' + c.nombre + ', los pastos amarillean y las reses empiezan a morir. Habrá que vivir de lo guardado.', c);
+      }
+    }
     if (azar(m) < 0.02) {
       const c = elegir(m, lista);
       c.efectos.push({ comida: 1.4, hasta: m.turno + 4 });

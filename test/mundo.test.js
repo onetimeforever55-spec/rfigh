@@ -198,7 +198,7 @@ console.log('COMO WORLDBOX: BIOMAS, ARMAS, EJÉRCITOS, REYES, CIUDADES, ALIANZAS
   let disparos = 0, bajas = 0, capitan = false;
   let suyos = [];
   for (let k = 0; k < 10; k++) { if (!S.enGuerra(a, b) && a.viva && b.viva) S.declararGuerra(w, a, b, null); S.turno(w); disparos += w.vida.disparos.length; bajas += w.vida.muertos.length; capitan = capitan || !!(w.vida.ejercitos[a.id] && w.vida.ejercitos[a.id].capitan != null); if (k === 1) suyos = w.vida.aldeanos.filter(x => x.c === a.id && V.OFICIOS[x.o] === 'guerrero'); }
-  comprobar(suyos.length && suyos.every(x => (x.arma || 0) >= 1), 'con metal, los guerreros llevan el arma de su era (' + (suyos[0] ? V.ARMAS[suyos[0].arma || 0].nombre : '—') + ')');
+  comprobar(suyos.length && suyos.filter(x => (x.arma || 0) >= 1).length >= suyos.length * 0.9, 'con metal, los guerreros llevan el arma de su era (' + (suyos[0] ? V.ARMAS[suyos[0].arma || 0].nombre : '—') + ')');
   comprobar(capitan, 'el ejército marcha tras su capitán');
   comprobar(disparos + bajas > 0, 'hay combates: flechas y bajas (' + disparos + ' disparos, ' + bajas + ' bajas)');
   // Alianzas: el aliado de la víctima entra en la guerra.

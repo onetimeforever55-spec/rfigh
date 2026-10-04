@@ -455,8 +455,6 @@
       const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
       if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
-      // Si los granjeros no encuentran dónde arar junto a un molino, se levanta otro un poco más lejos: abre tierra nueva.
-      else if (c.sinCampo >= m.turno - 1 && (c.campos || 0) < metaCampos(c) && (c.comida || 0) < (c.habitantes || 10) && (c.molinos || 0) < 2 + Math.floor((c.campos || 0) / 8)) pide.unshift([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]) && !molinoCerca(m, c, null, t) && [1, -1, v.tw, -v.tw].filter(d => CULTIVABLE.has(ter[t + d]) && !v.obra[t + d]).length >= 3)]);
       if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
@@ -842,6 +840,18 @@
       const maduros = memo.get(km).filter(x => v.cultivo[x] >= 3 && v.obra[x] === OBRA.campo && !rec.reservadas.has(x));
       if (maduros.length) { t = maduros[Math.floor(azar(v) * maduros.length)]; a.siega = 1; }
       else if (c.campos < metaCampos(c) && memo.get('campo:' + a.h) !== -1) { t = libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)); if (t < 0) { memo.set('campo:' + a.h, -1); c.sinCampo = m.turno; } }
+      // Sin campo que segar ni que arar, el granjero hace de pastor: va a ordeñar o esquilar una res del pueblo.
+      a.pastor = null;
+      if (t < 0) {
+        const aqui = a.y * v.tw + a.x;
+        let mejor = null, md = 30;
+        for (const b of v.animales) {
+          if (b.c !== c.id || b.atendido === m.turno) continue;
+          const d = dist(m, aqui, b.y * v.tw + b.x);
+          if (d < md) { md = d; mejor = b; }
+        }
+        if (mejor) { mejor.atendido = m.turno; a.pastor = mejor.id; t = mejor.y * v.tw + mejor.x; }
+      }
     }
     else if (a.o === CONSTRUCTOR) {
       a.obraCamino = 0; a.edificio = 0;
@@ -883,7 +893,7 @@
     }
     pasear(m, a, ter, c);
   }
-  const metaCampos = c => Math.round((4 + (c.habitantes != null ? c.habitantes : c.pob / escala(c)) * 0.75) * (0.6 + 0.4 * prio(c, 'comida')));
+  const metaCampos = c => Math.round((4 + (c.habitantes != null ? c.habitantes : c.pob / escala(c)) * 0.55) * (0.6 + 0.4 * prio(c, 'comida')));
   // Hacen falta casas cuando no quedan camas para los que van a nacer (como en WorldBox: se construye por necesidad).
   const faltanCamas = c => (c.sinCama || 0) > 0 || (c.camas || 0) - (c.aldeanos || 0) < 2 + Math.round(prio(c, 'casas') * 1.5);
   // Una casa nueva va siempre pegada a lo que ya hay (casas, plaza, molino, caminos), lo más cerca posible de la plaza:
@@ -978,6 +988,7 @@
     if (a.paseo) { a.e = ESPERAR; a.t = a.paseo === 2 ? 3 : 1 + Math.floor(azar(v) * 2); a.paseo = 0; return; }
     if (a.o === LENADOR) { if (v.arbol[t] >= 2) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE; }
     else if (a.o === MINERO) { if (v.roca[t] > 0) { a.e = TRABAJAR; a.t = 3; } else if (a.cantera) { a.e = TRABAJAR; a.t = 4; } else a.e = LIBRE; }
+    else if (a.o === GRANJERO && a.pastor != null) { a.e = TRABAJAR; a.t = 3; }
     else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else { a.e = LIBRE; a.siega = 0; } }
     else if (a.o === CONSTRUCTOR && a.edificio) {
       if (!v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, a.edificio, paso); if (a.edificio === OBRA.torre) (v.torres = v.torres || {})[t] = 12; }
@@ -1003,6 +1014,17 @@
     if (a.o === LENADOR && v.arbol[t] >= 2) { a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && a.cantera && !v.roca[t]) { a.cantera = 0; a.k = 2; a.kt = ter[t] === 'montana' && azar(v) < 0.25 ? 1 : 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && v.roca[t] > 0) { a.k = v.mena[t] ? 1 : 2; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === GRANJERO && a.pastor != null) {
+      // Leche, lana y queso de la res; si el granero está casi vacío y el rebaño es grande, se sacrifica una.
+      const b = v.animales.find(x => x.id === a.pastor), hab = c.habitantes || 10;
+      a.pastor = null;
+      if (b && dist(m, t, b.y * v.tw + b.x) <= 4) {
+        const rebano = v.animales.filter(x => x.c === c.id && x.tipo === b.tipo).length;
+        if ((c.comida || 0) < hab * 0.2 && rebano > 3) { v.animales = v.animales.filter(x => x !== b); c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 9 : 5); }
+        else c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 1.5 : 0.8) * (c.efectos.some(e => e.sequia) ? 0.4 : 1);
+      }
+      return;
+    }
     if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2 + (c.molinos ? 1 : 0) + (c.era >= 4 ? 1 : 0) + (c.era >= 6 ? 1 : 0); a.siega = 0; }
     else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) {
@@ -1157,23 +1179,23 @@
       const lista = porCiv[c.id] || [];
       const racion = lista.reduce((k, a) => k + (esNino(a) ? 0.15 : 0.3), 0);
       // La recolección: los adultos que no van a la guerra juntan algo de comida aunque no haya campos.
-      const fertil = Math.min(1.5, S().fertil(m, c.capital) / 2);
+      const seca = c.efectos.some(e => e.sequia), fertil = Math.min(1.5, S().fertil(m, c.capital) / 2) * (seca ? 0.3 : 1);
       let recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * fertil;
       // Los granjeros que no tienen campo que trabajar cazan, pescan en el río y recogen bayas.
       const sobran = Math.max(0, lista.filter(a => a.o === GRANJERO && !esNino(a)).length - (c.campos || 0) * 1.5);
-      recogen += sobran * 0.2 * fertil;
+      recogen += sobran * 0.1 * fertil;
       c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
       if (c.comida < 0) {
         c.comida = 0;
         for (const a of lista) a.hambre = (a.hambre || 0) + 1;
-        const caen = lista.filter(a => a.hambre >= 3).sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, Math.ceil(lista.length * 0.3));
+        const caen = lista.filter(a => a.hambre >= 2).sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, Math.ceil(lista.length * 0.3));
         if (caen.length && lista.length - caen.length >= 1) {
           for (const a of caen) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'hambre', TICKS]); }
           if (m.turno - c.ultimaHambre > 6) S().cronica(m, 'hambruna', 'Hambre en ' + c.nombre, 'Los graneros de ' + c.nombre + ' están vacíos. Mueren ' + caen.length + ' aldeanos, primero los más viejos; los demás comen raíces y miran al cielo.', c);
           c.ultimaHambre = m.turno;
         }
       } else for (const a of lista) a.hambre = Math.max(0, (a.hambre || 0) - 1);
-      c.comida = Math.min(c.comida, 20 + lista.length * 4);
+      c.comida = Math.min(c.comida, 15 + lista.length * 1.2);
     }
     if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
     actualizarPoblacion(m);
@@ -1206,12 +1228,17 @@
     const v = m.vida;
     // Los rebaños de cada pueblo, según su tamaño (las vacas llegan con la Edad del Hierro).
     v.animales = v.animales.filter(b => b.c == null || (S().civ(m, b.c) && S().civ(m, b.c).viva));
+    // Los rebaños crían si hay pastos (tierra propia sin casas, campos ni bosque) y menguan si se pierden.
+    const pasto = {};
+    for (let t = 0; t < ter.length; t++) { const d = m.dueno[region(m, t)]; if (d >= 0 && !v.obra[t] && v.arbol[t] < 2 && (HABITAT.oveja(ter[t]) || HABITAT.vaca(ter[t]))) pasto[d] = (pasto[d] || 0) + 1; }
     for (const c of S().vivas(m)) {
-      const n = S().casillas(m, c).length, quiere = { oveja: Math.min(8, 1 + Math.floor(n / 5)), vaca: c.era >= 2 ? Math.min(5, Math.floor(n / 8)) : 0 };
+      const p = pasto[c.id] || 0, tope = { oveja: Math.min(24, Math.floor(p / 7)), vaca: c.era >= 1 ? Math.min(14, Math.floor(p / 12)) : 0 };
       for (const tipo of ['oveja', 'vaca']) {
         const suyos = v.animales.filter(b => b.c === c.id && b.tipo === tipo);
-        for (let k = suyos.length; k < quiere[tipo]; k++) nacer(m, ter, tipo, c);
-        if (suyos.length > quiere[tipo]) v.animales = v.animales.filter(b => b !== suyos[0]);
+        if (suyos.length < 2 && tope[tipo] >= 2) { nacer(m, ter, tipo, c); continue; } // se doman unas reses salvajes
+        const crias = Math.min(2, Math.floor(suyos.length / 2), tope[tipo] - suyos.length);
+        for (let k = 0; k < crias; k++) if (azar(v) < 0.3) nacer(m, ter, tipo, c, suyos[Math.floor(azar(v) * suyos.length)]);
+        if (suyos.length > tope[tipo] + 1) v.animales = v.animales.filter(b => b !== suyos[0]);
       }
     }
     for (const [tipo, n] of [['ciervo', 22], ['pez', 26]]) {
@@ -1219,15 +1246,17 @@
       for (let k = hay; k < n; k++) if (!nacer(m, ter, tipo, null)) break;
     }
   }
-  function nacer(m, ter, tipo, c) {
+  function nacer(m, ter, tipo, c, madre) {
     const v = m.vida;
     for (let k = 0; k < 30; k++) {
       let t;
-      if (c) { const cs = S().casillas(m, c); const r = azar(v) < 0.5 ? c.capital : cs[Math.floor(azar(v) * cs.length)]; t = parcelas(m, r)[Math.floor(azar(v) * SUB * SUB)]; }
+      if (madre) t = (madre.y + Math.floor(azar(v) * 3) - 1) * v.tw + madre.x + Math.floor(azar(v) * 3) - 1;
+      else if (c) { const cs = S().casillas(m, c); const r = azar(v) < 0.5 ? c.capital : cs[Math.floor(azar(v) * cs.length)]; t = parcelas(m, r)[Math.floor(azar(v) * SUB * SUB)]; }
       else t = Math.floor(azar(v) * ter.length);
       if (!HABITAT[tipo](ter[t]) || v.obra[t]) continue;
       if (tipo === 'ciervo' && m.dueno[region(m, t)] >= 0 && azar(v) < 0.8) continue;
-      v.animales.push({ id: v.sig++, tipo, c: c ? c.id : null, casa: c ? t : null, x: t % v.tw, y: t / v.tw | 0, r: [] });
+      if (t < 0 || t >= ter.length) continue;
+      v.animales.push({ id: v.sig++, tipo, c: c ? c.id : null, casa: madre ? madre.casa : c ? t : null, x: t % v.tw, y: t / v.tw | 0, r: [] });
       return true;
     }
     return false;
@@ -1236,6 +1265,9 @@
   // ---------- Lo que pasa solo: los árboles crecen, las ruinas se cubren, los bosques se acaban ----------
   function naturaleza(m, ter) {
     const v = m.vida, tw = v.tw, n = tw * v.th, F = TICKS;
+    // En sequía el trigo no crece y muere una de cada cinco reses cada turno.
+    const secos = new Set(S().vivas(m).filter(c => c.efectos.some(e => e.sequia)).map(c => c.id));
+    if (secos.size) v.animales = v.animales.filter(b => !(b.c != null && secos.has(b.c) && azar(v) < 0.2));
     // Las regiones que cambiaron de suelo (un terremoto las volvió desierto) pierden sus árboles y sus casas.
     for (let r = 0; r < m.W * m.H; r++) if (v.tipoVisto[r] !== m.tipo[r]) {
       const nuevo = m.tipo[r];
@@ -1250,7 +1282,8 @@
       const r = region(m, t), dueno = m.dueno[r], tierra = ter[t];
       const ob = v.obra[t];
       // El trigo crece: tierra arada, brotes, verde y dorado (listo para segar).
-      if (ob === OBRA.campo && v.cultivo[t] < 3 && dueno >= 0 && azar(v) < 0.55) cambiar(m, 'cultivo', t, v.cultivo[t] + 1, 1 + Math.floor(azar(v) * TICKS));
+      if (ob === OBRA.campo && v.cultivo[t] > 0 && secos.has(dueno) && azar(v) < 0.45) cambiar(m, 'cultivo', t, 0, 1 + Math.floor(azar(v) * TICKS)); // el trigo se agosta
+      else if (ob === OBRA.campo && v.cultivo[t] < 3 && dueno >= 0 && !secos.has(dueno) && azar(v) < 0.55) cambiar(m, 'cultivo', t, v.cultivo[t] + 1, 1 + Math.floor(azar(v) * TICKS));
       // Lo abandonado se arruina, y las ruinas acaban bajo la hierba.
       if (dueno < 0) {
         if ((ob === OBRA.casa || ob >= OBRA.torre) && azar(v) < 0.2) cambiar(m, 'obra', t, OBRA.ruina, F);
