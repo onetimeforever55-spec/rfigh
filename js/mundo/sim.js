@@ -236,6 +236,9 @@
   function cronica(m, tipo, titulo, texto, c, casilla, extra) {
     const opciones = M.PORQUES[tipo] || M.PORQUES[tipo.split('_')[0]] || [];
     const p = opciones.length ? elegir(m, opciones) : null;
+    // Lo mismo dos veces en el mismo turno (dos colonias del mismo reino) se cuenta una sola vez.
+    const igual = m.cronica.slice(0, 12).find(x => x.turno === m.turno && x.titulo === titulo);
+    if (igual) return igual;
     const e = Object.assign({ anio: m.anio, turno: m.turno, tipo, titulo, texto, porque: p ? p[0] : null, precedente: p ? p[1] : null, civ: c ? c.id : null, color: c ? c.color : null, casilla: casilla == null ? (c ? c.capital : null) : casilla }, extra || {});
     m.cronica.unshift(e);
     if (m.cronica.length > 250) m.cronica.length = 250;
@@ -326,9 +329,10 @@
       // Las ciudades y las rutas comerciales son donde se juntan sabios, libros y noticias.
       + ((m.ciudades || []).filter(x => x.civ === c.id).length * 1.2 + (c.rutas || 0) * 1.5);
     // Cada era acelera la siguiente: la escritura, la imprenta y la ciencia se apoyan unas en otras.
-    c.ciencia += Math.sqrt(c.pob) * 0.55 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia;
+    c.ciencia += Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia;
     const sig = M.ERAS[c.era + 1];
-    if (sig && c.ciencia >= sig.umbral) subirEra(m, c, null);
+    // La historia no se salta siglos: ninguna era llega antes de su fecha más temprana posible (salvo en el mundo libre).
+    if (sig && c.ciencia >= sig.umbral && (m.libre || sig.desde == null || m.anio >= sig.desde)) subirEra(m, c, null);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
     const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
@@ -353,7 +357,7 @@
         m.dueno[i] = c.id;
         if (vida) vida.pagarTierra(m, c);
         const ultramar = !cs.some(j => vecinos(i).includes(j));
-        if (ultramar) cronica(m, 'expansion', c.nombre + ' cruza el mar', 'Sus barcos fundan una colonia en tierras lejanas. Los que ya vivían allí no han sido consultados.', c, i);
+        if (ultramar && !(c.ultramarDesde > m.turno - 8) && (c.ultramarDesde = m.turno)) cronica(m, 'expansion', c.nombre + ' cruza el mar', 'Sus barcos fundan una colonia en tierras lejanas. Los que ya vivían allí no han sido consultados.', c, i);
         else if (azar(m) < 0.05) cronica(m, 'expansion', c.nombre + ' se extiende', 'Los colonos de ' + c.nombre + ' talan, siembran y levantan aldeas nuevas. Ya ocupan ' + (cs.length + 1) + ' tierras.', c, i);
       }
     }

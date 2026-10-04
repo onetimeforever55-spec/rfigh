@@ -139,6 +139,12 @@ button { cursor: pointer; }
 .s-punto { width: 8px; height: 8px; flex: none; align-self: center; }
 .s-titulo { margin: 0; font-family: var(--f-libro); font-weight: 600; font-size: 15px; text-wrap: balance; }
 .s-texto { margin: 4px 0 0; color: var(--pergamino); max-width: 62ch; }
+.filtro-cronica { display: flex; gap: 4px; flex-wrap: wrap; }
+.suceso.tocable { cursor: pointer; }
+.suceso.tocable:hover .s-titulo, .suceso.tocable:focus-visible .s-titulo { text-decoration: underline; text-decoration-color: var(--linea); text-underline-offset: 3px; }
+.suceso:not(.abierto) .s-porque, .suceso:not(.abierto) .s-precedente { display: none; }
+.suceso.con-porque:not(.abierto) .s-texto::after { content: ' ¿por qué?'; font-size: 12px; color: var(--tenue); white-space: nowrap; }
+.suceso.vacio { color: var(--tenue); }
 .s-porque, .s-precedente { margin: 4px 0 0; font-size: 13px; color: var(--tenue); max-width: 62ch; }
 .s-porque b, .s-precedente b { font-family: var(--f-dato); font-weight: 600; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pergamino); margin-right: 4px; }
 .suceso.importante .s-titulo { font-size: 16px; }
@@ -211,6 +217,11 @@ button { cursor: pointer; }
   <section class="g-cronica" aria-label="Crónica del mundo">
     <div class="cronica-cab">
       <h2 class="etiqueta">Crónica del mundo</h2>
+      <div class="filtro-cronica" id="filtro-cronica" role="group" aria-label="Qué sucesos ver">
+        <button type="button" class="pestana activa" data-f="todo">Todo</button>
+        <button type="button" class="pestana" data-f="mio" hidden>Tu pueblo</button>
+        <button type="button" class="pestana" data-f="grande">Lo importante</button>
+      </div>
       <button type="button" class="mando sutil" id="cronista" hidden>Pedir un capítulo al cronista</button>
     </div>
     <ol class="cronica" id="cronica"></ol>
@@ -232,14 +243,14 @@ button { cursor: pointer; }
   // alimenta cada casilla (cap), cuánto pesa en la guerra (fuerza) y cuánta ciencia hace falta para llegar.
   M.ERAS = [
     { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
-    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
-    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 425, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1200, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2150, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2850, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 3000, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 3180, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', desde: -3500, anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
+    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', desde: -1500, anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', desde: -900, anios: 50, cap: 2.0, fuerza: 2.6, umbral: 425, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1000, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1750, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2300, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 2480, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 2650, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
@@ -257,10 +268,10 @@ button { cursor: pointer; }
 
   // El carácter de cada pueblo cambia cómo decide: cuánto guerrea, cuánta ciencia hace, cuánto comercia.
   M.CARACTERES = {
-    guerrero: { nombre: 'guerrero', agresion: 1.7, ciencia: 0.9, comercio: 0.8, estab: 0 },
-    mercader: { nombre: 'mercader', agresion: 0.6, ciencia: 1.05, comercio: 1.7, estab: 0 },
-    devoto: { nombre: 'devoto', agresion: 1.0, ciencia: 0.85, comercio: 1.0, estab: 6 },
-    sabio: { nombre: 'sabio', agresion: 0.7, ciencia: 1.4, comercio: 1.1, estab: 0 }
+    guerrero: { nombre: 'guerrero', fem: 'guerrera', agresion: 1.7, ciencia: 0.9, comercio: 0.8, estab: 0 },
+    mercader: { nombre: 'mercader', fem: 'mercader', agresion: 0.6, ciencia: 1.05, comercio: 1.7, estab: 0 },
+    devoto: { nombre: 'devoto', fem: 'devota', agresion: 1.0, ciencia: 0.85, comercio: 1.0, estab: 6 },
+    sabio: { nombre: 'sabio', fem: 'sabia', agresion: 0.7, ciencia: 1.4, comercio: 1.1, estab: 0 }
   };
 
   M.COLORES = ['#e5533d', '#4f86e8', '#e8b13b', '#45b86a', '#a65fe0', '#e8823b', '#3cc6c6', '#e0559b', '#9bc93f', '#8a93e8', '#c9a16b', '#5fd1a0'];
@@ -273,7 +284,7 @@ button { cursor: pointer; }
   };
   M.TITULOS = { tribu: 'jefe', jefatura: 'cacique', reino: 'rey', imperio: 'emperador', republica: 'cónsul', teocracia: 'sumo sacerdote', democracia: 'presidente', dictadura: 'dictador', estado_obrero: 'secretario general' };
   M.RASGOS = {
-    sabio: { nombre: 'sabio', ciencia: 1.2, estab: 2 }, guerrero: { nombre: 'guerrero', agresion: 1.6, fuerza: 1.1 },
+    sabio: { nombre: 'sabio', fem: 'sabia', ciencia: 1.2, estab: 2 }, guerrero: { nombre: 'guerrero', agresion: 1.6, fuerza: 1.1 },
     pacifico: { nombre: 'pacífico', agresion: 0.45, estab: 3 }, codicioso: { nombre: 'codicioso', riqueza: 1.15, estab: -4 },
     cruel: { nombre: 'cruel', estab: -6, fuerza: 1.12, agresion: 1.2 }, justo: { nombre: 'justo', estab: 6 },
     constructor: { nombre: 'constructor', riqueza: 1.05, estab: 2 }, loco: { nombre: 'loco', estab: -8, agresion: 1.4 }
@@ -335,6 +346,8 @@ button { cursor: pointer; }
   // Regímenes posibles y cómo se nombran.
   // Con artículo: "la república", "el imperio".
   const FEMENINOS = new Set(['tribu', 'jefatura', 'republica', 'teocracia', 'democracia', 'dictadura', 'estado_obrero']);
+  // "tribu guerrera", "reino guerrero": el carácter concuerda con el régimen.
+  M.conCaracter = (r, car) => M.REGIMENES[r] + ' ' + (FEMENINOS.has(r) && M.CARACTERES[car] ? M.CARACTERES[car].fem : car);
   M.conArticulo = r => (FEMENINOS.has(r) ? 'la ' : 'el ') + M.REGIMENES[r];
   M.unoDe = r => (FEMENINOS.has(r) ? 'una ' : 'un ') + M.REGIMENES[r];
   M.REGIMENES = {
@@ -582,6 +595,9 @@ button { cursor: pointer; }
   function cronica(m, tipo, titulo, texto, c, casilla, extra) {
     const opciones = M.PORQUES[tipo] || M.PORQUES[tipo.split('_')[0]] || [];
     const p = opciones.length ? elegir(m, opciones) : null;
+    // Lo mismo dos veces en el mismo turno (dos colonias del mismo reino) se cuenta una sola vez.
+    const igual = m.cronica.slice(0, 12).find(x => x.turno === m.turno && x.titulo === titulo);
+    if (igual) return igual;
     const e = Object.assign({ anio: m.anio, turno: m.turno, tipo, titulo, texto, porque: p ? p[0] : null, precedente: p ? p[1] : null, civ: c ? c.id : null, color: c ? c.color : null, casilla: casilla == null ? (c ? c.capital : null) : casilla }, extra || {});
     m.cronica.unshift(e);
     if (m.cronica.length > 250) m.cronica.length = 250;
@@ -672,9 +688,10 @@ button { cursor: pointer; }
       // Las ciudades y las rutas comerciales son donde se juntan sabios, libros y noticias.
       + ((m.ciudades || []).filter(x => x.civ === c.id).length * 1.2 + (c.rutas || 0) * 1.5);
     // Cada era acelera la siguiente: la escritura, la imprenta y la ciencia se apoyan unas en otras.
-    c.ciencia += Math.sqrt(c.pob) * 0.55 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia;
+    c.ciencia += Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia;
     const sig = M.ERAS[c.era + 1];
-    if (sig && c.ciencia >= sig.umbral) subirEra(m, c, null);
+    // La historia no se salta siglos: ninguna era llega antes de su fecha más temprana posible (salvo en el mundo libre).
+    if (sig && c.ciencia >= sig.umbral && (m.libre || sig.desde == null || m.anio >= sig.desde)) subirEra(m, c, null);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
     const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
@@ -699,7 +716,7 @@ button { cursor: pointer; }
         m.dueno[i] = c.id;
         if (vida) vida.pagarTierra(m, c);
         const ultramar = !cs.some(j => vecinos(i).includes(j));
-        if (ultramar) cronica(m, 'expansion', c.nombre + ' cruza el mar', 'Sus barcos fundan una colonia en tierras lejanas. Los que ya vivían allí no han sido consultados.', c, i);
+        if (ultramar && !(c.ultramarDesde > m.turno - 8) && (c.ultramarDesde = m.turno)) cronica(m, 'expansion', c.nombre + ' cruza el mar', 'Sus barcos fundan una colonia en tierras lejanas. Los que ya vivían allí no han sido consultados.', c, i);
         else if (azar(m) < 0.05) cronica(m, 'expansion', c.nombre + ' se extiende', 'Los colonos de ' + c.nombre + ' talan, siembran y levantan aldeas nuevas. Ya ocupan ' + (cs.length + 1) + ' tierras.', c, i);
       }
     }
@@ -1059,7 +1076,7 @@ button { cursor: pointer; }
   'use strict';
   const M = RF.MUNDO;
   const S = () => M.sim;
-  const SUB = 4, TICKS = 8, MAX_ALDEANOS = 1000;
+  const SUB = 4, TICKS = 8, MAX_ALDEANOS = 1600;
   // La vida de un aldeano, en turnos: niño hasta ADULTO, anciano desde VIEJO, y muere de viejo hacia el final.
   const ADULTO = 2, VIEJO = 18;
   const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
@@ -1083,7 +1100,7 @@ button { cursor: pointer; }
 
   // Árboles y rocas al crear el mundo, según el suelo de la parcela.
   const ARBOLES = { bosque: 0.78, selva: 0.85, taiga: 0.7, pantano: 0.32, sabana: 0.1, colina: 0.22, llanura: 0.07, tundra: 0.06, nieve: 0.1, desierto: 0.03 };
-  const ROCAS = { montana: 0.45, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
+  const ROCAS = { montana: 0.3, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
   // Lo que brota solo cada turno junto a otro árbol (la naturaleza recupera lo que se deja).
   const BROTE = { bosque: 0.035, selva: 0.05, taiga: 0.025, pantano: 0.015, sabana: 0.005, colina: 0.025, llanura: 0.006, tundra: 0.002, nieve: 0.004, desierto: 0.0015 };
   const CONSTRUIBLE = new Set(['llanura', 'colina', 'bosque', 'desierto', 'nieve', 'arena', 'sabana', 'selva', 'taiga', 'tundra', 'pantano']);
@@ -1098,38 +1115,104 @@ button { cursor: pointer; }
 
   // ---------- El suelo de cada parcela ----------
   const esAgua = t => t === 'mar' || t === 'costa';
-  function aguaEn(m, rx, ry) { return rx >= 0 && ry >= 0 && rx < m.W && ry < m.H && esAgua(m.tipo[ry * m.W + rx]); }
-  function uneRio(m, rx, ry) {
-    if (rx < 0 || ry < 0 || rx >= m.W || ry >= m.H) return false;
-    const j = ry * m.W + rx;
-    return m.rio[j] || esAgua(m.tipo[j]);
+  /*
+   * Las regiones son cuadradas, pero el suelo no: cada parcela mira a la región que tiene al lado de un punto
+   * desplazado por un ruido suave, así las costas y los linderos entre biomas ondulan como en WorldBox. El
+   * cuadrado del medio de cada región (donde va la plaza) es siempre suyo. Los ríos van de centro a centro
+   * dando rodeos, y el agua que toca tierra es poco honda.
+   */
+  function hashR(sem, x, y) { let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(sem, 2246822519)) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+  function ruido(sem, x, y) {
+    const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const a = hashR(sem, x0, y0), b = hashR(sem, x0 + 1, y0), c = hashR(sem, x0, y0 + 1), d = hashR(sem, x0 + 1, y0 + 1);
+    return (a + (b - a) * sx) * (1 - sy) + (c + (d - c) * sx) * sy;
   }
-  // Los ríos pasan por la fila y la columna 1 de cada región y se unen con los vecinos que también son río o mar.
-  function esRio(m, rx, ry, lx, ly) {
-    if (lx === 1 && ly === 1) return true;
-    if (ly === 1 && lx < 1) return uneRio(m, rx - 1, ry);
-    if (ly === 1 && lx > 1) return uneRio(m, rx + 1, ry);
-    if (lx === 1 && ly < 1) return uneRio(m, rx, ry - 1);
-    if (lx === 1 && ly > 1) return uneRio(m, rx, ry + 1);
-    return false;
+  const desvio = (sem, x, y) => (ruido(sem, x / 5, y / 5) - 0.5) * 2.6 + (ruido(sem + 7, x / 2, y / 2) - 0.5) * 1.1;
+  function baseEn(m, tx, ty) {
+    const rx0 = (tx / SUB) | 0, ry0 = (ty / SUB) | 0, lx = tx - rx0 * SUB, ly = ty - ry0 * SUB;
+    let rx = rx0, ry = ry0;
+    if (!(lx >= 1 && lx <= 2 && ly >= 1 && ly <= 2)) {
+      const sem = m.semilla | 0;
+      rx = Math.max(0, Math.min(m.W - 1, Math.floor((tx + 0.5 + desvio(sem, tx, ty)) / SUB)));
+      ry = Math.max(0, Math.min(m.H - 1, Math.floor((ty + 0.5 + desvio(sem + 101, tx, ty)) / SUB)));
+    }
+    const tipo = m.tipo[ry * m.W + rx];
+    return tipo === 'mar' ? 'agua' : tipo === 'costa' ? 'bajo' : tipo;
   }
-  function terreno(m, tx, ty) {
-    const rx = (tx / SUB) | 0, ry = (ty / SUB) | 0, tipo = m.tipo[ry * m.W + rx];
-    if (tipo === 'mar') return 'agua';
-    if (tipo === 'costa') return 'bajo';
-    const lx = tx - rx * SUB, ly = ty - ry * SUB;
-    if (m.rio[ry * m.W + rx] && esRio(m, rx, ry, lx, ly)) return 'rio';
-    if (tipo !== 'nieve' && tipo !== 'montana' &&
-      ((lx === 0 && aguaEn(m, rx - 1, ry)) || (lx === SUB - 1 && aguaEn(m, rx + 1, ry)) || (ly === 0 && aguaEn(m, rx, ry - 1)) || (ly === SUB - 1 && aguaEn(m, rx, ry + 1)))) return 'arena';
-    return tipo;
+  // El cauce de un río entre dos puntos: pasos de una parcela, eligiendo al azar (fijo) si avanza en x o en y.
+  function cauce(m, arr, tw, x0, y0, x1, y1, sem) {
+    let x = x0, y = y0, k = 0;
+    while (x !== x1 || y !== y1) {
+      const t = y * tw + x;
+      if (k > 0 && (arr[t] === 'agua' || arr[t] === 'bajo')) return;
+      if (arr[t] !== 'agua' && arr[t] !== 'bajo') arr[t] = 'rio';
+      const ddx = x1 - x, ddy = y1 - y, h = hashR(sem, x, y + k);
+      if (ddx && (!ddy || h < Math.abs(ddx) / (Math.abs(ddx) + Math.abs(ddy)))) x += Math.sign(ddx); else y += Math.sign(ddy);
+      k++;
+    }
+    const t = y * tw + x;
+    if (arr[t] !== 'agua' && arr[t] !== 'bajo') arr[t] = 'rio';
+  }
+  function centroRio(m, rx, ry) { const h = hashR((m.semilla | 0) + 31, rx, ry); return [rx * SUB + 1 + (h < 0.5 ? 0 : 1), ry * SUB + 1 + ((h * 4 | 0) % 2)]; }
+  function rios(m, arr, tw) {
+    const sem = (m.semilla | 0) + 57;
+    for (let ry = 0; ry < m.H; ry++) for (let rx = 0; rx < m.W; rx++) {
+      if (!m.rio[ry * m.W + rx] || esAgua(m.tipo[ry * m.W + rx])) continue;
+      const [cx, cy] = centroRio(m, rx, ry);
+      arr[cy * tw + cx] = 'rio';
+      // Como al crear el mundo, el río baja hacia la región vecina más baja: un solo cauce, sin lazos.
+      const r = ry * m.W + rx, sig = S().vecinos(r).sort((p, q) => m.alto[p] - m.alto[q])[0];
+      if (sig == null || m.alto[sig] >= m.alto[r]) { if (sig != null) lago(m, arr, tw, cx + Math.sign(sig % m.W - rx) * 2, cy + Math.sign((sig / m.W | 0) - ry) * 2); continue; }
+      const nx = sig % m.W, ny = (sig / m.W) | 0, dx = nx - rx, dy = ny - ry, agua = esAgua(m.tipo[sig]);
+      // A medio camino, un punto del lindero desplazado: el río no cruza siempre por el mismo sitio.
+      const h = hashR(sem, rx * 2 + dx, ry * 2 + dy), mx = dx ? (dx > 0 ? rx * SUB + SUB - 1 + (h < 0.5 ? 0 : 1) : rx * SUB - (h < 0.5 ? 0 : 1)) : cx + Math.round((h - 0.5) * 3);
+      const my = dy ? (dy > 0 ? ry * SUB + SUB - 1 + (h < 0.5 ? 0 : 1) : ry * SUB - (h < 0.5 ? 0 : 1)) : cy + Math.round((h - 0.5) * 3);
+      const mxx = Math.max(0, Math.min(tw - 1, mx)), myy = Math.max(0, Math.min(m.H * SUB - 1, my));
+      cauce(m, arr, tw, cx, cy, mxx, myy, sem);
+      if (agua) { // hasta el agua: se sigue en la misma dirección hasta tocarla
+        let x = mxx, y = myy, n = 0;
+        while (n++ < SUB * 2 && x >= 0 && y >= 0 && x < tw && y < m.H * SUB && arr[y * tw + x] !== 'agua' && arr[y * tw + x] !== 'bajo') { arr[y * tw + x] = 'rio'; x += dx; y += dy; }
+      } else { const [ox, oy] = centroRio(m, nx, ny); cauce(m, arr, tw, mxx, myy, ox, oy, sem + 1); if (!m.rio[sig]) lago(m, arr, tw, ox + dx * 2, oy + dy * 2); }
+    }
+  }
+  // Donde un río ya no tiene por dónde bajar, se remansa en un lago pequeño.
+  function lago(m, arr, tw, cx, cy) {
+    const th = m.H * SUB;
+    for (let y = cy - 2; y <= cy + 2; y++) for (let x = cx - 2; x <= cx + 2; x++) {
+      if (x < 0 || y < 0 || x >= tw || y >= th) continue;
+      const d = Math.abs(x - cx) + Math.abs(y - cy) + hashR(m.semilla | 0, x, y) * 1.2;
+      const lx = x % SUB, ly = y % SUB; // el cuadrado del medio de cada región queda en tierra (ahí va la plaza)
+      if (d < 2.6 && !(lx >= 1 && lx <= 2 && ly >= 1 && ly <= 2) && arr[y * tw + x] !== 'montana' && arr[y * tw + x] !== 'nieve') arr[y * tw + x] = 'bajo';
+    }
+  }
+  function terrenosNuevos(m) {
+    const tw = m.W * SUB, th = m.H * SUB, arr = new Array(tw * th);
+    for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) arr[ty * tw + tx] = baseEn(m, tx, ty);
+    rios(m, arr, tw);
+    const tierraFirme = x => x !== 'agua' && x !== 'bajo' && x !== 'rio';
+    // La hondura del mar según lo lejos que está la tierra: poco hondo junto a la orilla, hondo mar adentro.
+    const lejos = new Array(tw * th).fill(99), cola = [];
+    for (let t = 0; t < tw * th; t++) if (tierraFirme(arr[t])) { lejos[t] = 0; cola.push(t); }
+    for (let i = 0; i < cola.length; i++) {
+      const t = cola[i], d = lejos[t] + 1, x = t % tw;
+      if (d > 3) continue;
+      for (const u of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) if (u >= 0 && u < tw * th && lejos[u] > d) { lejos[u] = d; cola.push(u); }
+    }
+    const out = arr.slice();
+    for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) {
+      const t = ty * tw + tx, a = arr[t];
+      if (a === 'agua' || a === 'bajo') { out[t] = lejos[t] <= 2 + (hashR(m.semilla | 0, tx >> 1, ty >> 1) < 0.4 ? 1 : 0) ? 'bajo' : 'agua'; continue; }
+      const vec = [tx > 0 ? arr[t - 1] : a, tx < tw - 1 ? arr[t + 1] : a, ty > 0 ? arr[t - tw] : a, ty < th - 1 ? arr[t + tw] : a];
+      if (tierraFirme(a) && a !== 'montana' && a !== 'nieve' && vec.some(x => x === 'agua' || x === 'bajo')) out[t] = 'arena';
+    }
+    return out;
   }
   // El suelo solo cambia cuando cambia una región (un bosque talado, un terremoto): se guarda calculado.
   let cache = { m: null, firma: '', arr: null };
   function terrenos(m) {
     const firma = m.tipo.join(',');
     if (cache.m === m && cache.firma === firma) return cache.arr;
-    const tw = m.W * SUB, th = m.H * SUB, arr = new Array(tw * th);
-    for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) arr[ty * tw + tx] = terreno(m, tx, ty);
+    const arr = terrenosNuevos(m);
     cache = { m, firma, arr };
     return arr;
   }
@@ -1218,7 +1301,7 @@ button { cursor: pointer; }
     const lleno = c.cap ? c.pob / c.cap : 0.8;
     const p = [
       recursos.arboles ? 0.18 + 0.4 * Math.max(0, 1 - (c.madera || 0) / metaMadera(c)) : 0,
-      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0),
+      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - (c.comida || 0) / Math.max(6, (c.habitantes || 10) * 1.5)),
       faltanCamas(c) ? 0.2 : 0.06,
       recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) + ((c.metal || 0) < 10 ? 0.08 : 0) : 0.04) : 0,
       guerra ? 0.6 : c.era >= 2 ? 0.07 : 0.04,
@@ -1254,7 +1337,7 @@ button { cursor: pointer; }
    * población de ellos (cada aldeano cuenta por una familia grande: ver escala).
    */
   const RASGOS_ALDEANO = ['fuerte', 'rápido', 'sabio', 'perezoso', 'valiente', 'torpe', 'longevo', 'fértil'];
-  const escala = c => 1.5 * (1 + 0.35 * c.era);
+  const escala = c => 1.2 * (1 + 0.15 * c.era);
   const tiene = (a, r) => !!(a.rasgos && a.rasgos.includes(r));
   const APELLIDOS = ['ez', 'ar', 'in', 'os', 'ani', 'ov', 'eda', 'ur'];
   function nuevoAldeano(m, c, casa, edad, padre) {
@@ -1308,14 +1391,20 @@ button { cursor: pointer; }
       const vivos = lista.filter(a => !quitar.has(a));
       const camasLibres = Math.max(0, (c.camas || 6) - vivos.length);
       const tierra = !c.cap || vivos.length * escala(c) < c.cap * 1.05;
-      const comida = (c.comida || 0) > vivos.length * 0.3 || vivos.length < 8;
+      const comida = (c.comida || 0) > vivos.length * 0.12 || vivos.length < 8;
       c.sinCama = 0;
-      if (tierra && comida && total < MAX_ALDEANOS && vivos.length < 150) {
+      // Un pueblo de viejos, sin nadie en edad de tener hijos, recibe parejas jóvenes de las aldeas de alrededor.
+      const fertiles = vivos.filter(a => (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO).length;
+      if (fertiles < Math.max(2, vivos.length * 0.15) && camasLibres >= 2 && (c.comida || 0) > 4 && total < MAX_ALDEANOS) {
+        const casas = casasDe(m, c);
+        for (let k = 0; k < 2; k++) { const b = nuevoAldeano(m, c, casas.length ? casas[Math.floor(azar(v) * casas.length)] : centro(m, hogar(m, c, cs)), ADULTO + 1 + Math.floor(azar(v) * 3), null); lista.push(b); vivos.push(b); total++; }
+      }
+      if (tierra && comida && total < MAX_ALDEANOS && vivos.length < 260) {
         const adultos = vivos.filter(a => (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO && a.colono == null);
         let nacen = 0, casasCiv = null;
         for (const a of adultos) {
           if (nacen >= Math.max(2, adultos.length * 0.25)) break;
-          if (azar(v) >= 0.13 * (tiene(a, 'fértil') ? 1.5 : 1)) continue;
+          if (azar(v) >= (camasLibres > vivos.length * 0.3 ? 0.2 : 0.13) * (tiene(a, 'fértil') ? 1.5 : 1)) continue;
           if (nacen >= camasLibres) { c.sinCama++; continue; }
           if (!casasCiv) casasCiv = casasDe(m, c);
           const casa = a.casa != null && [OBRA.casa, OBRA.centro, OBRA.ayuntamiento].includes(v.obra[a.casa]) ? a.casa : (casasCiv.length ? casasCiv[Math.floor(azar(v) * casasCiv.length)] : centro(m, a.h));
@@ -1829,7 +1918,7 @@ button { cursor: pointer; }
     }
     pasear(m, a, ter, c);
   }
-  const metaCampos = c => Math.round((4 + c.pob * 0.22) * (0.6 + 0.4 * prio(c, 'comida')));
+  const metaCampos = c => Math.round((4 + (c.habitantes != null ? c.habitantes : c.pob / escala(c)) * 0.75) * (0.6 + 0.4 * prio(c, 'comida')));
   // Hacen falta casas cuando no quedan camas para los que van a nacer (como en WorldBox: se construye por necesidad).
   const faltanCamas = c => (c.sinCama || 0) > 0 || (c.camas || 0) - (c.aldeanos || 0) < 2 + Math.round(prio(c, 'casas') * 1.5);
   // Una casa nueva va siempre pegada a lo que ya hay (casas, plaza, molino, caminos), lo más cerca posible de la plaza:
@@ -1942,7 +2031,7 @@ button { cursor: pointer; }
     const v = m.vida, t = a.ty * v.tw + a.tx;
     if (a.o === LENADOR && v.arbol[t] >= 2) { a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && v.roca[t] > 0) { a.k = 1; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
-    if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2 + (c.molinos ? 1 : 0); a.siega = 0; }
+    if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2 + (c.molinos ? 1 : 0) + (c.era >= 4 ? 1 : 0) + (c.era >= 6 ? 1 : 0); a.siega = 0; }
     else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) {
       // Un tramo de camino: se quita el árbol o la roca; desde la Antigüedad se empiedra (cuesta un poco de piedra).
@@ -2435,7 +2524,7 @@ button { cursor: pointer; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -3107,7 +3196,11 @@ button { cursor: pointer; }
     if (tipo === 'agua' || tipo === 'bajo') { g.fillStyle = claro; const y = Math.floor(r() * 6) + 1, x = Math.floor(r() * 5); g.fillRect(x, y, 3, 1); }
     if (tipo === 'pantano') { g.fillStyle = '#2f5a5a'; g.fillRect(1 + Math.floor(r() * 3), 2 + Math.floor(r() * 3), 3, 2); g.fillStyle = '#4f8080'; g.fillRect(2, 3, 1, 1); }
     if (tipo === 'tundra') { g.fillStyle = '#e9eef2'; g.fillRect(Math.floor(r() * 6), Math.floor(r() * 6), 2, 1); }
-    if (tipo === 'montana') {
+    if (tipo === 'montana' && variante < 2) {
+      // Roca con grietas: no todas las parcelas tienen pico, así la cordillera no parece una cuadrícula.
+      g.fillStyle = '#6c6a73'; g.fillRect(1 + variante * 3, 2, 1, 3); g.fillRect(2 + variante * 3, 5, 2, 1);
+      g.fillStyle = '#a3a1aa'; g.fillRect(5 - variante * 3, 1, 2, 1);
+    } else if (tipo === 'montana') {
       // Un pico con la cumbre nevada en cada parcela de montaña.
       const pico = variante % 2 ? ['....n...', '...nRr..', '..RRHRr.', '.RRRRHRr', 'RRrRRRRr', 'rRRRrRRr', 'rrRRRRrr', 'rrrrrrrr'] : ['...n....', '..nRr...', '.RHRRr..', '.RRHRRr.', 'RRRRRRrr', 'rRrRRRRr', 'rrRRrRrr', 'rrrrrrrr'];
       const col = { n: '#f4f8fb', R: '#8a8a96', H: '#b9b9c4', r: '#5e5e68' };
@@ -3295,7 +3388,7 @@ button { cursor: pointer; }
       for (const nb of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) {
         if (nb < 0 || nb >= n || zona[nb] >= 0 || m.dueno[V.region(m, nb)] !== d) continue;
         const tr = tierra[nb];
-        if (tr === 'agua') continue;
+        if (tr === 'agua' || tr === 'bajo') continue;
         zona[nb] = d; dist[nb] = dist[t] + 1; cola.push(nb);
       }
     }
@@ -3303,7 +3396,7 @@ button { cursor: pointer; }
       const d = zona[t];
       if (d < 0 || !color[d]) continue;
       const x = (t % tw) * A, y = Math.floor(t / tw) * A;
-      gc.globalAlpha = sel == null ? 0.2 : sel === d ? 0.32 : 0.1;
+      gc.globalAlpha = sel == null ? 0.18 : sel === d ? 0.24 : 0.1;
       gc.fillStyle = color[d]; gc.fillRect(x, y, A, A);
       gc.globalAlpha = 1;
       const tx = t % tw;
@@ -3828,20 +3921,38 @@ button { cursor: pointer; }
     }
   }
   const ancho_ = () => ancho();
-  // Nubes que pasan, con su sombra en el suelo.
+  // Nubes que pasan, con su sombra en el suelo: pixel art blando hecho de círculos, sombreado por abajo.
+  const cacheNubes = [];
+  function nube(i, sombra) {
+    const clave = i * 2 + (sombra ? 1 : 0);
+    if (cacheNubes[clave]) return cacheNubes[clave];
+    const w = 28 + (i * 7) % 14, h = 12 + (i * 3) % 5, c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'), bolas = [];
+    let s = 977 * (i + 1);
+    const r = () => { s = (Math.imul(s ^ (s >>> 13), 1274126177) + 0x9E3779B9) >>> 0; return s / 4294967296; };
+    for (let k = 0; k < 6; k++) bolas.push([4 + r() * (w - 8), h * 0.45 + (r() - 0.5) * h * 0.3, 2.5 + r() * h * 0.33]);
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+      let dentro = false, alto = 1;
+      for (const [bx, by, br] of bolas) { const d = Math.hypot(xx - bx, (yy - by) * 1.3); if (d < br) { dentro = true; alto = Math.min(alto, (yy - (by - br)) / (2 * br)); } }
+      if (!dentro && yy >= h * 0.55 && yy < h * 0.8 && xx > 3 && xx < w - 3) dentro = true, alto = 0.9;
+      if (!dentro) continue;
+      x.fillStyle = sombra ? '#000' : alto < 0.35 ? '#ffffff' : alto < 0.75 ? '#eef2f7' : '#cdd5e0';
+      x.fillRect(xx, yy, 1, 1);
+    }
+    return (cacheNubes[clave] = c);
+  }
   function nubes(ahora, x0, y0, x1, y1) {
     if (reducido) return;
     const W2 = ancho(), H2 = alto();
-    for (let i = 0; i < 6; i++) {
-      const w = 80 + azarV(i * 11) * 100, h = 28 + azarV(i * 23) * 24;
+    g.imageSmoothingEnabled = false;
+    for (let i = 0; i < 7; i++) {
+      const esc = 3 + azarV(i * 13) * 1.5, img = nube(i % 5), w = img.width * esc, h = img.height * esc;
       const cx = ((azarV(i * 7) * W2 + ahora * (0.004 + azarV(i) * 0.004)) % (W2 + w * 2)) - w, cy = azarV(i * 5) * H2;
-      if (cx + w < x0 - 30 || cx > x1 + 30 || cy + h < y0 - 30 || cy > y1 + 30) continue;
-      const bloques = [[0, 0.3, 0.45, 0.7], [0.2, 0, 0.5, 0.8], [0.5, 0.15, 0.4, 0.75], [0.75, 0.35, 0.25, 0.55]];
-      g.fillStyle = 'rgba(0,0,0,0.12)';
-      for (const [bx, by, bw, bh] of bloques) g.fillRect(Math.round(cx + bx * w + 10), Math.round(cy + by * h + 14), Math.round(bw * w), Math.round(bh * h));
-      g.fillStyle = 'rgba(255,255,255,0.5)';
-      for (const [bx, by, bw, bh] of bloques) g.fillRect(Math.round(cx + bx * w), Math.round(cy + by * h), Math.round(bw * w), Math.round(bh * h));
+      if (cx + w < x0 - 30 || cx > x1 + 60 || cy + h < y0 - 30 || cy > y1 + 60) continue;
+      g.globalAlpha = 0.13; g.drawImage(nube(i % 5, true), Math.round(cx + 24), Math.round(cy + 40), w, h);
+      g.globalAlpha = 0.72; g.drawImage(img, Math.round(cx), Math.round(cy), w, h);
     }
+    g.globalAlpha = 1;
   }
   // Los animales, interpolando su paseo del turno.
   function animales(k, ahora, x0, y0, x1, y1) {
@@ -3938,11 +4049,12 @@ button { cursor: pointer; }
   }
 
   // ---------- La cámara ----------
-  function centrarEn(region) {
+  function centrarEn(region, acercar) {
     if (!m) return;
     const R = V.SUB * P;
     cam.x = (region % m.W) * R + R / 2; cam.y = Math.floor(region / m.W) * R + R / 2;
-    if (cam.z < 1) cam.z = Math.max(zMin(), 1.5);
+    if (acercar) cam.z = Math.max(cam.z, acercar);
+    else if (cam.z < 1) cam.z = Math.max(zMin(), 1.5);
     limitar();
   }
   function zoom(factor, sx, sy) {
@@ -4149,7 +4261,7 @@ button { cursor: pointer; }
       const c = (civId != null && S.civ(m, civId)) || lista[Math.floor(lista.length / 2)];
       X.gobernar(m, c ? c.id : null);
       sel = m.jugador; P.seleccionar(sel);
-      if (c) P.centrarEn(c.capital);
+      if (c) P.centrarEn(c.capital, 3);
       responder(c ? 'Gobiernas ' + c.nombre + '. Tu pueblo se gobierna solo, como los demás: tú decides qué le importa más (madera, comida, piedra, casas, ejército, ciencia, riqueza, expansión) y las grandes decisiones (guerra, paz, tratados, gobierno).' : '', 'bien');
     } else {
       X.gobernar(m, null);
@@ -4251,7 +4363,7 @@ button { cursor: pointer; }
     if (c.jugador) pestanas.plan = ['Tu plan', planDe(c)];
     if (!pestanas[pestana]) pestana = 'resumen';
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(c.nombre) + '</h3>' +
-      '<p class="subt">' + esc(M.REGIMENES[c.regimen]) + ' ' + esc(c.caracter) + ' · ' + esc(era(c).nombre) + '</p>' +
+      '<p class="subt">' + esc(M.conCaracter(c.regimen, c.caracter)) + ' · ' + esc(era(c).nombre) + '</p>' +
       '<div class="pestanas" role="tablist">' + Object.keys(pestanas).map(k => '<button type="button" role="tab" class="pestana' + (k === pestana ? ' activa' : '') + '" aria-selected="' + (k === pestana) + '" data-p="' + k + '">' + pestanas[k][0] + '</button>').join('') + '</div>' +
       (pestana === 'plan' ? pestanas.plan[1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
@@ -4353,12 +4465,31 @@ button { cursor: pointer; }
     return (partes.length ? esc(partes.join(', ')) : 'ninguno') + ' <span class="tenue">· ' + ninos + ' niños, ' + viejos + ' ancianos · ' + (c.camas || 0) + ' camas' + (c.sinCama ? ' (faltan ' + c.sinCama + ')' : '') + (colonos ? ' · ' + colonos + ' colonos de camino' : '') + '</span>';
   }
 
+  // La crónica: lo que pasa, y al tocarlo, por qué pasó, qué precedente tiene y dónde (la cámara va a mirar).
+  const GRANDES = new Set(['guerra', 'paz', 'conquista', 'caida', 'revuelta', 'plaga', 'hambruna', 'alianza', 'nuevo_pueblo', 'fundacion', 'cronista']);
+  let filtroCronica = 'todo', cuantosCronica = 20;
+  const abiertos = new Set();
   function pintarCronica() {
     const ol = $('cronica');
     ol.innerHTML = '';
-    for (const e of m.cronica.slice(0, 70)) {
+    const mio = tuPueblo();
+    const botonMio = document.querySelector('#filtro-cronica [data-f="mio"]');
+    if (botonMio) botonMio.hidden = !mio;
+    if (filtroCronica === 'mio' && !mio) filtroCronica = 'todo';
+    const lista = m.cronica.filter(e => filtroCronica === 'todo' ? true : filtroCronica === 'mio' ? e.civ === mio.id || e.divino : e.importante || e.divino || GRANDES.has(e.tipo) || e.tipo.startsWith('era'));
+    if (!lista.length) { const li = document.createElement('li'); li.className = 'suceso vacio'; li.textContent = 'Nada todavía.'; ol.appendChild(li); }
+    for (const e of lista.slice(0, cuantosCronica)) {
       const li = document.createElement('li');
-      li.className = 'suceso' + (e.divino ? ' divino' : '') + (e.importante ? ' importante' : '') + (e.tipo === 'cronista' ? ' cronista' : '');
+      const clave = e.turno + ':' + e.titulo;
+      li.className = 'suceso' + (e.divino ? ' divino' : '') + (e.importante ? ' importante' : '') + (e.tipo === 'cronista' ? ' cronista' : '') + (abiertos.has(clave) ? ' abierto' : '') + (e.porque || e.casilla != null ? ' tocable' : '') + (e.porque ? ' con-porque' : '');
+      li.tabIndex = 0;
+      const abrir = () => {
+        if (abiertos.has(clave)) abiertos.delete(clave); else abiertos.add(clave);
+        li.classList.toggle('abierto');
+        if (e.casilla != null && li.classList.contains('abierto')) P.centrarEn(e.casilla, 2.5);
+      };
+      li.addEventListener('click', abrir);
+      li.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrir(); } });
       li.innerHTML = '<div class="s-cab"><span class="s-anio"></span><span class="s-punto"></span><h4 class="s-titulo"></h4></div><p class="s-texto"></p>';
       li.querySelector('.s-anio').textContent = S.anioTexto(e.anio);
       li.querySelector('.s-punto').style.background = e.color || 'transparent';
@@ -4367,6 +4498,12 @@ button { cursor: pointer; }
       if (e.porque) { const p = document.createElement('p'); p.className = 's-porque'; p.innerHTML = '<b>Por qué</b> '; p.appendChild(document.createTextNode(e.porque)); li.appendChild(p); }
       if (e.precedente) { const p = document.createElement('p'); p.className = 's-precedente'; p.innerHTML = '<b>Ya pasó</b> '; p.appendChild(document.createTextNode(e.precedente)); li.appendChild(p); }
       ol.appendChild(li);
+    }
+    if (lista.length > cuantosCronica && cuantosCronica < 150) {
+      const li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.className = 'mando sutil'; b.textContent = 'Ver más sucesos (' + (Math.min(150, lista.length) - cuantosCronica) + ')';
+      b.addEventListener('click', () => { cuantosCronica += 30; pintarCronica(); });
+      li.className = 'suceso mas'; li.appendChild(b); ol.appendChild(li);
     }
   }
 
@@ -4597,11 +4734,16 @@ button { cursor: pointer; }
     $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
     $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
+    for (const b of document.querySelectorAll('#filtro-cronica .pestana')) b.addEventListener('click', () => {
+      filtroCronica = b.dataset.f;
+      for (const o of document.querySelectorAll('#filtro-cronica .pestana')) o.classList.toggle('activa', o === b);
+      pintarCronica();
+    });
     programar();
     requestAnimationFrame(relojSuave);
     // Un mundo nuevo (o uno guardado de antes de los modos) pregunta cómo quieres jugar.
     if (!m.modo) pedirModo();
-    else if (m.modo === 'pueblo' && tuPueblo()) P.centrarEn(tuPueblo().capital);
+    else if (m.modo === 'pueblo' && tuPueblo()) P.centrarEn(tuPueblo().capital, 3);
     if (window.claude && window.claude.hot) window.claude.hot.snapshot(() => ({ mundo: m, sel }));
     // Dentro de claude.ai, Claude entiende lo que el intérprete no, y escribe capítulos de la crónica.
     if (window.claude && typeof window.claude.use === 'function') {

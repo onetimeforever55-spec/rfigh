@@ -54,7 +54,7 @@
       const c = (civId != null && S.civ(m, civId)) || lista[Math.floor(lista.length / 2)];
       X.gobernar(m, c ? c.id : null);
       sel = m.jugador; P.seleccionar(sel);
-      if (c) P.centrarEn(c.capital);
+      if (c) P.centrarEn(c.capital, 3);
       responder(c ? 'Gobiernas ' + c.nombre + '. Tu pueblo se gobierna solo, como los demás: tú decides qué le importa más (madera, comida, piedra, casas, ejército, ciencia, riqueza, expansión) y las grandes decisiones (guerra, paz, tratados, gobierno).' : '', 'bien');
     } else {
       X.gobernar(m, null);
@@ -156,7 +156,7 @@
     if (c.jugador) pestanas.plan = ['Tu plan', planDe(c)];
     if (!pestanas[pestana]) pestana = 'resumen';
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(c.nombre) + '</h3>' +
-      '<p class="subt">' + esc(M.REGIMENES[c.regimen]) + ' ' + esc(c.caracter) + ' · ' + esc(era(c).nombre) + '</p>' +
+      '<p class="subt">' + esc(M.conCaracter(c.regimen, c.caracter)) + ' · ' + esc(era(c).nombre) + '</p>' +
       '<div class="pestanas" role="tablist">' + Object.keys(pestanas).map(k => '<button type="button" role="tab" class="pestana' + (k === pestana ? ' activa' : '') + '" aria-selected="' + (k === pestana) + '" data-p="' + k + '">' + pestanas[k][0] + '</button>').join('') + '</div>' +
       (pestana === 'plan' ? pestanas.plan[1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
@@ -258,12 +258,31 @@
     return (partes.length ? esc(partes.join(', ')) : 'ninguno') + ' <span class="tenue">· ' + ninos + ' niños, ' + viejos + ' ancianos · ' + (c.camas || 0) + ' camas' + (c.sinCama ? ' (faltan ' + c.sinCama + ')' : '') + (colonos ? ' · ' + colonos + ' colonos de camino' : '') + '</span>';
   }
 
+  // La crónica: lo que pasa, y al tocarlo, por qué pasó, qué precedente tiene y dónde (la cámara va a mirar).
+  const GRANDES = new Set(['guerra', 'paz', 'conquista', 'caida', 'revuelta', 'plaga', 'hambruna', 'alianza', 'nuevo_pueblo', 'fundacion', 'cronista']);
+  let filtroCronica = 'todo', cuantosCronica = 20;
+  const abiertos = new Set();
   function pintarCronica() {
     const ol = $('cronica');
     ol.innerHTML = '';
-    for (const e of m.cronica.slice(0, 70)) {
+    const mio = tuPueblo();
+    const botonMio = document.querySelector('#filtro-cronica [data-f="mio"]');
+    if (botonMio) botonMio.hidden = !mio;
+    if (filtroCronica === 'mio' && !mio) filtroCronica = 'todo';
+    const lista = m.cronica.filter(e => filtroCronica === 'todo' ? true : filtroCronica === 'mio' ? e.civ === mio.id || e.divino : e.importante || e.divino || GRANDES.has(e.tipo) || e.tipo.startsWith('era'));
+    if (!lista.length) { const li = document.createElement('li'); li.className = 'suceso vacio'; li.textContent = 'Nada todavía.'; ol.appendChild(li); }
+    for (const e of lista.slice(0, cuantosCronica)) {
       const li = document.createElement('li');
-      li.className = 'suceso' + (e.divino ? ' divino' : '') + (e.importante ? ' importante' : '') + (e.tipo === 'cronista' ? ' cronista' : '');
+      const clave = e.turno + ':' + e.titulo;
+      li.className = 'suceso' + (e.divino ? ' divino' : '') + (e.importante ? ' importante' : '') + (e.tipo === 'cronista' ? ' cronista' : '') + (abiertos.has(clave) ? ' abierto' : '') + (e.porque || e.casilla != null ? ' tocable' : '') + (e.porque ? ' con-porque' : '');
+      li.tabIndex = 0;
+      const abrir = () => {
+        if (abiertos.has(clave)) abiertos.delete(clave); else abiertos.add(clave);
+        li.classList.toggle('abierto');
+        if (e.casilla != null && li.classList.contains('abierto')) P.centrarEn(e.casilla, 2.5);
+      };
+      li.addEventListener('click', abrir);
+      li.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrir(); } });
       li.innerHTML = '<div class="s-cab"><span class="s-anio"></span><span class="s-punto"></span><h4 class="s-titulo"></h4></div><p class="s-texto"></p>';
       li.querySelector('.s-anio').textContent = S.anioTexto(e.anio);
       li.querySelector('.s-punto').style.background = e.color || 'transparent';
@@ -272,6 +291,12 @@
       if (e.porque) { const p = document.createElement('p'); p.className = 's-porque'; p.innerHTML = '<b>Por qué</b> '; p.appendChild(document.createTextNode(e.porque)); li.appendChild(p); }
       if (e.precedente) { const p = document.createElement('p'); p.className = 's-precedente'; p.innerHTML = '<b>Ya pasó</b> '; p.appendChild(document.createTextNode(e.precedente)); li.appendChild(p); }
       ol.appendChild(li);
+    }
+    if (lista.length > cuantosCronica && cuantosCronica < 150) {
+      const li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.className = 'mando sutil'; b.textContent = 'Ver más sucesos (' + (Math.min(150, lista.length) - cuantosCronica) + ')';
+      b.addEventListener('click', () => { cuantosCronica += 30; pintarCronica(); });
+      li.className = 'suceso mas'; li.appendChild(b); ol.appendChild(li);
     }
   }
 
@@ -502,11 +527,16 @@
     $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
     $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
+    for (const b of document.querySelectorAll('#filtro-cronica .pestana')) b.addEventListener('click', () => {
+      filtroCronica = b.dataset.f;
+      for (const o of document.querySelectorAll('#filtro-cronica .pestana')) o.classList.toggle('activa', o === b);
+      pintarCronica();
+    });
     programar();
     requestAnimationFrame(relojSuave);
     // Un mundo nuevo (o uno guardado de antes de los modos) pregunta cómo quieres jugar.
     if (!m.modo) pedirModo();
-    else if (m.modo === 'pueblo' && tuPueblo()) P.centrarEn(tuPueblo().capital);
+    else if (m.modo === 'pueblo' && tuPueblo()) P.centrarEn(tuPueblo().capital, 3);
     if (window.claude && window.claude.hot) window.claude.hot.snapshot(() => ({ mundo: m, sel }));
     // Dentro de claude.ai, Claude entiende lo que el intérprete no, y escribe capítulos de la crónica.
     if (window.claude && typeof window.claude.use === 'function') {

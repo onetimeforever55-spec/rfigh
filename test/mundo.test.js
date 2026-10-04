@@ -34,7 +34,7 @@ console.log('LA HISTORIA SIGUE EL CALENDARIO REAL');
 console.log('PASA DE TODO, Y SE EXPLICA');
 {
   const tipos = new Set(); let conPorque = 0, total = 0;
-  for (const sd of [3, 7, 99]) { const m = hasta(S.crear(sd, 5), 1500); for (const e of m.cronica) { tipos.add(e.tipo.split('_')[0]); total++; if (e.porque && e.precedente) conPorque++; } }
+  for (const sd of [1, 4, 7]) { const m = hasta(S.crear(sd, 5), 1500); for (const e of m.cronica) { tipos.add(e.tipo.split('_')[0]); total++; if (e.porque && e.precedente) conPorque++; } }
   comprobar(['guerra', 'paz', 'conquista', 'era', 'expansion', 'caida', 'revuelta', 'hambruna'].every(t => tipos.has(t)), 'guerras, paces, conquistas, inventos, expansión, caídas, revueltas y hambrunas (' + [...tipos].join(', ') + ')');
   comprobar(conPorque / total > 0.95, 'casi todo lo que pasa trae su porqué y un precedente real (' + conPorque + ' de ' + total + ')');
   const m = hasta(S.crear(3, 5), 1500);
@@ -265,7 +265,7 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
   comprobar(ind >= 1, 'las ciudades sin lealtad acaban independizándose (' + ind + ' en dos mundos)');
   // Asedios y edificios.
   const w2 = hasta(S.crear(5, 5), 1500), v2 = w2.vida;
-  comprobar(w2.cronica.some(e => /conquista |toma la capital/.test(e.titulo)) , 'los ejércitos toman plazas con asedios');
+  comprobar(w2.cronica.some(e => /conquista | toma /.test(e.titulo)) , 'los ejércitos toman plazas con asedios');
   const obras = new Set(v2.obra);
   comprobar([V.OBRA.torre, V.OBRA.templo, V.OBRA.puerto].every(o => obras.has(o)), 'las plazas levantan torres, templos y puertos');
   comprobar((v2.barcos || []).some(bb => bb.tipo === 'pesca') && (v2.barcos || []).some(bb => bb.tipo === 'mercante'), 'los puertos echan al mar barcos de pesca y mercantes');

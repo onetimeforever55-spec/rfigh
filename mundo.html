@@ -68,6 +68,11 @@
   <section class="g-cronica" aria-label="Crónica del mundo">
     <div class="cronica-cab">
       <h2 class="etiqueta">Crónica del mundo</h2>
+      <div class="filtro-cronica" id="filtro-cronica" role="group" aria-label="Qué sucesos ver">
+        <button type="button" class="pestana activa" data-f="todo">Todo</button>
+        <button type="button" class="pestana" data-f="mio" hidden>Tu pueblo</button>
+        <button type="button" class="pestana" data-f="grande">Lo importante</button>
+      </div>
       <button type="button" class="mando sutil" id="cronista" hidden>Pedir un capítulo al cronista</button>
     </div>
     <ol class="cronica" id="cronica"></ol>

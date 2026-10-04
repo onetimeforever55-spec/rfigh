@@ -90,7 +90,11 @@
     if (tipo === 'agua' || tipo === 'bajo') { g.fillStyle = claro; const y = Math.floor(r() * 6) + 1, x = Math.floor(r() * 5); g.fillRect(x, y, 3, 1); }
     if (tipo === 'pantano') { g.fillStyle = '#2f5a5a'; g.fillRect(1 + Math.floor(r() * 3), 2 + Math.floor(r() * 3), 3, 2); g.fillStyle = '#4f8080'; g.fillRect(2, 3, 1, 1); }
     if (tipo === 'tundra') { g.fillStyle = '#e9eef2'; g.fillRect(Math.floor(r() * 6), Math.floor(r() * 6), 2, 1); }
-    if (tipo === 'montana') {
+    if (tipo === 'montana' && variante < 2) {
+      // Roca con grietas: no todas las parcelas tienen pico, así la cordillera no parece una cuadrícula.
+      g.fillStyle = '#6c6a73'; g.fillRect(1 + variante * 3, 2, 1, 3); g.fillRect(2 + variante * 3, 5, 2, 1);
+      g.fillStyle = '#a3a1aa'; g.fillRect(5 - variante * 3, 1, 2, 1);
+    } else if (tipo === 'montana') {
       // Un pico con la cumbre nevada en cada parcela de montaña.
       const pico = variante % 2 ? ['....n...', '...nRr..', '..RRHRr.', '.RRRRHRr', 'RRrRRRRr', 'rRRRrRRr', 'rrRRRRrr', 'rrrrrrrr'] : ['...n....', '..nRr...', '.RHRRr..', '.RRHRRr.', 'RRRRRRrr', 'rRrRRRRr', 'rrRRrRrr', 'rrrrrrrr'];
       const col = { n: '#f4f8fb', R: '#8a8a96', H: '#b9b9c4', r: '#5e5e68' };
@@ -278,7 +282,7 @@
       for (const nb of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) {
         if (nb < 0 || nb >= n || zona[nb] >= 0 || m.dueno[V.region(m, nb)] !== d) continue;
         const tr = tierra[nb];
-        if (tr === 'agua') continue;
+        if (tr === 'agua' || tr === 'bajo') continue;
         zona[nb] = d; dist[nb] = dist[t] + 1; cola.push(nb);
       }
     }
@@ -286,7 +290,7 @@
       const d = zona[t];
       if (d < 0 || !color[d]) continue;
       const x = (t % tw) * A, y = Math.floor(t / tw) * A;
-      gc.globalAlpha = sel == null ? 0.2 : sel === d ? 0.32 : 0.1;
+      gc.globalAlpha = sel == null ? 0.18 : sel === d ? 0.24 : 0.1;
       gc.fillStyle = color[d]; gc.fillRect(x, y, A, A);
       gc.globalAlpha = 1;
       const tx = t % tw;
@@ -811,20 +815,38 @@
     }
   }
   const ancho_ = () => ancho();
-  // Nubes que pasan, con su sombra en el suelo.
+  // Nubes que pasan, con su sombra en el suelo: pixel art blando hecho de círculos, sombreado por abajo.
+  const cacheNubes = [];
+  function nube(i, sombra) {
+    const clave = i * 2 + (sombra ? 1 : 0);
+    if (cacheNubes[clave]) return cacheNubes[clave];
+    const w = 28 + (i * 7) % 14, h = 12 + (i * 3) % 5, c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'), bolas = [];
+    let s = 977 * (i + 1);
+    const r = () => { s = (Math.imul(s ^ (s >>> 13), 1274126177) + 0x9E3779B9) >>> 0; return s / 4294967296; };
+    for (let k = 0; k < 6; k++) bolas.push([4 + r() * (w - 8), h * 0.45 + (r() - 0.5) * h * 0.3, 2.5 + r() * h * 0.33]);
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+      let dentro = false, alto = 1;
+      for (const [bx, by, br] of bolas) { const d = Math.hypot(xx - bx, (yy - by) * 1.3); if (d < br) { dentro = true; alto = Math.min(alto, (yy - (by - br)) / (2 * br)); } }
+      if (!dentro && yy >= h * 0.55 && yy < h * 0.8 && xx > 3 && xx < w - 3) dentro = true, alto = 0.9;
+      if (!dentro) continue;
+      x.fillStyle = sombra ? '#000' : alto < 0.35 ? '#ffffff' : alto < 0.75 ? '#eef2f7' : '#cdd5e0';
+      x.fillRect(xx, yy, 1, 1);
+    }
+    return (cacheNubes[clave] = c);
+  }
   function nubes(ahora, x0, y0, x1, y1) {
     if (reducido) return;
     const W2 = ancho(), H2 = alto();
-    for (let i = 0; i < 6; i++) {
-      const w = 80 + azarV(i * 11) * 100, h = 28 + azarV(i * 23) * 24;
+    g.imageSmoothingEnabled = false;
+    for (let i = 0; i < 7; i++) {
+      const esc = 3 + azarV(i * 13) * 1.5, img = nube(i % 5), w = img.width * esc, h = img.height * esc;
       const cx = ((azarV(i * 7) * W2 + ahora * (0.004 + azarV(i) * 0.004)) % (W2 + w * 2)) - w, cy = azarV(i * 5) * H2;
-      if (cx + w < x0 - 30 || cx > x1 + 30 || cy + h < y0 - 30 || cy > y1 + 30) continue;
-      const bloques = [[0, 0.3, 0.45, 0.7], [0.2, 0, 0.5, 0.8], [0.5, 0.15, 0.4, 0.75], [0.75, 0.35, 0.25, 0.55]];
-      g.fillStyle = 'rgba(0,0,0,0.12)';
-      for (const [bx, by, bw, bh] of bloques) g.fillRect(Math.round(cx + bx * w + 10), Math.round(cy + by * h + 14), Math.round(bw * w), Math.round(bh * h));
-      g.fillStyle = 'rgba(255,255,255,0.5)';
-      for (const [bx, by, bw, bh] of bloques) g.fillRect(Math.round(cx + bx * w), Math.round(cy + by * h), Math.round(bw * w), Math.round(bh * h));
+      if (cx + w < x0 - 30 || cx > x1 + 60 || cy + h < y0 - 30 || cy > y1 + 60) continue;
+      g.globalAlpha = 0.13; g.drawImage(nube(i % 5, true), Math.round(cx + 24), Math.round(cy + 40), w, h);
+      g.globalAlpha = 0.72; g.drawImage(img, Math.round(cx), Math.round(cy), w, h);
     }
+    g.globalAlpha = 1;
   }
   // Los animales, interpolando su paseo del turno.
   function animales(k, ahora, x0, y0, x1, y1) {
@@ -921,11 +943,12 @@
   }
 
   // ---------- La cámara ----------
-  function centrarEn(region) {
+  function centrarEn(region, acercar) {
     if (!m) return;
     const R = V.SUB * P;
     cam.x = (region % m.W) * R + R / 2; cam.y = Math.floor(region / m.W) * R + R / 2;
-    if (cam.z < 1) cam.z = Math.max(zMin(), 1.5);
+    if (acercar) cam.z = Math.max(cam.z, acercar);
+    else if (cam.z < 1) cam.z = Math.max(zMin(), 1.5);
     limitar();
   }
   function zoom(factor, sx, sy) {

@@ -12,14 +12,14 @@
   // alimenta cada casilla (cap), cuánto pesa en la guerra (fuerza) y cuánta ciencia hace falta para llegar.
   M.ERAS = [
     { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
-    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
-    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 425, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1200, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2150, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2850, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 3000, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 3180, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', desde: -3500, anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
+    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', desde: -1500, anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', desde: -900, anios: 50, cap: 2.0, fuerza: 2.6, umbral: 425, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1000, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1750, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2300, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 2480, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 2650, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
@@ -37,10 +37,10 @@
 
   // El carácter de cada pueblo cambia cómo decide: cuánto guerrea, cuánta ciencia hace, cuánto comercia.
   M.CARACTERES = {
-    guerrero: { nombre: 'guerrero', agresion: 1.7, ciencia: 0.9, comercio: 0.8, estab: 0 },
-    mercader: { nombre: 'mercader', agresion: 0.6, ciencia: 1.05, comercio: 1.7, estab: 0 },
-    devoto: { nombre: 'devoto', agresion: 1.0, ciencia: 0.85, comercio: 1.0, estab: 6 },
-    sabio: { nombre: 'sabio', agresion: 0.7, ciencia: 1.4, comercio: 1.1, estab: 0 }
+    guerrero: { nombre: 'guerrero', fem: 'guerrera', agresion: 1.7, ciencia: 0.9, comercio: 0.8, estab: 0 },
+    mercader: { nombre: 'mercader', fem: 'mercader', agresion: 0.6, ciencia: 1.05, comercio: 1.7, estab: 0 },
+    devoto: { nombre: 'devoto', fem: 'devota', agresion: 1.0, ciencia: 0.85, comercio: 1.0, estab: 6 },
+    sabio: { nombre: 'sabio', fem: 'sabia', agresion: 0.7, ciencia: 1.4, comercio: 1.1, estab: 0 }
   };
 
   M.COLORES = ['#e5533d', '#4f86e8', '#e8b13b', '#45b86a', '#a65fe0', '#e8823b', '#3cc6c6', '#e0559b', '#9bc93f', '#8a93e8', '#c9a16b', '#5fd1a0'];
@@ -53,7 +53,7 @@
   };
   M.TITULOS = { tribu: 'jefe', jefatura: 'cacique', reino: 'rey', imperio: 'emperador', republica: 'cónsul', teocracia: 'sumo sacerdote', democracia: 'presidente', dictadura: 'dictador', estado_obrero: 'secretario general' };
   M.RASGOS = {
-    sabio: { nombre: 'sabio', ciencia: 1.2, estab: 2 }, guerrero: { nombre: 'guerrero', agresion: 1.6, fuerza: 1.1 },
+    sabio: { nombre: 'sabio', fem: 'sabia', ciencia: 1.2, estab: 2 }, guerrero: { nombre: 'guerrero', agresion: 1.6, fuerza: 1.1 },
     pacifico: { nombre: 'pacífico', agresion: 0.45, estab: 3 }, codicioso: { nombre: 'codicioso', riqueza: 1.15, estab: -4 },
     cruel: { nombre: 'cruel', estab: -6, fuerza: 1.12, agresion: 1.2 }, justo: { nombre: 'justo', estab: 6 },
     constructor: { nombre: 'constructor', riqueza: 1.05, estab: 2 }, loco: { nombre: 'loco', estab: -8, agresion: 1.4 }
@@ -115,6 +115,8 @@
   // Regímenes posibles y cómo se nombran.
   // Con artículo: "la república", "el imperio".
   const FEMENINOS = new Set(['tribu', 'jefatura', 'republica', 'teocracia', 'democracia', 'dictadura', 'estado_obrero']);
+  // "tribu guerrera", "reino guerrero": el carácter concuerda con el régimen.
+  M.conCaracter = (r, car) => M.REGIMENES[r] + ' ' + (FEMENINOS.has(r) && M.CARACTERES[car] ? M.CARACTERES[car].fem : car);
   M.conArticulo = r => (FEMENINOS.has(r) ? 'la ' : 'el ') + M.REGIMENES[r];
   M.unoDe = r => (FEMENINOS.has(r) ? 'una ' : 'un ') + M.REGIMENES[r];
   M.REGIMENES = {

@@ -16,7 +16,7 @@
   'use strict';
   const M = RF.MUNDO;
   const S = () => M.sim;
-  const SUB = 4, TICKS = 8, MAX_ALDEANOS = 1000;
+  const SUB = 4, TICKS = 8, MAX_ALDEANOS = 1600;
   // La vida de un aldeano, en turnos: niño hasta ADULTO, anciano desde VIEJO, y muere de viejo hacia el final.
   const ADULTO = 2, VIEJO = 18;
   const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
@@ -40,7 +40,7 @@
 
   // Árboles y rocas al crear el mundo, según el suelo de la parcela.
   const ARBOLES = { bosque: 0.78, selva: 0.85, taiga: 0.7, pantano: 0.32, sabana: 0.1, colina: 0.22, llanura: 0.07, tundra: 0.06, nieve: 0.1, desierto: 0.03 };
-  const ROCAS = { montana: 0.45, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
+  const ROCAS = { montana: 0.3, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
   // Lo que brota solo cada turno junto a otro árbol (la naturaleza recupera lo que se deja).
   const BROTE = { bosque: 0.035, selva: 0.05, taiga: 0.025, pantano: 0.015, sabana: 0.005, colina: 0.025, llanura: 0.006, tundra: 0.002, nieve: 0.004, desierto: 0.0015 };
   const CONSTRUIBLE = new Set(['llanura', 'colina', 'bosque', 'desierto', 'nieve', 'arena', 'sabana', 'selva', 'taiga', 'tundra', 'pantano']);
@@ -55,38 +55,104 @@
 
   // ---------- El suelo de cada parcela ----------
   const esAgua = t => t === 'mar' || t === 'costa';
-  function aguaEn(m, rx, ry) { return rx >= 0 && ry >= 0 && rx < m.W && ry < m.H && esAgua(m.tipo[ry * m.W + rx]); }
-  function uneRio(m, rx, ry) {
-    if (rx < 0 || ry < 0 || rx >= m.W || ry >= m.H) return false;
-    const j = ry * m.W + rx;
-    return m.rio[j] || esAgua(m.tipo[j]);
+  /*
+   * Las regiones son cuadradas, pero el suelo no: cada parcela mira a la región que tiene al lado de un punto
+   * desplazado por un ruido suave, así las costas y los linderos entre biomas ondulan como en WorldBox. El
+   * cuadrado del medio de cada región (donde va la plaza) es siempre suyo. Los ríos van de centro a centro
+   * dando rodeos, y el agua que toca tierra es poco honda.
+   */
+  function hashR(sem, x, y) { let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(sem, 2246822519)) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+  function ruido(sem, x, y) {
+    const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const a = hashR(sem, x0, y0), b = hashR(sem, x0 + 1, y0), c = hashR(sem, x0, y0 + 1), d = hashR(sem, x0 + 1, y0 + 1);
+    return (a + (b - a) * sx) * (1 - sy) + (c + (d - c) * sx) * sy;
   }
-  // Los ríos pasan por la fila y la columna 1 de cada región y se unen con los vecinos que también son río o mar.
-  function esRio(m, rx, ry, lx, ly) {
-    if (lx === 1 && ly === 1) return true;
-    if (ly === 1 && lx < 1) return uneRio(m, rx - 1, ry);
-    if (ly === 1 && lx > 1) return uneRio(m, rx + 1, ry);
-    if (lx === 1 && ly < 1) return uneRio(m, rx, ry - 1);
-    if (lx === 1 && ly > 1) return uneRio(m, rx, ry + 1);
-    return false;
+  const desvio = (sem, x, y) => (ruido(sem, x / 5, y / 5) - 0.5) * 2.6 + (ruido(sem + 7, x / 2, y / 2) - 0.5) * 1.1;
+  function baseEn(m, tx, ty) {
+    const rx0 = (tx / SUB) | 0, ry0 = (ty / SUB) | 0, lx = tx - rx0 * SUB, ly = ty - ry0 * SUB;
+    let rx = rx0, ry = ry0;
+    if (!(lx >= 1 && lx <= 2 && ly >= 1 && ly <= 2)) {
+      const sem = m.semilla | 0;
+      rx = Math.max(0, Math.min(m.W - 1, Math.floor((tx + 0.5 + desvio(sem, tx, ty)) / SUB)));
+      ry = Math.max(0, Math.min(m.H - 1, Math.floor((ty + 0.5 + desvio(sem + 101, tx, ty)) / SUB)));
+    }
+    const tipo = m.tipo[ry * m.W + rx];
+    return tipo === 'mar' ? 'agua' : tipo === 'costa' ? 'bajo' : tipo;
   }
-  function terreno(m, tx, ty) {
-    const rx = (tx / SUB) | 0, ry = (ty / SUB) | 0, tipo = m.tipo[ry * m.W + rx];
-    if (tipo === 'mar') return 'agua';
-    if (tipo === 'costa') return 'bajo';
-    const lx = tx - rx * SUB, ly = ty - ry * SUB;
-    if (m.rio[ry * m.W + rx] && esRio(m, rx, ry, lx, ly)) return 'rio';
-    if (tipo !== 'nieve' && tipo !== 'montana' &&
-      ((lx === 0 && aguaEn(m, rx - 1, ry)) || (lx === SUB - 1 && aguaEn(m, rx + 1, ry)) || (ly === 0 && aguaEn(m, rx, ry - 1)) || (ly === SUB - 1 && aguaEn(m, rx, ry + 1)))) return 'arena';
-    return tipo;
+  // El cauce de un río entre dos puntos: pasos de una parcela, eligiendo al azar (fijo) si avanza en x o en y.
+  function cauce(m, arr, tw, x0, y0, x1, y1, sem) {
+    let x = x0, y = y0, k = 0;
+    while (x !== x1 || y !== y1) {
+      const t = y * tw + x;
+      if (k > 0 && (arr[t] === 'agua' || arr[t] === 'bajo')) return;
+      if (arr[t] !== 'agua' && arr[t] !== 'bajo') arr[t] = 'rio';
+      const ddx = x1 - x, ddy = y1 - y, h = hashR(sem, x, y + k);
+      if (ddx && (!ddy || h < Math.abs(ddx) / (Math.abs(ddx) + Math.abs(ddy)))) x += Math.sign(ddx); else y += Math.sign(ddy);
+      k++;
+    }
+    const t = y * tw + x;
+    if (arr[t] !== 'agua' && arr[t] !== 'bajo') arr[t] = 'rio';
+  }
+  function centroRio(m, rx, ry) { const h = hashR((m.semilla | 0) + 31, rx, ry); return [rx * SUB + 1 + (h < 0.5 ? 0 : 1), ry * SUB + 1 + ((h * 4 | 0) % 2)]; }
+  function rios(m, arr, tw) {
+    const sem = (m.semilla | 0) + 57;
+    for (let ry = 0; ry < m.H; ry++) for (let rx = 0; rx < m.W; rx++) {
+      if (!m.rio[ry * m.W + rx] || esAgua(m.tipo[ry * m.W + rx])) continue;
+      const [cx, cy] = centroRio(m, rx, ry);
+      arr[cy * tw + cx] = 'rio';
+      // Como al crear el mundo, el río baja hacia la región vecina más baja: un solo cauce, sin lazos.
+      const r = ry * m.W + rx, sig = S().vecinos(r).sort((p, q) => m.alto[p] - m.alto[q])[0];
+      if (sig == null || m.alto[sig] >= m.alto[r]) { if (sig != null) lago(m, arr, tw, cx + Math.sign(sig % m.W - rx) * 2, cy + Math.sign((sig / m.W | 0) - ry) * 2); continue; }
+      const nx = sig % m.W, ny = (sig / m.W) | 0, dx = nx - rx, dy = ny - ry, agua = esAgua(m.tipo[sig]);
+      // A medio camino, un punto del lindero desplazado: el río no cruza siempre por el mismo sitio.
+      const h = hashR(sem, rx * 2 + dx, ry * 2 + dy), mx = dx ? (dx > 0 ? rx * SUB + SUB - 1 + (h < 0.5 ? 0 : 1) : rx * SUB - (h < 0.5 ? 0 : 1)) : cx + Math.round((h - 0.5) * 3);
+      const my = dy ? (dy > 0 ? ry * SUB + SUB - 1 + (h < 0.5 ? 0 : 1) : ry * SUB - (h < 0.5 ? 0 : 1)) : cy + Math.round((h - 0.5) * 3);
+      const mxx = Math.max(0, Math.min(tw - 1, mx)), myy = Math.max(0, Math.min(m.H * SUB - 1, my));
+      cauce(m, arr, tw, cx, cy, mxx, myy, sem);
+      if (agua) { // hasta el agua: se sigue en la misma dirección hasta tocarla
+        let x = mxx, y = myy, n = 0;
+        while (n++ < SUB * 2 && x >= 0 && y >= 0 && x < tw && y < m.H * SUB && arr[y * tw + x] !== 'agua' && arr[y * tw + x] !== 'bajo') { arr[y * tw + x] = 'rio'; x += dx; y += dy; }
+      } else { const [ox, oy] = centroRio(m, nx, ny); cauce(m, arr, tw, mxx, myy, ox, oy, sem + 1); if (!m.rio[sig]) lago(m, arr, tw, ox + dx * 2, oy + dy * 2); }
+    }
+  }
+  // Donde un río ya no tiene por dónde bajar, se remansa en un lago pequeño.
+  function lago(m, arr, tw, cx, cy) {
+    const th = m.H * SUB;
+    for (let y = cy - 2; y <= cy + 2; y++) for (let x = cx - 2; x <= cx + 2; x++) {
+      if (x < 0 || y < 0 || x >= tw || y >= th) continue;
+      const d = Math.abs(x - cx) + Math.abs(y - cy) + hashR(m.semilla | 0, x, y) * 1.2;
+      const lx = x % SUB, ly = y % SUB; // el cuadrado del medio de cada región queda en tierra (ahí va la plaza)
+      if (d < 2.6 && !(lx >= 1 && lx <= 2 && ly >= 1 && ly <= 2) && arr[y * tw + x] !== 'montana' && arr[y * tw + x] !== 'nieve') arr[y * tw + x] = 'bajo';
+    }
+  }
+  function terrenosNuevos(m) {
+    const tw = m.W * SUB, th = m.H * SUB, arr = new Array(tw * th);
+    for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) arr[ty * tw + tx] = baseEn(m, tx, ty);
+    rios(m, arr, tw);
+    const tierraFirme = x => x !== 'agua' && x !== 'bajo' && x !== 'rio';
+    // La hondura del mar según lo lejos que está la tierra: poco hondo junto a la orilla, hondo mar adentro.
+    const lejos = new Array(tw * th).fill(99), cola = [];
+    for (let t = 0; t < tw * th; t++) if (tierraFirme(arr[t])) { lejos[t] = 0; cola.push(t); }
+    for (let i = 0; i < cola.length; i++) {
+      const t = cola[i], d = lejos[t] + 1, x = t % tw;
+      if (d > 3) continue;
+      for (const u of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) if (u >= 0 && u < tw * th && lejos[u] > d) { lejos[u] = d; cola.push(u); }
+    }
+    const out = arr.slice();
+    for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) {
+      const t = ty * tw + tx, a = arr[t];
+      if (a === 'agua' || a === 'bajo') { out[t] = lejos[t] <= 2 + (hashR(m.semilla | 0, tx >> 1, ty >> 1) < 0.4 ? 1 : 0) ? 'bajo' : 'agua'; continue; }
+      const vec = [tx > 0 ? arr[t - 1] : a, tx < tw - 1 ? arr[t + 1] : a, ty > 0 ? arr[t - tw] : a, ty < th - 1 ? arr[t + tw] : a];
+      if (tierraFirme(a) && a !== 'montana' && a !== 'nieve' && vec.some(x => x === 'agua' || x === 'bajo')) out[t] = 'arena';
+    }
+    return out;
   }
   // El suelo solo cambia cuando cambia una región (un bosque talado, un terremoto): se guarda calculado.
   let cache = { m: null, firma: '', arr: null };
   function terrenos(m) {
     const firma = m.tipo.join(',');
     if (cache.m === m && cache.firma === firma) return cache.arr;
-    const tw = m.W * SUB, th = m.H * SUB, arr = new Array(tw * th);
-    for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) arr[ty * tw + tx] = terreno(m, tx, ty);
+    const arr = terrenosNuevos(m);
     cache = { m, firma, arr };
     return arr;
   }
@@ -175,7 +241,7 @@
     const lleno = c.cap ? c.pob / c.cap : 0.8;
     const p = [
       recursos.arboles ? 0.18 + 0.4 * Math.max(0, 1 - (c.madera || 0) / metaMadera(c)) : 0,
-      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0),
+      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - (c.comida || 0) / Math.max(6, (c.habitantes || 10) * 1.5)),
       faltanCamas(c) ? 0.2 : 0.06,
       recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) + ((c.metal || 0) < 10 ? 0.08 : 0) : 0.04) : 0,
       guerra ? 0.6 : c.era >= 2 ? 0.07 : 0.04,
@@ -211,7 +277,7 @@
    * población de ellos (cada aldeano cuenta por una familia grande: ver escala).
    */
   const RASGOS_ALDEANO = ['fuerte', 'rápido', 'sabio', 'perezoso', 'valiente', 'torpe', 'longevo', 'fértil'];
-  const escala = c => 1.5 * (1 + 0.35 * c.era);
+  const escala = c => 1.2 * (1 + 0.15 * c.era);
   const tiene = (a, r) => !!(a.rasgos && a.rasgos.includes(r));
   const APELLIDOS = ['ez', 'ar', 'in', 'os', 'ani', 'ov', 'eda', 'ur'];
   function nuevoAldeano(m, c, casa, edad, padre) {
@@ -265,14 +331,20 @@
       const vivos = lista.filter(a => !quitar.has(a));
       const camasLibres = Math.max(0, (c.camas || 6) - vivos.length);
       const tierra = !c.cap || vivos.length * escala(c) < c.cap * 1.05;
-      const comida = (c.comida || 0) > vivos.length * 0.3 || vivos.length < 8;
+      const comida = (c.comida || 0) > vivos.length * 0.12 || vivos.length < 8;
       c.sinCama = 0;
-      if (tierra && comida && total < MAX_ALDEANOS && vivos.length < 150) {
+      // Un pueblo de viejos, sin nadie en edad de tener hijos, recibe parejas jóvenes de las aldeas de alrededor.
+      const fertiles = vivos.filter(a => (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO).length;
+      if (fertiles < Math.max(2, vivos.length * 0.15) && camasLibres >= 2 && (c.comida || 0) > 4 && total < MAX_ALDEANOS) {
+        const casas = casasDe(m, c);
+        for (let k = 0; k < 2; k++) { const b = nuevoAldeano(m, c, casas.length ? casas[Math.floor(azar(v) * casas.length)] : centro(m, hogar(m, c, cs)), ADULTO + 1 + Math.floor(azar(v) * 3), null); lista.push(b); vivos.push(b); total++; }
+      }
+      if (tierra && comida && total < MAX_ALDEANOS && vivos.length < 260) {
         const adultos = vivos.filter(a => (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO && a.colono == null);
         let nacen = 0, casasCiv = null;
         for (const a of adultos) {
           if (nacen >= Math.max(2, adultos.length * 0.25)) break;
-          if (azar(v) >= 0.13 * (tiene(a, 'fértil') ? 1.5 : 1)) continue;
+          if (azar(v) >= (camasLibres > vivos.length * 0.3 ? 0.2 : 0.13) * (tiene(a, 'fértil') ? 1.5 : 1)) continue;
           if (nacen >= camasLibres) { c.sinCama++; continue; }
           if (!casasCiv) casasCiv = casasDe(m, c);
           const casa = a.casa != null && [OBRA.casa, OBRA.centro, OBRA.ayuntamiento].includes(v.obra[a.casa]) ? a.casa : (casasCiv.length ? casasCiv[Math.floor(azar(v) * casasCiv.length)] : centro(m, a.h));
@@ -786,7 +858,7 @@
     }
     pasear(m, a, ter, c);
   }
-  const metaCampos = c => Math.round((4 + c.pob * 0.22) * (0.6 + 0.4 * prio(c, 'comida')));
+  const metaCampos = c => Math.round((4 + (c.habitantes != null ? c.habitantes : c.pob / escala(c)) * 0.75) * (0.6 + 0.4 * prio(c, 'comida')));
   // Hacen falta casas cuando no quedan camas para los que van a nacer (como en WorldBox: se construye por necesidad).
   const faltanCamas = c => (c.sinCama || 0) > 0 || (c.camas || 0) - (c.aldeanos || 0) < 2 + Math.round(prio(c, 'casas') * 1.5);
   // Una casa nueva va siempre pegada a lo que ya hay (casas, plaza, molino, caminos), lo más cerca posible de la plaza:
@@ -899,7 +971,7 @@
     const v = m.vida, t = a.ty * v.tw + a.tx;
     if (a.o === LENADOR && v.arbol[t] >= 2) { a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && v.roca[t] > 0) { a.k = 1; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
-    if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2 + (c.molinos ? 1 : 0); a.siega = 0; }
+    if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2 + (c.molinos ? 1 : 0) + (c.era >= 4 ? 1 : 0) + (c.era >= 6 ? 1 : 0); a.siega = 0; }
     else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) {
       // Un tramo de camino: se quita el árbol o la roca; desde la Antigüedad se empiedra (cuesta un poco de piedra).
@@ -1392,5 +1464,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
