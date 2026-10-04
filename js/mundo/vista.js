@@ -132,14 +132,14 @@
     }
     const cs = S.casillas(m, c), cap = S.capacidad(m, c, cs);
     const enemigos = c.guerras.map(g => S.civ(m, g.con)).filter(Boolean).map(o => o.nombre);
-    const edificios = [c.torres ? c.torres + ' torre' + (c.torres > 1 ? 's' : '') : '', c.templos ? c.templos + ' templo' + (c.templos > 1 ? 's' : '') : '', c.molinos ? c.molinos + ' molino' + (c.molinos > 1 ? 's' : '') : '', c.puertos ? c.puertos + ' puerto' + (c.puertos > 1 ? 's' : '') + ' <span class="tenue">(' + ((m.vida.barcos || []).filter(b => b.c === c.id).length) + ' barcos)</span>' : ''].filter(Boolean).join(' · ') || '<span class="tenue">ninguno todavía</span>';
+    const edificios = [c.castillos ? (c.era >= 7 ? 'fortín' : c.era >= 5 ? 'fortaleza' : c.era >= 2 ? 'castillo' : 'recinto de empalizada') : '', c.cuarteles ? 'cuartel' : '', c.arquerias ? (c.era >= 5 ? 'campo de tiro' : 'arquería') : '', c.torres ? c.torres + ' torre' + (c.torres > 1 ? 's' : '') : '', c.templos ? c.templos + ' templo' + (c.templos > 1 ? 's' : '') : '', c.molinos ? c.molinos + ' molino' + (c.molinos > 1 ? 's' : '') : '', c.puertos ? c.puertos + ' puerto' + (c.puertos > 1 ? 's' : '') + ' <span class="tenue">(' + ((m.vida.barcos || []).filter(b => b.c === c.id).length) + ' barcos)</span>' : ''].filter(Boolean).join(' · ') || '<span class="tenue">ninguno todavía</span>';
     // La ficha va por pestañas, para no enseñarlo todo de golpe.
     const pestanas = {
       resumen: ['Resumen', fila('Gobierna', esc(M.TITULOS[c.regimen] ? M.TITULOS[c.regimen].charAt(0).toUpperCase() + M.TITULOS[c.regimen].slice(1) : 'Rey') + ' ' + esc(S.nombreRey(c)) + (c.rey ? ' <span class="tenue">(' + esc(M.RASGOS[c.rey.rasgo].nombre) + ', ' + Math.round(c.rey.edad) + ' años' + (c.heredero ? '; heredero: ' + esc(c.heredero.nombre) : '') + ')</span>' : '')) +
         fila('Población', habitantes(c) + ' <span class="tenue">(la tierra da para ' + Math.round(cap / M.vida.escala(c)) + ')</span>') +
         fila('Estabilidad', '<span class="barra"><span style="width:' + Math.round(c.estab) + '%"></span></span> ' + Math.round(c.estab)) +
         fila('Riqueza', Math.round(c.riqueza)) + fila('Tierras', cs.length) +
-        fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
+        fila('Técnica', 'fase ' + (M.fase(c.era) + 1) + ' de 4: <b>' + esc(M.FASES[M.fase(c.era)].nombre) + '</b> <span class="tenue">(' + esc(M.FASES[M.fase(c.era)].resumen) + ')</span>') + fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
         fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
         (ciudadesDe(c) ? fila('Ciudades', ciudadesDe(c)) : '')],
       economia: ['Economía', fila('Aldeanos', aldeanos(c)) +

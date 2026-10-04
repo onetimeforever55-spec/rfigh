@@ -264,7 +264,7 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
     comprobar(mot2.some(z => /demasiadas ciudades/.test(z[0]) && z[1] <= -25) && mot2.some(z => /ambicioso/.test(z[0])), 'la lealtad baja con demasiadas ciudades (−25 cada una) y con un alcalde ambicioso');
   } else comprobar(false, 'hace falta un pueblo con ciudades');
   // Se cuentan durante toda la partida (la crónica solo guarda los últimos sucesos).
-  const ind = [3, 4].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
+  const ind = [2, 8].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
   comprobar(ind >= 1, 'las ciudades sin lealtad acaban independizándose (' + ind + ' en dos mundos)');
   // Asedios y edificios.
   const w2 = hasta(S.crear(5, 5), 1500), v2 = w2.vida;

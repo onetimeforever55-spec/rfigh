@@ -19,8 +19,17 @@
     { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2200, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
     { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2900, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
     { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 3100, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 3300, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Segunda Guerra Mundial', con: 'la Segunda Guerra Mundial', corto: 'II GUERRA MUNDIAL', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 3300, inventos: ['la ametralladora', 'el tanque', 'el radar'] }
   ];
+  // Las cuatro fases de la técnica: cada una trae sus edificios y su manera de guerrear. El techo es la
+  // Segunda Guerra Mundial (fusiles, ametralladoras, tanques): no hay bomba atómica.
+  M.FASES = [
+    { nombre: 'Tribal', eras: [0, 1], resumen: 'chozas, molino, empalizadas, garrotes, lanzas y hondas' },
+    { nombre: 'Medieval', eras: [2, 3, 4], resumen: 'cuarteles, arquerías, castillos de piedra, espadas, armaduras y arcos' },
+    { nombre: 'Pólvora', eras: [5, 6], resumen: 'fortalezas abaluartadas con cañones, arcabuces y mosquetes' },
+    { nombre: 'Guerras Mundiales', eras: [7, 8], resumen: 'búnkeres, nidos de ametralladoras, fusiles y tanques' }
+  ];
+  M.fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
   M.INVENTOS = [
@@ -32,7 +41,7 @@
     [/imprenta|libros/, 5, 'la imprenta'], [/polvora|canon/, 5, 'la pólvora'], [/banca|bancos/, 5, 'la banca'], [/carabela|barcos/, 5, 'la carabela'],
     [/vapor/, 6, 'la máquina de vapor'], [/ferrocarril|tren/, 6, 'el ferrocarril'], [/fabrica/, 6, 'la fábrica'],
     [/electricidad|luz electrica/, 7, 'la electricidad'], [/vacuna/, 7, 'las vacunas'], [/radio/, 7, 'la radio'], [/avion/, 7, 'el avión'], [/penicilina|antibiotico/, 7, 'la penicilina'],
-    [/bomba atomica|bomba nuclear|arma nuclear|atomica/, 8, 'la bomba atómica'], [/ordenador|computadora/, 8, 'el ordenador'], [/satelite/, 8, 'los satélites'], [/internet/, 8, 'internet']
+    [/ametralladora/, 8, 'la ametralladora'], [/tanque|carro de combate/, 8, 'el tanque'], [/radar/, 8, 'el radar']
   ];
 
   // El carácter de cada pueblo cambia cómo decide: cuánto guerrea, cuánta ciencia hace, cuánto comercia.
@@ -80,7 +89,7 @@
     era_5: [['La imprenta abarata los libros: las ideas se copian más rápido de lo que se pueden prohibir.', 'Gutenberg imprimió su Biblia hacia 1455; en 1517, las tesis de Lutero corrieron por Europa en semanas.'], ['La pólvora vuelve inútiles los castillos: gana quien puede pagar cañones.', 'En 1453 los cañones otomanos abrieron las murallas de Constantinopla, que aguantaban desde hacía mil años.']],
     era_6: [['Una máquina hace el trabajo de cien hombres: la riqueza deja de ser la tierra y pasa a ser la fábrica.', 'Manchester pasó de pueblo a ciudad de 300.000 habitantes en sesenta años gracias al algodón y al vapor.']],
     era_7: [['La electricidad y la medicina alargan la vida: la población se dispara.', 'La humanidad tardó hasta 1804 en llegar a mil millones; en 1927 ya eran dos mil.']],
-    era_8: [['Con la bomba atómica, la guerra total deja de tener ganador.', 'Tras Hiroshima y Nagasaki (1945), las potencias nucleares no han vuelto a enfrentarse directamente.']],
+    era_8: [['La guerra se vuelve total: gana quien fabrica más fusiles, tanques y aviones.', 'En 1944 las fábricas de Estados Unidos sacaban un avión cada cinco minutos.']],
     hambruna: [['Si la población crece más deprisa que la comida, el hambre la recorta: es la trampa maltusiana.', 'Malthus lo escribió en 1798. La Gran Hambruna europea de 1315 mató a uno de cada diez.']],
     guerra: [['Las guerras empiezan por fronteras y recursos, y acaban por agotamiento.', 'La guerra de los Cien Años duró 116: se acabó cuando ninguno de los dos podía pagar otra campaña.'], ['El vecino fuerte con un vecino débil siempre encuentra un motivo.', 'Tucídides lo resumió en Melos: "los fuertes hacen lo que pueden y los débiles sufren lo que deben".']],
     conquista: [['Quien tiene mejor técnica puede vencer a muchos más: el acero contra la piedra, el cañón contra la lanza.', 'Pizarro tomó el imperio inca en 1532 con 168 hombres, caballos, acero y la viruela.'], ['Conquistar es fácil; gobernar lo conquistado es lo difícil.', 'Alejandro conquistó de Grecia a la India en once años; su imperio se partió al día siguiente de su muerte.']],

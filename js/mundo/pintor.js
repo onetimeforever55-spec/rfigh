@@ -119,7 +119,10 @@
       }
       else if (obra === V.OBRA.ruina) gl.drawImage(ARTE().edificio('ruina', '#888888'), x, y);
       else if (obra === V.OBRA.ayuntamiento) gl.drawImage(ARTE().edificio('ayuntamiento', color), x, y);
-      else if (obra === V.OBRA.torre) gl.drawImage(ARTE().edificio('torre', color), x, y);
+      else if (obra === V.OBRA.torre) gl.drawImage(ARTE().edificio('torre', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color), x, y);
       else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color), x, y);
       else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color), x, y);
@@ -404,7 +407,7 @@
       const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
       const img = ARTE().aldeano({
         col: color[a.c] || '#cccccc', oficio: nino ? 'nino' : oficio, edad: nino ? 'nino' : (a.edad || 0) >= V.VIEJO ? 'viejo' : 'adulto',
-        paso: anda && t ? 1 : 0, alto, carga: acc === 3 ? (oficio === 'minero' ? 2 : 1) : 0,
+        paso: anda && t ? 1 : 0, alto, carga: acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0,
         arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
         piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4
       });

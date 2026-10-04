@@ -92,7 +92,7 @@
     const porMar = /\b(cruz\w* el mar|ultramar|colonia|barcos?|flota|navega\w*)\b/.test(n) && !/\bpuerto\b/.test(n);
     if (porMar) acciones.push({ tipo: 'colonia' });
     // Edificios concretos: "construid un templo", "levantad murallas", "haced un puerto".
-    const obra = /\b(templos?|iglesias?|santuarios?|altar)\b/.test(n) ? 'templo' : /\b(torres?|murallas?|muros?|defensas|fortific\w*|fuertes?|fortalezas?)\b/.test(n) ? 'torre' : /\b(puertos?|muelles?)\b/.test(n) ? 'puerto' : /\bmolinos?\b/.test(n) ? 'molino' : null;
+    const obra = /\b(cuartel\w*|barracon\w*|soldados nuevos)\b/.test(n) ? 'cuartel' : /\b(arqueria\w*|campo de tiro|arqueros nuevos)\b/.test(n) ? 'arqueria' : /\b(castillos?|fortalezas?|fortin\w*|bunker\w*)\b/.test(n) ? 'castillo' : /\b(templos?|iglesias?|santuarios?|altar)\b/.test(n) ? 'templo' : /\b(torres?|murallas?|muros?|defensas|fortific\w*|fuertes?)\b/.test(n) ? 'torre' : /\b(puertos?|muelles?)\b/.test(n) ? 'puerto' : /\bmolinos?\b/.test(n) ? 'molino' : null;
     if (obra && !guerra) {
       acciones.push({ tipo: 'construir', obra });
       const pr = acciones.find(x => x.tipo === 'prioridad');
@@ -179,8 +179,9 @@
         S().cronica(m, 'revolucion', c.nombre + ' cambia de gobierno', T(M.conArticulo(antes)) + ' de ' + c.nombre + ' da paso a ' + M.unoDe(a.a) + '. Unos celebran en las plazas; otros esconden la plata.', c, null, { importante: true });
         textos.push('Proclamada ' + M.unoDe(a.a) + '. La estabilidad cae un poco mientras la gente se acostumbra.');
       } else if (a.tipo === 'construir') {
-        const NOMBRE = { templo: 'un templo', torre: 'una torre de defensa', puerto: 'un puerto', molino: 'un molino' };
-        const COSTE = { templo: [8, 6], torre: [6, 4], puerto: [10, 0], molino: [3, 0] }[a.obra];
+        const NOMBRE = { templo: 'un templo', torre: 'una torre de defensa', puerto: 'un puerto', molino: 'un molino', cuartel: 'un cuartel de soldados', arqueria: c.era >= 5 ? 'un campo de tiro' : 'una arquería', castillo: c.era >= 7 ? 'un fortín' : c.era >= 5 ? 'una fortaleza' : 'un castillo' };
+        const COSTE = { templo: [8, 6], torre: [6, 4], puerto: [10, 0], molino: [3, 0], cuartel: [10, 6], arqueria: [10, 2], castillo: [16, 24] }[a.obra];
+        if (a.obra === 'castillo' && c.era < 2) { textos.push('Los castillos de piedra llegan con la Edad del Hierro (fase medieval).'); continue; }
         if (a.obra !== 'molino' && c.era < 1) { textos.push('Aún no sabéis levantar ' + NOMBRE[a.obra] + ': hace falta llegar a la Edad del Bronce.'); continue; }
         if (M.vida && m.vida) {
           const zona = [c.capital, ...S().vecinos(c.capital).filter(r => m.dueno[r] === c.id)].flatMap(r => M.vida.parcelas(m, r));
@@ -283,7 +284,7 @@
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"}; {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -311,7 +312,7 @@
       else if (a.tipo === 'regimen') { const r = REGIMENES.find(x => x[1] === a.a); if (r) out.push({ tipo: 'regimen', a: r[1], era: r[2] }); }
       else if (['guerra', 'paz', 'comercio', 'alianza', 'romper'].includes(a.tipo)) out.push({ tipo: a.tipo, con: Number(a.con) });
       else if (a.tipo === 'colonos') out.push({ tipo: 'colonos', rumbo: ['norte', 'sur', 'este', 'oeste', 'costa'].includes(a.rumbo) ? a.rumbo : null });
-      else if (a.tipo === 'construir') { if (['templo', 'torre', 'puerto', 'molino'].includes(a.obra)) out.push({ tipo: 'construir', obra: a.obra }); }
+      else if (a.tipo === 'construir') { if (['templo', 'torre', 'puerto', 'molino', 'cuartel', 'arqueria', 'castillo'].includes(a.obra)) out.push({ tipo: 'construir', obra: a.obra }); }
       else out.push({ tipo: a.tipo });
     }
     return out;

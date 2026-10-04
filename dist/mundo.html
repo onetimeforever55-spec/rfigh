@@ -256,8 +256,17 @@ button { cursor: pointer; }
     { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2200, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
     { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2900, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
     { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 3100, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 3300, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Segunda Guerra Mundial', con: 'la Segunda Guerra Mundial', corto: 'II GUERRA MUNDIAL', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 3300, inventos: ['la ametralladora', 'el tanque', 'el radar'] }
   ];
+  // Las cuatro fases de la técnica: cada una trae sus edificios y su manera de guerrear. El techo es la
+  // Segunda Guerra Mundial (fusiles, ametralladoras, tanques): no hay bomba atómica.
+  M.FASES = [
+    { nombre: 'Tribal', eras: [0, 1], resumen: 'chozas, molino, empalizadas, garrotes, lanzas y hondas' },
+    { nombre: 'Medieval', eras: [2, 3, 4], resumen: 'cuarteles, arquerías, castillos de piedra, espadas, armaduras y arcos' },
+    { nombre: 'Pólvora', eras: [5, 6], resumen: 'fortalezas abaluartadas con cañones, arcabuces y mosquetes' },
+    { nombre: 'Guerras Mundiales', eras: [7, 8], resumen: 'búnkeres, nidos de ametralladoras, fusiles y tanques' }
+  ];
+  M.fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
   M.INVENTOS = [
@@ -269,7 +278,7 @@ button { cursor: pointer; }
     [/imprenta|libros/, 5, 'la imprenta'], [/polvora|canon/, 5, 'la pólvora'], [/banca|bancos/, 5, 'la banca'], [/carabela|barcos/, 5, 'la carabela'],
     [/vapor/, 6, 'la máquina de vapor'], [/ferrocarril|tren/, 6, 'el ferrocarril'], [/fabrica/, 6, 'la fábrica'],
     [/electricidad|luz electrica/, 7, 'la electricidad'], [/vacuna/, 7, 'las vacunas'], [/radio/, 7, 'la radio'], [/avion/, 7, 'el avión'], [/penicilina|antibiotico/, 7, 'la penicilina'],
-    [/bomba atomica|bomba nuclear|arma nuclear|atomica/, 8, 'la bomba atómica'], [/ordenador|computadora/, 8, 'el ordenador'], [/satelite/, 8, 'los satélites'], [/internet/, 8, 'internet']
+    [/ametralladora/, 8, 'la ametralladora'], [/tanque|carro de combate/, 8, 'el tanque'], [/radar/, 8, 'el radar']
   ];
 
   // El carácter de cada pueblo cambia cómo decide: cuánto guerrea, cuánta ciencia hace, cuánto comercia.
@@ -317,7 +326,7 @@ button { cursor: pointer; }
     era_5: [['La imprenta abarata los libros: las ideas se copian más rápido de lo que se pueden prohibir.', 'Gutenberg imprimió su Biblia hacia 1455; en 1517, las tesis de Lutero corrieron por Europa en semanas.'], ['La pólvora vuelve inútiles los castillos: gana quien puede pagar cañones.', 'En 1453 los cañones otomanos abrieron las murallas de Constantinopla, que aguantaban desde hacía mil años.']],
     era_6: [['Una máquina hace el trabajo de cien hombres: la riqueza deja de ser la tierra y pasa a ser la fábrica.', 'Manchester pasó de pueblo a ciudad de 300.000 habitantes en sesenta años gracias al algodón y al vapor.']],
     era_7: [['La electricidad y la medicina alargan la vida: la población se dispara.', 'La humanidad tardó hasta 1804 en llegar a mil millones; en 1927 ya eran dos mil.']],
-    era_8: [['Con la bomba atómica, la guerra total deja de tener ganador.', 'Tras Hiroshima y Nagasaki (1945), las potencias nucleares no han vuelto a enfrentarse directamente.']],
+    era_8: [['La guerra se vuelve total: gana quien fabrica más fusiles, tanques y aviones.', 'En 1944 las fábricas de Estados Unidos sacaban un avión cada cinco minutos.']],
     hambruna: [['Si la población crece más deprisa que la comida, el hambre la recorta: es la trampa maltusiana.', 'Malthus lo escribió en 1798. La Gran Hambruna europea de 1315 mató a uno de cada diez.']],
     guerra: [['Las guerras empiezan por fronteras y recursos, y acaban por agotamiento.', 'La guerra de los Cien Años duró 116: se acabó cuando ninguno de los dos podía pagar otra campaña.'], ['El vecino fuerte con un vecino débil siempre encuentra un motivo.', 'Tucídides lo resumió en Melos: "los fuertes hacen lo que pueden y los débiles sufren lo que deben".']],
     conquista: [['Quien tiene mejor técnica puede vencer a muchos más: el acero contra la piedra, el cañón contra la lanza.', 'Pizarro tomó el imperio inca en 1532 con 168 hombres, caballos, acero y la viruela.'], ['Conquistar es fácil; gobernar lo conquistado es lo difícil.', 'Alejandro conquistó de Grecia a la India en once años; su imperio se partió al día siguiente de su muerte.']],
@@ -1101,7 +1110,10 @@ button { cursor: pointer; }
   const ADULTO = 2, VIEJO = 18;
   const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
   const esNino = a => (a.edad || 0) < ADULTO;
-  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9 };
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12 };
+  // Hasta dónde llegan los campos de un molino (parcelas): más allá no se ara.
+  const RANGO_MOLINO = 4;
+  const fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
   const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante'];
   const [LENADOR, GRANJERO, CONSTRUCTOR, MINERO, GUERRERO, COMERCIANTE] = [0, 1, 2, 3, 4, 5];
   // Estados del aldeano y lo que hace en cada paso (la vista elige el dibujo con esto).
@@ -1513,7 +1525,9 @@ button { cursor: pointer; }
       if (!c) continue;
       if (a.tirador == null) a.tirador = c.era >= 5 ? a.id % 3 !== 0 : a.id % 3 === 0;
       if (c.era >= 5 && !a.tirador && a.id % 3 !== 0) a.tirador = true;
-      const quiere = c.era;
+      // Sin arquería no hay tiradores (salvo los honderos de la fase tribal); sin cuartel, nadie pasa de la lanza.
+      if (a.tirador && c.era >= 1 && !(c.arquerias > 0)) a.tirador = false;
+      const quiere = c.cuarteles > 0 || c.era <= 1 ? c.era : Math.min(c.era, 1);
       if ((a.arma || 0) < quiere && (c.era === 0 || (c.metal || 0) >= 1)) { if (c.era > 0) c.metal -= 1; a.arma = quiere; }
       // La armadura de su era: el cuero sale del ganado; el bronce, el hierro y el acero, de la armería.
       const arm = armaduraDeEra(c.era);
@@ -1574,7 +1588,15 @@ button { cursor: pointer; }
    * LOS EDIFICIOS DE CADA PLAZA (capital y ciudades), como en WorldBox: una torre de vigilancia, un templo,
    * un molino junto a los campos (desde la Edad Media) y un puerto si hay costa. Cuestan madera y piedra.
    */
-  const COSTES = { [OBRA.torre]: [6, 4], [OBRA.templo]: [8, 6], [OBRA.molino]: [3, 0], [OBRA.puerto]: [10, 0] };
+  const COSTES = { [OBRA.torre]: [6, 4], [OBRA.templo]: [8, 6], [OBRA.molino]: [3, 0], [OBRA.puerto]: [10, 0], [OBRA.cuartel]: [10, 6], [OBRA.arqueria]: [10, 2], [OBRA.castillo]: [16, 24] };
+  // La plaza más expuesta (la que tiene otro reino más cerca); si no hay vecinos, la capital.
+  function plazaFronteriza(m, c, r, plazas) {
+    const todas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
+    const peligro = p => { let d = 99; for (let q = 0; q < m.W * m.H; q++) if (m.dueno[q] >= 0 && m.dueno[q] !== c.id) d = Math.min(d, S().distancia(p, q)); return d; };
+    const clave = 'frontera:' + c.id;
+    if (!memo.has(clave)) memo.set(clave, todas.slice().sort((p, q) => peligro(p) - peligro(q))[0]);
+    return memo.get(clave) === r;
+  }
   function edificioPendiente(m, a, c, ter) {
     const v = m.vida;
     // Con un encargo del jugador pendiente, la madera y la piedra se guardan para él (en la capital).
@@ -1588,20 +1610,27 @@ button { cursor: pointer; }
       if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
+      // Lo militar, según la fase: cuartel de soldados y arquería en la capital desde el Bronce, y un castillo
+      // (luego fortaleza o búnker) en una plaza de frontera desde la Edad del Hierro.
+      if (c.era >= 1 && r === c.capital && !tiene(OBRA.cuartel)) pide.push([OBRA.cuartel, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
+      if (c.era >= 1 && r === c.capital && !tiene(OBRA.arqueria)) pide.push([OBRA.arqueria, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
+      if (c.era >= 2 && !(c.castillos > 0) && (plazaFronteriza(m, c, r, plazas) || (c.plan && c.plan.obra === 'castillo' && r === c.capital))) pide.push([OBRA.castillo, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
       // Lo que pidió el jugador va primero; cuando ya está hecho en la plaza, se olvida el encargo.
       const encargo = c.plan && c.plan.obra ? OBRA[c.plan.obra] : null;
       if (encargo && r === c.capital && tiene(encargo)) {
-        const NOMBRES = { [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino' };
-        S().cronica(m, 'obra', (NOMBRES[encargo] || 'La obra') + ' de ' + c.nombre + (encargo === OBRA.torre ? ' está terminada' : ' está terminado'), 'Los constructores de ' + c.nombre + ' terminan lo que su gobierno les encargó y lo celebran con una fiesta en la plaza.', c);
+        const NOMBRES = { [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino', [OBRA.cuartel]: 'El cuartel', [OBRA.arqueria]: 'La arquería', [OBRA.castillo]: 'El castillo' };
+        S().cronica(m, 'obra', (NOMBRES[encargo] || 'La obra') + ' de ' + c.nombre + (encargo === OBRA.torre || encargo === OBRA.arqueria ? ' está terminada' : ' está terminado'), 'Los constructores de ' + c.nombre + ' terminan lo que su gobierno les encargó y lo celebran con una fiesta en la plaza.', c);
         c.plan.obra = null;
       }
       else if (encargo && r === c.capital) { const solo = pide.filter(x => x[0] === encargo || x[0] === OBRA.molino); pide.length = 0; pide.push(...solo.sort((x, y) => (y[0] === encargo) - (x[0] === encargo))); }
       for (const [obra, donde] of pide) {
+        // Si otro constructor ya va a levantar este edificio, no se empieza otro igual.
+        if (c.enCurso && c.enCurso[obra] > m.turno - 3) continue;
         const coste = COSTES[obra];
         if (c.madera < coste[0] || c.piedra < coste[1]) continue;
         const t = donde();
-        if (t != null) return [t, obra];
+        if (t != null) { if (obra !== OBRA.molino) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
       }
     }
     return null;
@@ -1697,7 +1726,7 @@ button { cursor: pointer; }
       const nuestros = v.aldeanos.filter(a => a.c === c.id && a.o === GUERRERO && enRegion(a));
       const defensores = v.aldeanos.filter(a => a.c === o.id && a.o === GUERRERO && enRegion(a)).length;
       const capitan = nuestros.some(a => a.id === e.capitan);
-      const torre = parcelas(m, e.obj).some(t => v.obra[t] === OBRA.torre);
+      const torre = parcelas(m, e.obj).some(t => v.obra[t] === OBRA.torre || v.obra[t] === OBRA.castillo);
       if (capitan && !defensores && !torre) e.asedio = Math.min(100, (e.asedio || 0) + 1.5 + 0.6 * Math.min(8, nuestros.length));
       else if (defensores) e.asedio = Math.max(0, (e.asedio || 0) - 2);
       if (e.asedio >= 100) capturar(m, c, o, e.obj, paso);
@@ -1724,20 +1753,22 @@ button { cursor: pointer; }
     v.torres = v.torres || {};
     for (const k of Object.keys(v.torres)) {
       const t = +k;
-      if (v.obra[t] !== OBRA.torre) { delete v.torres[k]; continue; }
+      const castillo = v.obra[t] === OBRA.castillo;
+      if (v.obra[t] !== OBRA.torre && !castillo) { delete v.torres[k]; continue; }
       const c = S().civ(m, m.dueno[region(m, t)]);
       if (!c || !c.guerras.length) continue;
-      const tx = t % v.tw, ty = t / v.tw | 0;
+      const tx = t % v.tw, ty = t / v.tw | 0, alcance = castillo ? 6 : 4;
       let blanco = null, cerca = 0;
-      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+      for (let dy = -alcance; dy <= alcance; dy++) for (let dx = -alcance; dx <= alcance; dx++) {
         const lista = guerreros.get((ty + dy) * v.tw + tx + dx);
         if (!lista) continue;
         for (const b of lista) if (c.guerras.some(g => g.con === b.c)) { if (!blanco) blanco = b; if (Math.abs(dx) + Math.abs(dy) <= 1) cerca++; }
       }
-      if (blanco && azar(v) < 0.5) {
+      if (blanco && azar(v) < (castillo ? 0.8 : 0.5)) {
         v.disparos.push([tx, ty, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
         if (azar(v) < 0.6) {
-          const tiro = c.era >= 5 ? { dano: 30, perfora: 0.5 } : { dano: 14 }, arm = ARMADURAS[blanco.armadura || 0] || ARMADURAS[0];
+          // Lo que dispara según la fase: flechas desde la empalizada o la torre, cañón, ametralladora.
+          const f = fase(c.era), tiro = [{ dano: 10 }, { dano: castillo ? 18 : 14 }, { dano: castillo ? 40 : 30, perfora: 0.6 }, { dano: castillo ? 48 : 40, perfora: 0.7 }][f], arm = ARMADURAS[blanco.armadura || 0] || ARMADURAS[0];
           if (golpear(v, null, blanco, Math.max(1, Math.round(tiro.dano * (0.8 + azar(v) * 0.4) * (1 - arm.reduce * (1 - (tiro.perfora || 0))))), paso + 0.5, tx, ty)) { v.aldeanos = v.aldeanos.filter(a => a !== blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'torre', paso + 0.5]); }
         }
       }
@@ -2073,7 +2104,7 @@ button { cursor: pointer; }
   const faltanCamas = c => (c.sinCama || 0) > 0 || (c.camas || 0) - (c.aldeanos || 0) < 2 + Math.round(prio(c, 'casas') * 1.5);
   // Una casa nueva va siempre pegada a lo que ya hay (casas, plaza, molino, caminos), lo más cerca posible de la plaza:
   // así el pueblo crece como una mancha alrededor de su centro.
-  const PEGA = new Set([OBRA.casa, OBRA.centro, OBRA.ayuntamiento, OBRA.molino, OBRA.templo, OBRA.torre]);
+  const PEGA = new Set([OBRA.casa, OBRA.centro, OBRA.ayuntamiento, OBRA.molino, OBRA.templo, OBRA.torre, OBRA.cuartel, OBRA.arqueria, OBRA.castillo]);
   function casaNueva(m, a, c, rec, ter) {
     const v = m.vida, base = centro(m, a.h), regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 1e9;
@@ -2097,11 +2128,20 @@ button { cursor: pointer; }
 
   // Una parcela libre cerca de casa: primero en su región, luego en las regiones propias de alrededor.
   // ¿Hay un molino cerca? (de la región de la aldea, o a 3 parcelas de una parcela concreta)
+  function molinoMasCercano(m, t) {
+    const v = m.vida, tx = t % v.tw, ty = t / v.tw | 0;
+    let mejor = null, md = 99;
+    for (let dy = -RANGO_MOLINO; dy <= RANGO_MOLINO; dy++) for (let dx = -RANGO_MOLINO; dx <= RANGO_MOLINO; dx++) {
+      const n = (ty + dy) * v.tw + tx + dx, d = Math.abs(dx) + Math.abs(dy);
+      if (d <= RANGO_MOLINO && n >= 0 && n < v.obra.length && v.obra[n] === OBRA.molino && d < md) { md = d; mejor = n; }
+    }
+    return mejor;
+  }
   function molinoCerca(m, c, r, t) {
     const v = m.vida;
     if (t != null) {
       const tx = t % v.tw, ty = t / v.tw | 0;
-      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { if (Math.abs(dx) + Math.abs(dy) > 4) continue; const n = (ty + dy) * v.tw + tx + dx; if (n >= 0 && n < v.obra.length && v.obra[n] === OBRA.molino) return true; }
+      for (let dy = -RANGO_MOLINO; dy <= RANGO_MOLINO; dy++) for (let dx = -RANGO_MOLINO; dx <= RANGO_MOLINO; dx++) { if (Math.abs(dx) + Math.abs(dy) > RANGO_MOLINO) continue; const n = (ty + dy) * v.tw + tx + dx; if (n >= 0 && n < v.obra.length && v.obra[n] === OBRA.molino) return true; }
       return false;
     }
     return [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)].some(z => parcelas(m, z).some(x => v.obra[x] === OBRA.molino));
@@ -2154,6 +2194,7 @@ button { cursor: pointer; }
     if (a.e === VOLVER) {
       // Descarga en la aldea: aquí entra la madera y la piedra en la economía del pueblo.
       if (a.o === LENADOR) c.madera += a.k;
+      else if (a.kt === 3) { c.comida = (c.comida || 0) + a.k; a.kt = 0; } // el trigo llega al molino (o a casa)
       else if (a.o === MINERO) { if (a.kt === 1) c.metal = (c.metal || 0) + a.k; else if (a.kt === 2) { c.oro = (c.oro || 0) + a.k; c.riqueza += 6 * a.k; } else { c.piedra += a.k; c.riqueza += a.k * 0.3; } a.kt = 0; }
       a.k = 0; a.e = ESPERAR; a.t = 1;
       return;
@@ -2166,7 +2207,7 @@ button { cursor: pointer; }
     else if (a.o === GRANJERO && (a.pastor != null || a.caza != null)) { a.e = TRABAJAR; a.t = 3; }
     else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else { a.e = LIBRE; a.siega = 0; } }
     else if (a.o === CONSTRUCTOR && a.edificio) {
-      if (!v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, a.edificio, paso); if (a.edificio === OBRA.torre) (v.torres = v.torres || {})[t] = 12; }
+      if (!v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, a.edificio, paso); if (a.edificio === OBRA.torre) (v.torres = v.torres || {})[t] = 12; if (a.edificio === OBRA.castillo) (v.torres = v.torres || {})[t] = 40; }
       a.edificio = 0;
     }
     else if (a.o === CONSTRUCTOR && a.obraCamino) { if (!v.camino[t] && !v.obra[t]) { a.e = TRABAJAR; a.t = 1; } else { a.e = LIBRE; a.obraCamino = 0; } }
@@ -2215,7 +2256,13 @@ button { cursor: pointer; }
       }
       return;
     }
-    if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2 + (c.molinos ? 1 : 0) + (c.era >= 4 ? 1 : 0) + (c.era >= 6 ? 1 : 0); a.siega = 0; }
+    if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) {
+      // El trigo segado se lleva a hombros al molino más cercano (dentro de su alcance); solo allí se vuelve harina.
+      cambiar(m, 'cultivo', t, 0, paso);
+      a.k = 2 + 1 + (c.era >= 4 ? 1 : 0) + (c.era >= 6 ? 1 : 0); a.kt = 3; a.siega = 0;
+      ir(a, molinoMasCercano(m, t) ?? centro(m, a.h), v.tw, VOLVER);
+      return;
+    }
     else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) {
       // Un tramo de camino: se quita el árbol o la roca; desde la Antigüedad se empiedra (cuesta un poco de piedra).
@@ -2700,7 +2747,7 @@ button { cursor: pointer; }
     for (const a of v.aldeanos) { gente[a.c] = (gente[a.c] || 0) + 1; if (a.o === GUERRERO) { guerreros[a.c] = (guerreros[a.c] || 0) + 1; if ((a.arma || 0) > 0) armados[a.c] = (armados[a.c] || 0) + 1; } if (a.o === COMERCIANTE) comerciantes[a.c] = (comerciantes[a.c] || 0) + 1; }
     for (const c of m.civs) {
       c.casas = Math.round(casas[c.id] || 0); c.campos = campos[c.id] || 0; c.arboles = arboles[c.id] || 0; c.aldeanos = gente[c.id] || 0; c.guerreros = guerreros[c.id] || 0; c.armados = armados[c.id] || 0; c.comerciantes = comerciantes[c.id] || 0; c.camas = Math.round(camas[c.id] || 0) + 2;
-      const e = edif[c.id] || {}; c.torres = e[OBRA.torre] || 0; c.templos = e[OBRA.templo] || 0; c.molinos = e[OBRA.molino] || 0; c.puertos = e[OBRA.puerto] || 0;
+      const e = edif[c.id] || {}; c.torres = e[OBRA.torre] || 0; c.cuarteles = e[OBRA.cuartel] || 0; c.arquerias = e[OBRA.arqueria] || 0; c.castillos = e[OBRA.castillo] || 0; c.templos = e[OBRA.templo] || 0; c.molinos = e[OBRA.molino] || 0; c.puertos = e[OBRA.puerto] || 0;
       c.metal = c.metal || 0; c.oro = c.oro || 0;
       c.madera = c.madera || 0; c.piedra = c.piedra || 0;
     }
@@ -2782,7 +2829,7 @@ button { cursor: pointer; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -3197,7 +3244,7 @@ button { cursor: pointer; }
     const porMar = /\b(cruz\w* el mar|ultramar|colonia|barcos?|flota|navega\w*)\b/.test(n) && !/\bpuerto\b/.test(n);
     if (porMar) acciones.push({ tipo: 'colonia' });
     // Edificios concretos: "construid un templo", "levantad murallas", "haced un puerto".
-    const obra = /\b(templos?|iglesias?|santuarios?|altar)\b/.test(n) ? 'templo' : /\b(torres?|murallas?|muros?|defensas|fortific\w*|fuertes?|fortalezas?)\b/.test(n) ? 'torre' : /\b(puertos?|muelles?)\b/.test(n) ? 'puerto' : /\bmolinos?\b/.test(n) ? 'molino' : null;
+    const obra = /\b(cuartel\w*|barracon\w*|soldados nuevos)\b/.test(n) ? 'cuartel' : /\b(arqueria\w*|campo de tiro|arqueros nuevos)\b/.test(n) ? 'arqueria' : /\b(castillos?|fortalezas?|fortin\w*|bunker\w*)\b/.test(n) ? 'castillo' : /\b(templos?|iglesias?|santuarios?|altar)\b/.test(n) ? 'templo' : /\b(torres?|murallas?|muros?|defensas|fortific\w*|fuertes?)\b/.test(n) ? 'torre' : /\b(puertos?|muelles?)\b/.test(n) ? 'puerto' : /\bmolinos?\b/.test(n) ? 'molino' : null;
     if (obra && !guerra) {
       acciones.push({ tipo: 'construir', obra });
       const pr = acciones.find(x => x.tipo === 'prioridad');
@@ -3284,8 +3331,9 @@ button { cursor: pointer; }
         S().cronica(m, 'revolucion', c.nombre + ' cambia de gobierno', T(M.conArticulo(antes)) + ' de ' + c.nombre + ' da paso a ' + M.unoDe(a.a) + '. Unos celebran en las plazas; otros esconden la plata.', c, null, { importante: true });
         textos.push('Proclamada ' + M.unoDe(a.a) + '. La estabilidad cae un poco mientras la gente se acostumbra.');
       } else if (a.tipo === 'construir') {
-        const NOMBRE = { templo: 'un templo', torre: 'una torre de defensa', puerto: 'un puerto', molino: 'un molino' };
-        const COSTE = { templo: [8, 6], torre: [6, 4], puerto: [10, 0], molino: [3, 0] }[a.obra];
+        const NOMBRE = { templo: 'un templo', torre: 'una torre de defensa', puerto: 'un puerto', molino: 'un molino', cuartel: 'un cuartel de soldados', arqueria: c.era >= 5 ? 'un campo de tiro' : 'una arquería', castillo: c.era >= 7 ? 'un fortín' : c.era >= 5 ? 'una fortaleza' : 'un castillo' };
+        const COSTE = { templo: [8, 6], torre: [6, 4], puerto: [10, 0], molino: [3, 0], cuartel: [10, 6], arqueria: [10, 2], castillo: [16, 24] }[a.obra];
+        if (a.obra === 'castillo' && c.era < 2) { textos.push('Los castillos de piedra llegan con la Edad del Hierro (fase medieval).'); continue; }
         if (a.obra !== 'molino' && c.era < 1) { textos.push('Aún no sabéis levantar ' + NOMBRE[a.obra] + ': hace falta llegar a la Edad del Bronce.'); continue; }
         if (M.vida && m.vida) {
           const zona = [c.capital, ...S().vecinos(c.capital).filter(r => m.dueno[r] === c.id)].flatMap(r => M.vida.parcelas(m, r));
@@ -3388,7 +3436,7 @@ button { cursor: pointer; }
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"}; {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -3416,7 +3464,7 @@ button { cursor: pointer; }
       else if (a.tipo === 'regimen') { const r = REGIMENES.find(x => x[1] === a.a); if (r) out.push({ tipo: 'regimen', a: r[1], era: r[2] }); }
       else if (['guerra', 'paz', 'comercio', 'alianza', 'romper'].includes(a.tipo)) out.push({ tipo: a.tipo, con: Number(a.con) });
       else if (a.tipo === 'colonos') out.push({ tipo: 'colonos', rumbo: ['norte', 'sur', 'este', 'oeste', 'costa'].includes(a.rumbo) ? a.rumbo : null });
-      else if (a.tipo === 'construir') { if (['templo', 'torre', 'puerto', 'molino'].includes(a.obra)) out.push({ tipo: 'construir', obra: a.obra }); }
+      else if (a.tipo === 'construir') { if (['templo', 'torre', 'puerto', 'molino', 'cuartel', 'arqueria', 'castillo'].includes(a.obra)) out.push({ tipo: 'construir', obra: a.obra }); }
       else out.push({ tipo: a.tipo });
     }
     return out;
@@ -3744,9 +3792,14 @@ button { cursor: pointer; }
       return H.lienzo();
     });
   }
-  function edificio(nombre, col) {
-    return guardado('e' + nombre + col, () => {
+  function edificio(nombre, col, fase) {
+    fase = fase || 0;
+    return guardado('e' + nombre + col + fase, () => {
       const H = hoja(T, T);
+      if (nombre === 'torre' && fase !== 1) return torreDeFase(H, fase, col);
+      if (nombre === 'cuartel') return cuartel(H, fase, col);
+      if (nombre === 'arqueria') return arqueria(H, fase, col);
+      if (nombre === 'castillo') return castillo(H, fase, col);
       if (nombre === 'ayuntamiento') {
         H.r(1, 8, 14, 7, '#e0d0a8'); H.r(1, 14, 14, 1, '#a89a7a');
         for (const x of [2, 5, 10, 13]) H.r(x, 9, 1, 5, '#f4ecd8');
@@ -3788,6 +3841,78 @@ button { cursor: pointer; }
       H.contorno();
       return H.lienzo();
     });
+  }
+  // Torres según la fase: empalizada de troncos (tribal), piedra (medieval), torre artillada (pólvora), búnker con ametralladora.
+  function torreDeFase(H, fase, col) {
+    if (fase === 0) {
+      for (let x = 3; x < 13; x += 2) { H.r(x, 4, 2, 11, '#8a5a2b'); H.r(x + 1, 4, 1, 11, '#6a4220'); H.p(x, 3, '#a8784a'); }
+      H.r(3, 7, 10, 1, '#5a3a1e'); H.r(3, 11, 10, 1, '#5a3a1e'); H.r(6, 1, 4, 3, '#8a5a2b'); H.r(6, 0, 4, 1, col);
+    } else if (fase === 2) {
+      H.r(3, 5, 10, 10, '#b0a48a'); H.r(3, 5, 2, 10, '#c8bca0'); H.r(11, 5, 2, 10, '#8a7e66');
+      for (const x of [2, 6, 10]) H.r(x, 3, 3, 2, '#b0a48a');
+      H.r(6, 7, 4, 2, '#2a2a30'); H.r(9, 7, 4, 1, '#3a3a40'); H.p(12, 7, '#1a1a20');
+      H.r(7, 12, 2, 3, '#4a3020'); H.r(3, 4, 10, 1, col);
+    } else {
+      // Búnker de hormigón semienterrado con su tronera y una ametralladora.
+      H.r(1, 8, 14, 7, '#7a7e74'); H.r(2, 7, 12, 1, '#8a8e84'); H.r(1, 8, 14, 1, '#9a9e94'); H.r(1, 14, 14, 1, '#5a5e56');
+      H.r(4, 10, 8, 2, '#1e2022'); H.r(10, 10, 4, 1, '#3a3a40'); H.p(14, 10, '#2a2a2e');
+      for (const [x, y] of [[0, 12], [15, 13], [2, 6], [13, 6]]) H.p(x, y, '#c8b07a');
+      H.r(7, 5, 1, 2, '#4a4a40'); H.r(8, 5, 3, 1, col);
+    }
+    H.contorno();
+    return H.lienzo();
+  }
+  // Cuartel de soldados: barracón con armas en la puerta y el estandarte; de hormigón en la última fase.
+  function cuartel(H, fase, col) {
+    const pared = fase >= 3 ? '#9a9a8a' : fase === 2 ? '#c8a878' : fase === 1 ? '#a8a49a' : '#a07a48';
+    H.r(1, 7, 14, 8, pared); H.r(1, 7, 2, 8, claro(pared, 0.15)); H.r(13, 7, 2, 8, oscuro(pared, 0.2));
+    if (fase >= 3) { H.r(1, 5, 14, 2, '#6a6e64'); H.r(1, 5, 14, 1, col); }
+    else tejado(H, 0, 15, 3, 7, col);
+    H.r(6, 10, 4, 5, '#3a2a1e'); H.r(6, 10, 4, 1, '#2a1e14');
+    // Las armas apoyadas junto a la puerta: lanzas, espadas o fusiles.
+    const arma = fase === 0 ? '#c8a050' : fase === 1 ? '#dfe4ec' : '#3a3a40';
+    for (const x of [3, 4, 11, 12]) { H.r(x, 9, 1, 6, fase >= 2 ? '#5a3a1e' : '#7a5232'); H.p(x, 8, arma); }
+    H.r(14, 1, 1, 7, '#3a2a1e'); H.r(11, 1, 3, 2, col);
+    H.contorno();
+    return H.lienzo();
+  }
+  // Arquería: campo de tiro con dianas (luego de mosqueteros, con sacos terreros en la última fase).
+  function arqueria(H, fase, col) {
+    H.r(0, 9, 16, 6, fase >= 3 ? '#8a8e74' : '#9a8a5a'); H.r(0, 9, 16, 1, oscuro('#9a8a5a', 0.2));
+    // Cobertizo.
+    H.r(1, 4, 6, 6, fase >= 2 ? '#a8a49a' : '#a07a48'); tejado(H, 0, 7, 1, 4, col); H.r(3, 7, 2, 3, '#3a2a1e');
+    // Dianas.
+    for (const [x, y] of [[10, 5], [13, 9]]) {
+      if (fase >= 3) { H.r(x - 1, y, 4, 3, '#c8b07a'); H.r(x - 1, y, 4, 1, '#a8905a'); }
+      else { H.r(x, y + 3, 1, 3, '#6a4a2a'); H.disco(x + 0.5, y + 1.5, 2.1, '#f4ecd8'); H.disco(x + 0.5, y + 1.5, 1.3, '#d83a3a'); H.p(x, y + 1, '#f4ecd8'); }
+    }
+    H.contorno();
+    return H.lienzo();
+  }
+  // El castillo de frontera: torre del homenaje de piedra (medieval), fortaleza abaluartada con cañón (pólvora),
+  // fortín de hormigón con alambradas (guerras mundiales). En la fase tribal, un recinto de empalizada.
+  function castillo(H, fase, col) {
+    if (fase === 0) {
+      for (let x = 1; x < 15; x += 2) { H.r(x, 6, 2, 9, '#8a5a2b'); H.p(x, 5, '#a8784a'); }
+      H.r(5, 1, 6, 6, '#a07a48'); tejado(H, 4, 11, 0, 3, col);
+    } else if (fase === 1) {
+      const P = '#a8a49a';
+      H.r(1, 6, 14, 9, P); for (let x = 1; x < 15; x += 3) H.r(x, 4, 2, 2, P);
+      H.r(5, 1, 6, 8, claro(P, 0.08)); for (const x of [5, 8]) H.r(x, 0, 2, 1, P); H.r(9, 1, 2, 8, oscuro(P, 0.18));
+      H.r(6, 11, 4, 4, '#3a2a1e'); for (let x = 7; x < 10; x += 2) H.r(x, 11, 1, 4, '#5a4030');
+      ventana(H, 7, 3, true); H.r(13, 0, 1, 4, '#3a2a1e'); H.r(14, 0, 2, 2, col); H.r(1, 6, 14, 1, oscuro(P, 0.2));
+    } else if (fase === 2) {
+      // Baluarte en estrella de piedra baja, con un cañón asomando.
+      for (let y = 3; y < 15; y++) { const half = y < 9 ? y - 2 : 15 - y; for (let x = 8 - half - 1; x <= 8 + half; x++) H.p(x, y, y < 5 ? '#c8bca0' : (x + y) % 5 ? '#b0a48a' : '#9a8e74'); }
+      H.r(6, 7, 4, 3, '#5a5248'); H.r(9, 8, 4, 1, '#2a2a30'); H.p(13, 8, '#1a1a20');
+      H.r(8, 0, 1, 4, '#3a2a1e'); H.r(9, 0, 3, 2, col);
+    } else {
+      H.r(2, 6, 12, 8, '#7a7e74'); H.r(2, 6, 12, 1, '#9a9e94'); H.r(2, 13, 12, 1, '#5a5e56');
+      H.r(4, 9, 3, 1, '#1e2022'); H.r(9, 9, 3, 1, '#1e2022'); H.r(6, 3, 4, 3, '#6a6e64'); H.r(6, 3, 4, 1, col);
+      for (let x = 0; x < 16; x += 2) { H.p(x, 15, '#5a5a5a'); H.p(x + 1, 14, '#5a5a5a'); }
+    }
+    H.contorno();
+    return H.lienzo();
   }
   // La plaza de cada capital (32×32): gran casa comunal, castillo, palacio o edificio moderno.
   function plaza(ge, col) {
@@ -3879,7 +4004,8 @@ button { cursor: pointer; }
       else if (guerrero && o.arma >= 5) { H.r(4, 1, 5, 2, o.arma >= 7 ? '#5a6a4a' : '#2a2a3a'); H.r(3, 2, 7, 1, o.arma >= 7 ? '#4a5a3a' : '#1a1a2a'); }
       // Lo que lleva en la mano (a la derecha), que sube y baja al trabajar.
       const a = o.alto || 0;
-      if (o.carga) { const c = o.carga === 2 ? '#9a98a2' : '#8a5a2b'; H.r(4, 0, 5, 2, c); H.r(4, 0, 5, 1, claro(c, 0.2)); }
+      if (o.carga === 3) { H.r(9, 4, 3, 7, '#e0b840'); H.r(9, 4, 3, 2, '#f8e080'); H.r(9, 8, 3, 1, '#8a6a2a'); H.p(10, 3, '#f8e080'); H.p(9, 11, '#c8a030'); H.p(11, 11, '#c8a030'); }
+      else if (o.carga) { const c = o.carga === 2 ? '#9a98a2' : '#8a5a2b'; H.r(4, 0, 5, 2, c); H.r(4, 0, 5, 1, claro(c, 0.2)); }
       else if (o.oficio === 'lenador') { H.r(10, 5 + a, 1, 6, '#7a5232'); H.r(10, 5 + a, 2, 2, '#c8ccd6'); }
       else if (o.oficio === 'minero') { H.r(10, 6 + a, 1, 5, '#7a5232'); H.r(9, 5 + a, 3, 1, '#a3a1aa'); }
       else if (o.oficio === 'granjero') { H.r(10, 4 + a, 1, 8, '#7a5232'); H.r(10, 11 + a, 2, 1, '#9aa0aa'); }
@@ -4036,7 +4162,10 @@ button { cursor: pointer; }
       }
       else if (obra === V.OBRA.ruina) gl.drawImage(ARTE().edificio('ruina', '#888888'), x, y);
       else if (obra === V.OBRA.ayuntamiento) gl.drawImage(ARTE().edificio('ayuntamiento', color), x, y);
-      else if (obra === V.OBRA.torre) gl.drawImage(ARTE().edificio('torre', color), x, y);
+      else if (obra === V.OBRA.torre) gl.drawImage(ARTE().edificio('torre', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color), x, y);
       else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color), x, y);
       else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color), x, y);
@@ -4321,7 +4450,7 @@ button { cursor: pointer; }
       const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
       const img = ARTE().aldeano({
         col: color[a.c] || '#cccccc', oficio: nino ? 'nino' : oficio, edad: nino ? 'nino' : (a.edad || 0) >= V.VIEJO ? 'viejo' : 'adulto',
-        paso: anda && t ? 1 : 0, alto, carga: acc === 3 ? (oficio === 'minero' ? 2 : 1) : 0,
+        paso: anda && t ? 1 : 0, alto, carga: acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0,
         arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
         piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4
       });
@@ -5106,14 +5235,14 @@ button { cursor: pointer; }
     }
     const cs = S.casillas(m, c), cap = S.capacidad(m, c, cs);
     const enemigos = c.guerras.map(g => S.civ(m, g.con)).filter(Boolean).map(o => o.nombre);
-    const edificios = [c.torres ? c.torres + ' torre' + (c.torres > 1 ? 's' : '') : '', c.templos ? c.templos + ' templo' + (c.templos > 1 ? 's' : '') : '', c.molinos ? c.molinos + ' molino' + (c.molinos > 1 ? 's' : '') : '', c.puertos ? c.puertos + ' puerto' + (c.puertos > 1 ? 's' : '') + ' <span class="tenue">(' + ((m.vida.barcos || []).filter(b => b.c === c.id).length) + ' barcos)</span>' : ''].filter(Boolean).join(' · ') || '<span class="tenue">ninguno todavía</span>';
+    const edificios = [c.castillos ? (c.era >= 7 ? 'fortín' : c.era >= 5 ? 'fortaleza' : c.era >= 2 ? 'castillo' : 'recinto de empalizada') : '', c.cuarteles ? 'cuartel' : '', c.arquerias ? (c.era >= 5 ? 'campo de tiro' : 'arquería') : '', c.torres ? c.torres + ' torre' + (c.torres > 1 ? 's' : '') : '', c.templos ? c.templos + ' templo' + (c.templos > 1 ? 's' : '') : '', c.molinos ? c.molinos + ' molino' + (c.molinos > 1 ? 's' : '') : '', c.puertos ? c.puertos + ' puerto' + (c.puertos > 1 ? 's' : '') + ' <span class="tenue">(' + ((m.vida.barcos || []).filter(b => b.c === c.id).length) + ' barcos)</span>' : ''].filter(Boolean).join(' · ') || '<span class="tenue">ninguno todavía</span>';
     // La ficha va por pestañas, para no enseñarlo todo de golpe.
     const pestanas = {
       resumen: ['Resumen', fila('Gobierna', esc(M.TITULOS[c.regimen] ? M.TITULOS[c.regimen].charAt(0).toUpperCase() + M.TITULOS[c.regimen].slice(1) : 'Rey') + ' ' + esc(S.nombreRey(c)) + (c.rey ? ' <span class="tenue">(' + esc(M.RASGOS[c.rey.rasgo].nombre) + ', ' + Math.round(c.rey.edad) + ' años' + (c.heredero ? '; heredero: ' + esc(c.heredero.nombre) : '') + ')</span>' : '')) +
         fila('Población', habitantes(c) + ' <span class="tenue">(la tierra da para ' + Math.round(cap / M.vida.escala(c)) + ')</span>') +
         fila('Estabilidad', '<span class="barra"><span style="width:' + Math.round(c.estab) + '%"></span></span> ' + Math.round(c.estab)) +
         fila('Riqueza', Math.round(c.riqueza)) + fila('Tierras', cs.length) +
-        fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
+        fila('Técnica', 'fase ' + (M.fase(c.era) + 1) + ' de 4: <b>' + esc(M.FASES[M.fase(c.era)].nombre) + '</b> <span class="tenue">(' + esc(M.FASES[M.fase(c.era)].resumen) + ')</span>') + fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
         fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
         (ciudadesDe(c) ? fila('Ciudades', ciudadesDe(c)) : '')],
       economia: ['Economía', fila('Aldeanos', aldeanos(c)) +

@@ -300,9 +300,14 @@
       return H.lienzo();
     });
   }
-  function edificio(nombre, col) {
-    return guardado('e' + nombre + col, () => {
+  function edificio(nombre, col, fase) {
+    fase = fase || 0;
+    return guardado('e' + nombre + col + fase, () => {
       const H = hoja(T, T);
+      if (nombre === 'torre' && fase !== 1) return torreDeFase(H, fase, col);
+      if (nombre === 'cuartel') return cuartel(H, fase, col);
+      if (nombre === 'arqueria') return arqueria(H, fase, col);
+      if (nombre === 'castillo') return castillo(H, fase, col);
       if (nombre === 'ayuntamiento') {
         H.r(1, 8, 14, 7, '#e0d0a8'); H.r(1, 14, 14, 1, '#a89a7a');
         for (const x of [2, 5, 10, 13]) H.r(x, 9, 1, 5, '#f4ecd8');
@@ -344,6 +349,78 @@
       H.contorno();
       return H.lienzo();
     });
+  }
+  // Torres según la fase: empalizada de troncos (tribal), piedra (medieval), torre artillada (pólvora), búnker con ametralladora.
+  function torreDeFase(H, fase, col) {
+    if (fase === 0) {
+      for (let x = 3; x < 13; x += 2) { H.r(x, 4, 2, 11, '#8a5a2b'); H.r(x + 1, 4, 1, 11, '#6a4220'); H.p(x, 3, '#a8784a'); }
+      H.r(3, 7, 10, 1, '#5a3a1e'); H.r(3, 11, 10, 1, '#5a3a1e'); H.r(6, 1, 4, 3, '#8a5a2b'); H.r(6, 0, 4, 1, col);
+    } else if (fase === 2) {
+      H.r(3, 5, 10, 10, '#b0a48a'); H.r(3, 5, 2, 10, '#c8bca0'); H.r(11, 5, 2, 10, '#8a7e66');
+      for (const x of [2, 6, 10]) H.r(x, 3, 3, 2, '#b0a48a');
+      H.r(6, 7, 4, 2, '#2a2a30'); H.r(9, 7, 4, 1, '#3a3a40'); H.p(12, 7, '#1a1a20');
+      H.r(7, 12, 2, 3, '#4a3020'); H.r(3, 4, 10, 1, col);
+    } else {
+      // Búnker de hormigón semienterrado con su tronera y una ametralladora.
+      H.r(1, 8, 14, 7, '#7a7e74'); H.r(2, 7, 12, 1, '#8a8e84'); H.r(1, 8, 14, 1, '#9a9e94'); H.r(1, 14, 14, 1, '#5a5e56');
+      H.r(4, 10, 8, 2, '#1e2022'); H.r(10, 10, 4, 1, '#3a3a40'); H.p(14, 10, '#2a2a2e');
+      for (const [x, y] of [[0, 12], [15, 13], [2, 6], [13, 6]]) H.p(x, y, '#c8b07a');
+      H.r(7, 5, 1, 2, '#4a4a40'); H.r(8, 5, 3, 1, col);
+    }
+    H.contorno();
+    return H.lienzo();
+  }
+  // Cuartel de soldados: barracón con armas en la puerta y el estandarte; de hormigón en la última fase.
+  function cuartel(H, fase, col) {
+    const pared = fase >= 3 ? '#9a9a8a' : fase === 2 ? '#c8a878' : fase === 1 ? '#a8a49a' : '#a07a48';
+    H.r(1, 7, 14, 8, pared); H.r(1, 7, 2, 8, claro(pared, 0.15)); H.r(13, 7, 2, 8, oscuro(pared, 0.2));
+    if (fase >= 3) { H.r(1, 5, 14, 2, '#6a6e64'); H.r(1, 5, 14, 1, col); }
+    else tejado(H, 0, 15, 3, 7, col);
+    H.r(6, 10, 4, 5, '#3a2a1e'); H.r(6, 10, 4, 1, '#2a1e14');
+    // Las armas apoyadas junto a la puerta: lanzas, espadas o fusiles.
+    const arma = fase === 0 ? '#c8a050' : fase === 1 ? '#dfe4ec' : '#3a3a40';
+    for (const x of [3, 4, 11, 12]) { H.r(x, 9, 1, 6, fase >= 2 ? '#5a3a1e' : '#7a5232'); H.p(x, 8, arma); }
+    H.r(14, 1, 1, 7, '#3a2a1e'); H.r(11, 1, 3, 2, col);
+    H.contorno();
+    return H.lienzo();
+  }
+  // Arquería: campo de tiro con dianas (luego de mosqueteros, con sacos terreros en la última fase).
+  function arqueria(H, fase, col) {
+    H.r(0, 9, 16, 6, fase >= 3 ? '#8a8e74' : '#9a8a5a'); H.r(0, 9, 16, 1, oscuro('#9a8a5a', 0.2));
+    // Cobertizo.
+    H.r(1, 4, 6, 6, fase >= 2 ? '#a8a49a' : '#a07a48'); tejado(H, 0, 7, 1, 4, col); H.r(3, 7, 2, 3, '#3a2a1e');
+    // Dianas.
+    for (const [x, y] of [[10, 5], [13, 9]]) {
+      if (fase >= 3) { H.r(x - 1, y, 4, 3, '#c8b07a'); H.r(x - 1, y, 4, 1, '#a8905a'); }
+      else { H.r(x, y + 3, 1, 3, '#6a4a2a'); H.disco(x + 0.5, y + 1.5, 2.1, '#f4ecd8'); H.disco(x + 0.5, y + 1.5, 1.3, '#d83a3a'); H.p(x, y + 1, '#f4ecd8'); }
+    }
+    H.contorno();
+    return H.lienzo();
+  }
+  // El castillo de frontera: torre del homenaje de piedra (medieval), fortaleza abaluartada con cañón (pólvora),
+  // fortín de hormigón con alambradas (guerras mundiales). En la fase tribal, un recinto de empalizada.
+  function castillo(H, fase, col) {
+    if (fase === 0) {
+      for (let x = 1; x < 15; x += 2) { H.r(x, 6, 2, 9, '#8a5a2b'); H.p(x, 5, '#a8784a'); }
+      H.r(5, 1, 6, 6, '#a07a48'); tejado(H, 4, 11, 0, 3, col);
+    } else if (fase === 1) {
+      const P = '#a8a49a';
+      H.r(1, 6, 14, 9, P); for (let x = 1; x < 15; x += 3) H.r(x, 4, 2, 2, P);
+      H.r(5, 1, 6, 8, claro(P, 0.08)); for (const x of [5, 8]) H.r(x, 0, 2, 1, P); H.r(9, 1, 2, 8, oscuro(P, 0.18));
+      H.r(6, 11, 4, 4, '#3a2a1e'); for (let x = 7; x < 10; x += 2) H.r(x, 11, 1, 4, '#5a4030');
+      ventana(H, 7, 3, true); H.r(13, 0, 1, 4, '#3a2a1e'); H.r(14, 0, 2, 2, col); H.r(1, 6, 14, 1, oscuro(P, 0.2));
+    } else if (fase === 2) {
+      // Baluarte en estrella de piedra baja, con un cañón asomando.
+      for (let y = 3; y < 15; y++) { const half = y < 9 ? y - 2 : 15 - y; for (let x = 8 - half - 1; x <= 8 + half; x++) H.p(x, y, y < 5 ? '#c8bca0' : (x + y) % 5 ? '#b0a48a' : '#9a8e74'); }
+      H.r(6, 7, 4, 3, '#5a5248'); H.r(9, 8, 4, 1, '#2a2a30'); H.p(13, 8, '#1a1a20');
+      H.r(8, 0, 1, 4, '#3a2a1e'); H.r(9, 0, 3, 2, col);
+    } else {
+      H.r(2, 6, 12, 8, '#7a7e74'); H.r(2, 6, 12, 1, '#9a9e94'); H.r(2, 13, 12, 1, '#5a5e56');
+      H.r(4, 9, 3, 1, '#1e2022'); H.r(9, 9, 3, 1, '#1e2022'); H.r(6, 3, 4, 3, '#6a6e64'); H.r(6, 3, 4, 1, col);
+      for (let x = 0; x < 16; x += 2) { H.p(x, 15, '#5a5a5a'); H.p(x + 1, 14, '#5a5a5a'); }
+    }
+    H.contorno();
+    return H.lienzo();
   }
   // La plaza de cada capital (32×32): gran casa comunal, castillo, palacio o edificio moderno.
   function plaza(ge, col) {
@@ -435,7 +512,8 @@
       else if (guerrero && o.arma >= 5) { H.r(4, 1, 5, 2, o.arma >= 7 ? '#5a6a4a' : '#2a2a3a'); H.r(3, 2, 7, 1, o.arma >= 7 ? '#4a5a3a' : '#1a1a2a'); }
       // Lo que lleva en la mano (a la derecha), que sube y baja al trabajar.
       const a = o.alto || 0;
-      if (o.carga) { const c = o.carga === 2 ? '#9a98a2' : '#8a5a2b'; H.r(4, 0, 5, 2, c); H.r(4, 0, 5, 1, claro(c, 0.2)); }
+      if (o.carga === 3) { H.r(9, 4, 3, 7, '#e0b840'); H.r(9, 4, 3, 2, '#f8e080'); H.r(9, 8, 3, 1, '#8a6a2a'); H.p(10, 3, '#f8e080'); H.p(9, 11, '#c8a030'); H.p(11, 11, '#c8a030'); }
+      else if (o.carga) { const c = o.carga === 2 ? '#9a98a2' : '#8a5a2b'; H.r(4, 0, 5, 2, c); H.r(4, 0, 5, 1, claro(c, 0.2)); }
       else if (o.oficio === 'lenador') { H.r(10, 5 + a, 1, 6, '#7a5232'); H.r(10, 5 + a, 2, 2, '#c8ccd6'); }
       else if (o.oficio === 'minero') { H.r(10, 6 + a, 1, 5, '#7a5232'); H.r(9, 5 + a, 3, 1, '#a3a1aa'); }
       else if (o.oficio === 'granjero') { H.r(10, 4 + a, 1, 8, '#7a5232'); H.r(10, 11 + a, 2, 1, '#9aa0aa'); }
