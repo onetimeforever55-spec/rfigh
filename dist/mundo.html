@@ -1116,7 +1116,9 @@ button { cursor: pointer; }
     return out;
   };
   const dist = (m, a, b) => { const tw = m.W * SUB; return Math.abs(a % tw - b % tw) + Math.abs((a / tw | 0) - (b / tw | 0)); };
-  const andable = (ter, era) => ter !== 'agua' && (ter !== 'bajo' || era >= 5);
+  // Se camina por tierra (y por los puentes); el agua se cruza nadando, y en el mar uno se puede ahogar.
+  const mojada = t => t === 'agua' || t === 'bajo' || t === 'rio';
+  const andable = ter => !mojada(ter);
 
   // ---------- Crear la vida de un mundo ----------
   function crear(m) {
@@ -1589,6 +1591,7 @@ button { cursor: pointer; }
         }
       }
     }
+    if (a.ahogado) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'ahogado', paso]); return; }
     // Los guerreros luchan: cuerpo a cuerpo con el enemigo de al lado; los tiradores disparan desde lejos.
     if (a.o === GUERRERO && c.guerras.length) {
       const enemigo = b => b !== a && !muertos.has(b) && c.guerras.some(g => g.con === b.c);
@@ -1632,7 +1635,7 @@ button { cursor: pointer; }
     const v = m.vida, base = centro(m, a.h);
     for (let k = 0; k < 6; k++) {
       const t = base + Math.round((azar(v) - 0.5) * 6) + Math.round((azar(v) - 0.5) * 6) * v.tw;
-      if (t >= 0 && t < ter.length && andable(ter[t], c.era) && dist(m, t, base) <= 4) { ir(a, t, v.tw, IR); a.paseo = 1; return; }
+      if (t >= 0 && t < ter.length && andable(ter[t]) && dist(m, t, base) <= 4) { ir(a, t, v.tw, IR); a.paseo = 1; return; }
     }
     a.e = ESPERAR; a.t = 2;
   }
@@ -1716,7 +1719,7 @@ button { cursor: pointer; }
       const e = v.ejercitos[c.id], base = centro(m, e.defiende != null ? e.defiende : e.fase === 'reunion' ? e.reunion : e.obj);
       const dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 3) - 1;
       t = base + dx + dy * v.tw;
-      if (t < 0 || t >= ter.length || !andable(ter[t], c.era)) t = base;
+      if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
       if (a.x === t % v.tw && a.y === (t / v.tw | 0)) { a.e = ESPERAR; a.t = 2; return; }
     }
     if (t >= 0) { ir(a, t, v.tw, IR); rec.reservadas.add(t); return; }
@@ -1754,24 +1757,33 @@ button { cursor: pointer; }
   }
 
   // Un paso hacia el destino por tierra (o en barca desde el Renacimiento).
+  const enAgua = (m, ter, t) => mojada(ter[t]) && !m.vida.camino[t];
   function andar(m, a, c, ter) {
     const v = m.vida;
     if (++a.q > 40) return false;
+    // Nadando se avanza a medio paso.
+    if (enAgua(m, ter, a.y * v.tw + a.x) && !a.porCamino) { a.brazada = !a.brazada; if (a.brazada) return true; }
     const opciones = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     const ahora = Math.abs(a.tx - a.x) + Math.abs(a.ty - a.y);
     let mejor = null, mv = 1e9;
     for (const [dx, dy] of opciones) {
       const x = a.x + dx, y = a.y + dy;
-      if (x < 0 || y < 0 || x >= v.tw || y >= v.th || !andable(ter[y * v.tw + x], c.era)) continue;
-      const d = Math.abs(a.tx - x) + Math.abs(a.ty - y) + azar(v) * 0.9;
+      if (x < 0 || y < 0 || x >= v.tw || y >= v.th) continue;
+      const n = y * v.tw + x;
+      // El agua solo se elige si no hay otro camino: cuesta más, y el mar abierto mucho más.
+      const coste = enAgua(m, ter, n) ? (ter[n] === 'agua' ? 4 : 2) : 0;
+      const d = Math.abs(a.tx - x) + Math.abs(a.ty - y) + coste + azar(v) * 0.9;
       if (d < mv) { mv = d; mejor = [x, y]; }
     }
     if (!mejor) return false;
     // Atascado detrás de agua: un paso a un lado para rodearla.
     if (mv >= ahora + 0.9 && a.q > 20) return false;
     a.x = mejor[0]; a.y = mejor[1];
+    // En el mar abierto uno se puede ahogar; en un río o en la orilla, casi nunca.
+    const t = a.y * v.tw + a.x;
+    if (enAgua(m, ter, t) && azar(v) < (ter[t] === 'agua' ? 0.06 : ter[t] === 'bajo' ? 0.01 : 0.003)) a.ahogado = 1;
     // Por un camino se va el doble de rápido.
-    if (v.camino[a.y * v.tw + a.x] && !a.porCamino && (a.tx !== a.x || a.ty !== a.y)) { a.porCamino = 1; andar(m, a, c, ter); a.porCamino = 0; }
+    if (v.camino[t] && !a.porCamino && !a.ahogado && (a.tx !== a.x || a.ty !== a.y)) { a.porCamino = 1; andar(m, a, c, ter); a.porCamino = 0; }
     return true;
   }
 
@@ -3119,7 +3131,7 @@ button { cursor: pointer; }
   }
   function recogerMuertos(dur) {
     const ahora = performance.now();
-    for (const [x, y, c, tipo, paso] of (m.vida.muertos || [])) tumbas.push({ x, y, c, inicio: ahora + (paso ? (paso / V.TICKS) * (dur || 1000) : Math.random() * 500) });
+    for (const [x, y, c, tipo, paso] of (m.vida.muertos || [])) tumbas.push({ x, y, c, tipo, inicio: ahora + (paso ? (paso / V.TICKS) * (dur || 1000) : Math.random() * 500) });
     m.vida.muertos = [];
     if (tumbas.length > 400) tumbas = tumbas.slice(-400);
   }
@@ -3204,8 +3216,15 @@ button { cursor: pointer; }
       px = Math.round(px); py = Math.round(py);
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
       const t = Math.floor(ahora / 150 + a.id) % 2;
-      const enAgua = tierra[a.y * v.tw + a.x] === 'bajo';
-      if (enAgua) { g.fillStyle = '#6b4a2b'; g.fillRect(px - 2, py + 3, 7, 2); }
+      // En el agua (sin puente) no se camina: se nada, con la cabeza fuera y ondas alrededor.
+      const tAhora = Math.floor((py + 4) / P) * v.tw + Math.floor((px + 1) / P), ta = tierra[tAhora];
+      if ((ta === 'agua' || ta === 'bajo' || ta === 'rio') && !(visto.camino && visto.camino[tAhora])) {
+        const brazo = Math.floor(ahora / 260 + a.id) % 2;
+        g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(px - 2 - brazo, py + 4, 7 + brazo * 2, 1); g.fillRect(px - 1, py + 5, 5, 1);
+        g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 3, 3, 1);
+        g.fillStyle = '#f0c8a0'; g.fillRect(px + 1, py + 2, 1, 1); g.fillRect(brazo ? px - 1 : px + 3, py + 3 - brazo, 1, 1);
+        continue;
+      }
       // Piernas, cuerpo y cabeza.
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
       g.fillStyle = '#3a2a1e';
@@ -3424,17 +3443,18 @@ button { cursor: pointer; }
       if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;
       px = Math.round(px + 4); py = Math.round(py + 4 + Math.sin(ahora / 500 + b.id) * 0.8);
       const c = S.civ(m, b.c), color = c ? c.color : '#ccc';
-      g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px, py + 6, 7, 1);
+      // Barcos del tamaño de una casa: se dibujan con píxeles de arte (2×2).
+      const r = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(px - 4 + x * 2, py - 6 + y * 2, w * 2, h * 2); };
+      g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px - 6, py + 12 + (Math.floor(ahora / 400 + b.id) % 2), 20, 1);
       if (b.tipo === 'pesca') {
-        g.fillStyle = '#6b4a2b'; g.fillRect(px + 1, py + 4, 5, 2); g.fillRect(px + 2, py + 6, 3, 1);
-        g.fillStyle = '#3a2a1e'; g.fillRect(px + 3, py, 1, 4);
-        g.fillStyle = '#e8e0c8'; g.fillRect(px + 4, py + 1, 2, 2);
-        if (Math.floor(ahora / 700 + b.id) % 3 === 0) { g.fillStyle = '#c8d4dc'; g.fillRect(px + 6, py + 5, 2, 1); }
+        r(1, 6, 6, 2, '#6b4a2b'); r(2, 8, 4, 1, '#5a3a22'); r(1, 6, 6, 1, '#8a6a42');
+        r(4, 1, 1, 5, '#3a2a1e'); r(5, 1, 2, 4, '#e8e0c8'); r(5, 2, 1, 1, color);
+        r(2, 5, 1, 1, '#f0c8a0');
+        if (Math.floor(ahora / 700 + b.id) % 3 === 0) { r(7, 5, 2, 1, '#c8d4dc'); r(8, 7, 1, 1, '#c8d4dc'); }
       } else {
-        g.fillStyle = '#5a3a22'; g.fillRect(px, py + 5, 8, 2); g.fillRect(px + 1, py + 7, 6, 1);
-        g.fillStyle = '#3a2a1e'; g.fillRect(px + 3, py - 2, 1, 7);
-        g.fillStyle = '#f4ecd8'; g.fillRect(px + 1, py - 1, 2, 4); g.fillRect(px + 4, py - 1, 3, 4);
-        g.fillStyle = color; g.fillRect(px + 3, py - 3, 2, 1);
+        r(0, 7, 8, 2, '#5a3a22'); r(1, 9, 6, 1, '#3a2a1e'); r(0, 7, 8, 1, '#7a5232'); r(1, 8, 1, 1, '#2a1a10'); r(4, 8, 1, 1, '#2a1a10');
+        r(3, 0, 1, 7, '#3a2a1e'); r(1, 1, 2, 5, '#f4ecd8'); r(4, 1, 3, 5, '#f4ecd8'); r(4, 3, 3, 1, color); r(1, 3, 2, 1, color);
+        r(3, -1, 2, 1, color);
       }
     }
   }
@@ -3591,6 +3611,16 @@ button { cursor: pointer; }
       const t = ahora - tb.inicio;
       if (t < 0) continue;
       const x = tb.x * P + 6, y = tb.y * P + 5;
+      if (tb.tipo === 'ahogado') {
+        // Se hunde: unas burbujas que suben y se apagan, y un remolino.
+        if (t > 3500) continue;
+        g.globalAlpha = Math.max(0, 1 - t / 3500);
+        g.fillStyle = 'rgba(255,255,255,0.7)';
+        for (let k = 0; k < 4; k++) { const f = ((t / 900) + k / 4) % 1; g.fillRect(Math.round(x + 1 + Math.sin(k * 2 + t / 300) * 2), Math.round(y + 4 - f * 9), k % 2 ? 1 : 2, k % 2 ? 1 : 2); }
+        g.fillRect(x - 2, y + 5, 7, 1);
+        g.globalAlpha = 1;
+        continue;
+      }
       g.globalAlpha = t < 400 ? 1 : Math.max(0, 1 - (t - 400) / 8600);
       if (t < 400) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
       g.fillStyle = '#d8d8e0'; g.fillRect(x + 1, y, 1, 5); g.fillRect(x, y + 1, 3, 1);

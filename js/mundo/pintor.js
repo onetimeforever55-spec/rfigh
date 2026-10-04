@@ -325,7 +325,7 @@
   }
   function recogerMuertos(dur) {
     const ahora = performance.now();
-    for (const [x, y, c, tipo, paso] of (m.vida.muertos || [])) tumbas.push({ x, y, c, inicio: ahora + (paso ? (paso / V.TICKS) * (dur || 1000) : Math.random() * 500) });
+    for (const [x, y, c, tipo, paso] of (m.vida.muertos || [])) tumbas.push({ x, y, c, tipo, inicio: ahora + (paso ? (paso / V.TICKS) * (dur || 1000) : Math.random() * 500) });
     m.vida.muertos = [];
     if (tumbas.length > 400) tumbas = tumbas.slice(-400);
   }
@@ -410,8 +410,15 @@
       px = Math.round(px); py = Math.round(py);
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
       const t = Math.floor(ahora / 150 + a.id) % 2;
-      const enAgua = tierra[a.y * v.tw + a.x] === 'bajo';
-      if (enAgua) { g.fillStyle = '#6b4a2b'; g.fillRect(px - 2, py + 3, 7, 2); }
+      // En el agua (sin puente) no se camina: se nada, con la cabeza fuera y ondas alrededor.
+      const tAhora = Math.floor((py + 4) / P) * v.tw + Math.floor((px + 1) / P), ta = tierra[tAhora];
+      if ((ta === 'agua' || ta === 'bajo' || ta === 'rio') && !(visto.camino && visto.camino[tAhora])) {
+        const brazo = Math.floor(ahora / 260 + a.id) % 2;
+        g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(px - 2 - brazo, py + 4, 7 + brazo * 2, 1); g.fillRect(px - 1, py + 5, 5, 1);
+        g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 3, 3, 1);
+        g.fillStyle = '#f0c8a0'; g.fillRect(px + 1, py + 2, 1, 1); g.fillRect(brazo ? px - 1 : px + 3, py + 3 - brazo, 1, 1);
+        continue;
+      }
       // Piernas, cuerpo y cabeza.
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
       g.fillStyle = '#3a2a1e';
@@ -630,17 +637,18 @@
       if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;
       px = Math.round(px + 4); py = Math.round(py + 4 + Math.sin(ahora / 500 + b.id) * 0.8);
       const c = S.civ(m, b.c), color = c ? c.color : '#ccc';
-      g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px, py + 6, 7, 1);
+      // Barcos del tamaño de una casa: se dibujan con píxeles de arte (2×2).
+      const r = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(px - 4 + x * 2, py - 6 + y * 2, w * 2, h * 2); };
+      g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px - 6, py + 12 + (Math.floor(ahora / 400 + b.id) % 2), 20, 1);
       if (b.tipo === 'pesca') {
-        g.fillStyle = '#6b4a2b'; g.fillRect(px + 1, py + 4, 5, 2); g.fillRect(px + 2, py + 6, 3, 1);
-        g.fillStyle = '#3a2a1e'; g.fillRect(px + 3, py, 1, 4);
-        g.fillStyle = '#e8e0c8'; g.fillRect(px + 4, py + 1, 2, 2);
-        if (Math.floor(ahora / 700 + b.id) % 3 === 0) { g.fillStyle = '#c8d4dc'; g.fillRect(px + 6, py + 5, 2, 1); }
+        r(1, 6, 6, 2, '#6b4a2b'); r(2, 8, 4, 1, '#5a3a22'); r(1, 6, 6, 1, '#8a6a42');
+        r(4, 1, 1, 5, '#3a2a1e'); r(5, 1, 2, 4, '#e8e0c8'); r(5, 2, 1, 1, color);
+        r(2, 5, 1, 1, '#f0c8a0');
+        if (Math.floor(ahora / 700 + b.id) % 3 === 0) { r(7, 5, 2, 1, '#c8d4dc'); r(8, 7, 1, 1, '#c8d4dc'); }
       } else {
-        g.fillStyle = '#5a3a22'; g.fillRect(px, py + 5, 8, 2); g.fillRect(px + 1, py + 7, 6, 1);
-        g.fillStyle = '#3a2a1e'; g.fillRect(px + 3, py - 2, 1, 7);
-        g.fillStyle = '#f4ecd8'; g.fillRect(px + 1, py - 1, 2, 4); g.fillRect(px + 4, py - 1, 3, 4);
-        g.fillStyle = color; g.fillRect(px + 3, py - 3, 2, 1);
+        r(0, 7, 8, 2, '#5a3a22'); r(1, 9, 6, 1, '#3a2a1e'); r(0, 7, 8, 1, '#7a5232'); r(1, 8, 1, 1, '#2a1a10'); r(4, 8, 1, 1, '#2a1a10');
+        r(3, 0, 1, 7, '#3a2a1e'); r(1, 1, 2, 5, '#f4ecd8'); r(4, 1, 3, 5, '#f4ecd8'); r(4, 3, 3, 1, color); r(1, 3, 2, 1, color);
+        r(3, -1, 2, 1, color);
       }
     }
   }
@@ -797,6 +805,16 @@
       const t = ahora - tb.inicio;
       if (t < 0) continue;
       const x = tb.x * P + 6, y = tb.y * P + 5;
+      if (tb.tipo === 'ahogado') {
+        // Se hunde: unas burbujas que suben y se apagan, y un remolino.
+        if (t > 3500) continue;
+        g.globalAlpha = Math.max(0, 1 - t / 3500);
+        g.fillStyle = 'rgba(255,255,255,0.7)';
+        for (let k = 0; k < 4; k++) { const f = ((t / 900) + k / 4) % 1; g.fillRect(Math.round(x + 1 + Math.sin(k * 2 + t / 300) * 2), Math.round(y + 4 - f * 9), k % 2 ? 1 : 2, k % 2 ? 1 : 2); }
+        g.fillRect(x - 2, y + 5, 7, 1);
+        g.globalAlpha = 1;
+        continue;
+      }
       g.globalAlpha = t < 400 ? 1 : Math.max(0, 1 - (t - 400) / 8600);
       if (t < 400) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
       g.fillStyle = '#d8d8e0'; g.fillRect(x + 1, y, 1, 5); g.fillRect(x, y + 1, 3, 1);

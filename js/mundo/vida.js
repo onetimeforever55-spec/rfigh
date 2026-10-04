@@ -94,7 +94,9 @@
     return out;
   };
   const dist = (m, a, b) => { const tw = m.W * SUB; return Math.abs(a % tw - b % tw) + Math.abs((a / tw | 0) - (b / tw | 0)); };
-  const andable = (ter, era) => ter !== 'agua' && (ter !== 'bajo' || era >= 5);
+  // Se camina por tierra (y por los puentes); el agua se cruza nadando, y en el mar uno se puede ahogar.
+  const mojada = t => t === 'agua' || t === 'bajo' || t === 'rio';
+  const andable = ter => !mojada(ter);
 
   // ---------- Crear la vida de un mundo ----------
   function crear(m) {
@@ -567,6 +569,7 @@
         }
       }
     }
+    if (a.ahogado) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'ahogado', paso]); return; }
     // Los guerreros luchan: cuerpo a cuerpo con el enemigo de al lado; los tiradores disparan desde lejos.
     if (a.o === GUERRERO && c.guerras.length) {
       const enemigo = b => b !== a && !muertos.has(b) && c.guerras.some(g => g.con === b.c);
@@ -610,7 +613,7 @@
     const v = m.vida, base = centro(m, a.h);
     for (let k = 0; k < 6; k++) {
       const t = base + Math.round((azar(v) - 0.5) * 6) + Math.round((azar(v) - 0.5) * 6) * v.tw;
-      if (t >= 0 && t < ter.length && andable(ter[t], c.era) && dist(m, t, base) <= 4) { ir(a, t, v.tw, IR); a.paseo = 1; return; }
+      if (t >= 0 && t < ter.length && andable(ter[t]) && dist(m, t, base) <= 4) { ir(a, t, v.tw, IR); a.paseo = 1; return; }
     }
     a.e = ESPERAR; a.t = 2;
   }
@@ -694,7 +697,7 @@
       const e = v.ejercitos[c.id], base = centro(m, e.defiende != null ? e.defiende : e.fase === 'reunion' ? e.reunion : e.obj);
       const dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 3) - 1;
       t = base + dx + dy * v.tw;
-      if (t < 0 || t >= ter.length || !andable(ter[t], c.era)) t = base;
+      if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
       if (a.x === t % v.tw && a.y === (t / v.tw | 0)) { a.e = ESPERAR; a.t = 2; return; }
     }
     if (t >= 0) { ir(a, t, v.tw, IR); rec.reservadas.add(t); return; }
@@ -732,24 +735,33 @@
   }
 
   // Un paso hacia el destino por tierra (o en barca desde el Renacimiento).
+  const enAgua = (m, ter, t) => mojada(ter[t]) && !m.vida.camino[t];
   function andar(m, a, c, ter) {
     const v = m.vida;
     if (++a.q > 40) return false;
+    // Nadando se avanza a medio paso.
+    if (enAgua(m, ter, a.y * v.tw + a.x) && !a.porCamino) { a.brazada = !a.brazada; if (a.brazada) return true; }
     const opciones = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     const ahora = Math.abs(a.tx - a.x) + Math.abs(a.ty - a.y);
     let mejor = null, mv = 1e9;
     for (const [dx, dy] of opciones) {
       const x = a.x + dx, y = a.y + dy;
-      if (x < 0 || y < 0 || x >= v.tw || y >= v.th || !andable(ter[y * v.tw + x], c.era)) continue;
-      const d = Math.abs(a.tx - x) + Math.abs(a.ty - y) + azar(v) * 0.9;
+      if (x < 0 || y < 0 || x >= v.tw || y >= v.th) continue;
+      const n = y * v.tw + x;
+      // El agua solo se elige si no hay otro camino: cuesta más, y el mar abierto mucho más.
+      const coste = enAgua(m, ter, n) ? (ter[n] === 'agua' ? 4 : 2) : 0;
+      const d = Math.abs(a.tx - x) + Math.abs(a.ty - y) + coste + azar(v) * 0.9;
       if (d < mv) { mv = d; mejor = [x, y]; }
     }
     if (!mejor) return false;
     // Atascado detrás de agua: un paso a un lado para rodearla.
     if (mv >= ahora + 0.9 && a.q > 20) return false;
     a.x = mejor[0]; a.y = mejor[1];
+    // En el mar abierto uno se puede ahogar; en un río o en la orilla, casi nunca.
+    const t = a.y * v.tw + a.x;
+    if (enAgua(m, ter, t) && azar(v) < (ter[t] === 'agua' ? 0.06 : ter[t] === 'bajo' ? 0.01 : 0.003)) a.ahogado = 1;
     // Por un camino se va el doble de rápido.
-    if (v.camino[a.y * v.tw + a.x] && !a.porCamino && (a.tx !== a.x || a.ty !== a.y)) { a.porCamino = 1; andar(m, a, c, ter); a.porCamino = 0; }
+    if (v.camino[t] && !a.porCamino && !a.ahogado && (a.tx !== a.x || a.ty !== a.y)) { a.porCamino = 1; andar(m, a, c, ter); a.porCamino = 0; }
     return true;
   }
 
