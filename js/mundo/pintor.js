@@ -142,7 +142,7 @@
     const v = m.vida;
     lienzo = document.createElement('canvas'); lienzo.width = v.tw * P; lienzo.height = v.th * P; gl = lienzo.getContext('2d');
     capa = document.createElement('canvas'); capa.width = lienzo.width; capa.height = lienzo.height; gc = capa.getContext('2d');
-    visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice() };
+    visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice(), camino: (v.camino || []).slice() };
     tierra = V.terrenos(m).slice();
     pend = [];
     firma = firmas();
@@ -166,6 +166,7 @@
   function parcela(t) {
     const v = m.vida, x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, ter = tierra[t];
     gl.drawImage(suelo(ter, ((t * 2654435761) >>> 0) % 4), x, y);
+    if (visto.camino && visto.camino[t]) caminoEn(t, x, y, ter);
     const obra = visto.obra[t];
     if (obra) {
       const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
@@ -201,6 +202,32 @@
       gl.drawImage(sprite(nombre), x, y);
     }
   }
+  // Un tramo de camino: tierra al principio, empedrado desde la Antigüedad, asfalto en la era moderna,
+  // y puente de tablas sobre los ríos. Se une con los tramos vecinos y con las plazas.
+  function caminoEn(t, x, y, ter) {
+    const v = m.vida, tw = v.tw, c = m.dueno[V.region(m, t)] >= 0 ? S.civ(m, m.dueno[V.region(m, t)]) : null, era = c ? c.era : 0;
+    const une = n => n >= 0 && n < tw * v.th && (visto.camino[n] || visto.obra[n] === V.OBRA.centro || visto.obra[n] === V.OBRA.ayuntamiento);
+    const tx = t % tw;
+    const lados = [[tx > 0 && une(t - 1), 0, 2, 2, 4], [tx < tw - 1 && une(t + 1), 6, 2, 2, 4], [une(t - tw), 2, 0, 4, 2], [une(t + tw), 2, 6, 4, 2]];
+    if (ter === 'rio') {
+      gl.fillStyle = '#7a5232'; gl.fillRect(x, y + 1, P, 6); gl.fillStyle = '#5a3a22'; for (let k = 1; k < P; k += 2) gl.fillRect(x + k, y + 1, 1, 6);
+      gl.fillStyle = '#3a2a1e'; gl.fillRect(x, y + 1, P, 1); gl.fillRect(x, y + 6, P, 1);
+      return;
+    }
+    const [base, borde, marca] = era >= 7 ? ['#55585f', '#3f4248', '#e8d070'] : era >= 3 ? ['#b9ad94', '#948a74', '#d4cab2'] : ['#a7855a', '#8a6a42', '#b8966a'];
+    gl.fillStyle = borde; gl.fillRect(x + 1, y + 1, 6, 6);
+    for (const [si, lx, ly, w, h] of lados) if (si) gl.fillRect(x + lx, y + ly, w, h);
+    gl.fillStyle = base; gl.fillRect(x + 2, y + 2, 4, 4);
+    for (const [si, lx, ly, w, h] of lados) if (si) gl.fillRect(x + lx + (w === 2 ? 0 : 0), y + ly, w, h);
+    gl.fillStyle = marca;
+    if (era >= 7) { if (lados[0][0] || lados[1][0]) gl.fillRect(x + 1, y + 4, 2, 1); if (lados[2][0] || lados[3][0]) gl.fillRect(x + 4, y + 1, 1, 2); }
+    else { gl.fillRect(x + 3, y + 3, 1, 1); gl.fillRect(x + 5, y + 4, 1, 1); if (era >= 3) gl.fillRect(x + 2, y + 5, 1, 1); }
+  }
+  function vecinasCamino(t) {
+    const tw = m.vida.tw;
+    for (const n of [t - 1, t + 1, t - tw, t + tw]) if (n >= 0 && n < tw * m.vida.th && visto.camino[n]) parcela(n);
+  }
+
   // El campo según cómo va el trigo: tierra arada, brotes, verde y dorado (listo para segar).
   function campo(x, y, t) {
     const fase = (visto.cultivo && visto.cultivo[t]) || 0;
@@ -246,8 +273,8 @@
     let quedan = 0;
     for (const ch of pend) {
       if (ch[4] > hasta || ch.hecho) { if (!ch.hecho) quedan++; continue; }
-      const capaN = ch[0] === 0 ? 'arbol' : ch[0] === 1 ? 'roca' : ch[0] === 2 ? 'obra' : ch[0] === 4 ? 'cultivo' : null;
-      if (capaN) { visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); }
+      const capaN = ch[0] === 0 ? 'arbol' : ch[0] === 1 ? 'roca' : ch[0] === 2 ? 'obra' : ch[0] === 4 ? 'cultivo' : ch[0] === 5 ? 'camino' : null;
+      if (capaN) { visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); if (capaN === 'camino') vecinasCamino(ch[1]); }
       ch.hecho = true;
     }
     if (!quedan) pend = [];
@@ -256,18 +283,19 @@
   function sincronizar(cambios) {
     const v = m.vida, n = v.tw * v.th;
     aplicar(Infinity);
-    const antes = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice() };
-    for (let k = cambios.length - 1; k >= 0; k--) { const [c, t, a] = cambios[k]; if (c <= 2 || c === 4) antes[c === 0 ? 'arbol' : c === 1 ? 'roca' : c === 2 ? 'obra' : 'cultivo'][t] = a; }
-    const ter = V.terrenos(m), nf = firmas(), cambiadas = new Set();
+    const antes = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice(), camino: (v.camino || []).slice() };
+    for (let k = cambios.length - 1; k >= 0; k--) { const [c, t, a] = cambios[k]; if (c <= 2 || c === 4 || c === 5) antes[c === 0 ? 'arbol' : c === 1 ? 'roca' : c === 2 ? 'obra' : c === 4 ? 'cultivo' : 'camino'][t] = a; }
+    const ter = V.terrenos(m), nf = firmas(), cambiadas = new Set(), caminosTocados = [];
     for (let r = 0; r < nf.length; r++) if (nf[r] !== firma[r]) cambiadas.add(r);
     firma = nf;
     for (let t = 0; t < n; t++) {
       let distinto = false;
       if (ter[t] !== tierra[t]) { tierra[t] = ter[t]; distinto = true; }
-      for (const c of ['arbol', 'roca', 'obra', 'cultivo']) if (visto[c][t] !== antes[c][t]) { visto[c][t] = antes[c][t]; distinto = true; }
+      for (const c of ['arbol', 'roca', 'obra', 'cultivo', 'camino']) if ((visto[c][t] || 0) !== (antes[c][t] || 0)) { visto[c][t] = antes[c][t]; distinto = true; if (c === 'camino') caminosTocados.push(t); }
       if (!distinto && visto.obra[t] && visto.obra[t] !== V.OBRA.campo && cambiadas.has(V.region(m, t))) distinto = true;
       if (distinto) parcela(t);
     }
+    for (const t of caminosTocados) vecinasCamino(t);
     pend = cambios.map(c => c.slice());
   }
   function turno(mundoActual, ms) {
@@ -380,6 +408,17 @@
       // La herramienta: arriba y abajo cuando trabaja.
       const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
       if (acc === 3) { g.fillStyle = oficio === 'minero' ? '#a3a1aa' : '#8a5a2b'; g.fillRect(px - 1, py - 1, 5, 1); }
+      else if (oficio === 'comerciante') {
+        // La carreta va detrás del comerciante, según hacia dónde camina.
+        const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
+        const dirX = r && r.length >= 6 ? Math.sign(r[j] - r[i]) : 0, dirY = r && r.length >= 6 ? Math.sign(r[j + 1] - r[i + 1]) : 0;
+        const cx = px - (dirX || (dirY ? 0 : 1)) * 6 - 1, cy = py + 1 - dirY * 5;
+        g.fillStyle = '#3a2a1e'; g.fillRect(cx + 1, cy + 4, 1, 1); g.fillRect(cx + 4, cy + 4, 1, 1);
+        g.fillStyle = '#8a5a2b'; g.fillRect(cx, cy + 1, 6, 3);
+        g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 2, 1); g.fillStyle = '#c84a3a'; g.fillRect(cx + 3, cy, 1, 1); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1, 1);
+        g.fillStyle = '#6b4a2b'; g.fillRect(cx + (dirX > 0 ? 6 : -1), cy + 2, 1, 1);
+        g.fillStyle = '#7a3a1a'; g.fillRect(px, py - 1, 3, 1);
+      }
       else if (oficio === 'lenador') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 3); g.fillStyle = '#c8ccd6'; g.fillRect(px + 3, py + alto, 2, 1); }
       else if (oficio === 'minero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + 1 + alto, 1, 2); g.fillStyle = '#a3a1aa'; g.fillRect(px + 2, py + alto, 3, 1); }
       else if (oficio === 'granjero') { g.fillStyle = '#7a5232'; g.fillRect(px + 3, py + alto, 1, 4); g.fillStyle = '#9aa0aa'; g.fillRect(px + 3, py + 3 + alto, 2, 1); }

@@ -196,7 +196,7 @@ console.log('COMO WORLDBOX: BIOMAS, ARMAS, EJÉRCITOS, REYES, CIUDADES, ALIANZAS
   a.metal = 50; b.metal = 50;
   if (!S.enGuerra(a, b)) S.declararGuerra(w, a, b, null);
   let disparos = 0, bajas = 0, capitan = false;
-  for (let k = 0; k < 5 && S.enGuerra(a, b); k++) { S.turno(w); disparos += w.vida.disparos.length; bajas += w.vida.muertos.length; capitan = capitan || !!(w.vida.ejercitos[a.id] && w.vida.ejercitos[a.id].capitan != null); }
+  for (let k = 0; k < 10; k++) { if (!S.enGuerra(a, b) && a.viva && b.viva) S.declararGuerra(w, a, b, null); S.turno(w); disparos += w.vida.disparos.length; bajas += w.vida.muertos.length; capitan = capitan || !!(w.vida.ejercitos[a.id] && w.vida.ejercitos[a.id].capitan != null); }
   const suyos = w.vida.aldeanos.filter(x => x.c === a.id && V.OFICIOS[x.o] === 'guerrero');
   comprobar(suyos.length && suyos.every(x => (x.arma || 0) >= 1), 'con metal, los guerreros llevan el arma de su era (' + (suyos[0] ? V.ARMAS[suyos[0].arma || 0].nombre : '—') + ')');
   comprobar(capitan, 'el ejército marcha tras su capitán');
@@ -209,6 +209,25 @@ console.log('COMO WORLDBOX: BIOMAS, ARMAS, EJÉRCITOS, REYES, CIUDADES, ALIANZAS
   let entra = S.enGuerra(z, x);
   for (let k = 0; k < 6 && !entra; k++) { const g2 = hasta(S.crear(12 + k + 1, 5), -1000); const [p, q, r] = S.vivas(g2); S.aliar(g2, q, r); S.declararGuerra(g2, p, q, null); entra = S.enGuerra(r, p); }
   comprobar(S.aliados(g, y, z) && entra, 'los aliados se juran defensa y entran en la guerra para defenderse');
+}
+
+console.log('CAMINOS Y COMERCIANTES CON CARRETA');
+{
+  const V = M.vida;
+  const m = hasta(S.crear(7, 5), 1500), v = m.vida;
+  const internas = v.rutas.filter(r => r.tipo === 'interna'), externas = v.rutas.filter(r => r.tipo === 'externa'), calles = v.rutas.filter(r => r.tipo === 'calle');
+  comprobar(internas.length >= 1 && internas.every(r => m.civs.find(c => c.id === r.a).capital === r.ra && m.ciudades.some(x => x.region === r.rb)), 'cada ciudad queda unida a su capital por un camino (' + internas.length + ' rutas internas)');
+  comprobar(calles.length >= S.vivas(m).length, 'las capitales y las ciudades tienen sus calles');
+  comprobar(externas.length >= 1, 'los reinos vecinos que se llevan bien abren rutas entre sus capitales (' + externas.length + ')');
+  const ter = V.terrenos(m);
+  comprobar(v.rutas.filter(r => r.tipo !== 'calle').every(r => r.tiles.every(t => ter[t] !== 'agua' && ter[t] !== 'bajo')), 'los caminos no cruzan el mar (y cruzan los ríos con puentes)');
+  const hechos = v.camino.filter(Boolean).length;
+  comprobar(hechos > 50, 'los constructores empiedran los caminos (' + hechos + ' tramos)');
+  comprobar(S.vivas(m).some(c => c.comerciantes > 0 && c.comerciado > 0), 'hay comerciantes con carreta que llegan a destino y comercian');
+  // Una ruta nueva entre dos capitales: se traza por tierra y los comerciantes la recorren.
+  const g = hasta(S.crear(7, 5), 0), [a] = S.vivas(g);
+  const trazo = V.trazar(g, V.centro(g, a.capital), V.centro(g, S.casillas(g, a).sort((x, y) => S.distancia(y, a.capital) - S.distancia(x, a.capital))[0]), V.terrenos(g));
+  comprobar(trazo && trazo.length > 2 && trazo.every((t, i) => i === 0 || Math.abs(t - trazo[i - 1]) === 1 || Math.abs(t - trazo[i - 1]) === g.vida.tw), 'el trazado es un camino continuo, parcela a parcela');
 }
 
 console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');

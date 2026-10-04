@@ -18,10 +18,10 @@
   const S = () => M.sim;
   const SUB = 4, TICKS = 8, MAX_ALDEANOS = 260;
   const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5 };
-  const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero'];
-  const [LENADOR, GRANJERO, CONSTRUCTOR, MINERO, GUERRERO] = [0, 1, 2, 3, 4];
+  const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante'];
+  const [LENADOR, GRANJERO, CONSTRUCTOR, MINERO, GUERRERO, COMERCIANTE] = [0, 1, 2, 3, 4, 5];
   // Estados del aldeano y lo que hace en cada paso (la vista elige el dibujo con esto).
-  const [LIBRE, IR, TRABAJAR, VOLVER, ESPERAR] = [0, 1, 2, 3, 4];
+  const [LIBRE, IR, TRABAJAR, VOLVER, ESPERAR, VIAJAR] = [0, 1, 2, 3, 4, 5];
   const ACC = { andar: 0, trabajar: 1, luchar: 2, cargar: 3 };
 
   // Las armas de cada era: lo que lleva un guerrero si su pueblo tiene metal para forjarlas (si no, un garrote).
@@ -100,7 +100,7 @@
   function crear(m) {
     const tw = m.W * SUB, th = m.H * SUB, n = tw * th;
     const v = {
-      tw, th, rng: (m.semilla ^ 0x9E3779B9) >>> 0, arbol: new Array(n).fill(0), roca: new Array(n).fill(0), obra: new Array(n).fill(0), mena: new Array(n).fill(0), cultivo: new Array(n).fill(0), animales: [], ejercitos: {}, disparos: [],
+      tw, th, rng: (m.semilla ^ 0x9E3779B9) >>> 0, arbol: new Array(n).fill(0), roca: new Array(n).fill(0), obra: new Array(n).fill(0), mena: new Array(n).fill(0), cultivo: new Array(n).fill(0), camino: new Array(n).fill(0), rutas: [], animales: [], ejercitos: {}, disparos: [],
       fueBosque: new Array(m.W * m.H).fill(0), tipoVisto: m.tipo.slice(), aldeanos: [], sig: 0, centros: {}, cambios: [], avisos: {}
     };
     m.vida = v;
@@ -121,7 +121,7 @@
   function cambiar(m, capa, t, valor, paso) {
     const v = m.vida;
     if (v[capa][t] === valor) return;
-    v.cambios.push([capa === 'arbol' ? 0 : capa === 'roca' ? 1 : capa === 'obra' ? 2 : 4, t, v[capa][t], valor, paso]);
+    v.cambios.push([capa === 'arbol' ? 0 : capa === 'roca' ? 1 : capa === 'obra' ? 2 : capa === 'cultivo' ? 4 : 5, t, v[capa][t], valor, paso]);
     v[capa][t] = valor;
   }
 
@@ -152,7 +152,7 @@
    * Poca madera → más leñadores; la gente cerca del límite de comida → más granjeros; faltan casas → más
    * constructores; guerra → guerreros. Las prioridades del jugador (0 a 2) pesan sobre esas necesidades.
    */
-  const PRIO_OFICIO = ['madera', 'comida', 'casas', 'piedra', 'ejercito'];
+  const PRIO_OFICIO = ['madera', 'comida', 'casas', 'piedra', 'ejercito', 'riqueza'];
   const prio = (c, k) => (c.plan && c.plan.prioridad && c.plan.prioridad[k] != null ? c.plan.prioridad[k] : 1);
   const metaMadera = c => 30 + 12 * c.era;
   function reparto(c, recursos) {
@@ -163,7 +163,9 @@
       0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0),
       (c.casas || 0) < metaCasas(c) ? 0.16 : 0.06,
       recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) + ((c.metal || 0) < 10 ? 0.08 : 0) : 0.04) : 0,
-      guerra ? 0.6 : c.era >= 2 ? 0.07 : 0.04
+      guerra ? 0.6 : c.era >= 2 ? 0.07 : 0.04,
+      // Un comerciante por cada ruta abierta, más o menos.
+      Math.min(0.2, 0.06 * (c.rutas || 0))
     ];
     for (let i = 0; i < p.length; i++) {
       const w = prio(c, PRIO_OFICIO[i]);
@@ -212,7 +214,7 @@
     // Oficios: los libres cambian de oficio para cubrir lo que falta en su pueblo.
     for (const c of vivas) {
       const lista = v.aldeanos.filter(a => a.c === c.id), p = reparto(c, recursosDe ? recursosDe[c.id] : { arboles: 1, rocas: 1 });
-      const tiene = [0, 0, 0, 0, 0];
+      const tiene = [0, 0, 0, 0, 0, 0];
       for (const a of lista) tiene[a.o]++;
       for (const a of lista) {
         // En guerra se llama a las armas a cualquiera que no vaya cargado; en paz, solo cambian los que están libres.
@@ -314,7 +316,7 @@
     if (!m.vida) crear(m);
     const v = m.vida;
     v.cambios = []; v.muertos = []; v.disparos = [];
-    v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || [];
+    v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
     centros(m);
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
@@ -335,6 +337,7 @@
     naturaleza(m, ter);
     contar(m);
     ciudades(m);
+    planificarRutas(m, terrenos(m));
     fauna(m, ter);
     for (const c of S().vivas(m)) c.comida = Math.min(80, (c.comida || 0) * 0.92);
     // La leña de cada día: cocinar, calentarse y, desde la Edad del Hierro, las forjas; en la era industrial, el carbón vegetal.
@@ -365,6 +368,25 @@
       if (--a.t <= 0) terminar(m, a, c, rec, ter, paso);
     } else if (a.e === ESPERAR) {
       if (--a.t <= 0) a.e = LIBRE;
+    } else if (a.e === VIAJAR) {
+      // El comerciante sigue su ruta tramo a tramo (el doble de rápido donde ya hay camino).
+      const ru = v.rutas.find(x => x.id === a.ruta);
+      if (!ru || !rutaActiva(m, ru)) a.e = LIBRE;
+      else {
+        acc = ACC.cargar;
+        const pasos = v.camino[ru.tiles[a.i]] ? 2 : 1;
+        for (let k = 0; k < pasos; k++) {
+          const sig = a.i + a.dir;
+          if (sig < 0 || sig >= ru.tiles.length) break;
+          a.i = sig;
+        }
+        const t = ru.tiles[a.i];
+        a.x = t % v.tw; a.y = t / v.tw | 0;
+        if (a.i === 0 || a.i === ru.tiles.length - 1) {
+          if (a.vuelta) { a.e = ESPERAR; a.t = 2; a.ruta = null; }
+          else { a.e = TRABAJAR; a.t = 2; a.comercio = 1; }
+        }
+      }
     }
     // Los guerreros luchan: cuerpo a cuerpo con el enemigo de al lado; los tiradores disparan desde lejos.
     if (a.o === GUERRERO && c.guerras.length) {
@@ -465,7 +487,28 @@
       if (maduros.length) { t = maduros[Math.floor(azar(v) * maduros.length)]; a.siega = 1; }
       else t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
     }
-    else if (a.o === CONSTRUCTOR) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
+    else if (a.o === CONSTRUCTOR) {
+      a.obraCamino = 0;
+      // Los caminos pendientes se empiedran cuando las casas no corren prisa (o una de cada dos veces).
+      const pend = (v.pendientes && v.pendientes[c.id]) || [];
+      if (pend.length && (c.casas >= metaCasas(c) * 0.6 || azar(v) < 0.5)) {
+        const aqui = a.y * v.tw + a.x;
+        let md = 40;
+        for (const x of pend) { if (rec.reservadas.has(x) || v.camino[x]) continue; const d = dist(m, aqui, x); if (d < md) { md = d; t = x; } }
+        if (t >= 0) a.obraCamino = 1;
+      }
+      if (t < 0) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
+    }
+    else if (a.o === COMERCIANTE) {
+      // Elige una ruta abierta de su pueblo y sale desde su extremo: la capital propia en las rutas entre reinos.
+      const rutas = v.rutas.filter(ru => ru.tipo !== 'calle' && (ru.a === c.id || ru.b === c.id) && rutaActiva(m, ru));
+      if (rutas.length) {
+        const ru = rutas[Math.floor(azar(v) * rutas.length)], aqui = a.y * v.tw + a.x;
+        const desdeA = ru.tipo === 'externa' ? ru.a === c.id : dist(m, aqui, ru.tiles[0]) <= dist(m, aqui, ru.tiles[ru.tiles.length - 1]);
+        a.ruta = ru.id; a.dir = desdeA ? 1 : -1; a.i = desdeA ? 0 : ru.tiles.length - 1; a.vuelta = 0; a.viaje = 1;
+        t = ru.tiles[a.i];
+      }
+    }
     else if (a.o === GUERRERO && v.ejercitos[c.id]) {
       // En formación detrás del capitán: primero al punto de reunión, luego a por el objetivo.
       const e = v.ejercitos[c.id], base = centro(m, e.defiende != null ? e.defiende : e.fase === 'reunion' ? e.reunion : e.obj);
@@ -491,7 +534,7 @@
     const regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 99;
     for (const r of regiones) for (const t of parcelas(m, r)) {
-      if (v.obra[t] || v.roca[t] || v.arbol[t] >= 2 || !sirve.has(ter[t]) || rec.reservadas.has(t)) continue;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !sirve.has(ter[t]) || rec.reservadas.has(t)) continue;
       const d = dist(m, base, t) + azar(v) * 1.5;
       if (d < md) { md = d; mejor = t; }
     }
@@ -515,6 +558,8 @@
     // Atascado detrás de agua: un paso a un lado para rodearla.
     if (mv >= ahora + 0.9 && a.q > 20) return false;
     a.x = mejor[0]; a.y = mejor[1];
+    // Por un camino se va el doble de rápido.
+    if (v.camino[a.y * v.tw + a.x] && !a.porCamino && (a.tx !== a.x || a.ty !== a.y)) { a.porCamino = 1; andar(m, a, c, ter); a.porCamino = 0; }
     return true;
   }
 
@@ -527,10 +572,12 @@
       a.k = 0; a.e = ESPERAR; a.t = 1;
       return;
     }
+    if (a.o === COMERCIANTE && a.viaje) { a.viaje = 0; a.e = VIAJAR; return; }
     if (a.paseo) { a.e = ESPERAR; a.t = a.paseo === 2 ? 3 : 1 + Math.floor(azar(v) * 2); a.paseo = 0; return; }
     if (a.o === LENADOR) { if (v.arbol[t] >= 2) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE; }
     else if (a.o === MINERO) { if (v.roca[t] > 0) { a.e = TRABAJAR; a.t = 3; } else a.e = LIBRE; }
     else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else { a.e = LIBRE; a.siega = 0; } }
+    else if (a.o === CONSTRUCTOR && a.obraCamino) { if (!v.camino[t] && !v.obra[t]) { a.e = TRABAJAR; a.t = 1; } else { a.e = LIBRE; a.obraCamino = 0; } }
     else if (a.o === CONSTRUCTOR) {
       const piedra = c.era >= 2 && c.piedra >= 1;
       if (!v.obra[t] && v.arbol[t] < 2 && c.madera >= (piedra ? 2 : 3)) { c.madera -= piedra ? 2 : 3; if (piedra) c.piedra -= 1; a.e = TRABAJAR; a.t = 4; } else a.e = LIBRE;
@@ -547,7 +594,30 @@
     if (a.o === MINERO && v.roca[t] > 0) { a.k = 1; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2; a.siega = 0; }
     else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; }
+    else if (a.o === CONSTRUCTOR && a.obraCamino) {
+      // Un tramo de camino: se quita el árbol o la roca; desde la Antigüedad se empiedra (cuesta un poco de piedra).
+      if (!v.camino[t] && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 1, paso); if (c.era >= 3 && c.piedra >= 0.25) c.piedra -= 0.25; }
+      a.obraCamino = 0;
+    }
     else if (a.o === CONSTRUCTOR && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.casa, paso); c.casas++; }
+    else if (a.o === COMERCIANTE && a.comercio) {
+      // Llega la carreta: se vende, se compra, y los dos lados ganan (más si el camino está terminado).
+      const ru = v.rutas.find(x => x.id === a.ruta);
+      if (ru && rutaActiva(m, ru)) {
+        const hecho = ru.tiles.filter(x => v.camino[x]).length / ru.tiles.length, k = 0.6 + 0.6 * hecho;
+        if (ru.tipo === 'interna') { c.riqueza += (2 + 0.6 * c.era) * k; c.estab = Math.min(100, c.estab + 0.3); }
+        else {
+          const o = S().civ(m, ru.a === c.id ? ru.b : ru.a);
+          c.riqueza += (3 + 0.8 * c.era) * k; o.riqueza += (2 + 0.6 * o.era) * k;
+          c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1);
+          if (o.era > c.era) c.ciencia += 3; // las ideas viajan con las mercancías
+        }
+        c.comerciado = (c.comerciado || 0) + 1;
+        a.vuelta = 1; a.dir = -a.dir; a.e = VIAJAR; a.comercio = 0;
+        return;
+      }
+      a.comercio = 0;
+    }
     else if (a.o === GUERRERO) {
       const o = S().civ(m, m.dueno[region(m, t)]);
       if (o && c.guerras.some(g => g.con === o.id)) {
@@ -558,6 +628,110 @@
       }
     }
     a.e = LIBRE;
+  }
+
+  /*
+   * CAMINOS Y RUTAS COMERCIALES. Cada ciudad se une a su capital por un camino trazado por el terreno más
+   * fácil (evita el agua, las montañas y las casas, y aprovecha los caminos que ya hay); las capitales de
+   * reinos vecinos que se llevan bien abren rutas entre sí; y cada ciudad tiene sus calles. Los constructores
+   * empiedran los caminos parcela a parcela, y los comerciantes los recorren con su carreta.
+   */
+  function trazar(m, de, a, ter) {
+    const v = m.vida, tw = v.tw, th = v.th;
+    const [ax, ay] = [de % tw, de / tw | 0], [bx, by] = [a % tw, a / tw | 0];
+    const x0 = Math.max(0, Math.min(ax, bx) - 14), x1 = Math.min(tw - 1, Math.max(ax, bx) + 14), y0 = Math.max(0, Math.min(ay, by) - 14), y1 = Math.min(th - 1, Math.max(ay, by) + 14);
+    const coste = t => {
+      const tr = ter[t];
+      if (tr === 'agua' || tr === 'bajo') return Infinity;
+      if (v.camino[t]) return 0.35;
+      const o = v.obra[t];
+      if (o === OBRA.casa || o === OBRA.campo || o === OBRA.ruina) return 7;
+      return (tr === 'montana' ? 5 : tr === 'pantano' ? 2.5 : tr === 'rio' ? 3 : 1) + (v.arbol[t] >= 2 ? 1 : 0) + (v.roca[t] ? 2 : 0);
+    };
+    const dist = new Map([[de, 0]]), prev = new Map(), abiertos = [[0, de]];
+    // Dijkstra con un montículo sencillo.
+    const meter = (d, t) => { abiertos.push([d, t]); let i = abiertos.length - 1; while (i > 0) { const pa = (i - 1) >> 1; if (abiertos[pa][0] <= abiertos[i][0]) break; [abiertos[pa], abiertos[i]] = [abiertos[i], abiertos[pa]]; i = pa; } };
+    const sacar = () => { const top = abiertos[0], fin = abiertos.pop(); if (abiertos.length) { abiertos[0] = fin; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let mn = i; if (l < abiertos.length && abiertos[l][0] < abiertos[mn][0]) mn = l; if (r < abiertos.length && abiertos[r][0] < abiertos[mn][0]) mn = r; if (mn === i) break; [abiertos[mn], abiertos[i]] = [abiertos[i], abiertos[mn]]; i = mn; } } return top; };
+    abiertos.length = 0; meter(0, de);
+    let vistas = 0;
+    while (abiertos.length && vistas++ < 9000) {
+      const [d, t] = sacar();
+      if (t === a) break;
+      if (d > (dist.get(t) ?? Infinity)) continue;
+      const x = t % tw, y = t / tw | 0;
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        if (nx < x0 || ny < y0 || nx > x1 || ny > y1) continue;
+        const n = ny * tw + nx, c = n === a ? 1 : coste(n);
+        if (c === Infinity) continue;
+        const nd = d + c;
+        if (nd < (dist.get(n) ?? Infinity)) { dist.set(n, nd); prev.set(n, t); meter(nd, n); }
+      }
+    }
+    if (!prev.has(a)) return null;
+    const camino = [a];
+    while (camino[camino.length - 1] !== de) camino.push(prev.get(camino[camino.length - 1]));
+    return camino.reverse();
+  }
+  // Las calles de una ciudad: una cruz alrededor de la plaza.
+  function calles(m, r) {
+    const v = m.vida, cx = (r % m.W) * SUB + 2, cy = (r / m.W | 0) * SUB + 2, out = [];
+    for (let d = -2; d <= 2; d++) { out.push(cy * v.tw + cx + d); out.push((cy + d) * v.tw + cx); }
+    return [...new Set(out)].filter(t => t >= 0 && t < v.tw * v.th);
+  }
+  const rutaActiva = (m, ru) => { const a = S().civ(m, ru.a), b = S().civ(m, ru.b); return a && a.viva && b && b.viva && (a === b || !S().enGuerra(a, b)); };
+  function planificarRutas(m, ter) {
+    const v = m.vida;
+    // Fuera las rutas cuyos extremos ya no valen (ciudad conquistada, capital movida, pueblo muerto).
+    v.rutas = v.rutas.filter(ru => {
+      const a = S().civ(m, ru.a), b = S().civ(m, ru.b);
+      if (!a || !a.viva || !b || !b.viva) return false;
+      if (ru.tipo === 'interna') return a.capital === ru.ra && m.dueno[ru.rb] === a.id && (m.ciudades || []).some(x => x.region === ru.rb);
+      if (ru.tipo === 'externa') return a.capital === ru.ra && b.capital === ru.rb;
+      return m.dueno[ru.ra] === a.id;
+    });
+    const hay = clave => v.rutas.some(ru => ru.clave === clave);
+    let nuevas = 0;
+    const abrir = (ru, de, a) => {
+      if (nuevas >= 3) return;
+      const tiles = trazar(m, de, a, ter);
+      nuevas++;
+      if (tiles && tiles.length > 2) { ru.id = v.sig++; ru.tiles = tiles; v.rutas.push(ru); return true; }
+      return false;
+    };
+    for (const c of S().vivas(m)) {
+      if (!hay('c:' + c.capital)) v.rutas.push({ id: v.sig++, clave: 'c:' + c.capital, tipo: 'calle', a: c.id, b: c.id, ra: c.capital, rb: c.capital, tiles: calles(m, c.capital) });
+      for (const x of (m.ciudades || []).filter(x => x.civ === c.id)) {
+        if (!hay('c:' + x.region)) v.rutas.push({ id: v.sig++, clave: 'c:' + x.region, tipo: 'calle', a: c.id, b: c.id, ra: x.region, rb: x.region, tiles: calles(m, x.region) });
+        const clave = 'i:' + c.capital + ':' + x.region;
+        if (!hay(clave)) abrir({ clave, tipo: 'interna', a: c.id, b: c.id, ra: c.capital, rb: x.region }, centro(m, c.capital), centro(m, x.region));
+      }
+    }
+    // Rutas entre reinos: vecinos (o casi) en paz que se llevan bien, o con un tratado de comercio.
+    const vivas = S().vivas(m);
+    for (const a of vivas) for (const b of vivas) {
+      if (a.id >= b.id || S().enGuerra(a, b) || S().distancia(a.capital, b.capital) > 22) continue;
+      const tratado = (a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id));
+      if (!tratado && (a.rel[b.id] || 0) < 12) continue;
+      const externas = c => v.rutas.filter(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)).length;
+      if (!tratado && (externas(a) >= 2 || externas(b) >= 2)) continue;
+      const clave = 'e:' + a.capital + ':' + b.capital;
+      if (hay(clave)) continue;
+      if (abrir({ clave, tipo: 'externa', a: a.id, b: b.id, ra: a.capital, rb: b.capital }, centro(m, a.capital), centro(m, b.capital)))
+        S().cronica(m, 'comercio', 'Ruta comercial entre ' + a.nombre + ' y ' + b.nombre, 'Las carretas de ' + a.nombre + ' y ' + b.nombre + ' empiezan a ir y venir por un camino nuevo: sal, tela, metal y noticias.', a);
+    }
+    // Lo que falta por empedrar, por pueblo (en su tierra o en tierra de nadie).
+    v.pendientes = {};
+    for (const ru of v.rutas) {
+      if (!rutaActiva(m, ru)) continue;
+      for (const t of ru.tiles) {
+        if (v.camino[t] || ter[t] === 'agua' || ter[t] === 'bajo') continue;
+        const o = v.obra[t];
+        if (o === OBRA.casa || o === OBRA.campo || o === OBRA.ruina) continue;
+        const d = m.dueno[region(m, t)], quien = d >= 0 ? (d === ru.a || d === ru.b ? d : -1) : ru.a;
+        if (quien >= 0) (v.pendientes[quien] = v.pendientes[quien] || []).push(t);
+      }
+    }
+    for (const c of m.civs) c.rutas = v.rutas.filter(ru => ru.tipo !== 'calle' && (ru.a === c.id || ru.b === c.id) && rutaActiva(m, ru)).length;
   }
 
   // ---------- Los animales: ovejas y vacas junto a las aldeas, ciervos en los bosques, peces en el agua ----------
@@ -632,7 +806,8 @@
         else if (ob === OBRA.campo && azar(v) < 0.25) cambiar(m, 'obra', t, 0, F);
         else if (ob === OBRA.ruina && azar(v) < 0.04) cambiar(m, 'obra', t, 0, F);
       } else if (ob === OBRA.ruina && azar(v) < 0.02) cambiar(m, 'obra', t, 0, F);
-      if (v.obra[t] || v.roca[t] || tierra === 'rio' || tierra === 'arena' || tierra === 'agua' || tierra === 'bajo') continue;
+      if (v.camino[t] && dueno < 0 && azar(v) < 0.01) cambiar(m, 'camino', t, 0, F);
+      if (v.obra[t] || v.roca[t] || v.camino[t] || tierra === 'rio' || tierra === 'arena' || tierra === 'agua' || tierra === 'bajo') continue;
       const a = v.arbol[t];
       if (a === 1 || a === 2) { if (azar(v) < 0.4) cambiar(m, 'arbol', t, a + 1, F); continue; }
       if (a) continue;
@@ -731,10 +906,10 @@
       else if (o === OBRA.campo) campos[d] = (campos[d] || 0) + 1;
       if (v.arbol[t] >= 2) arboles[d] = (arboles[d] || 0) + 1;
     }
-    const gente = {}, guerreros = {}, armados = {};
-    for (const a of v.aldeanos) { gente[a.c] = (gente[a.c] || 0) + 1; if (a.o === GUERRERO) { guerreros[a.c] = (guerreros[a.c] || 0) + 1; if ((a.arma || 0) > 0) armados[a.c] = (armados[a.c] || 0) + 1; } }
+    const gente = {}, guerreros = {}, armados = {}, comerciantes = {};
+    for (const a of v.aldeanos) { gente[a.c] = (gente[a.c] || 0) + 1; if (a.o === GUERRERO) { guerreros[a.c] = (guerreros[a.c] || 0) + 1; if ((a.arma || 0) > 0) armados[a.c] = (armados[a.c] || 0) + 1; } if (a.o === COMERCIANTE) comerciantes[a.c] = (comerciantes[a.c] || 0) + 1; }
     for (const c of m.civs) {
-      c.casas = Math.round(casas[c.id] || 0); c.campos = campos[c.id] || 0; c.arboles = arboles[c.id] || 0; c.aldeanos = gente[c.id] || 0; c.guerreros = guerreros[c.id] || 0; c.armados = armados[c.id] || 0;
+      c.casas = Math.round(casas[c.id] || 0); c.campos = campos[c.id] || 0; c.arboles = arboles[c.id] || 0; c.aldeanos = gente[c.id] || 0; c.guerreros = guerreros[c.id] || 0; c.armados = armados[c.id] || 0; c.comerciantes = comerciantes[c.id] || 0;
       c.metal = c.metal || 0; c.oro = c.oro || 0;
       c.madera = c.madera || 0; c.piedra = c.piedra || 0;
     }
@@ -815,5 +990,5 @@
     contar(m);
   }
 
-  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
