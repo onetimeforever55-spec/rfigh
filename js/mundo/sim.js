@@ -172,7 +172,7 @@
       cronica(m, 'sucesion', 'Guerra de sucesión en ' + c.nombre, 'Muere ' + (cargo === 'rey' ? 'el rey ' : 'el ' + cargo + ' ') + viejo + ' y tres pretendientes reclaman el poder. Gana ' + nombreRey(c) + ', ' + M.RASGOS[c.rey.rasgo].nombre + ', pero el reino queda partido en bandos.', c, null, { importante: true });
       const cs = casillas(m, c);
       if (cs.length >= 14 * K && azar(m) < 0.3) separar(m, c, cs);
-    } else if (detalle && (c.jugador || azar(m) < 0.25)) {
+    } else if (detalle && (c.jugador || (vivas(m).slice().sort((p, q) => q.pob - p.pob).indexOf(c) < 3 && azar(m) < 0.35))) {
       cronica(m, 'sucesion', nombreRey(c) + ' gobierna ' + c.nombre, 'Muere ' + viejo + ' a los ' + Math.round(c.rey.edad) + ' años, más o menos. Le sucede ' + nombreRey(c) + ', de quien dicen que es ' + M.RASGOS[c.rey.rasgo].nombre + '.', c);
     }
   }
@@ -320,7 +320,11 @@
     c.riqueza = c.riqueza * 0.93 + n * 0.4 * (c.era + 1) + enPaz.filter(v => (c.rel[v.id] || 0) > 10).length * 2 * car.comercio;
     c.riqueza *= 1 + (foco(c, 'riqueza') * rasgo(c, 'riqueza') - 1) * 0.1;
     // Ciencia: gente, estabilidad, carácter, y los inventos que se copian de vecinos más avanzados.
-    const copia = enPaz.reduce((k, v) => k + Math.max(0, v.era - c.era) * 3, 0);
+    const copia = enPaz.reduce((k, v) => k + Math.max(0, v.era - c.era) * 3, 0)
+      // Las ideas viajan lejos: algo llega siempre del pueblo más avanzado del mundo.
+      + Math.max(0, Math.max(...vivas(m).map(o => o.era)) - c.era) * 2
+      // Las ciudades y las rutas comerciales son donde se juntan sabios, libros y noticias.
+      + ((m.ciudades || []).filter(x => x.civ === c.id).length * 1.2 + (c.rutas || 0) * 1.5);
     // Cada era acelera la siguiente: la escritura, la imprenta y la ciencia se apoyan unas en otras.
     c.ciencia += Math.sqrt(c.pob) * 0.55 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia;
     const sig = M.ERAS[c.era + 1];
@@ -471,11 +475,11 @@
    */
   const maxCiudades = c => 2 + Math.floor(c.era / 2) + (c.rey && c.rey.rasgo === 'constructor' ? 1 : 0);
   function motivosLealtad(m, c, x) {
-    const out = [['base', 30]];
+    const out = [['base', 40]];
     const d = distancia(x.region, c.capital);
-    if (d > 6) out.push(['lejos de la capital', -Math.round((d - 6) * 1.5)]);
+    if (d > 8) out.push(['lejos de la capital', -Math.round((d - 8) * 1.2)]);
     const suyas = (m.ciudades || []).filter(y => y.civ === c.id).length;
-    if (suyas > maxCiudades(c)) out.push(['demasiadas ciudades (' + suyas + ' de ' + maxCiudades(c) + ')', -25 * (suyas - maxCiudades(c))]);
+    if (suyas > maxCiudades(c)) out.push(['demasiadas ciudades (' + suyas + ' de ' + maxCiudades(c) + ')', -15 * (suyas - maxCiudades(c))]);
     const rey = c.rey ? ({ justo: 10, sabio: 5, constructor: 5, cruel: -15, loco: -20, codicioso: -5 }[c.rey.rasgo] || 0) : 0;
     if (rey) out.push(['su ' + titulo(c) + ' es ' + M.RASGOS[c.rey.rasgo].nombre, rey]);
     const alcalde = { leal: 15, ambicioso: -15, codicioso: -5 }[x.rasgo] || 0;
@@ -494,7 +498,7 @@
       x.lealtad = x.motivos.reduce((k, y) => k + y[1], 0);
       if (x.lealtad < 0) {
         if (x.complot == null) { x.complot = 0; cronica(m, 'complot', x.alcalde + ' conspira en ' + x.nombre, 'El alcalde de ' + x.nombre + ' reúne a los notables de la ciudad: ya no quieren obedecer a ' + c.nombre + '. ' + (x.motivos.filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0] || ['', 0])[0].replace(/^./, l => l.toUpperCase()) + '.', c, x.region); }
-        x.complot += 20 + Math.min(40, -x.lealtad / 2);
+        x.complot += 10 + Math.min(20, -x.lealtad / 3);
         if (x.complot >= 100) rebelarCiudad(m, c, x);
       } else if (x.lealtad >= 10) x.complot = null;
     }

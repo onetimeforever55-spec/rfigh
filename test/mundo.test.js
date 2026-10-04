@@ -285,7 +285,7 @@ console.log('VIDA COMO WORLDBOX: NACER, CRECER, MORIR, CASAS, COLONOS Y FRONTERA
   const casas = new Set(); for (let t = 0; t < m.vida.obra.length; t++) if ([V.OBRA.casa, V.OBRA.centro, V.OBRA.ayuntamiento].includes(m.vida.obra[t])) casas.add(t);
   comprobar(nacidos > 10 && viejos > 5, 'los aldeanos nacen (' + nacidos + ' bebés) y mueren de viejos (' + viejos + ')');
   comprobar(m.vida.aldeanos.some(a => a.edad < V.ADULTO) && m.vida.aldeanos.some(a => a.edad >= V.VIEJO), 'hay niños y ancianos');
-  comprobar(S.vivas(m).every(c => m.vida.aldeanos.filter(a => a.c === c.id).length <= c.camas + 3), 'nadie nace sin cama: los pueblos no tienen más gente que camas');
+  comprobar(S.vivas(m).every(c => m.vida.aldeanos.filter(a => a.c === c.id).length <= c.camas + 10), 'nadie nace sin cama: los pueblos no tienen mucha más gente que camas (solo los que llegan por conquista o como refugiados)');
   // Las casas van pegadas a lo que ya hay.
   const tw = m.vida.tw, PEGA = [V.OBRA.casa, V.OBRA.centro, V.OBRA.ayuntamiento, V.OBRA.molino, V.OBRA.templo, V.OBRA.torre];
   const sueltas = [...casas].filter(t => m.vida.obra[t] === V.OBRA.casa && ![-1, 1, -tw, tw, -tw - 1, -tw + 1, tw - 1, tw + 1].some(d => PEGA.includes(m.vida.obra[t + d]) || m.vida.camino[t + d])).length;

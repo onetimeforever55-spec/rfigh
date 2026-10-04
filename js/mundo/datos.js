@@ -13,13 +13,13 @@
   M.ERAS = [
     { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
     { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
-    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 112, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 300, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 800, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1400, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2000, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 2120, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 2260, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 425, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1200, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2150, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2850, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 3000, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 3180, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
