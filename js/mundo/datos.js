@@ -14,12 +14,12 @@
     { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
     { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 15, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
     { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 100, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 232, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 610, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1080, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 1500, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 1580, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 1690, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 222, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 550, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 940, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 1360, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 1440, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 1540, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
@@ -101,6 +101,7 @@
     nuevo_pueblo: [['Los pueblos de las estepas y los desiertos aparecen de pronto en la historia y la cambian.', 'Los mongoles de Gengis Kan pasaron de tribus enfrentadas a dominar de Corea a Hungría en cincuenta años.']],
     abundancia: [['Las buenas cosechas llenan los graneros y las cunas.', 'La patata y el maíz de América duplicaron la población de muchos países de Europa y de China en dos siglos.']],
     destruccion: [['Algunas civilizaciones desaparecen de golpe y dejan solo ruinas.', 'La erupción del Vesubio en el año 79 sepultó Pompeya en un día; la de Tera, siglos antes, quizá acabó con la Creta minoica.']],
+    complot: [['Las guerras rara vez estallan de repente: antes se traman en las cortes, y quien las ve venir puede evitarlas.', 'El plan Schlieffen para invadir Francia por Bélgica se preparó durante casi diez años antes de 1914.']],
     alianza: [['Las alianzas se firman por miedo a un tercero más que por amistad, y arrastran a la guerra a quien las firma.', 'En 1914 una red de alianzas convirtió el asesinato de un archiduque en Sarajevo en una guerra mundial en cinco semanas.']],
     sucesion: [['En una monarquía, cada muerte del rey es una apuesta: un heredero claro trae calma; uno dudoso, guerra.', 'La guerra de Sucesión española (1701-1714) enfrentó a media Europa por quién heredaba el trono de un rey sin hijos.']],
     ciudad: [['Donde se juntan caminos, mercados y graneros nace una ciudad, y con ella gente que ya no obedece solo al rey.', 'Las ciudades italianas de la Edad Media, como Florencia o Venecia, acabaron gobernándose solas.']],

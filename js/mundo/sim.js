@@ -407,37 +407,75 @@
   }
 
   // ---------- Las relaciones entre pueblos ----------
+  /*
+   * LA OPINIÓN ENTRE REINOS, como en WorldBox: cada uno tiene una opinión objetivo hecha de motivos
+   * concretos (compartir frontera, un enemigo común, el carácter del pueblo, el talante de los reyes, las
+   * guerras recientes, los tratados) y la opinión real se acerca a ella poco a poco.
+   */
+  function motivos(m, a, b) {
+    const out = [];
+    const juntos = vecinosDe(m, a).includes(b);
+    out.push(juntos ? ['comparten frontera', -25] : ['no comparten frontera', 10]);
+    if (a.guerras.some(g => b.guerras.some(h => h.con === g.con)) && !enGuerra(a, b)) out.push(['enemigo común', 50]);
+    out.push(a.caracter === b.caracter ? ['mismo carácter (' + M.CARACTERES[a.caracter].nombre + ')', 15] : ['costumbres distintas', -5]);
+    const talante = x => (x.rey ? ({ pacifico: 10, justo: 5, guerrero: -10, cruel: -10, loco: -15 }[x.rey.rasgo] || 0) : 0);
+    if (talante(a) + talante(b)) out.push(['el talante de sus gobernantes', talante(a) + talante(b)]);
+    if (aliados(m, a, b)) out.push(['son aliados', 30]);
+    if ((a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id))) out.push(['tratado de comercio', 20]);
+    if (m.vida && (m.vida.rutas || []).some(r => r.tipo === 'externa' && ((r.a === a.id && r.b === b.id) || (r.a === b.id && r.b === a.id)))) out.push(['ruta comercial', 15]);
+    if (Math.abs(a.era - b.era) >= 2) out.push(['los ven como bárbaros (otra época)', -10]);
+    const t = (m.memoria || {})[Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id)];
+    if (t != null && m.turno - t < 15) out.push(['guerra reciente', -Math.round(40 * (1 - (m.turno - t) / 15))]);
+    if (enGuerra(a, b)) out.push(['están en guerra', -60]);
+    return out;
+  }
+  const opinionObjetivo = (m, a, b) => motivos(m, a, b).reduce((k, x) => k + x[1], 0);
+
   function diplomacia(m) {
     const lista = vivas(m);
+    m.complots = (m.complots || []).filter(p => { const a = civ(m, p.de), b = civ(m, p.contra); return a && a.viva && b && b.viva; });
     for (const a of lista) {
       const vec = vecinosDe(m, a);
       for (const b of lista) {
         if (a.id >= b.id) continue;
         const juntos = vec.includes(b);
-        const ca = M.CARACTERES[a.caracter], cb = M.CARACTERES[b.caracter];
         let r = a.rel[b.id] || 0;
-        // La frontera roza; el comercio acerca; el tiempo cura.
-        // La opinión: la frontera roza y el comercio acerca; también acercan el mismo carácter, los gobernantes
-        // pacíficos y, sobre todo, tener un enemigo común. El tiempo lo cura todo poco a poco.
-        const comun = a.guerras.some(g => b.guerras.some(h => h.con === g.con));
-        const talante = x => (rasgo(x, 'agresion') < 1 ? 0.4 : rasgo(x, 'agresion') > 1.3 ? -0.4 : 0);
-        r += (juntos ? -1.2 * (ca.agresion + cb.agresion) / 2 + 0.8 * (ca.comercio + cb.comercio) / 2 : (a.era >= 2 && b.era >= 2 ? 0.35 * (ca.comercio + cb.comercio) / 2 : 0)) +
-          (a.caracter === b.caracter ? 0.6 : 0) + talante(a) + talante(b) + (comun ? 3 : 0) - r * 0.04 + (azar(m) - 0.5) * 3;
-        // Los tratados de comercio de un jugador acercan a los dos pueblos cada año.
-        if ((a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id))) r += 3;
-        if (aliados(m, a, b)) r += 2;
+        r += (opinionObjetivo(m, a, b) - r) * 0.15 + (azar(m) - 0.5) * 3;
         a.rel[b.id] = b.rel[a.id] = Math.max(-100, Math.min(100, r));
-        // Los que se llevan muy bien acaban aliados (sobre todo si temen a un vecino común); los que se enfrían, rompen.
-        if (aliados(m, a, b)) { if (r < 5) romper(m, a, b); }
-        else if (!a.jugador && !b.jugador && r > 22 && !enGuerra(a, b) && aliadosDe(m, a).length < 2 && aliadosDe(m, b).length < 2 && azar(m) < 0.08) aliar(m, a, b);
-        if (!juntos || aliados(m, a, b)) continue;
-        if (!enGuerra(a, b)) {
-          const fa = fuerza(m, a), fb = fuerza(m, b);
-          const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
-          const ganas = M.CARACTERES[agresor.caracter].agresion * rasgo(agresor, 'agresion') * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
-          if (!agresor.jugador && agresor.guerras.length < 2 && (r < -55 || (ganas > 2.2 && r < 10)) && azar(m) < 0.12) declararGuerra(m, agresor, victima, null);
-        }
+        if (aliados(m, a, b)) { if (r < 0) romper(m, a, b); continue; }
+        if (a.jugador || b.jugador || enGuerra(a, b)) continue;
+        // Los complots: las guerras y las alianzas se traman antes de pasar (y se ven venir).
+        if (r > 25 && aliadosDe(m, a).length < 2 && aliadosDe(m, b).length < 2 && azar(m) < 0.15) tramar(m, 'alianza', a, b);
+        if (!juntos) continue;
+        const fa = fuerza(m, a), fb = fuerza(m, b);
+        const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
+        const ganas = M.CARACTERES[agresor.caracter].agresion * rasgo(agresor, 'agresion') * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
+        if (!agresor.jugador && agresor.guerras.length < 2 && (r < -40 || (ganas > 2.2 && r < 10)) && azar(m) < 0.15) tramar(m, 'guerra', agresor, victima);
       }
+    }
+    avanzarComplots(m);
+  }
+
+  // Un complot nuevo (si no hay ya uno igual): lo trama el gobernante de "de" contra (o con) "contra".
+  function tramar(m, tipo, de, contra) {
+    m.complots = m.complots || [];
+    if (m.complots.some(p => p.de === de.id && p.tipo === tipo) || m.complots.some(p => p.tipo === tipo && p.de === contra.id && p.contra === de.id)) return;
+    const p = { tipo, de: de.id, contra: contra.id, progreso: 0, desde: m.turno };
+    m.complots.push(p);
+    if (tipo === 'guerra') cronica(m, 'complot', nombreRey(de) + ' trama una guerra contra ' + contra.nombre, 'En la corte de ' + de.nombre + ' se habla de mapas, de levas y de una afrenta que nadie recuerda bien. Si nada lo impide, habrá guerra.', de);
+    return p;
+  }
+  function avanzarComplots(m) {
+    for (const p of (m.complots || []).slice()) {
+      const a = civ(m, p.de), b = civ(m, p.contra), r = a.rel[b.id] || 0;
+      // Se abandonan si las cosas cambian: la opinión mejora, o empeora para una alianza.
+      const sigue = p.tipo === 'guerra' ? r < 25 && !aliados(m, a, b) && a.guerras.length < 2 && !enGuerra(a, b) : r > 10 && !enGuerra(a, b) && !aliados(m, a, b);
+      if (!sigue) { m.complots = m.complots.filter(x => x !== p); continue; }
+      p.progreso += p.tipo === 'guerra' ? 15 + 10 * rasgo(a, 'agresion') + azar(m) * 10 : 20 + azar(m) * 15;
+      if (p.progreso < 100) continue;
+      m.complots = m.complots.filter(x => x !== p);
+      if (p.tipo === 'guerra') declararGuerra(m, a, b, 'El complot de ' + nombreRey(a) + ' culmina: ' + a.nombre + ' declara la guerra a ' + b.nombre + '.');
+      else aliar(m, a, b);
     }
   }
 
@@ -446,6 +484,7 @@
     if (aliados(m, a, b)) romper(m, a, b, a.nombre + ' traiciona a su aliado ' + b.nombre + ': la alianza se rompe el mismo día que cruzan la frontera.');
     a.guerras.push({ con: b.id, desde: m.turno, cansancio: 0 });
     b.guerras.push({ con: a.id, desde: m.turno, cansancio: 0 });
+    m.complots = (m.complots || []).filter(p => !(p.tipo === 'guerra' && p.de === a.id && p.contra === b.id));
     a.rel[b.id] = b.rel[a.id] = Math.min(a.rel[b.id] || 0, -50);
     const e = cronica(m, 'guerra', 'Guerra entre ' + a.nombre + ' y ' + b.nombre, motivo || (a.nombre + ' cruza la frontera de ' + b.nombre + '. ' + elegir(m, ['Dicen que por un pozo.', 'Dicen que por un insulto a sus dioses.', 'Dicen que por unas ovejas.', 'Dicen que por un matrimonio que no se celebró.', 'Nadie recuerda ya por qué.'])), a, frontera(m, b, a)[0]);
     // Los aliados entran: los de la víctima casi siempre (para eso juraron), los del agresor a veces.
@@ -458,6 +497,7 @@
   }
 
   function hacerPaz(m, a, b, motivo) {
+    (m.memoria = m.memoria || {})[Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id)] = m.turno;
     a.guerras = a.guerras.filter(g => g.con !== b.id);
     b.guerras = b.guerras.filter(g => g.con !== a.id);
     a.rel[b.id] = b.rel[a.id] = 0;
@@ -569,5 +609,5 @@
   }
 
   M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, aliados, aliadosDe, aliar, romper, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

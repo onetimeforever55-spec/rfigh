@@ -136,6 +136,7 @@
       fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
       fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
       (S.aliadosDe(m, c).length ? fila('Aliados', esc(S.aliadosDe(m, c).map(o => o.nombre).join(', '))) : '') +
+      (complotsDe(c) ? fila('Complots', complotsDe(c)) : '') +
       fila('Opinión', opiniones(c)) + '</dl>' +
       (c.jugador ? planDe(c) : '') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
@@ -163,18 +164,23 @@
   }
 
   const NOMBRES_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros', comerciante: 'comerciantes' };
-  // Lo que piensa este pueblo de los demás, de mejor a peor.
+  // Lo que piensa este pueblo de los demás, de mejor a peor, con el motivo que más pesa.
   function opiniones(c) {
     const palabra = r => (r > 40 ? 'amistad' : r > 15 ? 'cordial' : r > -15 ? 'neutral' : r > -45 ? 'tensa' : 'hostil');
     const otros = S.vivas(m).filter(o => o.id !== c.id).sort((a, b) => (c.rel[b.id] || 0) - (c.rel[a.id] || 0));
-    return otros.slice(0, 6).map(o => { const r = Math.round(c.rel[o.id] || 0); return '<span class="' + (r <= -45 || S.enGuerra(c, o) ? 'rojo' : '') + '">' + esc(o.nombre) + '</span> <span class="tenue">' + (S.enGuerra(c, o) ? 'en guerra' : palabra(r)) + '</span>'; }).join(' · ') || '<span class="tenue">no conoce a nadie</span>';
+    return otros.slice(0, 6).map(o => {
+      const r = Math.round(c.rel[o.id] || 0), mot = S.motivos(m, c, o).slice().sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))[0];
+      return '<span class="' + (r <= -45 || S.enGuerra(c, o) ? 'rojo' : '') + '">' + esc(o.nombre) + '</span> <span class="tenue">' + (S.enGuerra(c, o) ? 'en guerra' : palabra(r) + ' ' + (r > 0 ? '+' : '') + r) + (mot ? ' (' + esc(mot[0]) + ')' : '') + '</span>';
+    }).join('<br>') || '<span class="tenue">no conoce a nadie</span>';
   }
-  function comercioDe(c) {
-    const rutas = (m.vida.rutas || []).filter(r => r.tipo !== 'calle' && (r.a === c.id || r.b === c.id));
-    if (!rutas.length) return '<span class="tenue">sin rutas todavía (llegan con las ciudades y con los vecinos amigos)</span>';
-    const fuera = rutas.filter(r => r.tipo === 'externa').map(r => (S.civ(m, r.a === c.id ? r.b : r.a) || {}).nombre).filter(Boolean);
-    const hecho = Math.round(100 * rutas.reduce((k, r) => k + r.tiles.filter(t => m.vida.camino[t]).length, 0) / Math.max(1, rutas.reduce((k, r) => k + r.tiles.length, 0)));
-    return rutas.length + ' ruta' + (rutas.length > 1 ? 's' : '') + (fuera.length ? ' (con ' + esc(fuera.join(', ')) + ')' : ' internas') + ' <span class="tenue">· ' + (c.comerciantes || 0) + ' comerciantes con carreta · caminos al ' + hecho + '%</span>';
+  // Los complots en marcha que tocan a este pueblo, con su progreso.
+  function complotsDe(c) {
+    const l = (m.complots || []).filter(p => p.de === c.id || p.contra === c.id);
+    return l.map(p => {
+      const a = S.civ(m, p.de), b = S.civ(m, p.contra);
+      const texto = p.tipo === 'guerra' ? (p.de === c.id ? 'trama una guerra contra ' + b.nombre : a.nombre + ' trama una guerra contra él') : 'negocia una alianza con ' + (p.de === c.id ? b.nombre : a.nombre);
+      return '<span class="' + (p.tipo === 'guerra' ? 'rojo' : '') + '">' + esc(texto) + '</span> <span class="barra"><span style="width:' + Math.min(100, Math.round(p.progreso)) + '%"></span></span> <span class="tenue">' + Math.min(100, Math.round(p.progreso)) + '%</span>';
+    }).join('<br>');
   }
   function ciudadesDe(c) {
     const l = (m.ciudades || []).filter(x => x.civ === c.id);
