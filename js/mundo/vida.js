@@ -136,29 +136,30 @@
   // ---------- Los aldeanos de cada pueblo ----------
   const cuantos = c => Math.max(3, Math.min(40, Math.round(2 + Math.sqrt(Math.max(0, c.pob)) * 1.5)));
 
+  /*
+   * EL GOBERNADOR AUTOMÁTICO: cada pueblo (también el del jugador) reparte el trabajo según lo que le falta.
+   * Poca madera → más leñadores; la gente cerca del límite de comida → más granjeros; faltan casas → más
+   * constructores; guerra → guerreros. Las prioridades del jugador (0 a 2) pesan sobre esas necesidades.
+   */
+  const PRIO_OFICIO = ['madera', 'comida', 'casas', 'piedra', 'ejercito'];
+  const prio = (c, k) => (c.plan && c.plan.prioridad && c.plan.prioridad[k] != null ? c.plan.prioridad[k] : 1);
+  const metaMadera = c => 30 + 12 * c.era;
   function reparto(c, recursos) {
     const guerra = c.guerras.length > 0;
-    const p = [0, 0, 0.15, c.era >= 1 ? 0.14 : 0.05, guerra ? 0.34 : c.era >= 2 ? 0.08 : 0.05];
-    if (!recursos.rocas) { p[LENADOR] += p[MINERO]; p[MINERO] = 0; }
-    const resto = 1 - p.reduce((a, b) => a + b, 0);
-    p[LENADOR] += resto * (recursos.arboles ? 0.55 : 0); p[GRANJERO] += resto * (recursos.arboles ? 0.45 : 1);
-    // Un jugador reparte los oficios a su gusto (mando.js): pesa tres veces más que la costumbre.
-    const plan = c.plan && c.plan.oficios;
-    if (plan) {
-      // "Más X" se lleva su parte del trabajo; "menos X" lo deja casi a cero.
-      const quiere = OFICIOS.map(o => (typeof plan[o] === 'number' ? plan[o] : null));
-      const total = quiere.reduce((k, w) => k + (w > 0.1 ? w : 0), 0), parte = Math.min(0.9, total);
-      const q = p.map((x, i) => {
-        const w = quiere[i];
-        if (w !== null && w <= 0.1) return w;
-        return x * (1 - parte) + (w !== null ? w / total * parte : 0);
-      });
-      if (!recursos.arboles) q[LENADOR] = 0;
-      if (!recursos.rocas) q[MINERO] = 0;
-      const suma = q.reduce((k, x) => k + x, 0) || 1;
-      return q.map(x => x / suma);
+    const lleno = c.cap ? c.pob / c.cap : 0.8;
+    const p = [
+      recursos.arboles ? 0.18 + 0.4 * Math.max(0, 1 - (c.madera || 0) / metaMadera(c)) : 0,
+      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0),
+      (c.casas || 0) < metaCasas(c) ? 0.16 : 0.06,
+      recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) : 0.04) : 0,
+      guerra ? 0.34 : c.era >= 2 ? 0.07 : 0.04
+    ];
+    for (let i = 0; i < p.length; i++) {
+      const w = prio(c, PRIO_OFICIO[i]);
+      p[i] *= w === 0 ? 0.03 : w;
     }
-    return p;
+    const suma = p.reduce((k, x) => k + x, 0) || 1;
+    return p.map(x => x / suma);
   }
 
   function hogar(m, c, cs) {
@@ -201,7 +202,7 @@
       const tiene = [0, 0, 0, 0, 0];
       for (const a of lista) tiene[a.o]++;
       for (const a of lista) {
-        if (a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && !(c.plan && c.plan.oficios && c.plan.oficios.guerrero))) continue;
+        if (a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
         const falta = p.map((x, i) => x * lista.length - tiene[i] + (i === a.o ? 1 : 0));
         const mejor = falta.indexOf(Math.max(...falta));
         if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; }
@@ -320,8 +321,8 @@
     a.paseo = 0;
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
-    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * (1 + 4 * ((c.plan && c.plan.oficios && c.plan.oficios.lenador) || 0))) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
-    else if (a.o === MINERO && c.piedra < 30 + 10 * c.era) t = cercano(m, a, rec.rocas, rec.reservadas, 16);
+    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
+    else if (a.o === MINERO && c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'))) t = cercano(m, a, rec.rocas, rec.reservadas, 16);
     else if (a.o === GRANJERO) t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
     else if (a.o === CONSTRUCTOR) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
     else if (a.o === GUERRERO && rec.enemigos.length) {
@@ -336,8 +337,8 @@
     }
     pasear(m, a, ter, c);
   }
-  const metaCampos = c => Math.round(4 + c.pob * 0.22);
-  const metaCasas = c => Math.round((2 + c.pob * 0.12) * (c.plan && c.plan.foco === 'construir' ? 1.6 : 1));
+  const metaCampos = c => Math.round((4 + c.pob * 0.22) * (0.6 + 0.4 * prio(c, 'comida')));
+  const metaCasas = c => Math.round((2 + c.pob * 0.12) * (0.4 + 0.6 * prio(c, 'casas')));
 
   // Una parcela libre cerca de casa: primero en su región, luego en las regiones propias de alrededor.
   function libre(m, a, c, rec, ter, sirve) {

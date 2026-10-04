@@ -45,7 +45,7 @@
       X.gobernar(m, c ? c.id : null);
       sel = m.jugador; P.seleccionar(sel);
       if (c) P.centrarEn(c.capital);
-      responder(c ? 'Gobiernas ' + c.nombre + '. Dale órdenes a tu gente: talar, sembrar, construir, expandirse, guerra o paz con los vecinos, ciencia, comercio… Los demás pueblos viven a su aire.' : '', 'bien');
+      responder(c ? 'Gobiernas ' + c.nombre + '. Tu pueblo se gobierna solo, como los demás: tú decides qué le importa más (madera, comida, piedra, casas, ejército, ciencia, riqueza, expansión) y las grandes decisiones (guerra, paz, tratados, gobierno).' : '', 'bien');
     } else {
       X.gobernar(m, null);
       responder('Eres el dios de este mundo. Escribe lo que quieras que pase.', 'bien');
@@ -57,7 +57,7 @@
     const c = tuPueblo();
     $('etiqueta-orden').textContent = c ? 'Tus órdenes a ' + c.nombre : 'Tu voluntad';
     $('boton-orden').textContent = c ? 'Ordenar' : 'Obrar';
-    $('orden').placeholder = c ? 'Talad el bosque, construid casas, expandíos hacia el norte, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
+    $('orden').placeholder = c ? 'Más madera, menos ejército, todo a la ciencia, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
     $('voluntad').classList.toggle('es-pueblo', !!c);
     pintarEjemplos();
   }
@@ -138,19 +138,21 @@
     if (b) b.addEventListener('click', () => elegirModo('pueblo', c.id));
   }
 
-  const FOCO = { ciencia: 'ciencia', crecer: 'crecer', comercio: 'riqueza y comercio', ejercito: 'ejército', construir: 'construir' };
+  // Las prioridades de tu pueblo como barras: el pueblo se gobierna solo y esto es lo que pesa en sus decisiones.
   function planDe(c) {
-    const p = c.plan || {}, l = [];
-    l.push(fila('Foco', p.foco ? FOCO[p.foco] : 'ninguno (cada uno a lo suyo)'));
-    const of = p.oficios ? Object.keys(p.oficios).filter(k => p.oficios[k] > 0.1).map(k => NOMBRES_OFICIO[k]) : [];
-    if (of.length) l.push(fila('Prioridad', 'más ' + esc(of.join(', '))));
-    const rumbo = typeof p.rumbo === 'number' ? 'hacia ' + ((S.civ(m, p.rumbo) || {}).nombre || '?') : p.rumbo ? 'hacia el ' + p.rumbo : 'a las mejores tierras';
-    l.push(fila('Expansión', p.expandir === false ? 'parada' : esc(rumbo)));
+    const p = c.plan || {}, pr = p.prioridad || {}, l = [];
+    const barras = Object.keys(X.NOMBRE_RECURSO).map(k => {
+      const v = pr[k] != null ? pr[k] : 1;
+      return '<div class="prio"><span class="prio-nombre">' + X.NOMBRE_RECURSO[k] + '</span><span class="prio-barra" aria-hidden="true">' +
+        [0.5, 1, 1.5, 2].map(x => '<i class="' + (v >= x ? 'lleno' : '') + '"></i>').join('') + '</span><span class="prio-nivel">' + X.NIVEL(v) + '</span></div>';
+    }).join('');
+    const rumbo = typeof p.rumbo === 'number' ? 'hacia ' + ((S.civ(m, p.rumbo) || {}).nombre || '?') : p.rumbo ? 'hacia el ' + p.rumbo : null;
+    if (rumbo && p.expandir !== false) l.push(fila('Rumbo', esc(rumbo)));
     const socios = (p.socios || []).map(id => S.civ(m, id)).filter(o => o && o.viva).map(o => o.nombre);
     if (socios.length) l.push(fila('Tratados', esc(socios.join(', '))));
-    const ofertas = Object.keys(m.ofertas || {}).map(Number).filter(id => S.enGuerra(c, S.civ(m, id) || { id: -1, guerras: [] }) && m.turno - m.ofertas[id] <= 15).map(id => S.civ(m, id).nombre);
+    const ofertas = Object.keys(m.ofertas || {}).map(Number).filter(id => S.civ(m, id) && S.enGuerra(c, S.civ(m, id)) && m.turno - m.ofertas[id] <= 15).map(id => S.civ(m, id).nombre);
     if (ofertas.length) l.push(fila('Te ofrecen paz', '<span class="rojo">' + esc(ofertas.join(', ')) + '</span>'));
-    return '<dl class="plan">' + l.join('') + '</dl>';
+    return '<div class="plan"><p class="plan-titulo">Prioridades <span class="tenue">· tu pueblo se gobierna solo; cámbialas escribiendo («más madera», «menos ejército», «todo a la ciencia»)</span></p><div class="prios">' + barras + '</div>' + (l.length ? '<dl>' + l.join('') + '</dl>' : '') + '</div>';
   }
 
   const NOMBRES_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros' };
@@ -181,7 +183,7 @@
   function pintarEjemplos() {
     const vecino = tuPueblo() && (S.vecinosDe(m, tuPueblo())[0] || S.vivas(m).find(o => o.id !== m.jugador));
     const ej = tuPueblo()
-      ? ['Informe', 'Talad el bosque y construid casas', 'Expandíos hacia el norte', 'Invertid en ciencia', 'Reclutad un ejército', vecino ? 'Atacad a ' + vecino.nombre : 'Atacad al vecino más débil', vecino ? 'Comerciad con ' + vecino.nombre : 'Comerciad con el más rico', 'Como antes']
+      ? ['Informe', 'Más madera', 'Más comida y casas', 'Todo a la ciencia', 'Menos ejército', 'Expandíos hacia el norte', vecino ? 'Atacad a ' + vecino.nombre : 'Atacad al vecino más débil', vecino ? 'Comerciad con ' + vecino.nombre : 'Comerciad con el más rico', 'Como antes']
       : ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Incendio en el más grande', 'Que planten bosques en el más pequeño', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Que llueva oro sobre el más pobre'];
     const cont = $('ejemplos');
     cont.innerHTML = '';
@@ -315,7 +317,7 @@
     const yo = tuPueblo();
     const r = X.ordenar(m, yo.id, texto);
     if (r.ok) { despuesDeOrden(r); return; }
-    if (!sample) { responder('Tu gente no entiende la orden. Prueba con: talad, sembrad, construid casas, picad piedra, reclutad un ejército, expandíos hacia el norte, atacad a X, haced la paz con X, comerciad con X, invertid en ciencia, proclamad la república, informe.', 'duda'); return; }
+    if (!sample) { responder('Tu gente no entiende la orden. Prueba con: más madera, más comida, menos ejército, todo a la ciencia, nada de piedra, expandíos hacia el norte, atacad a X, haced la paz con X, comerciad con X, proclamad la república, informe, como antes.', 'duda'); return; }
     ocupado = true;
     responder('Tus consejeros discuten la orden…', 'espera');
     try {

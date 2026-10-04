@@ -75,6 +75,15 @@ button { cursor: pointer; }
 .inicio-botones .mando { padding: 10px 16px; }
 .plan { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--linea); }
 .gobernar { margin-top: 10px; }
+.plan-titulo { margin: 0 0 8px; font-family: var(--f-dato); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--pergamino); }
+.plan-titulo .tenue { text-transform: none; letter-spacing: 0; font-family: var(--f-libro); font-size: 12px; }
+.prios { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 14px; margin-bottom: 8px; }
+.prio { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.prio-nombre { flex: 1; min-width: 0; }
+.prio-barra { display: inline-flex; gap: 2px; }
+.prio-barra i { width: 8px; height: 10px; background: var(--noche); border: 1px solid var(--linea); }
+.prio-barra i.lleno { background: var(--oro); border-color: var(--oro); }
+.prio-nivel { font-family: var(--f-dato); font-size: 10px; color: var(--tenue); width: 4.6em; text-align: right; }
 .tuyo { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--noche); background: var(--oro); padding: 1px 5px; border-radius: 2px; }
 
 /* ---- La voluntad ---- */
@@ -327,12 +336,18 @@ button { cursor: pointer; }
   const K = (W * H) / 640;
   const TIERRA = { llanura: 3, bosque: 1.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
   const RIO = 2.2;
-  // Lo que cambia cuando un jugador pone a su pueblo a trabajar en algo (mando.js): ciencia, ejército, crecer, comercio.
-  const FOCOS = {
-    ciencia: { ciencia: 1.5, riqueza: 0.9 }, ejercito: { fuerza: 1.35, ciencia: 0.85, riqueza: 0.92 },
-    crecer: { comida: 1.12, ciencia: 0.85 }, comercio: { riqueza: 1.35, ciencia: 1.05 }, construir: {}
-  };
-  const foco = (c, k) => { const f = c.plan && FOCOS[c.plan.foco]; return f && f[k] != null ? f[k] : 1; };
+  // Las prioridades de un jugador (mando.js): 0 nada, 1 normal, 2 máxima. Ciencia, riqueza y ejército
+  // compiten entre sí: subir las tres a la vez no da nada, lo que cuenta es cuál pesa más que las otras.
+  const PRIORIDADES = ['madera', 'comida', 'piedra', 'casas', 'ejercito', 'ciencia', 'riqueza', 'expansion'];
+  const prio = (c, k) => (c.plan && c.plan.prioridad && c.plan.prioridad[k] != null ? c.plan.prioridad[k] : 1);
+  function foco(c, k) {
+    if (!c.plan || !c.plan.prioridad) return 1;
+    const media = (prio(c, 'ciencia') + prio(c, 'riqueza') + prio(c, 'ejercito')) / 3;
+    if (k === 'ciencia') return Math.max(0.4, 1 + 0.5 * (prio(c, 'ciencia') - media));
+    if (k === 'riqueza') return Math.max(0.4, 1 + 0.5 * (prio(c, 'riqueza') - media));
+    if (k === 'fuerza') return Math.max(0.5, 1 + 0.35 * (prio(c, 'ejercito') - media));
+    return 1;
+  }
 
   // ---------- Azar con semilla (mulberry32): el estado vive en el mundo ----------
   function azar(m) {
@@ -441,7 +456,7 @@ button { cursor: pointer; }
     // Las casas y los campos que levantan los aldeanos (vida.js) dan sitio a más gente: una tierra sin
     // obras da un 20 % menos, una tierra bien trabajada, un 20 % más.
     const obras = m.vida ? 0.8 + 0.4 * Math.min(1, ((c.campos || 0) + (c.casas || 0) * 0.5) / ((cs || casillas(m, c)).length * 2.5)) : 1;
-    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 / K * efecto * obras * foco(c, 'comida'));
+    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 / K * efecto * obras);
   }
   function fuerza(m, c, cs) {
     const car = M.CARACTERES[c.caracter];
@@ -532,6 +547,7 @@ button { cursor: pointer; }
     if (m.dueno[c.capital] !== c.id) c.capital = cs.sort((a, b) => fertil(m, b) - fertil(m, a))[0];
     const n = cs.length, car = M.CARACTERES[c.caracter];
     const cap = capacidad(m, c, cs);
+    c.cap = cap;
     // La gente crece mientras haya comida; si se pasa, llega el hambre.
     c.pob += c.pob * 0.14 * (1 - c.pob / cap);
     if (c.pob > cap * 1.05) {
@@ -559,7 +575,8 @@ button { cursor: pointer; }
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
-    if (c.pob > cap * 0.55 && !(c.plan && c.plan.expandir === false)) {
+    const pe = prio(c, 'expansion');
+    if (pe > 0 && c.pob > cap * (0.65 - 0.1 * pe) && !(c.plan && c.plan.expandir === false)) {
       const libres = new Set();
       for (const i of cs) for (const v of vecinos(i)) if (esTierra(m, v) && m.dueno[v] < 0) libres.add(v);
       // Desde el Renacimiento, también al otro lado del mar.
@@ -570,7 +587,7 @@ button { cursor: pointer; }
       const orden = [...libres].sort((a, b) => fertil(m, b) - fertil(m, a) + distancia(a, c.capital) * 0.15 - distancia(b, c.capital) * 0.15 + tiron(a) - tiron(b));
       // Expandirse cuesta madera (o piedra) cuando hay aldeanos que la traen (vida.js).
       const vida = m.vida && M.vida;
-      const cuantas = Math.min(c.era >= 3 ? 4 : 2, vida ? vida.tierrasPagables(m, c) : 99);
+      const cuantas = Math.min((c.era >= 3 ? 4 : 2) + (pe >= 2 ? 1 : 0), vida ? vida.tierrasPagables(m, c) : 99);
       for (const i of orden.slice(0, cuantas)) {
         m.dueno[i] = c.id;
         if (vida) vida.pagarTierra(m, c);
@@ -707,8 +724,12 @@ button { cursor: pointer; }
       const cansados = cansancio > 6 + azar(m) * 6 || (ratio < 1.15 && cansancio > 4 && azar(m) < 0.3);
       // Con un jugador de por medio, la IA no firma sola: ofrece la paz y el jugador decide.
       const jugador = a.jugador ? a : b.jugador ? b : null;
-      if (cansados && jugador) {
-        const otro = jugador === a ? b : a;
+      const otroJ = jugador ? (jugador === a ? b : a) : null;
+      // El gobierno automático del jugador firma solo la paz en las guerras que no empezó él (salvo que el ejército sea su máxima prioridad).
+      if (cansados && jugador && !((jugador.plan && jugador.plan.guerrasMias) || []).includes(otroJ.id) && prio(jugador, 'ejercito') < 2) {
+        hacerPaz(m, a, b, 'Tu gobierno y ' + otroJ.nombre + ' firman la paz: la guerra la empezaron ellos y ya no daba para más. Si quieres seguir luchando, ordénalo.');
+      } else if (cansados && jugador) {
+        const otro = otroJ;
         m.ofertas = m.ofertas || {};
         if (!m.ofertas[otro.id] || m.turno - m.ofertas[otro.id] > 12) {
           m.ofertas[otro.id] = m.turno;
@@ -776,7 +797,7 @@ button { cursor: pointer; }
   }
 
   M.sim = { W, H, K, TIERRA, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, destinoRumbo, FOCOS, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, destinoRumbo, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vida.js
@@ -918,29 +939,30 @@ button { cursor: pointer; }
   // ---------- Los aldeanos de cada pueblo ----------
   const cuantos = c => Math.max(3, Math.min(40, Math.round(2 + Math.sqrt(Math.max(0, c.pob)) * 1.5)));
 
+  /*
+   * EL GOBERNADOR AUTOMÁTICO: cada pueblo (también el del jugador) reparte el trabajo según lo que le falta.
+   * Poca madera → más leñadores; la gente cerca del límite de comida → más granjeros; faltan casas → más
+   * constructores; guerra → guerreros. Las prioridades del jugador (0 a 2) pesan sobre esas necesidades.
+   */
+  const PRIO_OFICIO = ['madera', 'comida', 'casas', 'piedra', 'ejercito'];
+  const prio = (c, k) => (c.plan && c.plan.prioridad && c.plan.prioridad[k] != null ? c.plan.prioridad[k] : 1);
+  const metaMadera = c => 30 + 12 * c.era;
   function reparto(c, recursos) {
     const guerra = c.guerras.length > 0;
-    const p = [0, 0, 0.15, c.era >= 1 ? 0.14 : 0.05, guerra ? 0.34 : c.era >= 2 ? 0.08 : 0.05];
-    if (!recursos.rocas) { p[LENADOR] += p[MINERO]; p[MINERO] = 0; }
-    const resto = 1 - p.reduce((a, b) => a + b, 0);
-    p[LENADOR] += resto * (recursos.arboles ? 0.55 : 0); p[GRANJERO] += resto * (recursos.arboles ? 0.45 : 1);
-    // Un jugador reparte los oficios a su gusto (mando.js): pesa tres veces más que la costumbre.
-    const plan = c.plan && c.plan.oficios;
-    if (plan) {
-      // "Más X" se lleva su parte del trabajo; "menos X" lo deja casi a cero.
-      const quiere = OFICIOS.map(o => (typeof plan[o] === 'number' ? plan[o] : null));
-      const total = quiere.reduce((k, w) => k + (w > 0.1 ? w : 0), 0), parte = Math.min(0.9, total);
-      const q = p.map((x, i) => {
-        const w = quiere[i];
-        if (w !== null && w <= 0.1) return w;
-        return x * (1 - parte) + (w !== null ? w / total * parte : 0);
-      });
-      if (!recursos.arboles) q[LENADOR] = 0;
-      if (!recursos.rocas) q[MINERO] = 0;
-      const suma = q.reduce((k, x) => k + x, 0) || 1;
-      return q.map(x => x / suma);
+    const lleno = c.cap ? c.pob / c.cap : 0.8;
+    const p = [
+      recursos.arboles ? 0.18 + 0.4 * Math.max(0, 1 - (c.madera || 0) / metaMadera(c)) : 0,
+      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0),
+      (c.casas || 0) < metaCasas(c) ? 0.16 : 0.06,
+      recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) : 0.04) : 0,
+      guerra ? 0.34 : c.era >= 2 ? 0.07 : 0.04
+    ];
+    for (let i = 0; i < p.length; i++) {
+      const w = prio(c, PRIO_OFICIO[i]);
+      p[i] *= w === 0 ? 0.03 : w;
     }
-    return p;
+    const suma = p.reduce((k, x) => k + x, 0) || 1;
+    return p.map(x => x / suma);
   }
 
   function hogar(m, c, cs) {
@@ -983,7 +1005,7 @@ button { cursor: pointer; }
       const tiene = [0, 0, 0, 0, 0];
       for (const a of lista) tiene[a.o]++;
       for (const a of lista) {
-        if (a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && !(c.plan && c.plan.oficios && c.plan.oficios.guerrero))) continue;
+        if (a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
         const falta = p.map((x, i) => x * lista.length - tiene[i] + (i === a.o ? 1 : 0));
         const mejor = falta.indexOf(Math.max(...falta));
         if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; }
@@ -1102,8 +1124,8 @@ button { cursor: pointer; }
     a.paseo = 0;
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
-    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * (1 + 4 * ((c.plan && c.plan.oficios && c.plan.oficios.lenador) || 0))) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
-    else if (a.o === MINERO && c.piedra < 30 + 10 * c.era) t = cercano(m, a, rec.rocas, rec.reservadas, 16);
+    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) t = cercano(m, a, rec.arboles, rec.reservadas, 16);
+    else if (a.o === MINERO && c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'))) t = cercano(m, a, rec.rocas, rec.reservadas, 16);
     else if (a.o === GRANJERO) t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
     else if (a.o === CONSTRUCTOR) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
     else if (a.o === GUERRERO && rec.enemigos.length) {
@@ -1118,8 +1140,8 @@ button { cursor: pointer; }
     }
     pasear(m, a, ter, c);
   }
-  const metaCampos = c => Math.round(4 + c.pob * 0.22);
-  const metaCasas = c => Math.round((2 + c.pob * 0.12) * (c.plan && c.plan.foco === 'construir' ? 1.6 : 1));
+  const metaCampos = c => Math.round((4 + c.pob * 0.22) * (0.6 + 0.4 * prio(c, 'comida')));
+  const metaCasas = c => Math.round((2 + c.pob * 0.12) * (0.4 + 0.6 * prio(c, 'casas')));
 
   // Una parcela libre cerca de casa: primero en su región, luego en las regiones propias de alrededor.
   function libre(m, a, c, rec, ter, sirve) {
@@ -1687,25 +1709,22 @@ button { cursor: pointer; }
   const M = RF.MUNDO, S = () => M.sim, D = () => M.dios;
   const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ\s-]/g, ' ').replace(/\s+/g, ' ').trim();
 
-  const OFICIOS = {
-    lenador: /\b(tala\w*|tale\w*|talen|talad|talar|lena\w*|madera|arboles?|bosques?|troncos?)\b/,
-    granjero: /\b(sembr\w*|siembr\w*|cultiv\w*|granj\w*|campos?|cosech\w*|agricult\w*|trigo)\b/,
-    constructor: /\b(constru\w*|casas?|edific\w*|levant\w*|obras?|aldeas?)\b/,
-    minero: /\b(minas?|miner\w*|piedra|canteras?|pica\w*|picad)\b/,
-    guerrero: /\b(reclut\w*|ejercitos?|soldados?|guerreros?|arm\w*|milicias?|defen\w*|tropas?)\b/
+  // Cada cosa a la que el jugador puede dar más o menos importancia, y cómo se nombra al escribir.
+  const RECURSOS = {
+    madera: /\b(tala\w*|tale\w*|talen|talad|talar|lena\w*|madera|arboles?|bosques?|troncos?)\b/,
+    comida: /\b(sembr\w*|siembr\w*|cultiv\w*|granj\w*|campos?|cosech\w*|agricult\w*|trigo|comida|alimento\w*|hambre)\b/,
+    piedra: /\b(minas?|miner\w*|piedra|canteras?|picad|picar)\b/,
+    casas: /\b(constru\w*|casas?|edific\w*|obras?|viviendas?)\b/,
+    ejercito: /\b(reclut\w*|ejercitos?|soldados?|guerreros?|militar\w*|milicias?|defensa|tropas?|armas)\b/,
+    ciencia: /\b(cienc\w*|investig\w*|estudi\w*|sabios?|escuelas?|tecnolog\w*|universidad\w*|inventos?)\b/,
+    riqueza: /\b(riqueza|oro|dinero|mercados?|negocios?|enriquec\w*|impuestos|comercio)\b/
   };
-  const NOMBRE_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros' };
-  const FOCOS = {
-    ciencia: /\b(cienc\w*|investig\w*|estudi\w*|sabios?|escuelas?|tecnolog\w*|universidad\w*|inventos?|aprend\w*)\b/,
-    crecer: /\b(crec\w*|poblacion|hijos|natalidad|comida|alimentar)\b/,
-    comercio: /\b(riqueza|oro|dinero|mercados?|comerci\w* con todos|negocios?|enriquec\w*)\b/,
-    ejercito: /\b(ejercitos?|militar\w*|guerreros?|soldados?|reclut\w*|tropas?)\b/,
-    construir: /\b(constru\w*|casas?|edific\w*|obras?)\b/
-  };
-  const NOMBRE_FOCO = { ciencia: 'la ciencia', crecer: 'crecer', comercio: 'la riqueza y el comercio', ejercito: 'el ejército', construir: 'construir' };
+  const NOMBRE_RECURSO = { madera: 'madera', comida: 'comida', piedra: 'piedra', casas: 'casas', ejercito: 'ejército', ciencia: 'ciencia', riqueza: 'riqueza', expansion: 'expansión' };
+  const NIVEL = v => (v <= 0 ? 'nada' : v <= 0.5 ? 'baja' : v <= 1 ? 'normal' : v <= 1.5 ? 'alta' : 'máxima');
   const REGIMENES = [[/\bdemocracia\b/, 'democracia', 5], [/\brepublica\b/, 'republica', 2], [/\bimperio\b|\bemperador\b/, 'imperio', 2], [/\bdictadura\b|\bdictador\b/, 'dictadura', 5], [/\bteocracia\b/, 'teocracia', 1], [/\bmonarquia\b|\breino\b|\bcorona\w*\b|\brey\b/, 'reino', 1], [/\brepublica popular\b|\bcomunis\w*\b/, 'estado_obrero', 6]];
 
-  const plan = c => (c.plan = c.plan || { foco: null, oficios: null, expandir: true, rumbo: null, socios: [] });
+  const PRIO_NORMAL = () => ({ madera: 1, comida: 1, piedra: 1, casas: 1, ejercito: 1, ciencia: 1, riqueza: 1, expansion: 1 });
+  const plan = c => { c.plan = c.plan || { rumbo: null, socios: [], guerrasMias: [] }; c.plan.prioridad = c.plan.prioridad || PRIO_NORMAL(); c.plan.guerrasMias = c.plan.guerrasMias || []; return c.plan; };
 
   // ¿A qué otro pueblo se refiere la orden? Por nombre o por descripción, nunca a uno mismo.
   function otro(m, c, n) {
@@ -1743,24 +1762,24 @@ button { cursor: pointer; }
       acciones.push({ tipo: 'expandir', si: true, rumbo: rumbo || (o ? o.id : null) });
     }
 
-    // Oficios: "más leñadores", "que todos talen", "menos soldados".
-    const pesos = {};
-    for (const [oficio, re] of Object.entries(OFICIOS)) {
-      if (oficio === 'guerrero' && (guerra || paz)) continue;
+    // Prioridades: "más madera", "talad", "menos soldados", "todo a la ciencia", "nada de piedra".
+    const cambios = {};
+    const solo = /\b(solo|todo a|todos a|todo el mundo a|que todos)\b/.test(n);
+    for (const [k, re] of Object.entries(RECURSOS)) {
+      if (k === 'ejercito' && (guerra || paz) && !/\breclut/.test(n)) continue;
+      if (k === 'riqueza' && tratado) continue;
       const mt = n.match(re);
       if (!mt) continue;
-      const antes = n.slice(Math.max(0, mt.index - 14), mt.index);
-      pesos[oficio] = /\b(menos|no|deja\w* de|sin)\b/.test(antes) ? 0.02 : /\b(todos|todo el mundo|solo)\b/.test(n) ? 0.7 : 0.4;
+      const antes = n.slice(Math.max(0, mt.index - 16), mt.index);
+      if (/\b(nada de|ningun\w*|cero)\b/.test(antes)) cambios[k] = { a: 0 };
+      else if (/\b(menos|no|deja\w* de|sin|poca|poco)\b/.test(antes)) cambios[k] = { mas: -0.5 };
+      else if (solo || /\b(maxim\w*|al maximo|toda la|todo lo que|prioridad absoluta|mucha|mucho)\b/.test(n)) cambios[k] = { a: 2 };
+      else if (/\b(invert\w*|invier\w*|centra\w*|prioriz\w*|enfoca\w*|volca\w*|vuelca\w*|apuesta\w*)\b/.test(n)) cambios[k] = { a: 2 };
+      else cambios[k] = { mas: 0.5 };
     }
-    if (Object.keys(pesos).length && !(Object.keys(pesos).length === 1 && pesos.lenador && expandir)) acciones.push({ tipo: 'oficios', pesos });
-
-    // Foco: en qué invierte el pueblo lo que le sobra.
-    for (const [f, re] of Object.entries(FOCOS)) if (re.test(n) && !(f === 'ejercito' && (paz || guerra) && !/\breclut/.test(n))) {
-      if (f === 'crecer' && expandir) continue;
-      const mt = n.match(re);
-      if (/\b(menos|no|deja\w* de|sin)\b/.test(n.slice(Math.max(0, mt.index - 14), mt.index))) continue;
-      acciones.push({ tipo: 'foco', foco: f }); break;
-    }
+    if (expandir && !guerra) cambios.expansion = { a: 1.5 };
+    if (quieto) cambios.expansion = { a: 0 };
+    if (Object.keys(cambios).length) acciones.push({ tipo: 'prioridad', cambios, solo: solo || undefined });
     if (/\b(cruz\w* el mar|ultramar|colonia|barcos?|flota|navega\w*)\b/.test(n)) acciones.push({ tipo: 'colonia' });
     return acciones;
   }
@@ -1774,21 +1793,23 @@ button { cursor: pointer; }
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
-      else if (a.tipo === 'normal') { c.plan = { foco: null, oficios: null, expandir: true, rumbo: null, socios: p.socios || [] }; textos.push('Tu gente vuelve a sus costumbres: cada uno trabaja en lo que hace falta.'); }
-      else if (a.tipo === 'oficios') {
-        p.oficios = Object.assign({}, p.oficios || {}, a.pesos);
-        const mas = Object.keys(a.pesos).filter(k => a.pesos[k] > 0.1).map(k => NOMBRE_OFICIO[k]), menos = Object.keys(a.pesos).filter(k => a.pesos[k] <= 0.1).map(k => NOMBRE_OFICIO[k]);
-        textos.push((mas.length ? 'Más ' + mas.join(' y ') : '') + (mas.length && menos.length ? '; ' : '') + (menos.length ? 'menos ' + menos.join(' y ') : '') + ': los aldeanos que terminen su tarea cambian de oficio.');
-      } else if (a.tipo === 'foco') { p.foco = a.foco; textos.push('Tu pueblo se vuelca en ' + NOMBRE_FOCO[a.foco] + '.' + (a.foco === 'ciencia' ? ' Más inventos, algo menos de riqueza.' : a.foco === 'ejercito' ? ' Más fuerza en la guerra; cuesta riqueza y frena la ciencia.' : a.foco === 'crecer' ? ' La tierra da más comida; la ciencia va más lenta.' : a.foco === 'comercio' ? ' Más riqueza cada año.' : ' Se levantan más casas (y se gasta más madera).')); }
+      else if (a.tipo === 'normal') { p.prioridad = PRIO_NORMAL(); p.rumbo = null; p.expandir = true; textos.push('Todas las prioridades vuelven a normal: tu pueblo se gobierna solo, como los demás.'); }
+      else if (a.tipo === 'prioridad') {
+        const pr = p.prioridad, tocados = Object.keys(a.cambios);
+        if (a.solo) for (const k of Object.keys(pr)) if (!tocados.includes(k) && k !== 'expansion') pr[k] = Math.min(pr[k], 0.5);
+        for (const k of tocados) { const ch = a.cambios[k]; pr[k] = Math.max(0, Math.min(2, ch.a != null ? ch.a : (pr[k] != null ? pr[k] : 1) + ch.mas)); }
+        textos.push('Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') + (a.solo ? ' (lo demás, baja)' : '') + '. Tu gente se reorganiza sola según eso.');
+      }
       else if (a.tipo === 'expandir') {
         p.expandir = a.si; p.rumbo = a.si ? (a.rumbo == null ? null : a.rumbo) : null;
+        p.prioridad.expansion = a.si ? Math.max(1, p.prioridad.expansion) : 0;
         const destino = typeof p.rumbo === 'number' ? (S().civ(m, p.rumbo) || {}).nombre : p.rumbo;
         textos.push(a.si ? 'Los colonos salen ' + (destino ? 'hacia ' + (typeof p.rumbo === 'number' ? destino : 'el ' + destino) : 'hacia las mejores tierras libres') + '. Cada tierra nueva cuesta 3 de madera (tienes ' + Math.floor(c.madera || 0) + ').' : 'Tu pueblo deja de expandirse y se queda en sus fronteras.');
       } else if (a.tipo === 'guerra') {
         if (!o || !o.viva || o.id === c.id) { textos.push('¿Contra quién? Nombra al pueblo («atacad a ' + ((S().vivas(m).find(x => x.id !== c.id) || {}).nombre || 'Karenia') + '»).'); continue; }
         if (S().enGuerra(c, o)) { textos.push('Ya estáis en guerra con ' + o.nombre + '.'); continue; }
         S().declararGuerra(m, c, o, 'Por orden de su gobierno, ' + c.nombre + ' declara la guerra a ' + o.nombre + '. Los heraldos recorren las aldeas llamando a los hombres a las armas.');
-        p.oficios = Object.assign({}, p.oficios || {}, { guerrero: Math.max(0.35, (p.oficios || {}).guerrero || 0) });
+        p.guerrasMias = [...new Set([...p.guerrasMias, o.id])];
         const frontera = S().vecinosDe(m, c).includes(o);
         textos.push('¡Guerra contra ' + o.nombre + '! Tus guerreros marchan a la frontera.' + (frontera ? '' : ' Ojo: no tenéis frontera común, así que no podrán llegar hasta que la haya.'));
       } else if (a.tipo === 'paz') {
@@ -1840,8 +1861,10 @@ button { cursor: pointer; }
     const lista = S().vivas(m).slice().sort((a, b) => S().casillas(m, b).length - S().casillas(m, a).length);
     const puesto = lista.indexOf(c) + 1, p = c.plan || {};
     const enemigos = c.guerras.map(g => S().civ(m, g.con)).filter(Boolean).map(o => o.nombre);
+    const pr = (c.plan && c.plan.prioridad) || {};
+    const cambiadas = Object.keys(pr).filter(k => pr[k] !== 1).map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k]));
     return c.nombre + ', ' + M.ERAS[c.era].nombre + ': puesto ' + puesto + ' de ' + lista.length + ' en tierras (' + S().casillas(m, c).length + '), ' + Math.round(c.pob) + ' mil habitantes, estabilidad ' + Math.round(c.estab) + ', madera ' + Math.floor(c.madera || 0) + ', piedra ' + Math.floor(c.piedra || 0) + '. ' +
-      (enemigos.length ? 'En guerra con ' + enemigos.join(', ') + '. ' : 'En paz. ') + (p.foco ? 'Foco: ' + NOMBRE_FOCO[p.foco] + '. ' : '') + (p.expandir === false ? 'Sin expandirse. ' : '');
+      (enemigos.length ? 'En guerra con ' + enemigos.join(', ') + '. ' : 'En paz. ') + (cambiadas.length ? 'Prioridades: ' + cambiadas.join(', ') + '.' : 'Todas las prioridades en normal.');
   }
 
   function ordenar(m, civId, texto) {
@@ -1856,8 +1879,8 @@ button { cursor: pointer; }
   const SISTEMA = [
     'Eres el consejero de un pueblo en "Génesis", un juego de estrategia por texto en un mundo que vive la historia humana real. El jugador gobierna SOLO su pueblo y te da órdenes en lenguaje natural.',
     'Traduce la orden a acciones de esta lista y nada más (no puedes hacer milagros ni afectar directamente a otros pueblos):',
-    '{"tipo":"oficios","pesos":{"lenador":0-1,"granjero":0-1,"constructor":0-1,"minero":0-1,"guerrero":0-1}} reparto de trabajo (solo los que cambien);',
-    '{"tipo":"foco","foco":"ciencia"|"crecer"|"comercio"|"ejercito"|"construir"};',
+    'El pueblo se gobierna solo (reparte el trabajo según lo que le falta); el jugador cambia la IMPORTANCIA de cada cosa:',
+    '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id};',
     '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"}; {"tipo":"informe"}; {"tipo":"normal"}.',
@@ -1869,15 +1892,22 @@ button { cursor: pointer; }
       '\nOtros pueblos: ' + JSON.stringify(S().vivas(m).filter(o => o.id !== c.id).map(o => ({ id: o.id, nombre: o.nombre, era: M.ERAS[o.era].nombre, poblacion_miles: Math.round(o.pob), vecino: S().vecinosDe(m, c).includes(o), relacion: Math.round(c.rel[o.id] || 0) }))) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['oficios', 'foco', 'expandir', 'guerra', 'paz', 'comercio', 'regimen', 'colonia', 'informe', 'normal']);
+  const TIPOS = new Set(['prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'regimen', 'colonia', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
     for (const a of Array.isArray(acciones) ? acciones.slice(0, 6) : []) {
       if (!a || !TIPOS.has(a.tipo)) continue;
-      if (a.tipo === 'oficios') { const pesos = {}; for (const k of Object.keys(OFICIOS)) if (a.pesos && a.pesos[k] != null) pesos[k] = Math.max(0, Math.min(1, Number(a.pesos[k]) || 0)); if (Object.keys(pesos).length) out.push({ tipo: 'oficios', pesos }); }
-      else if (a.tipo === 'foco') { if (FOCOS[a.foco]) out.push({ tipo: 'foco', foco: a.foco }); }
-      else if (a.tipo === 'expandir') out.push({ tipo: 'expandir', si: a.si !== false, rumbo: ['norte', 'sur', 'este', 'oeste'].includes(a.rumbo) ? a.rumbo : Number.isFinite(Number(a.rumbo)) && a.rumbo !== null ? Number(a.rumbo) : null });
+      if (a.tipo === 'prioridad') {
+        const cambios = {};
+        for (const k of Object.keys(NOMBRE_RECURSO)) {
+          const ch = a.cambios && a.cambios[k];
+          if (!ch) continue;
+          if (ch.a != null && Number.isFinite(Number(ch.a))) cambios[k] = { a: Math.max(0, Math.min(2, Math.round(Number(ch.a) * 2) / 2)) };
+          else if (ch.mas != null && Number.isFinite(Number(ch.mas))) cambios[k] = { mas: Number(ch.mas) > 0 ? 0.5 : -0.5 };
+        }
+        if (Object.keys(cambios).length) out.push({ tipo: 'prioridad', cambios });
+      } else if (a.tipo === 'expandir') out.push({ tipo: 'expandir', si: a.si !== false, rumbo: ['norte', 'sur', 'este', 'oeste'].includes(a.rumbo) ? a.rumbo : Number.isFinite(Number(a.rumbo)) && a.rumbo !== null ? Number(a.rumbo) : null });
       else if (a.tipo === 'regimen') { const r = REGIMENES.find(x => x[1] === a.a); if (r) out.push({ tipo: 'regimen', a: r[1], era: r[2] }); }
       else if (a.tipo === 'guerra' || a.tipo === 'paz' || a.tipo === 'comercio') out.push({ tipo: a.tipo, con: Number(a.con) });
       else out.push({ tipo: a.tipo });
@@ -1901,7 +1931,7 @@ button { cursor: pointer; }
     return c;
   }
 
-  M.mando = { entender, aplicar, ordenar, informe, gobernar, SISTEMA, paraIA, aplicarIA, limpiar };
+  M.mando = { entender, aplicar, ordenar, informe, gobernar, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/pintor.js
@@ -2505,7 +2535,7 @@ button { cursor: pointer; }
       X.gobernar(m, c ? c.id : null);
       sel = m.jugador; P.seleccionar(sel);
       if (c) P.centrarEn(c.capital);
-      responder(c ? 'Gobiernas ' + c.nombre + '. Dale órdenes a tu gente: talar, sembrar, construir, expandirse, guerra o paz con los vecinos, ciencia, comercio… Los demás pueblos viven a su aire.' : '', 'bien');
+      responder(c ? 'Gobiernas ' + c.nombre + '. Tu pueblo se gobierna solo, como los demás: tú decides qué le importa más (madera, comida, piedra, casas, ejército, ciencia, riqueza, expansión) y las grandes decisiones (guerra, paz, tratados, gobierno).' : '', 'bien');
     } else {
       X.gobernar(m, null);
       responder('Eres el dios de este mundo. Escribe lo que quieras que pase.', 'bien');
@@ -2517,7 +2547,7 @@ button { cursor: pointer; }
     const c = tuPueblo();
     $('etiqueta-orden').textContent = c ? 'Tus órdenes a ' + c.nombre : 'Tu voluntad';
     $('boton-orden').textContent = c ? 'Ordenar' : 'Obrar';
-    $('orden').placeholder = c ? 'Talad el bosque, construid casas, expandíos hacia el norte, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
+    $('orden').placeholder = c ? 'Más madera, menos ejército, todo a la ciencia, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
     $('voluntad').classList.toggle('es-pueblo', !!c);
     pintarEjemplos();
   }
@@ -2598,19 +2628,21 @@ button { cursor: pointer; }
     if (b) b.addEventListener('click', () => elegirModo('pueblo', c.id));
   }
 
-  const FOCO = { ciencia: 'ciencia', crecer: 'crecer', comercio: 'riqueza y comercio', ejercito: 'ejército', construir: 'construir' };
+  // Las prioridades de tu pueblo como barras: el pueblo se gobierna solo y esto es lo que pesa en sus decisiones.
   function planDe(c) {
-    const p = c.plan || {}, l = [];
-    l.push(fila('Foco', p.foco ? FOCO[p.foco] : 'ninguno (cada uno a lo suyo)'));
-    const of = p.oficios ? Object.keys(p.oficios).filter(k => p.oficios[k] > 0.1).map(k => NOMBRES_OFICIO[k]) : [];
-    if (of.length) l.push(fila('Prioridad', 'más ' + esc(of.join(', '))));
-    const rumbo = typeof p.rumbo === 'number' ? 'hacia ' + ((S.civ(m, p.rumbo) || {}).nombre || '?') : p.rumbo ? 'hacia el ' + p.rumbo : 'a las mejores tierras';
-    l.push(fila('Expansión', p.expandir === false ? 'parada' : esc(rumbo)));
+    const p = c.plan || {}, pr = p.prioridad || {}, l = [];
+    const barras = Object.keys(X.NOMBRE_RECURSO).map(k => {
+      const v = pr[k] != null ? pr[k] : 1;
+      return '<div class="prio"><span class="prio-nombre">' + X.NOMBRE_RECURSO[k] + '</span><span class="prio-barra" aria-hidden="true">' +
+        [0.5, 1, 1.5, 2].map(x => '<i class="' + (v >= x ? 'lleno' : '') + '"></i>').join('') + '</span><span class="prio-nivel">' + X.NIVEL(v) + '</span></div>';
+    }).join('');
+    const rumbo = typeof p.rumbo === 'number' ? 'hacia ' + ((S.civ(m, p.rumbo) || {}).nombre || '?') : p.rumbo ? 'hacia el ' + p.rumbo : null;
+    if (rumbo && p.expandir !== false) l.push(fila('Rumbo', esc(rumbo)));
     const socios = (p.socios || []).map(id => S.civ(m, id)).filter(o => o && o.viva).map(o => o.nombre);
     if (socios.length) l.push(fila('Tratados', esc(socios.join(', '))));
-    const ofertas = Object.keys(m.ofertas || {}).map(Number).filter(id => S.enGuerra(c, S.civ(m, id) || { id: -1, guerras: [] }) && m.turno - m.ofertas[id] <= 15).map(id => S.civ(m, id).nombre);
+    const ofertas = Object.keys(m.ofertas || {}).map(Number).filter(id => S.civ(m, id) && S.enGuerra(c, S.civ(m, id)) && m.turno - m.ofertas[id] <= 15).map(id => S.civ(m, id).nombre);
     if (ofertas.length) l.push(fila('Te ofrecen paz', '<span class="rojo">' + esc(ofertas.join(', ')) + '</span>'));
-    return '<dl class="plan">' + l.join('') + '</dl>';
+    return '<div class="plan"><p class="plan-titulo">Prioridades <span class="tenue">· tu pueblo se gobierna solo; cámbialas escribiendo («más madera», «menos ejército», «todo a la ciencia»)</span></p><div class="prios">' + barras + '</div>' + (l.length ? '<dl>' + l.join('') + '</dl>' : '') + '</div>';
   }
 
   const NOMBRES_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros' };
@@ -2641,7 +2673,7 @@ button { cursor: pointer; }
   function pintarEjemplos() {
     const vecino = tuPueblo() && (S.vecinosDe(m, tuPueblo())[0] || S.vivas(m).find(o => o.id !== m.jugador));
     const ej = tuPueblo()
-      ? ['Informe', 'Talad el bosque y construid casas', 'Expandíos hacia el norte', 'Invertid en ciencia', 'Reclutad un ejército', vecino ? 'Atacad a ' + vecino.nombre : 'Atacad al vecino más débil', vecino ? 'Comerciad con ' + vecino.nombre : 'Comerciad con el más rico', 'Como antes']
+      ? ['Informe', 'Más madera', 'Más comida y casas', 'Todo a la ciencia', 'Menos ejército', 'Expandíos hacia el norte', vecino ? 'Atacad a ' + vecino.nombre : 'Atacad al vecino más débil', vecino ? 'Comerciad con ' + vecino.nombre : 'Comerciad con el más rico', 'Como antes']
       : ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Incendio en el más grande', 'Que planten bosques en el más pequeño', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Que llueva oro sobre el más pobre'];
     const cont = $('ejemplos');
     cont.innerHTML = '';
@@ -2775,7 +2807,7 @@ button { cursor: pointer; }
     const yo = tuPueblo();
     const r = X.ordenar(m, yo.id, texto);
     if (r.ok) { despuesDeOrden(r); return; }
-    if (!sample) { responder('Tu gente no entiende la orden. Prueba con: talad, sembrad, construid casas, picad piedra, reclutad un ejército, expandíos hacia el norte, atacad a X, haced la paz con X, comerciad con X, invertid en ciencia, proclamad la república, informe.', 'duda'); return; }
+    if (!sample) { responder('Tu gente no entiende la orden. Prueba con: más madera, más comida, menos ejército, todo a la ciencia, nada de piedra, expandíos hacia el norte, atacad a X, haced la paz con X, comerciad con X, proclamad la república, informe, como antes.', 'duda'); return; }
     ocupado = true;
     responder('Tus consejeros discuten la orden…', 'espera');
     try {

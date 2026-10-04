@@ -64,6 +64,15 @@ button { cursor: pointer; }
 .inicio-botones .mando { padding: 10px 16px; }
 .plan { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--linea); }
 .gobernar { margin-top: 10px; }
+.plan-titulo { margin: 0 0 8px; font-family: var(--f-dato); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--pergamino); }
+.plan-titulo .tenue { text-transform: none; letter-spacing: 0; font-family: var(--f-libro); font-size: 12px; }
+.prios { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 14px; margin-bottom: 8px; }
+.prio { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.prio-nombre { flex: 1; min-width: 0; }
+.prio-barra { display: inline-flex; gap: 2px; }
+.prio-barra i { width: 8px; height: 10px; background: var(--noche); border: 1px solid var(--linea); }
+.prio-barra i.lleno { background: var(--oro); border-color: var(--oro); }
+.prio-nivel { font-family: var(--f-dato); font-size: 10px; color: var(--tenue); width: 4.6em; text-align: right; }
 .tuyo { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--noche); background: var(--oro); padding: 1px 5px; border-radius: 2px; }
 
 /* ---- La voluntad ---- */

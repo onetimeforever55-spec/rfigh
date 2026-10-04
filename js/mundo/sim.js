@@ -15,12 +15,18 @@
   const K = (W * H) / 640;
   const TIERRA = { llanura: 3, bosque: 1.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
   const RIO = 2.2;
-  // Lo que cambia cuando un jugador pone a su pueblo a trabajar en algo (mando.js): ciencia, ejército, crecer, comercio.
-  const FOCOS = {
-    ciencia: { ciencia: 1.5, riqueza: 0.9 }, ejercito: { fuerza: 1.35, ciencia: 0.85, riqueza: 0.92 },
-    crecer: { comida: 1.12, ciencia: 0.85 }, comercio: { riqueza: 1.35, ciencia: 1.05 }, construir: {}
-  };
-  const foco = (c, k) => { const f = c.plan && FOCOS[c.plan.foco]; return f && f[k] != null ? f[k] : 1; };
+  // Las prioridades de un jugador (mando.js): 0 nada, 1 normal, 2 máxima. Ciencia, riqueza y ejército
+  // compiten entre sí: subir las tres a la vez no da nada, lo que cuenta es cuál pesa más que las otras.
+  const PRIORIDADES = ['madera', 'comida', 'piedra', 'casas', 'ejercito', 'ciencia', 'riqueza', 'expansion'];
+  const prio = (c, k) => (c.plan && c.plan.prioridad && c.plan.prioridad[k] != null ? c.plan.prioridad[k] : 1);
+  function foco(c, k) {
+    if (!c.plan || !c.plan.prioridad) return 1;
+    const media = (prio(c, 'ciencia') + prio(c, 'riqueza') + prio(c, 'ejercito')) / 3;
+    if (k === 'ciencia') return Math.max(0.4, 1 + 0.5 * (prio(c, 'ciencia') - media));
+    if (k === 'riqueza') return Math.max(0.4, 1 + 0.5 * (prio(c, 'riqueza') - media));
+    if (k === 'fuerza') return Math.max(0.5, 1 + 0.35 * (prio(c, 'ejercito') - media));
+    return 1;
+  }
 
   // ---------- Azar con semilla (mulberry32): el estado vive en el mundo ----------
   function azar(m) {
@@ -129,7 +135,7 @@
     // Las casas y los campos que levantan los aldeanos (vida.js) dan sitio a más gente: una tierra sin
     // obras da un 20 % menos, una tierra bien trabajada, un 20 % más.
     const obras = m.vida ? 0.8 + 0.4 * Math.min(1, ((c.campos || 0) + (c.casas || 0) * 0.5) / ((cs || casillas(m, c)).length * 2.5)) : 1;
-    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 / K * efecto * obras * foco(c, 'comida'));
+    return Math.max(1, f * M.ERAS[c.era].cap * 2.2 / K * efecto * obras);
   }
   function fuerza(m, c, cs) {
     const car = M.CARACTERES[c.caracter];
@@ -220,6 +226,7 @@
     if (m.dueno[c.capital] !== c.id) c.capital = cs.sort((a, b) => fertil(m, b) - fertil(m, a))[0];
     const n = cs.length, car = M.CARACTERES[c.caracter];
     const cap = capacidad(m, c, cs);
+    c.cap = cap;
     // La gente crece mientras haya comida; si se pasa, llega el hambre.
     c.pob += c.pob * 0.14 * (1 - c.pob / cap);
     if (c.pob > cap * 1.05) {
@@ -247,7 +254,8 @@
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
-    if (c.pob > cap * 0.55 && !(c.plan && c.plan.expandir === false)) {
+    const pe = prio(c, 'expansion');
+    if (pe > 0 && c.pob > cap * (0.65 - 0.1 * pe) && !(c.plan && c.plan.expandir === false)) {
       const libres = new Set();
       for (const i of cs) for (const v of vecinos(i)) if (esTierra(m, v) && m.dueno[v] < 0) libres.add(v);
       // Desde el Renacimiento, también al otro lado del mar.
@@ -258,7 +266,7 @@
       const orden = [...libres].sort((a, b) => fertil(m, b) - fertil(m, a) + distancia(a, c.capital) * 0.15 - distancia(b, c.capital) * 0.15 + tiron(a) - tiron(b));
       // Expandirse cuesta madera (o piedra) cuando hay aldeanos que la traen (vida.js).
       const vida = m.vida && M.vida;
-      const cuantas = Math.min(c.era >= 3 ? 4 : 2, vida ? vida.tierrasPagables(m, c) : 99);
+      const cuantas = Math.min((c.era >= 3 ? 4 : 2) + (pe >= 2 ? 1 : 0), vida ? vida.tierrasPagables(m, c) : 99);
       for (const i of orden.slice(0, cuantas)) {
         m.dueno[i] = c.id;
         if (vida) vida.pagarTierra(m, c);
@@ -395,8 +403,12 @@
       const cansados = cansancio > 6 + azar(m) * 6 || (ratio < 1.15 && cansancio > 4 && azar(m) < 0.3);
       // Con un jugador de por medio, la IA no firma sola: ofrece la paz y el jugador decide.
       const jugador = a.jugador ? a : b.jugador ? b : null;
-      if (cansados && jugador) {
-        const otro = jugador === a ? b : a;
+      const otroJ = jugador ? (jugador === a ? b : a) : null;
+      // El gobierno automático del jugador firma solo la paz en las guerras que no empezó él (salvo que el ejército sea su máxima prioridad).
+      if (cansados && jugador && !((jugador.plan && jugador.plan.guerrasMias) || []).includes(otroJ.id) && prio(jugador, 'ejercito') < 2) {
+        hacerPaz(m, a, b, 'Tu gobierno y ' + otroJ.nombre + ' firman la paz: la guerra la empezaron ellos y ya no daba para más. Si quieres seguir luchando, ordénalo.');
+      } else if (cansados && jugador) {
+        const otro = otroJ;
         m.ofertas = m.ofertas || {};
         if (!m.ofertas[otro.id] || m.turno - m.ofertas[otro.id] > 12) {
           m.ofertas[otro.id] = m.turno;
@@ -464,5 +476,5 @@
   }
 
   M.sim = { W, H, K, TIERRA, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, destinoRumbo, FOCOS, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, destinoRumbo, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

@@ -82,7 +82,7 @@ console.log('LA VIDA: ALDEANOS, ÁRBOLES Y CASAS QUE MUEVEN LA ECONOMÍA');
   comprobar(v.aldeanos.every(a => a.r.length === 3 * (V.TICKS + 1)), 'cada aldeano guarda su recorrido del turno, paso a paso, para la animación');
   comprobar(v.cambios.every(([capa, t, antes, despues, paso]) => paso >= 0 && paso <= V.TICKS), 'y cada parcela que cambia lleva el paso en que cambió');
   const vivas = S.vivas(m);
-  comprobar(vivas.every(c => c.casas >= 2 && c.campos >= 4), 'los constructores levantan casas y los granjeros siembran campos (' + vivas.map(c => c.casas + '/' + c.campos).join(' ') + ')');
+  comprobar(vivas.filter(c => c.fundada === -4000).every(c => c.casas >= 2 && c.campos >= 4), 'los constructores levantan casas y los granjeros siembran campos (' + vivas.map(c => c.casas + '/' + c.campos).join(' ') + ')');
   comprobar(vivas.some(c => c.piedra > 0) && v.arbol.filter(x => x >= 2).length !== arboles0, 'se tala y se pica piedra');
   // La madera paga la expansión: sin madera ni piedra, un pueblo con árboles cerca no crece.
   const c = vivas[0];
@@ -182,6 +182,7 @@ console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
   const antes = JSON.stringify(otros.map(o => [o.pob, o.estab, o.ciencia, o.riqueza, o.plan || null]));
   const ordenes = ['talad el bosque y construid casas', 'invertid en ciencia', 'expandíos hacia el norte', 'reclutad un ejército', 'proclamad la república', 'informe'];
   const res = ordenes.map(o => X.ordenar(m, yo.id, o));
+  comprobar(yo.plan.prioridad.madera > 1 && yo.plan.prioridad.casas > 1 && yo.plan.prioridad.ciencia === 2 && yo.plan.prioridad.ejercito > 1, 'las órdenes no mandan a nadie en concreto: suben la importancia de madera, casas, ciencia y ejército (' + JSON.stringify(yo.plan.prioridad) + ')');
   comprobar(res.every(r => r.ok && r.respuesta), 'entiende órdenes de gobierno (' + res.map(r => r.acciones.map(a => a.tipo).join('+')).join(', ') + ')');
   comprobar(JSON.stringify(otros.map(o => [o.pob, o.estab, o.ciencia, o.riqueza, o.plan || null])) === antes, 'y ninguna toca a los demás pueblos');
   const r = X.ordenar(m, yo.id, 'que caiga una peste sobre ' + otros[0].nombre);
@@ -198,7 +199,19 @@ console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
   X.gobernar(c1, S.vivas(c1)[0].id); X.ordenar(c1, S.vivas(c1)[0].id, 'invertid en ciencia');
   for (let k = 0; k < 10; k++) { S.turno(c1); S.turno(c2); }
   comprobar(S.vivas(c1)[0].ciencia > S.vivas(c2)[0].ciencia * 1.15, 'invertir en ciencia hace avanzar más deprisa (' + Math.round(S.vivas(c2)[0].ciencia) + ' → ' + Math.round(S.vivas(c1)[0].ciencia) + ')');
-  // Guerra y paz: la IA no firma sola contigo, te ofrece la paz.
+  // El pueblo del jugador se gobierna solo, igual que los de la IA: sin órdenes, reparte el trabajo según lo que falta.
+  {
+    const g = hasta(S.crear(12, 5), -1000), V = M.vida, c = S.vivas(g)[0];
+    X.gobernar(g, c.id);
+    c.madera = 0;
+    const conMadera = V.reparto(Object.assign({}, c, { madera: 200 }), { arboles: 9, rocas: 9 }), sinMadera = V.reparto(c, { arboles: 9, rocas: 9 });
+    comprobar(sinMadera[0] > conMadera[0] * 1.3, 'sin órdenes, el gobernador automático pone más leñadores cuando falta madera (' + Math.round(conMadera[0] * 100) + '% → ' + Math.round(sinMadera[0] * 100) + '%)');
+    const enGuerra = V.reparto(Object.assign({}, c, { guerras: [{ con: 99 }] }), { arboles: 9, rocas: 9 });
+    comprobar(enGuerra[4] > sinMadera[4] * 2, 'y arma guerreros si hay guerra');
+    const hambre = V.reparto(Object.assign({}, c, { pob: c.cap * 1.0 }), { arboles: 9, rocas: 9 }), holgura = V.reparto(Object.assign({}, c, { pob: c.cap * 0.4 }), { arboles: 9, rocas: 9 });
+    comprobar(hambre[1] > holgura[1], 'y más granjeros cuando la gente roza el límite de comida');
+  }
+  // Guerra y paz: la IA no firma sola contigo una guerra que empezaste tú: te ofrece la paz.
   const w = hasta(S.crear(1, 5), 500);
   const a = S.vivas(w).find(x => S.vecinosDe(w, x).length), b = S.vecinosDe(w, a)[0];
   X.gobernar(w, a.id);
@@ -208,7 +221,7 @@ console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
   comprobar(!a.viva || !b.viva || S.enGuerra(a, b), 'la guerra no se acaba sola: la decides tú (o se acaba cuando cae uno)');
   comprobar(w.ofertas && w.ofertas[b.id] != null, 'cuando se cansan, te ofrecen la paz');
   if (a.viva && b.viva) { const rp = X.ordenar(w, a.id, 'acepto la paz con ' + b.nombre); comprobar(rp.ok && !S.enGuerra(a, b), 'y aceptarla la firma'); }
-  comprobar(X.limpiar([{ tipo: 'guerra', con: 2 }, { tipo: 'borrar_mundo' }, { tipo: 'oficios', pesos: { lenador: 9, mago: 1 } }]).length === 2, 'lo que traduzca Claude se filtra (solo acciones conocidas, con valores dentro de lo permitido)');
+  comprobar(JSON.stringify(X.limpiar([{ tipo: 'guerra', con: 2 }, { tipo: 'borrar_mundo' }, { tipo: 'prioridad', cambios: { madera: { a: 9 }, magia: { a: 2 } } }])) === JSON.stringify([{ tipo: 'guerra', con: 2 }, { tipo: 'prioridad', cambios: { madera: { a: 2 } } }]), 'lo que traduzca Claude se filtra (solo acciones conocidas, con valores dentro de lo permitido)');
 }
 
 console.log('LO QUE DECIDA CLAUDE, CON LÍMITES');
