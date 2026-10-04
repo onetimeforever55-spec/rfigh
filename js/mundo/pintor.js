@@ -35,6 +35,10 @@
     roca2: ['........', '........', '...rR...', '..rHRr..', '.rRRRRr.', '..rrrr..', '........', '........'],
     roca1: ['........', '........', '........', '...rR...', '..rRRr..', '...rr...', '........', '........'],
     ayuntamiento: ['...yy...', '...XX...', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wkwwkw.', '.wwddww.', '.wwddww.'],
+    torre: ['.s.s.s..', '.sssss..', '..sks...', '..sSs...', '..sks...', '..sSs...', '.sssss..', '.sSdSs..'],
+    templo: ['...XX...', '..XXXX..', '.XXXXXX.', 'XXXXXXXX', '.wSwSwS.', '.wSwSwS.', '.wSwdwS.', 'SSSSSSSS'],
+    molino: ['........', '........', '...XX...', '..XXXX..', '..wwww..', '..wkww..', '..wwdw..', '..wwww..'],
+    puerto: ['........', '........', 'bbbbbbbb', 'tbtbtbtb', 'bbbbbbbb', '.t...t..', '.t...t..', '........'],
     ruina: ['........', '........', '.s...S..', '.S..sS..', '.sS.sS..', 'sSsSs.s.', '........', '........'],
     choza: ['...XX...', '..XXXX..', '.XXxxXX.', 'XXXXXXXX', '.wwwwww.', '.wwddww.', '.wwddww.', '........'],
     casa: ['........', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wwwwww.', '.wkwwdw.', '.wwwwdw.', '........'],
@@ -175,6 +179,10 @@
       else if (obra === V.OBRA.casa) gl.drawImage(sprite(CASAS[ge], color), x, y);
       else if (obra === V.OBRA.ruina) gl.drawImage(sprite('ruina'), x, y);
       else if (obra === V.OBRA.ayuntamiento) gl.drawImage(sprite('ayuntamiento', color), x, y);
+      else if (obra === V.OBRA.torre) gl.drawImage(sprite('torre'), x, y);
+      else if (obra === V.OBRA.templo) gl.drawImage(sprite('templo', '#e8e0c8'), x, y);
+      else if (obra === V.OBRA.molino) gl.drawImage(sprite('molino', color), x, y);
+      else if (obra === V.OBRA.puerto) gl.drawImage(sprite('puerto'), x, y);
       else if (obra === V.OBRA.centro) {
         // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
         const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
@@ -344,12 +352,15 @@
     g.drawImage(capa, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
     banderas(ahora);
     agua(ahora, x0, y0, x1, y1);
+    barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
+    edificiosVivos(ahora, x0, y0, x1, y1);
     humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
     pintarDisparos(k);
     pintarTumbas(ahora);
     pintarEfectos(ahora, x0, y0, x1, y1);
+    asedios(ahora);
     nieve(ahora, x0, y0, x1, y1);
     pajaros(ahora, x0, y0, x1, y1);
     nubes(ahora, x0, y0, x1, y1);
@@ -565,6 +576,73 @@
       g.globalAlpha = 1;
     }
   }
+  // ---------- Edificios que se mueven: aspas de molino y banderas de torre ----------
+  let especiales = [], especialesHasta = 0;
+  function edificiosVivos(ahora, x0, y0, x1, y1) {
+    const v = m.vida;
+    if (ahora > especialesHasta) {
+      especialesHasta = ahora + 1000; especiales = [];
+      const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if (o === V.OBRA.molino || o === V.OBRA.torre) especiales.push(t); }
+    }
+    const fase = ahora / 400;
+    for (const t of especiales) {
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, o = visto.obra[t];
+      if (o === V.OBRA.molino) {
+        // Cuatro aspas que giran.
+        const cx = x + 4, cy = y + 3;
+        g.fillStyle = '#e8dcc0';
+        for (let k = 0; k < 4; k++) { const ang = fase + k * Math.PI / 2; for (let d = 1; d <= 4; d++) g.fillRect(Math.round(cx + Math.cos(ang) * d), Math.round(cy + Math.sin(ang) * d), 1, 1); }
+        g.fillStyle = '#5a3a22'; g.fillRect(cx, cy, 1, 1);
+      } else {
+        const c = S.civ(m, m.dueno[V.region(m, t)]);
+        if (!c) continue;
+        g.fillStyle = '#3a2a1e'; g.fillRect(x + 4, y - 4, 1, 4);
+        g.fillStyle = c.color; g.fillRect(x + 5, y - 4 + (Math.floor(ahora / 300) % 2), 3, 2);
+      }
+    }
+  }
+  // Los barcos, interpolando su travesía del turno.
+  function barcos(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
+    for (const b of v.barcos || []) {
+      let px = b.x * P, py = b.y * P;
+      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P; }
+      if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;
+      px = Math.round(px); py = Math.round(py + Math.sin(ahora / 500 + b.id) * 0.8);
+      const c = S.civ(m, b.c), color = c ? c.color : '#ccc';
+      g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px, py + 6, 7, 1);
+      if (b.tipo === 'pesca') {
+        g.fillStyle = '#6b4a2b'; g.fillRect(px + 1, py + 4, 5, 2); g.fillRect(px + 2, py + 6, 3, 1);
+        g.fillStyle = '#3a2a1e'; g.fillRect(px + 3, py, 1, 4);
+        g.fillStyle = '#e8e0c8'; g.fillRect(px + 4, py + 1, 2, 2);
+        if (Math.floor(ahora / 700 + b.id) % 3 === 0) { g.fillStyle = '#c8d4dc'; g.fillRect(px + 6, py + 5, 2, 1); }
+      } else {
+        g.fillStyle = '#5a3a22'; g.fillRect(px, py + 5, 8, 2); g.fillRect(px + 1, py + 7, 6, 1);
+        g.fillStyle = '#3a2a1e'; g.fillRect(px + 3, py - 2, 1, 7);
+        g.fillStyle = '#f4ecd8'; g.fillRect(px + 1, py - 1, 2, 4); g.fillRect(px + 4, py - 1, 3, 4);
+        g.fillStyle = color; g.fillRect(px + 3, py - 3, 2, 1);
+      }
+    }
+  }
+  // Las plazas sitiadas: espadas cruzadas y el porcentaje de captura.
+  function asedios(ahora) {
+    const v = m.vida, R = V.SUB * P;
+    for (const id of Object.keys(v.ejercitos || {})) {
+      const e = v.ejercitos[id];
+      if (!e.asedio || e.asedio <= 0) continue;
+      const x = (e.obj % m.W) * R + R / 2, y = Math.floor(e.obj / m.W) * R - 2;
+      const c = S.civ(m, +id);
+      g.fillStyle = 'rgba(13,19,34,0.85)'; g.fillRect(x - 9, y - 9, 18, 11);
+      g.fillStyle = '#e8ecf4';
+      for (let d = 0; d < 5; d++) { g.fillRect(x - 6 + d, y - 7 + d, 1, 1); g.fillRect(x - 2 - d, y - 7 + d, 1, 1); }
+      g.fillStyle = '#7a5232'; g.fillRect(x - 7, y - 2, 2, 1); g.fillRect(x - 3, y - 2, 2, 1);
+      g.fillStyle = '#2a3550'; g.fillRect(x, y - 6, 8, 3);
+      g.fillStyle = c ? c.color : '#ff4b3a'; g.fillRect(x, y - 6, Math.round(8 * e.asedio / 100), 3);
+      if (Math.floor(ahora / 400) % 2) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 9, y + 2, 18, 1); }
+    }
+  }
+
   // ---------- El ambiente: lo que se mueve aunque nadie lo mande ----------
   const azarV = n => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul(n ^ (n >>> 12), 0x297a2d39); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
   const tierraEn = (wx, wy) => { const v = m.vida, tx = Math.floor(wx / P), ty = Math.floor(wy / P); return tx >= 0 && ty >= 0 && tx < v.tw && ty < v.th ? tierra[ty * v.tw + tx] : null; };

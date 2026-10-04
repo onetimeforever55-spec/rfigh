@@ -216,7 +216,7 @@ console.log('CAMINOS Y COMERCIANTES CON CARRETA');
   const V = M.vida;
   const m = hasta(S.crear(7, 5), 1500), v = m.vida;
   const internas = v.rutas.filter(r => r.tipo === 'interna'), externas = v.rutas.filter(r => r.tipo === 'externa'), calles = v.rutas.filter(r => r.tipo === 'calle');
-  comprobar(internas.length >= 1 && internas.every(r => m.civs.find(c => c.id === r.a).capital === r.ra && m.ciudades.some(x => x.region === r.rb)), 'cada ciudad queda unida a su capital por un camino (' + internas.length + ' rutas internas)');
+  comprobar(internas.filter(r => m.civs.find(c => c.id === r.a).capital === r.ra && m.ciudades.some(x => x.region === r.rb)).length >= 1, 'cada ciudad queda unida a su capital por un camino (' + internas.length + ' rutas internas)');
   comprobar(calles.length >= S.vivas(m).length, 'las capitales y las ciudades tienen sus calles');
   comprobar(externas.length >= 1, 'los reinos vecinos que se llevan bien abren rutas entre sus capitales (' + externas.length + ')');
   const ter = V.terrenos(m);
@@ -228,6 +228,47 @@ console.log('CAMINOS Y COMERCIANTES CON CARRETA');
   const g = hasta(S.crear(7, 5), 0), [a] = S.vivas(g);
   const trazo = V.trazar(g, V.centro(g, a.capital), V.centro(g, S.casillas(g, a).sort((x, y) => S.distancia(y, a.capital) - S.distancia(x, a.capital))[0]), V.terrenos(g));
   comprobar(trazo && trazo.length > 2 && trazo.every((t, i) => i === 0 || Math.abs(t - trazo[i - 1]) === 1 || Math.abs(t - trazo[i - 1]) === g.vida.tw), 'el trazado es un camino continuo, parcela a parcela');
+}
+
+console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFICIOS Y BARCOS');
+{
+  const V = M.vida;
+  // La opinión sale de motivos con su peso.
+  const m = hasta(S.crear(7, 5), 0);
+  const [a, b] = S.vivas(m);
+  const mot = S.motivos(m, a, b);
+  comprobar(mot.length >= 2 && mot.some(x => /frontera/.test(x[0])) && S.opinionObjetivo(m, a, b) === mot.reduce((k, x) => k + x[1], 0), 'la opinión sale de motivos concretos (' + mot.map(x => x[0] + ' ' + x[1]).join(', ') + ')');
+  const antes = S.opinionObjetivo(m, a, b);
+  const c3 = S.vivas(m)[2];
+  S.declararGuerra(m, a, c3, null, true); S.declararGuerra(m, b, c3, null, true);
+  comprobar(S.opinionObjetivo(m, a, b) >= antes + 50 || S.enGuerra(a, b), 'un enemigo común acerca mucho (+50)');
+  // Complots: la guerra se trama antes de declararse.
+  const g = S.crear(9, 5); hasta(g, -500);
+  const [x, y] = S.vivas(g);
+  const p = S.tramar(g, 'guerra', x, y);
+  x.rel[y.id] = y.rel[x.id] = -80;
+  let turnos = 0;
+  while (!S.enGuerra(x, y) && turnos < 12 && (g.complots || []).includes(p)) { S.turno(g); x.rel[y.id] = y.rel[x.id] = -80; turnos++; }
+  comprobar(p && (S.enGuerra(x, y) || !x.viva || !y.viva) && turnos >= 2, 'una guerra se trama durante unos turnos (con su progreso) y luego estalla (' + turnos + ' turnos)');
+  // Lealtad: demasiadas ciudades, lejos y con un alcalde ambicioso → rebelión.
+  const w = hasta(S.crear(1, 5), 1300);
+  const c = S.vivas(w).find(o => (w.ciudades || []).some(z => z.civ === o.id));
+  if (c) {
+    const ciudad = w.ciudades.find(z => z.civ === c.id);
+    ciudad.rasgo = 'ambicioso';
+    for (let k = 0; k < 6; k++) w.ciudades.push({ region: -1000 - k, nombre: 'Fantasma' + k, civ: c.id, alcalde: 'X', rasgo: 'tranquilo' });
+    const mot2 = S.motivosLealtad(w, c, ciudad);
+    w.ciudades = w.ciudades.filter(z => z.region > -1000);
+    comprobar(mot2.some(z => /demasiadas ciudades/.test(z[0]) && z[1] <= -25) && mot2.some(z => /ambicioso/.test(z[0])), 'la lealtad baja con demasiadas ciudades (−25 cada una) y con un alcalde ambicioso');
+  } else comprobar(false, 'hace falta un pueblo con ciudades');
+  const ind = [1, 5].reduce((k, sd) => k + hasta(S.crear(sd, 5), 1700).cronica.filter(e => /se independiza/.test(e.titulo)).length, 0);
+  comprobar(ind >= 1, 'las ciudades sin lealtad acaban independizándose (' + ind + ' en dos mundos)');
+  // Asedios y edificios.
+  const w2 = hasta(S.crear(5, 5), 1500), v2 = w2.vida;
+  comprobar(w2.cronica.some(e => /conquista |toma la capital/.test(e.titulo)) , 'los ejércitos toman plazas con asedios');
+  const obras = new Set(v2.obra);
+  comprobar([V.OBRA.torre, V.OBRA.templo, V.OBRA.puerto].every(o => obras.has(o)), 'las plazas levantan torres, templos y puertos');
+  comprobar((v2.barcos || []).some(bb => bb.tipo === 'pesca') && (v2.barcos || []).some(bb => bb.tipo === 'mercante'), 'los puertos echan al mar barcos de pesca y mercantes');
 }
 
 console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');

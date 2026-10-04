@@ -322,7 +322,7 @@
     const sig = M.ERAS[c.era + 1];
     if (sig && c.ciencia >= sig.umbral) subirEra(m, c, null);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
-    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
+    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
@@ -570,7 +570,8 @@
       const empuje = 1 + 0.25 * Math.tanh(batallas / 6);
       const fa = fuerza(m, a) * empuje, fb = fuerza(m, b) / empuje;
       const [gana, pierde, ratio] = fa >= fb ? [a, b, fa / fb] : [b, a, fb / fa];
-      const k = Math.max(0, Math.min(5, Math.round(((ratio - 1) * 2 + (azar(m) - 0.4)) * 1.5)));
+      // Las batallas ganan algo de frontera cada año; las plazas se toman con asedios (vida.js).
+      const k = Math.max(0, Math.min(3, Math.round(((ratio - 1) * 2 + (azar(m) - 0.4)) * 1.1)));
       const fr = frontera(m, gana, pierde);
       const tomadas = fr.sort(() => azar(m) - 0.5).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;

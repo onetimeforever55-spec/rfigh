@@ -226,12 +226,12 @@ button { cursor: pointer; }
     { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
     { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 15, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
     { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 100, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 232, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 238, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
     { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 610, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1080, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 1500, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 1580, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 1690, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1060, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 1520, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 1610, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 1720, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
@@ -313,6 +313,7 @@ button { cursor: pointer; }
     nuevo_pueblo: [['Los pueblos de las estepas y los desiertos aparecen de pronto en la historia y la cambian.', 'Los mongoles de Gengis Kan pasaron de tribus enfrentadas a dominar de Corea a Hungría en cincuenta años.']],
     abundancia: [['Las buenas cosechas llenan los graneros y las cunas.', 'La patata y el maíz de América duplicaron la población de muchos países de Europa y de China en dos siglos.']],
     destruccion: [['Algunas civilizaciones desaparecen de golpe y dejan solo ruinas.', 'La erupción del Vesubio en el año 79 sepultó Pompeya en un día; la de Tera, siglos antes, quizá acabó con la Creta minoica.']],
+    complot: [['Las guerras rara vez estallan de repente: antes se traman en las cortes, y quien las ve venir puede evitarlas.', 'El plan Schlieffen para invadir Francia por Bélgica se preparó durante casi diez años antes de 1914.']],
     alianza: [['Las alianzas se firman por miedo a un tercero más que por amistad, y arrastran a la guerra a quien las firma.', 'En 1914 una red de alianzas convirtió el asesinato de un archiduque en Sarajevo en una guerra mundial en cinco semanas.']],
     sucesion: [['En una monarquía, cada muerte del rey es una apuesta: un heredero claro trae calma; uno dudoso, guerra.', 'La guerra de Sucesión española (1701-1714) enfrentó a media Europa por quién heredaba el trono de un rey sin hijos.']],
     ciudad: [['Donde se juntan caminos, mercados y graneros nace una ciudad, y con ella gente que ya no obedece solo al rey.', 'Las ciudades italianas de la Edad Media, como Florencia o Venecia, acabaron gobernándose solas.']],
@@ -617,6 +618,7 @@ button { cursor: pointer; }
     for (const c of lista) vivir(m, c);
     diplomacia(m);
     for (const c of vivas(m)) guerras(m, c);
+    lealtades(m);
     sucesosNaturales(m);
     for (const c of vivas(m)) c.efectos = c.efectos.filter(e => e.hasta > m.turno);
     const maxEra = Math.max(0, ...vivas(m).map(c => c.era));
@@ -658,7 +660,7 @@ button { cursor: pointer; }
     const sig = M.ERAS[c.era + 1];
     if (sig && c.ciencia >= sig.umbral) subirEra(m, c, null);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
-    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
+    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
@@ -684,8 +686,8 @@ button { cursor: pointer; }
       }
     }
     // Revuelta: las provincias lejanas de un reino grande e inestable se separan.
-    if (c.estab < 22 && n >= 8 * K && azar(m) < 0.3) separar(m, c, cs);
-    else if (c.estab < 8 && azar(m) < 0.25) {
+    // (Las provincias ya no se separan al azar: se rebelan sus ciudades cuando pierden la lealtad; ver lealtades.)
+    if (c.estab < 8 && azar(m) < 0.25) {
       const perdidas = cs.filter(i => i !== c.capital && azar(m) < 0.3);
       for (const i of perdidas) m.dueno[i] = -1;
       if (perdidas.length) cronica(m, 'caida', 'Desorden en ' + c.nombre, 'Nadie obedece a nadie. ' + perdidas.length + ' comarcas quedan abandonadas y los caminos se llenan de bandidos.', c);
@@ -744,37 +746,129 @@ button { cursor: pointer; }
   }
 
   // ---------- Las relaciones entre pueblos ----------
+  /*
+   * LA OPINIÓN ENTRE REINOS, como en WorldBox: cada uno tiene una opinión objetivo hecha de motivos
+   * concretos (compartir frontera, un enemigo común, el carácter del pueblo, el talante de los reyes, las
+   * guerras recientes, los tratados) y la opinión real se acerca a ella poco a poco.
+   */
+  function motivos(m, a, b) {
+    const out = [];
+    const juntos = vecinosDe(m, a).includes(b);
+    out.push(juntos ? ['comparten frontera', -25] : ['no comparten frontera', 10]);
+    if (a.guerras.some(g => b.guerras.some(h => h.con === g.con)) && !enGuerra(a, b)) out.push(['enemigo común', 50]);
+    out.push(a.caracter === b.caracter ? ['mismo carácter (' + M.CARACTERES[a.caracter].nombre + ')', 15] : ['costumbres distintas', -5]);
+    const talante = x => (x.rey ? ({ pacifico: 10, justo: 5, guerrero: -10, cruel: -10, loco: -15 }[x.rey.rasgo] || 0) : 0);
+    if (talante(a) + talante(b)) out.push(['el talante de sus gobernantes', talante(a) + talante(b)]);
+    if (aliados(m, a, b)) out.push(['son aliados', 30]);
+    if ((a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id))) out.push(['tratado de comercio', 20]);
+    if (m.vida && (m.vida.rutas || []).some(r => r.tipo === 'externa' && ((r.a === a.id && r.b === b.id) || (r.a === b.id && r.b === a.id)))) out.push(['ruta comercial', 15]);
+    if (Math.abs(a.era - b.era) >= 2) out.push(['los ven como bárbaros (otra época)', -10]);
+    const t = (m.memoria || {})[Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id)];
+    if (t != null && m.turno - t < 15) out.push(['guerra reciente', -Math.round(40 * (1 - (m.turno - t) / 15))]);
+    if (enGuerra(a, b)) out.push(['están en guerra', -60]);
+    return out;
+  }
+  const opinionObjetivo = (m, a, b) => motivos(m, a, b).reduce((k, x) => k + x[1], 0);
+
   function diplomacia(m) {
     const lista = vivas(m);
+    m.complots = (m.complots || []).filter(p => { const a = civ(m, p.de), b = civ(m, p.contra); return a && a.viva && b && b.viva; });
     for (const a of lista) {
       const vec = vecinosDe(m, a);
       for (const b of lista) {
         if (a.id >= b.id) continue;
         const juntos = vec.includes(b);
-        const ca = M.CARACTERES[a.caracter], cb = M.CARACTERES[b.caracter];
         let r = a.rel[b.id] || 0;
-        // La frontera roza; el comercio acerca; el tiempo cura.
-        // La opinión: la frontera roza y el comercio acerca; también acercan el mismo carácter, los gobernantes
-        // pacíficos y, sobre todo, tener un enemigo común. El tiempo lo cura todo poco a poco.
-        const comun = a.guerras.some(g => b.guerras.some(h => h.con === g.con));
-        const talante = x => (rasgo(x, 'agresion') < 1 ? 0.4 : rasgo(x, 'agresion') > 1.3 ? -0.4 : 0);
-        r += (juntos ? -1.2 * (ca.agresion + cb.agresion) / 2 + 0.8 * (ca.comercio + cb.comercio) / 2 : (a.era >= 2 && b.era >= 2 ? 0.35 * (ca.comercio + cb.comercio) / 2 : 0)) +
-          (a.caracter === b.caracter ? 0.6 : 0) + talante(a) + talante(b) + (comun ? 3 : 0) - r * 0.04 + (azar(m) - 0.5) * 3;
-        // Los tratados de comercio de un jugador acercan a los dos pueblos cada año.
-        if ((a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id))) r += 3;
-        if (aliados(m, a, b)) r += 2;
+        r += (opinionObjetivo(m, a, b) - r) * 0.15 + (azar(m) - 0.5) * 3;
         a.rel[b.id] = b.rel[a.id] = Math.max(-100, Math.min(100, r));
-        // Los que se llevan muy bien acaban aliados (sobre todo si temen a un vecino común); los que se enfrían, rompen.
-        if (aliados(m, a, b)) { if (r < 5) romper(m, a, b); }
-        else if (!a.jugador && !b.jugador && r > 22 && !enGuerra(a, b) && aliadosDe(m, a).length < 2 && aliadosDe(m, b).length < 2 && azar(m) < 0.08) aliar(m, a, b);
-        if (!juntos || aliados(m, a, b)) continue;
-        if (!enGuerra(a, b)) {
-          const fa = fuerza(m, a), fb = fuerza(m, b);
-          const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
-          const ganas = M.CARACTERES[agresor.caracter].agresion * rasgo(agresor, 'agresion') * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
-          if (!agresor.jugador && agresor.guerras.length < 2 && (r < -55 || (ganas > 2.2 && r < 10)) && azar(m) < 0.12) declararGuerra(m, agresor, victima, null);
-        }
+        if (aliados(m, a, b)) { if (r < 0) romper(m, a, b); continue; }
+        if (a.jugador || b.jugador || enGuerra(a, b)) continue;
+        // Los complots: las guerras y las alianzas se traman antes de pasar (y se ven venir).
+        if (r > 25 && aliadosDe(m, a).length < 2 && aliadosDe(m, b).length < 2 && azar(m) < 0.15) tramar(m, 'alianza', a, b);
+        if (!juntos) continue;
+        const fa = fuerza(m, a), fb = fuerza(m, b);
+        const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
+        const ganas = M.CARACTERES[agresor.caracter].agresion * rasgo(agresor, 'agresion') * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
+        if (!agresor.jugador && agresor.guerras.length < 2 && (r < -40 || (ganas > 2.2 && r < 10)) && azar(m) < 0.15) tramar(m, 'guerra', agresor, victima);
       }
+    }
+    avanzarComplots(m);
+  }
+
+  /*
+   * LA LEALTAD DE LAS CIUDADES, como en WorldBox: cada ciudad (no la capital) tiene una lealtad hecha de
+   * motivos. Si baja de cero, su alcalde conspira; si el complot llega al 100 %, la ciudad se independiza.
+   */
+  const maxCiudades = c => 2 + Math.floor(c.era / 2) + (c.rey && c.rey.rasgo === 'constructor' ? 1 : 0);
+  function motivosLealtad(m, c, x) {
+    const out = [['base', 30]];
+    const d = distancia(x.region, c.capital);
+    if (d > 6) out.push(['lejos de la capital', -Math.round((d - 6) * 1.5)]);
+    const suyas = (m.ciudades || []).filter(y => y.civ === c.id).length;
+    if (suyas > maxCiudades(c)) out.push(['demasiadas ciudades (' + suyas + ' de ' + maxCiudades(c) + ')', -25 * (suyas - maxCiudades(c))]);
+    const rey = c.rey ? ({ justo: 10, sabio: 5, constructor: 5, cruel: -15, loco: -20, codicioso: -5 }[c.rey.rasgo] || 0) : 0;
+    if (rey) out.push(['su ' + titulo(c) + ' es ' + M.RASGOS[c.rey.rasgo].nombre, rey]);
+    const alcalde = { leal: 15, ambicioso: -15, codicioso: -5 }[x.rasgo] || 0;
+    if (alcalde) out.push(['el alcalde es ' + x.rasgo, alcalde]);
+    if (x.conquistada != null && m.turno - x.conquistada < 10) out.push(['conquistada hace poco', -Math.round(30 * (1 - (m.turno - x.conquistada) / 10))]);
+    if (m.turno - c.ultimaHambre < 4) out.push(['hambre', -15]); else if ((c.comida || 0) > 20) out.push(['graneros llenos', 5]);
+    out.push(['estabilidad del reino', Math.round((c.estab - 50) * 0.4)]);
+    if (c.guerras.some(g => g.cansancio > 4)) out.push(['cansancio de la guerra', -10]);
+    return out;
+  }
+  function lealtades(m) {
+    for (const x of (m.ciudades || []).slice()) {
+      const c = civ(m, x.civ);
+      if (!c || !c.viva || x.region === c.capital) continue;
+      x.motivos = motivosLealtad(m, c, x);
+      x.lealtad = x.motivos.reduce((k, y) => k + y[1], 0);
+      if (x.lealtad < 0) {
+        if (x.complot == null) { x.complot = 0; cronica(m, 'complot', x.alcalde + ' conspira en ' + x.nombre, 'El alcalde de ' + x.nombre + ' reúne a los notables de la ciudad: ya no quieren obedecer a ' + c.nombre + '. ' + (x.motivos.filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0] || ['', 0])[0].replace(/^./, l => l.toUpperCase()) + '.', c, x.region); }
+        x.complot += 20 + Math.min(40, -x.lealtad / 2);
+        if (x.complot >= 100) rebelarCiudad(m, c, x);
+      } else if (x.lealtad >= 10) x.complot = null;
+    }
+  }
+  // La ciudad se independiza con las tierras que tiene alrededor (las que están más cerca de ella que de la capital).
+  function rebelarCiudad(m, c, x) {
+    const cs = casillas(m, c);
+    const parte = cs.filter(i => i !== c.capital && distancia(i, x.region) <= 4 && distancia(i, x.region) < distancia(i, c.capital));
+    if (!parte.includes(x.region)) parte.unshift(x.region);
+    if (parte.length >= cs.length) return;
+    parte.splice(parte.indexOf(x.region), 1); parte.unshift(x.region);
+    const nueva = nuevaCiv(m, x.region, { era: c.era, ciencia: c.ciencia * 0.9, pob: c.pob * parte.length / cs.length, riqueza: c.riqueza * 0.2, estab: 55, inventos: c.inventos.slice(), caracter: c.caracter });
+    if (!m.civs.some(o => o !== nueva && o.nombre === x.nombre)) nueva.nombre = x.nombre;
+    nueva.rey = { nombre: x.alcalde, edad: 40, rasgo: x.rasgo === 'ambicioso' ? 'guerrero' : 'justo', desde: m.anio };
+    for (const i of parte) m.dueno[i] = nueva.id;
+    c.pob -= nueva.pob; c.estab = Math.max(10, c.estab - 10);
+    nueva.regimen = regimenPorEra(m, nueva, parte.length);
+    nueva.rel[c.id] = c.rel[nueva.id] = -50;
+    m.ciudades = m.ciudades.filter(y => y !== x);
+    cronica(m, 'revuelta', x.nombre + ' se independiza de ' + c.nombre, 'El alcalde ' + x.alcalde + ' proclama la independencia de ' + x.nombre + ' y de ' + (parte.length - 1) + ' comarcas de alrededor. ' + c.nombre + ' lo llama traición; ' + x.nombre + ', libertad.', nueva, x.region, { importante: true });
+    // A veces la metrópoli no lo acepta.
+    if (azar(m) < 0.5 && !c.jugador) declararGuerra(m, c, nueva, c.nombre + ' no acepta la independencia de ' + x.nombre + ' y manda a sus ejércitos a recuperarla.', true);
+  }
+
+  // Un complot nuevo (si no hay ya uno igual): lo trama el gobernante de "de" contra (o con) "contra".
+  function tramar(m, tipo, de, contra) {
+    m.complots = m.complots || [];
+    if (m.complots.some(p => p.de === de.id && p.tipo === tipo) || m.complots.some(p => p.tipo === tipo && p.de === contra.id && p.contra === de.id)) return;
+    const p = { tipo, de: de.id, contra: contra.id, progreso: 0, desde: m.turno };
+    m.complots.push(p);
+    if (tipo === 'guerra') cronica(m, 'complot', nombreRey(de) + ' trama una guerra contra ' + contra.nombre, 'En la corte de ' + de.nombre + ' se habla de mapas, de levas y de una afrenta que nadie recuerda bien. Si nada lo impide, habrá guerra.', de);
+    return p;
+  }
+  function avanzarComplots(m) {
+    for (const p of (m.complots || []).slice()) {
+      const a = civ(m, p.de), b = civ(m, p.contra), r = a.rel[b.id] || 0;
+      // Se abandonan si las cosas cambian: la opinión mejora, o empeora para una alianza.
+      const sigue = p.tipo === 'guerra' ? r < 25 && !aliados(m, a, b) && a.guerras.length < 2 && !enGuerra(a, b) : r > 10 && !enGuerra(a, b) && !aliados(m, a, b);
+      if (!sigue) { m.complots = m.complots.filter(x => x !== p); continue; }
+      p.progreso += p.tipo === 'guerra' ? 15 + 10 * rasgo(a, 'agresion') + azar(m) * 10 : 20 + azar(m) * 15;
+      if (p.progreso < 100) continue;
+      m.complots = m.complots.filter(x => x !== p);
+      if (p.tipo === 'guerra') declararGuerra(m, a, b, 'El complot de ' + nombreRey(a) + ' culmina: ' + a.nombre + ' declara la guerra a ' + b.nombre + '.');
+      else aliar(m, a, b);
     }
   }
 
@@ -783,6 +877,7 @@ button { cursor: pointer; }
     if (aliados(m, a, b)) romper(m, a, b, a.nombre + ' traiciona a su aliado ' + b.nombre + ': la alianza se rompe el mismo día que cruzan la frontera.');
     a.guerras.push({ con: b.id, desde: m.turno, cansancio: 0 });
     b.guerras.push({ con: a.id, desde: m.turno, cansancio: 0 });
+    m.complots = (m.complots || []).filter(p => !(p.tipo === 'guerra' && p.de === a.id && p.contra === b.id));
     a.rel[b.id] = b.rel[a.id] = Math.min(a.rel[b.id] || 0, -50);
     const e = cronica(m, 'guerra', 'Guerra entre ' + a.nombre + ' y ' + b.nombre, motivo || (a.nombre + ' cruza la frontera de ' + b.nombre + '. ' + elegir(m, ['Dicen que por un pozo.', 'Dicen que por un insulto a sus dioses.', 'Dicen que por unas ovejas.', 'Dicen que por un matrimonio que no se celebró.', 'Nadie recuerda ya por qué.'])), a, frontera(m, b, a)[0]);
     // Los aliados entran: los de la víctima casi siempre (para eso juraron), los del agresor a veces.
@@ -795,6 +890,7 @@ button { cursor: pointer; }
   }
 
   function hacerPaz(m, a, b, motivo) {
+    (m.memoria = m.memoria || {})[Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id)] = m.turno;
     a.guerras = a.guerras.filter(g => g.con !== b.id);
     b.guerras = b.guerras.filter(g => g.con !== a.id);
     a.rel[b.id] = b.rel[a.id] = 0;
@@ -812,7 +908,8 @@ button { cursor: pointer; }
       const empuje = 1 + 0.25 * Math.tanh(batallas / 6);
       const fa = fuerza(m, a) * empuje, fb = fuerza(m, b) / empuje;
       const [gana, pierde, ratio] = fa >= fb ? [a, b, fa / fb] : [b, a, fb / fa];
-      const k = Math.max(0, Math.min(5, Math.round(((ratio - 1) * 2 + (azar(m) - 0.4)) * 1.5)));
+      // Las batallas ganan algo de frontera cada año; las plazas se toman con asedios (vida.js).
+      const k = Math.max(0, Math.min(3, Math.round(((ratio - 1) * 2 + (azar(m) - 0.4)) * 1.1)));
       const fr = frontera(m, gana, pierde);
       const tomadas = fr.sort(() => azar(m) - 0.5).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;
@@ -906,7 +1003,7 @@ button { cursor: pointer; }
   }
 
   M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, aliados, aliadosDe, aliar, romper, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vida.js
@@ -929,7 +1026,7 @@ button { cursor: pointer; }
   const M = RF.MUNDO;
   const S = () => M.sim;
   const SUB = 4, TICKS = 8, MAX_ALDEANOS = 260;
-  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5 };
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9 };
   const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante'];
   const [LENADOR, GRANJERO, CONSTRUCTOR, MINERO, GUERRERO, COMERCIANTE] = [0, 1, 2, 3, 4, 5];
   // Estados del aldeano y lo que hace en cada paso (la vista elige el dibujo con esto).
@@ -1175,9 +1272,13 @@ button { cursor: pointer; }
           if (!enemigo || !enemigo.viva) continue;
           const frente = S().frontera(m, c, enemigo);
           if (!frente.length) continue;
-          const obj = frente.sort((x, y) => S().distancia(x, enemigo.capital) - S().distancia(y, enemigo.capital))[0];
+          let obj = frente.sort((x, y) => S().distancia(x, enemigo.capital) - S().distancia(y, enemigo.capital))[0];
+          // Como en WorldBox, se va a por las ciudades: la del enemigo (o su capital) más cercana a nuestra frontera.
+          const plazas = [enemigo.capital, ...(m.ciudades || []).filter(x => x.civ === enemigo.id).map(x => x.region)];
+          const cerca = plazas.map(r => [r, Math.min(...frente.map(f => S().distancia(f, r)))]).sort((p, q) => p[1] - q[1])[0];
+          if (cerca && cerca[1] <= 5) obj = cerca[0];
           const nuestro = S().frontera(m, enemigo, c).sort((x, y) => S().distancia(x, obj) - S().distancia(y, obj))[0];
-          e = { con: enemigo.id, obj, reunion: nuestro != null ? nuestro : c.capital, fase: 'reunion', desde: m.turno };
+          e = { con: enemigo.id, obj, reunion: nuestro != null ? nuestro : c.capital, fase: 'reunion', desde: m.turno, asedio: 0 };
           break;
         }
         if (e) v.ejercitos[c.id] = e; else { delete v.ejercitos[c.id]; continue; }
@@ -1194,6 +1295,169 @@ button { cursor: pointer; }
         const juntos = suyos.filter(a => dist(m, a.y * v.tw + a.x, base) <= 5).length;
         if (juntos >= suyos.length * 0.5 || m.turno - e.desde >= 2) { e.fase = 'marcha'; for (const a of suyos) if (a.e === ESPERAR || a.paseo) a.e = LIBRE; }
       }
+    }
+  }
+
+  /*
+   * LOS EDIFICIOS DE CADA PLAZA (capital y ciudades), como en WorldBox: una torre de vigilancia, un templo,
+   * un molino junto a los campos (desde la Edad Media) y un puerto si hay costa. Cuestan madera y piedra.
+   */
+  const COSTES = { [OBRA.torre]: [6, 4], [OBRA.templo]: [8, 6], [OBRA.molino]: [8, 2], [OBRA.puerto]: [10, 0] };
+  function edificioPendiente(m, a, c, ter) {
+    const v = m.vida;
+    const plazas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)].sort((p, q) => S().distancia(p, a.h) - S().distancia(q, a.h));
+    for (const r of plazas.slice(0, 3)) {
+      const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)];
+      const tiles = zona.flatMap(z => parcelas(m, z));
+      const tiene = o => tiles.some(t => v.obra[t] === o);
+      const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+      const pide = [];
+      if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
+      if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
+      if (c.era >= 4 && !tiene(OBRA.molino) && tiles.filter(t => v.obra[t] === OBRA.campo).length >= 4) pide.push([OBRA.molino, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]) && [1, -1, v.tw, -v.tw].some(d => v.obra[t + d] === OBRA.campo))]);
+      if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
+      for (const [obra, donde] of pide) {
+        const coste = COSTES[obra];
+        if (c.madera < coste[0] || c.piedra < coste[1]) continue;
+        const t = donde();
+        if (t != null) return [t, obra];
+      }
+    }
+    return null;
+  }
+
+  /*
+   * LOS BARCOS: cada puerto tiene un barco de pesca (trae comida) y, desde la Antigüedad, un mercante que
+   * navega hasta el puerto de otro reino en paz y vuelve (oro para los dos).
+   */
+  function navegable(ter, t) { return ter[t] === 'agua' || ter[t] === 'bajo'; }
+  function rutaPorMar(m, de, a, ter) {
+    const v = m.vida, prev = new Map([[de, -1]]), cola = [de];
+    for (let i = 0; i < cola.length && cola.length < 14000; i++) {
+      const t = cola[i];
+      if (t === a) break;
+      const x = t % v.tw;
+      for (const n of [x > 0 ? t - 1 : -1, x < v.tw - 1 ? t + 1 : -1, t - v.tw, t + v.tw]) {
+        if (n < 0 || n >= ter.length || prev.has(n) || (!navegable(ter, n) && n !== a)) continue;
+        prev.set(n, t); cola.push(n);
+      }
+    }
+    if (!prev.has(a)) return null;
+    const out = [a];
+    while (prev.get(out[out.length - 1]) !== -1) out.push(prev.get(out[out.length - 1]));
+    return out.reverse();
+  }
+  const aguaJunto = (m, t, ter) => [1, -1, m.vida.tw, -m.vida.tw].map(d => t + d).find(n => n >= 0 && n < ter.length && navegable(ter, n));
+  let puertosDelTurno = [], travesias = {};
+  function barcos(m, ter) {
+    const v = m.vida;
+    puertosDelTurno = [];
+    for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === OBRA.puerto) puertosDelTurno.push(t);
+    v.barcos = (v.barcos || []).filter(b => v.obra[b.puerto] === OBRA.puerto && m.dueno[region(m, b.puerto)] === b.c);
+    for (const t of puertosDelTurno) {
+      const c = S().civ(m, m.dueno[region(m, t)]);
+      if (!c) continue;
+      const agua = aguaJunto(m, t, ter);
+      if (agua == null) continue;
+      for (const tipo of c.era >= 3 ? ['pesca', 'mercante'] : ['pesca']) {
+        if (v.barcos.some(b => b.puerto === t && b.tipo === tipo)) continue;
+        v.barcos.push({ id: v.sig++, tipo, c: c.id, puerto: t, x: agua % v.tw, y: agua / v.tw | 0, ruta: null, i: 0, vuelta: 0, r: [] });
+      }
+    }
+  }
+  function navegar(m, b, ter) {
+    const v = m.vida, c = S().civ(m, b.c);
+    if (!c) return;
+    if (b.tipo === 'pesca') {
+      // Faena cerca de su puerto: cada tanto vuelve con pescado.
+      const base = aguaJunto(m, b.puerto, ter);
+      for (let k = 0; k < 4; k++) {
+        const [dx, dy] = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(azar(v) * 4)];
+        const n = (b.y + dy) * v.tw + b.x + dx;
+        if (b.x + dx >= 0 && b.x + dx < v.tw && n >= 0 && n < ter.length && navegable(ter, n) && dist(m, n, base) <= 7) { b.x += dx; b.y += dy; break; }
+      }
+      if (azar(v) < 0.08) c.comida = (c.comida || 0) + 1;
+    } else {
+      if (!b.ruta) {
+        if (azar(v) < 0.7) { b.r.push(b.x, b.y); return; }
+        const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); return o && o.id !== c.id && !S().enGuerra(c, o); });
+        if (!otros.length) { b.r.push(b.x, b.y); return; }
+        const destino = otros[Math.floor(azar(v) * otros.length)];
+        const de = aguaJunto(m, b.puerto, ter), a = aguaJunto(m, destino, ter);
+        // Las travesías se recuerdan (el mar no cambia): solo se calcula la primera vez.
+        const clave = de + '>' + a;
+        if (!(clave in travesias) || travesias.mundo !== m) { if (travesias.mundo !== m) travesias = { mundo: m }; travesias[clave] = de != null && a != null ? rutaPorMar(m, de, a, ter) : null; }
+        const ruta = travesias[clave];
+        if (!ruta || ruta.length < 3) { b.r.push(b.x, b.y); return; }
+        b.ruta = ruta; b.i = 0; b.vuelta = 0; b.destino = destino;
+      }
+      b.i += b.vuelta ? -2 : 2;
+      if (!b.vuelta && b.i >= b.ruta.length - 1) {
+        b.i = b.ruta.length - 1; b.vuelta = 1;
+        const o = S().civ(m, m.dueno[region(m, b.destino)]);
+        if (o && !S().enGuerra(c, o)) { c.riqueza += 5 + c.era; o.riqueza += 4 + o.era; c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1); }
+      } else if (b.vuelta && b.i <= 0) { b.i = 0; b.ruta = null; }
+      const t = b.ruta ? b.ruta[Math.max(0, Math.min(b.ruta.length - 1, b.i))] : aguaJunto(m, b.puerto, ter);
+      if (t != null) { b.x = t % v.tw; b.y = t / v.tw | 0; }
+    }
+    b.r.push(b.x, b.y);
+  }
+
+  /*
+   * EL ASEDIO, como en WorldBox: si el capitán está en la plaza enemiga, sin defensores y sin torre en pie,
+   * la captura avanza; al llegar a 100, la plaza y sus tierras cambian de bandera.
+   */
+  function asedios(m, paso) {
+    const v = m.vida;
+    for (const id of Object.keys(v.ejercitos)) {
+      const e = v.ejercitos[id], c = S().civ(m, +id), o = S().civ(m, e.con);
+      if (!c || !o || !o.viva || e.fase !== 'marcha' || e.defiende != null || m.dueno[e.obj] !== o.id) continue;
+      const enRegion = a => region(m, a.y * v.tw + a.x) === e.obj;
+      const nuestros = v.aldeanos.filter(a => a.c === c.id && a.o === GUERRERO && enRegion(a));
+      const defensores = v.aldeanos.filter(a => a.c === o.id && a.o === GUERRERO && enRegion(a)).length;
+      const capitan = nuestros.some(a => a.id === e.capitan);
+      const torre = parcelas(m, e.obj).some(t => v.obra[t] === OBRA.torre);
+      if (capitan && !defensores && !torre) e.asedio = Math.min(100, (e.asedio || 0) + 1.5 + 0.6 * Math.min(8, nuestros.length));
+      else if (defensores) e.asedio = Math.max(0, (e.asedio || 0) - 2);
+      if (e.asedio >= 100) capturar(m, c, o, e.obj, paso);
+    }
+  }
+  function capturar(m, c, o, r, paso) {
+    const v = m.vida, esCapital = o.capital === r;
+    const tierras = S().casillas(m, o).filter(i => i === r || (S().distancia(i, r) <= 2 && S().distancia(i, r) < S().distancia(i, o.capital)));
+    for (const i of tierras) m.dueno[i] = c.id;
+    const ciudad = (m.ciudades || []).find(x => x.region === r);
+    o.estab -= esCapital ? 20 : 8;
+    c.victorias = (c.victorias || 0) + 3;
+    S().cronica(m, 'conquista', c.nombre + (esCapital ? ' toma la capital de ' : ' conquista ') + (ciudad ? ciudad.nombre : esCapital ? o.nombre : 'una plaza de ' + o.nombre), 'Tras ' + (esCapital ? 'un largo asedio' : 'el asedio') + ', el estandarte de ' + c.nombre + ' ondea en ' + (ciudad ? ciudad.nombre : 'la plaza') + '. ' + tierras.length + ' comarcas cambian de dueño.', c, r, { importante: esCapital });
+    delete v.ejercitos[c.id];
+    void paso;
+  }
+
+  /*
+   * LAS TORRES DE VIGILANCIA: disparan flechas a los guerreros enemigos cercanos e impiden la captura de su
+   * plaza mientras estén en pie. Los guerreros que las rodean las acaban derribando.
+   */
+  function torres(m, paso, guerreros) {
+    const v = m.vida;
+    v.torres = v.torres || {};
+    for (const k of Object.keys(v.torres)) {
+      const t = +k;
+      if (v.obra[t] !== OBRA.torre) { delete v.torres[k]; continue; }
+      const c = S().civ(m, m.dueno[region(m, t)]);
+      if (!c || !c.guerras.length) continue;
+      const tx = t % v.tw, ty = t / v.tw | 0;
+      let blanco = null, cerca = 0;
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+        const lista = guerreros.get((ty + dy) * v.tw + tx + dx);
+        if (!lista) continue;
+        for (const b of lista) if (c.guerras.some(g => g.con === b.c)) { if (!blanco) blanco = b; if (Math.abs(dx) + Math.abs(dy) <= 1) cerca++; }
+      }
+      if (blanco && azar(v) < 0.5) {
+        v.disparos.push([tx, ty, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
+        if (azar(v) < 0.22) { v.aldeanos = v.aldeanos.filter(a => a !== blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'torre', paso]); }
+      }
+      if (cerca) { v.torres[k] -= cerca * 0.4; if (v.torres[k] <= 0) { cambiar(m, 'obra', t, OBRA.ruina, paso); delete v.torres[k]; } }
     }
   }
 
@@ -1228,7 +1492,7 @@ button { cursor: pointer; }
     if (!m.vida) crear(m);
     const v = m.vida;
     v.cambios = []; v.muertos = []; v.disparos = [];
-    v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
+    v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.barcos = v.barcos || []; v.torres = v.torres || {}; v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
     centros(m);
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
@@ -1236,15 +1500,20 @@ button { cursor: pointer; }
     ejercitos(m);
     const ter = terrenos(m);
     for (const a of v.aldeanos) a.r = [a.x, a.y, a.e === TRABAJAR ? ACC.trabajar : a.k ? ACC.cargar : ACC.andar];
+    barcos(m, ter);
     for (const b of v.animales) b.r = [b.x, b.y];
+    for (const b of v.barcos) b.r = [b.x, b.y];
     for (let paso = 1; paso <= TICKS; paso++) {
       for (const b of v.animales) pastar(m, b, ter);
+      for (const b of v.barcos) navegar(m, b, ter);
       // Dónde está cada guerrero, para que se encuentren en la frontera.
       const guerreros = new Map();
       for (const a of v.aldeanos) if (a.o === GUERRERO) { const t = a.y * v.tw + a.x; (guerreros.get(t) || guerreros.set(t, []).get(t)).push(a); }
       const muertos = new Set();
       for (const a of v.aldeanos) if (!muertos.has(a)) actuar(m, a, rec[a.c], ter, paso, guerreros, muertos);
       if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
+      torres(m, paso, guerreros);
+      asedios(m, paso);
     }
     naturaleza(m, ter);
     contar(m);
@@ -1400,7 +1669,7 @@ button { cursor: pointer; }
       else t = c.campos < metaCampos(c) ? libre(m, a, c, rec, ter, CULTIVABLE) : -1;
     }
     else if (a.o === CONSTRUCTOR) {
-      a.obraCamino = 0;
+      a.obraCamino = 0; a.edificio = 0;
       // Los caminos pendientes se empiedran cuando las casas no corren prisa (o una de cada dos veces).
       const pend = (v.pendientes && v.pendientes[c.id]) || [];
       if (pend.length && (c.casas >= metaCasas(c) * 0.6 || azar(v) < 0.5)) {
@@ -1409,6 +1678,7 @@ button { cursor: pointer; }
         for (const x of pend) { if (rec.reservadas.has(x) || v.camino[x]) continue; const d = dist(m, aqui, x); if (d < md) { md = d; t = x; } }
         if (t >= 0) a.obraCamino = 1;
       }
+      if (t < 0 && azar(v) < 0.6) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
       if (t < 0) t = c.casas < metaCasas(c) && c.madera >= 2 ? libre(m, a, c, rec, ter, CONSTRUIBLE) : -1;
     }
     else if (a.o === COMERCIANTE) {
@@ -1489,7 +1759,15 @@ button { cursor: pointer; }
     if (a.o === LENADOR) { if (v.arbol[t] >= 2) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE; }
     else if (a.o === MINERO) { if (v.roca[t] > 0) { a.e = TRABAJAR; a.t = 3; } else a.e = LIBRE; }
     else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else { a.e = LIBRE; a.siega = 0; } }
+    else if (a.o === CONSTRUCTOR && a.edificio) {
+      if (!v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, a.edificio, paso); if (a.edificio === OBRA.torre) (v.torres = v.torres || {})[t] = 12; }
+      a.edificio = 0;
+    }
     else if (a.o === CONSTRUCTOR && a.obraCamino) { if (!v.camino[t] && !v.obra[t]) { a.e = TRABAJAR; a.t = 1; } else { a.e = LIBRE; a.obraCamino = 0; } }
+    else if (a.o === CONSTRUCTOR && a.edificio) {
+      const coste = COSTES[a.edificio];
+      if (!v.obra[t] && c.madera >= coste[0] && c.piedra >= coste[1]) { c.madera -= coste[0]; c.piedra -= coste[1]; a.e = TRABAJAR; a.t = 5; } else { a.e = LIBRE; a.edificio = 0; }
+    }
     else if (a.o === CONSTRUCTOR) {
       const piedra = c.era >= 2 && c.piedra >= 1;
       if (!v.obra[t] && v.arbol[t] < 2 && c.madera >= (piedra ? 2 : 3)) { c.madera -= piedra ? 2 : 3; if (piedra) c.piedra -= 1; a.e = TRABAJAR; a.t = 4; } else a.e = LIBRE;
@@ -1504,7 +1782,7 @@ button { cursor: pointer; }
     const v = m.vida, t = a.ty * v.tw + a.tx;
     if (a.o === LENADOR && v.arbol[t] >= 2) { a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && v.roca[t] > 0) { a.k = 1; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
-    if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2; a.siega = 0; }
+    if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) { cambiar(m, 'cultivo', t, 0, paso); c.comida = (c.comida || 0) + 2 + (c.molinos ? 1 : 0); a.siega = 0; }
     else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) {
       // Un tramo de camino: se quita el árbol o la roca; desde la Antigüedad se empiedra (cuesta un poco de piedra).
@@ -1714,7 +1992,7 @@ button { cursor: pointer; }
       if (ob === OBRA.campo && v.cultivo[t] < 3 && dueno >= 0 && azar(v) < 0.55) cambiar(m, 'cultivo', t, v.cultivo[t] + 1, 1 + Math.floor(azar(v) * TICKS));
       // Lo abandonado se arruina, y las ruinas acaban bajo la hierba.
       if (dueno < 0) {
-        if (ob === OBRA.casa && azar(v) < 0.2) cambiar(m, 'obra', t, OBRA.ruina, F);
+        if ((ob === OBRA.casa || ob >= OBRA.torre) && azar(v) < 0.2) cambiar(m, 'obra', t, OBRA.ruina, F);
         else if (ob === OBRA.campo && azar(v) < 0.25) cambiar(m, 'obra', t, 0, F);
         else if (ob === OBRA.ruina && azar(v) < 0.04) cambiar(m, 'obra', t, 0, F);
       } else if (ob === OBRA.ruina && azar(v) < 0.02) cambiar(m, 'obra', t, 0, F);
@@ -1785,7 +2063,7 @@ button { cursor: pointer; }
       if (d < 0) { if (v.obra[t] === OBRA.ayuntamiento) cambiar(m, 'obra', t, OBRA.ruina, TICKS); m.ciudades = m.ciudades.filter(y => y !== x); S().cronica(m, 'caida', x.nombre + ' queda abandonada', 'La ciudad de ' + x.nombre + ' se vacía: sus calles se llenan de hierba y sus piedras acaban en las casas de los pueblos vecinos.', null, x.region); continue; }
       if (d !== x.civ) {
         const antes = S().civ(m, x.civ), ahora = S().civ(m, d);
-        x.civ = d; x.alcalde = persona(v);
+        x.civ = d; x.alcalde = persona(v); x.rasgo = ['leal', 'ambicioso', 'codicioso', 'tranquilo'][Math.floor(azar(v) * 4)]; x.conquistada = m.turno;
         if (ahora && antes && antes.viva) S().cronica(m, 'conquista', ahora.nombre + ' toma ' + x.nombre, 'La ciudad de ' + x.nombre + ', que era de ' + antes.nombre + ', iza ahora la bandera de ' + ahora.nombre + '. Su nuevo alcalde, ' + x.alcalde + ', promete respetar los mercados (y subir los impuestos).', ahora, x.region);
       }
       if (v.obra[t] !== OBRA.ayuntamiento) { cambiar(m, 'arbol', t, 0, TICKS); cambiar(m, 'roca', t, 0, TICKS); cambiar(m, 'obra', t, OBRA.ayuntamiento, TICKS); }
@@ -1799,7 +2077,7 @@ button { cursor: pointer; }
       const lejos = r => S().distancia(r, c.capital) >= 5 && m.ciudades.every(x => S().distancia(r, x.region) >= 5);
       const r = cs.filter(r => (casasDe[r] || 0) >= 3 && lejos(r)).sort((a, b) => casasDe[b] - casasDe[a])[0];
       if (r == null) continue;
-      const x = { region: r, nombre: nombreCiudad(m), civ: c.id, alcalde: persona(v), fundada: m.anio };
+      const x = { region: r, nombre: nombreCiudad(m), civ: c.id, alcalde: persona(v), rasgo: ['leal', 'ambicioso', 'codicioso', 'tranquilo', 'tranquilo'][Math.floor(azar(v) * 5)], fundada: m.anio, lealtad: 40 };
       m.ciudades.push(x);
       const t = centro(m, r);
       cambiar(m, 'arbol', t, 0, TICKS); cambiar(m, 'roca', t, 0, TICKS); cambiar(m, 'obra', t, OBRA.ayuntamiento, TICKS);
@@ -1809,19 +2087,21 @@ button { cursor: pointer; }
 
   // Lo que cada pueblo tiene levantado en su tierra: lo usa la capacidad (sim.js) y la ficha.
   function contar(m) {
-    const v = m.vida, casas = {}, campos = {}, arboles = {};
+    const v = m.vida, casas = {}, campos = {}, arboles = {}, edif = {};
     for (let t = 0; t < v.tw * v.th; t++) {
       const d = m.dueno[region(m, t)];
       if (d < 0) continue;
       const o = v.obra[t];
       if (o === OBRA.casa || o === OBRA.centro || o === OBRA.ayuntamiento) casas[d] = (casas[d] || 0) + (o === OBRA.casa ? 1 : 0.5);
       else if (o === OBRA.campo) campos[d] = (campos[d] || 0) + 1;
+      else if (o >= OBRA.torre) { const e = (edif[d] = edif[d] || {}); e[o] = (e[o] || 0) + 1; }
       if (v.arbol[t] >= 2) arboles[d] = (arboles[d] || 0) + 1;
     }
     const gente = {}, guerreros = {}, armados = {}, comerciantes = {};
     for (const a of v.aldeanos) { gente[a.c] = (gente[a.c] || 0) + 1; if (a.o === GUERRERO) { guerreros[a.c] = (guerreros[a.c] || 0) + 1; if ((a.arma || 0) > 0) armados[a.c] = (armados[a.c] || 0) + 1; } if (a.o === COMERCIANTE) comerciantes[a.c] = (comerciantes[a.c] || 0) + 1; }
     for (const c of m.civs) {
       c.casas = Math.round(casas[c.id] || 0); c.campos = campos[c.id] || 0; c.arboles = arboles[c.id] || 0; c.aldeanos = gente[c.id] || 0; c.guerreros = guerreros[c.id] || 0; c.armados = armados[c.id] || 0; c.comerciantes = comerciantes[c.id] || 0;
+      const e = edif[c.id] || {}; c.torres = e[OBRA.torre] || 0; c.templos = e[OBRA.templo] || 0; c.molinos = e[OBRA.molino] || 0; c.puertos = e[OBRA.puerto] || 0;
       c.metal = c.metal || 0; c.oro = c.oro || 0;
       c.madera = c.madera || 0; c.piedra = c.piedra || 0;
     }
@@ -2519,6 +2799,10 @@ button { cursor: pointer; }
     roca2: ['........', '........', '...rR...', '..rHRr..', '.rRRRRr.', '..rrrr..', '........', '........'],
     roca1: ['........', '........', '........', '...rR...', '..rRRr..', '...rr...', '........', '........'],
     ayuntamiento: ['...yy...', '...XX...', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wkwwkw.', '.wwddww.', '.wwddww.'],
+    torre: ['.s.s.s..', '.sssss..', '..sks...', '..sSs...', '..sks...', '..sSs...', '.sssss..', '.sSdSs..'],
+    templo: ['...XX...', '..XXXX..', '.XXXXXX.', 'XXXXXXXX', '.wSwSwS.', '.wSwSwS.', '.wSwdwS.', 'SSSSSSSS'],
+    molino: ['........', '........', '...XX...', '..XXXX..', '..wwww..', '..wkww..', '..wwdw..', '..wwww..'],
+    puerto: ['........', '........', 'bbbbbbbb', 'tbtbtbtb', 'bbbbbbbb', '.t...t..', '.t...t..', '........'],
     ruina: ['........', '........', '.s...S..', '.S..sS..', '.sS.sS..', 'sSsSs.s.', '........', '........'],
     choza: ['...XX...', '..XXXX..', '.XXxxXX.', 'XXXXXXXX', '.wwwwww.', '.wwddww.', '.wwddww.', '........'],
     casa: ['........', '..XXXX..', '.XXXXXX.', 'xXXXXXXx', '.wwwwww.', '.wkwwdw.', '.wwwwdw.', '........'],
@@ -2659,6 +2943,10 @@ button { cursor: pointer; }
       else if (obra === V.OBRA.casa) gl.drawImage(sprite(CASAS[ge], color), x, y);
       else if (obra === V.OBRA.ruina) gl.drawImage(sprite('ruina'), x, y);
       else if (obra === V.OBRA.ayuntamiento) gl.drawImage(sprite('ayuntamiento', color), x, y);
+      else if (obra === V.OBRA.torre) gl.drawImage(sprite('torre'), x, y);
+      else if (obra === V.OBRA.templo) gl.drawImage(sprite('templo', '#e8e0c8'), x, y);
+      else if (obra === V.OBRA.molino) gl.drawImage(sprite('molino', color), x, y);
+      else if (obra === V.OBRA.puerto) gl.drawImage(sprite('puerto'), x, y);
       else if (obra === V.OBRA.centro) {
         // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
         const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
@@ -2828,12 +3116,15 @@ button { cursor: pointer; }
     g.drawImage(capa, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
     banderas(ahora);
     agua(ahora, x0, y0, x1, y1);
+    barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
+    edificiosVivos(ahora, x0, y0, x1, y1);
     humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
     pintarDisparos(k);
     pintarTumbas(ahora);
     pintarEfectos(ahora, x0, y0, x1, y1);
+    asedios(ahora);
     nieve(ahora, x0, y0, x1, y1);
     pajaros(ahora, x0, y0, x1, y1);
     nubes(ahora, x0, y0, x1, y1);
@@ -3049,6 +3340,73 @@ button { cursor: pointer; }
       g.globalAlpha = 1;
     }
   }
+  // ---------- Edificios que se mueven: aspas de molino y banderas de torre ----------
+  let especiales = [], especialesHasta = 0;
+  function edificiosVivos(ahora, x0, y0, x1, y1) {
+    const v = m.vida;
+    if (ahora > especialesHasta) {
+      especialesHasta = ahora + 1000; especiales = [];
+      const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if (o === V.OBRA.molino || o === V.OBRA.torre) especiales.push(t); }
+    }
+    const fase = ahora / 400;
+    for (const t of especiales) {
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, o = visto.obra[t];
+      if (o === V.OBRA.molino) {
+        // Cuatro aspas que giran.
+        const cx = x + 4, cy = y + 3;
+        g.fillStyle = '#e8dcc0';
+        for (let k = 0; k < 4; k++) { const ang = fase + k * Math.PI / 2; for (let d = 1; d <= 4; d++) g.fillRect(Math.round(cx + Math.cos(ang) * d), Math.round(cy + Math.sin(ang) * d), 1, 1); }
+        g.fillStyle = '#5a3a22'; g.fillRect(cx, cy, 1, 1);
+      } else {
+        const c = S.civ(m, m.dueno[V.region(m, t)]);
+        if (!c) continue;
+        g.fillStyle = '#3a2a1e'; g.fillRect(x + 4, y - 4, 1, 4);
+        g.fillStyle = c.color; g.fillRect(x + 5, y - 4 + (Math.floor(ahora / 300) % 2), 3, 2);
+      }
+    }
+  }
+  // Los barcos, interpolando su travesía del turno.
+  function barcos(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
+    for (const b of v.barcos || []) {
+      let px = b.x * P, py = b.y * P;
+      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P; }
+      if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;
+      px = Math.round(px); py = Math.round(py + Math.sin(ahora / 500 + b.id) * 0.8);
+      const c = S.civ(m, b.c), color = c ? c.color : '#ccc';
+      g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px, py + 6, 7, 1);
+      if (b.tipo === 'pesca') {
+        g.fillStyle = '#6b4a2b'; g.fillRect(px + 1, py + 4, 5, 2); g.fillRect(px + 2, py + 6, 3, 1);
+        g.fillStyle = '#3a2a1e'; g.fillRect(px + 3, py, 1, 4);
+        g.fillStyle = '#e8e0c8'; g.fillRect(px + 4, py + 1, 2, 2);
+        if (Math.floor(ahora / 700 + b.id) % 3 === 0) { g.fillStyle = '#c8d4dc'; g.fillRect(px + 6, py + 5, 2, 1); }
+      } else {
+        g.fillStyle = '#5a3a22'; g.fillRect(px, py + 5, 8, 2); g.fillRect(px + 1, py + 7, 6, 1);
+        g.fillStyle = '#3a2a1e'; g.fillRect(px + 3, py - 2, 1, 7);
+        g.fillStyle = '#f4ecd8'; g.fillRect(px + 1, py - 1, 2, 4); g.fillRect(px + 4, py - 1, 3, 4);
+        g.fillStyle = color; g.fillRect(px + 3, py - 3, 2, 1);
+      }
+    }
+  }
+  // Las plazas sitiadas: espadas cruzadas y el porcentaje de captura.
+  function asedios(ahora) {
+    const v = m.vida, R = V.SUB * P;
+    for (const id of Object.keys(v.ejercitos || {})) {
+      const e = v.ejercitos[id];
+      if (!e.asedio || e.asedio <= 0) continue;
+      const x = (e.obj % m.W) * R + R / 2, y = Math.floor(e.obj / m.W) * R - 2;
+      const c = S.civ(m, +id);
+      g.fillStyle = 'rgba(13,19,34,0.85)'; g.fillRect(x - 9, y - 9, 18, 11);
+      g.fillStyle = '#e8ecf4';
+      for (let d = 0; d < 5; d++) { g.fillRect(x - 6 + d, y - 7 + d, 1, 1); g.fillRect(x - 2 - d, y - 7 + d, 1, 1); }
+      g.fillStyle = '#7a5232'; g.fillRect(x - 7, y - 2, 2, 1); g.fillRect(x - 3, y - 2, 2, 1);
+      g.fillStyle = '#2a3550'; g.fillRect(x, y - 6, 8, 3);
+      g.fillStyle = c ? c.color : '#ff4b3a'; g.fillRect(x, y - 6, Math.round(8 * e.asedio / 100), 3);
+      if (Math.floor(ahora / 400) % 2) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 9, y + 2, 18, 1); }
+    }
+  }
+
   // ---------- El ambiente: lo que se mueve aunque nadie lo mande ----------
   const azarV = n => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul(n ^ (n >>> 12), 0x297a2d39); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
   const tierraEn = (wx, wy) => { const v = m.vida, tx = Math.floor(wx / P), ty = Math.floor(wy / P); return tx >= 0 && ty >= 0 && tx < v.tw && ty < v.th ? tierra[ty * v.tw + tx] : null; };
@@ -3403,11 +3761,13 @@ button { cursor: pointer; }
       fila('Madera', Math.floor(c.madera || 0) + ' <span class="tenue">· piedra ' + Math.floor(c.piedra || 0) + ' · ' + (c.arboles || 0) + ' árboles en su tierra</span>') +
       fila('Obras', (c.casas || 0) + ' casas · ' + (c.campos || 0) + ' campos') +
       fila('Comercio', comercioDe(c)) +
+      fila('Edificios', [c.torres ? c.torres + ' torre' + (c.torres > 1 ? 's' : '') : '', c.templos ? c.templos + ' templo' + (c.templos > 1 ? 's' : '') : '', c.molinos ? c.molinos + ' molino' + (c.molinos > 1 ? 's' : '') : '', c.puertos ? c.puertos + ' puerto' + (c.puertos > 1 ? 's' : '') + ' <span class="tenue">(' + ((m.vida.barcos || []).filter(b => b.c === c.id).length) + ' barcos)</span>' : ''].filter(Boolean).join(' · ') || '<span class="tenue">ninguno todavía</span>') +
       fila('Minas', Math.floor(c.metal || 0) + ' de ' + (c.era >= 6 ? 'acero' : c.era >= 2 ? 'hierro' : 'bronce') + ' <span class="tenue">· ' + Math.floor(c.oro || 0) + ' de oro</span>') +
       fila('Ejército', (c.guerreros || 0) + ' guerreros' + (c.guerreros ? ' <span class="tenue">· ' + (c.armados || 0) + ' con ' + esc(M.vida.ARMAS[c.era].nombre) + (c.era >= 1 ? ', tiradores con ' + esc(M.vida.TIROS[c.era]) : '') + '</span>' : '')) +
       fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
       fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
       (S.aliadosDe(m, c).length ? fila('Aliados', esc(S.aliadosDe(m, c).map(o => o.nombre).join(', '))) : '') +
+      (complotsDe(c) ? fila('Complots', complotsDe(c)) : '') +
       fila('Opinión', opiniones(c)) + '</dl>' +
       (c.jugador ? planDe(c) : '') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
@@ -3435,11 +3795,23 @@ button { cursor: pointer; }
   }
 
   const NOMBRES_OFICIO = { lenador: 'leñadores', granjero: 'granjeros', constructor: 'constructores', minero: 'mineros', guerrero: 'guerreros', comerciante: 'comerciantes' };
-  // Lo que piensa este pueblo de los demás, de mejor a peor.
+  // Lo que piensa este pueblo de los demás, de mejor a peor, con el motivo que más pesa.
   function opiniones(c) {
     const palabra = r => (r > 40 ? 'amistad' : r > 15 ? 'cordial' : r > -15 ? 'neutral' : r > -45 ? 'tensa' : 'hostil');
     const otros = S.vivas(m).filter(o => o.id !== c.id).sort((a, b) => (c.rel[b.id] || 0) - (c.rel[a.id] || 0));
-    return otros.slice(0, 6).map(o => { const r = Math.round(c.rel[o.id] || 0); return '<span class="' + (r <= -45 || S.enGuerra(c, o) ? 'rojo' : '') + '">' + esc(o.nombre) + '</span> <span class="tenue">' + (S.enGuerra(c, o) ? 'en guerra' : palabra(r)) + '</span>'; }).join(' · ') || '<span class="tenue">no conoce a nadie</span>';
+    return otros.slice(0, 6).map(o => {
+      const r = Math.round(c.rel[o.id] || 0), mot = S.motivos(m, c, o).slice().sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))[0];
+      return '<span class="' + (r <= -45 || S.enGuerra(c, o) ? 'rojo' : '') + '">' + esc(o.nombre) + '</span> <span class="tenue">' + (S.enGuerra(c, o) ? 'en guerra' : palabra(r) + ' ' + (r > 0 ? '+' : '') + r) + (mot ? ' (' + esc(mot[0]) + ')' : '') + '</span>';
+    }).join('<br>') || '<span class="tenue">no conoce a nadie</span>';
+  }
+  // Los complots en marcha que tocan a este pueblo, con su progreso.
+  function complotsDe(c) {
+    const l = (m.complots || []).filter(p => p.de === c.id || p.contra === c.id);
+    return l.map(p => {
+      const a = S.civ(m, p.de), b = S.civ(m, p.contra);
+      const texto = p.tipo === 'guerra' ? (p.de === c.id ? 'trama una guerra contra ' + b.nombre : a.nombre + ' trama una guerra contra él') : 'negocia una alianza con ' + (p.de === c.id ? b.nombre : a.nombre);
+      return '<span class="' + (p.tipo === 'guerra' ? 'rojo' : '') + '">' + esc(texto) + '</span> <span class="barra"><span style="width:' + Math.min(100, Math.round(p.progreso)) + '%"></span></span> <span class="tenue">' + Math.min(100, Math.round(p.progreso)) + '%</span>';
+    }).join('<br>');
   }
   function comercioDe(c) {
     const rutas = (m.vida.rutas || []).filter(r => r.tipo !== 'calle' && (r.a === c.id || r.b === c.id));
@@ -3448,9 +3820,15 @@ button { cursor: pointer; }
     const hecho = Math.round(100 * rutas.reduce((k, r) => k + r.tiles.filter(t => m.vida.camino[t]).length, 0) / Math.max(1, rutas.reduce((k, r) => k + r.tiles.length, 0)));
     return rutas.length + ' ruta' + (rutas.length > 1 ? 's' : '') + (fuera.length ? ' (con ' + esc(fuera.join(', ')) + ')' : ' internas') + ' <span class="tenue">· ' + (c.comerciantes || 0) + ' comerciantes con carreta · caminos al ' + hecho + '%</span>';
   }
+  // Las ciudades con su lealtad (y su peor motivo); las que conspiran, en rojo con el progreso del complot.
   function ciudadesDe(c) {
     const l = (m.ciudades || []).filter(x => x.civ === c.id);
-    return l.length ? esc(l.map(x => x.nombre + ' (alcalde ' + x.alcalde + ')').join(', ')) : '';
+    return l.map(x => {
+      const peor = (x.motivos || []).filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0];
+      const lealtad = x.lealtad != null ? Math.round(x.lealtad) : null;
+      return '<span class="' + (lealtad != null && lealtad < 0 ? 'rojo' : '') + '">' + esc(x.nombre) + '</span> <span class="tenue">alcalde ' + esc(x.alcalde) + (x.rasgo ? ' (' + esc(x.rasgo) + ')' : '') +
+        (lealtad != null ? ' · lealtad ' + lealtad + (peor ? ', ' + esc(peor[0]) : '') : '') + (x.complot != null ? ' · <b class="rojo">conspira ' + Math.min(100, Math.round(x.complot)) + '%</b>' : '') + '</span>';
+    }).join('<br>');
   }
   function aldeanos(c) {
     const cuenta = Object.create(null);
