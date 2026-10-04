@@ -75,6 +75,10 @@ button { cursor: pointer; }
 .inicio-botones { display: flex; flex-wrap: wrap; gap: 10px; }
 .inicio-botones .obrar { padding: 10px 18px; }
 .inicio-botones .mando { padding: 10px 16px; }
+.pestanas { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 10px; border-bottom: 1px solid var(--linea); }
+.pestana { font-family: var(--f-dato); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--tenue); padding: 6px 8px; margin-bottom: -1px; }
+.pestana:hover { color: var(--pergamino); }
+.pestana.activa { color: var(--oro); border-bottom-color: var(--oro); }
 .plan { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--linea); }
 .gobernar { margin-top: 10px; }
 .plan-titulo { margin: 0 0 8px; font-family: var(--f-dato); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--pergamino); }
@@ -159,6 +163,7 @@ button { cursor: pointer; }
     <div class="mandos">
       <button type="button" class="mando" id="play" aria-pressed="false">❚❚ Pausa</button>
       <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
+      <button type="button" class="mando sutil" id="sonido" aria-pressed="false" title="Sonido">🔈 Sonido</button>
       <button type="button" class="mando sutil" id="cambiar-modo">Cambiar de modo</button>
       <button type="button" class="mando sutil" id="nuevo">Nuevo mundo</button>
     </div>
@@ -228,13 +233,13 @@ button { cursor: pointer; }
   M.ERAS = [
     { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
     { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
-    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 112, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 300, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 800, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 1400, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2000, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 2120, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 2260, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
+    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', anios: 50, cap: 2.0, fuerza: 2.6, umbral: 425, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1200, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2150, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2850, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', anios: 8, cap: 8.0, fuerza: 16, umbral: 3000, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Era Atómica', con: 'la Era Atómica', corto: 'ATÓMICA', anios: 4, cap: 12, fuerza: 30, umbral: 3180, inventos: ['la bomba atómica', 'el ordenador', 'los satélites'] }
   ];
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
@@ -513,7 +518,7 @@ button { cursor: pointer; }
       cronica(m, 'sucesion', 'Guerra de sucesión en ' + c.nombre, 'Muere ' + (cargo === 'rey' ? 'el rey ' : 'el ' + cargo + ' ') + viejo + ' y tres pretendientes reclaman el poder. Gana ' + nombreRey(c) + ', ' + M.RASGOS[c.rey.rasgo].nombre + ', pero el reino queda partido en bandos.', c, null, { importante: true });
       const cs = casillas(m, c);
       if (cs.length >= 14 * K && azar(m) < 0.3) separar(m, c, cs);
-    } else if (detalle && (c.jugador || azar(m) < 0.25)) {
+    } else if (detalle && (c.jugador || (vivas(m).slice().sort((p, q) => q.pob - p.pob).indexOf(c) < 3 && azar(m) < 0.35))) {
       cronica(m, 'sucesion', nombreRey(c) + ' gobierna ' + c.nombre, 'Muere ' + viejo + ' a los ' + Math.round(c.rey.edad) + ' años, más o menos. Le sucede ' + nombreRey(c) + ', de quien dicen que es ' + M.RASGOS[c.rey.rasgo].nombre + '.', c);
     }
   }
@@ -661,7 +666,11 @@ button { cursor: pointer; }
     c.riqueza = c.riqueza * 0.93 + n * 0.4 * (c.era + 1) + enPaz.filter(v => (c.rel[v.id] || 0) > 10).length * 2 * car.comercio;
     c.riqueza *= 1 + (foco(c, 'riqueza') * rasgo(c, 'riqueza') - 1) * 0.1;
     // Ciencia: gente, estabilidad, carácter, y los inventos que se copian de vecinos más avanzados.
-    const copia = enPaz.reduce((k, v) => k + Math.max(0, v.era - c.era) * 3, 0);
+    const copia = enPaz.reduce((k, v) => k + Math.max(0, v.era - c.era) * 3, 0)
+      // Las ideas viajan lejos: algo llega siempre del pueblo más avanzado del mundo.
+      + Math.max(0, Math.max(...vivas(m).map(o => o.era)) - c.era) * 2
+      // Las ciudades y las rutas comerciales son donde se juntan sabios, libros y noticias.
+      + ((m.ciudades || []).filter(x => x.civ === c.id).length * 1.2 + (c.rutas || 0) * 1.5);
     // Cada era acelera la siguiente: la escritura, la imprenta y la ciencia se apoyan unas en otras.
     c.ciencia += Math.sqrt(c.pob) * 0.55 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia;
     const sig = M.ERAS[c.era + 1];
@@ -812,11 +821,11 @@ button { cursor: pointer; }
    */
   const maxCiudades = c => 2 + Math.floor(c.era / 2) + (c.rey && c.rey.rasgo === 'constructor' ? 1 : 0);
   function motivosLealtad(m, c, x) {
-    const out = [['base', 30]];
+    const out = [['base', 40]];
     const d = distancia(x.region, c.capital);
-    if (d > 6) out.push(['lejos de la capital', -Math.round((d - 6) * 1.5)]);
+    if (d > 8) out.push(['lejos de la capital', -Math.round((d - 8) * 1.2)]);
     const suyas = (m.ciudades || []).filter(y => y.civ === c.id).length;
-    if (suyas > maxCiudades(c)) out.push(['demasiadas ciudades (' + suyas + ' de ' + maxCiudades(c) + ')', -25 * (suyas - maxCiudades(c))]);
+    if (suyas > maxCiudades(c)) out.push(['demasiadas ciudades (' + suyas + ' de ' + maxCiudades(c) + ')', -15 * (suyas - maxCiudades(c))]);
     const rey = c.rey ? ({ justo: 10, sabio: 5, constructor: 5, cruel: -15, loco: -20, codicioso: -5 }[c.rey.rasgo] || 0) : 0;
     if (rey) out.push(['su ' + titulo(c) + ' es ' + M.RASGOS[c.rey.rasgo].nombre, rey]);
     const alcalde = { leal: 15, ambicioso: -15, codicioso: -5 }[x.rasgo] || 0;
@@ -835,7 +844,7 @@ button { cursor: pointer; }
       x.lealtad = x.motivos.reduce((k, y) => k + y[1], 0);
       if (x.lealtad < 0) {
         if (x.complot == null) { x.complot = 0; cronica(m, 'complot', x.alcalde + ' conspira en ' + x.nombre, 'El alcalde de ' + x.nombre + ' reúne a los notables de la ciudad: ya no quieren obedecer a ' + c.nombre + '. ' + (x.motivos.filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0] || ['', 0])[0].replace(/^./, l => l.toUpperCase()) + '.', c, x.region); }
-        x.complot += 20 + Math.min(40, -x.lealtad / 2);
+        x.complot += 10 + Math.min(20, -x.lealtad / 3);
         if (x.complot >= 100) rebelarCiudad(m, c, x);
       } else if (x.lealtad >= 10) x.complot = null;
     }
@@ -1256,7 +1265,7 @@ button { cursor: pointer; }
     if (padre && padre.rasgos && padre.rasgos.length && azar(v) < 0.35 && !rasgos.includes(padre.rasgos[0])) rasgos.push(padre.rasgos[0]);
     const familia = padre ? padre.familia : M.PERSONAS.inicio[Math.floor(azar(v) * M.PERSONAS.inicio.length)] + APELLIDOS[Math.floor(azar(v) * APELLIDOS.length)];
     const a = { id: v.sig++, c: c.id, o: GRANJERO, x: casa % v.tw, y: casa / v.tw | 0, h: region(m, casa), casa, e: LIBRE, tx: -1, ty: -1, t: 0, k: 0, q: 0, r: [], edad,
-      nombre: persona(v), familia, rasgos, hijos: 0, bajas: 0, hambre: 0, padre: padre ? padre.id : null, nacio: m.anio };
+      nombre: persona(v), familia, rasgos, hijos: 0, bajas: 0, hambre: 0, padre: padre ? padre.id : null, nacio: m.anio, eraNacio: c.era };
     if (padre) padre.hijos = (padre.hijos || 0) + 1;
     v.aldeanos.push(a);
     return a;
@@ -1618,6 +1627,7 @@ button { cursor: pointer; }
     naturaleza(m, ter);
     contar(m);
     ciudades(m);
+    abandonos(m);
     planificarRutas(m, terrenos(m));
     fauna(m, ter);
     comer(m);
@@ -2258,6 +2268,23 @@ button { cursor: pointer; }
   }
 
   /*
+   * Una tierra es de un reino mientras vive gente en ella o al lado. La que lleva varios turnos sin nadie
+   * cerca (porque la gente se fue, murió o nunca llegó) vuelve a ser tierra de nadie.
+   */
+  function abandonos(m) {
+    const v = m.vida;
+    v.vacia = v.vacia || new Array(m.W * m.H).fill(0);
+    const poblada = v.poblada || [];
+    for (let r = 0; r < m.W * m.H; r++) {
+      const d = m.dueno[r];
+      if (d < 0) { v.vacia[r] = 0; continue; }
+      const c = S().civ(m, d);
+      if (!c || c.capital === r || poblada[r] || S().vecinos(r).some(w => m.dueno[w] === d && poblada[w])) { v.vacia[r] = 0; continue; }
+      if (++v.vacia[r] >= 4) { m.dueno[r] = -1; v.vacia[r] = 0; }
+    }
+  }
+
+  /*
    * LOS COLONOS, como en WorldBox: cuando un pueblo está lleno (sin camas o al límite de comida), tres aldeanos
    * salen andando hacia una tierra libre y fértil y fundan allí una aldea nueva, con su ayuntamiento y su molino.
    */
@@ -2408,7 +2435,7 @@ button { cursor: pointer; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, poder, reparto, crear, turno, terreno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -3384,6 +3411,7 @@ button { cursor: pointer; }
     pajaros(ahora, x0, y0, x1, y1);
     nubes(ahora, x0, y0, x1, y1);
     marcarPulso(ahora);
+    noche(ahora, x0, y0, x1, y1, z, ox, oy);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
     pintarCartel(ahora, dpr);
@@ -3502,7 +3530,8 @@ button { cursor: pointer; }
         const ej = m.vida.ejercitos && m.vida.ejercitos[a.c];
         if (ej && ej.capitan === a.id) { g.fillStyle = '#3a2a1e'; g.fillRect(px - 1, py - 9, 1, 10); g.fillStyle = col; g.fillRect(px, py - 9, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 8, 2, 2); }
       }
-      if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px - 2, py + 1, 1, 1); }
+      if (acc === 2 && !(a.tirador)) { const ch = Math.floor(ahora / 90 + a.id) % 4; g.fillStyle = ch % 2 ? '#fff6a0' : '#ffd23a'; g.fillRect(px + 4 + ch, py - 1 - (ch % 2), 1, 1); g.fillRect(px + 5, py + 1 + (ch % 3) - 1, 1, 1); if (ch === 0) { g.fillStyle = '#ffffff'; g.fillRect(px + 4, py, 2, 1); } }
+      else if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); }
     }
   }
 
@@ -3632,6 +3661,33 @@ button { cursor: pointer; }
       g.globalAlpha = 1;
     }
   }
+  // ---------- El día y la noche: cada minuto y medio cae la noche y se encienden las ventanas ----------
+  const DIA = 90000;
+  let luces = [], lucesHasta = 0;
+  function oscuridad(ahora) { if (reducido) return 0; const f = (ahora % DIA) / DIA; return Math.max(0, Math.min(1, (-Math.cos(f * Math.PI * 2) - 0.1) * 1.4)); }
+  function noche(ahora, x0, y0, x1, y1, z, ox, oy) {
+    ahora = performance.now();
+    const o = oscuridad(ahora);
+    if (o <= 0.02) return;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = 'rgba(10,16,48,' + (0.42 * o).toFixed(3) + ')'; g.fillRect(0, 0, cv.width, cv.height);
+    g.setTransform(z, 0, 0, z, ox, oy);
+    if (o < 0.3) return;
+    const v = m.vida;
+    if (ahora > lucesHasta) {
+      lucesHasta = ahora + 1200; luces = [];
+      const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo) luces.push(t); if (luces.length > 400) break; }
+    }
+    const a = Math.min(1, (o - 0.3) / 0.4);
+    for (const t of luces) {
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, parpadeo = ((t * 7 + Math.floor(ahora / 900)) % 11) === 0;
+      if (parpadeo) continue;
+      g.fillStyle = 'rgba(255,190,80,' + (0.16 * a).toFixed(3) + ')'; g.fillRect(x + 1, y + 7, 14, 8);
+      g.fillStyle = 'rgba(255,220,120,' + (0.95 * a).toFixed(3) + ')'; g.fillRect(x + 4, y + 10, 2, 2); g.fillRect(x + 10, y + 10, 2, 2);
+    }
+  }
+
   // ---------- Edificios que se mueven: aspas de molino y banderas de torre ----------
   let especiales = [], especialesHasta = 0;
   function edificiosVivos(ahora, x0, y0, x1, y1) {
@@ -3696,6 +3752,21 @@ button { cursor: pointer; }
       g.fillStyle = '#2a3550'; g.fillRect(x, y - 6, 8, 3);
       g.fillStyle = c ? c.color : '#ff4b3a'; g.fillRect(x, y - 6, Math.round(8 * e.asedio / 100), 3);
       if (Math.floor(ahora / 400) % 2) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 9, y + 2, 18, 1); }
+      // La plaza sitiada arde: llamas y humo sobre algunas casas.
+      let ardiendo = 0;
+      for (const t of V.parcelas(m, e.obj)) {
+        const ob = visto.obra[t];
+        if (ardiendo >= Math.ceil(e.asedio / 30) || !(ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro)) continue;
+        ardiendo++;
+        const fx = (t % v.tw) * P, fy = Math.floor(t / v.tw) * P;
+        for (let k = 0; k < 7; k++) {
+          const f = ((ahora / 500) + k / 7) % 1, cx = fx + 3 + ((k * 5 + t) % 10);
+          g.fillStyle = f < 0.4 ? '#ffd23a' : f < 0.7 ? '#ff7a1a' : '#c8301a';
+          g.fillRect(Math.round(cx + Math.sin(ahora / 120 + k) * 1.5), Math.round(fy + 8 - f * 10), 2, 2);
+          g.fillStyle = 'rgba(70,70,80,' + (0.45 * (1 - f)).toFixed(2) + ')';
+          g.fillRect(Math.round(cx - 1 + Math.sin(f * 4 + k) * 3), Math.round(fy - 2 - f * 18), 3, 3);
+        }
+      }
     }
   }
 
@@ -3943,6 +4014,84 @@ button { cursor: pointer; }
   M.pintor = { P, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto, SPRITES };
 })(globalThis.RF = globalThis.RF || {});
 
+// js/mundo/sonido.js
+/*
+ * GÉNESIS · EL SONIDO
+ * Sonidos sintetizados con Web Audio (no hay archivos de audio): hachazos, espadas que chocan, flechas,
+ * el cuerno de guerra, campanas cuando se funda una ciudad, un arpegio cuando nace un niño y un tono grave
+ * con las pestes. Empieza apagado: se enciende con el botón de la cabecera.
+ */
+(function (RF) {
+  'use strict';
+  const M = RF.MUNDO = RF.MUNDO || {};
+  let ctx = null, activo = false, maestro = null;
+
+  function preparar() {
+    if (ctx) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+    maestro = ctx.createGain(); maestro.gain.value = 0.5; maestro.connect(ctx.destination);
+    return ctx;
+  }
+  // Un tono con su envolvente: frecuencia (y a dónde se desliza), duración, forma de onda y volumen.
+  function tono(f, dur, tipo, vol, hasta, retraso) {
+    if (!activo || !ctx) return;
+    const t0 = ctx.currentTime + (retraso || 0);
+    const o = ctx.createOscillator(), gn = ctx.createGain();
+    o.type = tipo || 'sine'; o.frequency.setValueAtTime(f, t0);
+    if (hasta) o.frequency.exponentialRampToValueAtTime(hasta, t0 + dur);
+    gn.gain.setValueAtTime(0.0001, t0); gn.gain.exponentialRampToValueAtTime(vol || 0.1, t0 + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(gn); gn.connect(maestro); o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  // Un golpe de ruido filtrado (hachazo, choque, soplo de una flecha).
+  function ruido(dur, frecuencia, vol, retraso, tipoFiltro) {
+    if (!activo || !ctx) return;
+    const t0 = ctx.currentTime + (retraso || 0), n = Math.floor(ctx.sampleRate * dur);
+    const b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const src = ctx.createBufferSource(), fil = ctx.createBiquadFilter(), gn = ctx.createGain();
+    src.buffer = b; fil.type = tipoFiltro || 'bandpass'; fil.frequency.value = frecuencia; gn.gain.value = vol;
+    src.connect(fil); fil.connect(gn); gn.connect(maestro); src.start(t0);
+  }
+
+  const S = {
+    hacha: r => { ruido(0.06, 900, 0.25, r); tono(170, 0.08, 'triangle', 0.08, 120, r); },
+    choque: r => { ruido(0.08, 3200, 0.22, r, 'highpass'); tono(1400, 0.07, 'square', 0.03, 900, r); },
+    flecha: r => { ruido(0.25, 1800, 0.08, r); },
+    cuerno: r => { tono(110, 0.9, 'sawtooth', 0.06, 147, r); tono(220, 0.9, 'triangle', 0.03, 294, r); },
+    campana: r => { tono(880, 1.4, 'sine', 0.08, null, r); tono(1320, 1.0, 'sine', 0.04, null, r); tono(1760, 0.6, 'sine', 0.02, null, r); },
+    nacer: r => { tono(660, 0.25, 'sine', 0.05, null, r); tono(880, 0.35, 'sine', 0.05, null, (r || 0) + 0.12); },
+    peste: r => { tono(90, 1.4, 'sine', 0.1, 70, r); },
+    obrar: r => { tono(523, 0.5, 'triangle', 0.06, null, r); tono(784, 0.6, 'triangle', 0.05, null, (r || 0) + 0.1); tono(1046, 0.8, 'sine', 0.04, null, (r || 0) + 0.2); }
+  };
+
+  // Lo que ha pasado en un turno, en sonidos repartidos a lo largo de su duración (ms).
+  function turno(m, duracion, eventos) {
+    if (!activo || !m || !m.vida) return;
+    const d = Math.max(0.3, (duracion || 1000) / 1000), v = m.vida;
+    const trabajando = v.aldeanos.filter(a => a.o === 0 && a.r && a.r.some((x, i) => i % 3 === 2 && x === 1)).length;
+    for (let k = 0; k < Math.min(3, Math.ceil(trabajando / 8)); k++) S.hacha(Math.random() * d);
+    const batallas = (v.muertos || []).filter(x => x[3] === 'batalla').length;
+    for (let k = 0; k < Math.min(4, batallas); k++) S.choque(Math.random() * d);
+    for (let k = 0; k < Math.min(3, (v.disparos || []).length); k++) S.flecha(Math.random() * d);
+    if (eventos.nacimientos) S.nacer(Math.random() * d * 0.5);
+    for (const e of eventos.cronica || []) {
+      if (e.tipo === 'guerra') S.cuerno(0.05);
+      else if (e.tipo === 'ciudad') S.campana(0.1);
+      else if (e.tipo === 'plaga' || e.tipo === 'hambruna') S.peste(0.1);
+    }
+  }
+
+  function alternar(encender) {
+    activo = encender != null ? encender : !activo;
+    if (activo) { preparar(); if (ctx && ctx.state === 'suspended') ctx.resume(); }
+    return activo;
+  }
+
+  M.sonido = { alternar, turno, activo: () => activo, efecto: n => S[n] && S[n](0) };
+})(globalThis.RF = globalThis.RF || {});
+
 // js/mundo/vista.js
 /*
  * GÉNESIS · LA VISTA
@@ -3959,7 +4108,7 @@ button { cursor: pointer; }
   const VELOCIDADES = [[3400, '1×'], [1200, '3×'], [400, '10×']];
   const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let aldeanoSel = null;
+  let aldeanoSel = null, pestana = 'resumen';
   let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
 
   // ---------- Guardar y cargar (comodidad de este navegador) ----------
@@ -4078,27 +4227,35 @@ button { cursor: pointer; }
     }
     const cs = S.casillas(m, c), cap = S.capacidad(m, c, cs);
     const enemigos = c.guerras.map(g => S.civ(m, g.con)).filter(Boolean).map(o => o.nombre);
+    const edificios = [c.torres ? c.torres + ' torre' + (c.torres > 1 ? 's' : '') : '', c.templos ? c.templos + ' templo' + (c.templos > 1 ? 's' : '') : '', c.molinos ? c.molinos + ' molino' + (c.molinos > 1 ? 's' : '') : '', c.puertos ? c.puertos + ' puerto' + (c.puertos > 1 ? 's' : '') + ' <span class="tenue">(' + ((m.vida.barcos || []).filter(b => b.c === c.id).length) + ' barcos)</span>' : ''].filter(Boolean).join(' · ') || '<span class="tenue">ninguno todavía</span>';
+    // La ficha va por pestañas, para no enseñarlo todo de golpe.
+    const pestanas = {
+      resumen: ['Resumen', fila('Gobierna', esc(M.TITULOS[c.regimen] ? M.TITULOS[c.regimen].charAt(0).toUpperCase() + M.TITULOS[c.regimen].slice(1) : 'Rey') + ' ' + esc(S.nombreRey(c)) + (c.rey ? ' <span class="tenue">(' + esc(M.RASGOS[c.rey.rasgo].nombre) + ', ' + Math.round(c.rey.edad) + ' años' + (c.heredero ? '; heredero: ' + esc(c.heredero.nombre) : '') + ')</span>' : '')) +
+        fila('Población', habitantes(c) + ' <span class="tenue">(la tierra da para ' + Math.round(cap / M.vida.escala(c)) + ')</span>') +
+        fila('Estabilidad', '<span class="barra"><span style="width:' + Math.round(c.estab) + '%"></span></span> ' + Math.round(c.estab)) +
+        fila('Riqueza', Math.round(c.riqueza)) + fila('Tierras', cs.length) +
+        fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
+        fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
+        (ciudadesDe(c) ? fila('Ciudades', ciudadesDe(c)) : '')],
+      economia: ['Economía', fila('Aldeanos', aldeanos(c)) +
+        fila('Comida', Math.floor(c.comida || 0) + ' en el granero <span class="tenue">· ' + (c.campos || 0) + ' campos</span>') +
+        fila('Madera', Math.floor(c.madera || 0) + ' <span class="tenue">· piedra ' + Math.floor(c.piedra || 0) + ' · ' + (c.arboles || 0) + ' árboles en su tierra</span>') +
+        fila('Minas', Math.floor(c.metal || 0) + ' de ' + (c.era >= 6 ? 'acero' : c.era >= 2 ? 'hierro' : 'bronce') + ' <span class="tenue">· ' + Math.floor(c.oro || 0) + ' de oro</span>') +
+        fila('Obras', (c.casas || 0) + ' casas') + fila('Edificios', edificios) + fila('Comercio', comercioDe(c))],
+      ejercito: ['Ejército', fila('Ejército', (c.guerreros || 0) + ' guerreros' + (c.guerreros ? ' <span class="tenue">· ' + (c.armados || 0) + ' con ' + esc(M.vida.ARMAS[c.era].nombre) + (c.era >= 1 ? ', tiradores con ' + esc(M.vida.TIROS[c.era]) : '') + '</span>' : '')) +
+        fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
+        (complotsDe(c) ? fila('Complots', complotsDe(c)) : '')],
+      diplomacia: ['Diplomacia', (S.aliadosDe(m, c).length ? fila('Aliados', esc(S.aliadosDe(m, c).map(o => o.nombre).join(', '))) : fila('Aliados', '<span class="tenue">ninguno</span>')) +
+        (complotsDe(c) ? fila('Complots', complotsDe(c)) : '') + fila('Opinión', opiniones(c))]
+    };
+    if (c.jugador) pestanas.plan = ['Tu plan', planDe(c)];
+    if (!pestanas[pestana]) pestana = 'resumen';
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(c.nombre) + '</h3>' +
       '<p class="subt">' + esc(M.REGIMENES[c.regimen]) + ' ' + esc(c.caracter) + ' · ' + esc(era(c).nombre) + '</p>' +
-      '<dl>' + fila('Gobierna', esc(M.TITULOS[c.regimen] ? M.TITULOS[c.regimen].charAt(0).toUpperCase() + M.TITULOS[c.regimen].slice(1) : 'Rey') + ' ' + esc(S.nombreRey(c)) + (c.rey ? ' <span class="tenue">(' + esc(M.RASGOS[c.rey.rasgo].nombre) + ', ' + Math.round(c.rey.edad) + ' años' + (c.heredero ? '; heredero: ' + esc(c.heredero.nombre) : '') + ')</span>' : '')) +
-      (ciudadesDe(c) ? fila('Ciudades', ciudadesDe(c)) : '') +
-      fila('Población', habitantes(c) + ' <span class="tenue">(la tierra da para ' + Math.round(cap / M.vida.escala(c)) + ')</span>') +
-      fila('Estabilidad', '<span class="barra"><span style="width:' + Math.round(c.estab) + '%"></span></span> ' + Math.round(c.estab)) +
-      fila('Riqueza', Math.round(c.riqueza)) + fila('Tierras', cs.length) +
-      fila('Aldeanos', aldeanos(c)) +
-      fila('Madera', Math.floor(c.madera || 0) + ' <span class="tenue">· piedra ' + Math.floor(c.piedra || 0) + ' · ' + (c.arboles || 0) + ' árboles en su tierra</span>') +
-      fila('Obras', (c.casas || 0) + ' casas · ' + (c.campos || 0) + ' campos') +
-      fila('Comercio', comercioDe(c)) +
-      fila('Edificios', [c.torres ? c.torres + ' torre' + (c.torres > 1 ? 's' : '') : '', c.templos ? c.templos + ' templo' + (c.templos > 1 ? 's' : '') : '', c.molinos ? c.molinos + ' molino' + (c.molinos > 1 ? 's' : '') : '', c.puertos ? c.puertos + ' puerto' + (c.puertos > 1 ? 's' : '') + ' <span class="tenue">(' + ((m.vida.barcos || []).filter(b => b.c === c.id).length) + ' barcos)</span>' : ''].filter(Boolean).join(' · ') || '<span class="tenue">ninguno todavía</span>') +
-      fila('Minas', Math.floor(c.metal || 0) + ' de ' + (c.era >= 6 ? 'acero' : c.era >= 2 ? 'hierro' : 'bronce') + ' <span class="tenue">· ' + Math.floor(c.oro || 0) + ' de oro</span>') +
-      fila('Ejército', (c.guerreros || 0) + ' guerreros' + (c.guerreros ? ' <span class="tenue">· ' + (c.armados || 0) + ' con ' + esc(M.vida.ARMAS[c.era].nombre) + (c.era >= 1 ? ', tiradores con ' + esc(M.vida.TIROS[c.era]) : '') + '</span>' : '')) +
-      fila('Inventos', esc(c.inventos.slice(-3).join(', ') || 'ninguno todavía')) +
-      fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
-      (S.aliadosDe(m, c).length ? fila('Aliados', esc(S.aliadosDe(m, c).map(o => o.nombre).join(', '))) : '') +
-      (complotsDe(c) ? fila('Complots', complotsDe(c)) : '') +
-      fila('Opinión', opiniones(c)) + '</dl>' +
-      (c.jugador ? planDe(c) : '') +
+      '<div class="pestanas" role="tablist">' + Object.keys(pestanas).map(k => '<button type="button" role="tab" class="pestana' + (k === pestana ? ' activa' : '') + '" aria-selected="' + (k === pestana) + '" data-p="' + k + '">' + pestanas[k][0] + '</button>').join('') + '</div>' +
+      (pestana === 'plan' ? pestanas.plan[1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
+    f.querySelectorAll('.pestana').forEach(b => b.addEventListener('click', () => { pestana = b.dataset.p; pintarFicha(); }));
     f.querySelector('.muestra').style.background = c.color;
     if (c.jugador) f.querySelector('h3').insertAdjacentHTML('beforeend', ' <span class="tuyo">tu pueblo</span>');
     const b = f.querySelector('.gobernar');
@@ -4167,7 +4324,7 @@ button { cursor: pointer; }
     const siguiendo = P.siguiendoA() === a.id;
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(a.nombre + ' ' + (a.familia || '')) + '</h3>' +
       '<p class="subt">' + esc(etapa) + ' de ' + esc(c ? c.nombre : '—') + (ciudad ? ', vive en ' + esc(ciudad.nombre) : c && a.h === c.capital ? ', vive en la capital' : '') + '</p>' +
-      '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', (a.edad || 0) + ' turnos <span class="tenue">(nació en ' + S.anioTexto(a.nacio != null ? a.nacio : m.anio) + ')</span>') +
+      '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', M.vida.anos(a) + ' años <span class="tenue">(nació ' + (m.libre ? 'el año ' + (a.nacio != null ? a.nacio : m.anio) : 'en ' + M.ERAS[a.eraNacio != null ? a.eraNacio : c.era].con) + ')</span>') +
       fila('Rasgos', a.rasgos && a.rasgos.length ? esc(a.rasgos.join(', ')) : '<span class="tenue">ninguno especial</span>') +
       fila('Familia', (padre ? 'hijo de ' + esc(padre.nombre) + ' · ' : '') + (a.hijos || 0) + ((a.hijos || 0) === 1 ? ' hijo' : ' hijos') + (hijosVivos !== (a.hijos || 0) ? ' <span class="tenue">(' + hijosVivos + ' vivos)</span>' : '')) +
       (a.bajas ? fila('En combate', a.bajas + ' enemigos abatidos') : '') +
@@ -4245,10 +4402,14 @@ button { cursor: pointer; }
   }
   function paso() {
     anioAntes = m.anio; inicioTurno = performance.now();
-    const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [];
+    const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [], sigAntes = m.vida ? m.vida.sig : 0;
     S.turno(m);
     P.turno(m, VELOCIDADES[vel][0]);
     if (m.cronica[0] !== antes) marcar(m.cronica[0]);
+    if (M.sonido && M.sonido.activo()) {
+      const nuevos = []; for (const e of m.cronica) { if (e === antes) break; nuevos.push(e); }
+      M.sonido.turno(m, VELOCIDADES[vel][0], { cronica: nuevos, nacimientos: m.vida.aldeanos.some(a => a.id >= sigAntes && a.edad === 0) });
+    }
     if (yo) avisos(yo, guerrasAntes, antes);
     pintarTodo();
     if (m.turno % 5 === 0) guardar();
@@ -4319,6 +4480,7 @@ button { cursor: pointer; }
     const nuevos = m.civs.filter(c => !antes[c.id]).map(c => c.id);
     const todos = [...new Set([...(ids || []), ...nuevos])];
     P.efecto(nuevos.length && poder === 'nuevo' ? 'nuevo' : poder, todos, suceso.titulo);
+    if (M.sonido) M.sonido.efecto(poder === 'plaga' || poder === 'hambre' ? 'peste' : poder === 'guerra' ? 'cuerno' : 'obrar');
     marcar(suceso);
     const quien = porDefecto === 'todos' ? ' (para todos los pueblos)' : porDefecto === 'grande' ? ' (sobre el más grande, porque no dijiste sobre quién)' : '';
     const efectos = cambios(antes, todos, poder);
@@ -4427,6 +4589,10 @@ button { cursor: pointer; }
     $('modo-pueblo').addEventListener('click', () => elegirModo('pueblo', sel != null && S.civ(m, sel) && S.civ(m, sel).viva ? sel : null));
     $('modo-dios').addEventListener('click', () => elegirModo('dios'));
     $('cambiar-modo').addEventListener('click', () => pedirModo());
+    // El sonido empieza apagado (los navegadores solo dejan sonar tras un gesto); se recuerda la preferencia.
+    const pintarSonido = () => { const on = M.sonido.activo(); $('sonido').textContent = on ? '🔊 Sonido' : '🔈 Sonido'; $('sonido').setAttribute('aria-pressed', on ? 'true' : 'false'); };
+    $('sonido').addEventListener('click', () => { const on = M.sonido.alternar(); try { localStorage.setItem('genesis.sonido', on ? '1' : '0'); } catch (e) { /* sin guardado */ } pintarSonido(); });
+    pintarSonido();
     $('zoom-mas').addEventListener('click', () => P.zoom(1.5));
     $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
     $('ver-todo').addEventListener('click', () => P.verTodo());

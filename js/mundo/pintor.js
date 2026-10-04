@@ -394,6 +394,7 @@
     pajaros(ahora, x0, y0, x1, y1);
     nubes(ahora, x0, y0, x1, y1);
     marcarPulso(ahora);
+    noche(ahora, x0, y0, x1, y1, z, ox, oy);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
     pintarCartel(ahora, dpr);
@@ -512,7 +513,8 @@
         const ej = m.vida.ejercitos && m.vida.ejercitos[a.c];
         if (ej && ej.capitan === a.id) { g.fillStyle = '#3a2a1e'; g.fillRect(px - 1, py - 9, 1, 10); g.fillStyle = col; g.fillRect(px, py - 9, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 8, 2, 2); }
       }
-      if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); g.fillRect(px - 2, py + 1, 1, 1); }
+      if (acc === 2 && !(a.tirador)) { const ch = Math.floor(ahora / 90 + a.id) % 4; g.fillStyle = ch % 2 ? '#fff6a0' : '#ffd23a'; g.fillRect(px + 4 + ch, py - 1 - (ch % 2), 1, 1); g.fillRect(px + 5, py + 1 + (ch % 3) - 1, 1, 1); if (ch === 0) { g.fillStyle = '#ffffff'; g.fillRect(px + 4, py, 2, 1); } }
+      else if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); }
     }
   }
 
@@ -642,6 +644,33 @@
       g.globalAlpha = 1;
     }
   }
+  // ---------- El día y la noche: cada minuto y medio cae la noche y se encienden las ventanas ----------
+  const DIA = 90000;
+  let luces = [], lucesHasta = 0;
+  function oscuridad(ahora) { if (reducido) return 0; const f = (ahora % DIA) / DIA; return Math.max(0, Math.min(1, (-Math.cos(f * Math.PI * 2) - 0.1) * 1.4)); }
+  function noche(ahora, x0, y0, x1, y1, z, ox, oy) {
+    ahora = performance.now();
+    const o = oscuridad(ahora);
+    if (o <= 0.02) return;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = 'rgba(10,16,48,' + (0.42 * o).toFixed(3) + ')'; g.fillRect(0, 0, cv.width, cv.height);
+    g.setTransform(z, 0, 0, z, ox, oy);
+    if (o < 0.3) return;
+    const v = m.vida;
+    if (ahora > lucesHasta) {
+      lucesHasta = ahora + 1200; luces = [];
+      const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo) luces.push(t); if (luces.length > 400) break; }
+    }
+    const a = Math.min(1, (o - 0.3) / 0.4);
+    for (const t of luces) {
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, parpadeo = ((t * 7 + Math.floor(ahora / 900)) % 11) === 0;
+      if (parpadeo) continue;
+      g.fillStyle = 'rgba(255,190,80,' + (0.16 * a).toFixed(3) + ')'; g.fillRect(x + 1, y + 7, 14, 8);
+      g.fillStyle = 'rgba(255,220,120,' + (0.95 * a).toFixed(3) + ')'; g.fillRect(x + 4, y + 10, 2, 2); g.fillRect(x + 10, y + 10, 2, 2);
+    }
+  }
+
   // ---------- Edificios que se mueven: aspas de molino y banderas de torre ----------
   let especiales = [], especialesHasta = 0;
   function edificiosVivos(ahora, x0, y0, x1, y1) {
@@ -706,6 +735,21 @@
       g.fillStyle = '#2a3550'; g.fillRect(x, y - 6, 8, 3);
       g.fillStyle = c ? c.color : '#ff4b3a'; g.fillRect(x, y - 6, Math.round(8 * e.asedio / 100), 3);
       if (Math.floor(ahora / 400) % 2) { g.fillStyle = '#ff4b3a'; g.fillRect(x - 9, y + 2, 18, 1); }
+      // La plaza sitiada arde: llamas y humo sobre algunas casas.
+      let ardiendo = 0;
+      for (const t of V.parcelas(m, e.obj)) {
+        const ob = visto.obra[t];
+        if (ardiendo >= Math.ceil(e.asedio / 30) || !(ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro)) continue;
+        ardiendo++;
+        const fx = (t % v.tw) * P, fy = Math.floor(t / v.tw) * P;
+        for (let k = 0; k < 7; k++) {
+          const f = ((ahora / 500) + k / 7) % 1, cx = fx + 3 + ((k * 5 + t) % 10);
+          g.fillStyle = f < 0.4 ? '#ffd23a' : f < 0.7 ? '#ff7a1a' : '#c8301a';
+          g.fillRect(Math.round(cx + Math.sin(ahora / 120 + k) * 1.5), Math.round(fy + 8 - f * 10), 2, 2);
+          g.fillStyle = 'rgba(70,70,80,' + (0.45 * (1 - f)).toFixed(2) + ')';
+          g.fillRect(Math.round(cx - 1 + Math.sin(f * 4 + k) * 3), Math.round(fy - 2 - f * 18), 3, 3);
+        }
+      }
     }
   }
 
