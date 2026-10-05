@@ -402,7 +402,7 @@ console.log('CUADRILLAS, CUPOS Y PLAZOS');
   comprobar(e('5 granjeros a talar durante 3 minutos').hasta.ms === 180000 && e('pon a 4 a la mina 2 turnos').hasta.turnos === 2 && e('todos los mineros a sembrar durante 20 años').hasta.anios === 20, 'entiende plazos en minutos, turnos y años');
   comprobar(e('la mitad de los granjeros a construir hasta tener 30 casas').hasta.cosa === 'casas' && e('tres soldados a cosechar hasta juntar 100 de comida').n === 3, 'entiende metas («hasta tener 30 casas») y números en letra');
   comprobar(e('quiero 10 leñadores').tipo === 'cupo' && e('3 leñadores más').relativo === 1 && e('talad 20 árboles').tipo === 'meta' && e('liberad las cuadrillas').tipo === 'liberar' && e('cuántos leñadores tengo').tipo === 'consulta', 'cupos, metas, liberar y preguntas');
-  comprobar(e('atacad a ' + S.vivas(m).find(c => c !== yo).nombre + ' con 10 soldados').tipo === 'guerra', 'un número dentro de otra orden no la tapa');
+  { const x = X.entender(m, yo.id, 'atacad a ' + S.vivas(m).find(c => c !== yo).nombre + ' con 10 soldados')[0]; comprobar(x.tipo === 'escuadron' && x.n === 10 && x.ataca, '«atacad a X con 10 soldados» manda un escuadrón de 10 contra X'); }
   const r = X.ordenar(m, yo.id, '5 granjeros a talar durante 3 turnos');
   const ids = m.vida.aldeanos.filter(a => a.fijo).map(a => a.id);
   comprobar(r.ok && ids.length === 5 && ids.every(i => m.vida.aldeanos.find(a => a.id === i).o === 0), 'cinco granjeros concretos pasan a talar en el acto');
@@ -417,6 +417,25 @@ console.log('CUADRILLAS, CUPOS Y PLAZOS');
   X.ordenar(m, yo.id, 'más madera durante 2 turnos');
   const antes = yo.plan.prioridad.madera; S.turno(m); S.turno(m); S.turno(m);
   comprobar(antes > 1 && yo.plan.prioridad.madera === 1, 'una prioridad con plazo vuelve a como estaba');
+}
+
+console.log('TODO LO QUE SE LE PUEDE DECIR');
+{
+  const X = M.mando;
+  const m = hasta(S.crear(9, 5), 600);
+  const yo = S.vivas(m).filter(c => S.vecinosDe(m, c).length).sort((a, b) => b.pob - a.pob)[0];
+  X.gobernar(m, yo.id);
+  const vec = S.vecinosDe(m, yo)[0];
+  const frases = ['háganme 5 casas', 'hagan defensas', 'formen un escuadrón', 'guardad la capital con 10 soldados', 'esperen el ataque', 'retírense', 'al ataque', 'rendíos', 'espiad a ' + vec.nombre, 'insultad a ' + vec.nombre, 'regalad oro a ' + vec.nombre, 'quemad sus campos', 'saquead su ciudad', 'emboscada', 'patrullad la frontera', 'fabricad tanques', 'subid los impuestos', 'haced fiestas', 'rezad', 'curad a los heridos', 'reparad las casas', 'cazad lobos', 'que trabajen todos', 'explorad el norte', 'deja de talar', 'mandad 15 guerreros a atacar ' + vec.nombre];
+  const sin = frases.filter(f => !X.entender(m, yo.id, f).length);
+  comprobar(!sin.length, 'el intérprete entiende ' + frases.length + ' órdenes de todo tipo' + (sin.length ? ' (no: ' + sin.join(', ') + ')' : ''));
+  let fallo = null;
+  for (const f of frases) { try { X.ordenar(m, yo.id, f); } catch (e) { fallo = f + ': ' + e.message; break; } }
+  comprobar(!fallo, 'y todas se aplican sin errores' + (fallo ? ' (' + fallo + ')' : ''));
+  comprobar(X.entender(m, yo.id, 'háganme 5 casas')[0].tipo === 'meta' && X.entender(m, yo.id, 'esperen el ataque')[0].postura === 'esperar' && X.entender(m, yo.id, 'formad un escuadrón de 10 soldados')[0].n === 10, 'casas, posturas y escuadrones con su número');
+  for (let i = 0; i < 4; i++) S.turno(m);
+  const g = m.vida.aldeanos.filter(a => a.fijo && a.fijo.guardia != null && a.c === yo.id);
+  comprobar(g.length > 0 && g.every(a => a.o === 4), 'los escuadrones siguen formados y armados');
 }
 
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');

@@ -512,7 +512,9 @@
       // Del cuartel salen también los vehículos: uno de cada siete guerreros sirve una pieza de artillería y, en la
       // II Guerra Mundial, uno de cada seis conduce un tanque (si hay metal para fabricarlos).
       if (c.cuarteles > 0 && c.era >= 5) {
-        const quiereV = c.era >= 8 && a.id % 6 === 1 ? 'tanque' : a.id % 7 === 3 ? (c.era >= 7 ? 'artilleria' : 'canon') : null;
+        // Si el jugador mandó fabricarlos, uno de cada tres.
+        const pide = c.plan && c.plan.vehiculos;
+        const quiereV = c.era >= 8 && (a.id % 6 === 1 || (pide === 'tanque' && a.id % 3 === 0)) ? 'tanque' : (a.id % 7 === 3 || (pide === 'artilleria' && a.id % 3 === 2)) ? (c.era >= 7 ? 'artilleria' : 'canon') : null;
         if (quiereV && a.veh !== quiereV && (c.metal || 0) >= VEHICULOS[quiereV].metal) { c.metal -= VEHICULOS[quiereV].metal; a.veh = quiereV; a.tirador = true; a.pv = a.pv0 = VEHICULOS[quiereV].vida; }
       }
       if (a.veh) { a.tirador = true; continue; }
@@ -1139,6 +1141,13 @@
         t = ru.tiles[a.i];
       }
     }
+    else if (a.o === GUERRERO && a.fijo && a.fijo.guardia != null) {
+      // Un escuadrón con misión: monta guardia en su plaza (o marcha sobre la plaza enemiga que le mandaron).
+      const base = centro(m, a.fijo.guardia), dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 3) - 1;
+      t = base + dx + dy * v.tw;
+      if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
+      if (a.x === t % v.tw && a.y === (t / v.tw | 0)) { a.e = ESPERAR; a.t = 2; return; }
+    }
     else if (a.o === GUERRERO && v.ejercitos[c.id]) {
       // En formación detrás del capitán: primero al punto de reunión, luego a por el objetivo.
       const e = v.ejercitos[c.id], base = centro(m, e.defiende != null ? e.defiende : e.fase === 'reunion' ? e.reunion : e.obj);
@@ -1162,7 +1171,7 @@
   }
   const metaCampos = c => Math.round((4 + (c.habitantes != null ? c.habitantes : c.pob / escala(c)) * 0.55) * (0.6 + 0.4 * prio(c, 'comida')));
   // Hacen falta casas cuando no quedan camas para los que van a nacer (como en WorldBox: se construye por necesidad).
-  const faltanCamas = c => (c.sinCama || 0) > 0 || (c.camas || 0) - (c.aldeanos || 0) < 2 + Math.round(prio(c, 'casas') * 1.5);
+  const faltanCamas = c => (c.sinCama || 0) > 0 || !!(c.plan && (c.plan.temporales || []).some(t => t.hasta && t.hasta.cosa === 'casas')) || (c.camas || 0) - (c.aldeanos || 0) < 2 + Math.round(prio(c, 'casas') * 1.5);
   // Una casa nueva va siempre pegada a lo que ya hay (casas, plaza, molino, caminos), lo más cerca posible de la plaza:
   // así el pueblo crece como una mancha alrededor de su centro.
   const PEGA = new Set([OBRA.casa, OBRA.centro, OBRA.ayuntamiento, OBRA.molino, OBRA.templo, OBRA.torre, OBRA.cuartel, OBRA.arqueria, OBRA.castillo]);
@@ -1891,5 +1900,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, mover, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, mover, cambiar, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

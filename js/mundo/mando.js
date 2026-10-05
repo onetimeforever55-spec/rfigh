@@ -17,7 +17,7 @@
   // Cada cosa a la que el jugador puede dar más o menos importancia, y cómo se nombra al escribir.
   const RECURSOS = {
     madera: /\b(tala\w*|tale\w*|talen|talad|talar|lena\w*|madera|arboles?|bosques?|troncos?)\b/,
-    comida: /\b(sembr\w*|siembr\w*|cultiv\w*|granj\w*|campos?|cosech\w*|agricult\w*|trigo|comida|alimento\w*|hambre)\b/,
+    comida: /\b(pesc\w*|orden\w*|ganado|ovejas?|vacas?|cri(ad|en|ar)|rebanos?|pastore\w*|caz(ad|en|ar)|sembr\w*|siembr\w*|cultiv\w*|granj\w*|campos?|cosech\w*|agricult\w*|trigo|comida|alimento\w*|hambre)\b/,
     piedra: /\b(minas?|miner\w*|piedra|canteras?|picad|picar)\b/,
     casas: /\b(constru\w*|casas?|edific\w*|obras?|viviendas?|caminos?|carreteras?|calzadas?)\b/,
     ejercito: /\b(reclut\w*|ejercitos?|soldados?|guerreros?|militar\w*|milicias?|defensa|tropas?|armas)\b/,
@@ -31,6 +31,8 @@
   const PRIO_NORMAL = () => ({ madera: 1, comida: 1, piedra: 1, casas: 1, ejercito: 1, ciencia: 1, riqueza: 1, expansion: 1 });
   const plan = c => { c.plan = c.plan || { rumbo: null, socios: [], guerrasMias: [] }; c.plan.prioridad = c.plan.prioridad || PRIO_NORMAL(); c.plan.guerrasMias = c.plan.guerrasMias || []; return c.plan; };
 
+  // El nombre de un sitio: una ciudad, una capital, o (si es tierra propia sin plaza) «la frontera».
+  const nombreSitio = (m, c, r) => r === c.capital ? 'la capital' : (m.ciudades || []).some(y => y.region === r) || S().vivas(m).some(y => y.capital === r) ? nombrePlaza(m, r) : m.dueno[r] === c.id ? 'la frontera' : nombrePlaza(m, r);
   const nombrePlaza = (m, r) => { const x = (m.ciudades || []).find(y => y.region === r); if (x) return x.nombre; const o = S().vivas(m).find(y => y.capital === r); return o ? 'la capital de ' + o.nombre : 'la plaza enemiga'; };
   // ¿A qué otro pueblo se refiere la orden? Por nombre o por descripción, nunca a uno mismo.
   function otro(m, c, n) {
@@ -99,7 +101,7 @@
   }
   // «talad 20 árboles», «construid 5 casas», «sacad 30 de piedra»: una meta de producción sin cifra de gente.
   function metaDirecta(n) {
-    const mt = n.match(new RegExp('\\b(tal\\w*|cort\\w*|constru\\w*|levant\\w*|haced|hagan|sac\\w*|pic\\w*|junt\\w*|recog\\w*|sembr\\w*|siembr\\w*|ar\\w*)\\s+(?:otr[oa]s\\s+)?' + NUM + '\\s*(?:de |mas |nuev[oa]s )?(arboles|casas|piedras?|piedra|madera|lena|metal|hierro|oro|campos|comida|trigo)\\b'));
+    const mt = n.match(new RegExp('\\b(tal\\w*|cort\\w*|constru\\w*|levant\\w*|hac\\w*|hag\\w*|quiero|queremos|necesit\\w*|edific\\w*|sac\\w*|pic\\w*|junt\\w*|recog\\w*|sembr\\w*|siembr\\w*|ar\\w*)\\s+(?:otr[oa]s\\s+)?' + NUM + '\\s*(?:de |mas |nuev[oa]s )?(arboles|casas|piedras?|piedra|madera|lena|metal|hierro|oro|campos|comida|trigo)\\b'));
     if (!mt) return null;
     const cosa = COSAS[mt[3]], n2 = numero(mt[2]);
     const oficio = { arboles: 0, madera: 0, casas: 2, piedra: 3, metal: 3, oro: 3, campos: 1, comida: 1 }[cosa];
@@ -130,9 +132,9 @@
     let destino = null;
     for (const [o, re] of ACTIVIDAD) if (re.test(despues)) { destino = o; break; }
     // «Quiero 10 leñadores»: un cupo fijo de ese oficio (sin actividad distinta).
-    const quiere = /\b(quiero|queremos|quisiera|necesito|necesitamos|que haya|haya|ten(ed|gamos|er|go)|pon(ed|er|gan|me)?|dejad|deja|mantened|mantener|manten|fij\w*|solo|exactamente|cupo|mas|menos|sean|seamos)\b/.test(resto) || norm(resto.replace(frase, ' ')).split(' ').filter(Boolean).length <= 1;
+    const quiere = /\b(quiero|queremos|quisiera|necesito|necesitamos|que haya|haya|ten(ed|gamos|er|go)|pon(ed|er|gan|me)?|dejad|deja|mantened|mantener|manten|fij\w*|solo|exactamente|cupo|mas|menos|sean|seamos|reclut\w*|alist\w*|mand\w*|envi\w*|llam\w* a)\b/.test(resto) || norm(resto.replace(frase, ' ')).split(' ').filter(Boolean).length <= 1;
     if (cuanto != null && origen >= 0 && (destino == null || destino === origen) && quiere) {
-      if (/\bmas\b/.test(resto)) relativo = 1; else if (/\bmenos\b/.test(resto)) relativo = -1;
+      if (/\b(mas|reclut\w*|alist\w*)\b/.test(resto)) relativo = 1; else if (/\bmenos\b/.test(resto)) relativo = -1;
       if (cuanto === 'todos') return [];
       const n2 = typeof cuanto === 'number' && cuanto < 1 ? null : Math.round(cuanto);
       if (n2 == null) return [];
@@ -272,11 +274,256 @@
     p.prioridad[k] = 2;
     (p.temporales = p.temporales || []).push({ k, antes, puesto: 2, hasta: h });
     const n0 = cuentaOficios(m, c)[a.o];
+    // Y una cuadrilla de refuerzo mientras dura: más gente de ese oficio (sin pasar de dos quintos del pueblo).
+    const refuerzo = Math.max(0, Math.min(Math.ceil(a.n / 2), Math.floor(adultosDe(m, c).length * 0.4) - n0, 12));
+    if (refuerzo) aplicarCuadrilla(m, c, { n: refuerzo, de: -1, a: a.o, hasta: { cosa: a.cosa, n: a.n, nuevo: true } }, []);
     M.vida.reasignar(m, c, null, true);
     const n1 = cuentaOficios(m, c)[a.o];
     (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: '🎯 ' + a.n + ' ' + (a.cosa === 'arboles' ? 'árboles' : a.cosa) + ' · ' + OFICIOS_N[a.o] + ' ' + n0 + ' → ' + n1 });
     textos.push('Encargado: ' + textoPlazo(m, h).trim().replace(/^hasta /, '') + '. Los ' + OFICIOS_N[a.o] + ' pasan de ' + n0 + ' a ' + n1 + ' y, al terminar, todo vuelve a como estaba.');
   }
+
+
+  // ---------- Más órdenes: escuadrones, posturas de guerra, diplomacia menuda, el ánimo del pueblo ----------
+  const sinTildes = n => n;
+  // Una región propia que se nombra en la orden: una ciudad suya, «la capital», «la frontera».
+  function regionPropia(m, c, n) {
+    const ciudad = (m.ciudades || []).find(x => x.civ === c.id && n.includes(norm(x.nombre)));
+    if (ciudad) return ciudad.region;
+    if (/\bfrontera\b/.test(n)) {
+      const enemigos = c.guerras.map(g => S().civ(m, g.con)).filter(Boolean), otros = enemigos.length ? enemigos : S().vecinosDe(m, c);
+      const fr = otros.flatMap(o => S().frontera(m, o, c));
+      if (fr.length) return fr.sort((x, y) => S().distancia(x, c.capital) - S().distancia(y, c.capital))[0];
+    }
+    if (/\b(capital|casa|corte|palacio|plaza)\b/.test(n)) return c.capital;
+    return null;
+  }
+  function plazaEnemiga(m, c, n) {
+    const ciudad = (m.ciudades || []).find(x => x.civ !== c.id && n.includes(norm(x.nombre)));
+    if (ciudad) return ciudad.region;
+    const o = otro(m, c, n) || (c.guerras[0] ? S().civ(m, c.guerras[0].con) : null);
+    if (!o) return null;
+    if (/\bcapital\b/.test(n)) return o.capital;
+    // «su ciudad», «la ciudad enemiga»: la plaza suya más cercana a nosotros.
+    const plazas = [o.capital, ...(m.ciudades || []).filter(x => x.civ === o.id).map(x => x.region)];
+    return plazas.sort((x, y) => S().distancia(x, c.capital) - S().distancia(y, c.capital))[0];
+  }
+  function extras(m, c, n) {
+    void sinTildes;
+    // La cifra de gente: «10 soldados», «de 10», o una cifra en dígitos (no «un escuadrón»).
+    const numero1 = (() => {
+      const mt = n.match(new RegExp('\\b' + NUM + ' (?:soldad|guerrer|arquer|hombres|tanques|tropas|tirador|aldean|personas)')) || n.match(new RegExp('\\bde ' + NUM + '\\b(?! (?:segundos?|minutos?|turnos?|anos?))')) || n.match(/\b(\d+)\b(?! (?:segundos?|minutos?|min|turnos?|anos?|siglos?|horas?))/);
+      return mt ? numero(mt[1]) : null;
+    })();
+    const o = otro(m, c, n);
+    // Escuadrones: «formad un escuadrón de 10», «escuadrón de arqueros», «guardad la capital con 10 soldados»,
+    // «10 soldados a defender Olota», «patrullad la frontera».
+    const soldados = /\b(soldad\w*|guerrer\w*|arquer\w*|tropas?|hombres|tanques?)\b/;
+    const escuadron = /\b(escuadr\w*|pelot\w*|patrull\w*|destacamento|batallon\w*|compania|guardia|grupo de (soldados|guerreros|arqueros)|centinelas?)\b/.test(n) ||
+      (/\b(guard\w*|vigil\w*|proteg\w*|defend\w*|custodi\w*|atac\w*|ataq\w*|asalt\w*|tom(ad|en|ar)|sitia\w*|asedi\w*)\b/.test(n) && numero1 >= 1 && soldados.test(n));
+    if (escuadron) {
+      const arma = /\b(arquer\w*|tirador\w*|honder\w*|fusiler\w*|ballester\w*)\b/.test(n) ? 'arqueros' : /\btanques?\b/.test(n) ? 'tanques' : null;
+      const ataca = /\b(ataq\w*|atac\w*|asalt\w*|tom\w*|asedi\w*|sitia\w*|saque\w*)\b/.test(n) ? plazaEnemiga(m, c, n) : null;
+      const region = ataca != null ? ataca : regionPropia(m, c, n) != null ? regionPropia(m, c, n) : (/\b(patrull\w*|vigil\w*|guard\w*)\b/.test(n) ? regionPropia(m, c, 'frontera') : null);
+      return [{ tipo: 'escuadron', n: numero1 >= 1 ? Math.round(numero1) : arma === 'tanques' ? 3 : 8, arma, region, ataca: ataca != null || undefined }];
+    }
+    // «Entrenad arqueros», «más arqueros»: sin arquería se construye; con ella, un escuadrón de arqueros.
+    if (/\b(entren\w*|form\w*|prepar\w*|mas|quiero|necesit\w*|reclut\w*)\b/.test(n) && /\b(arquer\w*|tirador\w*|ballester\w*)\b/.test(n)) {
+      if (!(c.arquerias > 0)) return [{ tipo: 'construir', obra: 'arqueria' }];
+      return [{ tipo: 'escuadron', n: numero1 >= 1 ? Math.round(numero1) : 6, arma: 'arqueros', region: null }];
+    }
+    // Vehículos: «fabricad tanques», «haced cañones», «quiero aviones».
+    const veh = /\b(tanques?|blindados?|carros de combate)\b/.test(n) ? 'tanque' : /\b(canon\w*|artilleri\w*|obuses|morteros?|bombardas?)\b/.test(n) ? 'artilleria' : /\b(aviones?|bombarder\w*|cazas|aviacion)\b/.test(n) ? 'aviones' : null;
+    if (veh && /\b(fabric\w*|constru\w*|hac\w*|hag\w*|produc\w*|quiero|necesit\w*|mas|arm\w*|compr\w*|dame|dadme)\b/.test(n)) return [{ tipo: 'vehiculos', cual: veh }];
+    // Posturas: esperar el ataque, emboscada, al ataque, alto.
+    if (/\b(esper\w* (el |al |un |a |a que )?(ataque|enemigo|invasion|asalto|que ataquen|que vengan|que lleguen)|aguant\w*|a la defensiva|posicion defensiva|atrincher\w*|cavad trincheras|trincheras?)\b/.test(n))
+      return [{ tipo: 'defender', region: regionPropia(m, c, n) != null ? regionPropia(m, c, n) : c.capital, postura: 'esperar' }];
+    if (/\b(emboscad\w*|tend\w* una trampa|escond\w*)\b/.test(n)) { const r = regionPropia(m, c, n + ' frontera'); return [{ tipo: 'defender', region: r != null ? r : c.capital, postura: 'emboscada' }]; }
+    if (/\b(al ataque|ataquen ya|atacad ya|avanz\w*|carg\w*|adelante|a la carga|ofensiva|a por ellos|contraatac\w*|a muerte|sin piedad)\b/.test(n) && !o && !(m.ciudades || []).some(x => n.includes(norm(x.nombre)))) return [{ tipo: 'atacar' }];
+    if (/^(alto|parad|deteneos|quietos|alto el fuego|cese el fuego|parad la guerra|deteneos ya)$/.test(n)) return c.guerras.length ? [{ tipo: 'defender', region: c.capital, postura: 'alto' }] : [{ tipo: 'fiesta', descanso: true }];
+    if (/\b(rendi\w*|rinda\w*|rendicion|capitul\w*|rindete|rendid|nos rendimos|bandera blanca)\b/.test(n)) return [{ tipo: 'rendicion', con: o ? o.id : (c.guerras[0] ? c.guerras[0].con : null) }];
+    // Diplomacia menuda: espiar, insultar, regalar; y la guerra sucia: quemar sus campos, saquear.
+    if (/\b(espi\w*|infiltr\w*|reconocimiento|averigu\w*|investig\w* (a|al|sobre))\b/.test(n) && (o || c.guerras.length)) return [{ tipo: 'espiar', con: o ? o.id : c.guerras[0].con }];
+    if (/\b(insult\w*|provoc\w*|amenaz\w*|humill\w*|burl\w*|ofend\w*|desafi\w*)\b/.test(n) && o) return [{ tipo: 'insultar', con: o.id }];
+    if (/\b(regal\w*|obsequi\w*|tribut\w*|soborn\w*|don\w* (oro|riqueza)|envi\w* (oro|regalos?|presentes?)|pag\w* a)\b/.test(n) && o) return [{ tipo: 'regalo', con: o.id }];
+    if (/\b(quem\w*|incendi\w*|arras\w*|sabote\w*|envenen\w*|destru\w* sus|talad sus|robad)\b/.test(n) && /\b(sus|enemig\w*|de \w+|su)\b/.test(n)) return [{ tipo: 'sabotaje', con: o ? o.id : c.guerras.length ? c.guerras[0].con : null }];
+    if (/\b(saque\w*|pillad\w*|asedi\w*|sitia\w*|asalt\w*)\b/.test(n)) { const r = plazaEnemiga(m, c, n); return r != null ? [{ tipo: 'objetivo', region: r }] : [{ tipo: 'atacar' }]; }
+    // Cazar lobos: unos cuantos salen armados a por ellos (3 turnos).
+    if (/\b(caz\w*|mat\w*|ahuyent\w*) (a )?(los )?lobos?\b/.test(n)) return [{ tipo: 'cuadrilla', n: numero1 >= 1 ? Math.round(numero1) : 4, de: -1, a: 4, hasta: { turnos: 3 } }];
+    // Reparar: las ruinas propias vuelven a ser casas (y se apaga lo que arda).
+    if (/\b(repar\w*|reconstru\w*|restaur\w*|apag\w*|extingu\w*|arregl\w* las casas|levant\w* las ruinas)\b/.test(n)) return [{ tipo: 'reparar' }];
+    // El pueblo: impuestos, fiestas, rezar, curar, trabajar todos.
+    if (/\bimpuestos?|tributos?|diezmo\b/.test(n) && !o) return [{ tipo: 'impuestos', sube: !/\b(baj\w*|quit\w*|elimin\w*|reduc\w*|perdon\w*|menos)\b/.test(n) }];
+    if (/\b(fiesta\w*|festej\w*|celebr\w*|banquete\w*|feria|carnaval|descans\w*|vacaciones|dia libre|que nadie trabaje|tomaos un respiro)\b/.test(n)) return [{ tipo: 'fiesta', descanso: /\b(descans\w*|vacaciones|dia libre|nadie trabaje|respiro)\b/.test(n) || undefined }];
+    if (/\b(rez\w*|orad|oren|plegarias?|misa|ofrendas?|sacrifici\w*|culto|procesion\w*|oracion\w*)\b/.test(n)) return [{ tipo: 'rezar' }];
+    if (/\b(cur\w*|san(ad|en) a|heridos|medic\w*|hospital\w*|curanderos?)\b/.test(n)) return [{ tipo: 'curar' }];
+    if (/\b(que trabajen todos|todos a trabajar|a trabajar|manos a la obra|nadie ocioso|no os quedeis quietos|a currar|espabil\w*)\b/.test(n)) return [{ tipo: 'trabajar' }];
+    // «Quiero un ejército de 30».
+    const ej = n.match(new RegExp('\\bejercito de ' + NUM));
+    if (ej && numero(ej[1]) >= 1) return [{ tipo: 'cupo', o: 4, n: Math.round(numero(ej[1])) }];
+    return null;
+  }
+  function aplicarExtra(m, c, a, textos) {
+    const p = plan(c), v = m.vida, an = (t, r) => (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t, region: r });
+    const o = a.con != null ? S().civ(m, Number(a.con)) : null;
+    const nombreR = r => nombreSitio(m, c, r);
+    if (a.tipo === 'escuadron') {
+      const disp = adultosDe(m, c).filter(x => !x.fijo && (x.edad || 0) < M.vida.VIEJO);
+      // Primero los guerreros que ya hay; si no llegan, se llama a otros.
+      disp.sort((x, y) => (y.o === 4) - (x.o === 4) || (x.k ? 1 : 0) - (y.k ? 1 : 0));
+      const elegidos = disp.slice(0, a.n);
+      if (!elegidos.length) { textos.push('No queda gente para formar un escuadrón.'); return; }
+      const id = (p.sigCuadrilla = (p.sigCuadrilla || 0) + 1), k = (p.sigEscuadron = (p.sigEscuadron || 0) + 1);
+      for (const x of elegidos) {
+        x.fijo = { g: id, vuelve: x.o, guardia: a.region != null ? a.region : undefined };
+        if (x.o !== 4) M.vida.mover(x, 4);
+        if (a.arma === 'arqueros' && c.arquerias > 0) x.tirador = true;
+        if (a.arma === 'tanques' && c.era >= 8 && c.cuarteles > 0 && (c.metal || 0) >= 10) { c.metal -= 10; x.veh = 'tanque'; x.tirador = true; x.pv = x.pv0 = M.vida.VEHICULOS.tanque.vida; }
+      }
+      const nTanques = elegidos.filter(x => x.veh === 'tanque').length;
+      // Un escuadrón que va a por una plaza enemiga declara la guerra si hace falta.
+      const dueno = a.ataca ? S().civ(m, m.dueno[a.region]) : null;
+      const declara = dueno && dueno.id !== c.id && !S().enGuerra(c, dueno);
+      if (declara) { S().declararGuerra(m, c, dueno, 'Por orden de su gobierno, ' + c.nombre + ' declara la guerra a ' + dueno.nombre + ' y manda un escuadrón contra ' + nombrePlaza(m, a.region) + '.'); p.guerrasMias = [...new Set([...(p.guerrasMias || []), dueno.id])]; }
+      const que = a.arma === 'arqueros' ? 'arqueros' : a.arma === 'tanques' ? 'tanques' : 'soldados';
+      const mision = a.region == null ? '' : a.ataca ? ' → ataca ' + nombreR(a.region) : ' → guarda ' + nombreR(a.region);
+      const texto = 'Escuadrón ' + k + ' (' + elegidos.length + ' ' + que + ')' + mision;
+      (p.cuadrillas = p.cuadrillas || []).push({ id, n: elegidos.length, de: -1, a: 4, hasta: null, texto, escuadron: k, region: a.region });
+      an('⚑ ' + texto, a.region);
+      const avisos = [];
+      if (a.arma === 'arqueros' && !(c.arquerias > 0)) avisos.push(' Sin arquería no hay arcos: luchan cuerpo a cuerpo hasta que la construyáis («construid una arquería»).');
+      if (a.arma === 'tanques' && nTanques < elegidos.length) avisos.push(c.era < 8 ? ' Los tanques llegan con la Segunda Guerra Mundial: de momento van a pie.' : ' Solo había metal para ' + nTanques + ' tanque' + (nTanques === 1 ? '' : 's') + ' (cada uno cuesta 10).');
+      if (declara) avisos.push(' ¡Guerra contra ' + dueno.nombre + '!');
+      textos.push('Formado el escuadrón ' + k + ': ' + elegidos.length + ' ' + que + (a.region != null ? (a.ataca ? ' marchan sobre ' : ' montan guardia en ') + nombreR(a.region) : ' bajo tu mando') + '. No se mueven de ahí hasta que digas «liberad las cuadrillas».' + avisos.join(''));
+      return;
+    }
+    if (a.tipo === 'vehiculos') {
+      if (a.cual === 'aviones') { textos.push(c.era >= 8 ? 'Tus bombarderos ya despegan solos en cada guerra si hay metal (3 por salida) y un cuartel. Metal: ' + Math.floor(c.metal || 0) + '.' + (c.guerras.length ? '' : ' Ahora estáis en paz.') : 'Los aviones llegan con la Segunda Guerra Mundial.'); if (c.era >= 8) p.prioridad.piedra = Math.max(p.prioridad.piedra, 1.5); return; }
+      const era = a.cual === 'tanque' ? 8 : 5;
+      if (c.era < era) { textos.push(a.cual === 'tanque' ? 'Los tanques llegan con la Segunda Guerra Mundial.' : 'Los cañones llegan con la pólvora.'); return; }
+      if (!(c.cuarteles > 0)) { textos.push('Hace falta un cuartel para fabricarlos: «construid un cuartel».'); return; }
+      p.vehiculos = a.cual; p.prioridad.piedra = Math.max(p.prioridad.piedra, 1.5);
+      an('⚙ Fábrica de ' + (a.cual === 'tanque' ? 'tanques' : 'cañones'));
+      textos.push('El cuartel se pone a fabricar ' + (a.cual === 'tanque' ? 'tanques (10 de metal cada uno)' : 'piezas de artillería (' + (c.era >= 7 ? 5 : 4) + ' de metal)') + ': uno de cada tres soldados tendrá uno. Metal: ' + Math.floor(c.metal || 0) + '; los mineros buscarán más.');
+      return;
+    }
+    if (a.tipo === 'atacar') {
+      if (!c.guerras.length) { const ob = vecinoMasDebil(m, c); textos.push('No estáis en guerra con nadie. Di contra quién: «atacad a ' + (ob ? ob.nombre : 'X') + '».'); return; }
+      p.defender = null;
+      const e = v.ejercitos && v.ejercitos[c.id]; if (e) { e.defiende = null; e.fase = 'marcha'; }
+      M.vida.reasignar(m, c, null, true);
+      an('⚔ ¡Al ataque!');
+      textos.push('¡Al ataque! Tus guerreros dejan de esperar y marchan ' + (e ? 'sobre ' + nombrePlaza(m, e.obj) : 'contra ' + S().civ(m, c.guerras[0].con).nombre) + '.');
+      return;
+    }
+    if (a.tipo === 'rendicion') {
+      if (!o || !S().enGuerra(c, o)) { textos.push(o ? 'No estáis en guerra con ' + o.nombre + '.' : 'No estáis en guerra con nadie.'); return; }
+      // Rendirse: paz segura, pero el vencedor se queda con tierras de la frontera y parte del oro.
+      const fr = S().frontera(m, o, c).filter(r => r !== c.capital && !(m.ciudades || []).some(x => x.region === r)).slice(0, 3);
+      for (const r of fr) m.dueno[r] = o.id;
+      const oro = Math.round((c.riqueza || 0) * 0.25); c.riqueza -= oro; o.riqueza += oro; c.estab -= 6;
+      S().hacerPaz(m, c, o, c.nombre + ' se rinde ante ' + o.nombre + '. Entrega ' + fr.length + ' comarcas de la frontera y un tributo de ' + oro + ' de oro.');
+      an('🏳 Rendición ante ' + o.nombre);
+      textos.push('Te rindes ante ' + o.nombre + ': hay paz, pero pierdes ' + fr.length + ' comarcas de la frontera y ' + oro + ' de oro. La gente está abatida.');
+      return;
+    }
+    if (a.tipo === 'espiar') {
+      if (!o) { textos.push('¿A quién? «Espiad a X».'); return; }
+      const suyos = v.aldeanos.filter(x => x.c === o.id), g = suyos.filter(x => x.o === 4), e = v.ejercitos && v.ejercitos[o.id];
+      const vehs = g.filter(x => x.veh).length;
+      const mira = e && e.con === c.id ? (m.dueno[e.obj] === c.id ? ' ¡Su ejército va a por ' + nombreR(e.obj) + '!' : '') : '';
+      const plan2 = (m.complots || []).find(x => x.de === o.id && x.contra === c.id);
+      c.estab -= 0; o.rel[c.id] = (o.rel[c.id] || 0) - (S().azar(m) < 0.2 ? 15 : 0);
+      textos.push('Tus espías vuelven de ' + o.nombre + ': ' + suyos.length + ' aldeanos, ' + g.length + ' guerreros' + (vehs ? ' (' + vehs + ' con vehículos)' : '') + ', ' + M.ERAS[o.era].nombre + ', ' + Math.floor(o.metal || 0) + ' de metal, ' + Math.floor(o.comida || 0) + ' de comida' + (o.torres ? '' : '') + '. ' + (S().fuerza(m, o) > S().fuerza(m, c) ? 'Son más fuertes que vosotros.' : 'Sois más fuertes que ellos.') + mira + (plan2 ? ' Traman algo contra vosotros (' + Math.round(plan2.progreso || 0) + ' %).' : '') + (o.guerras.length ? ' Están en guerra con ' + o.guerras.map(x => (S().civ(m, x.con) || {}).nombre).filter(Boolean).join(', ') + '.' : ''));
+      return;
+    }
+    if (a.tipo === 'insultar') {
+      o.rel[c.id] = (o.rel[c.id] || 0) - 25; c.rel[o.id] = (c.rel[o.id] || 0) - 10;
+      const ira = S().azar(m) < 0.15 + (o.rel[c.id] < -60 ? 0.3 : 0) && !S().enGuerra(c, o);
+      if (ira) S().declararGuerra(m, o, c, o.nombre + ' no perdona el insulto de ' + c.nombre + ' y le declara la guerra.');
+      an('😠 Insulto a ' + o.nombre);
+      textos.push('Tus heraldos insultan a ' + o.nombre + '. Su opinión de vosotros cae a ' + Math.round(o.rel[c.id]) + '.' + (ira ? ' ¡Os declaran la guerra!' : ''));
+      return;
+    }
+    if (a.tipo === 'regalo') {
+      const oro = Math.max(5, Math.round((c.riqueza || 0) * 0.15));
+      if ((c.riqueza || 0) < 5) { textos.push('No tenéis riqueza que regalar.'); return; }
+      c.riqueza -= oro; o.riqueza += oro; o.rel[c.id] = (o.rel[c.id] || 0) + 20 + Math.round(oro / 20);
+      an('🎁 Regalo a ' + o.nombre);
+      textos.push('Enviáis ' + oro + ' de oro a ' + o.nombre + '. Su opinión de vosotros sube a ' + Math.round(o.rel[c.id]) + '.' + (S().enGuerra(c, o) ? ' Quizá acepten antes la paz.' : ''));
+      if (S().enGuerra(c, o)) { const g = o.guerras.find(x => x.con === c.id); if (g) g.cansancio += 2; }
+      return;
+    }
+    if (a.tipo === 'sabotaje') {
+      if (!o || !S().enGuerra(c, o)) { textos.push('Solo en guerra: ' + (o ? 'no estáis en guerra con ' + o.nombre : 'no estáis en guerra') + '.'); return; }
+      // Sus campos de la frontera arden: pierden comida y cosecha.
+      const fr = S().frontera(m, c, o).slice(0, 4);
+      let quemados = 0;
+      for (const r of fr) for (const t of M.vida.parcelas(m, r)) if (v.obra[t] === M.vida.OBRA.campo && S().azar(m) < 0.7) { M.vida.cambiar(m, 'obra', t, 0, 0); quemados++; }
+      o.comida = Math.max(0, (o.comida || 0) * 0.7); o.rel[c.id] = (o.rel[c.id] || 0) - 15; c.estab -= 2;
+      const g = o.guerras.find(x => x.con === c.id); if (g) g.cansancio += 1.5;
+      an('🔥 Campos de ' + o.nombre + ' en llamas', fr[0]);
+      S().cronica(m, 'guerra', c.nombre + ' quema los campos de ' + o.nombre, 'Partidas de ' + c.nombre + ' cruzan la frontera de noche y prenden fuego a ' + quemados + ' campos. El hambre será otra arma de esta guerra.', c, fr[0]);
+      textos.push('Tus partidas queman ' + quemados + ' campos de ' + o.nombre + ' en la frontera y arruinan parte de su granero. Se cansarán antes de la guerra.');
+      return;
+    }
+    if (a.tipo === 'impuestos') {
+      if (p.ultimoImpuesto != null && m.turno - p.ultimoImpuesto < 3) { textos.push('Acabas de tocar los impuestos; espera unos turnos.'); return; }
+      p.ultimoImpuesto = m.turno;
+      if (a.sube) { const g = Math.round(8 + (c.pob || 0) * 0.15); c.riqueza += g; c.estab -= 7; textos.push('Subes los impuestos: +' + g + ' de riqueza, pero la gente protesta (estabilidad −7).'); an('💰 +' + g + ' impuestos'); }
+      else { const g = Math.min(Math.round((c.riqueza || 0) * 0.1), 30); c.riqueza -= g; c.estab = Math.min(100, c.estab + 7); textos.push('Bajas los impuestos: la gente lo celebra (estabilidad +7) y entra menos dinero (−' + g + ').'); an('🙂 Menos impuestos'); }
+      return;
+    }
+    if (a.tipo === 'fiesta') {
+      if (p.ultimaFiesta != null && m.turno - p.ultimaFiesta < 3) { textos.push('Aún les dura la resaca de la última fiesta.'); return; }
+      const coste = Math.round(Math.max(3, adultosDe(m, c).length * 0.3));
+      if ((c.comida || 0) < coste) { textos.push('No hay comida para una fiesta (hace falta ' + coste + ').'); return; }
+      p.ultimaFiesta = m.turno; c.comida -= coste; c.estab = Math.min(100, c.estab + (a.descanso ? 5 : 9));
+      for (const x of adultosDe(m, c)) if (!x.fijo && !x.k && x.o !== 4) { x.e = 3; x.t = a.descanso ? 3 : 2; } // ESPERAR: dejan el trabajo un rato
+      an(a.descanso ? '😴 Día de descanso' : '🎉 ¡Fiesta en la plaza!');
+      textos.push((a.descanso ? 'Tu gente descansa un par de turnos' : 'Fiesta en la plaza: música, vino y ' + coste + ' de comida') + '. Estabilidad +' + (a.descanso ? 5 : 9) + ' (ahora ' + Math.round(c.estab) + ').');
+      return;
+    }
+    if (a.tipo === 'rezar') {
+      const templo = c.templos > 0 || (v && v.obra.some((x, t) => x === M.vida.OBRA.templo && m.dueno[M.vida.region(m, t)] === c.id));
+      if (p.ultimoRezo != null && m.turno - p.ultimoRezo < 3) { textos.push('Ya rezaron hace poco.'); return; }
+      p.ultimoRezo = m.turno; c.estab = Math.min(100, c.estab + (templo ? 6 : 3));
+      an('🙏 Plegarias');
+      textos.push('Tu pueblo reza' + (templo ? ' en el templo' : ' al aire libre (con un templo serviría más)') + '. Estabilidad +' + (templo ? 6 : 3) + '. Los dioses, como siempre, no dicen nada.');
+      return;
+    }
+    if (a.tipo === 'curar') {
+      const heridos = v.aldeanos.filter(x => x.c === c.id && x.pv != null && x.pv < M.vida.vidaMax(x));
+      const coste = Math.ceil(heridos.length * 0.5);
+      if (!heridos.length) { textos.push('No hay heridos.'); return; }
+      if ((c.comida || 0) < coste) { textos.push('Faltan comida y vendas para curar a ' + heridos.length + ' heridos (hacen falta ' + coste + ' de comida).'); return; }
+      c.comida -= coste;
+      for (const x of heridos) { x.pv = null; x.pv0 = null; }
+      an('✚ ' + heridos.length + ' curados');
+      textos.push('Los curanderos atienden a ' + heridos.length + ' heridos, que vuelven como nuevos (' + coste + ' de comida).');
+      return;
+    }
+    if (a.tipo === 'reparar') {
+      const ruinas = [];
+      for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === M.vida.OBRA.ruina && m.dueno[M.vida.region(m, t)] === c.id) ruinas.push(t);
+      if (!ruinas.length) { textos.push('No hay casas en ruinas ni fuego en tu tierra.'); return; }
+      const puede = Math.min(ruinas.length, Math.floor((c.madera || 0) / 3));
+      if (!puede) { textos.push('Hay ' + ruinas.length + ' ruinas, pero no hay madera para levantarlas (3 cada una).'); p.prioridad.madera = Math.max(p.prioridad.madera, 1.5); return; }
+      for (const t of ruinas.slice(0, puede)) M.vida.cambiar(m, 'obra', t, M.vida.OBRA.casa, 0);
+      c.madera -= puede * 3; c.casas = (c.casas || 0) + puede;
+      an('🔨 ' + puede + ' casas reparadas');
+      textos.push('Tus constructores apagan las brasas y levantan ' + puede + ' casa' + (puede === 1 ? '' : 's') + ' de las ruinas (' + puede * 3 + ' de madera).' + (puede < ruinas.length ? ' Quedan ' + (ruinas.length - puede) + ' ruinas: falta madera.' : ''));
+      return;
+    }
+    if (a.tipo === 'trabajar') {
+      let n = 0;
+      for (const x of adultosDe(m, c)) if (x.paseo || x.e === 3) { x.paseo = 0; x.e = 0; n++; }
+      M.vida.reasignar(m, c, null, true);
+      an('⚒ ¡A trabajar!');
+      textos.push('¡Manos a la obra! ' + (n ? n + ' que estaban parados vuelven al trabajo.' : 'Todos estaban ya trabajando.'));
+    }
+  }
+  const TIPOS_EXTRA = ['reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- Del texto a las acciones ----------
   function entender(m, civId, texto) {
@@ -294,6 +541,8 @@
     const tratado = !alianza && /\b(comerci\w* con|amistad|tratado|embajad\w*|regal\w* a)\b/.test(n);
     // Preguntas: «¿cuántos leñadores tengo?», «¿cuánta madera hay?», «¿qué hace mi gente?».
     if (/\b(cuant[oa]s?|que hace mi gente|que hacen|en que trabaja\w*|reparto|oficios|cuadrillas|cupos)\b/.test(n) && !/\b(quiero|pon\w*|mand\w*|que (se )?(vayan|pongan)|quit\w*|liber\w*|cancel\w*|anul\w*|solt\w*|suelt\w*)\b/.test(n) && !/\d/.test(n.replace(/\bcuant\w*/, ''))) { const of = NOMBRE_OF.find(([o, re]) => o >= 0 && new RegExp('\\b(' + re + ')\\b').test(n)); return [{ tipo: 'consulta', o: of ? of[0] : undefined }]; }
+    // Escuadrones, posturas de guerra, diplomacia menuda y el ánimo del pueblo.
+    { const ex = extras(m, c, n); if (ex) return acciones.concat(ex); }
     // Órdenes con número, oficio y tiempo (cuadrillas, cupos, metas); si traen plazo, también sirve para las prioridades.
     let plazoGeneral = null, conCuadrilla = false;
     {
@@ -308,7 +557,8 @@
     const retirada = /\b(retir\w*|repleg\w*|volved a casa|vuelvan a casa|retroced\w*)\b/.test(n);
     const tomar = /\b(toma\w*|asalt\w*|captur\w*)\b/.test(n);
     if (retirada || (defender && !guerra)) {
-      const mia = nombrada && nombrada.civ === c.id ? nombrada.region : c.capital;
+      const propia = regionPropia(m, c, n);
+      const mia = nombrada && nombrada.civ === c.id ? nombrada.region : propia != null ? propia : c.capital;
       acciones.push({ tipo: 'defender', region: mia });
       return acciones;
     }
@@ -325,7 +575,7 @@
 
     for (const [re, regimen, era] of REGIMENES) if (/\b(proclam\w*|revoluc\w*|instaur\w*|cambi\w* a|seamos|convert\w* en|hazte|haz\w* una?|coron\w*)\b/.test(n) && re.test(n)) { acciones.push({ tipo: 'regimen', a: regimen, era }); break; }
 
-    const expandir = /\b(expand\w*|extiend\w*|coloniz\w*|ocupa\w*|nuevas tierras|ve hacia|id hacia|avanz\w* (hacia|al)|crec\w* hacia|hacia el)\b/.test(n);
+    const expandir = /\b(explor\w*|expand\w*|extiend\w*|coloniz\w*|ocupa\w*|nuevas tierras|ve hacia|id hacia|avanz\w* (hacia|al)|crec\w* hacia|hacia el)\b/.test(n);
     const quieto = /\b(no (os|te|nos) expand\w*|deja\w* de expandi\w*|quiet\w*|no crezc\w*|parad de crecer)\b/.test(n);
     if (quieto) acciones.push({ tipo: 'expandir', si: false });
     else if (expandir && !guerra) {
@@ -344,7 +594,7 @@
       const mt = n.match(re);
       if (!mt) continue;
       const antes = n.slice(Math.max(0, mt.index - 16), mt.index);
-      if (/\b(nada de|ningun\w*|cero)\b/.test(antes)) cambios[k] = { a: 0 };
+      if (/\b(nada de|ningun\w*|cero|deja\w* de|dejen de|basta de|parad de|paren de|no mas)\b/.test(antes) || (/\bno\s*$/.test(antes) && /\bmas\b/.test(n.slice(mt.index)))) cambios[k] = { a: 0 };
       else if (/\b(menos|no|deja\w* de|sin|poca|poco)\b/.test(antes)) cambios[k] = { mas: -0.5 };
       else if (solo || /\b(maxim\w*|al maximo|toda la|todo lo que|prioridad absoluta|mucha|mucho)\b/.test(n)) cambios[k] = { a: 2 };
       else if (/\b(invert\w*|invier\w*|centra\w*|prioriz\w*|enfoca\w*|volca\w*|vuelca\w*|apuesta\w*)\b/.test(n)) cambios[k] = { a: 2 };
@@ -386,6 +636,7 @@
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
+      else if (TIPOS_EXTRA.includes(a.tipo)) aplicarExtra(m, c, a, textos);
       else if (a.tipo === 'consulta') textos.push(consulta(m, c, a.o));
       else if (a.tipo === 'cuadrilla') aplicarCuadrilla(m, c, a, textos);
       else if (a.tipo === 'cupo') aplicarCupo(m, c, a, textos);
@@ -452,7 +703,8 @@
         p.defender = r; p.objetivo = null;
         const e = m.vida && m.vida.ejercitos && m.vida.ejercitos[c.id];
         if (e) { e.defiende = r; e.fase = 'marcha'; e.asedio = 0; }
-        const nombre = r === c.capital ? 'la capital' : nombrePlaza(m, r);
+        const nombre = nombreSitio(m, c, r);
+        if (a.postura) { const T2 = { esperar: '🛡 Esperan el ataque en ' + nombre, emboscada: '🌿 Emboscada en ' + nombre, alto: '✋ ¡Alto! Todos a ' + nombre }; (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: T2[a.postura], region: r }); textos.push({ esperar: 'Tus guerreros se atrincheran en ' + nombre + ' y esperan al enemigo; no atacarán hasta que digas «al ataque».', emboscada: 'Tus guerreros se esconden en ' + nombre + ' y esperan a que el enemigo pase por ahí. Di «al ataque» para salir.', alto: 'Alto: tus guerreros dejan de avanzar y vuelven a ' + nombre + '. La guerra sigue; para acabarla, «haced la paz».' }[a.postura]); continue; }
         (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: '🛡 ¡Defended ' + nombre + '!', region: r });
         textos.push(c.guerras.length ? 'Tus guerreros vuelven a ' + nombre + ' y la defienden hasta nueva orden. Cuando quieras atacar, di «atacad» y el nombre de una ciudad.' : 'No estáis en guerra, pero si llega una, tus guerreros se quedarán defendiendo ' + nombre + '.');
       } else if (a.tipo === 'paz') {
@@ -600,7 +852,7 @@
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante; -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante; -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -610,7 +862,7 @@
       '\nPlazas (región, dueño): ' + JSON.stringify([...S().vivas(m).map(o => ({ region: o.capital, nombre: 'capital de ' + o.nombre, dueno: o.id })), ...(m.ciudades || []).map(x => ({ region: x.region, nombre: x.nombre, dueno: m.dueno[x.region] }))]) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
+  const TIPOS = new Set(['reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
@@ -633,6 +885,16 @@
         else if (a.tipo === 'cupo' && n != null && n !== 'todos' && oficio(a.o) >= 0) out.push({ tipo: 'cupo', o: oficio(a.o), n: Math.round(n), hasta: h });
         else if (a.tipo === 'meta' && n != null && n !== 'todos' && COSAS[a.cosa] && oficio(a.o) >= 0) out.push({ tipo: 'meta', cosa: COSAS[a.cosa], n: Math.round(n), o: oficio(a.o) });
       } else if (a.tipo === 'liberar' || a.tipo === 'consulta') out.push({ tipo: a.tipo });
+      else if (TIPOS_EXTRA.includes(a.tipo)) {
+        const x = { tipo: a.tipo };
+        if (a.con != null && Number.isInteger(Number(a.con))) x.con = Number(a.con);
+        if (a.tipo === 'escuadron') { x.n = Math.max(1, Math.min(200, Math.round(Number(a.n) || 8))); x.arma = ['arqueros', 'tanques'].includes(a.arma) ? a.arma : null; x.region = Number.isInteger(Number(a.region)) && a.region !== null ? Number(a.region) : null; if (a.ataca) x.ataca = true; }
+        if (a.tipo === 'vehiculos') x.cual = ['tanque', 'artilleria', 'aviones'].includes(a.cual) ? a.cual : 'artilleria';
+        if (a.tipo === 'impuestos') x.sube = a.sube !== false;
+        if (a.tipo === 'fiesta' && a.descanso) x.descanso = true;
+        if (['rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje'].includes(a.tipo) && x.con == null) continue;
+        out.push(x);
+      }
       else if (a.tipo === 'objetivo' || a.tipo === 'defender') { if (Number.isInteger(Number(a.region)) && Number(a.region) >= 0) out.push({ tipo: a.tipo, region: Number(a.region) }); }
       else if (a.tipo === 'expandir') out.push({ tipo: 'expandir', si: a.si !== false, rumbo: ['norte', 'sur', 'este', 'oeste'].includes(a.rumbo) ? a.rumbo : Number.isFinite(Number(a.rumbo)) && a.rumbo !== null ? Number(a.rumbo) : null });
       else if (a.tipo === 'regimen') { const r = REGIMENES.find(x => x[1] === a.a); if (r) out.push({ tipo: 'regimen', a: r[1], era: r[2] }); }

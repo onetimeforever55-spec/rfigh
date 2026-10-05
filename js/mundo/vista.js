@@ -331,7 +331,7 @@
   function pintarEjemplos() {
     const vecino = tuPueblo() && (S.vecinosDe(m, tuPueblo())[0] || S.vivas(m).find(o => o.id !== m.jugador));
     const ej = tuPueblo()
-      ? ['5 granjeros a talar durante 2 minutos', 'Quiero 10 leñadores', 'Talad 20 árboles', 'La mitad de los mineros a construir hasta tener 30 casas', '¿Cuántos guerreros tengo?', 'Liberad las cuadrillas', 'Informe', 'Más madera', 'Más comida y casas', 'Todo a la ciencia', 'Menos ejército', 'Expandíos hacia el norte', vecino ? 'Atacad a ' + vecino.nombre : 'Atacad al vecino más débil', vecino ? 'Comerciad con ' + vecino.nombre : 'Comerciad con el más rico', 'Como antes']
+      ? ['Háganme 5 casas', 'Formad un escuadrón de 10 para guardar la capital', 'Esperad el ataque', '¡Al ataque!', 'Hagan defensas', vecino ? 'Espiad a ' + vecino.nombre : 'Espiad al vecino', 'Haced una fiesta', '5 granjeros a talar durante 2 minutos', 'Quiero 10 leñadores', 'Talad 20 árboles', 'La mitad de los mineros a construir hasta tener 30 casas', '¿Cuántos guerreros tengo?', 'Liberad las cuadrillas', 'Informe', 'Más madera', 'Más comida y casas', 'Todo a la ciencia', 'Menos ejército', 'Expandíos hacia el norte', vecino ? 'Atacad a ' + vecino.nombre : 'Atacad al vecino más débil', vecino ? 'Comerciad con ' + vecino.nombre : 'Comerciad con el más rico', 'Como antes']
       : ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Incendio en el más grande', 'Que planten bosques en el más pequeño', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Que llueva oro sobre el más pobre'];
     const cont = $('ejemplos');
     cont.innerHTML = '';
@@ -591,7 +591,7 @@
     if (m.vida) m.vida.msTurno = VELOCIDADES[vel][0];
     const r = X.ordenar(m, yo.id, texto);
     if (r.ok) { despuesDeOrden(r); return; }
-    if (!sample) { responder('Tu gente no entiende la orden. Prueba con: 5 granjeros a talar durante 2 minutos, quiero 10 leñadores, talad 20 árboles, más madera, más comida, menos ejército, todo a la ciencia, nada de piedra, expandíos hacia el norte, atacad a X, haced la paz con X, comerciad con X, proclamad la república, informe, como antes.', 'duda'); return; }
+    if (!sample) { responder('Tu gente no entiende la orden. Prueba con: háganme 5 casas, formad un escuadrón de 10, esperad el ataque, al ataque, retirada, 5 granjeros a talar durante 2 minutos, quiero 10 leñadores, talad 20 árboles, más madera, más comida, menos ejército, todo a la ciencia, nada de piedra, expandíos hacia el norte, atacad a X, haced la paz con X, comerciad con X, proclamad la república, informe, como antes.', 'duda'); return; }
     ocupado = true;
     responder('Tus consejeros discuten la orden…', 'espera');
     try {
