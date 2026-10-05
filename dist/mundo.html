@@ -214,10 +214,32 @@ body.sin-panel .panel { display: none; }
 .cuadrillas-hud { margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--pergamino); }
 .cuadrillas-hud b { font-family: var(--f-dato); font-weight: normal; color: var(--oro); }
 .cuadrillas-hud .sep { color: var(--linea); }
+.recursos { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-family: var(--f-dato); font-size: 13px; }
+.recursos .rec { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.recursos .rec i { font-style: normal; font-size: 14px; }
+.recursos .rec small { font-size: 11px; }
+.recursos .oro { color: #ffd76a; font-weight: bold; }
+.recursos .mal { color: #ff8a7a; }
+.recursos .barra.mini { width: 44px; height: 6px; }
+.recursos .barra.mini span { background: #7ab8ff; }
+.arbol-ayuda { font-size: 12.5px; margin: 6px 0; }
+.tec-era { font-family: var(--f-dato); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--oro); margin: 10px 0 4px; }
+.tec-lista { list-style: none; margin: 0; padding: 0; }
+.tec { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 4px 0; border-bottom: 1px solid var(--linea); font-size: 13px; }
+.tec .tec-nombre { font-weight: bold; }
+.tec .tec-estado { margin-left: auto; font-family: var(--f-dato); font-size: 12px; }
+.tec.hecha .tec-nombre { color: #9ad08a; }
+.tec.ahora { background: rgba(122,184,255,0.08); }
+.tec.cerrada { opacity: 0.55; }
+.tec .barra.mini { width: 50px; height: 6px; display: inline-block; vertical-align: middle; }
+.tec .barra.mini span { background: #7ab8ff; }
 .guerra-mas { margin: 4px 0 0; font-size: 12px; }
 .verde { color: #7fc77a; }
 /* Móvil: todo más compacto para que se vea el mundo. */
 @media (max-width: 899px) {
+  .g-cab:has(.recursos:not([hidden])) { flex-wrap: wrap; }
+  .recursos { order: 9; flex-basis: 100%; width: 100%; font-size: 11.5px; gap: 2px 9px; overflow-x: auto; flex-wrap: nowrap; padding-top: 4px; border-top: 1px solid var(--linea); }
+  .recursos .rec.tec { display: none; }
   .guerra-hud .guerra-marcador + .guerra-marcador, .guerra-mas { display: none; }
   .g-cab { flex-wrap: nowrap; }
   .mandos { flex-wrap: nowrap; overflow-x: auto; margin-left: 0; min-width: 0; }
@@ -243,6 +265,7 @@ body.sin-panel .panel { display: none; }
     <h1 class="marca">Génesis</h1>
     <div class="reloj" aria-live="polite"><span class="anio" id="anio">4000 a. C.</span><span class="era" id="era">Neolítico</span></div>
     <div class="marcador" id="marcador" hidden></div>
+    <div class="recursos" id="recursos" hidden></div>
     <div class="mandos">
       <button type="button" class="mando" id="play" aria-pressed="false">❚❚ Pausa</button>
       <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
@@ -347,15 +370,15 @@ body.sin-panel .panel { display: none; }
   // Cada era: cuántos años dura un turno cuando el pueblo más avanzado está en ella, cuánta gente
   // alimenta cada casilla (cap), cuánto pesa en la guerra (fuerza) y cuánta ciencia hace falta para llegar.
   M.ERAS = [
-    { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
-    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', desde: -3500, anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
-    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', desde: -1500, anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', desde: -900, anios: 50, cap: 2.0, fuerza: 2.6, umbral: 500, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1320, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2200, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2900, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 3100, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Segunda Guerra Mundial', con: 'la Segunda Guerra Mundial', corto: 'II GUERRA MUNDIAL', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 3300, inventos: ['la ametralladora', 'el tanque', 'el radar'] }
+    { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, aniosLento: 8, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
+    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', desde: -3500, anios: 100, aniosLento: 25, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
+    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', desde: -1500, anios: 50, aniosLento: 25, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', desde: -900, anios: 50, aniosLento: 25, cap: 2.0, fuerza: 2.6, umbral: 500, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, aniosLento: 20, cap: 2.3, fuerza: 3.2, umbral: 1320, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, aniosLento: 10, cap: 3.0, fuerza: 5.0, umbral: 2200, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, aniosLento: 6, cap: 5.0, fuerza: 9.0, umbral: 2900, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, aniosLento: 4, cap: 8.0, fuerza: 16, umbral: 3100, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Segunda Guerra Mundial', con: 'la Segunda Guerra Mundial', corto: 'II GUERRA MUNDIAL', desde: 1930, anios: 4, aniosLento: 1, cap: 12, fuerza: 30, umbral: 3300, inventos: ['la ametralladora', 'el tanque', 'el radar'] }
   ];
   // Las cuatro fases de la técnica: cada una trae sus edificios y su manera de guerrear. El techo es la
   // Segunda Guerra Mundial (fusiles, ametralladoras, tanques): no hay bomba atómica.
@@ -366,6 +389,70 @@ body.sin-panel .panel { display: none; }
     { nombre: 'Guerras Mundiales', eras: [7, 8], resumen: 'búnkeres, nidos de ametralladoras, fusiles y tanques' }
   ];
   M.fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
+
+  /*
+   * EL ÁRBOL DE LA TÉCNICA: cada era tiene sus tecnologías, que se investigan una a una (el jugador elige el orden,
+   * «investigad la rueda»; la IA, según su carácter). Una era nueva solo llega cuando se han dominado todas las
+   * de la anterior (y, en la historia real, cuando su fecha lo permite). Cada una cambia algo de verdad:
+   *  lena/cosecha/piedra: +unidades por árbol, gavilla o roca · casa: +camas por casa · obra: obras más rápidas ·
+   *  ciencia/oro/comercio: +% · ataque/defensa: +% en combate · vida: +puntos de vida · granero/ganado: +% de tope ·
+   *  estab: +estabilidad · caza: más comida al cazar y pescar.
+   */
+  M.TECNOLOGIAS = [
+    { id: 'hachas', era: 0, nombre: 'Hachas de piedra pulida', invento: 'el hacha pulida', efecto: { lena: 1 }, texto: '+1 de madera por árbol' },
+    { id: 'agricultura', era: 0, nombre: 'Agricultura', invento: 'la agricultura', efecto: { cosecha: 1 }, texto: '+1 de trigo por gavilla' },
+    { id: 'ceramica', era: 0, nombre: 'Cerámica', invento: 'la cerámica', efecto: { granero: 0.4 }, texto: 'graneros un 40 % más grandes' },
+    { id: 'pastoreo', era: 0, nombre: 'Pastoreo', invento: 'el pastoreo', efecto: { ganado: 0.4, caza: 0.3 }, texto: 'rebaños un 40 % mayores, mejor caza' },
+    { id: 'rueda', era: 1, nombre: 'La rueda', invento: 'la rueda', efecto: { comercio: 0.3, obra: 0.15 }, texto: 'comercio +30 %, obras más rápidas' },
+    { id: 'escritura', era: 1, nombre: 'Escritura', invento: 'la escritura', efecto: { ciencia: 0.12 }, texto: 'investigación +12 %' },
+    { id: 'bronce', era: 1, nombre: 'Fundición de bronce', invento: 'el bronce', efecto: { ataque: 0.1 }, texto: 'daño +10 %' },
+    { id: 'adobe', era: 1, nombre: 'Ladrillo de adobe', invento: 'el ladrillo', efecto: { casa: 1 }, texto: '+1 cama por casa' },
+    { id: 'hierro', era: 2, nombre: 'Forja de hierro', invento: 'el hierro', efecto: { ataque: 0.1, piedra: 1 }, texto: 'daño +10 %, +1 de piedra por roca' },
+    { id: 'moneda', era: 2, nombre: 'La moneda', invento: 'la moneda', efecto: { oro: 0.25 }, texto: 'impuestos +25 %' },
+    { id: 'arado', era: 2, nombre: 'Arado de hierro', invento: 'el arado de hierro', efecto: { cosecha: 1 }, texto: '+1 de trigo por gavilla' },
+    { id: 'murallas', era: 2, nombre: 'Murallas', invento: 'las murallas', efecto: { defensa: 0.1 }, texto: 'armaduras +10 %' },
+    { id: 'acueducto', era: 3, nombre: 'Acueductos', invento: 'el acueducto', efecto: { estab: 3, casa: 1 }, texto: '+3 de estabilidad, +1 cama por casa' },
+    { id: 'filosofia', era: 3, nombre: 'Filosofía', invento: 'la filosofía', efecto: { ciencia: 0.15 }, texto: 'investigación +15 %' },
+    { id: 'derecho', era: 3, nombre: 'Derecho escrito', invento: 'el derecho escrito', efecto: { estab: 3, oro: 0.1 }, texto: '+3 de estabilidad, impuestos +10 %' },
+    { id: 'hormigon', era: 3, nombre: 'Hormigón', invento: 'el hormigón', efecto: { obra: 0.2, piedra: 1 }, texto: 'obras más rápidas, +1 de piedra por roca' },
+    { id: 'molino_agua', era: 4, nombre: 'Molino de agua', invento: 'el molino de agua', efecto: { cosecha: 1 }, texto: '+1 de trigo por gavilla' },
+    { id: 'universidad', era: 4, nombre: 'Universidades', invento: 'la universidad', efecto: { ciencia: 0.15 }, texto: 'investigación +15 %' },
+    { id: 'estribo', era: 4, nombre: 'El estribo', invento: 'el estribo', efecto: { ataque: 0.1, vida: 10 }, texto: 'daño +10 %, +10 de vida' },
+    { id: 'gremios', era: 4, nombre: 'Gremios', invento: 'los gremios', efecto: { comercio: 0.3, oro: 0.1 }, texto: 'comercio +30 %, impuestos +10 %' },
+    { id: 'imprenta', era: 5, nombre: 'Imprenta', invento: 'la imprenta', efecto: { ciencia: 0.2 }, texto: 'investigación +20 %' },
+    { id: 'polvora', era: 5, nombre: 'Pólvora', invento: 'la pólvora', efecto: { ataque: 0.15 }, texto: 'daño +15 %' },
+    { id: 'banca', era: 5, nombre: 'Banca', invento: 'la banca', efecto: { oro: 0.3 }, texto: 'impuestos +30 %' },
+    { id: 'carabela', era: 5, nombre: 'Carabela', invento: 'la carabela', efecto: { comercio: 0.3, caza: 0.3 }, texto: 'comercio +30 %, mejor pesca' },
+    { id: 'vapor', era: 6, nombre: 'Máquina de vapor', invento: 'la máquina de vapor', efecto: { obra: 0.3, lena: 1 }, texto: 'obras mucho más rápidas, +1 de madera' },
+    { id: 'ferrocarril', era: 6, nombre: 'Ferrocarril', invento: 'el ferrocarril', efecto: { comercio: 0.4 }, texto: 'comercio +40 %' },
+    { id: 'fabrica', era: 6, nombre: 'Fábricas', invento: 'la fábrica', efecto: { piedra: 2 }, texto: '+2 de piedra y metal por roca' },
+    { id: 'abonos', era: 6, nombre: 'Abonos químicos', invento: 'los abonos', efecto: { cosecha: 1, granero: 0.3 }, texto: '+1 de trigo, graneros +30 %' },
+    { id: 'electricidad', era: 7, nombre: 'Electricidad', invento: 'la electricidad', efecto: { ciencia: 0.2, estab: 3 }, texto: 'investigación +20 %, +3 de estabilidad' },
+    { id: 'vacunas', era: 7, nombre: 'Vacunas', invento: 'las vacunas', efecto: { vida: 15, estab: 2 }, texto: '+15 de vida, +2 de estabilidad' },
+    { id: 'radio', era: 7, nombre: 'Radio', invento: 'la radio', efecto: { estab: 2, ciencia: 0.1 }, texto: '+2 de estabilidad, investigación +10 %' },
+    { id: 'aviacion', era: 7, nombre: 'Aviación', invento: 'el avión', efecto: { ataque: 0.1 }, texto: 'daño +10 %' },
+    { id: 'ametralladora', era: 8, nombre: 'Ametralladora', invento: 'la ametralladora', efecto: { defensa: 0.15 }, texto: 'armaduras +15 %' },
+    { id: 'tanque', era: 8, nombre: 'Carro de combate', invento: 'el tanque', efecto: { ataque: 0.15 }, texto: 'daño +15 %' },
+    { id: 'radar', era: 8, nombre: 'Radar', invento: 'el radar', efecto: { defensa: 0.1, estab: 2 }, texto: 'armaduras +10 %, +2 de estabilidad' }
+  ];
+  // Lo investigado por un pueblo (los mundos antiguos y los pueblos nuevos reciben todo lo de las eras que ya pasaron).
+  M.tecsDe = c => {
+    if (!c.tecs) c.tecs = M.TECNOLOGIAS.filter(t => t.era < (c.era || 0)).map(t => t.id);
+    return c.tecs;
+  };
+  // La suma de un efecto en todo lo investigado (p. ej. M.tec(c, 'cosecha')).
+  M.tec = (c, k) => { if (!c) return 0; let s = 0; const ts = M.tecsDe(c); for (const t of M.TECNOLOGIAS) if (t.efecto[k] && ts.includes(t.id)) s += t.efecto[k]; return s; };
+  // El precio de una tecnología: lo que costaba antes llegar a la era siguiente, repartido entre sus tecnologías.
+  M.costeTec = t => { const e = M.ERAS, n = M.TECNOLOGIAS.filter(x => x.era === t.era).length; const sig = e[t.era + 1] ? e[t.era + 1].umbral : e[t.era].umbral + 400; return Math.max(4, Math.round((sig - e[t.era].umbral) / n * (t.era >= 2 ? 1.4 : 1))); }; // (más caras desde el Hierro: la técnica acelera la ciencia)
+  // Los niveles de un asentamiento, de campamento a ciudad, según su gente.
+  M.NIVELES = [
+    { nombre: 'Campamento', desde: 0, abre: 'chozas y un molino' },
+    { nombre: 'Aldea', desde: 12, abre: 'torre de vigilancia y puerto' },
+    { nombre: 'Pueblo', desde: 30, abre: 'templo, cuartel y arquería' },
+    { nombre: 'Villa', desde: 70, abre: 'castillo' },
+    { nombre: 'Ciudad', desde: 140, abre: 'todo' }
+  ];
+  M.nivelDe = n => { let k = 0; for (let i = 0; i < M.NIVELES.length; i++) if (n >= M.NIVELES[i].desde) k = i; return k; };
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
   M.INVENTOS = [
@@ -444,6 +531,9 @@ body.sin-panel .panel { display: none; }
     profeta: [['Una fe nueva puede unir a pueblos dispersos y lanzarlos más allá de sus fronteras.', 'El islam pasó de Arabia a Hispania y a la India en menos de un siglo.']],
     anacronismo: [['Un invento sin la sociedad que lo aproveche se queda en curiosidad.', 'Herón de Alejandría construyó una máquina de vapor en el siglo I. Se usó como juguete en los templos.']],
     nuevo_pueblo: [['Los pueblos de las estepas y los desiertos aparecen de pronto en la historia y la cambian.', 'Los mongoles de Gengis Kan pasaron de tribus enfrentadas a dominar de Corea a Hungría en cincuenta años.']],
+    tecnica: [['Cada técnica nueva se apoya en las anteriores: sin cerámica no hay graneros, sin escritura no hay leyes, sin hierro no hay arado que rompa la tierra dura.', 'La rueda aparece en Mesopotamia hacia el 3500 a. C., primero para hacer vasijas y solo después para los carros.']],
+    nivel: [['Un asentamiento crece cuando hay comida de sobra para alimentar a quien no siembra: artesanos, sacerdotes, soldados.', 'Çatalhöyük, en Anatolia, pasó de unas chozas a una aldea de miles de personas hacia el 7000 a. C.']],
+    quiebra: [['Un ejército que no cobra deja de ser un ejército: desertores, saqueos, motines.', 'En 1575 los tercios españoles en Flandes, sin paga, saquearon Amberes (la «furia española»).']],
     lobos: [['Donde hay rebaños junto al bosque hay lobos: el pastor y el perro nacieron para defenderlos.', 'En la Francia del siglo XVIII, la «bestia de Gévaudan», un lobo o varios, mató a unas cien personas y movilizó al ejército del rey.']],
     sequia: [['Sin lluvia no hay cosecha ni pasto: un pueblo vive de lo que guardó en el granero.', 'Una sequía de décadas contribuyó al abandono de las grandes ciudades mayas hacia el año 900.'], ['Los malos años se encadenan: primero se pierde la cosecha, luego el ganado.', 'La Gran Hambruna de 1315-1317, tras tres veranos de lluvia y frío, mató a uno de cada diez europeos del norte.']],
     abundancia: [['Las buenas cosechas llenan los graneros y las cunas.', 'La patata y el maíz de América duplicaron la población de muchos países de Europa y de China en dos siglos.']],
@@ -741,7 +831,7 @@ body.sin-panel .panel { display: none; }
   // ---------- Crear un mundo ----------
   function crear(semilla, numPueblos, opciones) {
     const libre = !!(opciones && opciones.libre);
-    const m = { version: 1, semilla: semilla >>> 0, rng: semilla >>> 0, W, H, anio: libre ? 1 : -4000, libre, turno: 0, civs: [], sig: 0, cronica: [], dueno: new Array(W * H).fill(-1) };
+    const m = { version: 1, semilla: semilla >>> 0, rng: semilla >>> 0, W, H, anio: libre ? 1 : -4000, libre, ritmo: (opciones && opciones.ritmo) || 1, turno: 0, civs: [], sig: 0, cronica: [], dueno: new Array(W * H).fill(-1) };
     generarMapa(m);
     // Los primeros pueblos, en tierras fértiles y lejos unos de otros (mejor junto a un río).
     const candidatas = [];
@@ -775,7 +865,7 @@ body.sin-panel .panel { display: none; }
     for (const c of vivas(m)) c.efectos = c.efectos.filter(e => e.hasta > m.turno);
     const maxEra = Math.max(0, ...vivas(m).map(c => c.era));
     // En el mundo libre (como WorldBox) los años pasan de uno en uno; en la historia real, al ritmo de cada era.
-    const anios = m.libre ? 1 : M.ERAS[maxEra].anios;
+    const anios = aniosTurno(m); void maxEra;
     for (const c of vivas(m)) reinar(m, c, anios);
     m.anio += anios;
     // Al cerrar el turno, todo en orden: quien perdió su capital en una conquista de este turno se muda a su
@@ -834,12 +924,18 @@ body.sin-panel .panel { display: none; }
       // Las ciudades y las rutas comerciales son donde se juntan sabios, libros y noticias.
       + ((m.ciudades || []).filter(x => x.civ === c.id).length * 1.2 + (c.rutas || 0) * 1.5);
     // Cada era acelera la siguiente: la escritura, la imprenta y la ciencia se apoyan unas en otras.
-    c.ciencia += Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia;
+    // Con el ritmo pausado (partidas nuevas), la técnica avanza más despacio por turno: hay tiempo de vivir cada era.
+    const ganancia = (Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia) * (1 + M.tec(c, 'ciencia')) * pausa(m);
+    c.ciencia += ganancia; c.cienciaTurno = ganancia;
+    investigar(m, c, ganancia);
     const sig = M.ERAS[c.era + 1];
-    // La historia no se salta siglos: ninguna era llega antes de su fecha más temprana posible (salvo en el mundo libre).
-    if (sig && c.ciencia >= sig.umbral && (m.libre || sig.desde == null || m.anio >= sig.desde)) subirEra(m, c, null);
+    // Una era nueva llega cuando se han dominado todas las tecnologías de la anterior; y la historia no se salta
+    // siglos: ninguna era llega antes de su fecha más temprana posible (salvo en el mundo libre).
+    const dominada = M.TECNOLOGIAS.filter(t => t.era <= c.era).every(t => M.tecsDe(c).includes(t.id));
+    if (sig && dominada && (m.libre || sig.desde == null || m.anio >= sig.desde)) subirEra(m, c, null);
+    tesoro(m, c);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
-    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
+    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + M.tec(c, 'estab') + (c.oro < 0 ? -6 : 0) - ((c.plan && c.plan.impuesto) || 1) * 16 + 16 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
@@ -886,12 +982,70 @@ body.sin-panel .panel { display: none; }
     return o && o.viva ? o.capital : null;
   }
 
+  // ---------- La técnica: se investiga una tecnología cada vez ----------
+  // El ritmo pausado (partidas nuevas): turnos de menos años en cada era. La técnica avanza en proporción, así
+  // que cada era sigue llegando a su fecha; pero hay muchos más turnos para vivirla.
+  const ritmo = m => m.ritmo || 1;
+  const maxEraDe = m => Math.max(0, ...vivas(m).map(c => c.era));
+  const aniosTurno = m => m.libre ? 1 : ritmo(m) > 1 ? M.ERAS[maxEraDe(m)].aniosLento : M.ERAS[maxEraDe(m)].anios;
+  const pausa = m => ritmo(m) > 1 && !m.libre ? aniosTurno(m) / M.ERAS[maxEraDe(m)].anios : ritmo(m) > 1 ? 1 / ritmo(m) : 1;
+  function elegirTec(m, c) {
+    const ts = M.tecsDe(c), libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !ts.includes(t.id));
+    if (!libres.length) return null;
+    const pide = c.plan && c.plan.investigar;
+    if (pide && libres.some(t => t.id === pide)) return pide;
+    // La IA (y el gobernador del jugador si no elige) va según su carácter y lo que le falta.
+    const gusto = t => { const e = t.efecto; let k = 0;
+      if (c.caracter === 'guerrero') k += (e.ataque || 0) * 10 + (e.defensa || 0) * 8;
+      if (c.caracter === 'mercader') k += (e.oro || 0) * 8 + (e.comercio || 0) * 6;
+      if (c.caracter === 'sabio' || c.caracter === 'devoto') k += (e.ciencia || 0) * 10 + (e.estab || 0) * 0.5;
+      if ((c.comida || 0) < (c.aldeanos || 10) * 0.6) k += (e.cosecha || 0) * 2 + (e.granero || 0) * 2;
+      if (c.guerras.length) k += (e.ataque || 0) * 8 + (e.defensa || 0) * 8;
+      if (c.oro < 0) k += (e.oro || 0) * 8;
+      return k + t.era * -5 + ((c.id * 7 + M.TECNOLOGIAS.indexOf(t)) % 5) * 0.01; };
+    return libres.sort((a, b) => gusto(b) - gusto(a))[0].id;
+  }
+  function investigar(m, c, puntos) {
+    const ts = M.tecsDe(c), inv = c.investigacion = c.investigacion || { id: null, puntos: 0 };
+    // Lo que se investiga mientras se espera la era siguiente no se pierde: los sabios adelantan trabajo.
+    let resto = puntos + (inv.banco || 0); inv.banco = 0;
+    for (let vueltas = 0; resto > 1e-9 && vueltas < 6; vueltas++) {
+      if (!inv.id || ts.includes(inv.id)) { inv.id = elegirTec(m, c); inv.puntos = 0; if (!inv.id) { inv.banco = Math.min(resto, 4000); return; } }
+      const t = M.TECNOLOGIAS.find(x => x.id === inv.id), coste = M.costeTec(t);
+      const pon = Math.min(resto, coste - inv.puntos);
+      inv.puntos += pon; resto -= pon;
+      if (inv.puntos >= coste - 1e-9) {
+        ts.push(t.id); c.inventos.push(t.invento); inv.id = null; inv.puntos = 0;
+        if (c.plan && c.plan.investigar === t.id) c.plan.investigar = null;
+        (m.avances = m.avances || []).push({ civ: c.id, tec: t.id, turno: m.turno });
+        if (m.avances.length > 40) m.avances = m.avances.slice(-40);
+        if (c.jugador) cronica(m, 'tecnica', c.nombre + ' domina ' + t.invento, T(t.invento) + ' llega a ' + c.nombre + ': ' + t.texto + '.', c);
+      }
+    }
+  }
+  // El tesoro: impuestos de la gente (y comercio, en vida.js) frente a los sueldos de los soldados y el
+  // mantenimiento de los edificios militares. Sin oro, la gente se enfada y los soldados desertan.
+  const IMPUESTO = { tribu: 0.5, cacicazgo: 0.7, reino: 1, imperio: 1.15, teocracia: 0.9, republica: 1, democracia: 0.95, dictadura: 1.2, estado_obrero: 1.05 };
+  function tesoro(m, c) {
+    const adultos = c.aldeanos != null ? c.aldeanos : c.pob;
+    const ingreso = adultos * 0.025 * (1 + 0.1 * c.era) * (1 + M.tec(c, 'oro')) * (IMPUESTO[c.regimen] || 1) * (c.plan && c.plan.impuesto ? c.plan.impuesto : 1);
+    const gasto = (c.guerreros || 0) * 0.05 * (1 + 0.1 * c.era) + ((c.cuarteles || 0) + (c.arquerias || 0) + (c.castillos || 0)) * 0.25;
+    c.oro = (c.oro == null ? 10 : c.oro) + ingreso - gasto;
+    // El oro que sobra de la reserva paga sabios y escuelas: se convierte en investigación (salvo que se mande guardarlo).
+    const reserva = 40 + adultos * 1.5;
+    if (c.oro > reserva && !(c.plan && c.plan.guardarOro)) { const pago = (c.oro - reserva) * 0.08; c.oro -= pago; c.mecenazgo = pago; investigar(m, c, pago * 0.15 * pausa(m)); c.ciencia += pago * 0.15 * pausa(m); } else c.mecenazgo = 0;
+    c.ingresos = ingreso + (c.comercioOro || 0); c.gastos = gasto; c.comercioOro = 0;
+    if (c.oro < 0 && c.jugador && !(c.ultimaQuiebra > m.turno - 10)) { c.ultimaQuiebra = m.turno; cronica(m, 'quiebra', 'Las arcas de ' + c.nombre + ' están vacías', 'No hay con qué pagar a los soldados: algunos cuelgan las armas y vuelven al campo, y en las plazas se oyen quejas. Hacen falta más impuestos, comercio o minas de oro.', c); }
+  }
   function subirEra(m, c, regalo) {
     c.era++;
     const E = M.ERAS[c.era];
+    // Se da por dominado todo lo de las eras anteriores (un invento regalado, una era que se salta…).
+    const ts = M.tecsDe(c);
+    for (const t of M.TECNOLOGIAS) if (t.era < c.era && !ts.includes(t.id)) ts.push(t.id);
     const nuevos = E.inventos.filter(x => !c.inventos.includes(x));
-    const invento = regalo || elegir(m, nuevos.length ? nuevos : E.inventos);
-    c.inventos.push(invento);
+    const invento = regalo || (c.inventos.length ? c.inventos[c.inventos.length - 1] : elegir(m, nuevos.length ? nuevos : E.inventos));
+    if (regalo) c.inventos.push(invento);
     const antes = c.regimen;
     c.regimen = regimenPorEra(m, c, casillas(m, c).length);
     const primero = !m.civs.some(o => o !== c && o.era >= c.era);
@@ -1212,7 +1366,7 @@ body.sin-panel .panel { display: none; }
     });
   }
 
-  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, elegirTec, investigar, pausa, aniosTurno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
@@ -1285,7 +1439,7 @@ body.sin-panel .panel { display: none; }
   const tieneR = (a, r) => !!(a.rasgos && a.rasgos.includes(r));
   // Puntos de vida de todos: aldeanos (según edad y rasgos) y animales.
   const VIDA_ANIMAL = { oveja: 25, vaca: 50, ciervo: 35, lobo: 55, pez: 10 };
-  const vidaMax = a => (a.veh ? VEHICULOS[a.veh].vida : a.tipo ? VIDA_ANIMAL[a.tipo] || 30 : ((a.edad || 0) < ADULTO ? 25 : (a.edad || 0) >= VIEJO ? 45 : 60) + (tieneR(a, 'fuerte') ? 15 : 0));
+  const vidaMax = a => (a.extraVida || 0) * (a.tipo || a.veh ? 0 : 1) + (a.veh ? VEHICULOS[a.veh].vida : a.tipo ? VIDA_ANIMAL[a.tipo] || 30 : ((a.edad || 0) < ADULTO ? 25 : (a.edad || 0) >= VIEJO ? 45 : 60) + (tieneR(a, 'fuerte') ? 15 : 0));
   // El arma con que pega alguien (de lejos, la del tirador).
   function armaDe(a, lejos) {
     if (a.tipo === 'lobo') return { nombre: 'colmillos', dano: 14 };
@@ -1296,8 +1450,10 @@ body.sin-panel .panel { display: none; }
   // El daño de un golpe que acierta: el del arma (con algo de azar y los rasgos), menos lo que para la armadura.
   function danoContra(v, at, vic, lejos) {
     const arma = armaDe(at, lejos), arm = vic.veh ? { reduce: VEHICULOS[vic.veh].blindaje || 0 } : ARMADURAS[vic.armadura || 0] || ARMADURAS[0];
-    const d = arma.dano * (0.8 + azar(v) * 0.4) * (tieneR(at, 'fuerte') ? 1.2 : 1) * (tieneR(at, 'torpe') ? 0.85 : 1) * (tieneR(at, 'valiente') ? 1.1 : 1);
-    return Math.max(1, Math.round(d * (1 - arm.reduce * (1 - (arma.perfora || 0)))));
+    const bo = v.bonos || {}, bAt = bo[at.c] || {}, bVic = bo[vic.c] || {};
+    const reduce = Math.min(0.85, arm.reduce * (1 + (bVic.defensa || 0)));
+    const d = (1 + (bAt.ataque || 0)) * arma.dano * (0.8 + azar(v) * 0.4) * (tieneR(at, 'fuerte') ? 1.2 : 1) * (tieneR(at, 'torpe') ? 0.85 : 1) * (tieneR(at, 'valiente') ? 1.1 : 1);
+    return Math.max(1, Math.round(d * (1 - reduce * (1 - (arma.perfora || 0)))));
   }
   // ¿Acierta? Los rápidos aciertan más, los torpes menos, y un escudo para algunos golpes.
   const acierta = (v, at, vic) => azar(v) < 0.62 + (tieneR(at, 'rapido') || tieneR(at, 'rápido') ? 0.1 : 0) - (tieneR(at, 'torpe') ? 0.1 : 0) - ((vic.o === GUERRERO && ARMAS[vic.arma || 0].bloqueo) || 0);
@@ -1649,7 +1805,7 @@ body.sin-panel .panel { display: none; }
         let nacen = 0, casasCiv = null;
         for (const a of adultos) {
           if (nacen >= Math.max(2, adultos.length * 0.25)) break;
-          if (azar(v) >= (camasLibres > vivos.length * 0.3 ? 0.2 : 0.13) * (tiene(a, 'fértil') ? 1.5 : 1)) continue;
+          if (azar(v) >= (camasLibres > vivos.length * 0.3 ? 0.2 : 0.13) * (tiene(a, 'fértil') ? 1.5 : 1) * (v.nacer || 1)) continue;
           if (nacen >= camasLibres) { c.sinCama++; continue; }
           if (!casasCiv) casasCiv = casasDe(m, c);
           const casa = a.casa != null && [OBRA.casa, OBRA.centro, OBRA.ayuntamiento].includes(v.obra[a.casa]) ? a.casa : (casasCiv.length ? casasCiv[Math.floor(azar(v) * casasCiv.length)] : centro(m, a.h));
@@ -1702,6 +1858,8 @@ body.sin-panel .panel { display: none; }
         for (const a of candidatos) { if (tiene[k] >= meta) break; tiene[a.o]--; tiene[k]++; mover(a, k); }
       }
     }
+    // Sin oro para pagarles, algunos soldados cuelgan las armas.
+    if ((c.oro || 0) < 0 && !c.guerras.length) for (const a of libres) if (a.o === GUERRERO && !a.k && azar(v) < 0.15) { tiene[GUERRERO]--; tiene[GRANJERO]++; mover(a, GRANJERO); }
     // 2. El reparto automático, con los que no tienen encargo ni oficio con cupo.
     for (const a of libres) {
       if (conCupo(a.o)) continue;
@@ -1808,7 +1966,9 @@ body.sin-panel .panel { display: none; }
    * LOS EDIFICIOS DE CADA PLAZA (capital y ciudades), como en WorldBox: una torre de vigilancia, un templo,
    * un molino junto a los campos (desde la Edad Media) y un puerto si hay costa. Cuestan madera y piedra.
    */
-  const COSTES = { [OBRA.torre]: [6, 4], [OBRA.templo]: [8, 6], [OBRA.molino]: [3, 0], [OBRA.puerto]: [10, 0], [OBRA.cuartel]: [10, 6], [OBRA.arqueria]: [10, 2], [OBRA.castillo]: [16, 24] };
+  // Madera, piedra y oro de cada edificio; y el nivel de asentamiento que hace falta (aldea, pueblo, villa).
+  const COSTES = { [OBRA.torre]: [6, 4, 4], [OBRA.templo]: [8, 6, 10], [OBRA.molino]: [3, 0, 0], [OBRA.puerto]: [10, 0, 8], [OBRA.cuartel]: [10, 6, 12], [OBRA.arqueria]: [10, 2, 8], [OBRA.castillo]: [16, 24, 30] };
+  const NIVEL_OBRA = { [OBRA.torre]: 1, [OBRA.puerto]: 1, [OBRA.templo]: 2, [OBRA.cuartel]: 2, [OBRA.arqueria]: 2, [OBRA.castillo]: 3, [OBRA.molino]: 0 };
   // La plaza más expuesta (la que tiene otro reino más cerca); si no hay vecinos, la capital.
   function plazaFronteriza(m, c, r, plazas) {
     const todas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
@@ -1848,7 +2008,7 @@ body.sin-panel .panel { display: none; }
         // Si otro constructor ya va a levantar este edificio, no se empieza otro igual.
         if (c.enCurso && c.enCurso[obra] > m.turno - 3) continue;
         const coste = COSTES[obra];
-        if (c.madera < coste[0] || c.piedra < coste[1]) continue;
+        if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
         const t = donde();
         if (t != null) { if (obra !== OBRA.molino) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
       }
@@ -2204,6 +2364,8 @@ body.sin-panel .panel { display: none; }
 
   // Búsquedas que ya fallaron este turno (para no repetirlas en cada paso): se vacía al empezar el turno.
   let memo = new Map();
+  // Con el ritmo pausado, nacer y envejecer van más despacio por turno al principio (cada turno son pocos años).
+  const bio = m => !m.ritmo || m.ritmo <= 1 ? 1 : Math.max(0.3, Math.min(1, S().pausa(m) * 2.5));
   // ---------- Un turno de vida ----------
   function turno(m) {
     if (!m.vida) crear(m);
@@ -2215,7 +2377,15 @@ body.sin-panel .panel { display: none; }
     ambiente(m); v.golpes = []; v.ataques = [];
     // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
     for (const a of v.aldeanos.concat(v.animales || [])) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + (a.tipo ? 5 : 6)); a.pv0 = a.pv; if (a.pv >= vidaMax(a)) { a.pv = null; a.pv0 = null; } }
-    for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : a.edad + 1);
+    // Con el ritmo pausado se envejece más despacio por turno (cada turno son menos años).
+    v.bio = bio(m);
+    // Y nacen menos por turno: la tribu tarda en hacerse aldea, y la aldea en hacerse pueblo.
+    v.nacer = !m.ritmo || m.ritmo <= 1 ? 1 : Math.max(0.3, Math.min(1, S().pausa(m) * 2)) * 0.6;
+    for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : Math.round((a.edad + v.bio) * 1000) / 1000);
+    // Lo que la técnica de cada pueblo da en combate.
+    v.bonos = {};
+    for (const c of S().vivas(m)) v.bonos[c.id] = { ataque: M.tec(c, 'ataque'), defensa: M.tec(c, 'defensa'), vida: M.tec(c, 'vida') };
+    for (const a of v.aldeanos) { const b = v.bonos[a.c]; a.extraVida = b ? b.vida : 0; }
     v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.barcos = v.barcos || []; v.torres = v.torres || {};
     // Toda torre o castillo en pie tiene su guarnición (también los de mundos guardados antes).
     for (let t = 0; t < v.obra.length; t++) if ((v.obra[t] === OBRA.torre || v.obra[t] === OBRA.castillo) && v.torres[t] == null) v.torres[t] = v.obra[t] === OBRA.castillo ? 40 : 12; v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
@@ -2641,11 +2811,11 @@ body.sin-panel .panel { display: none; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) { if (!v.camino[t] && !v.obra[t]) { a.e = TRABAJAR; a.t = 1; } else { a.e = LIBRE; a.obraCamino = 0; } }
     else if (a.o === CONSTRUCTOR && a.edificio) {
       const coste = COSTES[a.edificio];
-      if (!v.obra[t] && c.madera >= coste[0] && c.piedra >= coste[1]) { c.madera -= coste[0]; c.piedra -= coste[1]; a.e = TRABAJAR; a.t = 5; } else { a.e = LIBRE; a.edificio = 0; }
+      if (!v.obra[t] && c.madera >= coste[0] && c.piedra >= coste[1] && (c.oro || 0) >= (coste[2] || 0)) { c.madera -= coste[0]; c.piedra -= coste[1]; c.oro -= coste[2] || 0; a.e = TRABAJAR; a.t = Math.max(2, Math.round(5 * (1 - M.tec(c, 'obra')))); } else { a.e = LIBRE; a.edificio = 0; }
     }
     else if (a.o === CONSTRUCTOR) {
       const piedra = c.era >= 2 && c.piedra >= 1;
-      if (!v.obra[t] && v.arbol[t] < 2 && c.madera >= (piedra ? 2 : 3)) { c.madera -= piedra ? 2 : 3; if (piedra) c.piedra -= 1; a.e = TRABAJAR; a.t = 4; } else a.e = LIBRE;
+      if (!v.obra[t] && v.arbol[t] < 2 && c.madera >= (piedra ? 2 : 3)) { c.madera -= piedra ? 2 : 3; if (piedra) c.piedra -= 1; a.e = TRABAJAR; a.t = Math.max(2, Math.round(4 * (1 - M.tec(c, 'obra')))); } else a.e = LIBRE;
     } else if (a.o === GUERRERO) {
       // En tierra enemiga sin nadie que la defienda: saquea la aldea y empuja la frontera.
       const r = region(m, t), o = S().civ(m, m.dueno[r]);
@@ -2655,9 +2825,9 @@ body.sin-panel .panel { display: none; }
 
   function terminar(m, a, c, rec, ter, paso) {
     const v = m.vida, t = a.ty * v.tw + a.tx;
-    if (a.o === LENADOR && v.arbol[t] >= 2) { c.hecho = c.hecho || {}; c.hecho.arboles = (c.hecho.arboles || 0) + 1; a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === LENADOR && v.arbol[t] >= 2) { c.hecho = c.hecho || {}; c.hecho.arboles = (c.hecho.arboles || 0) + 1; a.k = (v.arbol[t] === 3 ? 4 : 2) + M.tec(c, 'lena'); cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && a.cantera && !v.roca[t]) { a.cantera = 0; a.k = 2; a.kt = ter[t] === 'montana' && azar(v) < 0.25 ? 1 : 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
-    if (a.o === MINERO && v.roca[t] > 0) { a.k = v.mena[t] ? 1 : 2; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === MINERO && v.roca[t] > 0) { a.k = (v.mena[t] ? 1 : 2) + M.tec(c, 'piedra'); a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === GRANJERO && a.caza != null) {
       // El ciervo se caza (si sigue cerca); el pez se pesca y el banco sigue ahí casi siempre.
       const b = v.animales.find(x => x.id === a.caza), seca = c.efectos.some(e => e.sequia);
@@ -2667,9 +2837,9 @@ body.sin-panel .panel { display: none; }
           // Tres lanzadas (o tiros); si no cae, huye herido y otro día será.
           let muere = false;
           for (let q = 0; q < 3 && !muere; q++) if (azar(v) < 0.6) muere = golpear(v, a, b, Math.round((12 + c.era * 3) * (0.8 + azar(v) * 0.4) * (tieneR(a, 'fuerte') ? 1.2 : 1)), paso, a.x, a.y);
-          if (muere) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + 4; }
+          if (muere) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + 4 * (1 + M.tec(c, 'caza')); }
         }
-        else { c.comida = (c.comida || 0) + (seca ? 0.6 : 1.2); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
+        else { c.comida = (c.comida || 0) + (seca ? 0.6 : 1.2) * (1 + M.tec(c, 'caza')); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
       }
       return;
     }
@@ -2687,7 +2857,7 @@ body.sin-panel .panel { display: none; }
     if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) {
       // El trigo segado se lleva a hombros al molino más cercano (dentro de su alcance); solo allí se vuelve harina.
       cambiar(m, 'cultivo', t, 0, paso);
-      a.k = 2 + 1 + (c.era >= 4 ? 1 : 0) + (c.era >= 6 ? 1 : 0); a.kt = 3; a.siega = 0;
+      a.k = 2 + M.tec(c, 'cosecha'); a.kt = 3; a.siega = 0;
       ir(a, molinoMasCercano(m, t) ?? centro(m, a.h), v.tw, VOLVER);
       return;
     }
@@ -2703,6 +2873,8 @@ body.sin-panel .panel { display: none; }
       const ru = v.rutas.find(x => x.id === a.ruta);
       if (ru && rutaActiva(m, ru)) {
         const hecho = ru.tiles.filter(x => v.camino[x]).length / ru.tiles.length, k = 0.6 + 0.6 * hecho;
+        const oroRuta = (ru.tipo === 'interna' ? 0.5 : 1) * (1 + 0.15 * c.era) * k * (1 + M.tec(c, 'comercio'));
+        c.oro = (c.oro || 0) + oroRuta; c.comercioOro = (c.comercioOro || 0) + oroRuta;
         if (ru.tipo === 'interna') { c.riqueza += (2 + 0.6 * c.era) * k; c.estab = Math.min(100, c.estab + 0.3); }
         else {
           const o = S().civ(m, ru.a === c.id ? ru.b : ru.a);
@@ -2858,7 +3030,7 @@ body.sin-panel .panel { display: none; }
           c.ultimaHambre = m.turno;
         }
       } else for (const a of lista) a.hambre = Math.max(0, (a.hambre || 0) - 1);
-      c.comida = Math.min(c.comida, 15 + lista.length * 1.2);
+      c.comida = Math.min(c.comida, (15 + lista.length * 1.2) * (1 + M.tec(c, 'granero')));
     }
     if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
     actualizarPoblacion(m);
@@ -2943,7 +3115,7 @@ body.sin-panel .panel { display: none; }
     const pasto = {};
     for (let t = 0; t < ter.length; t++) { const d = m.dueno[region(m, t)]; if (d >= 0 && !v.obra[t] && v.arbol[t] < 2 && (HABITAT.oveja(ter[t]) || HABITAT.vaca(ter[t]))) pasto[d] = (pasto[d] || 0) + 1; }
     for (const c of S().vivas(m)) {
-      const p = pasto[c.id] || 0, tope = { oveja: Math.min(24, Math.floor(p / 7)), vaca: c.era >= 1 ? Math.min(14, Math.floor(p / 12)) : 0 };
+      const p = pasto[c.id] || 0, mg = 1 + M.tec(c, 'ganado'), tope = { oveja: Math.min(Math.round(24 * mg), Math.floor(p / 7 * mg)), vaca: c.era >= 1 ? Math.min(Math.round(14 * mg), Math.floor(p / 12 * mg)) : 0 };
       for (const tipo of ['oveja', 'vaca']) {
         const suyos = v.animales.filter(b => b.c === c.id && b.tipo === tipo);
         if (suyos.length < 2 && tope[tipo] >= 2) { nacer(m, ter, tipo, c); continue; } // se doman unas reses salvajes
@@ -3158,12 +3330,13 @@ body.sin-panel .panel { display: none; }
 
   // Lo que cada pueblo tiene levantado en su tierra: lo usa la capacidad (sim.js) y la ficha.
   function contar(m) {
-    const v = m.vida, casas = {}, campos = {}, arboles = {}, edif = {}, camas = {};
+    const v = m.vida, casas = {}, campos = {}, arboles = {}, edif = {}, camas = {}, masCamas = {};
+    for (const c of m.civs) masCamas[c.id] = M.tec(c, 'casa');
     for (let t = 0; t < v.tw * v.th; t++) {
       const d = m.dueno[region(m, t)];
       if (d < 0) continue;
       const o = v.obra[t];
-      if (o === OBRA.casa || o === OBRA.centro || o === OBRA.ayuntamiento) { casas[d] = (casas[d] || 0) + (o === OBRA.casa ? 1 : 0.5); camas[d] = (camas[d] || 0) + (o === OBRA.casa ? 3 : o === OBRA.centro ? 1.5 : 3); }
+      if (o === OBRA.casa || o === OBRA.centro || o === OBRA.ayuntamiento) { casas[d] = (casas[d] || 0) + (o === OBRA.casa ? 1 : 0.5); camas[d] = (camas[d] || 0) + (o === OBRA.casa ? 3 + (masCamas[d] || 0) : o === OBRA.centro ? 1.5 : 3); }
       else if (o === OBRA.campo) campos[d] = (campos[d] || 0) + 1;
       else if (o >= OBRA.torre) { const e = (edif[d] = edif[d] || {}); e[o] = (e[o] || 0) + 1; }
       if (v.arbol[t] >= 2) arboles[d] = (arboles[d] || 0) + 1;
@@ -3176,8 +3349,20 @@ body.sin-panel .panel { display: none; }
     for (const c of m.civs) {
       c.casas = Math.round(casas[c.id] || 0); c.campos = campos[c.id] || 0; c.arboles = arboles[c.id] || 0; c.aldeanos = gente[c.id] || 0; c.guerreros = guerreros[c.id] || 0; c.armados = armados[c.id] || 0; c.comerciantes = comerciantes[c.id] || 0; c.camas = Math.round(camas[c.id] || 0) + 2;
       const e = edif[c.id] || {}; c.torres = e[OBRA.torre] || 0; c.cuarteles = e[OBRA.cuartel] || 0; c.arquerias = e[OBRA.arqueria] || 0; c.castillos = e[OBRA.castillo] || 0; c.templos = e[OBRA.templo] || 0; c.molinos = e[OBRA.molino] || 0; c.puertos = e[OBRA.puerto] || 0;
-      c.metal = c.metal || 0; c.oro = c.oro || 0;
+      c.metal = c.metal || 0; c.oro = c.oro == null ? 10 : c.oro;
       c.madera = c.madera || 0; c.piedra = c.piedra || 0;
+      // El nivel del asentamiento (campamento, aldea, pueblo, villa, ciudad), que abre edificios nuevos.
+      if (c.viva) {
+        const n = M.nivelDe(c.aldeanos || 0);
+        if (c.nivelMax == null) c.nivelMax = n;
+        if (n > c.nivelMax) {
+          c.nivelMax = n;
+          const N = M.NIVELES[n];
+          (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '★ ' + c.nombre + ' ya es ' + (n === 1 ? 'una aldea' : n === 2 ? 'un pueblo' : n === 3 ? 'una villa' : 'una ciudad') });
+          if (c.jugador || n >= 3) S().cronica(m, 'nivel', c.nombre + ' ya es ' + (n === 1 ? 'una aldea' : n === 2 ? 'un pueblo' : n === 3 ? 'una villa' : 'una ciudad'), 'Con ' + c.aldeanos + ' vecinos, lo que fue un campamento de chozas tiene ahora nombre de ' + N.nombre.toLowerCase() + '. Se pueden levantar: ' + N.abre + '.', c, c.capital);
+        }
+        c.nivel = Math.max(n, Math.min(c.nivelMax, n + 1));
+      }
     }
   }
 
@@ -3946,6 +4131,72 @@ body.sin-panel .panel { display: none; }
     if (ej && numero(ej[1]) >= 1) return [{ tipo: 'cupo', o: 4, n: Math.round(numero(ej[1])) }];
     return null;
   }
+  function economia(m, c, n) {
+    // Una tecnología por su nombre (o por lo que da): «investigad la rueda», «quiero la imprenta», «estudiad el hierro».
+    const quiereTec = /\b(investig\w*|estudi\w*|descubr\w*|invent\w*|desarroll\w*|aprend\w*|quiero|queremos|centr\w* en|prioriz\w*)\b/.test(n);
+    const tec = M.TECNOLOGIAS.find(t => n.includes(norm(t.nombre))) || M.TECNOLOGIAS.find(t => n.includes(norm(t.invento).replace(/^(el|la|los|las) /, ''))) || M.TECNOLOGIAS.find(t => new RegExp('\\b' + t.id.replace('_', ' ') + '\\b').test(n));
+    if (tec && quiereTec) return [{ tipo: 'investigar', id: tec.id }];
+    if (/\b(que investig\w*|que (podemos )?investigar|que estudi\w*|tecnolog\w*|tecnica|arbol)\b/.test(n) && /\b(que|cual|cuales|lista|ver|como va|como van)\b/.test(n)) return [{ tipo: 'consulta_tec' }];
+    // El tesoro.
+    const cosa = n.match(/\b(madera|lena|comida|trigo|grano|alimentos?|piedras?|metal|hierro)\b/);
+    if (/\b(compr\w*|adquir\w*|import\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'comprar', que: { lena: 'madera', trigo: 'comida', grano: 'comida', alimento: 'comida', alimentos: 'comida', piedras: 'piedra', hierro: 'metal' }[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
+    if (/\b(vend\w*|export\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'vender', que: { lena: 'madera', trigo: 'comida', grano: 'comida', alimento: 'comida', alimentos: 'comida', piedras: 'piedra', hierro: 'metal' }[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
+    if (/\b(guard\w*|ahorr\w*|no gast\w*|reserv\w*) (el |todo el |nuestro )?(oro|dinero|tesoro)\b/.test(n)) return [{ tipo: 'tesoro', guardar: true }];
+    if (/\b(invert\w*|gast\w*|usad|usa|financ\w*|pag\w*) (el |todo el )?(oro|dinero|tesoro)\b/.test(n) || /\b(mecenazgo|becas|pagad a los sabios)\b/.test(n)) return [{ tipo: 'tesoro', guardar: false }];
+    if (/\b(cuanto oro|cuanto dinero|tesoro|arcas|presupuesto|cuentas|ingresos|gastos)\b/.test(n) && !/\b(sub\w*|baj\w*)\b/.test(n)) return [{ tipo: 'consulta_oro' }];
+    return null;
+  }
+  const PRECIO = { madera: 0.6, comida: 0.5, piedra: 0.9, metal: 2.5 };
+  function aplicarEconomia(m, c, a, textos) {
+    const p = plan(c), v = m.vida, an = t => v && (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t });
+    if (a.tipo === 'investigar') {
+      const t = M.TECNOLOGIAS.find(x => x.id === a.id);
+      if (!t) { textos.push('No conozco esa tecnología.'); return; }
+      const ts = M.tecsDe(c);
+      if (ts.includes(t.id)) { textos.push('Ya domináis ' + t.nombre.toLowerCase() + '.'); return; }
+      if (t.era > c.era) { const faltan = M.TECNOLOGIAS.filter(x => x.era <= c.era && !ts.includes(x.id)); textos.push(t.nombre + ' es ' + ('de ' + M.ERAS[t.era].con).replace(/^de el /, 'del ') + '. Antes hay que dominar lo de ahora' + (faltan.length ? ': ' + faltan.map(x => x.nombre.toLowerCase()).join(', ') : '') + (m.libre || !M.ERAS[c.era + 1] || M.ERAS[c.era + 1].desde == null ? '' : ', y la nueva era no llega antes de ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/\.$/, '')) + '.'); return; }
+      p.investigar = t.id;
+      const inv = c.investigacion = c.investigacion || { id: null, puntos: 0 };
+      // Lo que llevaba la investigación anterior no se pierde del todo: la mitad pasa a la nueva.
+      if (inv.id !== t.id) { inv.puntos = (inv.puntos || 0) * 0.5; inv.id = t.id; }
+      an('🔬 Investigando: ' + t.nombre);
+      textos.push('Tus sabios se ponen con ' + t.nombre.toLowerCase() + ' (' + t.texto + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.cienciaTurno || 1)))) + ' turnos. Más ciencia: más gente, estabilidad, ciudades, rutas y oro para los sabios.');
+      return;
+    }
+    if (a.tipo === 'consulta_tec') {
+      const ts = M.tecsDe(c), inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
+      const libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !ts.includes(t.id));
+      textos.push((inv ? 'Investigáis ' + inv.nombre.toLowerCase() + ' (' + Math.round(100 * c.investigacion.puntos / M.costeTec(inv)) + ' %). ' : '') + (libres.length ? 'Podéis investigar: ' + libres.map(t => t.nombre + ' (' + t.texto + ')').join('; ') + '.' : 'Domináis todo lo de ' + M.ERAS[c.era].con + (M.ERAS[c.era + 1] ? '; la próxima era llegará ' + (m.libre || M.ERAS[c.era + 1].desde == null ? 'enseguida' : 'en ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/\.$/, '')) : '') + '.') + ' Dominadas: ' + ts.length + ' de ' + M.TECNOLOGIAS.length + '.');
+      return;
+    }
+    if (a.tipo === 'comprar' || a.tipo === 'vender') {
+      const precio = PRECIO[a.que];
+      if (!precio) { textos.push('Eso no se compra ni se vende.'); return; }
+      if (a.tipo === 'comprar') {
+        const max = Math.floor((c.oro || 0) / precio), n = Math.min(a.n || Math.floor(max * 0.5), max);
+        if (n <= 0) { textos.push('No hay oro para comprar ' + a.que + ' (cada unidad cuesta ' + precio + ').'); return; }
+        c.oro -= n * precio; c[a.que] = (c[a.que] || 0) + n;
+        an('🪙 −' + Math.round(n * precio) + ' · +' + n + ' ' + a.que);
+        textos.push('Los mercaderes traen ' + n + ' de ' + a.que + ' por ' + Math.round(n * precio) + ' de oro. Quedan ' + Math.round(c.oro) + '.');
+      } else {
+        const tiene = Math.floor(c[a.que] || 0), n = Math.min(a.n || Math.floor(tiene * 0.5), tiene);
+        if (n <= 0) { textos.push('No tenéis ' + a.que + ' que vender.'); return; }
+        const gana = Math.round(n * precio * 0.6);
+        c[a.que] -= n; c.oro = (c.oro || 0) + gana;
+        an('🪙 +' + gana + ' · −' + n + ' ' + a.que);
+        textos.push('Vendéis ' + n + ' de ' + a.que + ' por ' + gana + ' de oro (los mercaderes compran barato). Tesoro: ' + Math.round(c.oro) + '.');
+      }
+      return;
+    }
+    if (a.tipo === 'tesoro') {
+      p.guardarOro = !!a.guardar;
+      textos.push(a.guardar ? 'El tesoro se guarda: el oro que sobre ya no irá a pagar sabios y escuelas.' : 'El oro que sobre de la reserva pagará sabios, escuelas y bibliotecas: más investigación.');
+      return;
+    }
+    if (a.tipo === 'consulta_oro') {
+      textos.push('Tesoro: ' + Math.round(c.oro || 0) + ' de oro. Por turno entran ' + (c.ingresos || 0).toFixed(1) + ' (impuestos y comercio) y salen ' + (c.gastos || 0).toFixed(1) + ' (sueldos de ' + (c.guerreros || 0) + ' soldados y mantenimiento)' + (c.mecenazgo ? ', y ' + c.mecenazgo.toFixed(1) + ' van a los sabios' : '') + '. Los edificios cuestan oro; sin oro, los soldados desertan.');
+    }
+  }
   function aplicarExtra(m, c, a, textos) {
     const p = plan(c), v = m.vida, an = (t, r) => (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t, region: r });
     const o = a.con != null ? S().civ(m, Number(a.con)) : null;
@@ -4029,9 +4280,9 @@ body.sin-panel .panel { display: none; }
       return;
     }
     if (a.tipo === 'regalo') {
-      const oro = Math.max(5, Math.round((c.riqueza || 0) * 0.15));
-      if ((c.riqueza || 0) < 5) { textos.push('No tenéis riqueza que regalar.'); return; }
-      c.riqueza -= oro; o.riqueza += oro; o.rel[c.id] = (o.rel[c.id] || 0) + 20 + Math.round(oro / 20);
+      const oro = Math.max(5, Math.round((c.oro || 0) * 0.2));
+      if ((c.oro || 0) < 5) { textos.push('No tenéis oro que regalar.'); return; }
+      c.oro -= oro; o.oro = (o.oro || 0) + oro; o.rel[c.id] = (o.rel[c.id] || 0) + 20 + Math.round(oro / 20);
       an('🎁 Regalo a ' + o.nombre);
       textos.push('Enviáis ' + oro + ' de oro a ' + o.nombre + '. Su opinión de vosotros sube a ' + Math.round(o.rel[c.id]) + '.' + (S().enGuerra(c, o) ? ' Quizá acepten antes la paz.' : ''));
       if (S().enGuerra(c, o)) { const g = o.guerras.find(x => x.con === c.id); if (g) g.cansancio += 2; }
@@ -4051,10 +4302,12 @@ body.sin-panel .panel { display: none; }
       return;
     }
     if (a.tipo === 'impuestos') {
-      if (p.ultimoImpuesto != null && m.turno - p.ultimoImpuesto < 3) { textos.push('Acabas de tocar los impuestos; espera unos turnos.'); return; }
       p.ultimoImpuesto = m.turno;
-      if (a.sube) { const g = Math.round(8 + (c.pob || 0) * 0.15); c.riqueza += g; c.estab -= 7; textos.push('Subes los impuestos: +' + g + ' de riqueza, pero la gente protesta (estabilidad −7).'); an('💰 +' + g + ' impuestos'); }
-      else { const g = Math.min(Math.round((c.riqueza || 0) * 0.1), 30); c.riqueza -= g; c.estab = Math.min(100, c.estab + 7); textos.push('Bajas los impuestos: la gente lo celebra (estabilidad +7) y entra menos dinero (−' + g + ').'); an('🙂 Menos impuestos'); }
+      // Los impuestos se quedan donde los pongas: más oro cada turno a cambio de estabilidad (o al revés).
+      p.impuesto = Math.max(0.5, Math.min(1.75, Math.round(((p.impuesto || 1) + (a.sube ? 0.25 : -0.25)) * 100) / 100));
+      const nivelI = p.impuesto >= 1.5 ? 'muy altos' : p.impuesto > 1 ? 'altos' : p.impuesto < 0.75 ? 'muy bajos' : p.impuesto < 1 ? 'bajos' : 'normales';
+      an(a.sube ? '💰 Impuestos ' + nivelI : '🙂 Impuestos ' + nivelI);
+      textos.push('Impuestos ' + nivelI + ' (×' + p.impuesto + '): ' + (a.sube ? 'entra más oro cada turno, pero la gente está menos contenta.' : 'la gente está más contenta y entra menos oro.') + ' Para volver a lo normal, súbelos o bájalos otra vez.');
       return;
     }
     if (a.tipo === 'fiesta') {
@@ -4123,7 +4376,9 @@ body.sin-panel .panel { display: none; }
     const romperAl = /\brompe\w* (la )?alianza\b/.test(n);
     const tratado = !alianza && /\b(comerci\w* con|amistad|tratado|embajad\w*|regal\w* a)\b/.test(n);
     // Preguntas: «¿cuántos leñadores tengo?», «¿cuánta madera hay?», «¿qué hace mi gente?».
-    if (/\b(cuant[oa]s?|que hace mi gente|que hacen|en que trabaja\w*|reparto|oficios|cuadrillas|cupos)\b/.test(n) && !/\b(quiero|pon\w*|mand\w*|que (se )?(vayan|pongan)|quit\w*|liber\w*|cancel\w*|anul\w*|solt\w*|suelt\w*)\b/.test(n) && !/\d/.test(n.replace(/\bcuant\w*/, ''))) { const of = NOMBRE_OF.find(([o, re]) => o >= 0 && new RegExp('\\b(' + re + ')\\b').test(n)); return [{ tipo: 'consulta', o: of ? of[0] : undefined }]; }
+    if (/\b(cuant[oa]s?|que hace mi gente|que hacen|en que trabaja\w*|reparto|oficios|cuadrillas|cupos)\b/.test(n) && !/\b(oro|dinero|tesoro|arcas|investig\w*|tecnolog\w*)\b/.test(n) && !/\b(quiero|pon\w*|mand\w*|que (se )?(vayan|pongan)|quit\w*|liber\w*|cancel\w*|anul\w*|solt\w*|suelt\w*)\b/.test(n) && !/\d/.test(n.replace(/\bcuant\w*/, ''))) { const of = NOMBRE_OF.find(([o, re]) => o >= 0 && new RegExp('\\b(' + re + ')\\b').test(n)); return [{ tipo: 'consulta', o: of ? of[0] : undefined }]; }
+    // La técnica y el tesoro: «investigad la rueda», «¿qué investigamos?», «comprad 20 de madera», «guardad el oro».
+    { const ec = economia(m, c, n); if (ec) return acciones.concat(ec); }
     // Escuadrones, posturas de guerra, diplomacia menuda y el ánimo del pueblo.
     { const ex = extras(m, c, n); if (ex) return acciones.concat(ex); }
     // Órdenes con número, oficio y tiempo (cuadrillas, cupos, metas); si traen plazo, también sirve para las prioridades.
@@ -4219,6 +4474,7 @@ body.sin-panel .panel { display: none; }
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
+      else if (['investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);
       else if (TIPOS_EXTRA.includes(a.tipo)) aplicarExtra(m, c, a, textos);
       else if (a.tipo === 'consulta') textos.push(consulta(m, c, a.o));
       else if (a.tipo === 'cuadrilla') aplicarCuadrilla(m, c, a, textos);
@@ -4329,7 +4585,9 @@ body.sin-panel .panel { display: none; }
         textos.push('Proclamada ' + M.unoDe(a.a) + '. La estabilidad cae un poco mientras la gente se acostumbra.');
       } else if (a.tipo === 'construir') {
         const NOMBRE = { templo: 'un templo', torre: 'una torre de defensa', puerto: 'un puerto', molino: 'un molino', cuartel: 'un cuartel de soldados', arqueria: c.era >= 5 ? 'un campo de tiro' : 'una arquería', castillo: c.era >= 7 ? 'un fortín' : c.era >= 5 ? 'una fortaleza' : 'un castillo' };
-        const COSTE = { templo: [8, 6], torre: [6, 4], puerto: [10, 0], molino: [3, 0], cuartel: [10, 6], arqueria: [10, 2], castillo: [16, 24] }[a.obra];
+        const COSTE = { templo: [8, 6, 10], torre: [6, 4, 4], puerto: [10, 0, 8], molino: [3, 0, 0], cuartel: [10, 6, 12], arqueria: [10, 2, 8], castillo: [16, 24, 30] }[a.obra];
+        const NIVEL_PIDE = { torre: 1, puerto: 1, templo: 2, cuartel: 2, arqueria: 2, castillo: 3, molino: 0 }[a.obra];
+        if ((c.nivel || 0) < NIVEL_PIDE) { textos.push('Para levantar ' + NOMBRE[a.obra] + ' tu asentamiento tiene que ser al menos ' + (NIVEL_PIDE === 1 ? 'una aldea' : NIVEL_PIDE === 2 ? 'un pueblo' : 'una villa') + ' (' + M.NIVELES[NIVEL_PIDE].desde + ' vecinos; ahora ' + (c.aldeanos || 0) + '). Más casas y comida: más gente.'); continue; }
         if (a.obra === 'castillo' && c.era < 2) { textos.push('Los castillos de piedra llegan con la Edad del Hierro (fase medieval).'); continue; }
         if (a.obra !== 'molino' && c.era < 1) { textos.push('Aún no sabéis levantar ' + NOMBRE[a.obra] + ': hace falta llegar a la Edad del Bronce.'); continue; }
         if (M.vida && m.vida) {
@@ -4341,6 +4599,7 @@ body.sin-panel .panel { display: none; }
         const falta = [];
         if ((c.madera || 0) < COSTE[0]) falta.push((COSTE[0] - Math.floor(c.madera || 0)) + ' de madera');
         if ((c.piedra || 0) < COSTE[1]) falta.push((COSTE[1] - Math.floor(c.piedra || 0)) + ' de piedra');
+        if ((c.oro || 0) < COSTE[2]) falta.push((COSTE[2] - Math.floor(c.oro || 0)) + ' de oro');
         if (falta.length) { if ((c.madera || 0) < COSTE[0]) p.prioridad.madera = Math.max(p.prioridad.madera, 1.5); if ((c.piedra || 0) < COSTE[1]) p.prioridad.piedra = Math.max(p.prioridad.piedra, 1.5); }
         textos.push('Tus constructores levantarán ' + NOMBRE[a.obra] + ' en la plaza ' + (falta.length ? 'en cuanto junten lo que falta (' + falta.join(' y ') + '); mientras, más gente a por ello.' : 'ya: tenéis la madera y la piedra.') + (a.obra === 'puerto' ? ' Necesita costa junto a la plaza.' : ''));
       } else if (a.tipo === 'colonos') {
@@ -4413,6 +4672,8 @@ body.sin-panel .panel { display: none; }
     if (rebelde) return { texto: rebelde.nombre + ' no es leal (' + Math.round(rebelde.lealtad) + '): pronto se rebelará. Una corte más estable o un ejército cerca la retienen.', orden: 'Más soldados' };
     if (c.sinCama > 0 && (pr.casas || 1) < 2) return { texto: 'Hay parejas que quieren tener hijos y no tienen cama: faltan casas.', orden: 'Más casas' };
     if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : 'Construid un templo' };
+    if ((c.oro || 0) < 0) return { texto: 'Las arcas están vacías: los soldados no cobran y desertan, y la gente se queja.', orden: (c.plan && c.plan.impuesto || 1) < 1.5 ? 'Subid los impuestos' : 'Vended madera' };
+    if (c.investigacion && !c.investigacion.id && M.TECNOLOGIAS.some(t => t.era <= c.era && !M.tecsDe(c).includes(t.id))) return { texto: 'Tus sabios esperan saber qué investigar.', orden: '¿Qué investigamos?' };
     if (c.plan && c.plan.obra) return { texto: 'Tus constructores esperan madera y piedra para el encargo (' + c.plan.obra + ').', orden: 'Más piedra' };
     const sig = M.ERAS[c.era + 1];
     if (sig && (pr.ciencia || 1) < 1.5) return { texto: 'Todo en orden. Si invertís en saber, llegaréis antes ' + aEra(sig.con) + '.', orden: 'Todo a la ciencia' };
@@ -4435,7 +4696,7 @@ body.sin-panel .panel { display: none; }
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante; -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante; -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal","n":numero|null}; {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -4445,7 +4706,7 @@ body.sin-panel .panel { display: none; }
       '\nPlazas (región, dueño): ' + JSON.stringify([...S().vivas(m).map(o => ({ region: o.capital, nombre: 'capital de ' + o.nombre, dueno: o.id })), ...(m.ciudades || []).map(x => ({ region: x.region, nombre: x.nombre, dueno: m.dueno[x.region] }))]) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
+  const TIPOS = new Set(['investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
@@ -4467,7 +4728,10 @@ body.sin-panel .panel { display: none; }
         if (a.tipo === 'cuadrilla' && n != null && oficio(a.de) != null && oficio(a.a) >= 0) out.push({ tipo: 'cuadrilla', n, de: oficio(a.de), a: oficio(a.a), hasta: h });
         else if (a.tipo === 'cupo' && n != null && n !== 'todos' && oficio(a.o) >= 0) out.push({ tipo: 'cupo', o: oficio(a.o), n: Math.round(n), hasta: h });
         else if (a.tipo === 'meta' && n != null && n !== 'todos' && COSAS[a.cosa] && oficio(a.o) >= 0) out.push({ tipo: 'meta', cosa: COSAS[a.cosa], n: Math.round(n), o: oficio(a.o) });
-      } else if (a.tipo === 'liberar' || a.tipo === 'consulta') out.push({ tipo: a.tipo });
+      } else if (a.tipo === 'liberar' || a.tipo === 'consulta' || a.tipo === 'consulta_tec' || a.tipo === 'consulta_oro') out.push({ tipo: a.tipo });
+      else if (a.tipo === 'investigar') { if (M.TECNOLOGIAS.some(t => t.id === a.id)) out.push({ tipo: 'investigar', id: a.id }); }
+      else if (a.tipo === 'comprar' || a.tipo === 'vender') { if (PRECIO[a.que]) out.push({ tipo: a.tipo, que: a.que, n: Number(a.n) > 0 ? Math.min(1000, Math.round(Number(a.n))) : null }); }
+      else if (a.tipo === 'tesoro') out.push({ tipo: 'tesoro', guardar: !!a.guardar });
       else if (TIPOS_EXTRA.includes(a.tipo)) {
         const x = { tipo: a.tipo };
         if (a.con != null && Number.isInteger(Number(a.con))) x.con = Number(a.con);
@@ -6611,7 +6875,8 @@ body.sin-panel .panel { display: none; }
   function mundoNuevo() {
     let libre = false;
     try { libre = localStorage.getItem('genesis.libre') === '1'; } catch (e) { /* sin preferencia */ }
-    m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, 5, { libre });
+    // Las partidas nuevas van a ritmo pausado: de tribu a ciudad en unos diez minutos a 1×, no en dos.
+    m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, 5, { libre, ritmo: 3 });
     sel = null; ultimaCronista = 0;
     P.mundo(m); P.seleccionar(null);
   }
@@ -6686,6 +6951,32 @@ body.sin-panel .panel { display: none; }
     $('vel').textContent = VELOCIDADES[vel][1];
   }
 
+  // La barra de recursos: el oro (con lo que entra y sale cada turno), la comida, la madera, la piedra, el metal,
+  // la gente y las camas, el nivel del asentamiento y lo que se investiga.
+  const recursoAntes = {};
+  function pintarRecursos() {
+    const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null), el = $('recursos');
+    if (!c || !c.viva) { el.hidden = true; return; }
+    const r = Math.round, delta = (k, x) => { const d = recursoAntes[c.id + k] != null ? x - recursoAntes[c.id + k] : 0; recursoAntes[c.id + k] = x; return d; };
+    const oro = c.oro || 0, neto = (c.ingresos || 0) - (c.gastos || 0) - (c.mecenazgo || 0);
+    const tope = r((15 + (c.aldeanos || 0) * 1.2) * (1 + M.tec(c, 'granero')));
+    const inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
+    const pct = inv ? Math.min(100, r(100 * c.investigacion.puntos / M.costeTec(inv))) : 0;
+    const chip = (ico, valor, titulo, cls, extra) => '<span class="rec' + (cls ? ' ' + cls : '') + '" title="' + esc(titulo) + '"><i>' + ico + '</i>' + valor + (extra || '') + '</span>';
+    const sig = (d, dec) => { if (!d || Math.abs(d) < 0.05) return ''; const t = (d > 0 ? '+' : '') + (dec ? d.toFixed(1) : r(d)); return ' <small class="' + (d > 0 ? 'verde' : 'rojo') + '">' + t + '</small>'; };
+    const dC = delta('comida', c.comida || 0), dM = delta('madera', c.madera || 0), dP = delta('piedra', c.piedra || 0), dMe = delta('metal', c.metal || 0);
+    const nivel = M.NIVELES[c.nivel || 0];
+    el.innerHTML =
+      chip('🪙', r(oro), 'Oro del tesoro: impuestos ' + (c.ingresos || 0).toFixed(1) + ' − sueldos y mantenimiento ' + (c.gastos || 0).toFixed(1) + (c.mecenazgo ? ' − ' + c.mecenazgo.toFixed(1) + ' para los sabios' : '') + ' por turno', oro < 0 ? 'mal' : 'oro', sig(neto, true)) +
+      chip('🌾', r(c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe)', (c.comida || 0) < (c.aldeanos || 0) * 0.3 ? 'mal' : '', sig(dC)) +
+      chip('🪵', r(c.madera || 0), 'Madera', '', sig(dM)) +
+      chip('🪨', r(c.piedra || 0), 'Piedra', '', sig(dP)) +
+      (c.era >= 1 ? chip('⛓', r(c.metal || 0), 'Metal (armas, armaduras, vehículos)', '', sig(dMe)) : '') +
+      chip('👥', (c.aldeanos || 0) + '<small class="tenue">/' + (c.camas || 0) + '</small>', 'Aldeanos / camas', (c.aldeanos || 0) >= (c.camas || 0) ? 'mal' : '') +
+      chip('🏘', esc(nivel.nombre), nivel.nombre + (M.NIVELES[(c.nivel || 0) + 1] ? ' · a ' + M.NIVELES[(c.nivel || 0) + 1].desde + ' vecinos será ' + M.NIVELES[(c.nivel || 0) + 1].nombre.toLowerCase() + ' (' + M.NIVELES[(c.nivel || 0) + 1].abre + ')' : '')) +
+      chip('🔬', inv ? esc(inv.nombre) + ' <span class="barra mini"><span style="width:' + pct + '%"></span></span>' : '<span class="tenue">' + (M.ERAS[c.era + 1] ? (m.libre || M.ERAS[c.era + 1].desde == null ? 'próxima era' : M.ERAS[c.era + 1].nombre + ' en ' + S.anioTexto(M.ERAS[c.era + 1].desde).replace(/\.$/, '')) : 'todo investigado') + '</span>', inv ? 'Investigando: ' + inv.nombre + ' (' + inv.texto + ') · ' + pct + ' %' : 'Sin nada que investigar hasta la próxima era', 'tec');
+    el.hidden = false;
+  }
   function pintarPueblos() {
     const lista = S.resumen(m).sort((a, b) => b.tierras - a.tierras);
     const ul = $('pueblos');
@@ -6743,14 +7034,17 @@ body.sin-panel .panel { display: none; }
       diplomacia: ['Diplomacia', (S.aliadosDe(m, c).length ? fila('Aliados', esc(S.aliadosDe(m, c).map(o => o.nombre).join(', '))) : fila('Aliados', '<span class="tenue">ninguno</span>')) +
         (complotsDe(c) ? fila('Complots', complotsDe(c)) : '') + fila('Opinión', opiniones(c))]
     };
+    pestanas.tecnica = ['Técnica', arbolTecnico(c)];
     if (c.jugador) pestanas.plan = ['Tu plan', planDe(c)];
     if (!pestanas[pestana]) pestana = 'resumen';
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(c.nombre) + '</h3>' +
       '<p class="subt">' + esc(M.conCaracter(c.regimen, c.caracter)) + ' · ' + esc(era(c).nombre) + '</p>' +
       '<div class="pestanas" role="tablist">' + Object.keys(pestanas).map(k => '<button type="button" role="tab" class="pestana' + (k === pestana ? ' activa' : '') + '" aria-selected="' + (k === pestana) + '" data-p="' + k + '">' + pestanas[k][0] + '</button>').join('') + '</div>' +
-      (pestana === 'plan' ? pestanas.plan[1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
+      (pestana === 'plan' || pestana === 'tecnica' ? pestanas[pestana][1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
     f.querySelectorAll('.pestana').forEach(b => b.addEventListener('click', () => { pestana = b.dataset.p; pintarFicha(); }));
+    // Tocar una tecnología disponible de tu pueblo: se investiga esa (la misma orden que «investigad …»).
+    f.querySelectorAll('.tec-elegir').forEach(b => b.addEventListener('click', () => { const r = X.ordenar(m, c.id, 'investigad ' + b.dataset.nombre); if (r.ok) despuesDeOrden(r); pintarFicha(); }));
     f.querySelector('.muestra').style.background = c.color;
     if (c.jugador) f.querySelector('h3').insertAdjacentHTML('beforeend', ' <span class="tuyo">tu pueblo</span>');
     const b = f.querySelector('.gobernar');
@@ -6758,6 +7052,21 @@ body.sin-panel .panel { display: none; }
   }
 
   // Las prioridades de tu pueblo como barras: el pueblo se gobierna solo y esto es lo que pesa en sus decisiones.
+  // El árbol de la técnica de un pueblo: lo hecho, lo que se investiga, lo que se puede elegir y lo que vendrá.
+  function arbolTecnico(c) {
+    const ts = M.tecsDe(c), inv = c.investigacion && c.investigacion.id;
+    const eras = [...new Set(M.TECNOLOGIAS.map(t => t.era))].filter(e => e <= c.era + 1);
+    const pide = c.plan && c.plan.investigar;
+    return '<div class="arbol">' + (c.jugador ? '<p class="tenue arbol-ayuda">Toca una tecnología para investigarla ahora, o escribe «investigad …». La era siguiente llega cuando dominas todas las de la tuya' + (m.libre ? '' : ' y llega su fecha') + '.</p>' : '') + eras.map(e => {
+      const filas = M.TECNOLOGIAS.filter(t => t.era === e).map(t => {
+        const hecha = ts.includes(t.id), ahora = inv === t.id, abierta = !hecha && t.era <= c.era;
+        const pct = ahora ? Math.min(100, Math.round(100 * c.investigacion.puntos / M.costeTec(t))) : 0;
+        const estado = hecha ? '<span class="verde">✓</span>' : ahora ? '<span class="barra mini"><span style="width:' + pct + '%"></span></span> ' + pct + ' %' : abierta ? (c.jugador ? '<button type="button" class="ejemplo tec-elegir" data-nombre="' + esc(t.nombre) + '">' + (pide === t.id ? 'siguiente' : 'investigar') + '</button>' : '<span class="tenue">pendiente</span>') : '<span class="tenue">🔒</span>';
+        return '<li class="tec' + (hecha ? ' hecha' : ahora ? ' ahora' : abierta ? '' : ' cerrada') + '"><span class="tec-nombre">' + esc(t.nombre) + '</span> <span class="tenue">' + esc(t.texto) + '</span> <span class="tec-estado">' + estado + '</span></li>';
+      }).join('');
+      return '<p class="tec-era">' + esc(M.ERAS[e].nombre) + (e > c.era ? ' <span class="tenue">· próxima era</span>' : '') + '</p><ul class="tec-lista">' + filas + '</ul>';
+    }).join('') + '</div>';
+  }
   function planDe(c) {
     const p = c.plan || {}, pr = p.prioridad || {}, l = [];
     const barras = Object.keys(X.NOMBRE_RECURSO).map(k => {
@@ -6999,7 +7308,7 @@ body.sin-panel .panel { display: none; }
     avisoHasta = performance.now() + (ms || 3500);
     setTimeout(() => { if (performance.now() >= avisoHasta - 50) e.hidden = true; }, ms || 3500);
   }
-  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarGuerra(); pintarCuadrillas(); pintarRetos(); }
+  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarGuerra(); pintarCuadrillas(); pintarRetos(); pintarRecursos(); }
 
   // ---------- El tiempo ----------
   // El año del reloj avanza poco a poco durante el turno, en vez de saltar.

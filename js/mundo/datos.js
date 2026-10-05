@@ -11,15 +11,15 @@
   // Cada era: cuántos años dura un turno cuando el pueblo más avanzado está en ella, cuánta gente
   // alimenta cada casilla (cap), cuánto pesa en la guerra (fuerza) y cuánta ciencia hace falta para llegar.
   M.ERAS = [
-    { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
-    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', desde: -3500, anios: 100, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
-    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', desde: -1500, anios: 50, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
-    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', desde: -900, anios: 50, cap: 2.0, fuerza: 2.6, umbral: 500, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
-    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, cap: 2.3, fuerza: 3.2, umbral: 1320, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
-    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, cap: 3.0, fuerza: 5.0, umbral: 2200, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
-    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, cap: 5.0, fuerza: 9.0, umbral: 2900, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
-    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, cap: 8.0, fuerza: 16, umbral: 3100, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
-    { nombre: 'Segunda Guerra Mundial', con: 'la Segunda Guerra Mundial', corto: 'II GUERRA MUNDIAL', desde: 1930, anios: 4, cap: 12, fuerza: 30, umbral: 3300, inventos: ['la ametralladora', 'el tanque', 'el radar'] }
+    { nombre: 'Neolítico', con: 'el Neolítico', corto: 'NEOLÍTICO', anios: 100, aniosLento: 8, cap: 1.0, fuerza: 1.0, umbral: 0, inventos: ['la agricultura', 'la cerámica', 'el arado de madera'] },
+    { nombre: 'Edad del Bronce', con: 'la Edad del Bronce', corto: 'BRONCE', desde: -3500, anios: 100, aniosLento: 25, cap: 1.35, fuerza: 1.4, umbral: 16, inventos: ['la escritura', 'la rueda', 'el bronce', 'el calendario'] },
+    { nombre: 'Edad del Hierro', con: 'la Edad del Hierro', corto: 'HIERRO', desde: -1500, anios: 50, aniosLento: 25, cap: 1.7, fuerza: 2.0, umbral: 135, inventos: ['el hierro', 'el alfabeto', 'la moneda'] },
+    { nombre: 'Antigüedad clásica', con: 'la Antigüedad clásica', corto: 'CLÁSICA', desde: -900, anios: 50, aniosLento: 25, cap: 2.0, fuerza: 2.6, umbral: 500, inventos: ['la filosofía', 'el acueducto', 'el derecho escrito', 'el hormigón'] },
+    { nombre: 'Edad Media', con: 'la Edad Media', corto: 'MEDIEVAL', desde: 300, anios: 50, aniosLento: 20, cap: 2.3, fuerza: 3.2, umbral: 1320, inventos: ['el molino de agua', 'la brújula', 'la universidad', 'el estribo'] },
+    { nombre: 'Renacimiento', con: 'el Renacimiento', corto: 'RENACIMIENTO', desde: 1350, anios: 25, aniosLento: 10, cap: 3.0, fuerza: 5.0, umbral: 2200, inventos: ['la imprenta', 'la pólvora', 'la banca', 'la carabela'] },
+    { nombre: 'Revolución Industrial', con: 'la Revolución Industrial', corto: 'INDUSTRIAL', desde: 1700, anios: 15, aniosLento: 6, cap: 5.0, fuerza: 9.0, umbral: 2900, inventos: ['la máquina de vapor', 'el ferrocarril', 'la fábrica'] },
+    { nombre: 'Era Moderna', con: 'la Era Moderna', corto: 'MODERNA', desde: 1850, anios: 8, aniosLento: 4, cap: 8.0, fuerza: 16, umbral: 3100, inventos: ['la electricidad', 'las vacunas', 'la radio', 'el avión'] },
+    { nombre: 'Segunda Guerra Mundial', con: 'la Segunda Guerra Mundial', corto: 'II GUERRA MUNDIAL', desde: 1930, anios: 4, aniosLento: 1, cap: 12, fuerza: 30, umbral: 3300, inventos: ['la ametralladora', 'el tanque', 'el radar'] }
   ];
   // Las cuatro fases de la técnica: cada una trae sus edificios y su manera de guerrear. El techo es la
   // Segunda Guerra Mundial (fusiles, ametralladoras, tanques): no hay bomba atómica.
@@ -30,6 +30,70 @@
     { nombre: 'Guerras Mundiales', eras: [7, 8], resumen: 'búnkeres, nidos de ametralladoras, fusiles y tanques' }
   ];
   M.fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
+
+  /*
+   * EL ÁRBOL DE LA TÉCNICA: cada era tiene sus tecnologías, que se investigan una a una (el jugador elige el orden,
+   * «investigad la rueda»; la IA, según su carácter). Una era nueva solo llega cuando se han dominado todas las
+   * de la anterior (y, en la historia real, cuando su fecha lo permite). Cada una cambia algo de verdad:
+   *  lena/cosecha/piedra: +unidades por árbol, gavilla o roca · casa: +camas por casa · obra: obras más rápidas ·
+   *  ciencia/oro/comercio: +% · ataque/defensa: +% en combate · vida: +puntos de vida · granero/ganado: +% de tope ·
+   *  estab: +estabilidad · caza: más comida al cazar y pescar.
+   */
+  M.TECNOLOGIAS = [
+    { id: 'hachas', era: 0, nombre: 'Hachas de piedra pulida', invento: 'el hacha pulida', efecto: { lena: 1 }, texto: '+1 de madera por árbol' },
+    { id: 'agricultura', era: 0, nombre: 'Agricultura', invento: 'la agricultura', efecto: { cosecha: 1 }, texto: '+1 de trigo por gavilla' },
+    { id: 'ceramica', era: 0, nombre: 'Cerámica', invento: 'la cerámica', efecto: { granero: 0.4 }, texto: 'graneros un 40 % más grandes' },
+    { id: 'pastoreo', era: 0, nombre: 'Pastoreo', invento: 'el pastoreo', efecto: { ganado: 0.4, caza: 0.3 }, texto: 'rebaños un 40 % mayores, mejor caza' },
+    { id: 'rueda', era: 1, nombre: 'La rueda', invento: 'la rueda', efecto: { comercio: 0.3, obra: 0.15 }, texto: 'comercio +30 %, obras más rápidas' },
+    { id: 'escritura', era: 1, nombre: 'Escritura', invento: 'la escritura', efecto: { ciencia: 0.12 }, texto: 'investigación +12 %' },
+    { id: 'bronce', era: 1, nombre: 'Fundición de bronce', invento: 'el bronce', efecto: { ataque: 0.1 }, texto: 'daño +10 %' },
+    { id: 'adobe', era: 1, nombre: 'Ladrillo de adobe', invento: 'el ladrillo', efecto: { casa: 1 }, texto: '+1 cama por casa' },
+    { id: 'hierro', era: 2, nombre: 'Forja de hierro', invento: 'el hierro', efecto: { ataque: 0.1, piedra: 1 }, texto: 'daño +10 %, +1 de piedra por roca' },
+    { id: 'moneda', era: 2, nombre: 'La moneda', invento: 'la moneda', efecto: { oro: 0.25 }, texto: 'impuestos +25 %' },
+    { id: 'arado', era: 2, nombre: 'Arado de hierro', invento: 'el arado de hierro', efecto: { cosecha: 1 }, texto: '+1 de trigo por gavilla' },
+    { id: 'murallas', era: 2, nombre: 'Murallas', invento: 'las murallas', efecto: { defensa: 0.1 }, texto: 'armaduras +10 %' },
+    { id: 'acueducto', era: 3, nombre: 'Acueductos', invento: 'el acueducto', efecto: { estab: 3, casa: 1 }, texto: '+3 de estabilidad, +1 cama por casa' },
+    { id: 'filosofia', era: 3, nombre: 'Filosofía', invento: 'la filosofía', efecto: { ciencia: 0.15 }, texto: 'investigación +15 %' },
+    { id: 'derecho', era: 3, nombre: 'Derecho escrito', invento: 'el derecho escrito', efecto: { estab: 3, oro: 0.1 }, texto: '+3 de estabilidad, impuestos +10 %' },
+    { id: 'hormigon', era: 3, nombre: 'Hormigón', invento: 'el hormigón', efecto: { obra: 0.2, piedra: 1 }, texto: 'obras más rápidas, +1 de piedra por roca' },
+    { id: 'molino_agua', era: 4, nombre: 'Molino de agua', invento: 'el molino de agua', efecto: { cosecha: 1 }, texto: '+1 de trigo por gavilla' },
+    { id: 'universidad', era: 4, nombre: 'Universidades', invento: 'la universidad', efecto: { ciencia: 0.15 }, texto: 'investigación +15 %' },
+    { id: 'estribo', era: 4, nombre: 'El estribo', invento: 'el estribo', efecto: { ataque: 0.1, vida: 10 }, texto: 'daño +10 %, +10 de vida' },
+    { id: 'gremios', era: 4, nombre: 'Gremios', invento: 'los gremios', efecto: { comercio: 0.3, oro: 0.1 }, texto: 'comercio +30 %, impuestos +10 %' },
+    { id: 'imprenta', era: 5, nombre: 'Imprenta', invento: 'la imprenta', efecto: { ciencia: 0.2 }, texto: 'investigación +20 %' },
+    { id: 'polvora', era: 5, nombre: 'Pólvora', invento: 'la pólvora', efecto: { ataque: 0.15 }, texto: 'daño +15 %' },
+    { id: 'banca', era: 5, nombre: 'Banca', invento: 'la banca', efecto: { oro: 0.3 }, texto: 'impuestos +30 %' },
+    { id: 'carabela', era: 5, nombre: 'Carabela', invento: 'la carabela', efecto: { comercio: 0.3, caza: 0.3 }, texto: 'comercio +30 %, mejor pesca' },
+    { id: 'vapor', era: 6, nombre: 'Máquina de vapor', invento: 'la máquina de vapor', efecto: { obra: 0.3, lena: 1 }, texto: 'obras mucho más rápidas, +1 de madera' },
+    { id: 'ferrocarril', era: 6, nombre: 'Ferrocarril', invento: 'el ferrocarril', efecto: { comercio: 0.4 }, texto: 'comercio +40 %' },
+    { id: 'fabrica', era: 6, nombre: 'Fábricas', invento: 'la fábrica', efecto: { piedra: 2 }, texto: '+2 de piedra y metal por roca' },
+    { id: 'abonos', era: 6, nombre: 'Abonos químicos', invento: 'los abonos', efecto: { cosecha: 1, granero: 0.3 }, texto: '+1 de trigo, graneros +30 %' },
+    { id: 'electricidad', era: 7, nombre: 'Electricidad', invento: 'la electricidad', efecto: { ciencia: 0.2, estab: 3 }, texto: 'investigación +20 %, +3 de estabilidad' },
+    { id: 'vacunas', era: 7, nombre: 'Vacunas', invento: 'las vacunas', efecto: { vida: 15, estab: 2 }, texto: '+15 de vida, +2 de estabilidad' },
+    { id: 'radio', era: 7, nombre: 'Radio', invento: 'la radio', efecto: { estab: 2, ciencia: 0.1 }, texto: '+2 de estabilidad, investigación +10 %' },
+    { id: 'aviacion', era: 7, nombre: 'Aviación', invento: 'el avión', efecto: { ataque: 0.1 }, texto: 'daño +10 %' },
+    { id: 'ametralladora', era: 8, nombre: 'Ametralladora', invento: 'la ametralladora', efecto: { defensa: 0.15 }, texto: 'armaduras +15 %' },
+    { id: 'tanque', era: 8, nombre: 'Carro de combate', invento: 'el tanque', efecto: { ataque: 0.15 }, texto: 'daño +15 %' },
+    { id: 'radar', era: 8, nombre: 'Radar', invento: 'el radar', efecto: { defensa: 0.1, estab: 2 }, texto: 'armaduras +10 %, +2 de estabilidad' }
+  ];
+  // Lo investigado por un pueblo (los mundos antiguos y los pueblos nuevos reciben todo lo de las eras que ya pasaron).
+  M.tecsDe = c => {
+    if (!c.tecs) c.tecs = M.TECNOLOGIAS.filter(t => t.era < (c.era || 0)).map(t => t.id);
+    return c.tecs;
+  };
+  // La suma de un efecto en todo lo investigado (p. ej. M.tec(c, 'cosecha')).
+  M.tec = (c, k) => { if (!c) return 0; let s = 0; const ts = M.tecsDe(c); for (const t of M.TECNOLOGIAS) if (t.efecto[k] && ts.includes(t.id)) s += t.efecto[k]; return s; };
+  // El precio de una tecnología: lo que costaba antes llegar a la era siguiente, repartido entre sus tecnologías.
+  M.costeTec = t => { const e = M.ERAS, n = M.TECNOLOGIAS.filter(x => x.era === t.era).length; const sig = e[t.era + 1] ? e[t.era + 1].umbral : e[t.era].umbral + 400; return Math.max(4, Math.round((sig - e[t.era].umbral) / n * (t.era >= 2 ? 1.4 : 1))); }; // (más caras desde el Hierro: la técnica acelera la ciencia)
+  // Los niveles de un asentamiento, de campamento a ciudad, según su gente.
+  M.NIVELES = [
+    { nombre: 'Campamento', desde: 0, abre: 'chozas y un molino' },
+    { nombre: 'Aldea', desde: 12, abre: 'torre de vigilancia y puerto' },
+    { nombre: 'Pueblo', desde: 30, abre: 'templo, cuartel y arquería' },
+    { nombre: 'Villa', desde: 70, abre: 'castillo' },
+    { nombre: 'Ciudad', desde: 140, abre: 'todo' }
+  ];
+  M.nivelDe = n => { let k = 0; for (let i = 0; i < M.NIVELES.length; i++) if (n >= M.NIVELES[i].desde) k = i; return k; };
 
   // Lo que un dios puede regalar, y a qué era pertenece (para "que descubran la imprenta").
   M.INVENTOS = [
@@ -108,6 +172,9 @@
     profeta: [['Una fe nueva puede unir a pueblos dispersos y lanzarlos más allá de sus fronteras.', 'El islam pasó de Arabia a Hispania y a la India en menos de un siglo.']],
     anacronismo: [['Un invento sin la sociedad que lo aproveche se queda en curiosidad.', 'Herón de Alejandría construyó una máquina de vapor en el siglo I. Se usó como juguete en los templos.']],
     nuevo_pueblo: [['Los pueblos de las estepas y los desiertos aparecen de pronto en la historia y la cambian.', 'Los mongoles de Gengis Kan pasaron de tribus enfrentadas a dominar de Corea a Hungría en cincuenta años.']],
+    tecnica: [['Cada técnica nueva se apoya en las anteriores: sin cerámica no hay graneros, sin escritura no hay leyes, sin hierro no hay arado que rompa la tierra dura.', 'La rueda aparece en Mesopotamia hacia el 3500 a. C., primero para hacer vasijas y solo después para los carros.']],
+    nivel: [['Un asentamiento crece cuando hay comida de sobra para alimentar a quien no siembra: artesanos, sacerdotes, soldados.', 'Çatalhöyük, en Anatolia, pasó de unas chozas a una aldea de miles de personas hacia el 7000 a. C.']],
+    quiebra: [['Un ejército que no cobra deja de ser un ejército: desertores, saqueos, motines.', 'En 1575 los tercios españoles en Flandes, sin paga, saquearon Amberes (la «furia española»).']],
     lobos: [['Donde hay rebaños junto al bosque hay lobos: el pastor y el perro nacieron para defenderlos.', 'En la Francia del siglo XVIII, la «bestia de Gévaudan», un lobo o varios, mató a unas cien personas y movilizó al ejército del rey.']],
     sequia: [['Sin lluvia no hay cosecha ni pasto: un pueblo vive de lo que guardó en el granero.', 'Una sequía de décadas contribuyó al abandono de las grandes ciudades mayas hacia el año 900.'], ['Los malos años se encadenan: primero se pierde la cosecha, luego el ganado.', 'La Gran Hambruna de 1315-1317, tras tres veranos de lluvia y frío, mató a uno de cada diez europeos del norte.']],
     abundancia: [['Las buenas cosechas llenan los graneros y las cunas.', 'La patata y el maíz de América duplicaron la población de muchos países de Europa y de China en dos siglos.']],

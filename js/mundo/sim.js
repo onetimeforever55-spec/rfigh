@@ -266,7 +266,7 @@
   // ---------- Crear un mundo ----------
   function crear(semilla, numPueblos, opciones) {
     const libre = !!(opciones && opciones.libre);
-    const m = { version: 1, semilla: semilla >>> 0, rng: semilla >>> 0, W, H, anio: libre ? 1 : -4000, libre, turno: 0, civs: [], sig: 0, cronica: [], dueno: new Array(W * H).fill(-1) };
+    const m = { version: 1, semilla: semilla >>> 0, rng: semilla >>> 0, W, H, anio: libre ? 1 : -4000, libre, ritmo: (opciones && opciones.ritmo) || 1, turno: 0, civs: [], sig: 0, cronica: [], dueno: new Array(W * H).fill(-1) };
     generarMapa(m);
     // Los primeros pueblos, en tierras fértiles y lejos unos de otros (mejor junto a un río).
     const candidatas = [];
@@ -300,7 +300,7 @@
     for (const c of vivas(m)) c.efectos = c.efectos.filter(e => e.hasta > m.turno);
     const maxEra = Math.max(0, ...vivas(m).map(c => c.era));
     // En el mundo libre (como WorldBox) los años pasan de uno en uno; en la historia real, al ritmo de cada era.
-    const anios = m.libre ? 1 : M.ERAS[maxEra].anios;
+    const anios = aniosTurno(m); void maxEra;
     for (const c of vivas(m)) reinar(m, c, anios);
     m.anio += anios;
     // Al cerrar el turno, todo en orden: quien perdió su capital en una conquista de este turno se muda a su
@@ -359,12 +359,18 @@
       // Las ciudades y las rutas comerciales son donde se juntan sabios, libros y noticias.
       + ((m.ciudades || []).filter(x => x.civ === c.id).length * 1.2 + (c.rutas || 0) * 1.5);
     // Cada era acelera la siguiente: la escritura, la imprenta y la ciencia se apoyan unas en otras.
-    c.ciencia += Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia;
+    // Con el ritmo pausado (partidas nuevas), la técnica avanza más despacio por turno: hay tiempo de vivir cada era.
+    const ganancia = (Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia) * (1 + M.tec(c, 'ciencia')) * pausa(m);
+    c.ciencia += ganancia; c.cienciaTurno = ganancia;
+    investigar(m, c, ganancia);
     const sig = M.ERAS[c.era + 1];
-    // La historia no se salta siglos: ninguna era llega antes de su fecha más temprana posible (salvo en el mundo libre).
-    if (sig && c.ciencia >= sig.umbral && (m.libre || sig.desde == null || m.anio >= sig.desde)) subirEra(m, c, null);
+    // Una era nueva llega cuando se han dominado todas las tecnologías de la anterior; y la historia no se salta
+    // siglos: ninguna era llega antes de su fecha más temprana posible (salvo en el mundo libre).
+    const dominada = M.TECNOLOGIAS.filter(t => t.era <= c.era).every(t => M.tecsDe(c).includes(t.id));
+    if (sig && dominada && (m.libre || sig.desde == null || m.anio >= sig.desde)) subirEra(m, c, null);
+    tesoro(m, c);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
-    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
+    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + M.tec(c, 'estab') + (c.oro < 0 ? -6 : 0) - ((c.plan && c.plan.impuesto) || 1) * 16 + 16 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
@@ -411,12 +417,70 @@
     return o && o.viva ? o.capital : null;
   }
 
+  // ---------- La técnica: se investiga una tecnología cada vez ----------
+  // El ritmo pausado (partidas nuevas): turnos de menos años en cada era. La técnica avanza en proporción, así
+  // que cada era sigue llegando a su fecha; pero hay muchos más turnos para vivirla.
+  const ritmo = m => m.ritmo || 1;
+  const maxEraDe = m => Math.max(0, ...vivas(m).map(c => c.era));
+  const aniosTurno = m => m.libre ? 1 : ritmo(m) > 1 ? M.ERAS[maxEraDe(m)].aniosLento : M.ERAS[maxEraDe(m)].anios;
+  const pausa = m => ritmo(m) > 1 && !m.libre ? aniosTurno(m) / M.ERAS[maxEraDe(m)].anios : ritmo(m) > 1 ? 1 / ritmo(m) : 1;
+  function elegirTec(m, c) {
+    const ts = M.tecsDe(c), libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !ts.includes(t.id));
+    if (!libres.length) return null;
+    const pide = c.plan && c.plan.investigar;
+    if (pide && libres.some(t => t.id === pide)) return pide;
+    // La IA (y el gobernador del jugador si no elige) va según su carácter y lo que le falta.
+    const gusto = t => { const e = t.efecto; let k = 0;
+      if (c.caracter === 'guerrero') k += (e.ataque || 0) * 10 + (e.defensa || 0) * 8;
+      if (c.caracter === 'mercader') k += (e.oro || 0) * 8 + (e.comercio || 0) * 6;
+      if (c.caracter === 'sabio' || c.caracter === 'devoto') k += (e.ciencia || 0) * 10 + (e.estab || 0) * 0.5;
+      if ((c.comida || 0) < (c.aldeanos || 10) * 0.6) k += (e.cosecha || 0) * 2 + (e.granero || 0) * 2;
+      if (c.guerras.length) k += (e.ataque || 0) * 8 + (e.defensa || 0) * 8;
+      if (c.oro < 0) k += (e.oro || 0) * 8;
+      return k + t.era * -5 + ((c.id * 7 + M.TECNOLOGIAS.indexOf(t)) % 5) * 0.01; };
+    return libres.sort((a, b) => gusto(b) - gusto(a))[0].id;
+  }
+  function investigar(m, c, puntos) {
+    const ts = M.tecsDe(c), inv = c.investigacion = c.investigacion || { id: null, puntos: 0 };
+    // Lo que se investiga mientras se espera la era siguiente no se pierde: los sabios adelantan trabajo.
+    let resto = puntos + (inv.banco || 0); inv.banco = 0;
+    for (let vueltas = 0; resto > 1e-9 && vueltas < 6; vueltas++) {
+      if (!inv.id || ts.includes(inv.id)) { inv.id = elegirTec(m, c); inv.puntos = 0; if (!inv.id) { inv.banco = Math.min(resto, 4000); return; } }
+      const t = M.TECNOLOGIAS.find(x => x.id === inv.id), coste = M.costeTec(t);
+      const pon = Math.min(resto, coste - inv.puntos);
+      inv.puntos += pon; resto -= pon;
+      if (inv.puntos >= coste - 1e-9) {
+        ts.push(t.id); c.inventos.push(t.invento); inv.id = null; inv.puntos = 0;
+        if (c.plan && c.plan.investigar === t.id) c.plan.investigar = null;
+        (m.avances = m.avances || []).push({ civ: c.id, tec: t.id, turno: m.turno });
+        if (m.avances.length > 40) m.avances = m.avances.slice(-40);
+        if (c.jugador) cronica(m, 'tecnica', c.nombre + ' domina ' + t.invento, T(t.invento) + ' llega a ' + c.nombre + ': ' + t.texto + '.', c);
+      }
+    }
+  }
+  // El tesoro: impuestos de la gente (y comercio, en vida.js) frente a los sueldos de los soldados y el
+  // mantenimiento de los edificios militares. Sin oro, la gente se enfada y los soldados desertan.
+  const IMPUESTO = { tribu: 0.5, cacicazgo: 0.7, reino: 1, imperio: 1.15, teocracia: 0.9, republica: 1, democracia: 0.95, dictadura: 1.2, estado_obrero: 1.05 };
+  function tesoro(m, c) {
+    const adultos = c.aldeanos != null ? c.aldeanos : c.pob;
+    const ingreso = adultos * 0.025 * (1 + 0.1 * c.era) * (1 + M.tec(c, 'oro')) * (IMPUESTO[c.regimen] || 1) * (c.plan && c.plan.impuesto ? c.plan.impuesto : 1);
+    const gasto = (c.guerreros || 0) * 0.05 * (1 + 0.1 * c.era) + ((c.cuarteles || 0) + (c.arquerias || 0) + (c.castillos || 0)) * 0.25;
+    c.oro = (c.oro == null ? 10 : c.oro) + ingreso - gasto;
+    // El oro que sobra de la reserva paga sabios y escuelas: se convierte en investigación (salvo que se mande guardarlo).
+    const reserva = 40 + adultos * 1.5;
+    if (c.oro > reserva && !(c.plan && c.plan.guardarOro)) { const pago = (c.oro - reserva) * 0.08; c.oro -= pago; c.mecenazgo = pago; investigar(m, c, pago * 0.15 * pausa(m)); c.ciencia += pago * 0.15 * pausa(m); } else c.mecenazgo = 0;
+    c.ingresos = ingreso + (c.comercioOro || 0); c.gastos = gasto; c.comercioOro = 0;
+    if (c.oro < 0 && c.jugador && !(c.ultimaQuiebra > m.turno - 10)) { c.ultimaQuiebra = m.turno; cronica(m, 'quiebra', 'Las arcas de ' + c.nombre + ' están vacías', 'No hay con qué pagar a los soldados: algunos cuelgan las armas y vuelven al campo, y en las plazas se oyen quejas. Hacen falta más impuestos, comercio o minas de oro.', c); }
+  }
   function subirEra(m, c, regalo) {
     c.era++;
     const E = M.ERAS[c.era];
+    // Se da por dominado todo lo de las eras anteriores (un invento regalado, una era que se salta…).
+    const ts = M.tecsDe(c);
+    for (const t of M.TECNOLOGIAS) if (t.era < c.era && !ts.includes(t.id)) ts.push(t.id);
     const nuevos = E.inventos.filter(x => !c.inventos.includes(x));
-    const invento = regalo || elegir(m, nuevos.length ? nuevos : E.inventos);
-    c.inventos.push(invento);
+    const invento = regalo || (c.inventos.length ? c.inventos[c.inventos.length - 1] : elegir(m, nuevos.length ? nuevos : E.inventos));
+    if (regalo) c.inventos.push(invento);
     const antes = c.regimen;
     c.regimen = regimenPorEra(m, c, casillas(m, c).length);
     const primero = !m.civs.some(o => o !== c && o.era >= c.era);
@@ -737,6 +801,6 @@
     });
   }
 
-  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, elegirTec, investigar, pausa, aniosTurno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

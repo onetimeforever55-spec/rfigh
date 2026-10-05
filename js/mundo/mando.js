@@ -363,6 +363,72 @@
     if (ej && numero(ej[1]) >= 1) return [{ tipo: 'cupo', o: 4, n: Math.round(numero(ej[1])) }];
     return null;
   }
+  function economia(m, c, n) {
+    // Una tecnología por su nombre (o por lo que da): «investigad la rueda», «quiero la imprenta», «estudiad el hierro».
+    const quiereTec = /\b(investig\w*|estudi\w*|descubr\w*|invent\w*|desarroll\w*|aprend\w*|quiero|queremos|centr\w* en|prioriz\w*)\b/.test(n);
+    const tec = M.TECNOLOGIAS.find(t => n.includes(norm(t.nombre))) || M.TECNOLOGIAS.find(t => n.includes(norm(t.invento).replace(/^(el|la|los|las) /, ''))) || M.TECNOLOGIAS.find(t => new RegExp('\\b' + t.id.replace('_', ' ') + '\\b').test(n));
+    if (tec && quiereTec) return [{ tipo: 'investigar', id: tec.id }];
+    if (/\b(que investig\w*|que (podemos )?investigar|que estudi\w*|tecnolog\w*|tecnica|arbol)\b/.test(n) && /\b(que|cual|cuales|lista|ver|como va|como van)\b/.test(n)) return [{ tipo: 'consulta_tec' }];
+    // El tesoro.
+    const cosa = n.match(/\b(madera|lena|comida|trigo|grano|alimentos?|piedras?|metal|hierro)\b/);
+    if (/\b(compr\w*|adquir\w*|import\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'comprar', que: { lena: 'madera', trigo: 'comida', grano: 'comida', alimento: 'comida', alimentos: 'comida', piedras: 'piedra', hierro: 'metal' }[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
+    if (/\b(vend\w*|export\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'vender', que: { lena: 'madera', trigo: 'comida', grano: 'comida', alimento: 'comida', alimentos: 'comida', piedras: 'piedra', hierro: 'metal' }[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
+    if (/\b(guard\w*|ahorr\w*|no gast\w*|reserv\w*) (el |todo el |nuestro )?(oro|dinero|tesoro)\b/.test(n)) return [{ tipo: 'tesoro', guardar: true }];
+    if (/\b(invert\w*|gast\w*|usad|usa|financ\w*|pag\w*) (el |todo el )?(oro|dinero|tesoro)\b/.test(n) || /\b(mecenazgo|becas|pagad a los sabios)\b/.test(n)) return [{ tipo: 'tesoro', guardar: false }];
+    if (/\b(cuanto oro|cuanto dinero|tesoro|arcas|presupuesto|cuentas|ingresos|gastos)\b/.test(n) && !/\b(sub\w*|baj\w*)\b/.test(n)) return [{ tipo: 'consulta_oro' }];
+    return null;
+  }
+  const PRECIO = { madera: 0.6, comida: 0.5, piedra: 0.9, metal: 2.5 };
+  function aplicarEconomia(m, c, a, textos) {
+    const p = plan(c), v = m.vida, an = t => v && (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t });
+    if (a.tipo === 'investigar') {
+      const t = M.TECNOLOGIAS.find(x => x.id === a.id);
+      if (!t) { textos.push('No conozco esa tecnología.'); return; }
+      const ts = M.tecsDe(c);
+      if (ts.includes(t.id)) { textos.push('Ya domináis ' + t.nombre.toLowerCase() + '.'); return; }
+      if (t.era > c.era) { const faltan = M.TECNOLOGIAS.filter(x => x.era <= c.era && !ts.includes(x.id)); textos.push(t.nombre + ' es ' + ('de ' + M.ERAS[t.era].con).replace(/^de el /, 'del ') + '. Antes hay que dominar lo de ahora' + (faltan.length ? ': ' + faltan.map(x => x.nombre.toLowerCase()).join(', ') : '') + (m.libre || !M.ERAS[c.era + 1] || M.ERAS[c.era + 1].desde == null ? '' : ', y la nueva era no llega antes de ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/\.$/, '')) + '.'); return; }
+      p.investigar = t.id;
+      const inv = c.investigacion = c.investigacion || { id: null, puntos: 0 };
+      // Lo que llevaba la investigación anterior no se pierde del todo: la mitad pasa a la nueva.
+      if (inv.id !== t.id) { inv.puntos = (inv.puntos || 0) * 0.5; inv.id = t.id; }
+      an('🔬 Investigando: ' + t.nombre);
+      textos.push('Tus sabios se ponen con ' + t.nombre.toLowerCase() + ' (' + t.texto + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.cienciaTurno || 1)))) + ' turnos. Más ciencia: más gente, estabilidad, ciudades, rutas y oro para los sabios.');
+      return;
+    }
+    if (a.tipo === 'consulta_tec') {
+      const ts = M.tecsDe(c), inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
+      const libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !ts.includes(t.id));
+      textos.push((inv ? 'Investigáis ' + inv.nombre.toLowerCase() + ' (' + Math.round(100 * c.investigacion.puntos / M.costeTec(inv)) + ' %). ' : '') + (libres.length ? 'Podéis investigar: ' + libres.map(t => t.nombre + ' (' + t.texto + ')').join('; ') + '.' : 'Domináis todo lo de ' + M.ERAS[c.era].con + (M.ERAS[c.era + 1] ? '; la próxima era llegará ' + (m.libre || M.ERAS[c.era + 1].desde == null ? 'enseguida' : 'en ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/\.$/, '')) : '') + '.') + ' Dominadas: ' + ts.length + ' de ' + M.TECNOLOGIAS.length + '.');
+      return;
+    }
+    if (a.tipo === 'comprar' || a.tipo === 'vender') {
+      const precio = PRECIO[a.que];
+      if (!precio) { textos.push('Eso no se compra ni se vende.'); return; }
+      if (a.tipo === 'comprar') {
+        const max = Math.floor((c.oro || 0) / precio), n = Math.min(a.n || Math.floor(max * 0.5), max);
+        if (n <= 0) { textos.push('No hay oro para comprar ' + a.que + ' (cada unidad cuesta ' + precio + ').'); return; }
+        c.oro -= n * precio; c[a.que] = (c[a.que] || 0) + n;
+        an('🪙 −' + Math.round(n * precio) + ' · +' + n + ' ' + a.que);
+        textos.push('Los mercaderes traen ' + n + ' de ' + a.que + ' por ' + Math.round(n * precio) + ' de oro. Quedan ' + Math.round(c.oro) + '.');
+      } else {
+        const tiene = Math.floor(c[a.que] || 0), n = Math.min(a.n || Math.floor(tiene * 0.5), tiene);
+        if (n <= 0) { textos.push('No tenéis ' + a.que + ' que vender.'); return; }
+        const gana = Math.round(n * precio * 0.6);
+        c[a.que] -= n; c.oro = (c.oro || 0) + gana;
+        an('🪙 +' + gana + ' · −' + n + ' ' + a.que);
+        textos.push('Vendéis ' + n + ' de ' + a.que + ' por ' + gana + ' de oro (los mercaderes compran barato). Tesoro: ' + Math.round(c.oro) + '.');
+      }
+      return;
+    }
+    if (a.tipo === 'tesoro') {
+      p.guardarOro = !!a.guardar;
+      textos.push(a.guardar ? 'El tesoro se guarda: el oro que sobre ya no irá a pagar sabios y escuelas.' : 'El oro que sobre de la reserva pagará sabios, escuelas y bibliotecas: más investigación.');
+      return;
+    }
+    if (a.tipo === 'consulta_oro') {
+      textos.push('Tesoro: ' + Math.round(c.oro || 0) + ' de oro. Por turno entran ' + (c.ingresos || 0).toFixed(1) + ' (impuestos y comercio) y salen ' + (c.gastos || 0).toFixed(1) + ' (sueldos de ' + (c.guerreros || 0) + ' soldados y mantenimiento)' + (c.mecenazgo ? ', y ' + c.mecenazgo.toFixed(1) + ' van a los sabios' : '') + '. Los edificios cuestan oro; sin oro, los soldados desertan.');
+    }
+  }
   function aplicarExtra(m, c, a, textos) {
     const p = plan(c), v = m.vida, an = (t, r) => (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t, region: r });
     const o = a.con != null ? S().civ(m, Number(a.con)) : null;
@@ -446,9 +512,9 @@
       return;
     }
     if (a.tipo === 'regalo') {
-      const oro = Math.max(5, Math.round((c.riqueza || 0) * 0.15));
-      if ((c.riqueza || 0) < 5) { textos.push('No tenéis riqueza que regalar.'); return; }
-      c.riqueza -= oro; o.riqueza += oro; o.rel[c.id] = (o.rel[c.id] || 0) + 20 + Math.round(oro / 20);
+      const oro = Math.max(5, Math.round((c.oro || 0) * 0.2));
+      if ((c.oro || 0) < 5) { textos.push('No tenéis oro que regalar.'); return; }
+      c.oro -= oro; o.oro = (o.oro || 0) + oro; o.rel[c.id] = (o.rel[c.id] || 0) + 20 + Math.round(oro / 20);
       an('🎁 Regalo a ' + o.nombre);
       textos.push('Enviáis ' + oro + ' de oro a ' + o.nombre + '. Su opinión de vosotros sube a ' + Math.round(o.rel[c.id]) + '.' + (S().enGuerra(c, o) ? ' Quizá acepten antes la paz.' : ''));
       if (S().enGuerra(c, o)) { const g = o.guerras.find(x => x.con === c.id); if (g) g.cansancio += 2; }
@@ -468,10 +534,12 @@
       return;
     }
     if (a.tipo === 'impuestos') {
-      if (p.ultimoImpuesto != null && m.turno - p.ultimoImpuesto < 3) { textos.push('Acabas de tocar los impuestos; espera unos turnos.'); return; }
       p.ultimoImpuesto = m.turno;
-      if (a.sube) { const g = Math.round(8 + (c.pob || 0) * 0.15); c.riqueza += g; c.estab -= 7; textos.push('Subes los impuestos: +' + g + ' de riqueza, pero la gente protesta (estabilidad −7).'); an('💰 +' + g + ' impuestos'); }
-      else { const g = Math.min(Math.round((c.riqueza || 0) * 0.1), 30); c.riqueza -= g; c.estab = Math.min(100, c.estab + 7); textos.push('Bajas los impuestos: la gente lo celebra (estabilidad +7) y entra menos dinero (−' + g + ').'); an('🙂 Menos impuestos'); }
+      // Los impuestos se quedan donde los pongas: más oro cada turno a cambio de estabilidad (o al revés).
+      p.impuesto = Math.max(0.5, Math.min(1.75, Math.round(((p.impuesto || 1) + (a.sube ? 0.25 : -0.25)) * 100) / 100));
+      const nivelI = p.impuesto >= 1.5 ? 'muy altos' : p.impuesto > 1 ? 'altos' : p.impuesto < 0.75 ? 'muy bajos' : p.impuesto < 1 ? 'bajos' : 'normales';
+      an(a.sube ? '💰 Impuestos ' + nivelI : '🙂 Impuestos ' + nivelI);
+      textos.push('Impuestos ' + nivelI + ' (×' + p.impuesto + '): ' + (a.sube ? 'entra más oro cada turno, pero la gente está menos contenta.' : 'la gente está más contenta y entra menos oro.') + ' Para volver a lo normal, súbelos o bájalos otra vez.');
       return;
     }
     if (a.tipo === 'fiesta') {
@@ -540,7 +608,9 @@
     const romperAl = /\brompe\w* (la )?alianza\b/.test(n);
     const tratado = !alianza && /\b(comerci\w* con|amistad|tratado|embajad\w*|regal\w* a)\b/.test(n);
     // Preguntas: «¿cuántos leñadores tengo?», «¿cuánta madera hay?», «¿qué hace mi gente?».
-    if (/\b(cuant[oa]s?|que hace mi gente|que hacen|en que trabaja\w*|reparto|oficios|cuadrillas|cupos)\b/.test(n) && !/\b(quiero|pon\w*|mand\w*|que (se )?(vayan|pongan)|quit\w*|liber\w*|cancel\w*|anul\w*|solt\w*|suelt\w*)\b/.test(n) && !/\d/.test(n.replace(/\bcuant\w*/, ''))) { const of = NOMBRE_OF.find(([o, re]) => o >= 0 && new RegExp('\\b(' + re + ')\\b').test(n)); return [{ tipo: 'consulta', o: of ? of[0] : undefined }]; }
+    if (/\b(cuant[oa]s?|que hace mi gente|que hacen|en que trabaja\w*|reparto|oficios|cuadrillas|cupos)\b/.test(n) && !/\b(oro|dinero|tesoro|arcas|investig\w*|tecnolog\w*)\b/.test(n) && !/\b(quiero|pon\w*|mand\w*|que (se )?(vayan|pongan)|quit\w*|liber\w*|cancel\w*|anul\w*|solt\w*|suelt\w*)\b/.test(n) && !/\d/.test(n.replace(/\bcuant\w*/, ''))) { const of = NOMBRE_OF.find(([o, re]) => o >= 0 && new RegExp('\\b(' + re + ')\\b').test(n)); return [{ tipo: 'consulta', o: of ? of[0] : undefined }]; }
+    // La técnica y el tesoro: «investigad la rueda», «¿qué investigamos?», «comprad 20 de madera», «guardad el oro».
+    { const ec = economia(m, c, n); if (ec) return acciones.concat(ec); }
     // Escuadrones, posturas de guerra, diplomacia menuda y el ánimo del pueblo.
     { const ex = extras(m, c, n); if (ex) return acciones.concat(ex); }
     // Órdenes con número, oficio y tiempo (cuadrillas, cupos, metas); si traen plazo, también sirve para las prioridades.
@@ -636,6 +706,7 @@
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
+      else if (['investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);
       else if (TIPOS_EXTRA.includes(a.tipo)) aplicarExtra(m, c, a, textos);
       else if (a.tipo === 'consulta') textos.push(consulta(m, c, a.o));
       else if (a.tipo === 'cuadrilla') aplicarCuadrilla(m, c, a, textos);
@@ -746,7 +817,9 @@
         textos.push('Proclamada ' + M.unoDe(a.a) + '. La estabilidad cae un poco mientras la gente se acostumbra.');
       } else if (a.tipo === 'construir') {
         const NOMBRE = { templo: 'un templo', torre: 'una torre de defensa', puerto: 'un puerto', molino: 'un molino', cuartel: 'un cuartel de soldados', arqueria: c.era >= 5 ? 'un campo de tiro' : 'una arquería', castillo: c.era >= 7 ? 'un fortín' : c.era >= 5 ? 'una fortaleza' : 'un castillo' };
-        const COSTE = { templo: [8, 6], torre: [6, 4], puerto: [10, 0], molino: [3, 0], cuartel: [10, 6], arqueria: [10, 2], castillo: [16, 24] }[a.obra];
+        const COSTE = { templo: [8, 6, 10], torre: [6, 4, 4], puerto: [10, 0, 8], molino: [3, 0, 0], cuartel: [10, 6, 12], arqueria: [10, 2, 8], castillo: [16, 24, 30] }[a.obra];
+        const NIVEL_PIDE = { torre: 1, puerto: 1, templo: 2, cuartel: 2, arqueria: 2, castillo: 3, molino: 0 }[a.obra];
+        if ((c.nivel || 0) < NIVEL_PIDE) { textos.push('Para levantar ' + NOMBRE[a.obra] + ' tu asentamiento tiene que ser al menos ' + (NIVEL_PIDE === 1 ? 'una aldea' : NIVEL_PIDE === 2 ? 'un pueblo' : 'una villa') + ' (' + M.NIVELES[NIVEL_PIDE].desde + ' vecinos; ahora ' + (c.aldeanos || 0) + '). Más casas y comida: más gente.'); continue; }
         if (a.obra === 'castillo' && c.era < 2) { textos.push('Los castillos de piedra llegan con la Edad del Hierro (fase medieval).'); continue; }
         if (a.obra !== 'molino' && c.era < 1) { textos.push('Aún no sabéis levantar ' + NOMBRE[a.obra] + ': hace falta llegar a la Edad del Bronce.'); continue; }
         if (M.vida && m.vida) {
@@ -758,6 +831,7 @@
         const falta = [];
         if ((c.madera || 0) < COSTE[0]) falta.push((COSTE[0] - Math.floor(c.madera || 0)) + ' de madera');
         if ((c.piedra || 0) < COSTE[1]) falta.push((COSTE[1] - Math.floor(c.piedra || 0)) + ' de piedra');
+        if ((c.oro || 0) < COSTE[2]) falta.push((COSTE[2] - Math.floor(c.oro || 0)) + ' de oro');
         if (falta.length) { if ((c.madera || 0) < COSTE[0]) p.prioridad.madera = Math.max(p.prioridad.madera, 1.5); if ((c.piedra || 0) < COSTE[1]) p.prioridad.piedra = Math.max(p.prioridad.piedra, 1.5); }
         textos.push('Tus constructores levantarán ' + NOMBRE[a.obra] + ' en la plaza ' + (falta.length ? 'en cuanto junten lo que falta (' + falta.join(' y ') + '); mientras, más gente a por ello.' : 'ya: tenéis la madera y la piedra.') + (a.obra === 'puerto' ? ' Necesita costa junto a la plaza.' : ''));
       } else if (a.tipo === 'colonos') {
@@ -830,6 +904,8 @@
     if (rebelde) return { texto: rebelde.nombre + ' no es leal (' + Math.round(rebelde.lealtad) + '): pronto se rebelará. Una corte más estable o un ejército cerca la retienen.', orden: 'Más soldados' };
     if (c.sinCama > 0 && (pr.casas || 1) < 2) return { texto: 'Hay parejas que quieren tener hijos y no tienen cama: faltan casas.', orden: 'Más casas' };
     if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : 'Construid un templo' };
+    if ((c.oro || 0) < 0) return { texto: 'Las arcas están vacías: los soldados no cobran y desertan, y la gente se queja.', orden: (c.plan && c.plan.impuesto || 1) < 1.5 ? 'Subid los impuestos' : 'Vended madera' };
+    if (c.investigacion && !c.investigacion.id && M.TECNOLOGIAS.some(t => t.era <= c.era && !M.tecsDe(c).includes(t.id))) return { texto: 'Tus sabios esperan saber qué investigar.', orden: '¿Qué investigamos?' };
     if (c.plan && c.plan.obra) return { texto: 'Tus constructores esperan madera y piedra para el encargo (' + c.plan.obra + ').', orden: 'Más piedra' };
     const sig = M.ERAS[c.era + 1];
     if (sig && (pr.ciencia || 1) < 1.5) return { texto: 'Todo en orden. Si invertís en saber, llegaréis antes ' + aEra(sig.con) + '.', orden: 'Todo a la ciencia' };
@@ -852,7 +928,7 @@
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante; -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante; -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal","n":numero|null}; {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -862,7 +938,7 @@
       '\nPlazas (región, dueño): ' + JSON.stringify([...S().vivas(m).map(o => ({ region: o.capital, nombre: 'capital de ' + o.nombre, dueno: o.id })), ...(m.ciudades || []).map(x => ({ region: x.region, nombre: x.nombre, dueno: m.dueno[x.region] }))]) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
+  const TIPOS = new Set(['investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
@@ -884,7 +960,10 @@
         if (a.tipo === 'cuadrilla' && n != null && oficio(a.de) != null && oficio(a.a) >= 0) out.push({ tipo: 'cuadrilla', n, de: oficio(a.de), a: oficio(a.a), hasta: h });
         else if (a.tipo === 'cupo' && n != null && n !== 'todos' && oficio(a.o) >= 0) out.push({ tipo: 'cupo', o: oficio(a.o), n: Math.round(n), hasta: h });
         else if (a.tipo === 'meta' && n != null && n !== 'todos' && COSAS[a.cosa] && oficio(a.o) >= 0) out.push({ tipo: 'meta', cosa: COSAS[a.cosa], n: Math.round(n), o: oficio(a.o) });
-      } else if (a.tipo === 'liberar' || a.tipo === 'consulta') out.push({ tipo: a.tipo });
+      } else if (a.tipo === 'liberar' || a.tipo === 'consulta' || a.tipo === 'consulta_tec' || a.tipo === 'consulta_oro') out.push({ tipo: a.tipo });
+      else if (a.tipo === 'investigar') { if (M.TECNOLOGIAS.some(t => t.id === a.id)) out.push({ tipo: 'investigar', id: a.id }); }
+      else if (a.tipo === 'comprar' || a.tipo === 'vender') { if (PRECIO[a.que]) out.push({ tipo: a.tipo, que: a.que, n: Number(a.n) > 0 ? Math.min(1000, Math.round(Number(a.n))) : null }); }
+      else if (a.tipo === 'tesoro') out.push({ tipo: 'tesoro', guardar: !!a.guardar });
       else if (TIPOS_EXTRA.includes(a.tipo)) {
         const x = { tipo: a.tipo };
         if (a.con != null && Number.isInteger(Number(a.con))) x.con = Number(a.con);
