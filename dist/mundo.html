@@ -6014,14 +6014,21 @@ body.sin-panel .panel { display: none; }
       for (let k = 0; k < A; k += 5) { gl.fillRect(x + k, y + 1, 1, 2); gl.fillRect(x + k, y + 13, 1, 2); }
       return;
     }
-    const [base, borde, marca] = era >= 7 ? ['#55585f', '#3f4248', '#e8d070'] : era >= 3 ? ['#b9ad94', '#8a8070', '#d4cab2'] : ['#a7855a', '#86683f', '#bc9a6a'];
+    // Calles de piedra neutra (gris, sin el color de nadie): tierra apisonada al principio, adoquín desde el
+    // Bronce y asfalto en la era moderna.
+    const [base, borde, marca] = era >= 7 ? ['#55585f', '#3f4248', '#e8d070'] : era >= 1 ? ['#a4a29c', '#7c7a74', '#bcbab4'] : ['#a08a6a', '#7e6a4e', '#b29c7c'];
     gl.fillStyle = borde; gl.fillRect(x + 3, y + 3, 10, 10);
     for (const [si, lx, ly, w, hh] of lados) if (si) gl.fillRect(x + lx + (w === 4 ? 0 : -1), y + ly + (hh === 4 ? 0 : -1), w + (w === 4 ? 0 : 2), hh + (hh === 4 ? 0 : 2));
     gl.fillStyle = base; gl.fillRect(x + 4, y + 4, 8, 8);
     for (const [si, lx, ly, w, hh] of lados) if (si) gl.fillRect(x + lx, y + ly, w, hh);
     gl.fillStyle = marca;
     if (era >= 7) { if (lados[0][0] || lados[1][0]) for (let k = 1; k < A; k += 4) gl.fillRect(x + k, y + 7, 2, 1); if (lados[2][0] || lados[3][0]) for (let k = 1; k < A; k += 4) gl.fillRect(x + 7, y + k, 1, 2); }
-    else if (era >= 3) { for (let j = 4; j < 12; j += 2) for (let i = 4 + (j % 4 ? 1 : 0); i < 12; i += 3) gl.fillRect(x + i, y + j, 2, 1); }
+    else if (era >= 1) {
+      // Adoquines: piedras claras con juntas oscuras, también en los brazos que unen con los vecinos.
+      const junta = '#8a8882';
+      for (let j = 4; j < 12; j += 2) for (let i = 4 + (j % 4 ? 1 : 0); i < 12; i += 3) { gl.fillStyle = marca; gl.fillRect(x + i, y + j, 2, 1); gl.fillStyle = junta; gl.fillRect(x + i + 2, y + j, 1, 1); }
+      for (const [si, lx, ly, w, hh] of lados) if (si) for (let j = ly; j < ly + hh; j += 2) for (let i = lx + ((j / 2) % 2); i < lx + w; i += 3) { gl.fillStyle = marca; gl.fillRect(x + i, y + j, 2, 1); }
+    }
     else { gl.fillRect(x + 6, y + 6, 1, 1); gl.fillRect(x + 9, y + 8, 1, 1); gl.fillRect(x + 5, y + 10, 1, 1); }
   }
   function vecinasCamino(t) {
@@ -6074,7 +6081,9 @@ body.sin-panel .panel { display: none; }
       if (cTR) pts.push(x + CA - H, y, x + CA, y + H); else pts.push(x + CA, y);
       if (cBR) pts.push(x + CA, y + CA - H, x + CA - H, y + CA); else pts.push(x + CA, y + CA);
       if (cBL) pts.push(x + H, y + CA, x, y + CA - H); else pts.push(x, y + CA);
-      let f = formas.get(d); if (!f) formas.set(d, f = []); f.push(pts);
+      // Las calles, plazas y puentes quedan de su piedra, sin el tinte del pueblo (solo el borde marca la frontera).
+      const neutra = (visto.camino && visto.camino[t]) || visto.obra[t] === V.OBRA.centro;
+      if (!neutra) { let f = formas.get(d); if (!f) formas.set(d, f = []); f.push(pts); }
       // El perfil: los lados que dan a otro (más corto si la esquina está cortada) y las diagonales.
       const estilo = od => { const enGuerra = od >= 0 && guerra.has(Math.min(d, od) + ':' + Math.max(d, od)); return enGuerra ? 'G' : sel === d ? 'S' : 'C' + d; };
       if (N !== d) linea(estilo(N), x + (cTL ? H : 0), y + 0.5, x + CA - (cTR ? H : 0), y + 0.5);
@@ -6867,7 +6876,7 @@ body.sin-panel .panel { display: none; }
     for (const q of quietos) { const key = Math.floor(q.px / 14) + ',' + Math.floor(q.py / 14); (cubo.get(key) || cubo.set(key, []).get(key)).push(q); }
     let n = 0;
     for (const q of quietos) {
-      if (usado.has(q) || n > 40) continue;
+      if (usado.has(q) || n > Math.round(6 + cam.z * 2)) continue;
       // Los eruditos que estudian piensan solos: una bombilla o un libro.
       if (q.piensa) { if (hash(q.a.id * 7 + slot) < 0.35 && dentro < 0.6) { bocadillo(q.px + 2, q.py - 9, hash(q.a.id + slot) < 0.5 ? DIBUJOS.idea : DIBUJOS.libro); n++; } continue; }
       // Con hambre, alguno se lamenta solo.
@@ -6878,7 +6887,7 @@ body.sin-panel .panel { display: none; }
       if (!otro) continue;
       usado.add(q); usado.add(otro);
       const par = Math.min(q.a.id, otro.a.id) * 31 + Math.max(q.a.id, otro.a.id), h = hash(par + slot * 7);
-      if (h > 0.7 || dentro > 0.82) continue; // no todos hablan todo el rato
+      if (h > 0.5 || dentro > 0.8) continue; // no todos hablan todo el rato
       n++;
       // Los niños juegan a la pelota.
       if (q.nino && otro.nino) {
