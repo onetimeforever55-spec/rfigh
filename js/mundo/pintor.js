@@ -328,6 +328,7 @@
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
+    pintarAnuncios(z, ox, oy, dpr, performance.now());
     pintarCartel(ahora, dpr);
   }
 
@@ -372,6 +373,7 @@
     g.fillRect(px + 1, py, 1, 1); g.fillRect(px, py + 1, 3, 2); g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2);
   }
 
+  const ultimoOficio = new Map(), cambioVisto = new Map();
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
@@ -430,6 +432,12 @@
         g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 1.5, 1.5); g.fillStyle = '#c84a3a'; g.fillRect(cx + 2.5, cy, 1.5, 1.5); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1.5, 1.5);
       }
       g.drawImage(img, ix, iy, img.width * EA, img.height * EA);
+      // Quien acaba de cambiar de oficio (por tu orden) lleva un destello dorado un par de segundos.
+      const antes = ultimoOficio.get(a.id);
+      if (antes != null && antes !== a.o) cambioVisto.set(a.id, ahora);
+      ultimoOficio.set(a.id, a.o);
+      const dc = ahora - (cambioVisto.get(a.id) || -1e9);
+      if (dc < 2600) { const sube = Math.round(dc / 400); g.fillStyle = Math.floor(dc / 150) % 2 ? '#fff4b0' : '#ffd23a'; g.fillRect(px + 1, py - 4 - sube, 1, 3); g.fillRect(px, py - 3 - sube, 3, 1); }
       if (oficio === 'guerrero' && !nino) {
         const ej = m.vida.ejercitos && m.vida.ejercitos[a.c], col = color[a.c] || '#ccc';
         if (ej && ej.capitan === a.id) { g.fillStyle = '#2a1e14'; g.fillRect(px - 1, py - 8, 1, 13); g.fillStyle = col; g.fillRect(px, py - 8, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 7, 2, 2); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(px, py - 5, 6, 0.5); }
@@ -458,6 +466,27 @@
     }
   }
 
+  // Textos que suben sobre un pueblo cuando le das una orden («▲ leñadores 7 → 12»).
+  let anuncios = [];
+  function anunciar(region, texto, color) { anuncios.push({ region, texto, color: color || '#ffe08a', inicio: performance.now() }); if (anuncios.length > 6) anuncios.shift(); }
+  function pintarAnuncios(z, ox, oy, dpr, ahora) {
+    anuncios = anuncios.filter(a => ahora - a.inicio < 4200);
+    if (!anuncios.length) return;
+    const tam = Math.round(14 * dpr);
+    g.font = '600 ' + tam + 'px "Pixelify Sans", "Courier New", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const porRegion = {};
+    for (const a of anuncios) {
+      const k = porRegion[a.region] = (porRegion[a.region] || 0) + 1, t = (ahora - a.inicio) / 4200;
+      const wx = (a.region % m.W) * V.SUB * P + V.SUB * P / 2, wy = Math.floor(a.region / m.W) * V.SUB * P;
+      const sx = ox + wx * z, sy = oy + wy * z - (30 + 44 * t + (k - 1) * 24) * dpr;
+      g.globalAlpha = t < 0.75 ? 1 : 1 - (t - 0.75) / 0.25;
+      const ancho = g.measureText(a.texto).width + 16 * dpr;
+      g.fillStyle = 'rgba(13,19,34,0.88)'; g.fillRect(sx - ancho / 2, sy - tam * 0.8, ancho, tam * 1.6);
+      g.strokeStyle = a.color; g.lineWidth = 1 * dpr; g.strokeRect(sx - ancho / 2 + 0.5, sy - tam * 0.8 + 0.5, ancho - 1, tam * 1.6 - 1);
+      g.fillStyle = a.color; g.fillText(a.texto, sx, sy);
+    }
+    g.globalAlpha = 1;
+  }
   function nombres(z, ox, oy, dpr) {
     if (cam.z < zMin() * 1.15 && S.vivas(m).length > 6) return;
     // Las ciudades, más pequeñas, cuando te acercas.
@@ -992,5 +1021,5 @@
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { P, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});

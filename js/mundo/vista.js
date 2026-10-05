@@ -544,6 +544,8 @@
   }
   function despuesDeOrden(r) {
     M.vida.ajustar(m); P.refrescar();
+    // Lo que tu orden pone en marcha, sobre tu pueblo en el mapa.
+    for (const an of (m.vida.anuncios || []).splice(0)) { const c = S.civ(m, an.civ); if (c) P.anunciar(c.capital, an.texto, /⚔/.test(an.texto) ? '#ff8a7a' : null); }
     const guerra = r.acciones.find(a => a.tipo === 'guerra' && a.con != null);
     if (guerra && S.civ(m, guerra.con)) { P.efecto('guerra', [m.jugador, guerra.con], 'Guerra contra ' + S.civ(m, guerra.con).nombre); }
     const yo = tuPueblo();

@@ -1630,8 +1630,15 @@ body.sin-panel .panel { display: none; }
     }
     if (quitar.size) v.aldeanos = v.aldeanos.filter(a => !quitar.has(a));
     // Oficios: los libres cambian de oficio para cubrir lo que falta en su pueblo.
-    for (const c of vivas) {
-      const lista = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.colono == null), p = reparto(c, recursosDe ? recursosDe[c.id] : { arboles: 1, rocas: 1 });
+    for (const c of vivas) reasignar(m, c, recursosDe ? recursosDe[c.id] : null, false);
+    equipar(m);
+  }
+  // Reparte los oficios de un pueblo. Con «ya» (una orden del jugador), cambian en el acto todos los que no
+  // vayan cargados, no solo los que estaban libres: la orden se ve obedecer enseguida.
+  function reasignar(m, c, recursos, ya) {
+    const v = m.vida;
+    {
+      const lista = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.colono == null), p = reparto(c, recursos || { arboles: 1, rocas: 1 });
       const tiene = [0, 0, 0, 0, 0, 0];
       for (const a of lista) tiene[a.o]++;
       for (const a of lista) {
@@ -1640,13 +1647,12 @@ body.sin-panel .panel { display: none; }
         const viejo = (a.edad || 0) >= VIEJO;
         if (viejo && a.o === GUERRERO) { tiene[GUERRERO]--; tiene[GRANJERO]++; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; continue; }
         const llamada = c.guerras.length && !a.k && a.o !== GUERRERO && !esNino(a) && !viejo;
-        if (!llamada && a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
+        if (!llamada && !(ya && !a.k) && a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
         const falta = p.map((x, i) => (viejo && i === GUERRERO ? -1e9 : x * lista.length - tiene[i] + (i === a.o ? 1 : 0)));
         const mejor = falta.indexOf(Math.max(...falta));
-        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; }
+        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; a.tx = -1; a.ty = -1; }
       }
     }
-    equipar(m);
   }
 
   // La armería: los guerreros reciben el arma de su era si hay metal (y armadura si sobra); los demás, un garrote.
@@ -2972,7 +2978,7 @@ body.sin-panel .panel { display: none; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -3417,12 +3423,18 @@ body.sin-panel .panel { display: none; }
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
-      else if (a.tipo === 'normal') { p.prioridad = PRIO_NORMAL(); p.rumbo = null; p.expandir = true; textos.push('Todas las prioridades vuelven a normal: tu pueblo se gobierna solo, como los demás.'); }
+      else if (a.tipo === 'normal') { p.prioridad = PRIO_NORMAL(); p.rumbo = null; p.expandir = true; if (M.vida && m.vida) M.vida.reasignar(m, c, null, true); (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: 'Todo vuelve a la normalidad' }); textos.push('Todas las prioridades vuelven a normal: tu pueblo se gobierna solo, como los demás.'); }
       else if (a.tipo === 'prioridad') {
         const pr = p.prioridad, tocados = Object.keys(a.cambios), antesReparto = repartoDe(m, c);
         if (a.solo) for (const k of Object.keys(pr)) if (!tocados.includes(k) && k !== 'expansion') pr[k] = Math.min(pr[k], 0.5);
         for (const k of tocados) { const ch = a.cambios[k]; pr[k] = Math.max(0, Math.min(2, ch.a != null ? ch.a : (pr[k] != null ? pr[k] : 1) + ch.mas)); }
-        textos.push('Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') + (a.solo ? ' (lo demás, baja)' : '') + '.' + oficiosNuevos(m, c, antesReparto, tocados));
+        const cuenta = () => { const n = [0, 0, 0, 0, 0, 0]; if (m.vida) for (const x of m.vida.aldeanos) if (x.c === c.id && (x.edad || 0) >= M.vida.ADULTO && x.colono == null) n[x.o]++; return n; };
+        const antesOficios = cuenta();
+        // La gente cambia de oficio en el acto (sin esperar al turno siguiente).
+        if (M.vida && m.vida) M.vida.reasignar(m, c, null, true);
+        const ahora = cuenta(), cambios = tocados.filter(k => OFICIO_DE[k] && ahora[OFICIO_DE[k][0]] !== antesOficios[OFICIO_DE[k][0]]).map(k => (ahora[OFICIO_DE[k][0]] > antesOficios[OFICIO_DE[k][0]] ? '▲ ' : '▼ ') + OFICIO_DE[k][1] + ' ' + antesOficios[OFICIO_DE[k][0]] + ' → ' + ahora[OFICIO_DE[k][0]]);
+        (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: cambios.length ? cambios.join('  ') : 'Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') });
+        textos.push('Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') + (a.solo ? ' (lo demás, baja)' : '') + '.' + (cambios.length ? ' Ya cambian de oficio: ' + cambios.map(x => x.slice(2)).join(', ') + '.' : oficiosNuevos(m, c, antesReparto, tocados)));
       }
       else if (a.tipo === 'expandir') {
         p.expandir = a.si; p.rumbo = a.si ? (a.rumbo == null ? null : a.rumbo) : null;
@@ -3434,6 +3446,8 @@ body.sin-panel .panel { display: none; }
         if (S().enGuerra(c, o)) { textos.push('Ya estáis en guerra con ' + o.nombre + '.'); continue; }
         S().declararGuerra(m, c, o, 'Por orden de su gobierno, ' + c.nombre + ' declara la guerra a ' + o.nombre + '. Los heraldos recorren las aldeas llamando a los hombres a las armas.');
         p.guerrasMias = [...new Set([...p.guerrasMias, o.id])];
+        if (M.vida && m.vida) M.vida.reasignar(m, c, null, true);
+        (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: '⚔ ¡Guerra contra ' + o.nombre + '!' });
         const frontera = S().vecinosDe(m, c).includes(o);
         textos.push('¡Guerra contra ' + o.nombre + '! Tus guerreros marchan a la frontera.' + (frontera ? '' : ' Ojo: no tenéis frontera común, así que no podrán llegar hasta que la haya.'));
       } else if (a.tipo === 'paz') {
@@ -3483,6 +3497,7 @@ body.sin-panel .panel { display: none; }
           if (zona.some(t => m.vida.obra[t] === M.vida.OBRA[a.obra])) { textos.push('Ya tenéis ' + NOMBRE[a.obra] + ' en la plaza de ' + c.nombre + '.'); continue; }
         }
         p.obra = a.obra;
+        (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: '⚒ ' + NOMBRE[a.obra].replace(/^una? /, '') + ' en marcha' });
         const falta = [];
         if ((c.madera || 0) < COSTE[0]) falta.push((COSTE[0] - Math.floor(c.madera || 0)) + ' de madera');
         if ((c.piedra || 0) < COSTE[1]) falta.push((COSTE[1] - Math.floor(c.piedra || 0)) + ' de piedra');
@@ -3492,6 +3507,7 @@ body.sin-panel .panel { display: none; }
         const suyas = (m.ciudades || []).filter(x => x.civ === c.id).length;
         if (suyas >= S().maxCiudades(c)) { textos.push('Tu reino ya tiene todas las ciudades que puede gobernar (' + suyas + '). Avanzad de era para poder fundar más.'); continue; }
         p.colonos = a.rumbo || true;
+        (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: 'Colonos en camino' + (a.rumbo ? ' hacia el ' + a.rumbo : '') });
         textos.push('Tres familias recogen sus cosas y salen ' + (a.rumbo === 'costa' ? 'hacia la costa' : a.rumbo ? 'hacia el ' + a.rumbo : 'hacia la mejor tierra libre cercana') + ' a fundar una aldea. Las verás caminar por el mapa.');
       } else if (a.tipo === 'colonia') {
         if (c.era < 5) { textos.push('Aún no sabéis cruzar el mar: hace falta llegar al Renacimiento (la carabela).'); continue; }
@@ -4591,6 +4607,7 @@ body.sin-panel .panel { display: none; }
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
+    pintarAnuncios(z, ox, oy, dpr, performance.now());
     pintarCartel(ahora, dpr);
   }
 
@@ -4635,6 +4652,7 @@ body.sin-panel .panel { display: none; }
     g.fillRect(px + 1, py, 1, 1); g.fillRect(px, py + 1, 3, 2); g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2);
   }
 
+  const ultimoOficio = new Map(), cambioVisto = new Map();
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
@@ -4693,6 +4711,12 @@ body.sin-panel .panel { display: none; }
         g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 1.5, 1.5); g.fillStyle = '#c84a3a'; g.fillRect(cx + 2.5, cy, 1.5, 1.5); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1.5, 1.5);
       }
       g.drawImage(img, ix, iy, img.width * EA, img.height * EA);
+      // Quien acaba de cambiar de oficio (por tu orden) lleva un destello dorado un par de segundos.
+      const antes = ultimoOficio.get(a.id);
+      if (antes != null && antes !== a.o) cambioVisto.set(a.id, ahora);
+      ultimoOficio.set(a.id, a.o);
+      const dc = ahora - (cambioVisto.get(a.id) || -1e9);
+      if (dc < 2600) { const sube = Math.round(dc / 400); g.fillStyle = Math.floor(dc / 150) % 2 ? '#fff4b0' : '#ffd23a'; g.fillRect(px + 1, py - 4 - sube, 1, 3); g.fillRect(px, py - 3 - sube, 3, 1); }
       if (oficio === 'guerrero' && !nino) {
         const ej = m.vida.ejercitos && m.vida.ejercitos[a.c], col = color[a.c] || '#ccc';
         if (ej && ej.capitan === a.id) { g.fillStyle = '#2a1e14'; g.fillRect(px - 1, py - 8, 1, 13); g.fillStyle = col; g.fillRect(px, py - 8, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 7, 2, 2); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(px, py - 5, 6, 0.5); }
@@ -4721,6 +4745,27 @@ body.sin-panel .panel { display: none; }
     }
   }
 
+  // Textos que suben sobre un pueblo cuando le das una orden («▲ leñadores 7 → 12»).
+  let anuncios = [];
+  function anunciar(region, texto, color) { anuncios.push({ region, texto, color: color || '#ffe08a', inicio: performance.now() }); if (anuncios.length > 6) anuncios.shift(); }
+  function pintarAnuncios(z, ox, oy, dpr, ahora) {
+    anuncios = anuncios.filter(a => ahora - a.inicio < 4200);
+    if (!anuncios.length) return;
+    const tam = Math.round(14 * dpr);
+    g.font = '600 ' + tam + 'px "Pixelify Sans", "Courier New", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const porRegion = {};
+    for (const a of anuncios) {
+      const k = porRegion[a.region] = (porRegion[a.region] || 0) + 1, t = (ahora - a.inicio) / 4200;
+      const wx = (a.region % m.W) * V.SUB * P + V.SUB * P / 2, wy = Math.floor(a.region / m.W) * V.SUB * P;
+      const sx = ox + wx * z, sy = oy + wy * z - (30 + 44 * t + (k - 1) * 24) * dpr;
+      g.globalAlpha = t < 0.75 ? 1 : 1 - (t - 0.75) / 0.25;
+      const ancho = g.measureText(a.texto).width + 16 * dpr;
+      g.fillStyle = 'rgba(13,19,34,0.88)'; g.fillRect(sx - ancho / 2, sy - tam * 0.8, ancho, tam * 1.6);
+      g.strokeStyle = a.color; g.lineWidth = 1 * dpr; g.strokeRect(sx - ancho / 2 + 0.5, sy - tam * 0.8 + 0.5, ancho - 1, tam * 1.6 - 1);
+      g.fillStyle = a.color; g.fillText(a.texto, sx, sy);
+    }
+    g.globalAlpha = 1;
+  }
   function nombres(z, ox, oy, dpr) {
     if (cam.z < zMin() * 1.15 && S.vivas(m).length > 6) return;
     // Las ciudades, más pequeñas, cuando te acercas.
@@ -5255,7 +5300,7 @@ body.sin-panel .panel { display: none; }
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { P, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/sonido.js
@@ -5883,6 +5928,8 @@ body.sin-panel .panel { display: none; }
   }
   function despuesDeOrden(r) {
     M.vida.ajustar(m); P.refrescar();
+    // Lo que tu orden pone en marcha, sobre tu pueblo en el mapa.
+    for (const an of (m.vida.anuncios || []).splice(0)) { const c = S.civ(m, an.civ); if (c) P.anunciar(c.capital, an.texto, /⚔/.test(an.texto) ? '#ff8a7a' : null); }
     const guerra = r.acciones.find(a => a.tipo === 'guerra' && a.con != null);
     if (guerra && S.civ(m, guerra.con)) { P.efecto('guerra', [m.jugador, guerra.con], 'Guerra contra ' + S.civ(m, guerra.con).nombre); }
     const yo = tuPueblo();

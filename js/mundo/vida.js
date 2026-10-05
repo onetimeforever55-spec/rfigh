@@ -426,8 +426,15 @@
     }
     if (quitar.size) v.aldeanos = v.aldeanos.filter(a => !quitar.has(a));
     // Oficios: los libres cambian de oficio para cubrir lo que falta en su pueblo.
-    for (const c of vivas) {
-      const lista = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.colono == null), p = reparto(c, recursosDe ? recursosDe[c.id] : { arboles: 1, rocas: 1 });
+    for (const c of vivas) reasignar(m, c, recursosDe ? recursosDe[c.id] : null, false);
+    equipar(m);
+  }
+  // Reparte los oficios de un pueblo. Con «ya» (una orden del jugador), cambian en el acto todos los que no
+  // vayan cargados, no solo los que estaban libres: la orden se ve obedecer enseguida.
+  function reasignar(m, c, recursos, ya) {
+    const v = m.vida;
+    {
+      const lista = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.colono == null), p = reparto(c, recursos || { arboles: 1, rocas: 1 });
       const tiene = [0, 0, 0, 0, 0, 0];
       for (const a of lista) tiene[a.o]++;
       for (const a of lista) {
@@ -436,13 +443,12 @@
         const viejo = (a.edad || 0) >= VIEJO;
         if (viejo && a.o === GUERRERO) { tiene[GUERRERO]--; tiene[GRANJERO]++; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; continue; }
         const llamada = c.guerras.length && !a.k && a.o !== GUERRERO && !esNino(a) && !viejo;
-        if (!llamada && a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
+        if (!llamada && !(ya && !a.k) && a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
         const falta = p.map((x, i) => (viejo && i === GUERRERO ? -1e9 : x * lista.length - tiene[i] + (i === a.o ? 1 : 0)));
         const mejor = falta.indexOf(Math.max(...falta));
-        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; }
+        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; a.tx = -1; a.ty = -1; }
       }
     }
-    equipar(m);
   }
 
   // La armería: los guerreros reciben el arma de su era si hay metal (y armadura si sobra); los demás, un garrote.
@@ -1768,5 +1774,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
