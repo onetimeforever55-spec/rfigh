@@ -263,6 +263,24 @@ body.sin-panel .panel { display: none; }
   .anio { white-space: nowrap; }
   .camara { bottom: 236px !important; }
 }
+.edad-req.nec li { margin: 5px 0; line-height: 1.35; }
+.edad-req.nec .nec-obrar { margin: 4px 0 0; display: block; }
+.rec.estacion i { filter: none; }
+/* El modo arquitecto: la paleta de obras flota arriba del mapa. */
+.arquitecto { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: 10px; width: min(760px, calc(100% - 24px)); background: rgba(14, 18, 30, 0.9); border: 1px solid rgba(255, 215, 106, 0.35); border-radius: 10px; padding: 8px 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+.arqui-cabeza { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; }
+.arqui-cabeza .tenue { flex: 1; }
+.arqui-lista { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.arqui-op { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 64px; padding: 5px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: inherit; font: inherit; font-size: 11.5px; cursor: pointer; }
+.arqui-op i { font-style: normal; font-size: 18px; line-height: 1.1; }
+.arqui-op small { font-family: var(--f-dato); font-size: 10px; opacity: 0.75; white-space: nowrap; }
+.arqui-op.activa { border-color: #ffd76a; background: rgba(255, 215, 106, 0.18); }
+.arqui-op.falta { box-shadow: inset 0 0 0 1px rgba(255, 138, 122, 0.7); }
+.arqui-op:disabled { opacity: 0.4; cursor: not-allowed; }
+@media (max-width: 600px) { .arquitecto { top: 6px; padding: 6px; } .arqui-op { min-width: 56px; } .arqui-cabeza { font-size: 12px; flex-wrap: wrap; } }
+.aldeano-oficios { flex-wrap: wrap; gap: 4px; }
+.aldeano-oficios .mando { padding: 3px 8px; font-size: 12px; min-height: 0; }
+.aldeano-oficios .mando.activa { border-color: #ffd76a; color: #ffd76a; }
 </style>
 </head>
 <body>
@@ -309,8 +327,10 @@ body.sin-panel .panel { display: none; }
         </div>
       </div>
       <div class="aviso-flotante" id="aviso-flotante" hidden></div>
+      <div class="arquitecto hud" id="arquitecto" role="toolbar" aria-label="Modo arquitecto" hidden></div>
       <div class="camara" role="group" aria-label="Cámara">
         <button type="button" class="mando cam" id="ir-mio" aria-label="Ir a tu pueblo" title="Ir a tu pueblo" hidden>⌂</button>
+        <button type="button" class="mando cam" id="arquitecto-btn" aria-label="Modo arquitecto" title="Modo arquitecto: toca el mapa para decir dónde va cada edificio o calle" aria-pressed="false" hidden>🏗</button>
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
         <button type="button" class="mando cam" id="zoom-menos" aria-label="Alejar">−</button>
         <button type="button" class="mando cam" id="ver-todo" aria-label="Ver todo el mundo" title="Ver todo el mundo">⤢</button>
@@ -983,7 +1003,7 @@ body.sin-panel .panel { display: none; }
     else if (M.ERAS[c.era + 1] && (!c.jugador || (c.plan && c.plan.autoEdad)) && puedeSubir(m, c).ok) empezarSubida(m, c);
     tesoro(m, c);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
-    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + M.tec(c, 'estab') + (c.oro < 0 ? -6 : 0) - ((c.plan && c.plan.impuesto) || 1) * 16 + 16 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
+    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + M.tec(c, 'estab') + (c.bienestar || 0) + (c.oro < 0 ? -6 : 0) - ((c.plan && c.plan.impuesto) || 1) * 16 + 16 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
@@ -1241,6 +1261,8 @@ body.sin-panel .panel { display: none; }
     if (c.guerras.some(g => g.cansancio > 4)) out.push(['cansancio de la guerra', -10]);
     if (c.plan && c.plan.impuesto > 1) out.push(['impuestos altos', -Math.round((c.plan.impuesto - 1) * 40)]);
     if ((c.oro || 0) < 0) out.push(['arcas vacías', -10]);
+    if (c.necesidades && c.necesidades.some(n => n.obra === 'palacio' && n.falta)) out.push(['el gobierno no tiene palacio', -8]);
+    else if (c.palacios > 0) out.push(['la corte del palacio', 6]);
     return out;
   }
   function lealtades(m) {
@@ -1484,10 +1506,23 @@ body.sin-panel .panel { display: none; }
   const ADULTO = 2, VIEJO = 18;
   const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
   const esNino = a => (a.edad || 0) < ADULTO;
-  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13 };
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18 };
   // Hasta dónde llegan los campos de un molino (parcelas): más allá no se ara.
   const RANGO_MOLINO = 4;
   const fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
+  /*
+   * LA VIDA PAUSADA (partidas nuevas, m.ritmo > 1): días y noches, estaciones y obras que tardan.
+   *  · Un día son 6 turnos; el último es de noche: la gente vuelve a casa, las calles se vacían y se duerme.
+   *  · Una estación son 12 turnos (dos días): primavera (se siembra y brota), verano, otoño (la gran cosecha)
+   *    e invierno (no crece nada, se vive del granero y se quema el doble de leña).
+   *  · Cada obra se levanta sobre un andamio en varias jornadas; varios constructores pueden ayudar.
+   */
+  const pausada = m => (m.ritmo || 1) > 1 && !m.sinVidaPausada;
+  const DIA_TURNOS = 6, ESTACION_TURNOS = 12;
+  const esNoche = m => pausada(m) && m.turno % DIA_TURNOS === DIA_TURNOS - 1;
+  const estacion = m => (pausada(m) ? Math.floor(m.turno / ESTACION_TURNOS) % 4 : -1);
+  const ESTACIONES = ['primavera', 'verano', 'otoño', 'invierno'];
+  // Jornadas de trabajo que necesita cada obra (un constructor hace una por visita).
   const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante', 'erudito'];
   // El erudito (chamán, filósofo, monje, erudito, científico según la época) estudia en el templo o la plaza: trae el saber.
   const [LENADOR, GRANJERO, CONSTRUCTOR, MINERO, GUERRERO, COMERCIANTE, ERUDITO] = [0, 1, 2, 3, 4, 5, 6];
@@ -1791,7 +1826,9 @@ body.sin-panel .panel { display: none; }
     const lleno = c.cap ? c.pob / c.cap : 0.8;
     const p = [
       recursos.arboles ? 0.18 + 0.4 * Math.max(0, 1 - (c.madera || 0) / metaMadera(c)) : 0,
-      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - (c.comida || 0) / Math.max(6, (c.habitantes || 10) * 1.5)),
+      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - (c.comida || 0) / Math.max(6, (c.habitantes || 10) * 1.5)) +
+        // Antes del invierno se hace acopio: en verano y otoño, más gente al campo si el granero no da para tres meses.
+        (c.estacion === 1 || c.estacion === 2 ? 0.3 * Math.max(0, 1 - (c.comida || 0) / Math.max(10, (c.aldeanos || 10) * 3)) : 0),
       faltanCamas(c) ? 0.2 : 0.06,
       recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) + ((c.metal || 0) < 10 ? 0.08 : 0) : 0.04) : 0,
       guerra ? 0.6 : c.era >= 2 ? 0.07 : 0.04,
@@ -1898,9 +1935,11 @@ body.sin-panel .panel { display: none; }
       if (tierra && comida && total < MAX_ALDEANOS && vivos.length < 260) {
         const adultos = vivos.filter(a => (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO && a.colono == null);
         let nacen = 0, casasCiv = null;
+        // Sin agua cerca nacen menos niños; con parque y plaza, algo más (la gente está a gusto).
+        const nec = c.necesidades || [], agua = (nec.some(n => n.obra === 'pozo' && n.falta) ? 0.6 : 1) * (c.animo != null ? 0.8 + c.animo / 250 : 1);
         for (const a of adultos) {
           if (nacen >= Math.max(2, adultos.length * 0.25)) break;
-          if (azar(v) >= (camasLibres > vivos.length * 0.3 ? 0.2 : 0.13) * (tiene(a, 'fértil') ? 1.5 : 1) * (v.nacer || 1)) continue;
+          if (azar(v) >= (camasLibres > vivos.length * 0.3 ? 0.2 : 0.13) * (tiene(a, 'fértil') ? 1.5 : 1) * (v.nacer || 1) * agua) continue;
           if (nacen >= camasLibres) { c.sinCama++; continue; }
           if (!casasCiv) casasCiv = casasDe(m, c);
           const casa = a.casa != null && [OBRA.casa, OBRA.centro, OBRA.ayuntamiento].includes(v.obra[a.casa]) ? a.casa : (casasCiv.length ? casasCiv[Math.floor(azar(v) * casasCiv.length)] : centro(m, a.h));
@@ -2062,8 +2101,133 @@ body.sin-panel .panel { display: none; }
    * un molino junto a los campos (desde la Edad Media) y un puerto si hay costa. Cuestan madera y piedra.
    */
   // Madera, piedra y oro de cada edificio; y el nivel de asentamiento que hace falta (aldea, pueblo, villa).
-  const COSTES = { [OBRA.saber]: [6, 2, 0], [OBRA.torre]: [6, 4, 4], [OBRA.templo]: [8, 6, 10], [OBRA.molino]: [3, 0, 0], [OBRA.puerto]: [10, 0, 8], [OBRA.cuartel]: [10, 6, 12], [OBRA.arqueria]: [10, 2, 8], [OBRA.castillo]: [16, 24, 30] };
-  const NIVEL_OBRA = { [OBRA.saber]: 1, [OBRA.torre]: 1, [OBRA.puerto]: 1, [OBRA.templo]: 2, [OBRA.cuartel]: 2, [OBRA.arqueria]: 2, [OBRA.castillo]: 3, [OBRA.molino]: 0 };
+  const COSTES = { [OBRA.casa]: [2, 0, 0], [OBRA.saber]: [6, 2, 0], [OBRA.torre]: [6, 4, 4], [OBRA.templo]: [8, 6, 10], [OBRA.molino]: [3, 0, 0], [OBRA.puerto]: [10, 0, 8], [OBRA.cuartel]: [10, 6, 12], [OBRA.arqueria]: [10, 2, 8], [OBRA.castillo]: [16, 24, 30], [OBRA.pozo]: [2, 4, 0], [OBRA.granero]: [8, 2, 0], [OBRA.fuente]: [2, 8, 4], [OBRA.parque]: [4, 2, 6], [OBRA.palacio]: [20, 30, 40] };
+  const TRABAJO = { [OBRA.casa]: 2, [OBRA.saber]: 4, [OBRA.torre]: 4, [OBRA.templo]: 6, [OBRA.molino]: 3, [OBRA.puerto]: 4, [OBRA.cuartel]: 5, [OBRA.arqueria]: 4, [OBRA.castillo]: 12, [OBRA.pozo]: 2, [OBRA.granero]: 3, [OBRA.fuente]: 4, [OBRA.parque]: 3, [OBRA.palacio]: 14 };
+  const NIVEL_OBRA = { [OBRA.saber]: 1, [OBRA.torre]: 1, [OBRA.puerto]: 1, [OBRA.templo]: 2, [OBRA.cuartel]: 2, [OBRA.arqueria]: 2, [OBRA.castillo]: 3, [OBRA.molino]: 0, [OBRA.pozo]: 0, [OBRA.granero]: 1, [OBRA.fuente]: 2, [OBRA.parque]: 3, [OBRA.palacio]: 4 };
+  // Lo que cabe en los graneros: un poco en cada casa y mucho más en cada granero de verdad.
+  const topeComida = (c, n) => (15 + n * (c.estacion != null && c.estacion >= 0 ? 2 : 1.2) + (c.graneros || 0) * (40 + n)) * (1 + M.tec(c, 'granero'));
+  /*
+   * LAS NECESIDADES: cada edificio público existe porque hace falta, y se nota tanto tenerlo como no.
+   *  · Pozo: una plaza lejos de río, lago o mar no tiene agua; nacen menos niños y enferma más gente.
+   *  · Granero: cuando el grano ya no cabe, se pudre; con el invierno cerca, guardar es sobrevivir.
+   *  · Plaza pública (con fuente): un pueblo necesita dónde reunirse, hacer mercado y fiestas.
+   *  · Parque: una villa apretada de casas necesita aire y sombra; sin él la gente vive peor.
+   *  · Palacio: una ciudad necesita una sede del gobierno; sin ella las ciudades obedecen menos.
+   *  · Templo (luego iglesia y catedral): la fe de un pueblo de la Edad del Bronce en adelante.
+   */
+  const NECESIDADES = {
+    pozo: { nombre: 'Agua', edificio: 'un pozo', bien: 'hay agua cerca para beber y apagar fuegos', mal: 'no hay río ni lago cerca: el agua se trae de lejos, nacen menos niños y se enferma más', estab: -3, animo: -12 },
+    granero: { nombre: 'Granero', edificio: 'un granero', bien: 'el grano se guarda para el invierno', mal: 'el grano ya no cabe y se pudre; en invierno no habrá de qué vivir', estab: -1, animo: -6 },
+    fuente: { nombre: 'Plaza pública', edificio: 'una plaza pública con fuente', bien: 'hay dónde reunirse, hacer mercado y fiestas', mal: 'un pueblo tan grande no tiene dónde reunirse: la gente se siente sola y desconfía', estab: -3, animo: -8 },
+    parque: { nombre: 'Parque', edificio: 'un parque', bien: 'aire, sombra y juegos para los niños', mal: 'tantas casas juntas sin un árbol: se vive apretado y triste', estab: -2, animo: -8 },
+    palacio: { nombre: 'Sede del gobierno', edificio: 'un palacio', bien: 'el gobierno tiene una sede digna y las ciudades lo respetan', mal: 'una ciudad gobernada desde una choza: las demás ciudades obedecen menos', estab: -3, animo: -4 },
+    templo: { nombre: 'Fe', edificio: 'un templo', bien: 'hay dónde rezar y enterrar a los muertos', mal: 'no hay dónde rezar: la gente teme a los dioses', estab: -2, animo: -6 }
+  };
+  const PUBLICAS = new Set([OBRA.pozo, OBRA.granero, OBRA.fuente, OBRA.parque, OBRA.palacio, OBRA.templo]);
+  const AGUAS = new Set(['rio', 'agua', 'bajo', 'lago']);
+  function hayAgua(m, ter, t) {
+    const v = m.vida, x0 = t % v.tw, y0 = t / v.tw | 0;
+    for (let dy = -7; dy <= 7; dy++) for (let dx = -7; dx <= 7; dx++) { const x = x0 + dx, y = y0 + dy; if (x >= 0 && y >= 0 && x < v.tw && y < v.th && AGUAS.has(ter[y * v.tw + x])) return true; }
+    return false;
+  }
+  // Calcula qué le falta a cada pueblo (en la capital y en sus ciudades) y lo que eso le cuesta.
+  function necesidades(m, c) {
+    const v = m.vida, ter = terrenos(m), out = [];
+    c.estacion = v.estacion;
+    if (!pausada(m) || !c.viva) { c.necesidades = out; c.bienestar = 0; c.animo = 70; return out; }
+    const nivel = c.nivel || 0, tope = topeComida(c, c.aldeanos || 0);
+    const plazas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)].slice(0, 4);
+    for (const r of plazas) {
+      const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)], tiles = zona.flatMap(z => parcelas(m, z));
+      const hay = o => tiles.some(t => v.obra[t] === OBRA[o]), cap = r === c.capital;
+      const pon = (obra, falta, extra) => out.push(Object.assign({ obra, region: r, capital: cap, falta, tiene: hay(obra) }, NECESIDADES[obra], extra || {}));
+      if (!hayAgua(m, ter, centro(m, r))) pon('pozo', !hay('pozo'), { urgente: 1 });
+      if (cap && nivel >= 1) pon('granero', !hay('granero') && ((c.comida || 0) >= tope * 0.8 || (v.estacion === 2 && (c.comida || 0) >= tope * 0.5)), { urgente: v.estacion === 2 });
+      if (cap && c.era >= 1) pon('templo', !hay('templo'));
+      if (nivel >= 2 && (cap || nivel >= 3)) pon('fuente', !hay('fuente'));
+      if (cap && nivel >= 3) pon('parque', !hay('parque'));
+      if (cap && nivel >= 4) pon('palacio', !hay('palacio'));
+    }
+    c.necesidades = out;
+    // Cada carencia cuenta una vez (la de la capital entera; la de otra ciudad, la mitad).
+    const faltan = [], vistas = new Set();
+    for (const n of out.filter(x => x.falta).sort((x, y) => y.capital - x.capital)) { if (vistas.has(n.obra)) continue; vistas.add(n.obra); faltan.push(n.capital ? n : Object.assign({}, n, { estab: n.estab / 2, animo: n.animo / 2 })); }
+    c.bienestar = faltan.reduce((k, n) => k + n.estab, 0) + Math.min(7, out.filter(n => n.tiene).length * 1);
+    // El ánimo de la gente (0-100): comida, casa, guerra, invierno y lo que falta en el pueblo.
+    let animo = 66 + faltan.reduce((k, n) => k + n.animo, 0) + Math.min(14, out.filter(n => n.tiene).length * 2.5);
+    if ((c.comida || 0) < (c.aldeanos || 0) * 0.15) animo -= 20;
+    if (c.sinCama) animo -= 6;
+    if (c.guerras && c.guerras.length) animo -= 8;
+    if (v.estacion === 3 && (c.madera || 0) < 3) animo -= 12;
+    if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 2) animo += 10;
+    if (c.plan && c.plan.impuesto > 1) animo -= Math.round((c.plan.impuesto - 1) * 25);
+    c.animo = Math.max(0, Math.min(100, Math.round(animo)));
+    return out;
+  }
+  // El ánimo de cada aldeano: el del pueblo, más lo suyo (casa propia, hambre, oficio, edad, carácter).
+  function animoDe(m, a) {
+    const c = S().civ(m, a.c);
+    if (!c) return 50;
+    let k = c.animo == null ? 70 : c.animo;
+    const v = m.vida;
+    if (a.casa == null || ![OBRA.casa, OBRA.centro, OBRA.ayuntamiento].includes(v.obra[a.casa])) k -= 10;
+    if (a.o === GUERRERO && c.guerras.length) k -= 6;
+    if (tiene(a, 'perezoso')) k += 4; if (tiene(a, 'valiente') && c.guerras.length) k += 6;
+    k += ((a.id * 37) % 11) - 5;
+    return Math.max(0, Math.min(100, Math.round(k)));
+  }
+  /*
+   * EL ARQUITECTO: el jugador toca el mapa y deja encargado dónde va cada edificio (c.plan.encargos) o cada calle
+   * (v.pendientes). Los constructores los hacen por orden, en cuanto haya con qué pagarlos.
+   */
+  const EDIFICABLES = ['casa', 'pozo', 'granero', 'fuente', 'parque', 'palacio', 'templo', 'saber', 'molino', 'torre', 'puerto', 'cuartel', 'arqueria', 'castillo'];
+  function puedeColocar(m, c, t, clave) {
+    const v = m.vida, ter = terrenos(m);
+    if (!c || !c.viva) return 'no tienes pueblo';
+    if (t < 0 || t >= v.tw * v.th) return 'fuera del mapa';
+    if (m.dueno[region(m, t)] !== c.id) return 'esa tierra no es tuya';
+    if (clave === 'camino') return v.camino[t] ? 'ya hay calle' : v.obra[t] && v.obra[t] !== OBRA.campo ? 'hay un edificio' : andable(ter[t]) || ter[t] === 'rio' ? null : 'ahí no se puede';
+    const o = OBRA[clave];
+    if (!o) return 'no se sabe construir eso';
+    if (v.obra[t] && !(v.obra[t] === OBRA.campo && PUBLICAS.has(o))) return 'ya hay algo construido';
+    if (v.andamios && v.andamios[t]) return 'ya hay una obra';
+    if (v.camino[t]) return 'es una calle';
+    if (o === OBRA.puerto ? !(ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
+    if ((c.nivel || 0) < (NIVEL_OBRA[o] || 0)) return 'hace falta ser ' + ['un campamento', 'una aldea', 'un pueblo', 'una villa', 'una ciudad'][NIVEL_OBRA[o]];
+    if (o === OBRA.castillo && c.era < 2) return 'los castillos llegan con la Edad del Hierro';
+    if (![OBRA.casa, OBRA.molino, OBRA.saber, OBRA.pozo, OBRA.granero, OBRA.fuente, OBRA.parque, OBRA.palacio].includes(o) && c.era < 1) return 'hace falta la Edad del Bronce';
+    return null;
+  }
+  // Deja (o quita, si ya estaba) un encargo del arquitecto en esa parcela.
+  function encargar(m, c, t, clave) {
+    const v = m.vida, p = c.plan = c.plan || {};
+    p.encargos = p.encargos || [];
+    const i = p.encargos.findIndex(e => e.t === t);
+    if (i >= 0) { p.encargos.splice(i, 1); return { ok: true, quitado: true }; }
+    if (clave === 'camino') {
+      const pend = (v.pendientes = v.pendientes || {})[c.id] = v.pendientes[c.id] || [];
+      const j = pend.indexOf(t);
+      if (j >= 0) { pend.splice(j, 1); return { ok: true, quitado: true }; }
+      const no = puedeColocar(m, c, t, clave); if (no) return { ok: false, razon: no };
+      pend.unshift(t); return { ok: true };
+    }
+    const no = puedeColocar(m, c, t, clave);
+    if (no) return { ok: false, razon: no };
+    p.encargos.push({ t, o: OBRA[clave], clave });
+    return { ok: true };
+  }
+  function colocarObra(m, t, o, paso) {
+    const v = m.vida;
+    cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, o, paso);
+    if (o === OBRA.torre) (v.torres = v.torres || {})[t] = 12;
+    if (o === OBRA.castillo) (v.torres = v.torres || {})[t] = 40;
+  }
+  function pagarObra(c, o) {
+    const coste = COSTES[o] || [0, 0, 0];
+    if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0)) return false;
+    c.madera -= coste[0]; c.piedra -= coste[1]; c.oro = (c.oro || 0) - (coste[2] || 0);
+    return true;
+  }
   // La plaza más expuesta (la que tiene otro reino más cerca); si no hay vecinos, la capital.
   function plazaFronteriza(m, c, r, plazas) {
     const todas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
@@ -2079,7 +2243,7 @@ body.sin-panel .panel { display: none; }
     for (const r of plazas.slice(0, 3)) {
       const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)];
       const tiles = zona.flatMap(z => parcelas(m, z));
-      const tiene = o => tiles.some(t => v.obra[t] === o);
+      const tiene = o => tiles.some(t => v.obra[t] === o || (v.andamios && v.andamios[t] && v.andamios[t].o === o));
       const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
       if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
@@ -2093,6 +2257,13 @@ body.sin-panel .panel { display: none; }
       if (c.era >= 1 && r === c.capital && !(c.arquerias > 0) && !tiene(OBRA.arqueria)) pide.push([OBRA.arqueria, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 2 && !(c.castillos > 0) && (plazaFronteriza(m, c, r, plazas) || (c.plan && c.plan.obra === 'castillo' && r === c.capital))) pide.push([OBRA.castillo, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t])) || libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
+      // Lo que la gente necesita de verdad (agua, sitio para el grano, una plaza, un parque, un palacio), según el pueblo.
+      if (pausada(m)) for (const n of (c.necesidades || [])) if (n.falta && n.region === r && !tiene(OBRA[n.obra]) && !pide.some(x => x[0] === OBRA[n.obra])) {
+        const o = OBRA[n.obra];
+        // Si la ciudad ya está llena, la obra pública se levanta sobre la huerta más cercana al centro.
+        const huerta = lista => lista.filter(t => v.obra[t] === OBRA.campo && !v.camino[t]).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+        pide.splice(n.urgente ? 0 : Math.min(pide.length, 1), 0, [o, () => libreEn(o === OBRA.fuente || o === OBRA.palacio ? parcelas(m, r) : tiles, t => CONSTRUIBLE.has(ter[t])) || libreEn(tiles, t => CONSTRUIBLE.has(ter[t])) || huerta(parcelas(m, r)) || huerta(tiles)]);
+      }
       // Lo que pide la edad siguiente (un templo, un cuartel, un castillo) se levanta en la capital, y antes que nada.
       const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra ? OBRA[M.EDADES[c.era + 1].pide.obra] : null;
       const cuentaDe = { [OBRA.templo]: 'templos', [OBRA.cuartel]: 'cuarteles', [OBRA.castillo]: 'castillos' };
@@ -2101,11 +2272,13 @@ body.sin-panel .panel { display: none; }
       // Lo que pidió el jugador va primero; cuando ya está hecho en la plaza, se olvida el encargo.
       const encargo = c.plan && c.plan.obra ? OBRA[c.plan.obra] : null;
       if (encargo && r === c.capital && tiene(encargo)) {
-        const NOMBRES = { [OBRA.saber]: 'La casa del saber', [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino', [OBRA.cuartel]: 'El cuartel', [OBRA.arqueria]: 'La arquería', [OBRA.castillo]: 'El castillo' };
-        S().cronica(m, 'obra', (NOMBRES[encargo] || 'La obra') + ' de ' + c.nombre + (encargo === OBRA.torre || encargo === OBRA.arqueria ? ' está terminada' : ' está terminado'), 'Los constructores de ' + c.nombre + ' terminan lo que su gobierno les encargó y lo celebran con una fiesta en la plaza.', c);
+        const NOMBRES = { [OBRA.pozo]: 'El pozo', [OBRA.granero]: 'El granero', [OBRA.fuente]: 'La plaza pública', [OBRA.parque]: 'El parque', [OBRA.palacio]: 'El palacio', [OBRA.saber]: 'La casa del saber', [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino', [OBRA.cuartel]: 'El cuartel', [OBRA.arqueria]: 'La arquería', [OBRA.castillo]: 'El castillo' };
+        S().cronica(m, 'obra', (NOMBRES[encargo] || 'La obra') + ' de ' + c.nombre + (encargo === OBRA.torre || encargo === OBRA.arqueria || encargo === OBRA.fuente ? ' está terminada' : ' está terminado'), 'Los constructores de ' + c.nombre + ' terminan lo que su gobierno les encargó y lo celebran con una fiesta en la plaza.', c);
         c.plan.obra = null;
       }
-      else if (encargo && r === c.capital) { const solo = pide.filter(x => x[0] === encargo || x[0] === OBRA.molino); pide.length = 0; pide.push(...solo.sort((x, y) => (y[0] === encargo) - (x[0] === encargo))); }
+      else if (encargo && r === c.capital) {
+        if (!pide.some(x => x[0] === encargo)) { const huerta = lista => lista.filter(t => v.obra[t] === OBRA.campo && !v.camino[t]).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0]; pide.push([encargo, () => libreEn(encargo === OBRA.fuente || encargo === OBRA.palacio ? parcelas(m, r) : tiles, t => CONSTRUIBLE.has(ter[t])) || libreEn(tiles, t => CONSTRUIBLE.has(ter[t])) || (PUBLICAS.has(encargo) ? huerta(tiles) : null)]); }
+        const solo = pide.filter(x => x[0] === encargo || x[0] === OBRA.molino); pide.length = 0; pide.push(...solo.sort((x, y) => (y[0] === encargo) - (x[0] === encargo))); }
       for (const [obra, donde] of pide) {
         // Si otro constructor ya va a levantar este edificio, no se empieza otro igual.
         if (c.enCurso && c.enCurso[obra] > m.turno - 3) continue;
@@ -2113,7 +2286,8 @@ body.sin-panel .panel { display: none; }
         if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
         // Ahorrando para la edad, solo se levanta lo que la edad pide (o lo que mandó el jugador).
         const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
-        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
+        const necesaria = (c.necesidades || []).some(n => n.falta && OBRA[n.obra] === obra);
+        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
         const t = donde();
         if (t != null) { if (obra !== OBRA.molino) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
       }
@@ -2491,6 +2665,17 @@ body.sin-panel .panel { display: none; }
     v.bonos = {};
     for (const c of S().vivas(m)) v.bonos[c.id] = { ataque: M.tec(c, 'ataque'), defensa: M.tec(c, 'defensa'), vida: M.tec(c, 'vida') };
     for (const a of v.aldeanos) { const b = v.bonos[a.c]; a.extraVida = b ? b.vida : 0; }
+    // De noche, a casa a dormir (salvo los guerreros en guerra, las guardias y quien va de viaje); de día, a trabajar.
+    const noche = esNoche(m);
+    v.noche = noche; v.estacion = estacion(m);
+    for (const a of v.aldeanos) {
+      if (noche) {
+        const c = S().civ(m, a.c);
+        const fuera = !c || a.colono != null || (a.o === GUERRERO && (c.guerras.length || (a.fijo && a.fijo.guardia != null))) || (a.o === COMERCIANTE && a.e === VIAJAR) || a.casa == null || ![OBRA.casa, OBRA.centro, OBRA.ayuntamiento].includes(v.obra[a.casa]);
+        if (!fuera && !a.dormir) { a.dormir = 1; a.paseo = 0; a.edificioAntes = a.edificio; ir(a, a.casa, v.tw, IR); }
+      } else if (a.dormir) { a.dormir = 0; a.enCasa = 0; a.e = LIBRE; a.t = 0; }
+    }
+    if (pausada(m)) for (const k of Object.keys(v.andamios || {})) { const an = v.andamios[k], t = +k; if (v.obra[t] || m.dueno[region(m, t)] !== an.civ) delete v.andamios[k]; }
     v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.barcos = v.barcos || []; v.torres = v.torres || {};
     // Toda torre o castillo en pie tiene su guarnición (también los de mundos guardados antes).
     for (let t = 0; t < v.obra.length; t++) if ((v.obra[t] === OBRA.torre || v.obra[t] === OBRA.castillo) && v.torres[t] == null) v.torres[t] = v.obra[t] === OBRA.castillo ? 40 : 12; v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
@@ -2541,7 +2726,7 @@ body.sin-panel .panel { display: none; }
       }
     }
     // La leña de cada día: cocinar, calentarse y, desde la Edad del Hierro, las forjas; en la era industrial, el carbón vegetal.
-    for (const c of S().vivas(m)) c.madera = Math.max(0, c.madera - Math.sqrt(Math.max(0, c.pob)) * 0.18 * (1 + c.era * 0.3));
+    for (const c of S().vivas(m)) c.madera = Math.max(0, c.madera - Math.sqrt(Math.max(0, c.pob)) * 0.18 * (1 + c.era * 0.3) * (v.estacion === 3 ? 2 : 1));
   }
   const mapa = (o, f) => { const r = {}; for (const k of Object.keys(o)) r[k] = f(o[k]); return r; };
 
@@ -2646,6 +2831,15 @@ body.sin-panel .panel { display: none; }
   function ir(a, t, tw, estado) { a.tx = t % tw; a.ty = t / tw | 0; a.e = estado; a.q = 0; }
   function pasear(m, a, ter, c) {
     const v = m.vida, base = centro(m, a.h);
+    // En el rato libre se va a la plaza pública o al parque, si hay uno cerca: allí se charla y juegan los niños.
+    const ocio = v.ocio && v.ocio[a.c];
+    if (ocio && ocio.length && azar(v) < 0.55) {
+      const aqui = a.y * v.tw + a.x, t = ocio.reduce((b, x) => (dist(m, aqui, x) < dist(m, aqui, b) ? x : b), ocio[0]);
+      if (dist(m, aqui, t) <= 14) {
+        const u = t + [1, -1, v.tw, -v.tw, 0][Math.floor(azar(v) * 5)];
+        if (u >= 0 && u < ter.length && andable(ter[u])) { ir(a, u, v.tw, IR); a.paseo = 2; return; }
+      }
+    }
     for (let k = 0; k < 6; k++) {
       const t = base + Math.round((azar(v) - 0.5) * 6) + Math.round((azar(v) - 0.5) * 6) * v.tw;
       if (t >= 0 && t < ter.length && andable(ter[t]) && dist(m, t, base) <= 4) { ir(a, t, v.tw, IR); a.paseo = 1; return; }
@@ -2694,6 +2888,7 @@ body.sin-panel .panel { display: none; }
 
   function elegirTarea(m, a, c, rec, ter) {
     const v = m.vida;
+    if (a.dormir) { if (a.x === a.casa % v.tw && a.y === (a.casa / v.tw | 0)) { a.e = ESPERAR; a.t = 99; a.enCasa = 1; } else ir(a, a.casa, v.tw, IR); return; }
     if (esNino(a)) { pasear(m, a, ter, c); return; }
     if (a.colono != null) { ir(a, centro(m, a.colono), v.tw, IR); a.viajeColono = 1; return; }
     a.paseo = 0;
@@ -2751,6 +2946,24 @@ body.sin-panel .panel { display: none; }
     }
     else if (a.o === CONSTRUCTOR) {
       a.obraCamino = 0; a.edificio = 0;
+      // Lo primero, las obras a medias del pueblo: se va a ayudar a la más cercana.
+      if (pausada(m) && v.andamios) {
+        let mejor = -1, md = 40;
+        for (const k of Object.keys(v.andamios)) { const an = v.andamios[k]; if (an.civ !== c.id) continue; const d = dist(m, a.y * v.tw + a.x, +k); if (d < md) { md = d; mejor = +k; } }
+        if (mejor >= 0) { a.edificio = v.andamios[mejor].o; ir(a, mejor, v.tw, IR); rec.reservadas.add(mejor); return; }
+      }
+      // Después, lo que el arquitecto (el jugador) dejó marcado en el mapa, por orden, si hay con qué pagarlo.
+      const encargos = c.plan && c.plan.encargos;
+      if (encargos && encargos.length) {
+        for (let i = 0; i < encargos.length; i++) {
+          const e = encargos[i];
+          if (puedeColocar(m, c, e.t, e.clave)) { encargos.splice(i--, 1); continue; }
+          if (rec.reservadas.has(e.t)) continue;
+          const coste = COSTES[e.o] || [0, 0, 0];
+          if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0)) { const pr = c.plan.prioridad; if (pr) { if (c.madera < coste[0]) pr.madera = Math.max(pr.madera || 1, 1.5); if (c.piedra < coste[1]) pr.piedra = Math.max(pr.piedra || 1, 1.5); } continue; }
+          a.edificio = e.o; ir(a, e.t, v.tw, IR); rec.reservadas.add(e.t); return;
+        }
+      }
       // Los caminos pendientes se empiedran cuando las casas no corren prisa (o una de cada dos veces).
       const pend = (v.pendientes && v.pendientes[c.id]) || [];
       if (pend.length && (!faltanCamas(c) || azar(v) < 0.4)) {
@@ -2916,6 +3129,7 @@ body.sin-panel .panel { display: none; }
       a.k = 0; a.e = ESPERAR; a.t = 1;
       return;
     }
+    if (a.dormir) { a.e = ESPERAR; a.t = 99; a.enCasa = 1; return; }
     if (a.viajeColono) { a.viajeColono = 0; if (a.colono != null) fundar(m, a, c); a.e = ESPERAR; a.t = 2; return; }
     if (a.o === COMERCIANTE && a.viaje) { a.viaje = 0; a.e = VIAJAR; return; }
     if (a.paseo) { a.e = ESPERAR; a.t = a.paseo === 2 ? 3 : 1 + Math.floor(azar(v) * 2); a.paseo = 0; return; }
@@ -2925,14 +3139,19 @@ body.sin-panel .panel { display: none; }
     else if (a.o === GRANJERO && (a.pastor != null || a.caza != null)) { a.e = TRABAJAR; a.t = 3; }
     else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else { a.e = LIBRE; a.siega = 0; } }
     else if (a.o === CONSTRUCTOR && a.edificio) {
-      if (!v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, a.edificio, paso); if (a.edificio === OBRA.torre) (v.torres = v.torres || {})[t] = 12; if (a.edificio === OBRA.castillo) (v.torres = v.torres || {})[t] = 40; }
-      a.edificio = 0;
+      const an = v.andamios && v.andamios[t];
+      if (an && an.civ === c.id) { a.e = TRABAJAR; a.t = 3; }
+      else if (!v.obra[t] && !pausada(m)) { colocarObra(m, t, a.edificio, paso); if (a.edificio === OBRA.casa) c.casas++; if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t); a.edificio = 0; }
+      else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && PUBLICAS.has(a.edificio))) && pagarObra(c, a.edificio)) {
+        if (v.obra[t] === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
+        // Se paga al empezar y se monta el andamio; la obra avanza jornada a jornada.
+        cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso);
+        (v.andamios = v.andamios || {})[t] = { o: a.edificio, falta: TRABAJO[a.edificio] || 4, total: TRABAJO[a.edificio] || 4, civ: c.id };
+        if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t);
+        a.e = TRABAJAR; a.t = 3;
+      } else a.edificio = 0;
     }
     else if (a.o === CONSTRUCTOR && a.obraCamino) { if (!v.camino[t] && !v.obra[t]) { a.e = TRABAJAR; a.t = 1; } else { a.e = LIBRE; a.obraCamino = 0; } }
-    else if (a.o === CONSTRUCTOR && a.edificio) {
-      const coste = COSTES[a.edificio];
-      if (!v.obra[t] && c.madera >= coste[0] && c.piedra >= coste[1] && (c.oro || 0) >= (coste[2] || 0)) { c.madera -= coste[0]; c.piedra -= coste[1]; c.oro -= coste[2] || 0; a.e = TRABAJAR; a.t = Math.max(2, Math.round(5 * (1 - M.tec(c, 'obra')))); } else { a.e = LIBRE; a.edificio = 0; }
-    }
     else if (a.o === CONSTRUCTOR) {
       const piedra = c.era >= 2 && c.piedra >= 1;
       if (!v.obra[t] && v.arbol[t] < 2 && c.madera >= (piedra ? 2 : 3)) { c.madera -= piedra ? 2 : 3; if (piedra) c.piedra -= 1; a.e = TRABAJAR; a.t = Math.max(2, Math.round(4 * (1 - M.tec(c, 'obra')))); } else a.e = LIBRE;
@@ -2983,7 +3202,7 @@ body.sin-panel .panel { display: none; }
     if (a.o === GRANJERO && a.siega && v.obra[t] === OBRA.campo) {
       // El trigo segado se lleva a hombros al molino más cercano (dentro de su alcance); solo allí se vuelve harina.
       cambiar(m, 'cultivo', t, 0, paso);
-      a.k = 2 + M.tec(c, 'cosecha'); a.kt = 3; a.siega = 0;
+      a.k = 2 + M.tec(c, 'cosecha') + (v.estacion === 2 ? 1 : 0); a.kt = 3; a.siega = 0;
       ir(a, molinoMasCercano(m, t) ?? centro(m, a.h), v.tw, VOLVER);
       return;
     }
@@ -2992,6 +3211,19 @@ body.sin-panel .panel { display: none; }
       // Un tramo de camino: se quita el árbol o la roca; desde la Antigüedad se empiedra (cuesta un poco de piedra).
       if (!v.camino[t] && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 1, paso); if (c.era >= 3 && c.piedra >= 0.25) c.piedra -= 0.25; }
       a.obraCamino = 0;
+    }
+    else if (a.o === CONSTRUCTOR && a.edificio && v.andamios && v.andamios[t]) {
+      // Una jornada más en el andamio; cuando se acaba, queda el edificio.
+      const an = v.andamios[t];
+      an.falta -= 1 + M.tec(c, 'obra');
+      if (an.falta <= 0) { colocarObra(m, t, an.o, paso); delete v.andamios[t]; if (an.o === OBRA.casa) { c.casas++; c.hecho = c.hecho || {}; c.hecho.casas = (c.hecho.casas || 0) + 1; } a.edificio = 0; }
+      else { a.e = TRABAJAR; a.t = 3; return; }
+    }
+    else if (a.o === CONSTRUCTOR && !v.obra[t] && pausada(m)) {
+      // La casa también lleva su andamio: la primera jornada levanta los muros; la segunda, el tejado.
+      cambiar(m, 'arbol', t, 0, paso);
+      (v.andamios = v.andamios || {})[t] = { o: OBRA.casa, falta: TRABAJO[OBRA.casa] - 1, total: TRABAJO[OBRA.casa], civ: c.id };
+      a.edificio = OBRA.casa; a.e = TRABAJAR; a.t = 3; return;
     }
     else if (a.o === CONSTRUCTOR && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.casa, paso); c.casas++; c.hecho = c.hecho || {}; c.hecho.casas = (c.hecho.casas || 0) + 1; }
     else if (a.o === COMERCIANTE && a.comercio) {
@@ -3140,23 +3372,24 @@ body.sin-panel .panel { display: none; }
     const muertos = new Set();
     for (const c of S().vivas(m)) {
       const lista = porCiv[c.id] || [];
-      const racion = lista.reduce((k, a) => k + (esNino(a) ? 0.15 : 0.3), 0);
+      // En invierno se raciona: se come algo menos para que el granero dure hasta la primavera.
+      const racion = lista.reduce((k, a) => k + (esNino(a) ? 0.15 : 0.3), 0) * (v.estacion === 3 ? 0.85 : 1);
       // La recolección: los adultos que no van a la guerra juntan algo de comida aunque no haya campos.
       const seca = c.efectos.some(e => e.sequia), fertil = Math.min(1.5, S().fertil(m, c.capital) / 2) * (seca ? 0.3 : 1);
-      let recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * fertil;
+      let recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * fertil * (v.estacion === 3 ? 0.45 : v.estacion === 2 ? 1.3 : 1);
 
       c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
       if (c.comida < 0) {
         c.comida = 0;
         for (const a of lista) a.hambre = (a.hambre || 0) + 1;
-        const caen = lista.filter(a => a.hambre >= 2).sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, Math.ceil(lista.length * 0.3));
+        const pausa = pausada(m), caen = lista.filter(a => a.hambre >= (pausa ? 3 : 2)).sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, Math.ceil(lista.length * (pausa ? 0.12 : 0.3)));
         if (caen.length && lista.length - caen.length >= 1) {
           for (const a of caen) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'hambre', TICKS - 0.5, a]); }
           if (m.turno - c.ultimaHambre > 6) S().cronica(m, 'hambruna', 'Hambre en ' + c.nombre, 'Los graneros de ' + c.nombre + ' están vacíos. Mueren ' + caen.length + ' aldeanos, primero los más viejos; los demás comen raíces y miran al cielo.', c);
           c.ultimaHambre = m.turno;
         }
       } else for (const a of lista) a.hambre = Math.max(0, (a.hambre || 0) - 1);
-      c.comida = Math.min(c.comida, (15 + lista.length * 1.2) * (1 + M.tec(c, 'granero')));
+      c.comida = Math.min(c.comida, topeComida(c, lista.length));
     }
     if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
     actualizarPoblacion(m);
@@ -3300,7 +3533,7 @@ body.sin-panel .panel { display: none; }
       const ob = v.obra[t];
       // El trigo crece: tierra arada, brotes, verde y dorado (listo para segar).
       if (ob === OBRA.campo && v.cultivo[t] > 0 && secos.has(dueno) && azar(v) < 0.45) cambiar(m, 'cultivo', t, 0, 1 + Math.floor(azar(v) * TICKS)); // el trigo se agosta
-      else if (ob === OBRA.campo && v.cultivo[t] < 3 && dueno >= 0 && !secos.has(dueno) && azar(v) < 0.55) cambiar(m, 'cultivo', t, v.cultivo[t] + 1, 1 + Math.floor(azar(v) * TICKS));
+      else if (ob === OBRA.campo && v.cultivo[t] < 3 && dueno >= 0 && !secos.has(dueno) && azar(v) < (v.estacion === 3 ? 0.1 : v.estacion === 0 ? 0.7 : 0.55)) cambiar(m, 'cultivo', t, v.cultivo[t] + 1, 1 + Math.floor(azar(v) * TICKS));
       // Lo abandonado se arruina, y las ruinas acaban bajo la hierba.
       if (dueno < 0) {
         if ((ob === OBRA.casa || ob >= OBRA.torre) && azar(v) < 0.2) cambiar(m, 'obra', t, OBRA.ruina, F);
@@ -3456,7 +3689,7 @@ body.sin-panel .panel { display: none; }
 
   // Lo que cada pueblo tiene levantado en su tierra: lo usa la capacidad (sim.js) y la ficha.
   function contar(m) {
-    const v = m.vida, casas = {}, campos = {}, arboles = {}, edif = {}, camas = {}, masCamas = {};
+    const v = m.vida, casas = {}, campos = {}, arboles = {}, edif = {}, camas = {}, masCamas = {}, ocio = {};
     for (const c of m.civs) masCamas[c.id] = M.tec(c, 'casa');
     for (let t = 0; t < v.tw * v.th; t++) {
       const d = m.dueno[region(m, t)];
@@ -3464,9 +3697,10 @@ body.sin-panel .panel { display: none; }
       const o = v.obra[t];
       if (o === OBRA.casa || o === OBRA.centro || o === OBRA.ayuntamiento) { casas[d] = (casas[d] || 0) + (o === OBRA.casa ? 1 : 0.5); camas[d] = (camas[d] || 0) + (o === OBRA.casa ? 3 + (masCamas[d] || 0) : o === OBRA.centro ? 1.5 : 3); }
       else if (o === OBRA.campo) campos[d] = (campos[d] || 0) + 1;
-      else if (o >= OBRA.torre) { const e = (edif[d] = edif[d] || {}); e[o] = (e[o] || 0) + 1; }
+      else if (o >= OBRA.torre) { const e = (edif[d] = edif[d] || {}); e[o] = (e[o] || 0) + 1; if (o === OBRA.fuente || o === OBRA.parque) (ocio[d] = ocio[d] || []).push(t); }
       if (v.arbol[t] >= 2) arboles[d] = (arboles[d] || 0) + 1;
     }
+    v.ocio = ocio;
     // Las regiones pobladas (con alguna obra o camino): el reino solo se extiende junto a ellas.
     v.poblada = new Array(m.W * m.H).fill(0);
     for (let t = 0; t < v.tw * v.th; t++) if ((v.obra[t] && v.obra[t] !== OBRA.ruina) || v.camino[t]) v.poblada[region(m, t)] = 1;
@@ -3489,6 +3723,8 @@ body.sin-panel .panel { display: none; }
         }
         c.nivel = Math.max(n, Math.min(c.nivelMax, n + 1));
       }
+      c.pozos = e[OBRA.pozo] || 0; c.graneros = e[OBRA.granero] || 0; c.fuentes = e[OBRA.fuente] || 0; c.parques = e[OBRA.parque] || 0; c.palacios = e[OBRA.palacio] || 0;
+      necesidades(m, c);
     }
   }
 
@@ -3571,7 +3807,7 @@ body.sin-panel .panel { display: none; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -4598,7 +4834,9 @@ body.sin-panel .panel { display: none; }
     const porMar = /\b(cruz\w* el mar|ultramar|colonia|barcos?|flota|navega\w*)\b/.test(n) && !/\bpuerto\b/.test(n);
     if (porMar) acciones.push({ tipo: 'colonia' });
     // Edificios concretos: "construid un templo", "levantad murallas", "haced un puerto".
-    const obra = /\b(casa del saber|academias?|monasterios?|abadias?|universidad\w*|laboratorios?|observatorios?|escuelas?|bibliotecas?|cabana del chaman|choza del chaman)\b/.test(n) ? 'saber' : /\b(cuartel\w*|barracon\w*|soldados nuevos)\b/.test(n) ? 'cuartel' : /\b(arqueria\w*|campo de tiro|arqueros nuevos)\b/.test(n) ? 'arqueria' : /\b(castillos?|fortalezas?|fortin\w*|bunker\w*)\b/.test(n) ? 'castillo' : /\b(templos?|iglesias?|santuarios?|altar)\b/.test(n) ? 'templo' : /\b(torres?|murallas?|muros?|defensas|fortific\w*|fuertes?)\b/.test(n) ? 'torre' : /\b(puertos?|muelles?)\b/.test(n) ? 'puerto' : /\bmolinos?\b/.test(n) ? 'molino' : null;
+    const levantar = /\b(constru\w*|levant\w*|haz|haced|hagan|hagamos|haga|pon\w*|edific\w*|quiero|queremos|necesit\w*|abr\w*|hace falta|falta)\b/.test(n);
+    const publica = !levantar ? null : /\b(plaza publica|plaza mayor|plazas publicas|fuentes?|plaza con fuente)\b/.test(n) ? 'fuente' : /\b(pozos?|aljibes?|deposito de agua|agua potable)\b/.test(n) ? 'pozo' : /\b(graneros?|silos?|almacen\w*|despensa)\b/.test(n) ? 'granero' : /\b(parques?|jardin\w*|zonas? verdes?)\b/.test(n) ? 'parque' : /\b(palacios?|corte|sede del gobierno|casa del rey)\b/.test(n) ? 'palacio' : null;
+    const obra = publica || (/\b(casa del saber|academias?|monasterios?|abadias?|universidad\w*|laboratorios?|observatorios?|escuelas?|bibliotecas?|cabana del chaman|choza del chaman)\b/.test(n) ? 'saber' : /\b(cuartel\w*|barracon\w*|soldados nuevos)\b/.test(n) ? 'cuartel' : /\b(arqueria\w*|campo de tiro|arqueros nuevos)\b/.test(n) ? 'arqueria' : /\b(castillos?|fortalezas?|fortin\w*|bunker\w*)\b/.test(n) ? 'castillo' : /\b(templos?|iglesias?|santuarios?|altar)\b/.test(n) ? 'templo' : /\b(torres?|murallas?|muros?|defensas|fortific\w*|fuertes?)\b/.test(n) ? 'torre' : /\b(puertos?|muelles?)\b/.test(n) ? 'puerto' : /\bmolinos?\b/.test(n) ? 'molino' : null);
     if (obra && !guerra) {
       acciones.push({ tipo: 'construir', obra });
       const pr = acciones.find(x => x.tipo === 'prioridad');
@@ -4738,17 +4976,20 @@ body.sin-panel .panel { display: none; }
         S().cronica(m, 'revolucion', c.nombre + ' cambia de gobierno', T(M.conArticulo(antes)) + ' de ' + c.nombre + ' da paso a ' + M.unoDe(a.a) + '. Unos celebran en las plazas; otros esconden la plata.', c, null, { importante: true });
         textos.push('Proclamada ' + M.unoDe(a.a) + '. La estabilidad cae un poco mientras la gente se acostumbra.');
       } else if (a.tipo === 'construir') {
-        const NOMBRE = { saber: (/^(monasterio|laboratorio)$/.test(M.CASA_SABER(c.era)) ? 'un ' : 'una ') + M.CASA_SABER(c.era), templo: 'un templo', torre: 'una torre de defensa', puerto: 'un puerto', molino: 'un molino', cuartel: 'un cuartel de soldados', arqueria: c.era >= 5 ? 'un campo de tiro' : 'una arquería', castillo: c.era >= 7 ? 'un fortín' : c.era >= 5 ? 'una fortaleza' : 'un castillo' };
-        const COSTE = { saber: [6, 2, 0], templo: [8, 6, 10], torre: [6, 4, 4], puerto: [10, 0, 8], molino: [3, 0, 0], cuartel: [10, 6, 12], arqueria: [10, 2, 8], castillo: [16, 24, 30] }[a.obra];
-        const NIVEL_PIDE = { saber: 1, torre: 1, puerto: 1, templo: 2, cuartel: 2, arqueria: 2, castillo: 3, molino: 0 }[a.obra];
-        if ((c.nivel || 0) < NIVEL_PIDE) { textos.push('Para levantar ' + NOMBRE[a.obra] + ' tu asentamiento tiene que ser al menos ' + (NIVEL_PIDE === 1 ? 'una aldea' : NIVEL_PIDE === 2 ? 'un pueblo' : 'una villa') + ' (' + M.NIVELES[NIVEL_PIDE].desde + ' vecinos; ahora ' + (c.aldeanos || 0) + '). Más casas y comida: más gente.'); continue; }
+        const NOMBRE = { pozo: 'un pozo', granero: 'un granero', fuente: 'una plaza pública con fuente', parque: 'un parque', palacio: 'un palacio', saber: (/^(monasterio|laboratorio)$/.test(M.CASA_SABER(c.era)) ? 'un ' : 'una ') + M.CASA_SABER(c.era), templo: 'un templo', torre: 'una torre de defensa', puerto: 'un puerto', molino: 'un molino', cuartel: 'un cuartel de soldados', arqueria: c.era >= 5 ? 'un campo de tiro' : 'una arquería', castillo: c.era >= 7 ? 'un fortín' : c.era >= 5 ? 'una fortaleza' : 'un castillo' };
+        const COSTE = M.vida ? M.vida.COSTES[M.vida.OBRA[a.obra]] : [0, 0, 0];
+        const NIVEL_PIDE = M.vida ? M.vida.NIVEL_OBRA[M.vida.OBRA[a.obra]] || 0 : 0;
+        if ((c.nivel || 0) < NIVEL_PIDE) { textos.push('Para levantar ' + NOMBRE[a.obra] + ' tu asentamiento tiene que ser al menos ' + (NIVEL_PIDE === 1 ? 'una aldea' : NIVEL_PIDE === 2 ? 'un pueblo' : NIVEL_PIDE === 3 ? 'una villa' : 'una ciudad') + ' (' + M.NIVELES[NIVEL_PIDE].desde + ' vecinos; ahora ' + (c.aldeanos || 0) + '). Más casas y comida: más gente.'); continue; }
         if (a.obra === 'castillo' && c.era < 2) { textos.push('Los castillos de piedra llegan con la Edad del Hierro (fase medieval).'); continue; }
-        if (a.obra !== 'molino' && a.obra !== 'saber' && c.era < 1) { textos.push('Aún no sabéis levantar ' + NOMBRE[a.obra] + ': hace falta llegar a la Edad del Bronce.'); continue; }
+        if (!['molino', 'saber', 'pozo', 'granero', 'fuente', 'parque', 'palacio'].includes(a.obra) && c.era < 1) { textos.push('Aún no sabéis levantar ' + NOMBRE[a.obra] + ': hace falta llegar a la Edad del Bronce.'); continue; }
         if (M.vida && m.vida) {
           const zona = [c.capital, ...S().vecinos(c.capital).filter(r => m.dueno[r] === c.id)].flatMap(r => M.vida.parcelas(m, r));
-          if (zona.some(t => m.vida.obra[t] === M.vida.OBRA[a.obra])) { textos.push('Ya tenéis ' + NOMBRE[a.obra] + ' en la plaza de ' + c.nombre + '.'); continue; }
+          if (zona.some(t => m.vida.obra[t] === M.vida.OBRA[a.obra])) { textos.push('Ya tenéis ' + NOMBRE[a.obra] + ' en ' + c.nombre + '.'); continue; }
         }
         p.obra = a.obra;
+        // El porqué: si de verdad hace falta, el pueblo lo agradece; si no, se dice para qué sirve.
+        const nec = M.vida && M.vida.NECESIDADES[a.obra], falt = nec && (c.necesidades || []).find(x => x.obra === a.obra && x.falta);
+        if (nec) textos.push(falt ? 'Hace falta: ' + nec.mal + '.' : 'Sirve para que ' + nec.bien + '.');
         (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: '⚒ ' + NOMBRE[a.obra].replace(/^una? /, '') + ' en marcha' });
         const falta = [];
         if ((c.madera || 0) < COSTE[0]) falta.push((COSTE[0] - Math.floor(c.madera || 0)) + ' de madera');
@@ -4825,6 +5066,10 @@ body.sin-panel .panel { display: none; }
     const rebelde = (m.ciudades || []).find(x => x.civ === c.id && x.lealtad != null && x.lealtad < 0);
     if (rebelde) return { texto: rebelde.nombre + ' no es leal (' + Math.round(rebelde.lealtad) + '): pronto se rebelará. Una corte más estable o un ejército cerca la retienen.', orden: 'Más soldados' };
     if (c.sinCama > 0 && (pr.casas || 1) < 2) return { texto: 'Hay parejas que quieren tener hijos y no tienen cama: faltan casas.', orden: 'Más casas' };
+    // Lo que le falta al pueblo (agua, granero, plaza, parque, palacio): con su porqué y la orden para hacerlo.
+    const ORDEN = { pozo: 'Construid un pozo', granero: 'Construid un granero', fuente: 'Construid una plaza pública', parque: 'Haced un parque', palacio: 'Construid un palacio', templo: 'Construid un templo' };
+    const falta = !(c.plan && c.plan.obra) && (c.necesidades || []).find(x => x.falta && x.capital !== false && ORDEN[x.obra]);
+    if (falta) return { texto: falta.nombre + ': ' + falta.mal + '. Hace falta ' + falta.edificio + '.', orden: ORDEN[falta.obra] };
     if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : 'Construid un templo' };
     if (M.ERAS[c.era + 1] && !c.subiendo && S().puedeSubir(m, c).ok) return { texto: '¡Podéis pasar a ' + M.ERAS[c.era + 1].con + '! Tenéis el saber, los edificios y con qué pagarlo.', orden: 'Avanzad de edad' };
     if (M.ERAS[c.era + 1] && !c.subiendo && S().ahorrando(Object.assign({}, m), Object.assign({}, c, { jugador: false })) && !S().puedeSubir(m, c).ok && S().puedeSubir(m, c).falta.every(x => /de (comida|madera|piedra|oro|metal)$/.test(x))) return { texto: 'Para ' + M.ERAS[c.era + 1].con + ' solo os falta pagar: ' + S().puedeSubir(m, c).falta.join(', ') + '.', orden: 'Ahorrad para la edad' };
@@ -4852,7 +5097,7 @@ body.sin-panel .panel { display: none; }
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"saber"|"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"} (saber = la casa de los eruditos: cabaña del chamán, academia, monasterio, universidad o laboratorio); {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante, 6 erudito (chamán, filósofo, monje, científico); -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal","n":numero|null}; {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"edad"} (pasar a la edad siguiente, como en Age of Empires: cuesta recursos y pide edificios); {"tipo":"consulta_edad"} (qué falta para la próxima edad); {"tipo":"edad_auto","si":bool}; {"tipo":"ahorrar_edad","si":bool}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"saber"|"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"|"pozo"|"granero"|"fuente"|"parque"|"palacio"} (fuente = plaza pública; templo = iglesia o catedral según la era; saber = la casa de los eruditos: cabaña del chamán, academia, monasterio, universidad o laboratorio); {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante, 6 erudito (chamán, filósofo, monje, científico); -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal","n":numero|null}; {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"edad"} (pasar a la edad siguiente, como en Age of Empires: cuesta recursos y pide edificios); {"tipo":"consulta_edad"} (qué falta para la próxima edad); {"tipo":"edad_auto","si":bool}; {"tipo":"ahorrar_edad","si":bool}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -4904,7 +5149,7 @@ body.sin-panel .panel { display: none; }
       else if (a.tipo === 'regimen') { const r = REGIMENES.find(x => x[1] === a.a); if (r) out.push({ tipo: 'regimen', a: r[1], era: r[2] }); }
       else if (['guerra', 'paz', 'comercio', 'alianza', 'romper'].includes(a.tipo)) out.push({ tipo: a.tipo, con: Number(a.con) });
       else if (a.tipo === 'colonos') out.push({ tipo: 'colonos', rumbo: ['norte', 'sur', 'este', 'oeste', 'costa'].includes(a.rumbo) ? a.rumbo : null });
-      else if (a.tipo === 'construir') { if (['saber', 'templo', 'torre', 'puerto', 'molino', 'cuartel', 'arqueria', 'castillo'].includes(a.obra)) out.push({ tipo: 'construir', obra: a.obra }); }
+      else if (a.tipo === 'construir') { if (['saber', 'templo', 'torre', 'puerto', 'molino', 'cuartel', 'arqueria', 'castillo', 'pozo', 'granero', 'fuente', 'parque', 'palacio'].includes(a.obra)) out.push({ tipo: 'construir', obra: a.obra }); }
       else out.push({ tipo: a.tipo });
     }
     return out;
@@ -5332,6 +5577,12 @@ body.sin-panel .panel { display: none; }
       if (nombre === 'arqueria') return arqueria(H, fase, col);
       if (nombre === 'castillo') return castillo(H, fase, col);
       if (nombre === 'saber') return casaSaber(H, fase, col);
+      if (nombre === 'pozo') return pozo(H, fase, col);
+      if (nombre === 'granero') return granero(H, fase, col);
+      if (nombre === 'fuente') return fuente(H, fase, col);
+      if (nombre === 'parque') return parque(H, fase, col);
+      if (nombre === 'palacio') return palacio(H, fase, col);
+      if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
       if (nombre === 'molino' && fase !== 1) return molinoDeFase(H, fase, col);
       if (nombre === 'puerto' && fase !== 1) return puertoDeFase(H, fase, col);
@@ -5419,6 +5670,105 @@ body.sin-panel .panel { display: none; }
     H.r(2, 9, 2, 2, LUZ); H.r(6, 9, 2, 2, LUZ); H.r(4, 12, 2, 3, '#3a2a2a'); H.r(2, 4, 2, 3, '#6a3a2a');
     H.r(10, 9, 5, 6, '#c8ccd4'); for (let y = 4; y < 9; y++) { const half = Math.round(Math.sqrt(Math.max(0, 6.25 - (y - 9) * (y - 9) * 0.25))); for (let x = 12 - half; x <= 12 + half; x++) H.p(x, y, '#e4e8ee'); }
     H.r(12, 2, 1, 4, '#3a3a44'); H.p(13, 2, '#3a3a44'); H.p(12, 6, col);
+    H.contorno(); return H.lienzo();
+  }
+  // ---------- Los edificios públicos (cada uno con su porqué en vida.js), de cada fase ----------
+  function pozo(H, fase, col) {
+    if (fase === 3) {
+      // Depósito de agua sobre patas de hierro, con su escalera y un grifo abajo.
+      for (const x of [3, 12]) H.r(x, 7, 1, 8, '#6a6a72'); H.r(5, 9, 1, 6, '#5a5a62'); H.r(10, 9, 1, 6, '#5a5a62');
+      for (let y = 8; y < 15; y += 2) H.r(3, y, 10, 1, '#7a7a82');
+      H.r(2, 1, 12, 6, '#b8c4cc'); H.r(2, 1, 12, 1, '#dce4ea'); H.r(2, 6, 12, 1, '#8a949c'); H.r(5, 3, 6, 2, col);
+      H.r(7, 13, 2, 2, '#3a7ac8'); H.contorno(); return H.lienzo();
+    }
+    // Brocal de piedra, cubo y (desde la Edad Media) un tejadillo con su torno.
+    H.r(3, 10, 10, 5, PIEDRA); H.r(3, 10, 10, 1, claro(PIEDRA, 0.2)); for (let x = 4; x < 13; x += 3) H.p(x, 12, oscuro(PIEDRA, 0.15)); H.r(4, 10, 8, 1, '#2a5a9a'); H.p(6, 10, '#6aa0e0');
+    if (fase === 0) { H.r(2, 6, 1, 5, MADERA); H.r(13, 6, 1, 5, MADERA); H.r(2, 6, 12, 1, MADERA); H.r(8, 7, 1, 3, '#c8b494'); H.r(7, 9, 3, 2, '#8a5a32'); }
+    else { H.r(3, 4, 1, 7, MADERA); H.r(12, 4, 1, 7, MADERA); tejado(H, 1, 14, 1, 4, fase === 2 ? oscuro(col, 0.1) : '#a0603a'); H.r(4, 6, 8, 1, '#5a3a20'); H.r(8, 7, 1, 2, '#c8b494'); H.r(7, 8, 3, 2, '#6a6a72'); H.p(13, 6, '#5a3a20'); }
+    H.p(14, 14, '#4a8a3a'); H.p(1, 14, '#5a9a4a');
+    H.contorno(); return H.lienzo();
+  }
+  function granero(H, fase, col) {
+    if (fase === 0) {
+      // Silo de barro sobre pilotes, con su techo de paja y una escalera.
+      for (const x of [4, 7, 10]) H.r(x, 12, 1, 3, MADERA);
+      H.r(3, 6, 9, 6, '#b8905a'); H.r(3, 6, 1, 6, '#d0a870'); H.r(6, 8, 2, 2, '#4a3020');
+      const paja = mezcla(col, '#d8b060', 0.8); tejado(H, 2, 12, 2, 6, paja);
+      for (let y = 8; y < 15; y += 2) H.p(13, y, MADERA); H.r(12, 7, 1, 8, '#6a4a2a'); H.r(14, 7, 1, 8, '#6a4a2a');
+      H.contorno(); return H.lienzo();
+    }
+    if (fase === 3) {
+      // Silos de metal y una nave.
+      for (const x of [2, 7]) { H.r(x, 3, 5, 12, '#c8ccd4'); H.r(x, 3, 1, 12, '#e4e8ee'); H.r(x + 4, 3, 1, 12, '#9aa0aa'); for (let y = 5; y < 15; y += 3) H.r(x, y, 5, 1, '#aab0ba'); H.r(x, 2, 5, 1, '#9aa0aa'); H.p(x + 2, 1, '#9aa0aa'); }
+      H.r(12, 8, 3, 7, col); H.r(12, 8, 3, 1, claro(col, 0.25)); H.contorno(); return H.lienzo();
+    }
+    // Granero de tablones (medieval) o de piedra (pólvora), con portón de cruz y gavillas.
+    const pared = fase === 2 ? PIEDRA : '#a0603a';
+    H.r(2, 7, 12, 8, pared); H.r(2, 7, 1, 8, claro(pared, 0.15)); H.r(13, 7, 1, 8, oscuro(pared, 0.2));
+    if (fase !== 2) for (let x = 4; x < 13; x += 3) H.r(x, 8, 1, 7, oscuro(pared, 0.15));
+    tejado(H, 1, 14, 2, 7, fase === 2 ? oscuro(col, 0.1) : '#6a4a32');
+    H.r(6, 10, 4, 5, '#5a3a20'); for (let k = 0; k < 4; k++) { H.p(6 + k, 10 + k, '#e8d8b4'); H.p(9 - k, 10 + k, '#e8d8b4'); }
+    H.r(7, 4, 2, 2, '#2a2a30'); H.p(1, 13, '#e0c060'); H.p(1, 14, '#c8a040'); H.p(14, 14, '#e0c060');
+    H.contorno(); return H.lienzo();
+  }
+  function fuente(H, fase, col) {
+    // Plaza pública: losas, bancos, faroles y una fuente en el centro (pilón, luego taza y surtidor, luego estatua).
+    const losa = fase === 0 ? '#b8a888' : fase === 3 ? '#c8c8c4' : '#c0bcb2', junta = oscuro(losa, 0.12);
+    H.r(0, 0, 16, 16, losa); for (let y = 0; y < 16; y += 4) H.r(0, y, 16, 1, junta); for (let y = 0; y < 16; y += 4) for (let x = (y / 4) % 2 ? 2 : 0; x < 16; x += 4) H.r(x, y, 1, 4, junta);
+    H.r(0, 0, 16, 1, claro(losa, 0.15));
+    H.disco(8, 9, 5.2, fase === 0 ? '#9a968c' : '#d8d4ca', true); H.disco(8, 9, 4, '#2a6ab0'); H.disco(7.4, 8.4, 1.6, '#6aa8e8');
+    if (fase === 0) { H.r(7, 7, 2, 3, '#8a867c'); H.p(8, 6, '#bcd8f0'); }
+    else if (fase === 3) { H.r(7, 4, 2, 6, '#b8b8b4'); H.r(6, 3, 4, 1, '#d8d8d4'); H.p(8, 1, '#e8f4ff'); H.p(7, 2, '#bcd8f0'); H.p(9, 2, '#bcd8f0'); }
+    else { H.r(7, 5, 2, 5, '#c8c4ba'); H.r(6, 4, 4, 1, '#e4e0d6'); H.p(8, 2, '#e8f4ff'); H.p(8, 3, '#bcd8f0'); H.p(6, 5, '#bcd8f0'); H.p(9, 5, '#bcd8f0'); if (fase === 2) { H.r(7, 1, 2, 2, '#b8a060'); } }
+    H.r(1, 14, 4, 1, MADERA); H.r(11, 14, 4, 1, MADERA); H.p(1, 15, oscuro(MADERA, 0.2)); H.p(4, 15, oscuro(MADERA, 0.2)); H.p(11, 15, oscuro(MADERA, 0.2)); H.p(14, 15, oscuro(MADERA, 0.2));
+    if (fase >= 1) for (const x of [1, 14]) { H.r(x, 2, 1, 5, '#3a3a40'); H.r(x - 0 , 1, 1, 1, fase === 3 ? '#f4f4e0' : LUZ); }
+    H.p(3, 3, col); H.p(12, 3, col);
+    return H.lienzo();
+  }
+  function parque(H, fase, col) {
+    // Parque: césped, un sendero de tierra, árboles redondos, flores de colores, un banco y un estanque.
+    H.r(0, 0, 16, 16, '#5aa040'); for (let k = 0; k < 18; k++) H.p((k * 7) % 16, (k * 11) % 16, '#6ab450');
+    for (let k = 0; k < 16; k++) { const y = Math.round(8 + Math.sin(k / 2.4) * 2); H.r(k, y, 1, 2, fase === 3 ? '#d4d0c8' : '#c8a878'); }
+    H.disco(12, 12.5, 2.6, '#3a7ac8'); H.p(11, 12, '#7ab4ec');
+    for (const [x, y, r] of [[3.5, 3.5, 3], [12, 3, 2.6], [3, 13, 2.2]]) { H.r(Math.round(x) - 1, Math.round(y) + 1, 1, 3, '#6a4a2a'); H.disco(x, y, r, '#3a8a30', true); }
+    for (const [x, y, c] of [[7, 4, '#ff5a7a'], [8, 5, '#ffd84a'], [6, 5, '#ffffff'], [9, 3, '#c86ae8'], [7, 13, '#ff8a3a'], [8, 14, '#ffd84a']]) H.p(x, y, c);
+    H.r(8, 11, 3, 1, MADERA); H.p(8, 12, oscuro(MADERA, 0.2)); H.p(10, 12, oscuro(MADERA, 0.2));
+    if (fase >= 2) { H.r(14, 6, 1, 4, '#3a3a40'); H.p(14, 5, LUZ); }
+    H.p(15, 0, col);
+    return H.lienzo();
+  }
+  function palacio(H, fase, col) {
+    if (fase === 0) {
+      // Gran casa del jefe: tronco tallado, techo alto de paja, pieles y estandarte.
+      H.r(1, 8, 14, 7, '#9a6a3a'); for (let x = 1; x < 15; x += 2) H.r(x, 8, 1, 7, '#8a5a2a');
+      tejado(H, 0, 15, 2, 8, mezcla(col, '#d8b060', 0.7)); H.r(6, 10, 4, 5, '#3a2416'); H.r(7, 9, 2, 1, col);
+      H.r(14, 0, 1, 8, MADERA); H.r(12, 0, 2, 3, col); H.p(2, 12, '#e8d8b4'); H.p(13, 12, '#e8d8b4');
+      H.contorno(); return H.lienzo();
+    }
+    if (fase === 3) {
+      // Palacio de gobierno moderno: fachada blanca, columnata, cúpula de cristal y banderas.
+      H.r(0, 7, 16, 8, '#ecece6'); H.r(0, 14, 16, 1, '#b8b8b2'); for (let x = 1; x < 16; x += 2) H.r(x, 9, 1, 5, '#fafaf6');
+      H.r(4, 5, 8, 2, '#dcdcd6'); for (let y = 1; y < 5; y++) { const half = Math.round(Math.sqrt(16 - (y - 5) * (y - 5)) ); H.r(8 - half, y, half * 2, 1, y < 3 ? '#a8c8e8' : '#88a8c8'); }
+      H.r(7, 11, 2, 4, '#3a3a40'); H.r(0, 1, 1, 6, '#5a5a62'); H.r(1, 1, 3, 2, col); H.r(15, 1, 1, 6, '#5a5a62'); H.r(12, 1, 3, 2, col);
+      H.contorno(); return H.lienzo();
+    }
+    // Palacio de piedra: cuerpo central con frontón, dos alas con torrecillas, escalinata y estandartes.
+    const muro = fase === 2 ? '#e4d8bc' : PIEDRA;
+    H.r(0, 7, 16, 8, muro); H.r(0, 7, 16, 1, claro(muro, 0.15)); H.r(0, 14, 16, 1, oscuro(muro, 0.2));
+    H.r(0, 3, 3, 5, muro); H.r(13, 3, 3, 5, muro); tejado(H, 0, 2, 0, 3, oscuro(col, 0.1)); tejado(H, 13, 15, 0, 3, oscuro(col, 0.1));
+    tejado(H, 3, 12, 3, 7, col);
+    for (const x of [1, 4, 10, 13]) ventana(H, x, 9, fase === 2);
+    H.r(6, 9, 4, 6, '#4a3020'); H.r(6, 9, 4, 1, '#e0b040'); H.r(5, 14, 6, 1, '#d8d0bc');
+    H.r(7, 1, 2, 3, '#e0b040'); H.p(7, 0, col); H.p(8, 0, col);
+    H.contorno(); return H.lienzo();
+  }
+  // Iglesia románica de la Edad Media: nave de piedra, ábside, campanario cuadrado y una cruz.
+  function iglesia(H, col) {
+    H.r(1, 8, 10, 7, PIEDRA); H.r(1, 8, 1, 7, claro(PIEDRA, 0.15)); tejado(H, 0, 11, 4, 8, oscuro(col, 0.25));
+    H.r(11, 3, 4, 12, oscuro(PIEDRA, 0.04)); H.r(14, 3, 1, 12, oscuro(PIEDRA, 0.2)); H.r(11, 2, 4, 1, oscuro(col, 0.25));
+    H.r(12, 5, 2, 2, '#2a2a30'); H.p(12, 6, '#e0b040'); H.r(13, 0, 1, 2, '#e0c060'); H.p(12, 1, '#e0c060'); H.p(14, 1, '#e0c060');
+    H.r(4, 11, 3, 4, '#3a2a1e'); H.p(4, 10, '#3a2a1e'); H.p(6, 10, '#3a2a1e'); H.p(5, 9, '#3a2a1e');
+    H.r(8, 10, 1, 2, CRISTAL); H.r(2, 10, 1, 2, CRISTAL); H.r(12, 9, 2, 2, CRISTAL);
     H.contorno(); return H.lienzo();
   }
   // ---------- Templo, molino, puerto y ayuntamiento de cada fase (0 tribal, 2 pólvora, 3 moderna) ----------
@@ -5955,7 +6305,8 @@ body.sin-panel .panel { display: none; }
       else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, c ? (c.era === 4 ? 4 : V.fase(c.era)) : 0), x, y);
+      else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio'][obra - V.OBRA.pozo], color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.centro) {
@@ -6204,6 +6555,7 @@ body.sin-panel .panel { display: none; }
     barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
+    andamios(ahora, x0, y0, x1, y1);
     progresos(x0, y0, x1, y1);
     humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
@@ -6217,11 +6569,14 @@ body.sin-panel .panel { display: none; }
     pintarEfectos(ahora, x0, y0, x1, y1);
     asedios(ahora);
     nieve(ahora, x0, y0, x1, y1);
+    estaciones(ahora, x0, y0, x1, y1);
     pajaros(ahora, x0, y0, x1, y1);
     nubes(ahora, x0, y0, x1, y1);
     pintarAviones(k);
     marcarPulso(ahora);
+    planos(ahora);
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
+    sueno(ahora, x0, y0, x1, y1);
     resplandor(k, ahora, x0, y0, x1, y1);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
@@ -6283,11 +6638,59 @@ body.sin-panel .panel { display: none; }
       sabio: oficio === 'erudito' ? M.ERUDITO((S.civ(m, a.c) || { era: 0 }).era).tipo : undefined
     });
   }
+  const durmiendo = new Set();
+  function sueno(ahora, x0, y0, x1, y1) {
+    if (!durmiendo.size) return;
+    const v = m.vida;
+    g.font = 'bold 5px monospace'; g.textAlign = 'left';
+    for (const t of durmiendo) {
+      const x = (t % v.tw) * P + 10, y = Math.floor(t / v.tw) * P - 1;
+      if (x < x0 || y < y0 || x > x1 || y > y1) continue;
+      const f = ((ahora / 1600) + (t % 7) / 7) % 1;
+      g.fillStyle = 'rgba(220,230,255,' + (0.9 * (1 - f)).toFixed(2) + ')';
+      g.fillText('z', x + f * 3, y - f * 6); if (f > 0.4) g.fillText('Z', x + 2 + f * 3, y - 3 - f * 6);
+    }
+  }
+  // Las estaciones: el otoño dora el campo, el invierno lo blanquea y nieva en todo el reino.
+  function estaciones(ahora, x0, y0, x1, y1) {
+    const e = m.vida.estacion;
+    if (e == null || e < 0) return;
+    const cols = ['rgba(150,230,120,0.05)', null, 'rgba(230,140,40,0.11)', 'rgba(235,242,255,0.22)'];
+    if (cols[e]) { g.fillStyle = cols[e]; g.fillRect(x0, y0, x1 - x0, y1 - y0); }
+    if (e !== 3 || reducido) return;
+    const n = Math.min(260, Math.round((x1 - x0) * (y1 - y0) / 900));
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    for (let i = 0; i < n; i++) {
+      const wx = x0 + ((azarV(i * 17) * (x1 - x0) + Math.sin(ahora / 800 + i) * 4) % (x1 - x0)), wy = y0 + ((azarV(i * 31) * (y1 - y0) + ahora / 45 * (0.5 + azarV(i + 3))) % (y1 - y0));
+      g.fillRect(Math.floor(wx), Math.floor(wy), i % 4 ? 1 : 2, 1);
+    }
+  }
+  // Las obras a medias: cimientos, postes y tablones; el edificio va asomando según avanza.
+  function andamios(ahora, x0, y0, x1, y1) {
+    const v = m.vida, an = v.andamios;
+    if (!an) return;
+    for (const k of Object.keys(an)) {
+      const t = +k, x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P;
+      if (x + P < x0 || y + P < y0 || x > x1 || y > y1) continue;
+      const o = an[k], f = 1 - Math.max(0, o.falta) / o.total, alto_ = Math.round(2 + f * 10);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x + 1, y + 14, 14, 2);
+      g.fillStyle = '#8a8478'; g.fillRect(x + 2, y + 13, 12, 2);
+      g.fillStyle = f < 0.5 ? '#b08a5a' : '#c8b494'; g.fillRect(x + 3, y + 13 - alto_, 10, alto_);
+      if (f >= 0.5) { g.fillStyle = '#6a4a32'; g.fillRect(x + 6, y + 10, 3, 3); }
+      g.fillStyle = '#7a5530';
+      for (const px of [1, 7, 14]) g.fillRect(x + px, y + 1, 1, 13);
+      for (const py of [4, 8, 12]) g.fillRect(x + 1, y + py, 14, 1);
+      g.fillStyle = '#5a3c20'; g.fillRect(x + 1, y + 4, 1, 1); g.fillRect(x + 14, y + 8, 1, 1);
+      if (Math.floor(ahora / 500 + t) % 9 === 0) emitir(x + 8, y + 12, 2, { v: 12, g: 40, vida: 500, cols: ['#c8b494', '#a89474'], tipo: 'solido', tam: 0.8, dy: -8, suelo: 1 });
+      g.fillStyle = 'rgba(10,12,20,0.75)'; g.fillRect(x + 0.5, y - 4.5, 15, 3);
+      g.fillStyle = '#ffb04a'; g.fillRect(x + 1, y - 4, Math.max(1, 14 * f), 2);
+    }
+  }
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const ig = golpesDelTurno(v);
-    dibujados.clear(); quietos = []; gritos = [];
+    dibujados.clear(); quietos = []; gritos = []; durmiendo.clear();
     const fiesta = new Set(), hambre = new Set();
     for (const c of S.vivas(m)) { if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 1) fiesta.add(c.id); if ((c.comida || 0) < (c.aldeanos || 0) * 0.15) hambre.add(c.id); }
     const todos = caidos.length ? v.aldeanos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : v.aldeanos;
@@ -6302,6 +6705,8 @@ body.sin-panel .panel { display: none; }
         if (j === i) acc = r[i + 2];
       } else { px = a.x * P + 6.5; py = a.y * P + 6; acc = 0; }
       if (siguiendo === a.id) { cam.x = px; cam.y = py; }
+      // Quien duerme y ya llegó a casa no se ve: solo sale el «zZ» sobre el tejado.
+      if (a.dormir && a.casa != null && Math.floor((py - 6) / P) * v.tw + Math.floor((px - 6.5) / P) === a.casa) { durmiendo.add(a.casa); continue; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       // Recibe un golpe: sale despedido un par de píxeles lejos de quien le pega. Pega: embiste hacia el otro.
       const recibe = golpeActivo(ig.golpes.get(a.id), k), pega = golpeActivo(ig.ataques.get(a.id), k);
@@ -6571,7 +6976,14 @@ body.sin-panel .panel { display: none; }
   // ---------- El día y la noche: cada minuto y medio cae la noche y se encienden las ventanas ----------
   const DIA = 90000;
   let luces = [], lucesHasta = 0;
-  function oscuridad(ahora) { if (reducido) return 0; const f = (ahora % DIA) / DIA; return Math.max(0, Math.min(1, (-Math.cos(f * Math.PI * 2) - 0.1) * 1.4)); }
+  // En las partidas pausadas la noche va con los turnos (el sexto de cada día); si no, con el reloj.
+  function oscuridad(ahora) {
+    if (reducido) return 0;
+    if (m && V.pausada && V.pausada(m)) {
+      const h = (m.turno % V.DIA_TURNOS) + Math.min(1, progreso() / V.TICKS), d = Math.min(Math.abs(h - 5.5), Math.abs(h + 0.5));
+      return Math.max(0, Math.min(1, (1.15 - d) / 0.6));
+    }
+    const f = (ahora % DIA) / DIA; return Math.max(0, Math.min(1, (-Math.cos(f * Math.PI * 2) - 0.1) * 1.4)); }
   function noche(ahora, x0, y0, x1, y1, z, ox, oy) {
     ahora = performance.now();
     const o = oscuridad(ahora);
@@ -6584,7 +6996,7 @@ body.sin-panel .panel { display: none; }
     if (ahora > lucesHasta) {
       lucesHasta = ahora + 1200; luces = [];
       const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber) luces.push(t); if (luces.length > 400) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber || ob === V.OBRA.palacio || ob === V.OBRA.fuente) luces.push(t); if (luces.length > 400) break; }
     }
     const a = Math.min(1, (o - 0.3) / 0.4);
     for (const t of luces) {
@@ -7320,6 +7732,7 @@ body.sin-panel .panel { display: none; }
       else arrastre = null;
     });
     cv.addEventListener('pointermove', ev => {
+      if (arqui) { const rect = cv.getBoundingClientRect(), { w, h } = vista(); arqui.wx = cam.x + (ev.clientX - rect.left - w / 2) / cam.z; arqui.wy = cam.y + (ev.clientY - rect.top - h / 2) / cam.z; }
       if (!punteros.has(ev.pointerId)) return;
       if (punteros.size === 2) {
         const [a, b] = [...punteros.values()];
@@ -7346,7 +7759,8 @@ body.sin-panel .panel { display: none; }
         let cerca = null, dmin = Math.max(5, 9 / cam.z);
         for (const [id, [x, y]] of dibujados) { const d = Math.hypot(x + 1.5 - wx, y + 2.5 - wy); if (d < dmin) { dmin = d; cerca = id; } }
         const R = V.SUB * P, rx = Math.floor(wx / R), ry = Math.floor(wy / R);
-        if (cerca != null && alClicarAldeano) alClicarAldeano(cerca);
+        if (arqui) { const tx = Math.floor(wx / P), ty = Math.floor(wy / P); arqui.wx = wx; arqui.wy = wy; if (tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th) arqui.alColocar(ty * m.vida.tw + tx); }
+        else if (cerca != null && alClicarAldeano) alClicarAldeano(cerca);
         else if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
       }
       if (punteros.size === 1) { const [p] = [...punteros.values()]; arrastre = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, movido: 99 }; }
@@ -7361,12 +7775,46 @@ body.sin-panel .panel { display: none; }
     }, { passive: false });
   }
 
+  // El modo arquitecto: { clave, civ, valida(t) → razón o null, alColocar(t) }; null para salir.
+  let arqui = null;
+  function arquitecto(o) { arqui = o ? Object.assign({ wx: -1, wy: -1 }, o) : null; }
+  function dibujoDe(clave, c) {
+    const color = c ? c.color : '#cccccc', fase = c ? V.fase(c.era) : 0;
+    if (clave === 'casa') return ARTE().casa(CASAS[c ? grupoEra(c.era) : 0], color, 0);
+    if (clave === 'templo') return ARTE().edificio('templo', color, c && c.era === 4 ? 4 : fase);
+    if (clave === 'saber') return ARTE().edificio('saber', color, M.ERUDITO(c ? c.era : 0).tipo);
+    return ARTE().edificio(clave, color, fase);
+  }
+  function planos(ahora) {
+    const v = m.vida, parpadeo = 0.45 + 0.2 * Math.sin(ahora / 260);
+    const c = arqui ? S.civ(m, arqui.civ) : S.vivas(m).find(x => x.jugador);
+    if (!c) return;
+    // Lo encargado: el edificio en transparente con un marco de trazos; las calles por empedrar, en gris.
+    g.save(); g.setLineDash([2, 1.5]); g.lineWidth = 0.8;
+    for (const e of (c.plan && c.plan.encargos) || []) {
+      const x = (e.t % v.tw) * P, y = Math.floor(e.t / v.tw) * P;
+      g.globalAlpha = parpadeo; g.drawImage(dibujoDe(e.clave, c), x, y, P, P); g.globalAlpha = 1;
+      g.strokeStyle = '#ffd76a'; g.strokeRect(x + 0.5, y + 0.5, P - 1, P - 1);
+    }
+    if (arqui) for (const t of (v.pendientes && v.pendientes[c.id]) || []) { const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P; g.fillStyle = 'rgba(190,190,184,' + (parpadeo * 0.8).toFixed(2) + ')'; g.fillRect(x + 1, y + 1, P - 2, P - 2); }
+    g.restore();
+    if (!arqui || arqui.wx < 0) return;
+    const tx = Math.floor(arqui.wx / P), ty = Math.floor(arqui.wy / P), t = ty * v.tw + tx;
+    if (tx < 0 || ty < 0 || tx >= v.tw || ty >= v.th) return;
+    const no = arqui.valida(t), x = tx * P, y = ty * P;
+    g.globalAlpha = 0.75;
+    if (arqui.clave === 'camino') { g.fillStyle = '#b4b2ac'; g.fillRect(x, y, P, P); } else g.drawImage(dibujoDe(arqui.clave, c), x, y, P, P);
+    g.globalAlpha = 1;
+    g.fillStyle = no ? 'rgba(255,60,40,0.35)' : 'rgba(80,255,120,0.25)'; g.fillRect(x, y, P, P);
+    g.strokeStyle = no ? '#ff5a4a' : '#7aff9a'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, P - 1, P - 1);
+    if (no) { const f = Math.max(2.5, 11 / cam.z); g.font = 'bold ' + f.toFixed(1) + 'px sans-serif'; g.textAlign = 'center'; g.fillStyle = 'rgba(0,0,0,0.75)'; const w = g.measureText(no).width + f; g.fillRect(x + 8 - w / 2, y - f * 1.7, w, f * 1.4); g.fillStyle = '#ffd0c8'; g.fillText(no, x + 8, y - f * 0.6); }
+  }
   function seleccionar(id) { sel = id; if (m) territorio(); }
   function elegirAldeano(id) { elegido = id; }
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { P, arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/sonido.js
@@ -7521,6 +7969,8 @@ body.sin-panel .panel { display: none; }
     $('orden').placeholder = c ? '5 granjeros a talar 2 minutos, quiero 10 leñadores, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
     $('voluntad').classList.toggle('es-pueblo', !!c);
     $('ir-mio').hidden = !c;
+    $('arquitecto-btn').hidden = !c || !M.vida.pausada(m);
+    if ((!c || !M.vida.pausada(m)) && arquiClave) salirArquitecto();
     pintarEjemplos();
   }
 
@@ -7566,7 +8016,11 @@ body.sin-panel .panel { display: none; }
     const sig = (d, dec) => { if (!d || Math.abs(d) < 0.05) return ''; const t = (d > 0 ? '+' : '') + (dec ? d.toFixed(1) : r(d)); return ' <small class="' + (d > 0 ? 'verde' : 'rojo') + '">' + t + '</small>'; };
     const dC = delta('comida', c.comida || 0), dM = delta('madera', c.madera || 0), dP = delta('piedra', c.piedra || 0), dMe = delta('metal', c.metal || 0);
     const nivel = M.NIVELES[c.nivel || 0];
+    const est = m.vida && m.vida.estacion != null && m.vida.estacion >= 0 ? m.vida.estacion : -1;
+    const ESTA = [['🌱', 'Primavera', 'se siembra y los campos brotan más deprisa'], ['☀️', 'Verano', 'los campos maduran'], ['🍂', 'Otoño', 'la gran cosecha: los campos dan más y el bosque da frutos'], ['❄️', 'Invierno', 'no crece nada, apenas se recolecta y se quema el doble de leña: se vive de lo guardado']];
+    const hora = m.vida && m.vida.noche ? '🌙 noche' : '';
     el.innerHTML =
+      (est >= 0 ? chip(ESTA[est][0], ESTA[est][1] + (hora ? ' <small class="tenue">' + hora + '</small>' : ''), ESTA[est][1] + ': ' + ESTA[est][2] + '. Cada estación dura 12 turnos; de cada 6 turnos, uno es de noche y la gente duerme en casa.', 'estacion') : '') +
       chip('🪙', r(oro), 'Oro del tesoro: impuestos ' + (c.ingresos || 0).toFixed(1) + ' − sueldos y mantenimiento ' + (c.gastos || 0).toFixed(1) + (c.mecenazgo ? ' − ' + c.mecenazgo.toFixed(1) + ' para los sabios' : '') + ' por turno', oro < 0 ? 'mal' : 'oro', sig(neto, true)) +
       chip('🌾', r(c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe)', (c.comida || 0) < (c.aldeanos || 0) * 0.3 ? 'mal' : '', sig(dC)) +
       chip('🪵', r(c.madera || 0), 'Madera', '', sig(dM)) +
@@ -7636,15 +8090,17 @@ body.sin-panel .panel { display: none; }
         (complotsDe(c) ? fila('Complots', complotsDe(c)) : '') + fila('Opinión', opiniones(c))]
     };
     pestanas.tecnica = ['Técnica', arbolTecnico(c)];
+    if (M.vida.pausada(m)) pestanas.ciudad = ['Ciudad', ciudadDe(c)];
     if (c.jugador) pestanas.plan = ['Tu plan', planDe(c)];
     if (!pestanas[pestana]) pestana = 'resumen';
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(c.nombre) + '</h3>' +
       '<p class="subt">' + esc(M.conCaracter(c.regimen, c.caracter)) + ' · ' + esc(era(c).nombre) + '</p>' +
       '<div class="pestanas" role="tablist">' + Object.keys(pestanas).map(k => '<button type="button" role="tab" class="pestana' + (k === pestana ? ' activa' : '') + '" aria-selected="' + (k === pestana) + '" data-p="' + k + '">' + pestanas[k][0] + '</button>').join('') + '</div>' +
-      (pestana === 'plan' || pestana === 'tecnica' ? pestanas[pestana][1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
+      (pestana === 'plan' || pestana === 'tecnica' || pestana === 'ciudad' ? pestanas[pestana][1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
     f.querySelectorAll('.pestana').forEach(b => b.addEventListener('click', () => { pestana = b.dataset.p; pintarFicha(); }));
     // Tocar una tecnología disponible de tu pueblo: se investiga esa (la misma orden que «investigad …»).
+    f.querySelectorAll('.nec-obrar').forEach(b => b.addEventListener('click', () => { const r = X.ordenar(m, c.id, b.dataset.orden); if (r.ok) despuesDeOrden(r); pintarFicha(); }));
     const av = f.querySelector('.avanzar-edad');
     if (av) av.addEventListener('click', () => { const r = X.ordenar(m, c.id, 'avanzad de edad'); if (r.ok) despuesDeOrden(r); pintarFicha(); });
     f.querySelectorAll('.tec-elegir').forEach(b => b.addEventListener('click', () => { const r = X.ordenar(m, c.id, 'investigad ' + b.dataset.nombre); if (r.ok) despuesDeOrden(r); pintarFicha(); }));
@@ -7656,6 +8112,59 @@ body.sin-panel .panel { display: none; }
 
   // Las prioridades de tu pueblo como barras: el pueblo se gobierna solo y esto es lo que pesa en sus decisiones.
   // El árbol de la técnica de un pueblo: lo hecho, lo que se investiga, lo que se puede elegir y lo que vendrá.
+  // ---------- El modo arquitecto: eliges un edificio (o calle) y tocas el mapa donde quieres que vaya ----------
+  let arquiClave = null;
+  const ARQUI = [['casa', '🏠', 'Casa'], ['camino', '🧱', 'Calle'], ['pozo', '🪣', 'Pozo'], ['granero', '🌾', 'Granero'], ['fuente', '⛲', 'Plaza pública'], ['parque', '🌳', 'Parque'], ['templo', '⛪', 'Templo'], ['saber', '📜', 'Saber'], ['palacio', '🏰', 'Palacio'], ['molino', '⚙', 'Molino'], ['torre', '🗼', 'Torre'], ['puerto', '⚓', 'Puerto'], ['cuartel', '⚔', 'Cuartel'], ['arqueria', '🏹', 'Arquería'], ['castillo', '🏯', 'Castillo']];
+  function abrirArquitecto() {
+    const c = tuPueblo();
+    if (!c) return;
+    const V = M.vida, el = $('arquitecto');
+    const nombre = k => k === 'templo' ? (c.era === 4 ? 'Iglesia' : c.era >= 5 && c.era <= 6 ? 'Catedral' : 'Templo') : k === 'saber' ? M.CASA_SABER(c.era).replace(/^./, x => x.toUpperCase()) : ARQUI.find(x => x[0] === k)[2];
+    const coste = k => { if (k === 'camino') return 'gratis'; const q = V.COSTES[V.OBRA[k]] || [0, 0, 0]; return [q[0] ? q[0] + '🪵' : '', q[1] ? q[1] + '🪨' : '', q[2] ? q[2] + '🪙' : ''].filter(Boolean).join(' ') || 'gratis'; };
+    const nec = new Set((c.necesidades || []).filter(n => n.falta).map(n => n.obra));
+    el.innerHTML = '<div class="arqui-cabeza"><b>🏗 Arquitecto</b> <span class="tenue" id="arqui-ayuda">' + (arquiClave ? 'Toca el mapa donde quieras ' + esc(nombre(arquiClave).toLowerCase()) + '. Toca otra vez para quitarlo.' : 'Elige qué construir y toca tu tierra. Tus constructores lo harán por orden.') + '</span> <button type="button" class="mando sutil arqui-salir">Salir</button></div>' +
+      '<div class="arqui-lista">' + ARQUI.map(([k, ico]) => {
+        const nivel = V.NIVEL_OBRA[V.OBRA[k]] || 0, bloqueo = k === 'camino' ? null : (c.nivel || 0) < nivel ? ['aldea', 'aldea', 'pueblo', 'villa', 'ciudad'][nivel] : (k === 'castillo' && c.era < 2) ? 'Hierro' : (['templo', 'torre', 'puerto', 'cuartel', 'arqueria', 'castillo'].includes(k) && c.era < 1) ? 'Bronce' : null;
+        return '<button type="button" class="arqui-op' + (arquiClave === k ? ' activa' : '') + (nec.has(k) ? ' falta' : '') + '" data-k="' + k + '"' + (bloqueo ? ' disabled title="Hace falta: ' + bloqueo + '"' : ' title="' + esc(nombre(k) + ' · ' + coste(k) + (nec.has(k) ? ' · ¡hace falta!' : '')) + '"') + '><i>' + ico + '</i><span>' + esc(nombre(k)) + '</span><small>' + (bloqueo ? '🔒 ' + bloqueo : coste(k)) + '</small></button>';
+      }).join('') + '</div>';
+    el.hidden = false; $('arquitecto-btn').setAttribute('aria-pressed', 'true');
+    const cab = document.querySelector('.g-cab');
+    el.style.top = Math.round((cab ? cab.getBoundingClientRect().bottom : 0) + 8) + 'px';
+    el.querySelector('.arqui-salir').addEventListener('click', salirArquitecto);
+    el.querySelectorAll('.arqui-op').forEach(b => b.addEventListener('click', () => { arquiClave = arquiClave === b.dataset.k ? null : b.dataset.k; ponerArquitecto(); abrirArquitecto(); }));
+  }
+  function ponerArquitecto() {
+    const c = tuPueblo();
+    if (!arquiClave || !c) { P.arquitecto(null); return; }
+    P.arquitecto({ clave: arquiClave, civ: c.id, valida: t => M.vida.puedeColocar(m, c, t, arquiClave), alColocar: t => {
+      const r = M.vida.encargar(m, c, t, arquiClave), ayuda = $('arqui-ayuda');
+      if (ayuda) ayuda.textContent = r.ok ? (r.quitado ? 'Quitado.' : 'Encargado: ' + ((c.plan.encargos || []).length) + ' obra' + ((c.plan.encargos || []).length === 1 ? '' : 's') + ' en cola. Toca otra vez para quitarlo.') : 'No: ' + r.razon + '.';
+    } });
+  }
+  function salirArquitecto() { arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
+  // La pestaña Ciudad: lo que el pueblo necesita y por qué, el ánimo de la gente, la estación y las obras en marcha.
+  function ciudadDe(c) {
+    const V = M.vida, nec = c.necesidades || [], est = m.vida.estacion;
+    const ORDEN = { pozo: 'construid un pozo', granero: 'construid un granero', fuente: 'construid una plaza pública', parque: 'haced un parque', palacio: 'construid un palacio', templo: 'construid un templo' };
+    const ESTA = ['🌱 Primavera: se siembra y los campos brotan deprisa.', '☀️ Verano: los campos maduran.', '🍂 Otoño: la gran cosecha. Es el momento de llenar el granero.', '❄️ Invierno: no crece nada, apenas se recolecta y se quema el doble de leña.'];
+    const quedan = V.ESTACION_TURNOS - (m.turno % V.ESTACION_TURNOS);
+    const animo = c.animo == null ? 70 : c.animo, cara = animo >= 75 ? '😊' : animo >= 50 ? '🙂' : animo >= 30 ? '😟' : '😠';
+    const obras = Object.entries(m.vida.andamios || {}).filter(([, a]) => a.civ === c.id);
+    const NOMBRE_OBRA = o => ({ [V.OBRA.casa]: 'casa', [V.OBRA.pozo]: 'pozo', [V.OBRA.granero]: 'granero', [V.OBRA.fuente]: 'plaza pública', [V.OBRA.parque]: 'parque', [V.OBRA.palacio]: 'palacio', [V.OBRA.templo]: c.era === 4 ? 'iglesia' : c.era >= 5 && c.era <= 6 ? 'catedral' : 'templo', [V.OBRA.saber]: M.CASA_SABER(c.era), [V.OBRA.torre]: 'torre', [V.OBRA.molino]: 'molino', [V.OBRA.puerto]: 'puerto', [V.OBRA.cuartel]: 'cuartel', [V.OBRA.arqueria]: 'arquería', [V.OBRA.castillo]: 'castillo' }[o] || 'obra');
+    const vistas = new Set();
+    const lista = nec.filter(n => { const k = n.obra + (n.capital ? 'c' : n.region); if (vistas.has(k)) return false; vistas.add(k); return true; }).map(n => {
+      const donde = n.capital ? '' : ' <span class="tenue">(en ' + esc(((m.ciudades || []).find(x => x.region === n.region) || { nombre: 'otra ciudad' }).nombre) + ')</span>';
+      return '<li class="' + (n.falta ? 'no' : 'ok') + '"><b>' + (n.falta ? '✗ ' : '✓ ') + esc(n.nombre) + '</b>' + donde + ' — ' + esc(n.falta ? n.mal : n.bien) +
+        (n.falta ? ' <span class="tenue">(' + (n.estab < 0 ? n.estab + ' de estabilidad' : '') + ')</span>' + (c.jugador && n.capital && ORDEN[n.obra] ? ' <button type="button" class="obrar nec-obrar" data-orden="' + ORDEN[n.obra] + '">Hacer ' + esc(n.edificio) + '</button>' : '') : '') + '</li>';
+    }).join('');
+    return '<div class="arbol"><p class="arbol-ayuda">' + (est >= 0 ? esc(ESTA[est]) + ' <span class="tenue">Quedan ' + quedan + ' turnos.</span>' : '') + '</p>' +
+      '<p class="arbol-ayuda">' + cara + ' Ánimo de la gente: <b>' + animo + '</b>/100 <span class="barra mini"><span style="width:' + animo + '%"></span></span></p>' +
+      '<div class="tec-era">Lo que necesita ' + esc(c.nombre) + '</div>' +
+      (lista ? '<ul class="edad-req nec">' + lista + '</ul>' : '<p class="tenue arbol-ayuda">Un campamento no pide más que comida y techo. Al crecer (aldea, pueblo, villa, ciudad) pedirá granero, plaza, parque y palacio.</p>') +
+      '<div class="tec-era">Obras en marcha</div>' +
+      (obras.length ? '<ul class="edad-req">' + obras.map(([, a]) => '<li>🏗 ' + esc(NOMBRE_OBRA(a.o)) + ' <span class="barra mini"><span style="width:' + Math.round(100 * (1 - Math.max(0, a.falta) / a.total)) + '%"></span></span></li>').join('') + '</ul>' : '<p class="tenue arbol-ayuda">Ninguna ahora mismo.</p>') +
+      '</div>';
+  }
   function arbolTecnico(c) {
     const ts = M.tecsDe(c), inv = c.investigacion && c.investigacion.id;
     const eras = [...new Set(M.TECNOLOGIAS.map(t => t.era))].filter(e => e <= c.era + 1);
@@ -7757,10 +8266,15 @@ body.sin-panel .panel { display: none; }
       fila('Rasgos', a.rasgos && a.rasgos.length ? esc(a.rasgos.join(', ')) : '<span class="tenue">ninguno especial</span>') +
       fila('Familia', (padre ? 'hijo de ' + esc(padre.nombre) + ' · ' : '') + (a.hijos || 0) + ((a.hijos || 0) === 1 ? ' hijo' : ' hijos') + (hijosVivos !== (a.hijos || 0) ? ' <span class="tenue">(' + hijosVivos + ' vivos)</span>' : '')) +
       (a.bajas ? fila('En combate', a.bajas + ' enemigos abatidos') : '') +
-      fila('Hambre', a.hambre ? '<span class="rojo">' + a.hambre + ' turnos sin comer bien</span>' : 'bien alimentado') + '</dl>' +
+      fila('Hambre', a.hambre ? '<span class="rojo">' + a.hambre + ' turnos sin comer bien</span>' : 'bien alimentado') +
+      (M.vida.pausada(m) ? fila('Ánimo', (() => { const k = M.vida.animoDe(m, a); return (k >= 75 ? '😊 contento' : k >= 50 ? '🙂 tranquilo' : k >= 30 ? '😟 preocupado' : '😠 harto') + ' <span class="tenue">(' + k + ')</span>'; })()) + fila('Ahora', a.dormir ? (a.enCasa ? 'duerme en casa 💤' : 'vuelve a casa a dormir') : a.paseo === 2 ? 'descansa en la plaza o el parque' : esc(OFICIO1[M.vida.OFICIOS[a.o]] || 'trabaja')) : '') + '</dl>' +
+      (c && c.jugador && (a.edad || 0) >= M.vida.ADULTO && a.colono == null ? '<div class="tec-era">Mándale un oficio</div><div class="linea aldeano-oficios">' + M.vida.OFICIOS.map((o, k) => '<button type="button" class="mando sutil oficio-a' + (a.o === k ? ' activa' : '') + '" data-k="' + k + '">' + esc(o === 'erudito' ? M.ERUDITO(c.era).uno : OFICIO1[o] || o) + '</button>').join('') + (a.fijo ? ' <button type="button" class="mando sutil oficio-libre" title="Que vuelva a hacer lo que el pueblo necesite">Que decida el pueblo</button>' : '') + '</div>' + (a.fijo && a.fijo.g === 'mano' ? '<p class="tenue arbol-ayuda">Hace lo que le mandaste y nadie se lo cambia.</p>' : '') : '') +
       '<div class="linea" style="margin-top:10px"><button type="button" class="mando" id="seguir">' + (siguiendo ? 'Dejar de seguir' : 'Seguir con la cámara') + '</button> <button type="button" class="mando sutil" id="volver-pueblo">Ver su pueblo</button></div>';
     f.querySelector('.muestra').style.background = c ? c.color : '#ccc';
     f.querySelector('#seguir').addEventListener('click', () => { P.seguir(siguiendo ? null : a.id); pintarFicha(); });
+    f.querySelectorAll('.oficio-a').forEach(b => b.addEventListener('click', () => { const k = +b.dataset.k; a.fijo = { g: 'mano', vuelve: a.o }; M.vida.mover(a, k); pintarFicha(); }));
+    const libre = f.querySelector('.oficio-libre');
+    if (libre) libre.addEventListener('click', () => { delete a.fijo; a.e = 0; pintarFicha(); });
     f.querySelector('#volver-pueblo').addEventListener('click', () => { aldeanoSel = null; P.elegirAldeano(null); P.seguir(null); elegir(a.c, true); });
     return true;
   }
@@ -8185,6 +8699,7 @@ body.sin-panel .panel { display: none; }
     $('cerrar-panel').addEventListener('click', () => panelAbierto(false));
     for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.addEventListener('click', () => abrirHoja(b.dataset.panel));
     $('ver-ideas').addEventListener('click', () => { const e = $('ejemplos'); e.hidden = !e.hidden; $('ver-ideas').setAttribute('aria-expanded', e.hidden ? 'false' : 'true'); });
+    $('arquitecto-btn').addEventListener('click', () => { if (arquiClave || !$('arquitecto').hidden) salirArquitecto(); else abrirArquitecto(); });
     $('ir-mio').addEventListener('click', () => { const c = tuPueblo(); if (c) P.centrarEn(c.capital, 3); });
     $('marcador').addEventListener('click', () => { panelAbierto(true); abrirHoja('retos'); });
     $('fin-seguir').addEventListener('click', () => { $('fin').hidden = true; if (!tuPueblo()) pedirModo('Elige otro pueblo', 'Tu pueblo ya no existe. Gobierna otro o sigue mirando como dios.'); else { corriendo = true; programar(); } });

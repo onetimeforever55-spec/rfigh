@@ -71,6 +71,8 @@
     $('orden').placeholder = c ? '5 granjeros a talar 2 minutos, quiero 10 leñadores, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
     $('voluntad').classList.toggle('es-pueblo', !!c);
     $('ir-mio').hidden = !c;
+    $('arquitecto-btn').hidden = !c || !M.vida.pausada(m);
+    if ((!c || !M.vida.pausada(m)) && arquiClave) salirArquitecto();
     pintarEjemplos();
   }
 
@@ -116,7 +118,11 @@
     const sig = (d, dec) => { if (!d || Math.abs(d) < 0.05) return ''; const t = (d > 0 ? '+' : '') + (dec ? d.toFixed(1) : r(d)); return ' <small class="' + (d > 0 ? 'verde' : 'rojo') + '">' + t + '</small>'; };
     const dC = delta('comida', c.comida || 0), dM = delta('madera', c.madera || 0), dP = delta('piedra', c.piedra || 0), dMe = delta('metal', c.metal || 0);
     const nivel = M.NIVELES[c.nivel || 0];
+    const est = m.vida && m.vida.estacion != null && m.vida.estacion >= 0 ? m.vida.estacion : -1;
+    const ESTA = [['🌱', 'Primavera', 'se siembra y los campos brotan más deprisa'], ['☀️', 'Verano', 'los campos maduran'], ['🍂', 'Otoño', 'la gran cosecha: los campos dan más y el bosque da frutos'], ['❄️', 'Invierno', 'no crece nada, apenas se recolecta y se quema el doble de leña: se vive de lo guardado']];
+    const hora = m.vida && m.vida.noche ? '🌙 noche' : '';
     el.innerHTML =
+      (est >= 0 ? chip(ESTA[est][0], ESTA[est][1] + (hora ? ' <small class="tenue">' + hora + '</small>' : ''), ESTA[est][1] + ': ' + ESTA[est][2] + '. Cada estación dura 12 turnos; de cada 6 turnos, uno es de noche y la gente duerme en casa.', 'estacion') : '') +
       chip('🪙', r(oro), 'Oro del tesoro: impuestos ' + (c.ingresos || 0).toFixed(1) + ' − sueldos y mantenimiento ' + (c.gastos || 0).toFixed(1) + (c.mecenazgo ? ' − ' + c.mecenazgo.toFixed(1) + ' para los sabios' : '') + ' por turno', oro < 0 ? 'mal' : 'oro', sig(neto, true)) +
       chip('🌾', r(c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe)', (c.comida || 0) < (c.aldeanos || 0) * 0.3 ? 'mal' : '', sig(dC)) +
       chip('🪵', r(c.madera || 0), 'Madera', '', sig(dM)) +
@@ -186,15 +192,17 @@
         (complotsDe(c) ? fila('Complots', complotsDe(c)) : '') + fila('Opinión', opiniones(c))]
     };
     pestanas.tecnica = ['Técnica', arbolTecnico(c)];
+    if (M.vida.pausada(m)) pestanas.ciudad = ['Ciudad', ciudadDe(c)];
     if (c.jugador) pestanas.plan = ['Tu plan', planDe(c)];
     if (!pestanas[pestana]) pestana = 'resumen';
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(c.nombre) + '</h3>' +
       '<p class="subt">' + esc(M.conCaracter(c.regimen, c.caracter)) + ' · ' + esc(era(c).nombre) + '</p>' +
       '<div class="pestanas" role="tablist">' + Object.keys(pestanas).map(k => '<button type="button" role="tab" class="pestana' + (k === pestana ? ' activa' : '') + '" aria-selected="' + (k === pestana) + '" data-p="' + k + '">' + pestanas[k][0] + '</button>').join('') + '</div>' +
-      (pestana === 'plan' || pestana === 'tecnica' ? pestanas[pestana][1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
+      (pestana === 'plan' || pestana === 'tecnica' || pestana === 'ciudad' ? pestanas[pestana][1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
     f.querySelectorAll('.pestana').forEach(b => b.addEventListener('click', () => { pestana = b.dataset.p; pintarFicha(); }));
     // Tocar una tecnología disponible de tu pueblo: se investiga esa (la misma orden que «investigad …»).
+    f.querySelectorAll('.nec-obrar').forEach(b => b.addEventListener('click', () => { const r = X.ordenar(m, c.id, b.dataset.orden); if (r.ok) despuesDeOrden(r); pintarFicha(); }));
     const av = f.querySelector('.avanzar-edad');
     if (av) av.addEventListener('click', () => { const r = X.ordenar(m, c.id, 'avanzad de edad'); if (r.ok) despuesDeOrden(r); pintarFicha(); });
     f.querySelectorAll('.tec-elegir').forEach(b => b.addEventListener('click', () => { const r = X.ordenar(m, c.id, 'investigad ' + b.dataset.nombre); if (r.ok) despuesDeOrden(r); pintarFicha(); }));
@@ -206,6 +214,59 @@
 
   // Las prioridades de tu pueblo como barras: el pueblo se gobierna solo y esto es lo que pesa en sus decisiones.
   // El árbol de la técnica de un pueblo: lo hecho, lo que se investiga, lo que se puede elegir y lo que vendrá.
+  // ---------- El modo arquitecto: eliges un edificio (o calle) y tocas el mapa donde quieres que vaya ----------
+  let arquiClave = null;
+  const ARQUI = [['casa', '🏠', 'Casa'], ['camino', '🧱', 'Calle'], ['pozo', '🪣', 'Pozo'], ['granero', '🌾', 'Granero'], ['fuente', '⛲', 'Plaza pública'], ['parque', '🌳', 'Parque'], ['templo', '⛪', 'Templo'], ['saber', '📜', 'Saber'], ['palacio', '🏰', 'Palacio'], ['molino', '⚙', 'Molino'], ['torre', '🗼', 'Torre'], ['puerto', '⚓', 'Puerto'], ['cuartel', '⚔', 'Cuartel'], ['arqueria', '🏹', 'Arquería'], ['castillo', '🏯', 'Castillo']];
+  function abrirArquitecto() {
+    const c = tuPueblo();
+    if (!c) return;
+    const V = M.vida, el = $('arquitecto');
+    const nombre = k => k === 'templo' ? (c.era === 4 ? 'Iglesia' : c.era >= 5 && c.era <= 6 ? 'Catedral' : 'Templo') : k === 'saber' ? M.CASA_SABER(c.era).replace(/^./, x => x.toUpperCase()) : ARQUI.find(x => x[0] === k)[2];
+    const coste = k => { if (k === 'camino') return 'gratis'; const q = V.COSTES[V.OBRA[k]] || [0, 0, 0]; return [q[0] ? q[0] + '🪵' : '', q[1] ? q[1] + '🪨' : '', q[2] ? q[2] + '🪙' : ''].filter(Boolean).join(' ') || 'gratis'; };
+    const nec = new Set((c.necesidades || []).filter(n => n.falta).map(n => n.obra));
+    el.innerHTML = '<div class="arqui-cabeza"><b>🏗 Arquitecto</b> <span class="tenue" id="arqui-ayuda">' + (arquiClave ? 'Toca el mapa donde quieras ' + esc(nombre(arquiClave).toLowerCase()) + '. Toca otra vez para quitarlo.' : 'Elige qué construir y toca tu tierra. Tus constructores lo harán por orden.') + '</span> <button type="button" class="mando sutil arqui-salir">Salir</button></div>' +
+      '<div class="arqui-lista">' + ARQUI.map(([k, ico]) => {
+        const nivel = V.NIVEL_OBRA[V.OBRA[k]] || 0, bloqueo = k === 'camino' ? null : (c.nivel || 0) < nivel ? ['aldea', 'aldea', 'pueblo', 'villa', 'ciudad'][nivel] : (k === 'castillo' && c.era < 2) ? 'Hierro' : (['templo', 'torre', 'puerto', 'cuartel', 'arqueria', 'castillo'].includes(k) && c.era < 1) ? 'Bronce' : null;
+        return '<button type="button" class="arqui-op' + (arquiClave === k ? ' activa' : '') + (nec.has(k) ? ' falta' : '') + '" data-k="' + k + '"' + (bloqueo ? ' disabled title="Hace falta: ' + bloqueo + '"' : ' title="' + esc(nombre(k) + ' · ' + coste(k) + (nec.has(k) ? ' · ¡hace falta!' : '')) + '"') + '><i>' + ico + '</i><span>' + esc(nombre(k)) + '</span><small>' + (bloqueo ? '🔒 ' + bloqueo : coste(k)) + '</small></button>';
+      }).join('') + '</div>';
+    el.hidden = false; $('arquitecto-btn').setAttribute('aria-pressed', 'true');
+    const cab = document.querySelector('.g-cab');
+    el.style.top = Math.round((cab ? cab.getBoundingClientRect().bottom : 0) + 8) + 'px';
+    el.querySelector('.arqui-salir').addEventListener('click', salirArquitecto);
+    el.querySelectorAll('.arqui-op').forEach(b => b.addEventListener('click', () => { arquiClave = arquiClave === b.dataset.k ? null : b.dataset.k; ponerArquitecto(); abrirArquitecto(); }));
+  }
+  function ponerArquitecto() {
+    const c = tuPueblo();
+    if (!arquiClave || !c) { P.arquitecto(null); return; }
+    P.arquitecto({ clave: arquiClave, civ: c.id, valida: t => M.vida.puedeColocar(m, c, t, arquiClave), alColocar: t => {
+      const r = M.vida.encargar(m, c, t, arquiClave), ayuda = $('arqui-ayuda');
+      if (ayuda) ayuda.textContent = r.ok ? (r.quitado ? 'Quitado.' : 'Encargado: ' + ((c.plan.encargos || []).length) + ' obra' + ((c.plan.encargos || []).length === 1 ? '' : 's') + ' en cola. Toca otra vez para quitarlo.') : 'No: ' + r.razon + '.';
+    } });
+  }
+  function salirArquitecto() { arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
+  // La pestaña Ciudad: lo que el pueblo necesita y por qué, el ánimo de la gente, la estación y las obras en marcha.
+  function ciudadDe(c) {
+    const V = M.vida, nec = c.necesidades || [], est = m.vida.estacion;
+    const ORDEN = { pozo: 'construid un pozo', granero: 'construid un granero', fuente: 'construid una plaza pública', parque: 'haced un parque', palacio: 'construid un palacio', templo: 'construid un templo' };
+    const ESTA = ['🌱 Primavera: se siembra y los campos brotan deprisa.', '☀️ Verano: los campos maduran.', '🍂 Otoño: la gran cosecha. Es el momento de llenar el granero.', '❄️ Invierno: no crece nada, apenas se recolecta y se quema el doble de leña.'];
+    const quedan = V.ESTACION_TURNOS - (m.turno % V.ESTACION_TURNOS);
+    const animo = c.animo == null ? 70 : c.animo, cara = animo >= 75 ? '😊' : animo >= 50 ? '🙂' : animo >= 30 ? '😟' : '😠';
+    const obras = Object.entries(m.vida.andamios || {}).filter(([, a]) => a.civ === c.id);
+    const NOMBRE_OBRA = o => ({ [V.OBRA.casa]: 'casa', [V.OBRA.pozo]: 'pozo', [V.OBRA.granero]: 'granero', [V.OBRA.fuente]: 'plaza pública', [V.OBRA.parque]: 'parque', [V.OBRA.palacio]: 'palacio', [V.OBRA.templo]: c.era === 4 ? 'iglesia' : c.era >= 5 && c.era <= 6 ? 'catedral' : 'templo', [V.OBRA.saber]: M.CASA_SABER(c.era), [V.OBRA.torre]: 'torre', [V.OBRA.molino]: 'molino', [V.OBRA.puerto]: 'puerto', [V.OBRA.cuartel]: 'cuartel', [V.OBRA.arqueria]: 'arquería', [V.OBRA.castillo]: 'castillo' }[o] || 'obra');
+    const vistas = new Set();
+    const lista = nec.filter(n => { const k = n.obra + (n.capital ? 'c' : n.region); if (vistas.has(k)) return false; vistas.add(k); return true; }).map(n => {
+      const donde = n.capital ? '' : ' <span class="tenue">(en ' + esc(((m.ciudades || []).find(x => x.region === n.region) || { nombre: 'otra ciudad' }).nombre) + ')</span>';
+      return '<li class="' + (n.falta ? 'no' : 'ok') + '"><b>' + (n.falta ? '✗ ' : '✓ ') + esc(n.nombre) + '</b>' + donde + ' — ' + esc(n.falta ? n.mal : n.bien) +
+        (n.falta ? ' <span class="tenue">(' + (n.estab < 0 ? n.estab + ' de estabilidad' : '') + ')</span>' + (c.jugador && n.capital && ORDEN[n.obra] ? ' <button type="button" class="obrar nec-obrar" data-orden="' + ORDEN[n.obra] + '">Hacer ' + esc(n.edificio) + '</button>' : '') : '') + '</li>';
+    }).join('');
+    return '<div class="arbol"><p class="arbol-ayuda">' + (est >= 0 ? esc(ESTA[est]) + ' <span class="tenue">Quedan ' + quedan + ' turnos.</span>' : '') + '</p>' +
+      '<p class="arbol-ayuda">' + cara + ' Ánimo de la gente: <b>' + animo + '</b>/100 <span class="barra mini"><span style="width:' + animo + '%"></span></span></p>' +
+      '<div class="tec-era">Lo que necesita ' + esc(c.nombre) + '</div>' +
+      (lista ? '<ul class="edad-req nec">' + lista + '</ul>' : '<p class="tenue arbol-ayuda">Un campamento no pide más que comida y techo. Al crecer (aldea, pueblo, villa, ciudad) pedirá granero, plaza, parque y palacio.</p>') +
+      '<div class="tec-era">Obras en marcha</div>' +
+      (obras.length ? '<ul class="edad-req">' + obras.map(([, a]) => '<li>🏗 ' + esc(NOMBRE_OBRA(a.o)) + ' <span class="barra mini"><span style="width:' + Math.round(100 * (1 - Math.max(0, a.falta) / a.total)) + '%"></span></span></li>').join('') + '</ul>' : '<p class="tenue arbol-ayuda">Ninguna ahora mismo.</p>') +
+      '</div>';
+  }
   function arbolTecnico(c) {
     const ts = M.tecsDe(c), inv = c.investigacion && c.investigacion.id;
     const eras = [...new Set(M.TECNOLOGIAS.map(t => t.era))].filter(e => e <= c.era + 1);
@@ -307,10 +368,15 @@
       fila('Rasgos', a.rasgos && a.rasgos.length ? esc(a.rasgos.join(', ')) : '<span class="tenue">ninguno especial</span>') +
       fila('Familia', (padre ? 'hijo de ' + esc(padre.nombre) + ' · ' : '') + (a.hijos || 0) + ((a.hijos || 0) === 1 ? ' hijo' : ' hijos') + (hijosVivos !== (a.hijos || 0) ? ' <span class="tenue">(' + hijosVivos + ' vivos)</span>' : '')) +
       (a.bajas ? fila('En combate', a.bajas + ' enemigos abatidos') : '') +
-      fila('Hambre', a.hambre ? '<span class="rojo">' + a.hambre + ' turnos sin comer bien</span>' : 'bien alimentado') + '</dl>' +
+      fila('Hambre', a.hambre ? '<span class="rojo">' + a.hambre + ' turnos sin comer bien</span>' : 'bien alimentado') +
+      (M.vida.pausada(m) ? fila('Ánimo', (() => { const k = M.vida.animoDe(m, a); return (k >= 75 ? '😊 contento' : k >= 50 ? '🙂 tranquilo' : k >= 30 ? '😟 preocupado' : '😠 harto') + ' <span class="tenue">(' + k + ')</span>'; })()) + fila('Ahora', a.dormir ? (a.enCasa ? 'duerme en casa 💤' : 'vuelve a casa a dormir') : a.paseo === 2 ? 'descansa en la plaza o el parque' : esc(OFICIO1[M.vida.OFICIOS[a.o]] || 'trabaja')) : '') + '</dl>' +
+      (c && c.jugador && (a.edad || 0) >= M.vida.ADULTO && a.colono == null ? '<div class="tec-era">Mándale un oficio</div><div class="linea aldeano-oficios">' + M.vida.OFICIOS.map((o, k) => '<button type="button" class="mando sutil oficio-a' + (a.o === k ? ' activa' : '') + '" data-k="' + k + '">' + esc(o === 'erudito' ? M.ERUDITO(c.era).uno : OFICIO1[o] || o) + '</button>').join('') + (a.fijo ? ' <button type="button" class="mando sutil oficio-libre" title="Que vuelva a hacer lo que el pueblo necesite">Que decida el pueblo</button>' : '') + '</div>' + (a.fijo && a.fijo.g === 'mano' ? '<p class="tenue arbol-ayuda">Hace lo que le mandaste y nadie se lo cambia.</p>' : '') : '') +
       '<div class="linea" style="margin-top:10px"><button type="button" class="mando" id="seguir">' + (siguiendo ? 'Dejar de seguir' : 'Seguir con la cámara') + '</button> <button type="button" class="mando sutil" id="volver-pueblo">Ver su pueblo</button></div>';
     f.querySelector('.muestra').style.background = c ? c.color : '#ccc';
     f.querySelector('#seguir').addEventListener('click', () => { P.seguir(siguiendo ? null : a.id); pintarFicha(); });
+    f.querySelectorAll('.oficio-a').forEach(b => b.addEventListener('click', () => { const k = +b.dataset.k; a.fijo = { g: 'mano', vuelve: a.o }; M.vida.mover(a, k); pintarFicha(); }));
+    const libre = f.querySelector('.oficio-libre');
+    if (libre) libre.addEventListener('click', () => { delete a.fijo; a.e = 0; pintarFicha(); });
     f.querySelector('#volver-pueblo').addEventListener('click', () => { aldeanoSel = null; P.elegirAldeano(null); P.seguir(null); elegir(a.c, true); });
     return true;
   }
@@ -735,6 +801,7 @@
     $('cerrar-panel').addEventListener('click', () => panelAbierto(false));
     for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.addEventListener('click', () => abrirHoja(b.dataset.panel));
     $('ver-ideas').addEventListener('click', () => { const e = $('ejemplos'); e.hidden = !e.hidden; $('ver-ideas').setAttribute('aria-expanded', e.hidden ? 'false' : 'true'); });
+    $('arquitecto-btn').addEventListener('click', () => { if (arquiClave || !$('arquitecto').hidden) salirArquitecto(); else abrirArquitecto(); });
     $('ir-mio').addEventListener('click', () => { const c = tuPueblo(); if (c) P.centrarEn(c.capital, 3); });
     $('marcador').addEventListener('click', () => { panelAbierto(true); abrirHoja('retos'); });
     $('fin-seguir').addEventListener('click', () => { $('fin').hidden = true; if (!tuPueblo()) pedirModo('Elige otro pueblo', 'Tu pueblo ya no existe. Gobierna otro o sigue mirando como dios.'); else { corriendo = true; programar(); } });

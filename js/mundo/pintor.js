@@ -129,7 +129,8 @@
       else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, c ? (c.era === 4 ? 4 : V.fase(c.era)) : 0), x, y);
+      else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio'][obra - V.OBRA.pozo], color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.centro) {
@@ -378,6 +379,7 @@
     barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
+    andamios(ahora, x0, y0, x1, y1);
     progresos(x0, y0, x1, y1);
     humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
@@ -391,11 +393,14 @@
     pintarEfectos(ahora, x0, y0, x1, y1);
     asedios(ahora);
     nieve(ahora, x0, y0, x1, y1);
+    estaciones(ahora, x0, y0, x1, y1);
     pajaros(ahora, x0, y0, x1, y1);
     nubes(ahora, x0, y0, x1, y1);
     pintarAviones(k);
     marcarPulso(ahora);
+    planos(ahora);
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
+    sueno(ahora, x0, y0, x1, y1);
     resplandor(k, ahora, x0, y0, x1, y1);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
@@ -457,11 +462,59 @@
       sabio: oficio === 'erudito' ? M.ERUDITO((S.civ(m, a.c) || { era: 0 }).era).tipo : undefined
     });
   }
+  const durmiendo = new Set();
+  function sueno(ahora, x0, y0, x1, y1) {
+    if (!durmiendo.size) return;
+    const v = m.vida;
+    g.font = 'bold 5px monospace'; g.textAlign = 'left';
+    for (const t of durmiendo) {
+      const x = (t % v.tw) * P + 10, y = Math.floor(t / v.tw) * P - 1;
+      if (x < x0 || y < y0 || x > x1 || y > y1) continue;
+      const f = ((ahora / 1600) + (t % 7) / 7) % 1;
+      g.fillStyle = 'rgba(220,230,255,' + (0.9 * (1 - f)).toFixed(2) + ')';
+      g.fillText('z', x + f * 3, y - f * 6); if (f > 0.4) g.fillText('Z', x + 2 + f * 3, y - 3 - f * 6);
+    }
+  }
+  // Las estaciones: el otoño dora el campo, el invierno lo blanquea y nieva en todo el reino.
+  function estaciones(ahora, x0, y0, x1, y1) {
+    const e = m.vida.estacion;
+    if (e == null || e < 0) return;
+    const cols = ['rgba(150,230,120,0.05)', null, 'rgba(230,140,40,0.11)', 'rgba(235,242,255,0.22)'];
+    if (cols[e]) { g.fillStyle = cols[e]; g.fillRect(x0, y0, x1 - x0, y1 - y0); }
+    if (e !== 3 || reducido) return;
+    const n = Math.min(260, Math.round((x1 - x0) * (y1 - y0) / 900));
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    for (let i = 0; i < n; i++) {
+      const wx = x0 + ((azarV(i * 17) * (x1 - x0) + Math.sin(ahora / 800 + i) * 4) % (x1 - x0)), wy = y0 + ((azarV(i * 31) * (y1 - y0) + ahora / 45 * (0.5 + azarV(i + 3))) % (y1 - y0));
+      g.fillRect(Math.floor(wx), Math.floor(wy), i % 4 ? 1 : 2, 1);
+    }
+  }
+  // Las obras a medias: cimientos, postes y tablones; el edificio va asomando según avanza.
+  function andamios(ahora, x0, y0, x1, y1) {
+    const v = m.vida, an = v.andamios;
+    if (!an) return;
+    for (const k of Object.keys(an)) {
+      const t = +k, x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P;
+      if (x + P < x0 || y + P < y0 || x > x1 || y > y1) continue;
+      const o = an[k], f = 1 - Math.max(0, o.falta) / o.total, alto_ = Math.round(2 + f * 10);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x + 1, y + 14, 14, 2);
+      g.fillStyle = '#8a8478'; g.fillRect(x + 2, y + 13, 12, 2);
+      g.fillStyle = f < 0.5 ? '#b08a5a' : '#c8b494'; g.fillRect(x + 3, y + 13 - alto_, 10, alto_);
+      if (f >= 0.5) { g.fillStyle = '#6a4a32'; g.fillRect(x + 6, y + 10, 3, 3); }
+      g.fillStyle = '#7a5530';
+      for (const px of [1, 7, 14]) g.fillRect(x + px, y + 1, 1, 13);
+      for (const py of [4, 8, 12]) g.fillRect(x + 1, y + py, 14, 1);
+      g.fillStyle = '#5a3c20'; g.fillRect(x + 1, y + 4, 1, 1); g.fillRect(x + 14, y + 8, 1, 1);
+      if (Math.floor(ahora / 500 + t) % 9 === 0) emitir(x + 8, y + 12, 2, { v: 12, g: 40, vida: 500, cols: ['#c8b494', '#a89474'], tipo: 'solido', tam: 0.8, dy: -8, suelo: 1 });
+      g.fillStyle = 'rgba(10,12,20,0.75)'; g.fillRect(x + 0.5, y - 4.5, 15, 3);
+      g.fillStyle = '#ffb04a'; g.fillRect(x + 1, y - 4, Math.max(1, 14 * f), 2);
+    }
+  }
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const ig = golpesDelTurno(v);
-    dibujados.clear(); quietos = []; gritos = [];
+    dibujados.clear(); quietos = []; gritos = []; durmiendo.clear();
     const fiesta = new Set(), hambre = new Set();
     for (const c of S.vivas(m)) { if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 1) fiesta.add(c.id); if ((c.comida || 0) < (c.aldeanos || 0) * 0.15) hambre.add(c.id); }
     const todos = caidos.length ? v.aldeanos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : v.aldeanos;
@@ -476,6 +529,8 @@
         if (j === i) acc = r[i + 2];
       } else { px = a.x * P + 6.5; py = a.y * P + 6; acc = 0; }
       if (siguiendo === a.id) { cam.x = px; cam.y = py; }
+      // Quien duerme y ya llegó a casa no se ve: solo sale el «zZ» sobre el tejado.
+      if (a.dormir && a.casa != null && Math.floor((py - 6) / P) * v.tw + Math.floor((px - 6.5) / P) === a.casa) { durmiendo.add(a.casa); continue; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       // Recibe un golpe: sale despedido un par de píxeles lejos de quien le pega. Pega: embiste hacia el otro.
       const recibe = golpeActivo(ig.golpes.get(a.id), k), pega = golpeActivo(ig.ataques.get(a.id), k);
@@ -745,7 +800,14 @@
   // ---------- El día y la noche: cada minuto y medio cae la noche y se encienden las ventanas ----------
   const DIA = 90000;
   let luces = [], lucesHasta = 0;
-  function oscuridad(ahora) { if (reducido) return 0; const f = (ahora % DIA) / DIA; return Math.max(0, Math.min(1, (-Math.cos(f * Math.PI * 2) - 0.1) * 1.4)); }
+  // En las partidas pausadas la noche va con los turnos (el sexto de cada día); si no, con el reloj.
+  function oscuridad(ahora) {
+    if (reducido) return 0;
+    if (m && V.pausada && V.pausada(m)) {
+      const h = (m.turno % V.DIA_TURNOS) + Math.min(1, progreso() / V.TICKS), d = Math.min(Math.abs(h - 5.5), Math.abs(h + 0.5));
+      return Math.max(0, Math.min(1, (1.15 - d) / 0.6));
+    }
+    const f = (ahora % DIA) / DIA; return Math.max(0, Math.min(1, (-Math.cos(f * Math.PI * 2) - 0.1) * 1.4)); }
   function noche(ahora, x0, y0, x1, y1, z, ox, oy) {
     ahora = performance.now();
     const o = oscuridad(ahora);
@@ -758,7 +820,7 @@
     if (ahora > lucesHasta) {
       lucesHasta = ahora + 1200; luces = [];
       const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber) luces.push(t); if (luces.length > 400) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber || ob === V.OBRA.palacio || ob === V.OBRA.fuente) luces.push(t); if (luces.length > 400) break; }
     }
     const a = Math.min(1, (o - 0.3) / 0.4);
     for (const t of luces) {
@@ -1494,6 +1556,7 @@
       else arrastre = null;
     });
     cv.addEventListener('pointermove', ev => {
+      if (arqui) { const rect = cv.getBoundingClientRect(), { w, h } = vista(); arqui.wx = cam.x + (ev.clientX - rect.left - w / 2) / cam.z; arqui.wy = cam.y + (ev.clientY - rect.top - h / 2) / cam.z; }
       if (!punteros.has(ev.pointerId)) return;
       if (punteros.size === 2) {
         const [a, b] = [...punteros.values()];
@@ -1520,7 +1583,8 @@
         let cerca = null, dmin = Math.max(5, 9 / cam.z);
         for (const [id, [x, y]] of dibujados) { const d = Math.hypot(x + 1.5 - wx, y + 2.5 - wy); if (d < dmin) { dmin = d; cerca = id; } }
         const R = V.SUB * P, rx = Math.floor(wx / R), ry = Math.floor(wy / R);
-        if (cerca != null && alClicarAldeano) alClicarAldeano(cerca);
+        if (arqui) { const tx = Math.floor(wx / P), ty = Math.floor(wy / P); arqui.wx = wx; arqui.wy = wy; if (tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th) arqui.alColocar(ty * m.vida.tw + tx); }
+        else if (cerca != null && alClicarAldeano) alClicarAldeano(cerca);
         else if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
       }
       if (punteros.size === 1) { const [p] = [...punteros.values()]; arrastre = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, movido: 99 }; }
@@ -1535,10 +1599,44 @@
     }, { passive: false });
   }
 
+  // El modo arquitecto: { clave, civ, valida(t) → razón o null, alColocar(t) }; null para salir.
+  let arqui = null;
+  function arquitecto(o) { arqui = o ? Object.assign({ wx: -1, wy: -1 }, o) : null; }
+  function dibujoDe(clave, c) {
+    const color = c ? c.color : '#cccccc', fase = c ? V.fase(c.era) : 0;
+    if (clave === 'casa') return ARTE().casa(CASAS[c ? grupoEra(c.era) : 0], color, 0);
+    if (clave === 'templo') return ARTE().edificio('templo', color, c && c.era === 4 ? 4 : fase);
+    if (clave === 'saber') return ARTE().edificio('saber', color, M.ERUDITO(c ? c.era : 0).tipo);
+    return ARTE().edificio(clave, color, fase);
+  }
+  function planos(ahora) {
+    const v = m.vida, parpadeo = 0.45 + 0.2 * Math.sin(ahora / 260);
+    const c = arqui ? S.civ(m, arqui.civ) : S.vivas(m).find(x => x.jugador);
+    if (!c) return;
+    // Lo encargado: el edificio en transparente con un marco de trazos; las calles por empedrar, en gris.
+    g.save(); g.setLineDash([2, 1.5]); g.lineWidth = 0.8;
+    for (const e of (c.plan && c.plan.encargos) || []) {
+      const x = (e.t % v.tw) * P, y = Math.floor(e.t / v.tw) * P;
+      g.globalAlpha = parpadeo; g.drawImage(dibujoDe(e.clave, c), x, y, P, P); g.globalAlpha = 1;
+      g.strokeStyle = '#ffd76a'; g.strokeRect(x + 0.5, y + 0.5, P - 1, P - 1);
+    }
+    if (arqui) for (const t of (v.pendientes && v.pendientes[c.id]) || []) { const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P; g.fillStyle = 'rgba(190,190,184,' + (parpadeo * 0.8).toFixed(2) + ')'; g.fillRect(x + 1, y + 1, P - 2, P - 2); }
+    g.restore();
+    if (!arqui || arqui.wx < 0) return;
+    const tx = Math.floor(arqui.wx / P), ty = Math.floor(arqui.wy / P), t = ty * v.tw + tx;
+    if (tx < 0 || ty < 0 || tx >= v.tw || ty >= v.th) return;
+    const no = arqui.valida(t), x = tx * P, y = ty * P;
+    g.globalAlpha = 0.75;
+    if (arqui.clave === 'camino') { g.fillStyle = '#b4b2ac'; g.fillRect(x, y, P, P); } else g.drawImage(dibujoDe(arqui.clave, c), x, y, P, P);
+    g.globalAlpha = 1;
+    g.fillStyle = no ? 'rgba(255,60,40,0.35)' : 'rgba(80,255,120,0.25)'; g.fillRect(x, y, P, P);
+    g.strokeStyle = no ? '#ff5a4a' : '#7aff9a'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, P - 1, P - 1);
+    if (no) { const f = Math.max(2.5, 11 / cam.z); g.font = 'bold ' + f.toFixed(1) + 'px sans-serif'; g.textAlign = 'center'; g.fillStyle = 'rgba(0,0,0,0.75)'; const w = g.measureText(no).width + f; g.fillRect(x + 8 - w / 2, y - f * 1.7, w, f * 1.4); g.fillStyle = '#ffd0c8'; g.fillText(no, x + 8, y - f * 0.6); }
+  }
   function seleccionar(id) { sel = id; if (m) territorio(); }
   function elegirAldeano(id) { elegido = id; }
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { P, arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});

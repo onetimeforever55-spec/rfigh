@@ -462,5 +462,54 @@ console.log('FUEGO, AGUA Y MARCAS');
   if (tv != null) { V2.inundar(m, c, 2); v.inundado[tv] = 2; comprobar(!V2.prender(m, tv, 0, 3), 'lo inundado no arde'); }
 }
 
+console.log('LA VIDA PAUSADA: NOCHES, ESTACIONES, OBRAS Y NECESIDADES');
+{
+  const m = S.crear(4, 5, { ritmo: 3 }), v = m.vida, V2 = M.vida;
+  while (m.turno % V2.DIA_TURNOS !== V2.DIA_TURNOS - 1) S.turno(m);
+  comprobar(v.noche && v.aldeanos.filter(a => a.dormir).length > v.aldeanos.length * 0.4, 'de noche (un turno de cada seis) la gente vuelve a casa a dormir');
+  S.turno(m);
+  comprobar(!v.noche && !v.aldeanos.some(a => a.dormir), 'y al amanecer vuelven al trabajo');
+  const est = new Set(); for (let i = 0; i < 48; i++) { S.turno(m); est.add(v.estacion); }
+  comprobar(est.size === 4, 'pasan las cuatro estaciones');
+  let andamio = false, casaNueva = false;
+  const casas0 = S.vivas(m).reduce((k, c) => k + c.casas, 0);
+  for (let i = 0; i < 40 && !andamio; i++) { S.turno(m); if (Object.keys(v.andamios || {}).length) andamio = true; }
+  comprobar(andamio, 'las obras se levantan sobre un andamio y tardan varias jornadas');
+  for (let i = 0; i < 30; i++) S.turno(m);
+  comprobar(S.vivas(m).reduce((k, c) => k + c.casas, 0) > casas0, 'y al acabarse quedan las casas');
+  for (let i = 0; i < 150; i++) S.turno(m);
+  const c = S.vivas(m).sort((a, b) => b.aldeanos - a.aldeanos)[0];
+  comprobar(Array.isArray(c.necesidades) && c.necesidades.length >= 2 && c.necesidades.every(n => n.nombre && n.bien && n.mal), 'cada pueblo sabe lo que necesita y por qué (' + c.necesidades.map(n => n.obra + (n.falta ? '✗' : '✓')).join(' ') + ')');
+  comprobar(c.graneros > 0 || c.fuentes > 0 || c.pozos > 0, 'y lo construye por necesidad: graneros ' + c.graneros + ', plazas públicas ' + c.fuentes + ', pozos ' + c.pozos + ', parques ' + c.parques);
+  comprobar(c.animo >= 0 && c.animo <= 100 && V2.animoDe(m, v.aldeanos.find(a => a.c === c.id)) >= 0, 'la gente tiene ánimo (' + c.animo + '/100)');
+  // El porqué se nota: quitar el pozo a un pueblo sin agua baja la estabilidad.
+  comprobar(V2.NECESIDADES.pozo.estab < 0 && V2.NECESIDADES.palacio.mal.length > 10, 'lo que falta cuesta estabilidad y ánimo (sin pozo ' + V2.NECESIDADES.pozo.estab + ')');
+  // El arquitecto: se marca una parcela y los constructores la levantan.
+  c.jugador = true; c.plan = c.plan || {}; c.plan.prioridad = c.plan.prioridad || {};
+  const zona = [c.capital, ...S.vecinos(c.capital)].flatMap(r => V2.parcelas(m, r));
+  const t = zona.find(x => !V2.puedeColocar(m, c, x, 'pozo'));
+  comprobar(t != null && V2.encargar(m, c, t, 'pozo').ok && c.plan.encargos.length === 1, 'el arquitecto marca dónde va un pozo');
+  const agua = zona.find(x => ['agua', 'rio', 'bajo'].includes(V2.terrenos(m)[x]));
+  comprobar(agua == null || !!V2.puedeColocar(m, c, agua, 'casa'), 'y no deja construir en el agua ni en tierra ajena');
+  c.madera += 50; c.piedra += 50; c.oro += 50;
+  let hecho = false; for (let i = 0; i < 30 && !hecho; i++) { S.turno(m); hecho = v.obra[t] === V2.OBRA.pozo; }
+  comprobar(hecho, 'los constructores van, montan el andamio y lo terminan');
+  const tc = S.casillas(m, c).flatMap(r => V2.parcelas(m, r)).find(x => !V2.puedeColocar(m, c, x, 'casa')), r1 = V2.encargar(m, c, tc, 'casa'), r2 = V2.encargar(m, c, tc, 'casa');
+  comprobar(r1.ok && r2.quitado && !c.plan.encargos.some(e => e.t === tc), 'tocar otra vez quita el encargo' + (r1.ok ? '' : ' (' + r1.razon + ')'));
+  // Órdenes por texto de los edificios nuevos.
+  const X2 = M.mando; X2.gobernar(m, c.id);
+  for (const [txt, o] of [['construid un pozo', 'pozo'], ['haced una plaza pública', 'fuente'], ['quiero un parque', 'parque'], ['levantad un palacio', 'palacio'], ['construid un granero', 'granero'], ['construid una iglesia', 'templo']]) {
+    const r = X2.entender(m, c.id, txt);
+    comprobar(r.some(a => a.tipo === 'construir' && a.obra === o), '«' + txt + '» → ' + o);
+  }
+  comprobar(!X2.entender(m, c.id, 'llenad el granero de comida').some(a => a.tipo === 'construir'), '«llenad el granero» no es construir uno');
+}
+{
+  // Con ritmo 1 (las pruebas de siempre) nada de esto cambia el mundo.
+  const m = S.crear(4, 5);
+  for (let i = 0; i < 12; i++) S.turno(m);
+  comprobar(!m.vida.noche && m.vida.estacion === -1 && !Object.keys(m.vida.andamios || {}).length, 'sin vida pausada, ni noches ni estaciones ni andamios');
+}
+
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
 process.exit(fallos ? 1 : 0);

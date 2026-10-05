@@ -357,6 +357,12 @@
       if (nombre === 'arqueria') return arqueria(H, fase, col);
       if (nombre === 'castillo') return castillo(H, fase, col);
       if (nombre === 'saber') return casaSaber(H, fase, col);
+      if (nombre === 'pozo') return pozo(H, fase, col);
+      if (nombre === 'granero') return granero(H, fase, col);
+      if (nombre === 'fuente') return fuente(H, fase, col);
+      if (nombre === 'parque') return parque(H, fase, col);
+      if (nombre === 'palacio') return palacio(H, fase, col);
+      if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
       if (nombre === 'molino' && fase !== 1) return molinoDeFase(H, fase, col);
       if (nombre === 'puerto' && fase !== 1) return puertoDeFase(H, fase, col);
@@ -444,6 +450,105 @@
     H.r(2, 9, 2, 2, LUZ); H.r(6, 9, 2, 2, LUZ); H.r(4, 12, 2, 3, '#3a2a2a'); H.r(2, 4, 2, 3, '#6a3a2a');
     H.r(10, 9, 5, 6, '#c8ccd4'); for (let y = 4; y < 9; y++) { const half = Math.round(Math.sqrt(Math.max(0, 6.25 - (y - 9) * (y - 9) * 0.25))); for (let x = 12 - half; x <= 12 + half; x++) H.p(x, y, '#e4e8ee'); }
     H.r(12, 2, 1, 4, '#3a3a44'); H.p(13, 2, '#3a3a44'); H.p(12, 6, col);
+    H.contorno(); return H.lienzo();
+  }
+  // ---------- Los edificios públicos (cada uno con su porqué en vida.js), de cada fase ----------
+  function pozo(H, fase, col) {
+    if (fase === 3) {
+      // Depósito de agua sobre patas de hierro, con su escalera y un grifo abajo.
+      for (const x of [3, 12]) H.r(x, 7, 1, 8, '#6a6a72'); H.r(5, 9, 1, 6, '#5a5a62'); H.r(10, 9, 1, 6, '#5a5a62');
+      for (let y = 8; y < 15; y += 2) H.r(3, y, 10, 1, '#7a7a82');
+      H.r(2, 1, 12, 6, '#b8c4cc'); H.r(2, 1, 12, 1, '#dce4ea'); H.r(2, 6, 12, 1, '#8a949c'); H.r(5, 3, 6, 2, col);
+      H.r(7, 13, 2, 2, '#3a7ac8'); H.contorno(); return H.lienzo();
+    }
+    // Brocal de piedra, cubo y (desde la Edad Media) un tejadillo con su torno.
+    H.r(3, 10, 10, 5, PIEDRA); H.r(3, 10, 10, 1, claro(PIEDRA, 0.2)); for (let x = 4; x < 13; x += 3) H.p(x, 12, oscuro(PIEDRA, 0.15)); H.r(4, 10, 8, 1, '#2a5a9a'); H.p(6, 10, '#6aa0e0');
+    if (fase === 0) { H.r(2, 6, 1, 5, MADERA); H.r(13, 6, 1, 5, MADERA); H.r(2, 6, 12, 1, MADERA); H.r(8, 7, 1, 3, '#c8b494'); H.r(7, 9, 3, 2, '#8a5a32'); }
+    else { H.r(3, 4, 1, 7, MADERA); H.r(12, 4, 1, 7, MADERA); tejado(H, 1, 14, 1, 4, fase === 2 ? oscuro(col, 0.1) : '#a0603a'); H.r(4, 6, 8, 1, '#5a3a20'); H.r(8, 7, 1, 2, '#c8b494'); H.r(7, 8, 3, 2, '#6a6a72'); H.p(13, 6, '#5a3a20'); }
+    H.p(14, 14, '#4a8a3a'); H.p(1, 14, '#5a9a4a');
+    H.contorno(); return H.lienzo();
+  }
+  function granero(H, fase, col) {
+    if (fase === 0) {
+      // Silo de barro sobre pilotes, con su techo de paja y una escalera.
+      for (const x of [4, 7, 10]) H.r(x, 12, 1, 3, MADERA);
+      H.r(3, 6, 9, 6, '#b8905a'); H.r(3, 6, 1, 6, '#d0a870'); H.r(6, 8, 2, 2, '#4a3020');
+      const paja = mezcla(col, '#d8b060', 0.8); tejado(H, 2, 12, 2, 6, paja);
+      for (let y = 8; y < 15; y += 2) H.p(13, y, MADERA); H.r(12, 7, 1, 8, '#6a4a2a'); H.r(14, 7, 1, 8, '#6a4a2a');
+      H.contorno(); return H.lienzo();
+    }
+    if (fase === 3) {
+      // Silos de metal y una nave.
+      for (const x of [2, 7]) { H.r(x, 3, 5, 12, '#c8ccd4'); H.r(x, 3, 1, 12, '#e4e8ee'); H.r(x + 4, 3, 1, 12, '#9aa0aa'); for (let y = 5; y < 15; y += 3) H.r(x, y, 5, 1, '#aab0ba'); H.r(x, 2, 5, 1, '#9aa0aa'); H.p(x + 2, 1, '#9aa0aa'); }
+      H.r(12, 8, 3, 7, col); H.r(12, 8, 3, 1, claro(col, 0.25)); H.contorno(); return H.lienzo();
+    }
+    // Granero de tablones (medieval) o de piedra (pólvora), con portón de cruz y gavillas.
+    const pared = fase === 2 ? PIEDRA : '#a0603a';
+    H.r(2, 7, 12, 8, pared); H.r(2, 7, 1, 8, claro(pared, 0.15)); H.r(13, 7, 1, 8, oscuro(pared, 0.2));
+    if (fase !== 2) for (let x = 4; x < 13; x += 3) H.r(x, 8, 1, 7, oscuro(pared, 0.15));
+    tejado(H, 1, 14, 2, 7, fase === 2 ? oscuro(col, 0.1) : '#6a4a32');
+    H.r(6, 10, 4, 5, '#5a3a20'); for (let k = 0; k < 4; k++) { H.p(6 + k, 10 + k, '#e8d8b4'); H.p(9 - k, 10 + k, '#e8d8b4'); }
+    H.r(7, 4, 2, 2, '#2a2a30'); H.p(1, 13, '#e0c060'); H.p(1, 14, '#c8a040'); H.p(14, 14, '#e0c060');
+    H.contorno(); return H.lienzo();
+  }
+  function fuente(H, fase, col) {
+    // Plaza pública: losas, bancos, faroles y una fuente en el centro (pilón, luego taza y surtidor, luego estatua).
+    const losa = fase === 0 ? '#b8a888' : fase === 3 ? '#c8c8c4' : '#c0bcb2', junta = oscuro(losa, 0.12);
+    H.r(0, 0, 16, 16, losa); for (let y = 0; y < 16; y += 4) H.r(0, y, 16, 1, junta); for (let y = 0; y < 16; y += 4) for (let x = (y / 4) % 2 ? 2 : 0; x < 16; x += 4) H.r(x, y, 1, 4, junta);
+    H.r(0, 0, 16, 1, claro(losa, 0.15));
+    H.disco(8, 9, 5.2, fase === 0 ? '#9a968c' : '#d8d4ca', true); H.disco(8, 9, 4, '#2a6ab0'); H.disco(7.4, 8.4, 1.6, '#6aa8e8');
+    if (fase === 0) { H.r(7, 7, 2, 3, '#8a867c'); H.p(8, 6, '#bcd8f0'); }
+    else if (fase === 3) { H.r(7, 4, 2, 6, '#b8b8b4'); H.r(6, 3, 4, 1, '#d8d8d4'); H.p(8, 1, '#e8f4ff'); H.p(7, 2, '#bcd8f0'); H.p(9, 2, '#bcd8f0'); }
+    else { H.r(7, 5, 2, 5, '#c8c4ba'); H.r(6, 4, 4, 1, '#e4e0d6'); H.p(8, 2, '#e8f4ff'); H.p(8, 3, '#bcd8f0'); H.p(6, 5, '#bcd8f0'); H.p(9, 5, '#bcd8f0'); if (fase === 2) { H.r(7, 1, 2, 2, '#b8a060'); } }
+    H.r(1, 14, 4, 1, MADERA); H.r(11, 14, 4, 1, MADERA); H.p(1, 15, oscuro(MADERA, 0.2)); H.p(4, 15, oscuro(MADERA, 0.2)); H.p(11, 15, oscuro(MADERA, 0.2)); H.p(14, 15, oscuro(MADERA, 0.2));
+    if (fase >= 1) for (const x of [1, 14]) { H.r(x, 2, 1, 5, '#3a3a40'); H.r(x - 0 , 1, 1, 1, fase === 3 ? '#f4f4e0' : LUZ); }
+    H.p(3, 3, col); H.p(12, 3, col);
+    return H.lienzo();
+  }
+  function parque(H, fase, col) {
+    // Parque: césped, un sendero de tierra, árboles redondos, flores de colores, un banco y un estanque.
+    H.r(0, 0, 16, 16, '#5aa040'); for (let k = 0; k < 18; k++) H.p((k * 7) % 16, (k * 11) % 16, '#6ab450');
+    for (let k = 0; k < 16; k++) { const y = Math.round(8 + Math.sin(k / 2.4) * 2); H.r(k, y, 1, 2, fase === 3 ? '#d4d0c8' : '#c8a878'); }
+    H.disco(12, 12.5, 2.6, '#3a7ac8'); H.p(11, 12, '#7ab4ec');
+    for (const [x, y, r] of [[3.5, 3.5, 3], [12, 3, 2.6], [3, 13, 2.2]]) { H.r(Math.round(x) - 1, Math.round(y) + 1, 1, 3, '#6a4a2a'); H.disco(x, y, r, '#3a8a30', true); }
+    for (const [x, y, c] of [[7, 4, '#ff5a7a'], [8, 5, '#ffd84a'], [6, 5, '#ffffff'], [9, 3, '#c86ae8'], [7, 13, '#ff8a3a'], [8, 14, '#ffd84a']]) H.p(x, y, c);
+    H.r(8, 11, 3, 1, MADERA); H.p(8, 12, oscuro(MADERA, 0.2)); H.p(10, 12, oscuro(MADERA, 0.2));
+    if (fase >= 2) { H.r(14, 6, 1, 4, '#3a3a40'); H.p(14, 5, LUZ); }
+    H.p(15, 0, col);
+    return H.lienzo();
+  }
+  function palacio(H, fase, col) {
+    if (fase === 0) {
+      // Gran casa del jefe: tronco tallado, techo alto de paja, pieles y estandarte.
+      H.r(1, 8, 14, 7, '#9a6a3a'); for (let x = 1; x < 15; x += 2) H.r(x, 8, 1, 7, '#8a5a2a');
+      tejado(H, 0, 15, 2, 8, mezcla(col, '#d8b060', 0.7)); H.r(6, 10, 4, 5, '#3a2416'); H.r(7, 9, 2, 1, col);
+      H.r(14, 0, 1, 8, MADERA); H.r(12, 0, 2, 3, col); H.p(2, 12, '#e8d8b4'); H.p(13, 12, '#e8d8b4');
+      H.contorno(); return H.lienzo();
+    }
+    if (fase === 3) {
+      // Palacio de gobierno moderno: fachada blanca, columnata, cúpula de cristal y banderas.
+      H.r(0, 7, 16, 8, '#ecece6'); H.r(0, 14, 16, 1, '#b8b8b2'); for (let x = 1; x < 16; x += 2) H.r(x, 9, 1, 5, '#fafaf6');
+      H.r(4, 5, 8, 2, '#dcdcd6'); for (let y = 1; y < 5; y++) { const half = Math.round(Math.sqrt(16 - (y - 5) * (y - 5)) ); H.r(8 - half, y, half * 2, 1, y < 3 ? '#a8c8e8' : '#88a8c8'); }
+      H.r(7, 11, 2, 4, '#3a3a40'); H.r(0, 1, 1, 6, '#5a5a62'); H.r(1, 1, 3, 2, col); H.r(15, 1, 1, 6, '#5a5a62'); H.r(12, 1, 3, 2, col);
+      H.contorno(); return H.lienzo();
+    }
+    // Palacio de piedra: cuerpo central con frontón, dos alas con torrecillas, escalinata y estandartes.
+    const muro = fase === 2 ? '#e4d8bc' : PIEDRA;
+    H.r(0, 7, 16, 8, muro); H.r(0, 7, 16, 1, claro(muro, 0.15)); H.r(0, 14, 16, 1, oscuro(muro, 0.2));
+    H.r(0, 3, 3, 5, muro); H.r(13, 3, 3, 5, muro); tejado(H, 0, 2, 0, 3, oscuro(col, 0.1)); tejado(H, 13, 15, 0, 3, oscuro(col, 0.1));
+    tejado(H, 3, 12, 3, 7, col);
+    for (const x of [1, 4, 10, 13]) ventana(H, x, 9, fase === 2);
+    H.r(6, 9, 4, 6, '#4a3020'); H.r(6, 9, 4, 1, '#e0b040'); H.r(5, 14, 6, 1, '#d8d0bc');
+    H.r(7, 1, 2, 3, '#e0b040'); H.p(7, 0, col); H.p(8, 0, col);
+    H.contorno(); return H.lienzo();
+  }
+  // Iglesia románica de la Edad Media: nave de piedra, ábside, campanario cuadrado y una cruz.
+  function iglesia(H, col) {
+    H.r(1, 8, 10, 7, PIEDRA); H.r(1, 8, 1, 7, claro(PIEDRA, 0.15)); tejado(H, 0, 11, 4, 8, oscuro(col, 0.25));
+    H.r(11, 3, 4, 12, oscuro(PIEDRA, 0.04)); H.r(14, 3, 1, 12, oscuro(PIEDRA, 0.2)); H.r(11, 2, 4, 1, oscuro(col, 0.25));
+    H.r(12, 5, 2, 2, '#2a2a30'); H.p(12, 6, '#e0b040'); H.r(13, 0, 1, 2, '#e0c060'); H.p(12, 1, '#e0c060'); H.p(14, 1, '#e0c060');
+    H.r(4, 11, 3, 4, '#3a2a1e'); H.p(4, 10, '#3a2a1e'); H.p(6, 10, '#3a2a1e'); H.p(5, 9, '#3a2a1e');
+    H.r(8, 10, 1, 2, CRISTAL); H.r(2, 10, 1, 2, CRISTAL); H.r(12, 9, 2, 2, CRISTAL);
     H.contorno(); return H.lienzo();
   }
   // ---------- Templo, molino, puerto y ayuntamiento de cada fase (0 tribal, 2 pólvora, 3 moderna) ----------

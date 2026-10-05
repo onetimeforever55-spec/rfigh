@@ -371,7 +371,7 @@
     else if (M.ERAS[c.era + 1] && (!c.jugador || (c.plan && c.plan.autoEdad)) && puedeSubir(m, c).ok) empezarSubida(m, c);
     tesoro(m, c);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
-    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + M.tec(c, 'estab') + (c.oro < 0 ? -6 : 0) - ((c.plan && c.plan.impuesto) || 1) * 16 + 16 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
+    const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + M.tec(c, 'estab') + (c.bienestar || 0) + (c.oro < 0 ? -6 : 0) - ((c.plan && c.plan.impuesto) || 1) * 16 + 16 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
     c.estab += (objetivo - c.estab) * 0.12 + (azar(m) - 0.5) * 4;
     c.estab = Math.max(0, Math.min(100, c.estab));
     // Expansión hacia tierra libre cuando sobran brazos.
@@ -629,6 +629,8 @@
     if (c.guerras.some(g => g.cansancio > 4)) out.push(['cansancio de la guerra', -10]);
     if (c.plan && c.plan.impuesto > 1) out.push(['impuestos altos', -Math.round((c.plan.impuesto - 1) * 40)]);
     if ((c.oro || 0) < 0) out.push(['arcas vacías', -10]);
+    if (c.necesidades && c.necesidades.some(n => n.obra === 'palacio' && n.falta)) out.push(['el gobierno no tiene palacio', -8]);
+    else if (c.palacios > 0) out.push(['la corte del palacio', 6]);
     return out;
   }
   function lealtades(m) {

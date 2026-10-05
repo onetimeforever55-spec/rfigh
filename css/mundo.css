@@ -252,3 +252,21 @@ body.sin-panel .panel { display: none; }
   .anio { white-space: nowrap; }
   .camara { bottom: 236px !important; }
 }
+.edad-req.nec li { margin: 5px 0; line-height: 1.35; }
+.edad-req.nec .nec-obrar { margin: 4px 0 0; display: block; }
+.rec.estacion i { filter: none; }
+/* El modo arquitecto: la paleta de obras flota arriba del mapa. */
+.arquitecto { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: 10px; width: min(760px, calc(100% - 24px)); background: rgba(14, 18, 30, 0.9); border: 1px solid rgba(255, 215, 106, 0.35); border-radius: 10px; padding: 8px 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+.arqui-cabeza { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; }
+.arqui-cabeza .tenue { flex: 1; }
+.arqui-lista { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.arqui-op { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 64px; padding: 5px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: inherit; font: inherit; font-size: 11.5px; cursor: pointer; }
+.arqui-op i { font-style: normal; font-size: 18px; line-height: 1.1; }
+.arqui-op small { font-family: var(--f-dato); font-size: 10px; opacity: 0.75; white-space: nowrap; }
+.arqui-op.activa { border-color: #ffd76a; background: rgba(255, 215, 106, 0.18); }
+.arqui-op.falta { box-shadow: inset 0 0 0 1px rgba(255, 138, 122, 0.7); }
+.arqui-op:disabled { opacity: 0.4; cursor: not-allowed; }
+@media (max-width: 600px) { .arquitecto { top: 6px; padding: 6px; } .arqui-op { min-width: 56px; } .arqui-cabeza { font-size: 12px; flex-wrap: wrap; } }
+.aldeano-oficios { flex-wrap: wrap; gap: 4px; }
+.aldeano-oficios .mando { padding: 3px 8px; font-size: 12px; min-height: 0; }
+.aldeano-oficios .mando.activa { border-color: #ffd76a; color: #ffd76a; }
