@@ -209,6 +209,9 @@ body.sin-panel .panel { display: none; }
 .retos-total { font-family: var(--f-pixel); font-size: 22px; color: var(--oro); }
 .guerra-marcador { border: 1px solid var(--sangre); border-radius: 4px; padding: 8px 10px; margin: 8px 0; }
 .guerra-marcador .barra span { background: var(--sangre); }
+.guerra-marcador .barra { display: inline-block; width: 60px; vertical-align: middle; }
+.guerra-hud .guerra-marcador { margin: 8px 0 0; font-size: 13px; line-height: 1.45; }
+.verde { color: #7fc77a; }
 /* Móvil: todo más compacto para que se vea el mundo. */
 @media (max-width: 899px) {
   .g-cab { flex-wrap: nowrap; }
@@ -290,6 +293,7 @@ body.sin-panel .panel { display: none; }
       <input id="orden" name="orden" type="text" maxlength="200" enterkeyhint="send" placeholder="Peste sobre el más grande, que descubran la pólvora…">
       <button type="submit" class="obrar" id="boton-orden">Obrar</button>
     </div>
+    <div class="guerra-hud" id="guerra-hud" hidden></div>
     <p class="consejo" id="consejo" hidden><span class="consejo-quien">Tu consejero</span> <span id="consejo-texto"></span> <button type="button" class="ejemplo" id="consejo-orden"></button></p>
     <div class="ejemplos" id="ejemplos" aria-label="Ejemplos" hidden></div>
     <p class="respuesta" id="respuesta" aria-live="polite">El tiempo corre. Escribe cuando quieras intervenir.</p>
@@ -1097,13 +1101,18 @@ body.sin-panel .panel { display: none; }
       const [gana, pierde, ratio] = fa >= fb ? [a, b, fa / fb] : [b, a, fb / fa];
       // Las batallas ganan algo de frontera cada año; las plazas se toman con asedios (vida.js).
       const k = Math.max(0, Math.min(3, Math.round(((ratio - 1) * 2 + (azar(m) - 0.4)) * 1.1)));
-      const fr = frontera(m, gana, pierde);
+      // En las guerras del jugador, las plazas (capital y ciudades) solo caen por asedio: así elige a cuál ir y
+      // sabe qué defender.
+      const plaza = new Set(m.vida && (a.jugador || b.jugador) ? [pierde.capital, ...(m.ciudades || []).map(x => x.region)] : []);
+      const fr = frontera(m, gana, pierde).filter(i => !plaza.has(i));
       const tomadas = fr.sort(() => azar(m) - 0.5).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;
       a.pob *= 0.975; b.pob *= 0.975;
       pierde.pob *= 1 - 0.02 * tomadas.length;
       a.estab -= 1.5; b.estab -= 1.5;
       const ga = a.guerras.find(x => x.con === b.id), gb = b.guerras.find(x => x.con === a.id);
+      const gg = gana.guerras.find(x => x.con === pierde.id); if (gg) gg.comarcas = (gg.comarcas || 0) + tomadas.length;
+      const gp = pierde.guerras.find(x => x.con === gana.id); if (gp) gp.comarcas = (gp.comarcas || 0) - tomadas.length;
       if (ga) ga.cansancio += 1 + (pierde === a ? tomadas.length : 0) * 0.5;
       if (gb) gb.cansancio += 1 + (pierde === b ? tomadas.length : 0) * 0.5;
       if (tomadas.includes(pierde.capital)) {
@@ -1256,6 +1265,13 @@ body.sin-panel .panel { display: none; }
     { nombre: 'armadura de placas', material: 'acero', reduce: 0.45 }, { nombre: 'coraza', material: 'acero', reduce: 0.3 },
     { nombre: 'casco y uniforme', material: 'acero y tela', reduce: 0.15 }
   ];
+  // Los vehículos de guerra: cañones desde la pólvora, artillería pesada en la era moderna y tanques en la II Guerra
+  // Mundial. Salen del cuartel y cuestan metal; disparan de lejos y el obús hace daño en una zona.
+  const VEHICULOS = {
+    canon: { nombre: 'cañón de campaña', vida: 70, dano: 42, perfora: 0.6, alcance: 6, metal: 4, area: true, era: 5 },
+    artilleria: { nombre: 'artillería', vida: 80, dano: 58, perfora: 0.7, alcance: 7, metal: 5, area: true, era: 7 },
+    tanque: { nombre: 'tanque', vida: 240, blindaje: 0.7, dano: 62, perfora: 0.85, alcance: 4, metal: 10, era: 8 }
+  };
   // La armadura de cada era (con la pólvora las placas ya no sirven y se aligeran).
   const armaduraDeEra = era => (era <= 0 ? 1 : era === 1 ? 2 : era <= 3 ? 3 : era === 4 ? 4 : era <= 6 ? 5 : 6);
   // Lo que pega quien no es guerrero: su herramienta.
@@ -1263,16 +1279,17 @@ body.sin-panel .panel { display: none; }
   const tieneR = (a, r) => !!(a.rasgos && a.rasgos.includes(r));
   // Puntos de vida de todos: aldeanos (según edad y rasgos) y animales.
   const VIDA_ANIMAL = { oveja: 25, vaca: 50, ciervo: 35, lobo: 55, pez: 10 };
-  const vidaMax = a => (a.tipo ? VIDA_ANIMAL[a.tipo] || 30 : ((a.edad || 0) < ADULTO ? 25 : (a.edad || 0) >= VIEJO ? 45 : 60) + (tieneR(a, 'fuerte') ? 15 : 0));
+  const vidaMax = a => (a.veh ? VEHICULOS[a.veh].vida : a.tipo ? VIDA_ANIMAL[a.tipo] || 30 : ((a.edad || 0) < ADULTO ? 25 : (a.edad || 0) >= VIEJO ? 45 : 60) + (tieneR(a, 'fuerte') ? 15 : 0));
   // El arma con que pega alguien (de lejos, la del tirador).
   function armaDe(a, lejos) {
     if (a.tipo === 'lobo') return { nombre: 'colmillos', dano: 14 };
+    if (a.veh) return VEHICULOS[a.veh];
     if (a.o === GUERRERO) return lejos && a.tirador ? Object.assign({ nombre: TIROS[a.arma || 0] }, TIRO[a.arma || 0]) : ARMAS[a.arma || 0];
     return HERRAMIENTA[a.o] || { nombre: 'puños', dano: 4 };
   }
   // El daño de un golpe que acierta: el del arma (con algo de azar y los rasgos), menos lo que para la armadura.
   function danoContra(v, at, vic, lejos) {
-    const arma = armaDe(at, lejos), arm = ARMADURAS[vic.armadura || 0] || ARMADURAS[0];
+    const arma = armaDe(at, lejos), arm = vic.veh ? { reduce: VEHICULOS[vic.veh].blindaje || 0 } : ARMADURAS[vic.armadura || 0] || ARMADURAS[0];
     const d = arma.dano * (0.8 + azar(v) * 0.4) * (tieneR(at, 'fuerte') ? 1.2 : 1) * (tieneR(at, 'torpe') ? 0.85 : 1) * (tieneR(at, 'valiente') ? 1.1 : 1);
     return Math.max(1, Math.round(d * (1 - arm.reduce * (1 - (arma.perfora || 0)))));
   }
@@ -1287,7 +1304,14 @@ body.sin-panel .panel { display: none; }
     if (atacante) v.ataques.push([atacante.id, paso, victima.x - atacante.x, victima.y - atacante.y]);
     return victima.pv <= 0;
   }
-  const poder = a => armaDe(a).dano / 8 * (1 + (ARMADURAS[a.armadura || 0] || ARMADURAS[0]).reduce);
+  // El marcador de cada guerra: bajas de cada lado y plazas ganadas o perdidas (en la entrada de guerra de cada pueblo).
+  function apuntarBaja(m, civMata, muerto) {
+    const vic = S().civ(m, muerto.c), mata = S().civ(m, civMata);
+    const gv = vic && vic.guerras.find(g => g.con === civMata), gm = mata && mata.guerras.find(g => g.con === muerto.c);
+    if (gv) gv.muertos = (gv.muertos || 0) + 1;
+    if (gm) gm.matados = (gm.matados || 0) + 1;
+  }
+  const poder = a => armaDe(a).dano / 8 * (1 + (a.veh ? VEHICULOS[a.veh].blindaje || 0 : (ARMADURAS[a.armadura || 0] || ARMADURAS[0]).reduce));
   // Vetas: en montañas y colinas hay hierro (metal) y oro.
   const MENAS = { montana: [0.22, 0.07], colina: [0.12, 0.03], desierto: [0.05, 0.03], tundra: [0.06, 0.02] };
 
@@ -1659,13 +1683,20 @@ body.sin-panel .panel { display: none; }
   function equipar(m) {
     const v = m.vida;
     for (const a of v.aldeanos) {
-      if (a.o !== GUERRERO) continue;
+      if (a.o !== GUERRERO) { if (a.veh) { delete a.veh; a.pv = Math.min(a.pv || 0, vidaMax(a)); a.pv0 = a.pv; } continue; }
       const c = S().civ(m, a.c);
       if (!c) continue;
       if (a.tirador == null) a.tirador = c.era >= 5 ? a.id % 3 !== 0 : a.id % 3 === 0;
       if (c.era >= 5 && !a.tirador && a.id % 3 !== 0) a.tirador = true;
       // Sin arquería no hay tiradores (salvo los honderos de la fase tribal); sin cuartel, nadie pasa de la lanza.
       if (a.tirador && c.era >= 1 && !(c.arquerias > 0)) a.tirador = false;
+      // Del cuartel salen también los vehículos: uno de cada siete guerreros sirve una pieza de artillería y, en la
+      // II Guerra Mundial, uno de cada seis conduce un tanque (si hay metal para fabricarlos).
+      if (c.cuarteles > 0 && c.era >= 5) {
+        const quiereV = c.era >= 8 && a.id % 6 === 1 ? 'tanque' : a.id % 7 === 3 ? (c.era >= 7 ? 'artilleria' : 'canon') : null;
+        if (quiereV && a.veh !== quiereV && (c.metal || 0) >= VEHICULOS[quiereV].metal) { c.metal -= VEHICULOS[quiereV].metal; a.veh = quiereV; a.tirador = true; a.pv = a.pv0 = VEHICULOS[quiereV].vida; }
+      }
+      if (a.veh) { a.tirador = true; continue; }
       const quiere = c.cuarteles > 0 || c.era <= 1 ? c.era : Math.min(c.era, 1);
       if ((a.arma || 0) < quiere && (c.era === 0 || (c.metal || 0) >= 1)) { if (c.era > 0) c.metal -= 1; a.arma = quiere; }
       // La armadura de su era: el cuero sale del ganado; el bronce, el hierro y el acero, de la armería.
@@ -1689,8 +1720,17 @@ body.sin-panel .panel { display: none; }
       const suyos = v.aldeanos.filter(a => a.c === c.id && a.o === GUERRERO);
       let e = v.ejercitos[c.id];
       const o = e && S().civ(m, e.con);
-      const valido = e && o && o.viva && S().enGuerra(c, o) && m.dueno[e.obj] === o.id;
-      if (!valido) {
+      // Las órdenes del jugador: «atacad X» fija el objetivo; «defended X» planta el ejército en casa.
+      const p = c.plan || {};
+      const dueObj = p.objetivo != null ? S().civ(m, m.dueno[p.objetivo]) : null;
+      const mandado = dueObj && dueObj.viva && dueObj.id !== c.id && S().enGuerra(c, dueObj) ? dueObj : null;
+      if (p.objetivo != null && !mandado && !(dueObj && dueObj.id !== c.id && !S().enGuerra(c, dueObj))) p.objetivo = null;
+      const valido = e && o && o.viva && S().enGuerra(c, o) && m.dueno[e.obj] === o.id && (!mandado || e.obj === p.objetivo);
+      if (!valido && mandado) {
+        const nuestro = S().frontera(m, mandado, c).sort((x, y) => S().distancia(x, p.objetivo) - S().distancia(y, p.objetivo))[0];
+        e = { con: mandado.id, obj: p.objetivo, reunion: nuestro != null ? nuestro : c.capital, fase: 'reunion', desde: m.turno, asedio: 0 };
+        v.ejercitos[c.id] = e;
+      } else if (!valido) {
         e = null;
         for (const g of c.guerras) {
           const enemigo = S().civ(m, g.con);
@@ -1711,8 +1751,9 @@ body.sin-panel .panel { display: none; }
       // Si un ejército enemigo ataca una de nuestras regiones, vamos a defenderla: ahí se encuentran los dos.
       for (const g of c.guerras) {
         const ee = v.ejercitos[g.con];
-        if (ee && ee.con === c.id && m.dueno[ee.obj] === c.id && ee.fase === 'marcha' && e.fase === 'reunion') { e.defiende = ee.obj; e.fase = 'marcha'; }
+        if (!mandado && ee && ee.con === c.id && m.dueno[ee.obj] === c.id && ee.fase === 'marcha' && e.fase === 'reunion') { e.defiende = ee.obj; e.fase = 'marcha'; }
       }
+      if (p.defender != null) { if (m.dueno[p.defender] === c.id) { e.defiende = p.defender; e.fase = 'marcha'; } else p.defender = null; }
       if (e.defiende != null && m.dueno[e.defiende] !== c.id) e.defiende = null;
       e.capitan = suyos.length ? Math.min(...suyos.map(a => a.id)) : null;
       if (e.fase === 'reunion') {
@@ -1866,6 +1907,7 @@ body.sin-panel .panel { display: none; }
       const defensores = v.aldeanos.filter(a => a.c === o.id && a.o === GUERRERO && enRegion(a)).length;
       const capitan = nuestros.some(a => a.id === e.capitan);
       const torre = parcelas(m, e.obj).some(t => v.obra[t] === OBRA.torre || v.obra[t] === OBRA.castillo);
+      e.estorbo = torre ? 'torre' : defensores ? 'defensores' : !capitan ? 'lejos' : null;
       if (capitan && !defensores && !torre) e.asedio = Math.min(100, (e.asedio || 0) + 1.5 + 0.6 * Math.min(8, nuestros.length));
       else if (defensores) e.asedio = Math.max(0, (e.asedio || 0) - 2);
       if (e.asedio >= 100) capturar(m, c, o, e.obj, paso);
@@ -1878,9 +1920,51 @@ body.sin-panel .panel { display: none; }
     const ciudad = (m.ciudades || []).find(x => x.region === r);
     o.estab -= esCapital ? 20 : 8;
     c.victorias = (c.victorias || 0) + 3;
+    const gc = c.guerras.find(g => g.con === o.id), go = o.guerras.find(g => g.con === c.id);
+    if (gc) { gc.ganadas = (gc.ganadas || 0) + 1; gc.comarcas = (gc.comarcas || 0) + tierras.length; }
+    if (go) { go.perdidas = (go.perdidas || 0) + 1; go.comarcas = (go.comarcas || 0) - tierras.length; }
+    if (c.plan && c.plan.objetivo === r) c.plan.objetivo = null;
+    (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🏴 ¡' + (ciudad ? ciudad.nombre : esCapital ? 'La capital de ' + o.nombre : 'La plaza') + ' es nuestra!', region: r });
+    (v.anuncios = v.anuncios || []).push({ civ: o.id, texto: '✖ Perdemos ' + (ciudad ? ciudad.nombre : esCapital ? 'la capital' : 'una plaza'), region: r });
     S().cronica(m, 'conquista', c.nombre + (esCapital ? ' toma la capital de ' : ' conquista ') + (ciudad ? ciudad.nombre : esCapital ? o.nombre : 'una plaza de ' + o.nombre), 'Tras ' + (esCapital ? 'un largo asedio' : 'el asedio') + ', el estandarte de ' + c.nombre + ' ondea en ' + (ciudad ? ciudad.nombre : 'la plaza') + '. ' + tierras.length + ' comarcas cambian de dueño.', c, r, { importante: esCapital });
     delete v.ejercitos[c.id];
     void paso;
+  }
+
+  /*
+   * LOS AVIONES (II Guerra Mundial): un pueblo en guerra con metal manda bombarderos sobre el ejército enemigo.
+   * Cruzan el mapa desde su capital y sueltan bombas que hieren a todos los guerreros de alrededor.
+   */
+  function aviones(m, paso, guerreros) {
+    const v = m.vida;
+    v.aviones = [];
+    for (const c of S().vivas(m)) {
+      if (c.era < 8 || !c.guerras.length || !(c.cuarteles > 0) || (c.metal || 0) < 3 || azar(v) > 0.6) continue;
+      const e = v.ejercitos[c.id];
+      const hacia = e ? centro(m, e.defiende != null ? e.defiende : e.obj) : null;
+      const blancos = v.aldeanos.filter(b => b.o === GUERRERO && c.guerras.some(g => g.con === b.c) && (hacia == null || dist(m, b.y * v.tw + b.x, hacia) <= 14));
+      if (!blancos.length) continue;
+      c.metal -= 3;
+      const cap = centro(m, c.capital), cx = cap % v.tw, cy = cap / v.tw | 0;
+      const pasadas = Math.min(2, 1 + Math.floor(blancos.length / 12));
+      for (let q = 0; q < pasadas; q++) {
+        const b = blancos[Math.floor(azar(v) * blancos.length)];
+        v.aviones.push([cx, cy, b.x, b.y, paso + q * 0.7, c.id]);
+        // Las bombas caen un poco después de que el avión llegue sobre el blanco.
+        const cae = paso + q * 0.7 + 1.6;
+        for (let k = 0; k < 3; k++) {
+          const bx = b.x + Math.round((azar(v) - 0.5) * 3), by = b.y + Math.round((azar(v) - 0.5) * 3);
+          v.disparos.push([bx, by - 5, bx, by, cae - 1 + k * 0.15, 3]);
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) for (const o of guerreros.get((by + dy) * v.tw + bx + dx) || []) {
+            if (!c.guerras.some(g => g.con === o.c) || !v.aldeanos.includes(o) || azar(v) > 0.55) continue;
+            const arm = o.veh ? VEHICULOS[o.veh].blindaje || 0 : (ARMADURAS[o.armadura || 0] || ARMADURAS[0]).reduce;
+            if (golpear(v, null, o, Math.round(55 * (0.8 + azar(v) * 0.4) * (1 - arm * 0.4)), cae, bx, by)) {
+              v.aldeanos = v.aldeanos.filter(x => x !== o); v.muertos.push([o.x, o.y, o.c, 'bomba', cae]); apuntarBaja(m, c.id, o); c.victorias = (c.victorias || 0) + 1;
+            }
+          }
+        }
+      }
+    }
   }
 
   /*
@@ -1911,7 +1995,7 @@ body.sin-panel .panel { display: none; }
         const disparo = (b, tiro, bala) => {
           v.disparos.push([tx, ty, b.x, b.y, paso, bala ? 1 : 0]);
           if (azar(v) < 0.5 && golpear(v, null, b, Math.max(1, Math.round(tiro.dano * (0.8 + azar(v) * 0.4) * (1 - arm(b).reduce * (1 - (tiro.perfora || 0))))), paso + 0.5, tx, ty)) {
-            v.aldeanos = v.aldeanos.filter(a => a !== b); v.muertos.push([b.x, b.y, b.c, 'torre', paso + 0.5]);
+            v.aldeanos = v.aldeanos.filter(a => a !== b); v.muertos.push([b.x, b.y, b.c, 'torre', paso + 0.5]); apuntarBaja(m, c.id, b);
             const i = blancos.indexOf(b); if (i >= 0) blancos.splice(i, 1);
           }
         };
@@ -1956,7 +2040,7 @@ body.sin-panel .panel { display: none; }
     if (!m.vida) crear(m);
     const v = m.vida;
     memo = new Map();
-    v.cambios = []; v.muertos = []; v.disparos = []; v.golpes = []; v.ataques = [];
+    v.cambios = []; v.muertos = []; v.disparos = []; v.aviones = []; v.golpes = []; v.ataques = [];
     // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
     for (const a of v.aldeanos.concat(v.animales || [])) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + (a.tipo ? 5 : 6)); a.pv0 = a.pv; if (a.pv >= vidaMax(a)) { a.pv = null; a.pv0 = null; } }
     for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : a.edad + 1);
@@ -1986,6 +2070,7 @@ body.sin-panel .panel { display: none; }
       for (const a of v.aldeanos) if (!muertos.has(a)) actuar(m, a, rec[a.c], ter, paso, guerreros, muertos);
       if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
       torres(m, paso, guerreros);
+      if (paso === 2) aviones(m, paso, guerreros);
       asedios(m, paso);
     }
     naturaleza(m, ter);
@@ -2067,13 +2152,13 @@ body.sin-panel .panel { display: none; }
         // Cuerpo a cuerpo: se cruzan golpes; el más fuerte acierta más y pega más fuerte.
         if (acierta(v, a, rival)) {
           if (golpear(v, a, rival, danoContra(v, a, rival, false), paso, a.x, a.y)) {
-            muertos.add(rival); v.muertos.push([rival.x, rival.y, rival.c, 'batalla', paso]);
+            muertos.add(rival); v.muertos.push([rival.x, rival.y, rival.c, 'batalla', paso]); apuntarBaja(m, c.id, rival);
             c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1;
           }
         }
         acc = ACC.luchar;
-      } else if (a.tirador && c.era >= 1) {
-        const alcance = c.era >= 5 ? 4 : 3;
+      } else if (a.tirador && c.era >= 1 && !(a.veh && VEHICULOS[a.veh].area && (paso + a.id) % 2)) {
+        const alcance = a.veh ? VEHICULOS[a.veh].alcance : c.era >= 5 ? 4 : 3;
         let blanco = null;
         for (let dy = -alcance; dy <= alcance && !blanco; dy++) for (let dx = -alcance; dx <= alcance && !blanco; dx++) {
           if (Math.abs(dx) + Math.abs(dy) > alcance || (!dx && !dy)) continue;
@@ -2082,10 +2167,16 @@ body.sin-panel .panel { display: none; }
         }
         if (blanco && azar(v) < 0.6) {
           // Una flecha (o una bala) vuela: se dibuja en este paso.
-          v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
-          if (azar(v) < 0.5 + (tieneR(a, 'sabio') ? 0.05 : 0)) {
+          const obus = a.veh ? 2 : c.era >= 5 ? 1 : 0;
+          v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, obus]);
+          // El obús revienta en una zona: hiere a los enemigos de alrededor del blanco.
+          if (a.veh && VEHICULOS[a.veh].area) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const otros = guerreros.get((blanco.y + dy) * v.tw + blanco.x + dx);
+            for (const b of otros || []) if (enemigo(b) && azar(v) < 0.6 && golpear(v, null, b, Math.round(danoContra(v, a, b, true) * 0.5), paso + 0.5, blanco.x, blanco.y)) { muertos.add(b); v.muertos.push([b.x, b.y, b.c, 'obus', paso + 0.5]); apuntarBaja(m, c.id, b); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+          }
+          if (azar(v) < (a.veh ? 0.65 : 0.5) + (tieneR(a, 'sabio') ? 0.05 : 0)) {
             // La flecha llega al final del paso: el golpe se ve un poco después de soltarla.
-            if (golpear(v, null, blanco, danoContra(v, a, blanco, true), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5]); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+            if (golpear(v, null, blanco, danoContra(v, a, blanco, true), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5]); apuntarBaja(m, c.id, blanco); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
           }
           acc = ACC.luchar;
           // El tirador se para a disparar: deshace el paso de este turno si iba andando.
@@ -2978,7 +3069,7 @@ body.sin-panel .panel { display: none; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -3332,6 +3423,7 @@ body.sin-panel .panel { display: none; }
   const PRIO_NORMAL = () => ({ madera: 1, comida: 1, piedra: 1, casas: 1, ejercito: 1, ciencia: 1, riqueza: 1, expansion: 1 });
   const plan = c => { c.plan = c.plan || { rumbo: null, socios: [], guerrasMias: [] }; c.plan.prioridad = c.plan.prioridad || PRIO_NORMAL(); c.plan.guerrasMias = c.plan.guerrasMias || []; return c.plan; };
 
+  const nombrePlaza = (m, r) => { const x = (m.ciudades || []).find(y => y.region === r); if (x) return x.nombre; const o = S().vivas(m).find(y => y.capital === r); return o ? 'la capital de ' + o.nombre : 'la plaza enemiga'; };
   // ¿A qué otro pueblo se refiere la orden? Por nombre o por descripción, nunca a uno mismo.
   function otro(m, c, n) {
     const lista = D().objetivos(m, n, null).filter(o => o.id !== c.id);
@@ -3355,6 +3447,22 @@ body.sin-panel .panel { display: none; }
     const alianza = /\b(alianza|alia\w*|pacto de defensa)\b/.test(n) && !/\brompe\w*\b/.test(n);
     const romperAl = /\brompe\w* (la )?alianza\b/.test(n);
     const tratado = !alianza && /\b(comerci\w* con|amistad|tratado|embajad\w*|regal\w* a)\b/.test(n);
+    // Dirigir la guerra: «atacad Velmora», «tomad la capital de Karenia», «defended la capital», «retirada».
+    const plazas = [...(m.ciudades || []).map(x => ({ region: x.region, civ: x.civ, nombre: x.nombre })), ...S().vivas(m).map(o => ({ region: o.capital, civ: o.id, nombre: o.nombre, capital: true }))];
+    const nombrada = plazas.filter(x => !x.capital && n.includes(norm(x.nombre)))[0];
+    const defender = /\b(defend\w*|defensa de|proteg\w*|guarece\w*|resist\w*)\b/.test(n);
+    const retirada = /\b(retir\w*|repleg\w*|volved a casa|vuelvan a casa|retroced\w*)\b/.test(n);
+    const tomar = /\b(toma\w*|asalt\w*|captur\w*)\b/.test(n);
+    if (retirada || (defender && !guerra)) {
+      const mia = nombrada && nombrada.civ === c.id ? nombrada.region : c.capital;
+      acciones.push({ tipo: 'defender', region: mia });
+      return acciones;
+    }
+    if ((guerra || tomar) && (nombrada && nombrada.civ !== c.id || /\bcapital\b/.test(n))) {
+      let r = nombrada && nombrada.civ !== c.id ? nombrada.region : null;
+      if (r == null) { const o = otro(m, c, n) || (c.guerras[0] ? S().civ(m, c.guerras[0].con) : null) || vecinoMasDebil(m, c); if (o) r = o.capital; }
+      if (r != null) { acciones.push({ tipo: 'objetivo', region: r }); return acciones; }
+    }
     if (guerra) { const o = (/\b(mas debil|mas pequeno|el vecino|vecinos?)\b/.test(n) && vecinoMasDebil(m, c)) || otro(m, c, n) || vecinoMasDebil(m, c); acciones.push({ tipo: 'guerra', con: o ? o.id : null }); }
     else if (paz) { const o = otro(m, c, n) || (c.guerras[0] ? S().civ(m, c.guerras[0].con) : null); acciones.push({ tipo: 'paz', con: o ? o.id : null }); }
     else if (romperAl) { const o = otro(m, c, n); acciones.push({ tipo: 'romper', con: o ? o.id : null }); }
@@ -3423,7 +3531,7 @@ body.sin-panel .panel { display: none; }
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
-      else if (a.tipo === 'normal') { p.prioridad = PRIO_NORMAL(); p.rumbo = null; p.expandir = true; if (M.vida && m.vida) M.vida.reasignar(m, c, null, true); (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: 'Todo vuelve a la normalidad' }); textos.push('Todas las prioridades vuelven a normal: tu pueblo se gobierna solo, como los demás.'); }
+      else if (a.tipo === 'normal') { p.prioridad = PRIO_NORMAL(); p.rumbo = null; p.expandir = true; p.objetivo = null; p.defender = null; if (M.vida && m.vida) M.vida.reasignar(m, c, null, true); (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: 'Todo vuelve a la normalidad' }); textos.push('Todas las prioridades vuelven a normal: tu pueblo se gobierna solo, como los demás.'); }
       else if (a.tipo === 'prioridad') {
         const pr = p.prioridad, tocados = Object.keys(a.cambios), antesReparto = repartoDe(m, c);
         if (a.solo) for (const k of Object.keys(pr)) if (!tocados.includes(k) && k !== 'expansion') pr[k] = Math.min(pr[k], 0.5);
@@ -3443,13 +3551,40 @@ body.sin-panel .panel { display: none; }
         textos.push(a.si ? 'Los colonos salen ' + (destino ? 'hacia ' + (typeof p.rumbo === 'number' ? destino : 'el ' + destino) : 'hacia las mejores tierras libres') + '. Cada tierra nueva cuesta 3 de madera (tienes ' + Math.floor(c.madera || 0) + ').' : 'Tu pueblo deja de expandirse y se queda en sus fronteras.');
       } else if (a.tipo === 'guerra') {
         if (!o || !o.viva || o.id === c.id) { textos.push('¿Contra quién? Nombra al pueblo («atacad a ' + ((S().vivas(m).find(x => x.id !== c.id) || {}).nombre || 'Karenia') + '»).'); continue; }
-        if (S().enGuerra(c, o)) { textos.push('Ya estáis en guerra con ' + o.nombre + '.'); continue; }
+        if (S().enGuerra(c, o)) {
+          const estaban = p.defender != null; p.defender = null;
+          if (estaban) { const e = m.vida && m.vida.ejercitos && m.vida.ejercitos[c.id]; if (e) e.defiende = null; (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: '⚔ ¡Al ataque!' }); }
+          textos.push('Ya estáis en guerra con ' + o.nombre + '.' + (estaban ? ' Tus guerreros dejan de defender y vuelven al ataque.' : ' Para elegir a qué ciudad van, di «atacad» y su nombre.'));
+          continue;
+        }
         S().declararGuerra(m, c, o, 'Por orden de su gobierno, ' + c.nombre + ' declara la guerra a ' + o.nombre + '. Los heraldos recorren las aldeas llamando a los hombres a las armas.');
-        p.guerrasMias = [...new Set([...p.guerrasMias, o.id])];
+        p.guerrasMias = [...new Set([...p.guerrasMias, o.id])]; p.defender = null;
         if (M.vida && m.vida) M.vida.reasignar(m, c, null, true);
         (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: '⚔ ¡Guerra contra ' + o.nombre + '!' });
         const frontera = S().vecinosDe(m, c).includes(o);
         textos.push('¡Guerra contra ' + o.nombre + '! Tus guerreros marchan a la frontera.' + (frontera ? '' : ' Ojo: no tenéis frontera común, así que no podrán llegar hasta que la haya.'));
+      } else if (a.tipo === 'objetivo') {
+        const r = Number(a.region), d = S().civ(m, m.dueno[r]);
+        if (!d || !d.viva || d.id === c.id) { textos.push('Esa plaza ya es vuestra o no pertenece a nadie.'); continue; }
+        const nombre = nombrePlaza(m, r);
+        if (!S().enGuerra(c, d)) {
+          S().declararGuerra(m, c, d, 'Por orden de su gobierno, ' + c.nombre + ' declara la guerra a ' + d.nombre + ' y marcha sobre ' + nombre + '.');
+          p.guerrasMias = [...new Set([...p.guerrasMias, d.id])];
+          if (M.vida && m.vida) M.vida.reasignar(m, c, null, true);
+        }
+        p.objetivo = r; p.defender = null;
+        if (m.vida && m.vida.ejercitos) delete m.vida.ejercitos[c.id];
+        (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: '⚔ ¡A por ' + nombre + '!', region: r });
+        const frontera = S().vecinosDe(m, c).includes(d);
+        textos.push('Tu ejército se reúne en la frontera y marcha sobre ' + nombre + ' (' + d.nombre + '). Si llega el capitán y no quedan defensores ni torres, empezará el asedio.' + (frontera ? '' : ' Ojo: no tenéis frontera común con ' + d.nombre + '.'));
+      } else if (a.tipo === 'defender') {
+        const r = Number(a.region);
+        p.defender = r; p.objetivo = null;
+        const e = m.vida && m.vida.ejercitos && m.vida.ejercitos[c.id];
+        if (e) { e.defiende = r; e.fase = 'marcha'; e.asedio = 0; }
+        const nombre = r === c.capital ? 'la capital' : nombrePlaza(m, r);
+        (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: '🛡 ¡Defended ' + nombre + '!', region: r });
+        textos.push(c.guerras.length ? 'Tus guerreros vuelven a ' + nombre + ' y la defienden hasta nueva orden. Cuando quieras atacar, di «atacad» y el nombre de una ciudad.' : 'No estáis en guerra, pero si llega una, tus guerreros se quedarán defendiendo ' + nombre + '.');
       } else if (a.tipo === 'paz') {
         if (!o || !S().enGuerra(c, o)) { textos.push(o ? 'No estáis en guerra con ' + o.nombre + '.' : 'No estás en guerra con nadie.'); continue; }
         const g = o.guerras.find(x => x.con === c.id), oferta = m.ofertas && m.ofertas[o.id] != null && m.turno - m.ofertas[o.id] <= 15;
@@ -3595,16 +3730,17 @@ body.sin-panel .panel { display: none; }
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
     const c = S().civ(m, civId);
     return 'Año ' + S().anioTexto(m.anio) + '. Tu pueblo: ' + JSON.stringify({ id: c.id, nombre: c.nombre, era: M.ERAS[c.era].nombre, poblacion_miles: Math.round(c.pob), estabilidad: Math.round(c.estab), madera: Math.floor(c.madera || 0), piedra: Math.floor(c.piedra || 0), guerras_con: c.guerras.map(g => g.con), plan: c.plan || null }) +
       '\nOtros pueblos: ' + JSON.stringify(S().vivas(m).filter(o => o.id !== c.id).map(o => ({ id: o.id, nombre: o.nombre, era: M.ERAS[o.era].nombre, poblacion_miles: Math.round(o.pob), vecino: S().vecinosDe(m, c).includes(o), relacion: Math.round(c.rel[o.id] || 0) }))) +
+      '\nPlazas (región, dueño): ' + JSON.stringify([...S().vivas(m).map(o => ({ region: o.capital, nombre: 'capital de ' + o.nombre, dueno: o.id })), ...(m.ciudades || []).map(x => ({ region: x.region, nombre: x.nombre, dueno: m.dueno[x.region] }))]) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
+  const TIPOS = new Set(['objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
@@ -3619,7 +3755,8 @@ body.sin-panel .panel { display: none; }
           else if (ch.mas != null && Number.isFinite(Number(ch.mas))) cambios[k] = { mas: Number(ch.mas) > 0 ? 0.5 : -0.5 };
         }
         if (Object.keys(cambios).length) out.push({ tipo: 'prioridad', cambios });
-      } else if (a.tipo === 'expandir') out.push({ tipo: 'expandir', si: a.si !== false, rumbo: ['norte', 'sur', 'este', 'oeste'].includes(a.rumbo) ? a.rumbo : Number.isFinite(Number(a.rumbo)) && a.rumbo !== null ? Number(a.rumbo) : null });
+      } else if (a.tipo === 'objetivo' || a.tipo === 'defender') { if (Number.isInteger(Number(a.region)) && Number(a.region) >= 0) out.push({ tipo: a.tipo, region: Number(a.region) }); }
+      else if (a.tipo === 'expandir') out.push({ tipo: 'expandir', si: a.si !== false, rumbo: ['norte', 'sur', 'este', 'oeste'].includes(a.rumbo) ? a.rumbo : Number.isFinite(Number(a.rumbo)) && a.rumbo !== null ? Number(a.rumbo) : null });
       else if (a.tipo === 'regimen') { const r = REGIMENES.find(x => x[1] === a.a); if (r) out.push({ tipo: 'regimen', a: r[1], era: r[2] }); }
       else if (['guerra', 'paz', 'comercio', 'alianza', 'romper'].includes(a.tipo)) out.push({ tipo: a.tipo, con: Number(a.con) });
       else if (a.tipo === 'colonos') out.push({ tipo: 'colonos', rumbo: ['norte', 'sur', 'este', 'oeste', 'costa'].includes(a.rumbo) ? a.rumbo : null });
@@ -4273,7 +4410,44 @@ body.sin-panel .panel { display: none; }
   let sigId = 0;
   const conId = img => { if (img.__id == null) img.__id = ++sigId; return img; };
 
-  M.arte = { T, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  // ---------- Vehículos de guerra (mirando a la derecha; el pintor los voltea) ----------
+  function vehiculo(tipo, col, paso) {
+    return guardado('veh' + tipo + col + paso, () => {
+      if (tipo === 'tanque') {
+        const H = hoja(16, 11), cuerpo = mezcla(col, '#5a6040', 0.55);
+        H.r(1, 7, 14, 3, '#2a2a26'); for (let x = 2; x < 15; x += 2) H.p(x + (paso ? 1 : 0), 8, '#55554c'); // orugas
+        for (let x = 2; x < 15; x += 3) H.disco(x + 0.5, 8.5, 1, '#3a3a34');
+        H.r(1, 5, 14, 2, cuerpo); H.r(2, 4, 12, 1, claro(cuerpo, 0.15));
+        H.r(4, 2, 7, 2, cuerpo); H.r(5, 1, 5, 1, claro(cuerpo, 0.2)); // torreta
+        H.r(11, 2, 5, 1, '#3a3a34'); // cañón
+        H.p(6, 3, col); H.p(7, 3, col);
+        H.contorno();
+        return H.lienzo();
+      }
+      // Cañón de campaña o artillería: tubo largo sobre dos ruedas y un afuste.
+      const H = hoja(16, 10), pesado = tipo === 'artilleria';
+      H.r(1, 6, 7, 1, '#6b4a2b'); // afuste
+      H.disco(8.5, 6.5, 2.4, '#5a3a22', true); H.p(8, 6, '#c8a060');
+      H.r(6, 3, pesado ? 10 : 8, 2, pesado ? '#4a4e44' : '#3a3a3a'); H.r(6, 3, pesado ? 10 : 8, 1, pesado ? '#6a7060' : '#5a5a5a');
+      if (pesado) H.r(3, 2, 4, 3, mezcla(col, '#5a6040', 0.6)); // escudo
+      H.p(2, 5, col);
+      H.contorno();
+      return H.lienzo();
+    });
+  }
+  function avion(col) {
+    return guardado('avion' + col, () => {
+      const H = hoja(16, 9), cuerpo = mezcla(col, '#7a8070', 0.5);
+      H.r(2, 4, 12, 2, cuerpo); H.r(13, 4, 2, 2, claro(cuerpo, 0.15)); H.p(15, 4, '#2a2a2a'); H.p(15, 5, '#2a2a2a'); // fuselaje y hélice
+      H.r(6, 1, 3, 7, oscuro(cuerpo, 0.12)); H.r(6, 1, 3, 1, claro(cuerpo, 0.1)); // alas
+      H.r(1, 2, 2, 2, oscuro(cuerpo, 0.12)); H.r(1, 6, 2, 1, oscuro(cuerpo, 0.12)); // cola
+      H.p(11, 4, '#a8d8f0'); H.p(7, 3, col); H.p(7, 6, col);
+      H.contorno();
+      return H.lienzo();
+    });
+  }
+
+  M.arte = { T, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/pintor.js
@@ -4603,6 +4777,7 @@ body.sin-panel .panel { display: none; }
     nieve(ahora, x0, y0, x1, y1);
     pajaros(ahora, x0, y0, x1, y1);
     nubes(ahora, x0, y0, x1, y1);
+    pintarAviones(k);
     marcarPulso(ahora);
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -4652,7 +4827,7 @@ body.sin-panel .panel { display: none; }
     g.fillRect(px + 1, py, 1, 1); g.fillRect(px, py + 1, 3, 2); g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2);
   }
 
-  const ultimoOficio = new Map(), cambioVisto = new Map();
+  const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map();
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
@@ -4686,6 +4861,28 @@ body.sin-panel .panel { display: none; }
         g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(px - 2 - brazo, py + 4, 7 + brazo * 2, 1); g.fillRect(px - 1, py + 5, 5, 1);
         g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 3, 3, 1);
         g.fillStyle = '#f0c8a0'; g.fillRect(px + 1, py + 2, 1, 1); g.fillRect(brazo ? px - 1 : px + 3, py + 3 - brazo, 1, 1);
+        continue;
+      }
+      // Tanques y cañones: el vehículo mira hacia donde va (o hacia el enemigo al que dispara).
+      if (a.veh) {
+        const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
+        const dir = r && r.length >= 6 && r[j] !== r[i] ? Math.sign(r[j] - r[i]) : pega ? Math.sign(pega[0][2]) || 1 : (ultimaDir.get(a.id) || 1);
+        ultimaDir.set(a.id, dir);
+        const img = ARTE().vehiculo(a.veh, color[a.c] || '#cccccc', anda && t ? 1 : 0), EV = a.veh === 'tanque' ? 0.62 : 0.55;
+        const w = img.width * EV, h = img.height * EV, vx = px + 1.5 - w / 2, vy = py + 6 - h;
+        g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(vx + 1, py + 5.5, w - 2, 1);
+        g.save(); if (dir < 0) { g.translate(vx * 2 + w, 0); g.scale(-1, 1); }
+        g.drawImage(img, vx, vy, w, h);
+        if (recibe) { g.globalAlpha = recibe[1] < 0.45 ? 0.85 : 0.4; g.drawImage(ARTE().tenido(img, recibe[1] < 0.45 ? '#ff2a2a' : '#ffffff'), vx, vy, w, h); g.globalAlpha = 1; }
+        g.restore();
+        if (acc === 2) { const fx = dir > 0 ? vx + w : vx - 2; g.fillStyle = Math.floor(ahora / 80) % 2 ? '#fff6a0' : '#ff9a3a'; g.fillRect(fx, vy + (a.veh === 'tanque' ? 1 : 1.5), 2, 1.5); g.fillStyle = 'rgba(200,200,200,0.5)'; g.fillRect(fx - dir, vy - 1, 2, 1); }
+        const ej = m.vida.ejercitos && m.vida.ejercitos[a.c];
+        if (ej && ej.capitan === a.id) { g.fillStyle = '#2a1e14'; g.fillRect(px - 1, py - 8, 1, 10); g.fillStyle = color[a.c] || '#ccc'; g.fillRect(px, py - 8, 6, 4); }
+        if (a.pv0 != null) {
+          const max = V.vidaMax(a); let pv = a.pv0;
+          for (const gp of ig.golpes.get(a.id) || []) if (k >= gp[1] - 0.5) pv -= gp[4];
+          if (pv < max) { const fr = Math.max(0, pv / max); g.fillStyle = 'rgba(40,10,10,0.75)'; g.fillRect(vx, vy - 2, w, 1); g.fillStyle = fr > 0.6 ? '#4cd060' : fr > 0.3 ? '#e8c040' : '#e04030'; g.fillRect(vx, vy - 2, Math.max(1, w * fr), 1); }
+        }
         continue;
       }
       // El aldeano: un dibujo de 12×14 con contorno (arte.js), según su oficio, edad, equipo y lo que hace.
@@ -5145,6 +5342,22 @@ body.sin-panel .panel { display: none; }
     }
   }
 
+  // Bombarderos: cruzan desde su capital hasta el blanco (llegan en 1,6 pasos) y siguen de largo, con su sombra.
+  function pintarAviones(k) {
+    const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    for (const [x0, y0, x1, y1, paso, civ] of (m.vida.aviones || [])) {
+      const f = (k - paso) / 1.6;
+      if (f < 0 || f > 2.2) continue;
+      const ax = x0 * P + 8, ay = y0 * P + 8, bx = x1 * P + 8, by = y1 * P + 8;
+      const x = ax + (bx - ax) * f, y = ay + (by - ay) * f, img = ARTE().avion(color[civ] || '#cccccc'), dir = bx >= ax ? 1 : -1;
+      const ang = Math.atan2(by - ay, (bx - ax) || 0.01) - (dir < 0 ? Math.PI : 0);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x - 5, y + 14, 10, 2);
+      g.save(); g.translate(x, y - 6); g.rotate(ang); if (dir < 0) g.scale(-1, 1);
+      g.drawImage(img, -img.width * 0.4, -img.height * 0.4, img.width * 0.8, img.height * 0.8);
+      g.restore();
+    }
+  }
+
   // Flechas y balas: vuelan durante el paso en que se dispararon.
   function pintarDisparos(k) {
     const lista = m.vida.disparos || [];
@@ -5152,6 +5365,21 @@ body.sin-panel .panel { display: none; }
       const f = k - (paso - 1);
       if (f < 0 || f > 1) continue;
       const ax = x1 * P + 8, ay = y1 * P + 7, bx = x2 * P + 8, by = y2 * P + 7;
+      if (bala === 3) {
+        // Bomba de avión: cae en vertical y revienta.
+        if (f < 0.75) { const yb = ay - 40 + 40 * (f / 0.75); g.fillStyle = '#2a2a2a'; g.fillRect(Math.round(bx - 0.5), Math.round(yb), 2, 3); }
+        else { const q = (f - 0.75) / 0.25, rr = 2 + q * 7; g.fillStyle = 'rgba(255,' + Math.round(220 - q * 120) + ',80,' + (1 - q * 0.6).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by, rr, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(90,80,70,' + (0.6 * q).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by - 3 - q * 4, rr * 0.8, 0, Math.PI * 2); g.fill(); }
+        continue;
+      }
+      if (bala === 2) {
+        // Obús: vuela en arco alto y explota al llegar.
+        const arcoO = Math.min(30, Math.hypot(bx - ax, by - ay) * 0.45), q = Math.min(1, f / 0.85);
+        const ox = ax + (bx - ax) * q, oy = ay + (by - ay) * q - Math.sin(q * Math.PI) * arcoO;
+        if (f < 0.2) { g.fillStyle = 'rgba(230,230,230,' + (0.7 - f * 3).toFixed(2) + ')'; g.fillRect(ax - 1, ay - 5 - f * 12, 5, 4); }
+        if (f < 0.85) { g.fillStyle = '#1e1e1e'; g.fillRect(Math.round(ox), Math.round(oy), 2, 2); }
+        else { const e = (f - 0.85) / 0.15, rr = 2 + e * 6; g.fillStyle = 'rgba(255,' + Math.round(200 - e * 100) + ',60,' + (1 - e * 0.5).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by, rr, 0, Math.PI * 2); g.fill(); }
+        continue;
+      }
       const arco = bala ? 0 : Math.min(14, Math.hypot(bx - ax, by - ay) * 0.25);
       const pos = q => [ax + (bx - ax) * q, ay + (by - ay) * q - Math.sin(q * Math.PI) * arco];
       const [x, y] = pos(f), [xa, ya] = pos(Math.max(0, f - 0.08));
@@ -5535,8 +5763,9 @@ body.sin-panel .panel { display: none; }
         fila('Obras', (c.casas || 0) + ' casas') + fila('Edificios', edificios) + fila('Comercio', comercioDe(c))],
       ejercito: ['Ejército', fila('Ejército', (c.guerreros || 0) + ' guerreros' + (c.guerreros ? ' <span class="tenue">· ' + (c.armados || 0) + ' con ' + esc(M.vida.ARMAS[c.era].nombre) + (c.era >= 1 ? ', tiradores con ' + esc(M.vida.TIROS[c.era]) : '') + '</span>' : '')) +
         fila('Equipo', esc(M.vida.ARMAS[c.era].nombre) + ' <span class="tenue">(' + M.vida.ARMAS[c.era].dano + ' de daño, ' + esc(M.vida.ARMAS[c.era].material) + ')</span> · ' + esc(M.vida.ARMADURAS[M.vida.armaduraDeEra(c.era)].nombre) + ' <span class="tenue">(−' + Math.round(M.vida.ARMADURAS[M.vida.armaduraDeEra(c.era)].reduce * 100) + ' %)</span>') +
+        (c.era >= 5 ? fila('Vehículos', vehiculosDe(c)) : '') +
         fila('Guerras', enemigos.length ? '<span class="rojo">' + esc(enemigos.join(', ')) + '</span>' : 'en paz') +
-        (complotsDe(c) ? fila('Complots', complotsDe(c)) : '')],
+        (complotsDe(c) ? fila('Complots', complotsDe(c)) : '') + (c.guerras.length ? '</dl>' + marcadorGuerra(c, !c.jugador) + '<dl>' : '')],
       diplomacia: ['Diplomacia', (S.aliadosDe(m, c).length ? fila('Aliados', esc(S.aliadosDe(m, c).map(o => o.nombre).join(', '))) : fila('Aliados', '<span class="tenue">ninguno</span>')) +
         (complotsDe(c) ? fila('Complots', complotsDe(c)) : '') + fila('Opinión', opiniones(c))]
     };
@@ -5728,6 +5957,36 @@ body.sin-panel .panel { display: none; }
     $('consejo-orden').textContent = '«' + k.orden + '»';
     $('consejo-orden').onclick = () => { $('orden').value = k.orden; $('orden').focus(); };
   }
+  function vehiculosDe(c) {
+    const n = {}; for (const a of m.vida ? m.vida.aldeanos : []) if (a.c === c.id && a.veh) n[a.veh] = (n[a.veh] || 0) + 1;
+    const V = M.vida.VEHICULOS, partes = Object.keys(n).map(k => n[k] + ' ' + V[k].nombre + (n[k] > 1 ? (k === 'canon' ? 'es' : k === 'artilleria' ? '' : 's') : ''));
+    return partes.length ? esc(partes.join(', ')) + (c.era >= 8 ? ' <span class="tenue">· aviones en guerra</span>' : '') : '<span class="tenue">' + (c.cuarteles > 0 ? 'ninguno (cuestan metal: ' + Math.floor(c.metal || 0) + ')' : 'hace falta un cuartel') + '</span>';
+  }
+  // El marcador de cada guerra: bajas, plazas ganadas y perdidas, qué hace el ejército y cómo va el asedio.
+  const nombrePlaza = r => { const x = (m.ciudades || []).find(y => y.region === r); if (x) return x.nombre; const o = S.vivas(m).find(y => y.capital === r); return o ? 'capital de ' + o.nombre : 'una plaza'; };
+  function marcadorGuerra(c, corto) {
+    const v = m.vida, e = v && v.ejercitos && v.ejercitos[c.id];
+    return c.guerras.map(g => {
+      const o = S.civ(m, g.con);
+      if (!o) return '';
+      const nuestro = e && e.con === o.id ? e : null, suyo = v && v.ejercitos && v.ejercitos[o.id];
+      const mio = (g.muertos || 0), suyos = (g.matados || 0), balance = suyos - mio + 6 * ((g.ganadas || 0) - (g.perdidas || 0)) + 2 * (g.comarcas || 0);
+      const que = !nuestro ? (S.vecinosDe(m, c).includes(o) ? 'el ejército se prepara' : 'sin frontera común') :
+        nuestro.defiende != null ? '🛡 defendiendo ' + esc(nuestro.defiende === c.capital ? 'la capital' : nombrePlaza(nuestro.defiende)) :
+        nuestro.fase === 'reunion' ? 'reuniéndose para ir a ' + esc(nombrePlaza(nuestro.obj)) :
+        '⚔ sobre ' + esc(nombrePlaza(nuestro.obj)) + (nuestro.estorbo ? ' <span class="tenue">(' + { torre: 'una torre impide el asedio: hay que derribarla', defensores: 'quedan defensores', lejos: 'el capitán aún no ha llegado' }[nuestro.estorbo] + ')</span>' : '') + (nuestro.asedio > 0 ? ' · asedio <span class="barra"><span style="width:' + Math.round(nuestro.asedio) + '%"></span></span> ' + Math.round(nuestro.asedio) + ' %' : '');
+      const amenaza = suyo && suyo.con === c.id && m.dueno[suyo.obj] === c.id && suyo.fase === 'marcha' && suyo.defiende == null ? '<br><span class="rojo">⚠ Atacan ' + esc(suyo.obj === c.capital ? 'tu capital' : nombrePlaza(suyo.obj)) + (suyo.asedio > 0 ? ' (asedio ' + Math.round(suyo.asedio) + ' %)' : '') + '</span>' : '';
+      return '<div class="guerra-marcador"><b>⚔ ' + esc(o.nombre) + '</b> <span class="' + (balance >= 0 ? 'verde' : 'rojo') + '">' + (balance > 0 ? 'vas ganando' : balance < 0 ? 'vas perdiendo' : 'igualados') + '</span>' +
+        '<br><span class="tenue">Bajas</span> ' + mio + ' tuyas · ' + suyos + ' suyas <span class="tenue">· Plazas</span> +' + (g.ganadas || 0) + ' −' + (g.perdidas || 0) + ' <span class="tenue">· Tierras</span> ' + ((g.comarcas || 0) > 0 ? '+' : '') + (g.comarcas || 0) +
+        '<br>' + que + amenaza + (corto ? '' : '<br><span class="tenue">Órdenes: «atacad ' + esc(((m.ciudades || []).find(x => x.civ === o.id) || {}).nombre || 'su capital') + '», «defended la capital», «paz con ' + esc(o.nombre) + '».</span>') + '</div>';
+    }).join('');
+  }
+  function pintarGuerra() {
+    const c = tuPueblo(), h = $('guerra-hud');
+    const html = c && c.guerras.length ? marcadorGuerra(c, true) : '';
+    h.hidden = !html;
+    if (html && h.innerHTML !== html) h.innerHTML = html;
+  }
   function abrirHoja(nombre) {
     for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.classList.toggle('activa', b.dataset.panel === nombre);
     for (const h of document.querySelectorAll('.panel-hoja')) h.hidden = h.dataset.hoja !== nombre;
@@ -5742,7 +6001,7 @@ body.sin-panel .panel { display: none; }
     avisoHasta = performance.now() + (ms || 3500);
     setTimeout(() => { if (performance.now() >= avisoHasta - 50) e.hidden = true; }, ms || 3500);
   }
-  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarRetos(); }
+  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarGuerra(); pintarRetos(); }
 
   // ---------- El tiempo ----------
   // El año del reloj avanza poco a poco durante el turno, en vez de saltar.
@@ -5929,7 +6188,7 @@ body.sin-panel .panel { display: none; }
   function despuesDeOrden(r) {
     M.vida.ajustar(m); P.refrescar();
     // Lo que tu orden pone en marcha, sobre tu pueblo en el mapa.
-    for (const an of (m.vida.anuncios || []).splice(0)) { const c = S.civ(m, an.civ); if (c) P.anunciar(c.capital, an.texto, /⚔/.test(an.texto) ? '#ff8a7a' : null); }
+    for (const an of (m.vida.anuncios || []).splice(0)) { const c = S.civ(m, an.civ); if (c) P.anunciar(an.region != null ? an.region : c.capital, an.texto, /[⚔✖]/.test(an.texto) ? '#ff8a7a' : /🏴/.test(an.texto) ? '#ffd76a' : null); }
     const guerra = r.acciones.find(a => a.tipo === 'guerra' && a.con != null);
     if (guerra && S.civ(m, guerra.con)) { P.efecto('guerra', [m.jugador, guerra.con], 'Guerra contra ' + S.civ(m, guerra.con).nombre); }
     const yo = tuPueblo();

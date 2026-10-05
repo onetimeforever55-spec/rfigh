@@ -632,13 +632,18 @@
       const [gana, pierde, ratio] = fa >= fb ? [a, b, fa / fb] : [b, a, fb / fa];
       // Las batallas ganan algo de frontera cada año; las plazas se toman con asedios (vida.js).
       const k = Math.max(0, Math.min(3, Math.round(((ratio - 1) * 2 + (azar(m) - 0.4)) * 1.1)));
-      const fr = frontera(m, gana, pierde);
+      // En las guerras del jugador, las plazas (capital y ciudades) solo caen por asedio: así elige a cuál ir y
+      // sabe qué defender.
+      const plaza = new Set(m.vida && (a.jugador || b.jugador) ? [pierde.capital, ...(m.ciudades || []).map(x => x.region)] : []);
+      const fr = frontera(m, gana, pierde).filter(i => !plaza.has(i));
       const tomadas = fr.sort(() => azar(m) - 0.5).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;
       a.pob *= 0.975; b.pob *= 0.975;
       pierde.pob *= 1 - 0.02 * tomadas.length;
       a.estab -= 1.5; b.estab -= 1.5;
       const ga = a.guerras.find(x => x.con === b.id), gb = b.guerras.find(x => x.con === a.id);
+      const gg = gana.guerras.find(x => x.con === pierde.id); if (gg) gg.comarcas = (gg.comarcas || 0) + tomadas.length;
+      const gp = pierde.guerras.find(x => x.con === gana.id); if (gp) gp.comarcas = (gp.comarcas || 0) - tomadas.length;
       if (ga) ga.cansancio += 1 + (pierde === a ? tomadas.length : 0) * 0.5;
       if (gb) gb.cansancio += 1 + (pierde === b ? tomadas.length : 0) * 0.5;
       if (tomadas.includes(pierde.capital)) {

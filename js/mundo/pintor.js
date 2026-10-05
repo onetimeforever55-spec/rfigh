@@ -324,6 +324,7 @@
     nieve(ahora, x0, y0, x1, y1);
     pajaros(ahora, x0, y0, x1, y1);
     nubes(ahora, x0, y0, x1, y1);
+    pintarAviones(k);
     marcarPulso(ahora);
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -373,7 +374,7 @@
     g.fillRect(px + 1, py, 1, 1); g.fillRect(px, py + 1, 3, 2); g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2);
   }
 
-  const ultimoOficio = new Map(), cambioVisto = new Map();
+  const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map();
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
@@ -407,6 +408,28 @@
         g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(px - 2 - brazo, py + 4, 7 + brazo * 2, 1); g.fillRect(px - 1, py + 5, 5, 1);
         g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 3, 3, 1);
         g.fillStyle = '#f0c8a0'; g.fillRect(px + 1, py + 2, 1, 1); g.fillRect(brazo ? px - 1 : px + 3, py + 3 - brazo, 1, 1);
+        continue;
+      }
+      // Tanques y cañones: el vehículo mira hacia donde va (o hacia el enemigo al que dispara).
+      if (a.veh) {
+        const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
+        const dir = r && r.length >= 6 && r[j] !== r[i] ? Math.sign(r[j] - r[i]) : pega ? Math.sign(pega[0][2]) || 1 : (ultimaDir.get(a.id) || 1);
+        ultimaDir.set(a.id, dir);
+        const img = ARTE().vehiculo(a.veh, color[a.c] || '#cccccc', anda && t ? 1 : 0), EV = a.veh === 'tanque' ? 0.62 : 0.55;
+        const w = img.width * EV, h = img.height * EV, vx = px + 1.5 - w / 2, vy = py + 6 - h;
+        g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(vx + 1, py + 5.5, w - 2, 1);
+        g.save(); if (dir < 0) { g.translate(vx * 2 + w, 0); g.scale(-1, 1); }
+        g.drawImage(img, vx, vy, w, h);
+        if (recibe) { g.globalAlpha = recibe[1] < 0.45 ? 0.85 : 0.4; g.drawImage(ARTE().tenido(img, recibe[1] < 0.45 ? '#ff2a2a' : '#ffffff'), vx, vy, w, h); g.globalAlpha = 1; }
+        g.restore();
+        if (acc === 2) { const fx = dir > 0 ? vx + w : vx - 2; g.fillStyle = Math.floor(ahora / 80) % 2 ? '#fff6a0' : '#ff9a3a'; g.fillRect(fx, vy + (a.veh === 'tanque' ? 1 : 1.5), 2, 1.5); g.fillStyle = 'rgba(200,200,200,0.5)'; g.fillRect(fx - dir, vy - 1, 2, 1); }
+        const ej = m.vida.ejercitos && m.vida.ejercitos[a.c];
+        if (ej && ej.capitan === a.id) { g.fillStyle = '#2a1e14'; g.fillRect(px - 1, py - 8, 1, 10); g.fillStyle = color[a.c] || '#ccc'; g.fillRect(px, py - 8, 6, 4); }
+        if (a.pv0 != null) {
+          const max = V.vidaMax(a); let pv = a.pv0;
+          for (const gp of ig.golpes.get(a.id) || []) if (k >= gp[1] - 0.5) pv -= gp[4];
+          if (pv < max) { const fr = Math.max(0, pv / max); g.fillStyle = 'rgba(40,10,10,0.75)'; g.fillRect(vx, vy - 2, w, 1); g.fillStyle = fr > 0.6 ? '#4cd060' : fr > 0.3 ? '#e8c040' : '#e04030'; g.fillRect(vx, vy - 2, Math.max(1, w * fr), 1); }
+        }
         continue;
       }
       // El aldeano: un dibujo de 12×14 con contorno (arte.js), según su oficio, edad, equipo y lo que hace.
@@ -866,6 +889,22 @@
     }
   }
 
+  // Bombarderos: cruzan desde su capital hasta el blanco (llegan en 1,6 pasos) y siguen de largo, con su sombra.
+  function pintarAviones(k) {
+    const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    for (const [x0, y0, x1, y1, paso, civ] of (m.vida.aviones || [])) {
+      const f = (k - paso) / 1.6;
+      if (f < 0 || f > 2.2) continue;
+      const ax = x0 * P + 8, ay = y0 * P + 8, bx = x1 * P + 8, by = y1 * P + 8;
+      const x = ax + (bx - ax) * f, y = ay + (by - ay) * f, img = ARTE().avion(color[civ] || '#cccccc'), dir = bx >= ax ? 1 : -1;
+      const ang = Math.atan2(by - ay, (bx - ax) || 0.01) - (dir < 0 ? Math.PI : 0);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x - 5, y + 14, 10, 2);
+      g.save(); g.translate(x, y - 6); g.rotate(ang); if (dir < 0) g.scale(-1, 1);
+      g.drawImage(img, -img.width * 0.4, -img.height * 0.4, img.width * 0.8, img.height * 0.8);
+      g.restore();
+    }
+  }
+
   // Flechas y balas: vuelan durante el paso en que se dispararon.
   function pintarDisparos(k) {
     const lista = m.vida.disparos || [];
@@ -873,6 +912,21 @@
       const f = k - (paso - 1);
       if (f < 0 || f > 1) continue;
       const ax = x1 * P + 8, ay = y1 * P + 7, bx = x2 * P + 8, by = y2 * P + 7;
+      if (bala === 3) {
+        // Bomba de avión: cae en vertical y revienta.
+        if (f < 0.75) { const yb = ay - 40 + 40 * (f / 0.75); g.fillStyle = '#2a2a2a'; g.fillRect(Math.round(bx - 0.5), Math.round(yb), 2, 3); }
+        else { const q = (f - 0.75) / 0.25, rr = 2 + q * 7; g.fillStyle = 'rgba(255,' + Math.round(220 - q * 120) + ',80,' + (1 - q * 0.6).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by, rr, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(90,80,70,' + (0.6 * q).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by - 3 - q * 4, rr * 0.8, 0, Math.PI * 2); g.fill(); }
+        continue;
+      }
+      if (bala === 2) {
+        // Obús: vuela en arco alto y explota al llegar.
+        const arcoO = Math.min(30, Math.hypot(bx - ax, by - ay) * 0.45), q = Math.min(1, f / 0.85);
+        const ox = ax + (bx - ax) * q, oy = ay + (by - ay) * q - Math.sin(q * Math.PI) * arcoO;
+        if (f < 0.2) { g.fillStyle = 'rgba(230,230,230,' + (0.7 - f * 3).toFixed(2) + ')'; g.fillRect(ax - 1, ay - 5 - f * 12, 5, 4); }
+        if (f < 0.85) { g.fillStyle = '#1e1e1e'; g.fillRect(Math.round(ox), Math.round(oy), 2, 2); }
+        else { const e = (f - 0.85) / 0.15, rr = 2 + e * 6; g.fillStyle = 'rgba(255,' + Math.round(200 - e * 100) + ',60,' + (1 - e * 0.5).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by, rr, 0, Math.PI * 2); g.fill(); }
+        continue;
+      }
       const arco = bala ? 0 : Math.min(14, Math.hypot(bx - ax, by - ay) * 0.25);
       const pos = q => [ax + (bx - ax) * q, ay + (by - ay) * q - Math.sin(q * Math.PI) * arco];
       const [x, y] = pos(f), [xa, ya] = pos(Math.max(0, f - 0.08));

@@ -579,5 +579,42 @@
   let sigId = 0;
   const conId = img => { if (img.__id == null) img.__id = ++sigId; return img; };
 
-  M.arte = { T, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  // ---------- Vehículos de guerra (mirando a la derecha; el pintor los voltea) ----------
+  function vehiculo(tipo, col, paso) {
+    return guardado('veh' + tipo + col + paso, () => {
+      if (tipo === 'tanque') {
+        const H = hoja(16, 11), cuerpo = mezcla(col, '#5a6040', 0.55);
+        H.r(1, 7, 14, 3, '#2a2a26'); for (let x = 2; x < 15; x += 2) H.p(x + (paso ? 1 : 0), 8, '#55554c'); // orugas
+        for (let x = 2; x < 15; x += 3) H.disco(x + 0.5, 8.5, 1, '#3a3a34');
+        H.r(1, 5, 14, 2, cuerpo); H.r(2, 4, 12, 1, claro(cuerpo, 0.15));
+        H.r(4, 2, 7, 2, cuerpo); H.r(5, 1, 5, 1, claro(cuerpo, 0.2)); // torreta
+        H.r(11, 2, 5, 1, '#3a3a34'); // cañón
+        H.p(6, 3, col); H.p(7, 3, col);
+        H.contorno();
+        return H.lienzo();
+      }
+      // Cañón de campaña o artillería: tubo largo sobre dos ruedas y un afuste.
+      const H = hoja(16, 10), pesado = tipo === 'artilleria';
+      H.r(1, 6, 7, 1, '#6b4a2b'); // afuste
+      H.disco(8.5, 6.5, 2.4, '#5a3a22', true); H.p(8, 6, '#c8a060');
+      H.r(6, 3, pesado ? 10 : 8, 2, pesado ? '#4a4e44' : '#3a3a3a'); H.r(6, 3, pesado ? 10 : 8, 1, pesado ? '#6a7060' : '#5a5a5a');
+      if (pesado) H.r(3, 2, 4, 3, mezcla(col, '#5a6040', 0.6)); // escudo
+      H.p(2, 5, col);
+      H.contorno();
+      return H.lienzo();
+    });
+  }
+  function avion(col) {
+    return guardado('avion' + col, () => {
+      const H = hoja(16, 9), cuerpo = mezcla(col, '#7a8070', 0.5);
+      H.r(2, 4, 12, 2, cuerpo); H.r(13, 4, 2, 2, claro(cuerpo, 0.15)); H.p(15, 4, '#2a2a2a'); H.p(15, 5, '#2a2a2a'); // fuselaje y hélice
+      H.r(6, 1, 3, 7, oscuro(cuerpo, 0.12)); H.r(6, 1, 3, 1, claro(cuerpo, 0.1)); // alas
+      H.r(1, 2, 2, 2, oscuro(cuerpo, 0.12)); H.r(1, 6, 2, 1, oscuro(cuerpo, 0.12)); // cola
+      H.p(11, 4, '#a8d8f0'); H.p(7, 3, col); H.p(7, 6, col);
+      H.contorno();
+      return H.lienzo();
+    });
+  }
+
+  M.arte = { T, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});
