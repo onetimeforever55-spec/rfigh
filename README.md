@@ -341,6 +341,25 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
   - **Al tocar** un pueblo o un aldeano en el mapa se abre su ficha.
   - **Botones grandes**: cámara a media altura a la derecha y paleta del arquitecto abajo, al alcance del pulgar.
   - **Detalles**: campos a 16 px (sin zoom al escribir en iOS) y márgenes de la muesca.
+- **Mercado global**: comida, madera, piedra, metal y armas tienen un precio mundial que sale de lo que hay en todos los almacenes frente a lo que todos necesitan. Si en el mundo sobra madera, la madera baja; si escasea el metal, se encarece.
+  - **Cada reino elige a qué dedicarse** (su especialidad) según su tierra, su carácter y los precios, y se fija en lo que hace mejor que los demás (ventaja comparativa). Produce de más de lo suyo para venderlo y lo revisa cada dos estaciones. Quien se dedica a las armas forja metal en armas en su cuartel, y las armas compradas equipan a los guerreros sin gastar metal.
+  - **Solo se comercia con quien hay ruta.** Los comerciantes salen con la carreta cargada de lo que al otro reino le falta y a su pueblo le sobra (se ve en la carreta: sacos, troncos, piedras, lingotes o armas). Lo venden a precio de mercado, más caro si al otro le corre prisa (hambre, guerra sin armas), y vuelven con lo que falta en casa pagado con oro.
+  - Quien tiene socios produce menos de lo que le traen. Quien no tiene, lo hace todo él.
+  - **Órdenes**:
+    - «¿cómo está el mercado?» o «precios».
+    - «especializaos en madera», «dedicaos a forjar armas», «producid comida para vender», «dejad de especializaros».
+    - «comprad 20 de madera», «comprad armas»: un pedido que trae la próxima carreta de un socio al que le sobre.
+    - «vended 30 de piedra»: se coloca aunque al otro no le haga mucha falta, más barato.
+
+    Sin socios: «No comerciáis con ningún reino… producidlo vosotros».
+  - La pestaña **Mercado** de cada reino muestra:
+    - los precios con su curva y su tendencia ▲▼, y lo que hay y hace falta en el mundo;
+    - a qué se dedica (con botones para elegirlo en tu pueblo) y qué le sobra y le falta;
+    - sus socios, con lo que les sobra y les falta, y botones de comprar;
+    - los últimos tratos.
+
+    Lo comprado y vendido en un turno sale en un solo aviso sobre tu pueblo.
+- **Interfaz de píxeles**: marcos con esquinas cortadas y remaches dorados, botones con bisel que se hunden al tocarlos, campos de texto hundidos, barras por segmentos y letra de píxeles (Pixelify Sans y Silkscreen; la crónica sigue con letra de libro para leerla a gusto). Los iconos de los recursos, las estaciones, la barra de abajo y el arquitecto están dibujados a 12×12 píxeles con el mismo estilo que el mapa: moneda, espiga, tronco, piedra, lingote, espada, aldeano, casa, matraz, flor, sol, hoja, copo, mapa, pluma, pueblo, pergamino y copa.
 - **Modo arquitecto** (botón 🏗 junto a la cámara, gobernando un pueblo): eliges una obra de la paleta (casa, calle, pozo, granero, plaza, parque, templo, casa del saber, palacio, molino, torre, puerto, cuartel, arquería o castillo) y tocas tu tierra.
   - Al pasar por encima se ve el edificio en verde, o en rojo con el motivo si no se puede: tierra ajena, agua, ya construido, hace falta ser villa…
   - Lo encargado queda marcado con un marco de trazos, y las calles por empedrar en gris. Tocar otra vez lo quita.

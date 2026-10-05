@@ -607,7 +607,14 @@
         g.fillStyle = '#2a1e14'; g.fillRect(cx - 0.5, cy + 0.5, 7, 4);
         g.fillStyle = '#3a2a1e'; g.fillRect(cx + 1, cy + 4, 1, 1); g.fillRect(cx + 4, cy + 4, 1, 1);
         g.fillStyle = '#9a6a3a'; g.fillRect(cx, cy + 1, 6, 3); g.fillStyle = '#7a5028'; g.fillRect(cx, cy + 3, 6, 0.5);
-        g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 1.5, 1.5); g.fillStyle = '#c84a3a'; g.fillRect(cx + 2.5, cy, 1.5, 1.5); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1.5, 1.5);
+        // Lo que lleva se ve: sacos de grano, troncos, piedras, lingotes o un fardo de armas; vacía, unas cajas.
+        const cg = a.carga && a.carga.que;
+        if (cg === 'comida') { g.fillStyle = '#e8d08a'; g.fillRect(cx + 0.5, cy - 0.5, 2, 2); g.fillRect(cx + 3, cy - 1, 2, 2.5); g.fillStyle = '#c8a050'; g.fillRect(cx + 1, cy - 0.5, 1, 0.5); g.fillRect(cx + 3.5, cy - 1, 1, 0.5); }
+        else if (cg === 'madera') { g.fillStyle = '#7a4a24'; g.fillRect(cx, cy - 1, 6, 1); g.fillRect(cx + 0.5, cy, 5, 1); g.fillStyle = '#c89a62'; g.fillRect(cx, cy - 1, 0.6, 1); g.fillRect(cx + 0.5, cy, 0.6, 1); }
+        else if (cg === 'piedra') { g.fillStyle = '#a8a49a'; g.fillRect(cx + 0.5, cy - 1, 2, 2); g.fillRect(cx + 3, cy - 0.5, 2.5, 1.5); g.fillStyle = '#7e7a72'; g.fillRect(cx + 2, cy, 1, 1); }
+        else if (cg === 'metal') { g.fillStyle = '#9aa4b0'; g.fillRect(cx + 0.5, cy - 0.5, 2.5, 1); g.fillRect(cx + 3, cy - 0.5, 2.5, 1); g.fillStyle = '#d0d8e0'; g.fillRect(cx + 1, cy - 1, 4, 0.5); }
+        else if (cg === 'armas') { g.fillStyle = '#d0d4dc'; g.fillRect(cx, cy - 1.5, 6, 0.6); g.fillRect(cx + 1, cy - 0.5, 5, 0.6); g.fillStyle = '#6a4220'; g.fillRect(cx + 4.5, cy - 1.8, 1, 1.4); }
+        else { g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 1.5, 1.5); g.fillStyle = '#c84a3a'; g.fillRect(cx + 2.5, cy, 1.5, 1.5); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1.5, 1.5); }
       }
       // En fiesta, la gente que no trabaja baila (da saltitos al ritmo).
       const baila = fiesta.has(a.c) && acc === 0 && !anda && Math.sin(ahora / 140 + a.id) > 0.3;

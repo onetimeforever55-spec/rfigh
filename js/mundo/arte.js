@@ -984,5 +984,34 @@
     });
   }
 
-  M.arte = { T, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  // ---------- Iconos de la interfaz (12×12 píxeles, con contorno): recursos, estaciones y secciones ----------
+  const ICONOS = {
+    oro: H => { H.disco(6, 6, 5, '#f0c040', true); H.disco(6, 6, 3.4, '#e0a820'); H.r(5, 3, 2, 6, '#fff0a0'); H.r(5, 3, 1, 6, '#b07818'); },
+    comida: H => { for (const [x0, x1] of [[3, 5], [6, 6], [9, 7]]) for (let y = 2; y < 11; y++) H.p(Math.round(x0 + (x1 - x0) * (y - 2) / 8), y, '#c89a30'); for (const [x, y] of [[3, 2], [2, 3], [4, 3], [6, 1], [5, 2], [7, 2], [9, 2], [8, 3], [10, 3], [3, 4], [6, 3], [9, 4]]) H.p(x, y, '#f0d070'); H.r(4, 8, 5, 1, '#8a5a2a'); },
+    madera: H => { H.r(1, 4, 9, 5, '#8a5a2a'); H.r(1, 4, 9, 1, '#a8743a'); H.r(2, 6, 6, 1, '#6a4220'); H.disco(9.5, 6.5, 2.7, '#d8a868'); H.p(9, 6, '#b08048'); H.p(10, 7, '#b08048'); },
+    piedra: H => { H.disco(7, 7, 4.2, '#a8a49a', true); H.disco(3.6, 8.4, 2.6, '#8a867c', true); H.p(6, 5, '#d0ccc2'); },
+    metal: H => { for (let y = 5; y < 10; y++) H.r(2 + (9 - y) * 0 + (y === 5 ? 2 : y === 6 ? 1 : 0), y, 8 - (y === 5 ? 4 : y === 6 ? 2 : 0) + (y > 6 ? 1 : 0), 1, y === 5 ? '#e0e8f0' : y < 8 ? '#a8b2be' : '#7a8490'); H.r(3, 4, 4, 1, '#c8d0d8'); },
+    armas: H => { for (let k = 0; k < 7; k++) { H.p(3 + k, 8 - k, '#e0e4ec'); H.p(4 + k, 8 - k, '#9aa0aa'); } H.p(10, 1, '#ffffff'); H.r(1, 8, 4, 1, '#c8a040'); H.p(3, 7, '#c8a040'); H.p(3, 9, '#c8a040'); H.r(1, 10, 2, 1, '#6a4220'); H.p(2, 9, '#6a4220'); },
+    gente: H => { H.disco(6, 3.5, 2.2, '#f0c8a0'); H.r(4, 2, 4, 1, '#5a3a20'); H.r(3, 6, 6, 4, '#4a8ad0'); H.r(3, 6, 6, 1, '#6aa8e8'); H.r(4, 10, 1, 2, '#3a3a48'); H.r(7, 10, 1, 2, '#3a3a48'); },
+    nivel: H => { H.r(2, 6, 8, 5, '#e8d8b4'); for (let y = 1; y < 6; y++) H.r(6 - y, y + 1, y * 2, 1, '#c84a3a'); H.r(5, 8, 2, 3, '#6a4220'); H.p(3, 7, '#4a6a9a'); H.p(8, 7, '#4a6a9a'); },
+    tec: H => { H.r(5, 1, 2, 4, '#c8d8e8'); for (let y = 5; y < 11; y++) { const w = Math.min(4, y - 4); H.r(6 - w, y, w * 2, 1, y > 7 ? '#5ac8a0' : '#c8d8e8'); } H.p(4, 9, '#9af0d0'); H.r(4, 0, 4, 1, '#8a6a4a'); },
+    subir: H => { for (let y = 1; y < 7; y++) H.r(6 - (y - 1), y, (y - 1) * 2 + 1, 1, '#f0c040'); H.r(4, 7, 3, 4, '#f0c040'); H.p(5, 2, '#fff0a0'); },
+    primavera: H => { for (const [x, y] of [[6, 2], [3, 5], [9, 5], [4, 8], [8, 8]]) H.disco(x, y, 1.9, '#ff8ab0'); H.disco(6, 5.6, 1.6, '#ffd84a'); H.r(6, 9, 1, 3, '#4a9a3a'); },
+    verano: H => { for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; H.p(Math.round(6 + Math.cos(a) * 5), Math.round(6 + Math.sin(a) * 5), '#ffb030'); } H.disco(6, 6, 3.3, '#ffd84a', true); },
+    otono: H => { for (let y = 1; y < 10; y++) { const w = Math.round(Math.sin((y / 9) * Math.PI) * 4); H.r(6 - w, y, w * 2 + 1, 1, y < 5 ? '#f08a30' : '#d0601e'); } H.r(6, 2, 1, 9, '#8a3a1a'); H.p(6, 11, '#6a4220'); },
+    invierno: H => { for (let k = -4; k <= 4; k++) { H.p(6 + k, 6, '#e8f4ff'); H.p(6, 6 + k, '#e8f4ff'); if (Math.abs(k) < 4) { H.p(6 + k, 6 + k, '#bcd8f0'); H.p(6 + k, 6 - k, '#bcd8f0'); } } H.p(6, 6, '#ffffff'); },
+    noche: H => { H.disco(6, 6, 4.5, '#f0e0a0', true); H.disco(8, 4.5, 3.6, null); for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) { const dx = x + 0.5 - 8.2, dy = y + 0.5 - 4.4; if (dx * dx + dy * dy < 12) H.d[y * 12 + x] = null; } },
+    mapa: H => { H.r(1, 2, 10, 8, '#5aa040'); H.r(1, 2, 3, 8, '#4a8ad0'); H.r(7, 2, 1, 8, '#3a7a30'); H.r(4, 2, 1, 8, '#2a6aa8'); H.p(9, 5, '#c84a3a'); H.p(8, 6, '#c84a3a'); H.p(10, 6, '#c84a3a'); H.p(9, 7, '#c84a3a'); },
+    ordenes: H => { H.r(2, 9, 8, 2, '#e8dcc0'); for (let k = 0; k < 7; k++) { H.p(3 + k, 8 - k, '#f4f0e4'); H.p(4 + k, 8 - k, '#c8c0ac'); } H.p(10, 1, '#ffffff'); H.p(3, 8, '#2a2a3a'); H.p(2, 9, '#2a2a3a'); },
+    pueblos: H => { H.r(1, 6, 5, 5, '#e8d8b4'); for (let y = 2; y < 6; y++) H.r(3.5 - (y - 2), y, (y - 2) * 2 + 1, 1, '#c84a3a'); H.r(6, 5, 5, 6, '#d8c8a4'); for (let y = 1; y < 5; y++) H.r(8.5 - (y - 1), y, (y - 1) * 2 + 1, 1, '#4a8ad0'); H.p(3, 9, '#6a4220'); H.p(8, 9, '#6a4220'); },
+    cronica: H => { H.r(2, 2, 8, 8, '#efe2b8'); H.r(1, 1, 10, 2, '#d8c890'); H.r(1, 9, 10, 2, '#d8c890'); for (const y of [4, 6, 8]) H.r(3, y, 6, 1, '#9a8a6a'); },
+    retos: H => { H.r(3, 1, 6, 5, '#f0c040'); H.r(3, 1, 2, 5, '#ffe080'); H.p(2, 2, '#f0c040'); H.p(9, 2, '#f0c040'); H.p(1, 3, '#f0c040'); H.p(10, 3, '#f0c040'); H.r(5, 6, 2, 2, '#c89020'); H.r(3, 8, 6, 2, '#8a5a2a'); },
+    mas: H => { for (const x of [2, 5, 8]) H.r(x, 5, 2, 2, '#e8e0cc'); },
+    arqui: H => { H.r(2, 9, 8, 2, '#a8a49a'); H.r(4, 6, 4, 3, '#c8a878'); H.r(3, 2, 1, 7, '#7a5530'); H.r(8, 2, 1, 7, '#7a5530'); H.r(3, 4, 6, 1, '#7a5530'); H.r(9, 1, 1, 4, '#f0c040'); H.r(9, 1, 3, 1, '#f0c040'); }
+  };
+  function icono(nombre) {
+    return guardado('ico' + nombre, () => { const H = hoja(12, 12); (ICONOS[nombre] || ICONOS.mas)(H); H.contorno(0.75); return H.lienzo(); });
+  }
+  const iconoURL = nombre => guardado('icourl' + nombre, () => icono(nombre).toDataURL());
+  M.arte = { T, icono, iconoURL, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});

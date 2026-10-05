@@ -519,6 +519,33 @@ console.log('LA VIDA PAUSADA: NOCHES, ESTACIONES, OBRAS Y NECESIDADES');
   const v = m.vida, libre = S.casillas(m, c).flatMap(r => V2.parcelas(m, r)).find(x => !V2.puedeColocar(m, c, x, 'pozo') && [1, -1, v.tw, -v.tw].every(d => !v.obra[x + d] && !v.camino[x + d] && !V2.puedeColocar(m, c, x + d, 'pozo')));
   if (libre != null) { V2.cambiar(m, 'obra', libre, 0, 0); const antes = [1, -1, v.tw, -v.tw].filter(d => v.camino[libre + d]).length; c.plan.encargos = []; c.era = 3; c.nivelMax = 4; c.nivel = 4; c.madera = c.piedra = c.oro = 99; const r0 = V2.encargar(m, c, libre, 'fuente'); if (!r0.ok) console.log('   (encargo:', r0.razon + ')'); let ok = false; for (let i = 0; i < 40 && !ok; i++) { S.turno(m); ok = v.obra[libre] === V2.OBRA.fuente; } comprobar(ok && [1, -1, v.tw, -v.tw].filter(d => v.camino[libre + d]).length > antes, 'al acabar la plaza pública, alrededor se empiedra una explanada de adoquín'); }
 }
+console.log('EL MERCADO GLOBAL');
+{
+  const m = S.crear(4, 5, { ritmo: 3 }), V2 = M.vida, X2 = M.mando;
+  for (let i = 0; i < 160; i++) S.turno(m);
+  const mk = m.mercado;
+  comprobar(mk && V2.BIENES.every(k => mk.precio[k] > 0 && (mk.historia[k] || []).length > 5), 'hay un precio mundial para cada bien (' + V2.BIENES.map(k => k + ' ' + mk.precio[k]).join(', ') + ')');
+  comprobar(V2.BIENES.some(k => (mk.historia[k] || []).some(x => Math.abs(x - mk.precio[k]) > 0.02)), 'y los precios se mueven con la oferta y la demanda');
+  const esp = new Set(S.vivas(m).map(c => c.especialidad));
+  comprobar(esp.size >= 2, 'cada reino elige a qué dedicarse, y no todos a lo mismo (' + [...esp].join(', ') + ')');
+  comprobar((mk.tratos || []).length > 3 && mk.tratos.every(x => x.vende !== x.compra && x.oro > 0 && x.n > 0), 'los comerciantes venden y compran entre reinos a cambio de oro (' + (mk.tratos || []).length + ' tratos)');
+  comprobar((mk.tratos || []).every(x => x.ruta === 'externa'), 'y solo con los reinos con los que hay ruta de comercio');
+  // El precio: con mucha más madera en el mundo, la madera baja.
+  const antes = mk.precio.madera; for (const c of S.vivas(m)) c.madera += 600; for (let i = 0; i < 6; i++) S.turno(m);
+  comprobar(mk.precio.madera < antes, 'si sobra madera en el mundo, baja de precio (' + antes + ' → ' + mk.precio.madera + ')');
+  // Las órdenes del mercado.
+  const solo = S.vivas(m).find(c => !(m.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)));
+  const con = S.vivas(m).find(c => (m.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)));
+  if (solo) { X2.gobernar(m, solo.id); comprobar(/No comerciáis con ningún reino/.test(X2.ordenar(m, solo.id, 'comprad 10 de madera').respuesta), 'sin socios no se puede comprar: hay que producirlo'); }
+  if (con) {
+    X2.gobernar(m, con.id);
+    const r = X2.ordenar(m, con.id, 'comprad 10 de piedra');
+    comprobar(/Encargáis 10 de piedra/.test(r.respuesta) && con.plan.pedidos.some(x => x.que === 'piedra'), 'con socios, el pedido espera al comerciante');
+    X2.ordenar(m, con.id, 'especializaos en madera');
+    comprobar(con.especialidad === 'madera' && con.plan.especialidad === 'madera', '«especializaos en madera»');
+    comprobar(/Precios del mundo/.test(X2.ordenar(m, con.id, '¿cómo está el mercado?').respuesta), '«¿cómo está el mercado?»');
+  }
+}
 {
   // Con ritmo 1 (las pruebas de siempre) nada de esto cambia el mundo.
   const m = S.crear(4, 5);

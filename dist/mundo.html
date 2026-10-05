@@ -7,7 +7,7 @@
 <meta name="description" content="Un mundo de píxeles donde pueblos de aldeanos talan, siembran, construyen y guerrean viviendo la historia humana real, de la Edad de Piedra a la Segunda Guerra Mundial. Tú eres su dios y lo cambias escribiendo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Martian+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Martian+Mono:wght@400;600&family=Silkscreen&display=swap">
 <style>
 /* Génesis · la vista de un dios: el mundo de píxeles en el centro, la noche alrededor, el oro para lo divino.
    Una sola apariencia, oscura a propósito (el mapa necesita un fondo de noche para que brillen los pueblos). */
@@ -377,6 +377,71 @@ body.sin-panel .panel { display: none; }
   .aviso-flotante { font-size: 13px; padding: 6px 10px; max-width: 78%; }
 }
 @media (max-width: 899px) { body:not(.sin-panel) .aviso-flotante { display: none; } }
+/* El mercado. */
+table.mercado { width: 100%; border-collapse: collapse; font-size: 13px; margin: 4px 0 8px; }
+table.mercado th { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tenue); text-align: left; font-weight: 400; padding: 2px 4px; border-bottom: 1px solid var(--linea); }
+table.mercado td { padding: 4px; border-bottom: 1px dashed rgba(255,255,255,0.06); }
+table.mercado .num { font-family: var(--f-dato); font-size: 12px; white-space: nowrap; }
+.curva { display: block; image-rendering: pixelated; }
+.esp-botones { flex-wrap: wrap; gap: 4px; margin: 4px 0 8px; }
+.esp-botones .mando, .mercado-orden { padding: 3px 8px; font-size: 12px; }
+.esp-botones .mando.activa { border-color: var(--oro); color: var(--oro); }
+
+/* =====================================================================
+   INTERFAZ DE PÍXELES: marcos con esquinas cortadas y remaches, botones con bisel, campos hundidos,
+   barras por segmentos y letra de píxeles, como los menús de un juego de 16 bits.
+   ===================================================================== */
+:root { --f-dato: 'Silkscreen', 'Pixelify Sans', monospace; --px-negro: #05070e; --px-luz: #3a4a76; --px-sombra: #0e1428; --px-fondo: #1c2642; }
+body { font-family: var(--f-pixel); font-size: 15px; }
+.s-texto, .s-porque, .s-precedente, .suceso.cronista .s-texto { font-family: var(--f-libro); }
+.hud { border: 8px solid transparent; border-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2712%27%20height%3D%2712%27%20shape-rendering%3D%27crispEdges%27%3E%3Cpath%20fill%3D%27%2305070e%27%20d%3D%27M1%200h10v1h1v10h-1v1h-10v-1h-1v-10h1z%27/%3E%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2710%27%20height%3D%2710%27%20fill%3D%27%230f1628%27%20fill-opacity%3D%270.93%27/%3E%3Cpath%20fill%3D%27%233a4a76%27%20d%3D%27M1%201h10v1h-9v9h-1z%27/%3E%3Cpath%20fill%3D%27%23161d33%27%20d%3D%27M10%202h1v9h-10v-1h9z%27/%3E%3Crect%20x%3D%272%27%20y%3D%272%27%20width%3D%271%27%20height%3D%271%27%20fill%3D%27%23f0c05a%27/%3E%3Crect%20x%3D%279%27%20y%3D%272%27%20width%3D%271%27%20height%3D%271%27%20fill%3D%27%23f0c05a%27/%3E%3Crect%20x%3D%272%27%20y%3D%279%27%20width%3D%271%27%20height%3D%271%27%20fill%3D%27%23c89a3a%27/%3E%3Crect%20x%3D%279%27%20y%3D%279%27%20width%3D%271%27%20height%3D%271%27%20fill%3D%27%23c89a3a%27/%3E%3C/svg%3E") 4 fill / 8px stretch; border-radius: 0; background: none; box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.35); }
+.g-cab, .g-voluntad, .arquitecto { border-radius: 0 !important; }
+.g-cab { padding: 2px 6px; }
+.panel { padding: 0 8px 6px; }
+.mando, .ejemplo, .cerrar, .arqui-op, .oficio-a, .nec-obrar, .esp-elegir, .mercado-orden, .gobernar, .avanzar-edad, .tec-elegir {
+  border: 0 !important; border-radius: 0 !important; background: var(--px-fondo); color: var(--pergamino); font-family: var(--f-pixel);
+  box-shadow: inset -2px -2px 0 var(--px-sombra), inset 2px 2px 0 var(--px-luz), 0 0 0 2px var(--px-negro); margin: 2px;
+}
+.mando.sutil { color: #c4cbe0; }
+.mando:hover, .ejemplo:hover, .arqui-op:hover:not(:disabled) { box-shadow: inset -2px -2px 0 var(--px-sombra), inset 2px 2px 0 var(--px-luz), 0 0 0 2px var(--oro); }
+.mando:active, .ejemplo:active, .arqui-op:active, .obrar:active { transform: translateY(1px); box-shadow: inset 2px 2px 0 var(--px-sombra), inset -2px -2px 0 var(--px-luz), 0 0 0 2px var(--px-negro); }
+.mando.activa, .arqui-op.activa, .esp-elegir.activa, .oficio-a.activa { background: #3a2f17; color: var(--oro); box-shadow: inset -2px -2px 0 #2a2010, inset 2px 2px 0 #8a6a2a, 0 0 0 2px var(--oro); }
+.obrar { border: 0 !important; border-radius: 0 !important; background: var(--oro); color: #2a1a08; font-family: var(--f-pixel); font-weight: 600; box-shadow: inset -3px -3px 0 #b07818, inset 3px 3px 0 #ffe8a0, 0 0 0 2px var(--px-negro); margin: 2px; }
+.obrar:disabled { filter: grayscale(0.7); }
+input#orden, .g-voluntad input { border: 0 !important; border-radius: 0 !important; background: #070b16; font-family: var(--f-pixel); box-shadow: inset 2px 2px 0 #02040a, inset -2px -2px 0 #26324f, 0 0 0 2px var(--px-negro); margin: 2px; }
+input#orden::placeholder { color: #5a6688; font-style: normal; }
+.pestana { font-family: var(--f-dato); font-size: 11px; border-radius: 0; }
+.pestana.activa { color: var(--oro); box-shadow: inset 0 -3px 0 var(--oro); }
+.barra { height: 8px; border-radius: 0; background: #070b16; box-shadow: 0 0 0 2px var(--px-negro); }
+.barra span { border-radius: 0; background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0) 0 5px, rgba(0,0,0,0.45) 5px 6px); }
+.barra.mini { height: 6px; }
+.recursos .rec { border-radius: 0; background: rgba(5, 7, 14, 0.55); box-shadow: 0 0 0 1px #26324f; padding: 1px 6px 1px 3px; }
+.rec i { font-style: normal; display: inline-flex; }
+img.px { width: 18px; height: 18px; image-rendering: pixelated; image-rendering: crisp-edges; vertical-align: -4px; }
+.rec img.px { width: 16px; height: 16px; }
+img.px.grande { width: 26px; height: 26px; }
+.marcador { border-radius: 0; box-shadow: 0 0 0 2px var(--px-negro), inset 0 0 0 1px rgba(240,192,90,0.5); border: 0; }
+.ficha { border-radius: 0; border: 0; box-shadow: inset 2px 2px 0 #02040a, inset -2px -2px 0 #26324f; }
+.lista-pueblos button { border-radius: 0 !important; border: 0 !important; background: var(--px-fondo); box-shadow: inset -2px -2px 0 var(--px-sombra), inset 2px 2px 0 var(--px-luz), 0 0 0 2px var(--px-negro); margin: 2px; font-family: var(--f-pixel); }
+.lista-pueblos button[aria-pressed="true"], .lista-pueblos .elegido button { box-shadow: inset -2px -2px 0 var(--px-sombra), inset 2px 2px 0 var(--px-luz), 0 0 0 2px var(--oro); }
+.inicio-caja { border: 8px solid transparent !important; border-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2712%27%20height%3D%2712%27%20shape-rendering%3D%27crispEdges%27%3E%3Cpath%20fill%3D%27%2305070e%27%20d%3D%27M1%200h10v1h1v10h-1v1h-10v-1h-1v-10h1z%27/%3E%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2710%27%20height%3D%2710%27%20fill%3D%27%230f1628%27%20fill-opacity%3D%270.93%27/%3E%3Cpath%20fill%3D%27%233a4a76%27%20d%3D%27M1%201h10v1h-9v9h-1z%27/%3E%3Cpath%20fill%3D%27%23161d33%27%20d%3D%27M10%202h1v9h-10v-1h9z%27/%3E%3Crect%20x%3D%272%27%20y%3D%272%27%20width%3D%271%27%20height%3D%271%27%20fill%3D%27%23f0c05a%27/%3E%3Crect%20x%3D%279%27%20y%3D%272%27%20width%3D%271%27%20height%3D%271%27%20fill%3D%27%23f0c05a%27/%3E%3Crect%20x%3D%272%27%20y%3D%279%27%20width%3D%271%27%20height%3D%271%27%20fill%3D%27%23c89a3a%27/%3E%3Crect%20x%3D%279%27%20y%3D%279%27%20width%3D%271%27%20height%3D%271%27%20fill%3D%27%23c89a3a%27/%3E%3C/svg%3E") 4 fill / 8px stretch !important; border-radius: 0 !important; background: none !important; box-shadow: 6px 6px 0 rgba(0,0,0,0.5) !important; }
+.inicio-titulo, .marca { text-shadow: 2px 2px 0 #05070e; }
+.aviso-flotante { border: 0; border-radius: 0; box-shadow: 0 0 0 2px var(--px-negro), inset 0 0 0 2px var(--oro), 4px 4px 0 rgba(0,0,0,0.4); }
+.consejo-quien, .etiqueta, .tec-era, .era { font-family: var(--f-dato); }
+.reto, .guerra-marcador { border-radius: 0; }
+table.mercado th { font-family: var(--f-dato); }
+@media (max-width: 899px) {
+  .g-nav { border-top: 0; background: #0f1628; box-shadow: 0 -2px 0 var(--px-negro), 0 -4px 0 var(--px-luz); }
+  .nav-b { font-family: var(--f-dato); font-size: 9px; }
+  .nav-b i { filter: grayscale(0.7) brightness(0.85); }
+  .nav-b img.px { width: 26px; height: 26px; }
+  .nav-b.activa::before { left: 30%; right: 30%; height: 4px; border-radius: 0; }
+  .nav-b.activa { background: rgba(240, 192, 90, 0.08); }
+  .panel { border-radius: 0 !important; border-bottom: 0 !important; }
+  .asa { border-radius: 0; height: 4px; background: var(--px-luz); box-shadow: 0 2px 0 var(--px-negro); }
+  .mando.cam { border-radius: 0 !important; }
+}
+table.mercado td:first-child { white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -1925,15 +1990,189 @@ body.sin-panel .panel { display: none; }
    * Poca madera → más leñadores; la gente cerca del límite de comida → más granjeros; faltan casas → más
    * constructores; guerra → guerreros. Las prioridades del jugador (0 a 2) pesan sobre esas necesidades.
    */
+  /*
+   * EL MERCADO GLOBAL (partidas pausadas).
+   *  · Cada bien (comida, madera, piedra, metal y armas) tiene un precio mundial que sale de lo que hay en todos
+   *    los graneros y almacenes frente a lo que todos necesitan: si sobra madera en el mundo, la madera baja;
+   *    si escasea, se encarece.
+   *  · Cada reino elige qué producir según su tierra, su carácter y los precios (su especialidad), y produce
+   *    de más para vender.
+   *  · Pero solo se compra y se vende con quien se comercia de verdad: los comerciantes van por las rutas entre
+   *    reinos con la carreta cargada de lo que al otro le falta, lo venden a precio de mercado (más caro si es
+   *    urgente) y vuelven con lo que falta en casa, pagado con oro. Quien tiene socios puede esperar al
+   *    comerciante en vez de producirlo todo; quien no, tiene que hacerlo él.
+   */
+  const BIENES = ['comida', 'madera', 'piedra', 'metal', 'armas'];
+  const PRECIO_BASE = { comida: 0.5, madera: 0.6, piedra: 0.9, metal: 2.5, armas: 6 };
+  const NOMBRE_BIEN = { comida: 'comida', madera: 'madera', piedra: 'piedra', metal: 'metal', armas: 'armas' };
+  // Lo que un reino quiere tener de cada cosa.
+  function objetivo(c, k) {
+    const n = c.aldeanos || 0;
+    if (k === 'comida') return Math.max(8, n * 3);
+    if (k === 'madera') return metaMadera(c);
+    if (k === 'piedra') return c.era >= 1 ? 20 + 10 * c.era : 6;
+    if (k === 'metal') return c.era >= 1 ? 10 + (c.guerreros || 0) : 0;
+    if (k === 'armas') return c.era >= 1 ? Math.max(0, (c.guerreros || 0) - (c.armados || 0)) + (c.guerras && c.guerras.length ? 6 : 0) : 0;
+    return 0;
+  }
+  // Lo que le sobra, lo que le falta y cuánta prisa le corre (0 nada, 1 mucha, 2 desesperado).
+  function balance(m, c) {
+    const out = { sobra: {}, falta: {}, urg: {} }, p = c.plan || {};
+    for (const k of BIENES) {
+      const ob = objetivo(c, k), hay = c[k] || 0;
+      const venta = (p.ventas || []).filter(x => x.que === k).reduce((q, x) => q + x.n, 0);
+      out.sobra[k] = Math.max(0, hay - ob * (c.especialidad === k ? 1.05 : 1.35)) + Math.min(hay, venta);
+      out.falta[k] = Math.max(0, ob - hay);
+      out.urg[k] = ob > 0 ? Math.min(1, out.falta[k] / ob) : 0;
+      if (k === 'comida' && hay < n0(c) * 0.6) out.urg[k] = 1.6;
+      if (k === 'armas' && c.guerras && c.guerras.length && out.falta[k] > 0) out.urg[k] = Math.max(out.urg[k], 1.2);
+      const pedido = (p.pedidos || []).filter(x => x.que === k).reduce((q, x) => q + x.n, 0);
+      if (pedido > 0) { out.falta[k] = Math.max(out.falta[k], pedido); out.urg[k] = Math.max(out.urg[k], 1.5); }
+    }
+    return out;
+  }
+  const n0 = c => c.aldeanos || 0;
+  // Qué le conviene producir: lo que su tierra da, lo que su carácter prefiere y lo que mejor se paga.
+  function aptitudes(m, c, recursos) {
+    return {
+      comida: 0.6 + Math.min(1.2, (c.campos || 0) / Math.max(4, metaCampos(c))) * (S().fertil(m, c.capital) / 2),
+      madera: recursos && recursos.arboles ? 0.4 + Math.min(1.2, recursos.arboles / 30) : 0,
+      piedra: recursos && recursos.rocas ? 0.3 + Math.min(1, recursos.rocas / 25) : 0,
+      metal: c.era >= 1 && recursos && recursos.rocas ? 0.3 + Math.min(1, recursos.rocas / 30) : 0,
+      armas: c.era >= 1 && c.cuarteles > 0 ? 0.5 + Math.min(0.8, (c.metal || 0) / 40) : 0
+    };
+  }
+  // Ventaja comparativa: cada reino se fija en lo que hace mejor que la media del mundo, no solo en lo que más da.
+  function elegirEspecialidad(m, c, recursos, media) {
+    const v = m.vida, mk = m.mercado, p = c.plan || {};
+    if (p.especialidad) return p.especialidad;
+    const rel = k => (mk ? mk.precio[k] / PRECIO_BASE[k] : 1);
+    const bruto = aptitudes(m, c, recursos), apt = {};
+    for (const k of BIENES) apt[k] = bruto[k] > 0 ? bruto[k] / Math.max(0.2, (media && media[k]) || bruto[k]) * Math.sqrt(bruto[k]) : 0;
+    const gusto = { guerrero: { armas: 0.6, metal: 0.3 }, mercader: { madera: 0.2, metal: 0.3 }, agricola: { comida: 0.5 }, constructor: { piedra: 0.5, madera: 0.2 }, sabio: {}, devoto: { comida: 0.2 } }[c.caracter] || {};
+    let mejor = 'comida', mv = -1;
+    for (const k of BIENES) { const val = apt[k] * Math.sqrt(rel(k)) * (1 + (gusto[k] || 0)) * (0.85 + azar(v) * 0.3); if (val > mv) { mv = val; mejor = k; } }
+    return mejor;
+  }
+  function mercado(m, recursosDe) {
+    const v = m.vida, vivas = S().vivas(m);
+    const mk = m.mercado = m.mercado || { precio: Object.assign({}, PRECIO_BASE), historia: {}, oferta: {}, demanda: {} };
+    for (const k of BIENES) {
+      let of = 0, de = 0;
+      for (const c of vivas) { of += c[k] || 0; de += objetivo(c, k); }
+      mk.oferta[k] = Math.round(of); mk.demanda[k] = Math.round(de);
+      const nuevo = PRECIO_BASE[k] * Math.pow(Math.max(0.3, Math.min(3, (de + 5) / (of + 5))), 0.7);
+      mk.precio[k] = Math.round((mk.precio[k] * 0.75 + nuevo * 0.25) * 100) / 100;
+      const h = mk.historia[k] = mk.historia[k] || [];
+      h.push(mk.precio[k]); if (h.length > 30) h.shift();
+    }
+    const media = {};
+    for (const c of vivas) { const ap = aptitudes(m, c, recursosDe && recursosDe[c.id]); for (const k of BIENES) media[k] = (media[k] || 0) + ap[k] / vivas.length; }
+    for (const id of Object.keys(v.resumenTratos || {})) {
+      const r = v.resumenTratos[id], lista = Object.keys(r.entra).map(k => '+' + r.entra[k] + ' ' + k).concat(Object.keys(r.sale).map(k => '−' + r.sale[k] + ' ' + k));
+      if (lista.length) (v.anuncios = v.anuncios || []).push({ civ: +id, texto: '⚖ Mercado: ' + lista.join(', ') + ' (' + (r.oro >= 0 ? '+' : '−') + Math.abs(Math.round(r.oro)) + '🪙)' });
+    }
+    v.resumenTratos = {};
+    for (const c of vivas) {
+      c.balance = balance(m, c);
+      if (c.especialidad == null || m.turno % 24 === c.id % 24 || (c.plan && c.plan.especialidad && c.plan.especialidad !== c.especialidad)) c.especialidad = elegirEspecialidad(m, c, recursosDe && recursosDe[c.id], media);
+      // La forja: quien se dedica a las armas (o tiene metal de sobra y cuartel) convierte metal en armas.
+      if (c.era >= 1 && c.cuarteles > 0 && (c.especialidad === 'armas' || c.balance.sobra.metal > 8)) {
+        const q = Math.min(c.especialidad === 'armas' ? 3 : 1, Math.floor((c.metal || 0) / 2));
+        if (q > 0) { c.metal -= q * 2; c.armas = (c.armas || 0) + q; }
+      }
+      // Los pedidos y las ventas que nadie atiende en 40 turnos se olvidan.
+      if (c.plan) for (const l of ['pedidos', 'ventas']) if (c.plan[l]) c.plan[l] = c.plan[l].filter(x => m.turno - (x.desde || 0) < 40);
+      // Lo importado se olvida poco a poco (sirve para saber cuánto puede fiarse de sus socios).
+      c.importa = c.importa || {};
+      for (const k of BIENES) c.importa[k] = (c.importa[k] || 0) * 0.9;
+    }
+  }
+  // Un comerciante sale de casa: carga lo que al otro reino le hace falta y a su pueblo le sobra.
+  function cargar(m, a, c, o) {
+    const mk = m.mercado; if (!mk || !c.balance || !o.balance) return;
+    const cap = Math.round((6 + 3 * c.era) * (1 + M.tec(c, 'comercio')));
+    let mejor = null, mv = 0;
+    for (const k of BIENES) {
+      // Lo que el jugador puso a la venta se coloca aunque al otro no le haga mucha falta (más barato).
+      const enVenta = c.plan && (c.plan.ventas || []).some(x => x.que === k), quiere = o.balance.falta[k] || (enVenta && (o[k] || 0) < objetivo(o, k) * 2 ? Math.max(4, objetivo(o, k)) : 0);
+      const q = Math.min(c.balance.sobra[k], quiere, k === 'armas' ? Math.ceil(cap / 3) : cap);
+      if (q < 1) continue;
+      const val = q * mk.precio[k] * (1 + o.balance.urg[k]);
+      if (val > mv) { mv = val; mejor = [k, Math.floor(q)]; }
+    }
+    if (mejor) { a.carga = { que: mejor[0], n: mejor[1], de: c.id }; c[mejor[0]] -= mejor[1]; c.balance.sobra[mejor[0]] -= mejor[1]; }
+  }
+  // Llega a destino: vende la carga (lo que el otro pueda pagar) y, con oro de su pueblo, compra lo que falta en casa.
+  function venderComprar(m, a, c, o) {
+    const mk = m.mercado, v = m.vida; if (!mk) return;
+    const tratos = [];
+    if (a.carga && a.carga.de === c.id) {
+      const k = a.carga.que, urg = o.balance ? o.balance.urg[k] : 0, precio = mk.precio[k] * (urg > 0 ? 1 + 0.5 * Math.min(1.6, urg) : 0.7);
+      const q = Math.min(a.carga.n, Math.floor(Math.max(0, o.oro || 0) / precio));
+      if (q > 0) {
+        const oro = Math.round(q * precio * 10) / 10;
+        o[k] = (o[k] || 0) + q; o.oro -= oro; c.oro = (c.oro || 0) + oro; c.comercioOro = (c.comercioOro || 0) + oro;
+        o.importa = o.importa || {}; o.importa[k] = (o.importa[k] || 0) + q;
+        quitarPedido(o, k, q); quitarVenta(c, k, q);
+        tratos.push({ t: m.turno, vende: c.id, compra: o.id, que: k, n: q, oro });
+        a.carga.n -= q;
+      }
+      if (a.carga.n <= 0) a.carga = null;
+    }
+    // La vuelta: lo que más prisa le corre a su pueblo y al otro le sobra, si hay oro para pagarlo.
+    if (!a.carga && c.balance && o.balance) {
+      const cap = Math.round((6 + 3 * c.era) * (1 + M.tec(c, 'comercio')));
+      let mejor = null, mv = 0;
+      for (const k of BIENES) {
+        const precio = mk.precio[k] * (1 + 0.3 * Math.min(1.6, c.balance.urg[k]));
+        const q = Math.min(o.balance.sobra[k], c.balance.falta[k], Math.floor(Math.max(0, (c.oro || 0) * 0.6) / precio), k === 'armas' ? Math.ceil(cap / 3) : cap);
+        if (q < 1 || c.balance.urg[k] < 0.25) continue;
+        const val = c.balance.urg[k] * q;
+        if (val > mv) { mv = val; mejor = [k, Math.floor(q), precio]; }
+      }
+      if (mejor) {
+        const [k, q, precio] = mejor, oro = Math.round(q * precio * 10) / 10;
+        o[k] -= q; o.balance.sobra[k] -= q; c.oro -= oro; o.oro = (o.oro || 0) + oro; o.comercioOro = (o.comercioOro || 0) + oro;
+        a.carga = { que: k, n: q, de: o.id, para: c.id };
+        quitarVenta(o, k, q);
+        tratos.push({ t: m.turno, vende: o.id, compra: c.id, que: k, n: q, oro });
+      }
+    }
+    const ru = v.rutas.find(x => x.id === a.ruta);
+    for (const x of tratos) { x.ruta = ru ? ru.tipo : null; apuntarTrato(m, x); }
+  }
+  // De vuelta en casa: se descarga lo comprado fuera.
+  function descargar(m, a, c) {
+    if (!a.carga) return;
+    if (a.carga.para === c.id) { c[a.carga.que] = (c[a.carga.que] || 0) + a.carga.n; c.importa = c.importa || {}; c.importa[a.carga.que] = (c.importa[a.carga.que] || 0) + a.carga.n; quitarPedido(c, a.carga.que, a.carga.n); }
+    else if (a.carga.de === c.id) c[a.carga.que] = (c[a.carga.que] || 0) + a.carga.n; // lo que no se vendió vuelve al almacén
+    a.carga = null;
+  }
+  function quitarPedido(c, k, q) { const p = c.plan; if (!p || !p.pedidos) return; for (const x of p.pedidos) if (x.que === k && q > 0) { const d = Math.min(x.n, q); x.n -= d; q -= d; } p.pedidos = p.pedidos.filter(x => x.n > 0); }
+  function quitarVenta(c, k, q) { const p = c.plan; if (!p || !p.ventas) return; for (const x of p.ventas) if (x.que === k && q > 0) { const d = Math.min(x.n, q); x.n -= d; q -= d; } p.ventas = p.ventas.filter(x => x.n > 0); }
+  function apuntarTrato(m, x) {
+    const v = m.vida, mk = m.mercado;
+    (mk.tratos = mk.tratos || []).push(x); if (mk.tratos.length > 60) mk.tratos.shift();
+    const a = S().civ(m, x.vende), b = S().civ(m, x.compra);
+    if (!a || !b) return;
+    // Para el jugador, un solo aviso por turno con todo lo comprado y vendido.
+    for (const c of [a, b]) if (c.jugador) {
+      const r = (v.resumenTratos = v.resumenTratos || {})[c.id] = v.resumenTratos[c.id] || { entra: {}, sale: {}, oro: 0 };
+      if (c === b) { r.entra[x.que] = (r.entra[x.que] || 0) + x.n; r.oro -= x.oro; } else { r.sale[x.que] = (r.sale[x.que] || 0) + x.n; r.oro += x.oro; }
+    }
+  }
   const PRIO_OFICIO = ['madera', 'comida', 'casas', 'piedra', 'ejercito', 'riqueza', 'ciencia'];
   const prio = (c, k) => (c.plan && c.plan.prioridad && c.plan.prioridad[k] != null ? c.plan.prioridad[k] : 1);
   const metaMadera = c => 30 + 12 * c.era;
   function reparto(c, recursos) {
     const guerra = c.guerras.length > 0;
     const lleno = c.cap ? c.pob / c.cap : 0.8;
+    // Lo que traen los socios cuenta como si estuviera en el almacén: quien compra fuera produce menos.
+    const imp = c.importa || {}, madera = (c.madera || 0) + (imp.madera || 0) * 3, comida = (c.comida || 0) + (imp.comida || 0) * 3;
     const p = [
-      recursos.arboles ? 0.18 + 0.4 * Math.max(0, 1 - (c.madera || 0) / metaMadera(c)) : 0,
-      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - (c.comida || 0) / Math.max(6, (c.habitantes || 10) * 1.5)) +
+      recursos.arboles ? 0.18 + 0.4 * Math.max(0, 1 - madera / metaMadera(c)) : 0,
+      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - comida / Math.max(6, (c.habitantes || 10) * 1.5)) +
         // Antes del invierno se hace acopio: en verano y otoño, más gente al campo si el granero no da para tres meses.
         (c.estacion === 1 || c.estacion === 2 ? 0.3 * Math.max(0, 1 - (c.comida || 0) / Math.max(10, (c.aldeanos || 10) * 3)) : 0),
       faltanCamas(c) ? 0.2 : 0.06,
@@ -1944,6 +2183,9 @@ body.sin-panel .panel { display: none; }
       // Eruditos: pocos en una tribu (un chamán), más con templo, escritura y ciudades; los pueblos sabios, más.
       (c.aldeanos || 0) < 8 ? 0.02 : 0.045 + 0.01 * c.era + ((c.templos || 0) > 0 ? 0.02 : 0) + (c.caracter === 'sabio' || c.caracter === 'devoto' ? 0.025 : 0)
     ];
+    // La especialidad del reino: produce de más de lo suyo para venderlo, y algún comerciante más si tiene socios.
+    const esp = { madera: 0, comida: 1, piedra: 3, metal: 3, armas: 3 }[c.especialidad];
+    if (esp != null && c.balance) { p[esp] = p[esp] * 1.5 + 0.06; if ((c.rutas || 0) > 0) p[5] += 0.04; }
     for (let i = 0; i < p.length; i++) {
       const w = prio(c, PRIO_OFICIO[i]);
       // Lo que el jugador pone al máximo pesa siempre, aunque el almacén esté lleno.
@@ -2137,7 +2379,8 @@ body.sin-panel .panel { display: none; }
       }
       if (a.veh) { a.tirador = true; continue; }
       const quiere = c.cuarteles > 0 || c.era <= 1 ? c.era : Math.min(c.era, 1);
-      if ((a.arma || 0) < quiere && (c.era === 0 || (c.metal || 0) >= 1)) { if (c.era > 0) c.metal -= 1; a.arma = quiere; }
+      // Primero las armas forjadas (propias o compradas); si no hay, se forjan con metal.
+      if ((a.arma || 0) < quiere && (c.era === 0 || (c.armas || 0) >= 1 || (c.metal || 0) >= 1)) { if (c.era > 0) { if ((c.armas || 0) >= 1) c.armas -= 1; else c.metal -= 1; } a.arma = quiere; }
       // La armadura de su era: el cuero sale del ganado; el bronce, el hierro y el acero, de la armería.
       const arm = armaduraDeEra(c.era);
       if ((a.armadura || 0) !== arm) {
@@ -2852,6 +3095,7 @@ body.sin-panel .panel { display: none; }
     planificarRutas(m, terrenos(m));
     fauna(m, ter);
     comer(m);
+    if (pausada(m)) mercado(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
     // La crónica cuenta los lobos cuando hacen daño de verdad (una vez cada tanto por pueblo).
     for (const c of S().vivas(m)) {
       const mordidos = (v.mordidos || {})[c.id] || 0;
@@ -2905,7 +3149,7 @@ body.sin-panel .panel { display: none; }
         const t = ru.tiles[a.i];
         a.x = t % v.tw; a.y = t / v.tw | 0;
         if (a.i === 0 || a.i === ru.tiles.length - 1) {
-          if (a.vuelta) { a.e = ESPERAR; a.t = 2; a.ruta = null; }
+          if (a.vuelta) { a.e = ESPERAR; a.t = 2; a.ruta = null; descargar(m, a, c); }
           else { a.e = TRABAJAR; a.t = 2; a.comercio = 1; }
         }
       }
@@ -3121,6 +3365,7 @@ body.sin-panel .panel { display: none; }
         const desdeA = ru.tipo === 'externa' ? ru.a === c.id : dist(m, aqui, ru.tiles[0]) <= dist(m, aqui, ru.tiles[ru.tiles.length - 1]);
         a.ruta = ru.id; a.dir = desdeA ? 1 : -1; a.i = desdeA ? 0 : ru.tiles.length - 1; a.vuelta = 0; a.viaje = 1;
         t = ru.tiles[a.i];
+        if (pausada(m) && ru.tipo === 'externa' && !a.carga) { const o = S().civ(m, ru.a === c.id ? ru.b : ru.a); if (o && o.viva) cargar(m, a, c, o); }
       }
     }
     else if (a.o === ERUDITO) {
@@ -3368,11 +3613,12 @@ body.sin-panel .panel { display: none; }
       const ru = v.rutas.find(x => x.id === a.ruta);
       if (ru && rutaActiva(m, ru)) {
         const hecho = ru.tiles.filter(x => v.camino[x]).length / ru.tiles.length, k = 0.6 + 0.6 * hecho;
-        const oroRuta = (ru.tipo === 'interna' ? 0.5 : 1) * (1 + 0.15 * c.era) * k * (1 + M.tec(c, 'comercio'));
+        const oroRuta = (ru.tipo === 'interna' ? 0.5 : 1) * (1 + 0.15 * c.era) * k * (1 + M.tec(c, 'comercio')) * (pausada(m) && ru.tipo !== 'interna' ? 0.4 : 1);
         c.oro = (c.oro || 0) + oroRuta; c.comercioOro = (c.comercioOro || 0) + oroRuta;
         if (ru.tipo === 'interna') { c.riqueza += (2 + 0.6 * c.era) * k; c.estab = Math.min(100, c.estab + 0.3); }
         else {
           const o = S().civ(m, ru.a === c.id ? ru.b : ru.a);
+          if (pausada(m) && o && o.viva) venderComprar(m, a, c, o);
           c.riqueza += (3 + 0.8 * c.era) * k; o.riqueza += (2 + 0.6 * o.era) * k;
           c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1);
           if (o.era > c.era) c.ciencia += 3; // las ideas viajan con las mercancías
@@ -3944,7 +4190,7 @@ body.sin-panel .panel { display: none; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, ERA_OBRA, NOMBRE_ERA, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -4647,17 +4893,54 @@ body.sin-panel .panel { display: none; }
     if (tec && quiereTec) return [{ tipo: 'investigar', id: tec.id }];
     if (/\b(que investig\w*|que (podemos )?investigar|que estudi\w*|tecnolog\w*|tecnica|arbol)\b/.test(n) && /\b(que|cual|cuales|lista|ver|como va|como van)\b/.test(n)) return [{ tipo: 'consulta_tec' }];
     // El tesoro.
-    const cosa = n.match(/\b(madera|lena|comida|trigo|grano|alimentos?|piedras?|metal|hierro)\b/);
-    if (/\b(compr\w*|adquir\w*|import\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'comprar', que: { lena: 'madera', trigo: 'comida', grano: 'comida', alimento: 'comida', alimentos: 'comida', piedras: 'piedra', hierro: 'metal' }[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
-    if (/\b(vend\w*|export\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'vender', que: { lena: 'madera', trigo: 'comida', grano: 'comida', alimento: 'comida', alimentos: 'comida', piedras: 'piedra', hierro: 'metal' }[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
+    const cosa = n.match(/\b(madera|lena|comida|trigo|grano|alimentos?|piedras?|metal|hierro|armas?|espadas|lanzas|fusiles|armamento)\b/);
+    const BIEN = { lena: 'madera', trigo: 'comida', grano: 'comida', alimento: 'comida', alimentos: 'comida', piedras: 'piedra', hierro: 'metal', arma: 'armas', espadas: 'armas', lanzas: 'armas', fusiles: 'armas', armamento: 'armas' };
+    // El mercado: «¿cómo está el mercado?», «precios», «especializaos en madera», «producid armas para vender».
+    if (/\b(mercado|precios?|cuanto (vale|valen|cuesta|cuestan))\b/.test(n) && !/\b(compr\w*|vend\w*)\b/.test(n)) return [{ tipo: 'consulta_mercado' }];
+    if (/\b(especializ\w*|dedica\w* a|dedicaos|vivid de|nuestro negocio)\b/.test(n) || (/\bpara vender\b/.test(n) && cosa)) {
+      if (!cosa && /\b(no|dejad de|quita\w*|como querais|lo que querais)\b/.test(n)) return [{ tipo: 'especialidad', que: null }];
+      if (cosa) return [{ tipo: 'especialidad', que: BIEN[cosa[1]] || cosa[1] }];
+    }
+    if (/\b(compr\w*|adquir\w*|import\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'comprar', que: BIEN[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
+    if (/\b(vend\w*|export\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'vender', que: BIEN[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
     if (/\b(guard\w*|ahorr\w*|no gast\w*|reserv\w*) (el |todo el |nuestro )?(oro|dinero|tesoro)\b/.test(n)) return [{ tipo: 'tesoro', guardar: true }];
     if (/\b(invert\w*|gast\w*|usad|usa|financ\w*|pag\w*) (el |todo el )?(oro|dinero|tesoro)\b/.test(n) || /\b(mecenazgo|becas|pagad a los sabios)\b/.test(n)) return [{ tipo: 'tesoro', guardar: false }];
     if (/\b(cuanto oro|cuanto dinero|tesoro|arcas|presupuesto|cuentas|ingresos|gastos)\b/.test(n) && !/\b(sub\w*|baj\w*)\b/.test(n)) return [{ tipo: 'consulta_oro' }];
     return null;
   }
-  const PRECIO = { madera: 0.6, comida: 0.5, piedra: 0.9, metal: 2.5 };
+  const PRECIO = { madera: 0.6, comida: 0.5, piedra: 0.9, metal: 2.5, armas: 6 };
+  // Con quién comercia de verdad un pueblo: los del otro lado de sus rutas entre reinos.
+  const sociosDe = (m, c) => [...new Set(((m.vida && m.vida.rutas) || []).filter(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)).map(ru => (ru.a === c.id ? ru.b : ru.a)))].map(id => S().civ(m, id)).filter(o => o && o.viva && !S().enGuerra(c, o));
   function aplicarEconomia(m, c, a, textos) {
     const p = plan(c), v = m.vida, an = t => v && (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t });
+    const mk = m.mercado, pausa = M.vida && M.vida.pausada(m);
+    if (a.tipo === 'consulta_mercado') {
+      if (!mk) { textos.push('Aún no hay mercado entre los reinos.'); return; }
+      const fl = k => { const h = mk.historia[k] || []; const d = h.length > 6 ? h[h.length - 1] - h[h.length - 7] : 0; return d > 0.02 ? ' ▲' : d < -0.02 ? ' ▼' : ''; };
+      const socios = sociosDe(m, c);
+      textos.push('Precios del mundo: ' + M.vida.BIENES.filter(k => k !== 'armas' || c.era >= 1).map(k => k + ' ' + mk.precio[k].toFixed(2) + fl(k)).join(' · ') + '. ' + (socios.length ? 'Comerciáis con ' + socios.map(o => o.nombre + (o.balance ? ' (le falta ' + (M.vida.BIENES.filter(k => o.balance.urg[k] > 0.3).join(', ') || 'poco') + ')' : '')).join(', ') + '.' : 'No comerciáis con nadie: sin una ruta con otro reino, todo lo tenéis que producir vosotros («comerciad con X»).') + (c.especialidad ? ' Vuestra especialidad: ' + c.especialidad + '.' : ''));
+      return;
+    }
+    if (a.tipo === 'especialidad') {
+      p.especialidad = a.que || null;
+      if (a.que) c.especialidad = a.que;
+      textos.push(a.que ? 'Tu pueblo se dedicará sobre todo a ' + (a.que === 'armas' ? 'forjar armas (hace falta cuartel y metal)' : a.que === 'comida' ? 'cultivar y criar ganado' : a.que === 'madera' ? 'talar' : 'sacar ' + a.que) + ', y lo que sobre lo venderán vuestros comerciantes a quien lo necesite.' + (sociosDe(m, c).length ? '' : ' Ojo: sin rutas con otros reinos no tendréis a quién venderlo.') : 'Tu pueblo vuelve a elegir solo a qué dedicarse, según su tierra y los precios.');
+      return;
+    }
+    if ((a.tipo === 'comprar' || a.tipo === 'vender') && pausa) {
+      // Solo se compra y se vende con un reino con el que se comercia: el pedido lo trae (o lo lleva) la carreta.
+      if (!PRECIO[a.que]) { textos.push('Eso no se compra ni se vende.'); return; }
+      const socios = sociosDe(m, c), precio = mk ? mk.precio[a.que] : PRECIO[a.que];
+      if (!socios.length) { textos.push('No comerciáis con ningún reino: no hay a quién ' + (a.tipo === 'comprar' ? 'comprar' : 'vender') + '. Abrid una ruta («comerciad con X» o firmad un tratado) o producidlo vosotros.'); return; }
+      const nq = a.n || (a.tipo === 'comprar' ? Math.max(5, Math.floor((c.oro || 0) * 0.5 / precio)) : Math.floor((c[a.que] || 0) * 0.5));
+      if (nq <= 0) { textos.push(a.tipo === 'comprar' ? 'No hay oro para comprar ' + a.que + '.' : 'No tenéis ' + a.que + ' que vender.'); return; }
+      const lista = a.tipo === 'comprar' ? (p.pedidos = p.pedidos || []) : (p.ventas = p.ventas || []);
+      lista.push({ que: a.que, n: nq, desde: m.turno });
+      const tienen = socios.filter(o => o.balance && (a.tipo === 'comprar' ? o.balance.sobra[a.que] >= 1 : o.balance.falta[a.que] >= 1));
+      an((a.tipo === 'comprar' ? '📦 Pedido: ' : '🏷 A la venta: ') + nq + ' ' + a.que);
+      textos.push(a.tipo === 'comprar' ? 'Encargáis ' + nq + ' de ' + a.que + ' a unas ' + precio.toFixed(2) + ' de oro cada una (' + Math.round(nq * precio) + ' en total, más si corre prisa). ' + (tienen.length ? 'A ' + tienen.map(o => o.nombre).join(' y ') + ' le sobra: vuestros comerciantes lo traerán en la próxima carreta.' : 'Ahora a vuestros socios no les sobra; en cuanto tengan, llegará. Mientras, quizá convenga producirlo.') : 'Ponéis a la venta ' + nq + ' de ' + a.que + ' (unas ' + precio.toFixed(2) + ' de oro cada una). ' + (tienen.length ? 'A ' + tienen.map(o => o.nombre).join(' y ') + ' le hace falta: la carreta saldrá cargada.' : 'Ahora ningún socio lo necesita; se venderá cuando lo pidan.'));
+      return;
+    }
     if (a.tipo === 'edad' || a.tipo === 'consulta_edad') {
       const sig = M.ERAS[c.era + 1];
       if (!sig) { textos.push('Ya estáis en la última edad.'); return; }
@@ -5003,7 +5286,7 @@ body.sin-panel .panel { display: none; }
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
-      else if (['edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);
+      else if (['edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'consulta_mercado', 'especialidad'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);
       else if (TIPOS_EXTRA.includes(a.tipo)) aplicarExtra(m, c, a, textos);
       else if (a.tipo === 'consulta') textos.push(consulta(m, c, a.o));
       else if (a.tipo === 'cuadrilla') aplicarCuadrilla(m, c, a, textos);
@@ -5234,7 +5517,7 @@ body.sin-panel .panel { display: none; }
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"saber"|"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"|"pozo"|"granero"|"fuente"|"parque"|"palacio"|"central"} (fuente = plaza pública; central = central eléctrica, solo en la Era Moderna y en ciudades; templo = iglesia o catedral según la era; saber = la casa de los eruditos: cabaña del chamán, academia, monasterio, universidad o laboratorio); {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante, 6 erudito (chamán, filósofo, monje, científico); -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal","n":numero|null}; {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"edad"} (pasar a la edad siguiente, como en Age of Empires: cuesta recursos y pide edificios); {"tipo":"consulta_edad"} (qué falta para la próxima edad); {"tipo":"edad_auto","si":bool}; {"tipo":"ahorrar_edad","si":bool}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"saber"|"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"|"pozo"|"granero"|"fuente"|"parque"|"palacio"|"central"} (fuente = plaza pública; central = central eléctrica, solo en la Era Moderna y en ciudades; templo = iglesia o catedral según la era; saber = la casa de los eruditos: cabaña del chamán, academia, monasterio, universidad o laboratorio); {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante, 6 erudito (chamán, filósofo, monje, científico); -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal"|"armas","n":numero|null} (solo con reinos con los que hay ruta de comercio: el comerciante lo trae o lo lleva); {"tipo":"especialidad","que":"madera"|"comida"|"piedra"|"metal"|"armas"|null} (a qué se dedica el pueblo para vender); {"tipo":"consulta_mercado"}; {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"edad"} (pasar a la edad siguiente, como en Age of Empires: cuesta recursos y pide edificios); {"tipo":"consulta_edad"} (qué falta para la próxima edad); {"tipo":"edad_auto","si":bool}; {"tipo":"ahorrar_edad","si":bool}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -5244,7 +5527,7 @@ body.sin-panel .panel { display: none; }
       '\nPlazas (región, dueño): ' + JSON.stringify([...S().vivas(m).map(o => ({ region: o.capital, nombre: 'capital de ' + o.nombre, dueno: o.id })), ...(m.ciudades || []).map(x => ({ region: x.region, nombre: x.nombre, dueno: m.dueno[x.region] }))]) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
+  const TIPOS = new Set(['consulta_mercado', 'especialidad', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
@@ -5269,6 +5552,8 @@ body.sin-panel .panel { display: none; }
       } else if (['liberar', 'consulta', 'consulta_tec', 'consulta_oro', 'edad', 'consulta_edad'].includes(a.tipo)) out.push({ tipo: a.tipo });
       else if (a.tipo === 'edad_auto' || a.tipo === 'ahorrar_edad') out.push({ tipo: a.tipo, si: a.si !== false });
       else if (a.tipo === 'investigar') { if (M.TECNOLOGIAS.some(t => t.id === a.id)) out.push({ tipo: 'investigar', id: a.id }); }
+      else if (a.tipo === 'especialidad') out.push({ tipo: 'especialidad', que: PRECIO[a.que] ? a.que : null });
+      else if (a.tipo === 'consulta_mercado') out.push({ tipo: 'consulta_mercado' });
       else if (a.tipo === 'comprar' || a.tipo === 'vender') { if (PRECIO[a.que]) out.push({ tipo: a.tipo, que: a.que, n: Number(a.n) > 0 ? Math.min(1000, Math.round(Number(a.n))) : null }); }
       else if (a.tipo === 'tesoro') out.push({ tipo: 'tesoro', guardar: !!a.guardar });
       else if (TIPOS_EXTRA.includes(a.tipo)) {
@@ -6341,7 +6626,36 @@ body.sin-panel .panel { display: none; }
     });
   }
 
-  M.arte = { T, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  // ---------- Iconos de la interfaz (12×12 píxeles, con contorno): recursos, estaciones y secciones ----------
+  const ICONOS = {
+    oro: H => { H.disco(6, 6, 5, '#f0c040', true); H.disco(6, 6, 3.4, '#e0a820'); H.r(5, 3, 2, 6, '#fff0a0'); H.r(5, 3, 1, 6, '#b07818'); },
+    comida: H => { for (const [x0, x1] of [[3, 5], [6, 6], [9, 7]]) for (let y = 2; y < 11; y++) H.p(Math.round(x0 + (x1 - x0) * (y - 2) / 8), y, '#c89a30'); for (const [x, y] of [[3, 2], [2, 3], [4, 3], [6, 1], [5, 2], [7, 2], [9, 2], [8, 3], [10, 3], [3, 4], [6, 3], [9, 4]]) H.p(x, y, '#f0d070'); H.r(4, 8, 5, 1, '#8a5a2a'); },
+    madera: H => { H.r(1, 4, 9, 5, '#8a5a2a'); H.r(1, 4, 9, 1, '#a8743a'); H.r(2, 6, 6, 1, '#6a4220'); H.disco(9.5, 6.5, 2.7, '#d8a868'); H.p(9, 6, '#b08048'); H.p(10, 7, '#b08048'); },
+    piedra: H => { H.disco(7, 7, 4.2, '#a8a49a', true); H.disco(3.6, 8.4, 2.6, '#8a867c', true); H.p(6, 5, '#d0ccc2'); },
+    metal: H => { for (let y = 5; y < 10; y++) H.r(2 + (9 - y) * 0 + (y === 5 ? 2 : y === 6 ? 1 : 0), y, 8 - (y === 5 ? 4 : y === 6 ? 2 : 0) + (y > 6 ? 1 : 0), 1, y === 5 ? '#e0e8f0' : y < 8 ? '#a8b2be' : '#7a8490'); H.r(3, 4, 4, 1, '#c8d0d8'); },
+    armas: H => { for (let k = 0; k < 7; k++) { H.p(3 + k, 8 - k, '#e0e4ec'); H.p(4 + k, 8 - k, '#9aa0aa'); } H.p(10, 1, '#ffffff'); H.r(1, 8, 4, 1, '#c8a040'); H.p(3, 7, '#c8a040'); H.p(3, 9, '#c8a040'); H.r(1, 10, 2, 1, '#6a4220'); H.p(2, 9, '#6a4220'); },
+    gente: H => { H.disco(6, 3.5, 2.2, '#f0c8a0'); H.r(4, 2, 4, 1, '#5a3a20'); H.r(3, 6, 6, 4, '#4a8ad0'); H.r(3, 6, 6, 1, '#6aa8e8'); H.r(4, 10, 1, 2, '#3a3a48'); H.r(7, 10, 1, 2, '#3a3a48'); },
+    nivel: H => { H.r(2, 6, 8, 5, '#e8d8b4'); for (let y = 1; y < 6; y++) H.r(6 - y, y + 1, y * 2, 1, '#c84a3a'); H.r(5, 8, 2, 3, '#6a4220'); H.p(3, 7, '#4a6a9a'); H.p(8, 7, '#4a6a9a'); },
+    tec: H => { H.r(5, 1, 2, 4, '#c8d8e8'); for (let y = 5; y < 11; y++) { const w = Math.min(4, y - 4); H.r(6 - w, y, w * 2, 1, y > 7 ? '#5ac8a0' : '#c8d8e8'); } H.p(4, 9, '#9af0d0'); H.r(4, 0, 4, 1, '#8a6a4a'); },
+    subir: H => { for (let y = 1; y < 7; y++) H.r(6 - (y - 1), y, (y - 1) * 2 + 1, 1, '#f0c040'); H.r(4, 7, 3, 4, '#f0c040'); H.p(5, 2, '#fff0a0'); },
+    primavera: H => { for (const [x, y] of [[6, 2], [3, 5], [9, 5], [4, 8], [8, 8]]) H.disco(x, y, 1.9, '#ff8ab0'); H.disco(6, 5.6, 1.6, '#ffd84a'); H.r(6, 9, 1, 3, '#4a9a3a'); },
+    verano: H => { for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; H.p(Math.round(6 + Math.cos(a) * 5), Math.round(6 + Math.sin(a) * 5), '#ffb030'); } H.disco(6, 6, 3.3, '#ffd84a', true); },
+    otono: H => { for (let y = 1; y < 10; y++) { const w = Math.round(Math.sin((y / 9) * Math.PI) * 4); H.r(6 - w, y, w * 2 + 1, 1, y < 5 ? '#f08a30' : '#d0601e'); } H.r(6, 2, 1, 9, '#8a3a1a'); H.p(6, 11, '#6a4220'); },
+    invierno: H => { for (let k = -4; k <= 4; k++) { H.p(6 + k, 6, '#e8f4ff'); H.p(6, 6 + k, '#e8f4ff'); if (Math.abs(k) < 4) { H.p(6 + k, 6 + k, '#bcd8f0'); H.p(6 + k, 6 - k, '#bcd8f0'); } } H.p(6, 6, '#ffffff'); },
+    noche: H => { H.disco(6, 6, 4.5, '#f0e0a0', true); H.disco(8, 4.5, 3.6, null); for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) { const dx = x + 0.5 - 8.2, dy = y + 0.5 - 4.4; if (dx * dx + dy * dy < 12) H.d[y * 12 + x] = null; } },
+    mapa: H => { H.r(1, 2, 10, 8, '#5aa040'); H.r(1, 2, 3, 8, '#4a8ad0'); H.r(7, 2, 1, 8, '#3a7a30'); H.r(4, 2, 1, 8, '#2a6aa8'); H.p(9, 5, '#c84a3a'); H.p(8, 6, '#c84a3a'); H.p(10, 6, '#c84a3a'); H.p(9, 7, '#c84a3a'); },
+    ordenes: H => { H.r(2, 9, 8, 2, '#e8dcc0'); for (let k = 0; k < 7; k++) { H.p(3 + k, 8 - k, '#f4f0e4'); H.p(4 + k, 8 - k, '#c8c0ac'); } H.p(10, 1, '#ffffff'); H.p(3, 8, '#2a2a3a'); H.p(2, 9, '#2a2a3a'); },
+    pueblos: H => { H.r(1, 6, 5, 5, '#e8d8b4'); for (let y = 2; y < 6; y++) H.r(3.5 - (y - 2), y, (y - 2) * 2 + 1, 1, '#c84a3a'); H.r(6, 5, 5, 6, '#d8c8a4'); for (let y = 1; y < 5; y++) H.r(8.5 - (y - 1), y, (y - 1) * 2 + 1, 1, '#4a8ad0'); H.p(3, 9, '#6a4220'); H.p(8, 9, '#6a4220'); },
+    cronica: H => { H.r(2, 2, 8, 8, '#efe2b8'); H.r(1, 1, 10, 2, '#d8c890'); H.r(1, 9, 10, 2, '#d8c890'); for (const y of [4, 6, 8]) H.r(3, y, 6, 1, '#9a8a6a'); },
+    retos: H => { H.r(3, 1, 6, 5, '#f0c040'); H.r(3, 1, 2, 5, '#ffe080'); H.p(2, 2, '#f0c040'); H.p(9, 2, '#f0c040'); H.p(1, 3, '#f0c040'); H.p(10, 3, '#f0c040'); H.r(5, 6, 2, 2, '#c89020'); H.r(3, 8, 6, 2, '#8a5a2a'); },
+    mas: H => { for (const x of [2, 5, 8]) H.r(x, 5, 2, 2, '#e8e0cc'); },
+    arqui: H => { H.r(2, 9, 8, 2, '#a8a49a'); H.r(4, 6, 4, 3, '#c8a878'); H.r(3, 2, 1, 7, '#7a5530'); H.r(8, 2, 1, 7, '#7a5530'); H.r(3, 4, 6, 1, '#7a5530'); H.r(9, 1, 1, 4, '#f0c040'); H.r(9, 1, 3, 1, '#f0c040'); }
+  };
+  function icono(nombre) {
+    return guardado('ico' + nombre, () => { const H = hoja(12, 12); (ICONOS[nombre] || ICONOS.mas)(H); H.contorno(0.75); return H.lienzo(); });
+  }
+  const iconoURL = nombre => guardado('icourl' + nombre, () => icono(nombre).toDataURL());
+  M.arte = { T, icono, iconoURL, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/pintor.js
@@ -6954,7 +7268,14 @@ body.sin-panel .panel { display: none; }
         g.fillStyle = '#2a1e14'; g.fillRect(cx - 0.5, cy + 0.5, 7, 4);
         g.fillStyle = '#3a2a1e'; g.fillRect(cx + 1, cy + 4, 1, 1); g.fillRect(cx + 4, cy + 4, 1, 1);
         g.fillStyle = '#9a6a3a'; g.fillRect(cx, cy + 1, 6, 3); g.fillStyle = '#7a5028'; g.fillRect(cx, cy + 3, 6, 0.5);
-        g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 1.5, 1.5); g.fillStyle = '#c84a3a'; g.fillRect(cx + 2.5, cy, 1.5, 1.5); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1.5, 1.5);
+        // Lo que lleva se ve: sacos de grano, troncos, piedras, lingotes o un fardo de armas; vacía, unas cajas.
+        const cg = a.carga && a.carga.que;
+        if (cg === 'comida') { g.fillStyle = '#e8d08a'; g.fillRect(cx + 0.5, cy - 0.5, 2, 2); g.fillRect(cx + 3, cy - 1, 2, 2.5); g.fillStyle = '#c8a050'; g.fillRect(cx + 1, cy - 0.5, 1, 0.5); g.fillRect(cx + 3.5, cy - 1, 1, 0.5); }
+        else if (cg === 'madera') { g.fillStyle = '#7a4a24'; g.fillRect(cx, cy - 1, 6, 1); g.fillRect(cx + 0.5, cy, 5, 1); g.fillStyle = '#c89a62'; g.fillRect(cx, cy - 1, 0.6, 1); g.fillRect(cx + 0.5, cy, 0.6, 1); }
+        else if (cg === 'piedra') { g.fillStyle = '#a8a49a'; g.fillRect(cx + 0.5, cy - 1, 2, 2); g.fillRect(cx + 3, cy - 0.5, 2.5, 1.5); g.fillStyle = '#7e7a72'; g.fillRect(cx + 2, cy, 1, 1); }
+        else if (cg === 'metal') { g.fillStyle = '#9aa4b0'; g.fillRect(cx + 0.5, cy - 0.5, 2.5, 1); g.fillRect(cx + 3, cy - 0.5, 2.5, 1); g.fillStyle = '#d0d8e0'; g.fillRect(cx + 1, cy - 1, 4, 0.5); }
+        else if (cg === 'armas') { g.fillStyle = '#d0d4dc'; g.fillRect(cx, cy - 1.5, 6, 0.6); g.fillRect(cx + 1, cy - 0.5, 5, 0.6); g.fillStyle = '#6a4220'; g.fillRect(cx + 4.5, cy - 1.8, 1, 1.4); }
+        else { g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 1.5, 1.5); g.fillStyle = '#c84a3a'; g.fillRect(cx + 2.5, cy, 1.5, 1.5); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1.5, 1.5); }
       }
       // En fiesta, la gente que no trabaja baila (da saltitos al ritmo).
       const baila = fiesta.has(a.c) && acc === 0 && !anda && Math.sin(ahora / 140 + a.id) > 0.3;
@@ -8257,6 +8578,9 @@ body.sin-panel .panel { display: none; }
   // La barra de recursos: el oro (con lo que entra y sale cada turno), la comida, la madera, la piedra, el metal,
   // la gente y las camas, el nivel del asentamiento y lo que se investiga.
   const recursoAntes = {};
+  // Iconos de píxeles (arte.js) en lugar de emojis, para que la interfaz sea del mismo mundo que el mapa.
+  const ICO_PX = { '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
+  const px = (n, cls) => M.arte && M.arte.iconoURL ? '<img class="px' + (cls ? ' ' + cls : '') + '" alt="" src="' + M.arte.iconoURL(n) + '">' : '';
   function pintarRecursos() {
     const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null), el = $('recursos');
     if (!c || !c.viva) { el.hidden = true; return; }
@@ -8265,7 +8589,7 @@ body.sin-panel .panel { display: none; }
     const tope = r((15 + (c.aldeanos || 0) * 1.2) * (1 + M.tec(c, 'granero')));
     const inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
     const pct = inv ? Math.min(100, r(100 * c.investigacion.puntos / M.costeTec(inv))) : 0;
-    const chip = (ico, valor, titulo, cls, extra) => '<span class="rec' + (cls ? ' ' + cls : '') + '" title="' + esc(titulo) + '"><i>' + ico + '</i>' + valor + (extra || '') + '</span>';
+    const chip = (ico, valor, titulo, cls, extra) => '<span class="rec' + (cls ? ' ' + cls : '') + '" title="' + esc(titulo) + '"><i>' + (ICO_PX[ico] ? px(ICO_PX[ico]) : ico) + '</i>' + valor + (extra || '') + '</span>';
     const sig = (d, dec) => { if (!d || Math.abs(d) < 0.05) return ''; const t = (d > 0 ? '+' : '') + (dec ? d.toFixed(1) : r(d)); return ' <small class="' + (d > 0 ? 'verde' : 'rojo') + '">' + t + '</small>'; };
     const dC = delta('comida', c.comida || 0), dM = delta('madera', c.madera || 0), dP = delta('piedra', c.piedra || 0), dMe = delta('metal', c.metal || 0);
     const nivel = M.NIVELES[c.nivel || 0];
@@ -8278,7 +8602,8 @@ body.sin-panel .panel { display: none; }
       chip('🌾', r(c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe)', (c.comida || 0) < (c.aldeanos || 0) * 0.3 ? 'mal' : '', sig(dC)) +
       chip('🪵', r(c.madera || 0), 'Madera', '', sig(dM)) +
       chip('🪨', r(c.piedra || 0), 'Piedra', '', sig(dP)) +
-      (c.era >= 1 ? chip('⛓', r(c.metal || 0), 'Metal (armas, armaduras, vehículos)', '', sig(dMe)) : '') +
+      (c.era >= 1 ? chip('⛓', r(c.metal || 0), 'Metal (armas, armaduras, vehículos)' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.metal.toFixed(2) : ''), '', sig(dMe)) : '') +
+      (c.era >= 1 && (c.armas || 0) >= 1 ? chip('⚔', r(c.armas || 0), 'Armas forjadas o compradas, listas para tus guerreros' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.armas.toFixed(2) : ''), '') : '') +
       chip('👥', (c.aldeanos || 0) + '<small class="tenue">/' + (c.camas || 0) + '</small>', 'Aldeanos / camas', (c.aldeanos || 0) >= (c.camas || 0) ? 'mal' : '') +
       chip('🏘', esc(nivel.nombre), nivel.nombre + (M.NIVELES[(c.nivel || 0) + 1] ? ' · a ' + M.NIVELES[(c.nivel || 0) + 1].desde + ' vecinos será ' + M.NIVELES[(c.nivel || 0) + 1].nombre.toLowerCase() + ' (' + M.NIVELES[(c.nivel || 0) + 1].abre + ')' : '')) +
       (c.subiendo ? chip('⏫', esc(M.ERAS[c.subiendo.a].nombre) + ' <span class="barra mini"><span style="width:' + Math.round(100 * (m.turno - c.subiendo.desde) / Math.max(1, c.subiendo.hasta - c.subiendo.desde)) + '%"></span></span>', 'Pasando de edad', 'oro') : M.ERAS[c.era + 1] && S.puedeSubir(m, c).ok ? chip('⏫', '¡' + esc(M.ERAS[c.era + 1].nombre) + '!', 'Podéis avanzar de edad: «avanzad de edad» o el botón de la pestaña Técnica', 'oro') : '') +
@@ -8344,15 +8669,18 @@ body.sin-panel .panel { display: none; }
     };
     pestanas.tecnica = ['Técnica', arbolTecnico(c)];
     if (M.vida.pausada(m)) pestanas.ciudad = ['Ciudad', ciudadDe(c)];
+    if (M.vida.pausada(m) && m.mercado) pestanas.mercado = ['Mercado', mercadoDe(c)];
     if (c.jugador) pestanas.plan = ['Tu plan', planDe(c)];
     if (!pestanas[pestana]) pestana = 'resumen';
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(c.nombre) + '</h3>' +
       '<p class="subt">' + esc(M.conCaracter(c.regimen, c.caracter)) + ' · ' + esc(era(c).nombre) + '</p>' +
       '<div class="pestanas" role="tablist">' + Object.keys(pestanas).map(k => '<button type="button" role="tab" class="pestana' + (k === pestana ? ' activa' : '') + '" aria-selected="' + (k === pestana) + '" data-p="' + k + '">' + pestanas[k][0] + '</button>').join('') + '</div>' +
-      (pestana === 'plan' || pestana === 'tecnica' || pestana === 'ciudad' ? pestanas[pestana][1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
+      (pestana === 'plan' || pestana === 'tecnica' || pestana === 'ciudad' || pestana === 'mercado' ? pestanas[pestana][1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
       (m.modo === 'pueblo' && !c.jugador ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
     f.querySelectorAll('.pestana').forEach(b => b.addEventListener('click', () => { pestana = b.dataset.p; pintarFicha(); }));
     // Tocar una tecnología disponible de tu pueblo: se investiga esa (la misma orden que «investigad …»).
+    f.querySelectorAll('.esp-elegir').forEach(b => b.addEventListener('click', () => { const r = X.ordenar(m, c.id, b.dataset.k ? 'especializaos en ' + b.dataset.k : 'dejad de especializaros'); if (r.ok) despuesDeOrden(r); pintarFicha(); }));
+    f.querySelectorAll('.mercado-orden').forEach(b => b.addEventListener('click', () => { const r = X.ordenar(m, c.id, b.dataset.orden); if (r.ok) despuesDeOrden(r); pintarFicha(); }));
     f.querySelectorAll('.nec-obrar').forEach(b => b.addEventListener('click', () => { const r = X.ordenar(m, c.id, b.dataset.orden); if (r.ok) despuesDeOrden(r); pintarFicha(); }));
     const av = f.querySelector('.avanzar-edad');
     if (av) av.addEventListener('click', () => { const r = X.ordenar(m, c.id, 'avanzad de edad'); if (r.ok) despuesDeOrden(r); pintarFicha(); });
@@ -8398,6 +8726,48 @@ body.sin-panel .panel { display: none; }
     } });
   }
   function salirArquitecto() { document.body.classList.remove('arqui-abierto'); arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
+  // ---------- La pestaña Mercado: precios del mundo, a qué se dedica el reino, sus socios y sus tratos ----------
+  const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔' })[k] });
+  function curva(h, col) {
+    if (!h || h.length < 2) return '';
+    const max = Math.max(...h), min = Math.min(...h), w = 64, al = 18, sp = Math.max(0.0001, max - min);
+    const pts = h.map((x, i) => Math.round(i / (h.length - 1) * w) + ',' + Math.round(al - 2 - (x - min) / sp * (al - 4))).join(' ');
+    return '<svg class="curva" viewBox="0 0 ' + w + ' ' + al + '" width="' + w + '" height="' + al + '" aria-hidden="true"><polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="1.5" shape-rendering="crispEdges"/></svg>';
+  }
+  function mercadoDe(c) {
+    const mk = m.mercado, V = M.vida, bienes = V.BIENES.filter(k => k !== 'armas' || c.era >= 1);
+    const socios = [...new Set((m.vida.rutas || []).filter(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)).map(ru => (ru.a === c.id ? ru.b : ru.a)))].map(id => S.civ(m, id)).filter(o => o && o.viva && !S.enGuerra(c, o));
+    const tabla = '<table class="mercado"><thead><tr><th>Bien</th><th>Precio</th><th>Últimos turnos</th><th>Hay / hace falta</th></tr></thead><tbody>' + bienes.map(k => {
+      const h = mk.historia[k] || [], d = h.length > 6 ? h[h.length - 1] - h[h.length - 7] : 0, base = V.PRECIO_BASE[k];
+      const col = mk.precio[k] > base * 1.25 ? '#ff8a7a' : mk.precio[k] < base * 0.8 ? '#9ad08a' : '#f0c05a';
+      return '<tr><td>' + ICONO_BIEN[k] + ' ' + k + '</td><td class="num" style="color:' + col + '">' + mk.precio[k].toFixed(2) + (d > 0.02 ? ' ▲' : d < -0.02 ? ' ▼' : '') + '</td><td>' + curva(h, col) + '</td><td class="num tenue">' + mk.oferta[k] + ' / ' + mk.demanda[k] + '</td></tr>';
+    }).join('') + '</tbody></table>';
+    const b = c.balance || { sobra: {}, falta: {}, urg: {} };
+    const sobra = bienes.filter(k => b.sobra[k] >= 1).map(k => ICONO_BIEN[k] + ' ' + Math.floor(b.sobra[k]) + ' ' + k).join(' · ') || 'nada';
+    const falta = bienes.filter(k => b.falta[k] >= 1).map(k => ICONO_BIEN[k] + ' ' + Math.ceil(b.falta[k]) + ' ' + k + (b.urg[k] >= 1 ? ' <b class="rojo">¡urgente!</b>' : '')).join(' · ') || 'nada';
+    const esp = c.especialidad, elegida = c.plan && c.plan.especialidad;
+    const tratos = (mk.tratos || []).filter(x => x.vende === c.id || x.compra === c.id).slice(-6).reverse();
+    const nombre = id => esc((S.civ(m, id) || { nombre: '—' }).nombre);
+    const pedidos = ((c.plan && c.plan.pedidos) || []).map(x => '📦 ' + x.n + ' ' + x.que).concat(((c.plan && c.plan.ventas) || []).map(x => '🏷 ' + x.n + ' ' + x.que)).join(' · ');
+    return '<div class="arbol">' +
+      '<p class="arbol-ayuda">El precio de cada cosa sale de lo que hay en todo el mundo frente a lo que todos necesitan: si sobra, baja; si escasea, sube. Pero solo se compra y se vende con los reinos con los que hay ruta: sus comerciantes traen lo que os falta y se llevan lo que os sobra, a cambio de oro.</p>' +
+      '<div class="tec-era">Precios del mundo</div>' + tabla +
+      '<div class="tec-era">' + esc(c.nombre) + ' se dedica a</div>' +
+      '<p class="arbol-ayuda">' + (esp ? ICONO_BIEN[esp] + ' <b>' + esp + '</b>' + (elegida ? ' (lo mandaste tú)' : ' (lo eligió: su tierra, su carácter y los precios)') : 'aún nada en especial') + '</p>' +
+      (c.jugador ? '<div class="linea esp-botones">' + bienes.map(k => '<button type="button" class="mando sutil esp-elegir' + (esp === k ? ' activa' : '') + '" data-k="' + k + '">' + ICONO_BIEN[k] + ' ' + k + '</button>').join('') + (elegida ? '<button type="button" class="mando sutil esp-elegir" data-k="">Que elija el pueblo</button>' : '') + '</div>' : '') +
+      '<p class="arbol-ayuda">Le sobra para vender: ' + sobra + '</p><p class="arbol-ayuda">Le falta: ' + falta + '</p>' +
+      (pedidos ? '<p class="arbol-ayuda">En espera: ' + pedidos + '</p>' : '') +
+      '<div class="tec-era">Socios</div>' +
+      (socios.length ? '<ul class="edad-req">' + socios.map(o => {
+        const ob = o.balance || { sobra: {}, urg: {} };
+        const ofrece = bienes.filter(k => ob.sobra[k] >= 1).map(k => ICONO_BIEN[k]).join(' ') || '—', necesita = bienes.filter(k => ob.urg[k] >= 0.3).map(k => ICONO_BIEN[k]).join(' ') || '—';
+        const compra = c.jugador ? bienes.filter(k => ob.sobra[k] >= 3 && b.falta[k] >= 1).slice(0, 2).map(k => '<button type="button" class="mando sutil mercado-orden" data-orden="comprad ' + Math.min(Math.ceil(b.falta[k]), Math.floor(ob.sobra[k])) + ' de ' + k + '">Comprar ' + ICONO_BIEN[k] + '</button>').join('') : '';
+        return '<li><b>' + esc(o.nombre) + '</b> <span class="tenue">· le sobra ' + ofrece + ' · le falta ' + necesita + '</span> ' + compra + '</li>';
+      }).join('') + '</ul>' : '<p class="tenue arbol-ayuda">Sin rutas con otros reinos: todo lo que necesite lo tiene que producir. Con buenas relaciones (o «comerciad con X») se abre una ruta y llegan las carretas.</p>') +
+      '<div class="tec-era">Últimos tratos</div>' +
+      (tratos.length ? '<ul class="edad-req">' + tratos.map(x => '<li>' + (x.compra === c.id ? '🛒 Compra ' : '💰 Vende ') + x.n + ' ' + ICONO_BIEN[x.que] + ' ' + x.que + (x.compra === c.id ? ' a ' + nombre(x.vende) : ' a ' + nombre(x.compra)) + ' por <b>' + Math.round(x.oro) + '</b> 🪙 <span class="tenue">(' + (m.turno - x.t === 0 ? 'ahora' : 'hace ' + (m.turno - x.t) + ' turnos') + ')</span></li>').join('') + '</ul>' : '<p class="tenue arbol-ayuda">Ninguno todavía.</p>') +
+      '</div>';
+  }
   // La pestaña Ciudad: lo que el pueblo necesita y por qué, el ánimo de la gente, la estación y las obras en marcha.
   function ciudadDe(c) {
     const V = M.vida, nec = c.necesidades || [], est = m.vida.estacion;
@@ -8957,6 +9327,8 @@ body.sin-panel .panel { display: none; }
     $('cerrar-panel').addEventListener('click', () => panelAbierto(false));
     for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.addEventListener('click', () => abrirHoja(b.dataset.panel));
     // ---- El móvil: barra de abajo, menú ⋯, órdenes plegadas ----
+    for (const b of document.querySelectorAll('.nav-b')) { const i = b.querySelector('i'); if (i && px('mapa')) i.innerHTML = px({ mapa: 'mapa', ordenes: 'ordenes', pueblos: 'pueblos', cronica: 'cronica', retos: 'retos' }[b.dataset.v]); }
+    if (px('arqui')) $('arquitecto-btn').innerHTML = px('arqui', 'grande');
     const navActiva = () => {
       const b = document.body, abierto = !b.classList.contains('sin-panel');
       const hoja = (document.querySelector('.panel-hoja:not([hidden])') || {}).dataset;

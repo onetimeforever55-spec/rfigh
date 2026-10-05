@@ -333,15 +333,189 @@
    * Poca madera → más leñadores; la gente cerca del límite de comida → más granjeros; faltan casas → más
    * constructores; guerra → guerreros. Las prioridades del jugador (0 a 2) pesan sobre esas necesidades.
    */
+  /*
+   * EL MERCADO GLOBAL (partidas pausadas).
+   *  · Cada bien (comida, madera, piedra, metal y armas) tiene un precio mundial que sale de lo que hay en todos
+   *    los graneros y almacenes frente a lo que todos necesitan: si sobra madera en el mundo, la madera baja;
+   *    si escasea, se encarece.
+   *  · Cada reino elige qué producir según su tierra, su carácter y los precios (su especialidad), y produce
+   *    de más para vender.
+   *  · Pero solo se compra y se vende con quien se comercia de verdad: los comerciantes van por las rutas entre
+   *    reinos con la carreta cargada de lo que al otro le falta, lo venden a precio de mercado (más caro si es
+   *    urgente) y vuelven con lo que falta en casa, pagado con oro. Quien tiene socios puede esperar al
+   *    comerciante en vez de producirlo todo; quien no, tiene que hacerlo él.
+   */
+  const BIENES = ['comida', 'madera', 'piedra', 'metal', 'armas'];
+  const PRECIO_BASE = { comida: 0.5, madera: 0.6, piedra: 0.9, metal: 2.5, armas: 6 };
+  const NOMBRE_BIEN = { comida: 'comida', madera: 'madera', piedra: 'piedra', metal: 'metal', armas: 'armas' };
+  // Lo que un reino quiere tener de cada cosa.
+  function objetivo(c, k) {
+    const n = c.aldeanos || 0;
+    if (k === 'comida') return Math.max(8, n * 3);
+    if (k === 'madera') return metaMadera(c);
+    if (k === 'piedra') return c.era >= 1 ? 20 + 10 * c.era : 6;
+    if (k === 'metal') return c.era >= 1 ? 10 + (c.guerreros || 0) : 0;
+    if (k === 'armas') return c.era >= 1 ? Math.max(0, (c.guerreros || 0) - (c.armados || 0)) + (c.guerras && c.guerras.length ? 6 : 0) : 0;
+    return 0;
+  }
+  // Lo que le sobra, lo que le falta y cuánta prisa le corre (0 nada, 1 mucha, 2 desesperado).
+  function balance(m, c) {
+    const out = { sobra: {}, falta: {}, urg: {} }, p = c.plan || {};
+    for (const k of BIENES) {
+      const ob = objetivo(c, k), hay = c[k] || 0;
+      const venta = (p.ventas || []).filter(x => x.que === k).reduce((q, x) => q + x.n, 0);
+      out.sobra[k] = Math.max(0, hay - ob * (c.especialidad === k ? 1.05 : 1.35)) + Math.min(hay, venta);
+      out.falta[k] = Math.max(0, ob - hay);
+      out.urg[k] = ob > 0 ? Math.min(1, out.falta[k] / ob) : 0;
+      if (k === 'comida' && hay < n0(c) * 0.6) out.urg[k] = 1.6;
+      if (k === 'armas' && c.guerras && c.guerras.length && out.falta[k] > 0) out.urg[k] = Math.max(out.urg[k], 1.2);
+      const pedido = (p.pedidos || []).filter(x => x.que === k).reduce((q, x) => q + x.n, 0);
+      if (pedido > 0) { out.falta[k] = Math.max(out.falta[k], pedido); out.urg[k] = Math.max(out.urg[k], 1.5); }
+    }
+    return out;
+  }
+  const n0 = c => c.aldeanos || 0;
+  // Qué le conviene producir: lo que su tierra da, lo que su carácter prefiere y lo que mejor se paga.
+  function aptitudes(m, c, recursos) {
+    return {
+      comida: 0.6 + Math.min(1.2, (c.campos || 0) / Math.max(4, metaCampos(c))) * (S().fertil(m, c.capital) / 2),
+      madera: recursos && recursos.arboles ? 0.4 + Math.min(1.2, recursos.arboles / 30) : 0,
+      piedra: recursos && recursos.rocas ? 0.3 + Math.min(1, recursos.rocas / 25) : 0,
+      metal: c.era >= 1 && recursos && recursos.rocas ? 0.3 + Math.min(1, recursos.rocas / 30) : 0,
+      armas: c.era >= 1 && c.cuarteles > 0 ? 0.5 + Math.min(0.8, (c.metal || 0) / 40) : 0
+    };
+  }
+  // Ventaja comparativa: cada reino se fija en lo que hace mejor que la media del mundo, no solo en lo que más da.
+  function elegirEspecialidad(m, c, recursos, media) {
+    const v = m.vida, mk = m.mercado, p = c.plan || {};
+    if (p.especialidad) return p.especialidad;
+    const rel = k => (mk ? mk.precio[k] / PRECIO_BASE[k] : 1);
+    const bruto = aptitudes(m, c, recursos), apt = {};
+    for (const k of BIENES) apt[k] = bruto[k] > 0 ? bruto[k] / Math.max(0.2, (media && media[k]) || bruto[k]) * Math.sqrt(bruto[k]) : 0;
+    const gusto = { guerrero: { armas: 0.6, metal: 0.3 }, mercader: { madera: 0.2, metal: 0.3 }, agricola: { comida: 0.5 }, constructor: { piedra: 0.5, madera: 0.2 }, sabio: {}, devoto: { comida: 0.2 } }[c.caracter] || {};
+    let mejor = 'comida', mv = -1;
+    for (const k of BIENES) { const val = apt[k] * Math.sqrt(rel(k)) * (1 + (gusto[k] || 0)) * (0.85 + azar(v) * 0.3); if (val > mv) { mv = val; mejor = k; } }
+    return mejor;
+  }
+  function mercado(m, recursosDe) {
+    const v = m.vida, vivas = S().vivas(m);
+    const mk = m.mercado = m.mercado || { precio: Object.assign({}, PRECIO_BASE), historia: {}, oferta: {}, demanda: {} };
+    for (const k of BIENES) {
+      let of = 0, de = 0;
+      for (const c of vivas) { of += c[k] || 0; de += objetivo(c, k); }
+      mk.oferta[k] = Math.round(of); mk.demanda[k] = Math.round(de);
+      const nuevo = PRECIO_BASE[k] * Math.pow(Math.max(0.3, Math.min(3, (de + 5) / (of + 5))), 0.7);
+      mk.precio[k] = Math.round((mk.precio[k] * 0.75 + nuevo * 0.25) * 100) / 100;
+      const h = mk.historia[k] = mk.historia[k] || [];
+      h.push(mk.precio[k]); if (h.length > 30) h.shift();
+    }
+    const media = {};
+    for (const c of vivas) { const ap = aptitudes(m, c, recursosDe && recursosDe[c.id]); for (const k of BIENES) media[k] = (media[k] || 0) + ap[k] / vivas.length; }
+    for (const id of Object.keys(v.resumenTratos || {})) {
+      const r = v.resumenTratos[id], lista = Object.keys(r.entra).map(k => '+' + r.entra[k] + ' ' + k).concat(Object.keys(r.sale).map(k => '−' + r.sale[k] + ' ' + k));
+      if (lista.length) (v.anuncios = v.anuncios || []).push({ civ: +id, texto: '⚖ Mercado: ' + lista.join(', ') + ' (' + (r.oro >= 0 ? '+' : '−') + Math.abs(Math.round(r.oro)) + '🪙)' });
+    }
+    v.resumenTratos = {};
+    for (const c of vivas) {
+      c.balance = balance(m, c);
+      if (c.especialidad == null || m.turno % 24 === c.id % 24 || (c.plan && c.plan.especialidad && c.plan.especialidad !== c.especialidad)) c.especialidad = elegirEspecialidad(m, c, recursosDe && recursosDe[c.id], media);
+      // La forja: quien se dedica a las armas (o tiene metal de sobra y cuartel) convierte metal en armas.
+      if (c.era >= 1 && c.cuarteles > 0 && (c.especialidad === 'armas' || c.balance.sobra.metal > 8)) {
+        const q = Math.min(c.especialidad === 'armas' ? 3 : 1, Math.floor((c.metal || 0) / 2));
+        if (q > 0) { c.metal -= q * 2; c.armas = (c.armas || 0) + q; }
+      }
+      // Los pedidos y las ventas que nadie atiende en 40 turnos se olvidan.
+      if (c.plan) for (const l of ['pedidos', 'ventas']) if (c.plan[l]) c.plan[l] = c.plan[l].filter(x => m.turno - (x.desde || 0) < 40);
+      // Lo importado se olvida poco a poco (sirve para saber cuánto puede fiarse de sus socios).
+      c.importa = c.importa || {};
+      for (const k of BIENES) c.importa[k] = (c.importa[k] || 0) * 0.9;
+    }
+  }
+  // Un comerciante sale de casa: carga lo que al otro reino le hace falta y a su pueblo le sobra.
+  function cargar(m, a, c, o) {
+    const mk = m.mercado; if (!mk || !c.balance || !o.balance) return;
+    const cap = Math.round((6 + 3 * c.era) * (1 + M.tec(c, 'comercio')));
+    let mejor = null, mv = 0;
+    for (const k of BIENES) {
+      // Lo que el jugador puso a la venta se coloca aunque al otro no le haga mucha falta (más barato).
+      const enVenta = c.plan && (c.plan.ventas || []).some(x => x.que === k), quiere = o.balance.falta[k] || (enVenta && (o[k] || 0) < objetivo(o, k) * 2 ? Math.max(4, objetivo(o, k)) : 0);
+      const q = Math.min(c.balance.sobra[k], quiere, k === 'armas' ? Math.ceil(cap / 3) : cap);
+      if (q < 1) continue;
+      const val = q * mk.precio[k] * (1 + o.balance.urg[k]);
+      if (val > mv) { mv = val; mejor = [k, Math.floor(q)]; }
+    }
+    if (mejor) { a.carga = { que: mejor[0], n: mejor[1], de: c.id }; c[mejor[0]] -= mejor[1]; c.balance.sobra[mejor[0]] -= mejor[1]; }
+  }
+  // Llega a destino: vende la carga (lo que el otro pueda pagar) y, con oro de su pueblo, compra lo que falta en casa.
+  function venderComprar(m, a, c, o) {
+    const mk = m.mercado, v = m.vida; if (!mk) return;
+    const tratos = [];
+    if (a.carga && a.carga.de === c.id) {
+      const k = a.carga.que, urg = o.balance ? o.balance.urg[k] : 0, precio = mk.precio[k] * (urg > 0 ? 1 + 0.5 * Math.min(1.6, urg) : 0.7);
+      const q = Math.min(a.carga.n, Math.floor(Math.max(0, o.oro || 0) / precio));
+      if (q > 0) {
+        const oro = Math.round(q * precio * 10) / 10;
+        o[k] = (o[k] || 0) + q; o.oro -= oro; c.oro = (c.oro || 0) + oro; c.comercioOro = (c.comercioOro || 0) + oro;
+        o.importa = o.importa || {}; o.importa[k] = (o.importa[k] || 0) + q;
+        quitarPedido(o, k, q); quitarVenta(c, k, q);
+        tratos.push({ t: m.turno, vende: c.id, compra: o.id, que: k, n: q, oro });
+        a.carga.n -= q;
+      }
+      if (a.carga.n <= 0) a.carga = null;
+    }
+    // La vuelta: lo que más prisa le corre a su pueblo y al otro le sobra, si hay oro para pagarlo.
+    if (!a.carga && c.balance && o.balance) {
+      const cap = Math.round((6 + 3 * c.era) * (1 + M.tec(c, 'comercio')));
+      let mejor = null, mv = 0;
+      for (const k of BIENES) {
+        const precio = mk.precio[k] * (1 + 0.3 * Math.min(1.6, c.balance.urg[k]));
+        const q = Math.min(o.balance.sobra[k], c.balance.falta[k], Math.floor(Math.max(0, (c.oro || 0) * 0.6) / precio), k === 'armas' ? Math.ceil(cap / 3) : cap);
+        if (q < 1 || c.balance.urg[k] < 0.25) continue;
+        const val = c.balance.urg[k] * q;
+        if (val > mv) { mv = val; mejor = [k, Math.floor(q), precio]; }
+      }
+      if (mejor) {
+        const [k, q, precio] = mejor, oro = Math.round(q * precio * 10) / 10;
+        o[k] -= q; o.balance.sobra[k] -= q; c.oro -= oro; o.oro = (o.oro || 0) + oro; o.comercioOro = (o.comercioOro || 0) + oro;
+        a.carga = { que: k, n: q, de: o.id, para: c.id };
+        quitarVenta(o, k, q);
+        tratos.push({ t: m.turno, vende: o.id, compra: c.id, que: k, n: q, oro });
+      }
+    }
+    const ru = v.rutas.find(x => x.id === a.ruta);
+    for (const x of tratos) { x.ruta = ru ? ru.tipo : null; apuntarTrato(m, x); }
+  }
+  // De vuelta en casa: se descarga lo comprado fuera.
+  function descargar(m, a, c) {
+    if (!a.carga) return;
+    if (a.carga.para === c.id) { c[a.carga.que] = (c[a.carga.que] || 0) + a.carga.n; c.importa = c.importa || {}; c.importa[a.carga.que] = (c.importa[a.carga.que] || 0) + a.carga.n; quitarPedido(c, a.carga.que, a.carga.n); }
+    else if (a.carga.de === c.id) c[a.carga.que] = (c[a.carga.que] || 0) + a.carga.n; // lo que no se vendió vuelve al almacén
+    a.carga = null;
+  }
+  function quitarPedido(c, k, q) { const p = c.plan; if (!p || !p.pedidos) return; for (const x of p.pedidos) if (x.que === k && q > 0) { const d = Math.min(x.n, q); x.n -= d; q -= d; } p.pedidos = p.pedidos.filter(x => x.n > 0); }
+  function quitarVenta(c, k, q) { const p = c.plan; if (!p || !p.ventas) return; for (const x of p.ventas) if (x.que === k && q > 0) { const d = Math.min(x.n, q); x.n -= d; q -= d; } p.ventas = p.ventas.filter(x => x.n > 0); }
+  function apuntarTrato(m, x) {
+    const v = m.vida, mk = m.mercado;
+    (mk.tratos = mk.tratos || []).push(x); if (mk.tratos.length > 60) mk.tratos.shift();
+    const a = S().civ(m, x.vende), b = S().civ(m, x.compra);
+    if (!a || !b) return;
+    // Para el jugador, un solo aviso por turno con todo lo comprado y vendido.
+    for (const c of [a, b]) if (c.jugador) {
+      const r = (v.resumenTratos = v.resumenTratos || {})[c.id] = v.resumenTratos[c.id] || { entra: {}, sale: {}, oro: 0 };
+      if (c === b) { r.entra[x.que] = (r.entra[x.que] || 0) + x.n; r.oro -= x.oro; } else { r.sale[x.que] = (r.sale[x.que] || 0) + x.n; r.oro += x.oro; }
+    }
+  }
   const PRIO_OFICIO = ['madera', 'comida', 'casas', 'piedra', 'ejercito', 'riqueza', 'ciencia'];
   const prio = (c, k) => (c.plan && c.plan.prioridad && c.plan.prioridad[k] != null ? c.plan.prioridad[k] : 1);
   const metaMadera = c => 30 + 12 * c.era;
   function reparto(c, recursos) {
     const guerra = c.guerras.length > 0;
     const lleno = c.cap ? c.pob / c.cap : 0.8;
+    // Lo que traen los socios cuenta como si estuviera en el almacén: quien compra fuera produce menos.
+    const imp = c.importa || {}, madera = (c.madera || 0) + (imp.madera || 0) * 3, comida = (c.comida || 0) + (imp.comida || 0) * 3;
     const p = [
-      recursos.arboles ? 0.18 + 0.4 * Math.max(0, 1 - (c.madera || 0) / metaMadera(c)) : 0,
-      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - (c.comida || 0) / Math.max(6, (c.habitantes || 10) * 1.5)) +
+      recursos.arboles ? 0.18 + 0.4 * Math.max(0, 1 - madera / metaMadera(c)) : 0,
+      0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - comida / Math.max(6, (c.habitantes || 10) * 1.5)) +
         // Antes del invierno se hace acopio: en verano y otoño, más gente al campo si el granero no da para tres meses.
         (c.estacion === 1 || c.estacion === 2 ? 0.3 * Math.max(0, 1 - (c.comida || 0) / Math.max(10, (c.aldeanos || 10) * 3)) : 0),
       faltanCamas(c) ? 0.2 : 0.06,
@@ -352,6 +526,9 @@
       // Eruditos: pocos en una tribu (un chamán), más con templo, escritura y ciudades; los pueblos sabios, más.
       (c.aldeanos || 0) < 8 ? 0.02 : 0.045 + 0.01 * c.era + ((c.templos || 0) > 0 ? 0.02 : 0) + (c.caracter === 'sabio' || c.caracter === 'devoto' ? 0.025 : 0)
     ];
+    // La especialidad del reino: produce de más de lo suyo para venderlo, y algún comerciante más si tiene socios.
+    const esp = { madera: 0, comida: 1, piedra: 3, metal: 3, armas: 3 }[c.especialidad];
+    if (esp != null && c.balance) { p[esp] = p[esp] * 1.5 + 0.06; if ((c.rutas || 0) > 0) p[5] += 0.04; }
     for (let i = 0; i < p.length; i++) {
       const w = prio(c, PRIO_OFICIO[i]);
       // Lo que el jugador pone al máximo pesa siempre, aunque el almacén esté lleno.
@@ -545,7 +722,8 @@
       }
       if (a.veh) { a.tirador = true; continue; }
       const quiere = c.cuarteles > 0 || c.era <= 1 ? c.era : Math.min(c.era, 1);
-      if ((a.arma || 0) < quiere && (c.era === 0 || (c.metal || 0) >= 1)) { if (c.era > 0) c.metal -= 1; a.arma = quiere; }
+      // Primero las armas forjadas (propias o compradas); si no hay, se forjan con metal.
+      if ((a.arma || 0) < quiere && (c.era === 0 || (c.armas || 0) >= 1 || (c.metal || 0) >= 1)) { if (c.era > 0) { if ((c.armas || 0) >= 1) c.armas -= 1; else c.metal -= 1; } a.arma = quiere; }
       // La armadura de su era: el cuero sale del ganado; el bronce, el hierro y el acero, de la armería.
       const arm = armaduraDeEra(c.era);
       if ((a.armadura || 0) !== arm) {
@@ -1260,6 +1438,7 @@
     planificarRutas(m, terrenos(m));
     fauna(m, ter);
     comer(m);
+    if (pausada(m)) mercado(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
     // La crónica cuenta los lobos cuando hacen daño de verdad (una vez cada tanto por pueblo).
     for (const c of S().vivas(m)) {
       const mordidos = (v.mordidos || {})[c.id] || 0;
@@ -1313,7 +1492,7 @@
         const t = ru.tiles[a.i];
         a.x = t % v.tw; a.y = t / v.tw | 0;
         if (a.i === 0 || a.i === ru.tiles.length - 1) {
-          if (a.vuelta) { a.e = ESPERAR; a.t = 2; a.ruta = null; }
+          if (a.vuelta) { a.e = ESPERAR; a.t = 2; a.ruta = null; descargar(m, a, c); }
           else { a.e = TRABAJAR; a.t = 2; a.comercio = 1; }
         }
       }
@@ -1529,6 +1708,7 @@
         const desdeA = ru.tipo === 'externa' ? ru.a === c.id : dist(m, aqui, ru.tiles[0]) <= dist(m, aqui, ru.tiles[ru.tiles.length - 1]);
         a.ruta = ru.id; a.dir = desdeA ? 1 : -1; a.i = desdeA ? 0 : ru.tiles.length - 1; a.vuelta = 0; a.viaje = 1;
         t = ru.tiles[a.i];
+        if (pausada(m) && ru.tipo === 'externa' && !a.carga) { const o = S().civ(m, ru.a === c.id ? ru.b : ru.a); if (o && o.viva) cargar(m, a, c, o); }
       }
     }
     else if (a.o === ERUDITO) {
@@ -1776,11 +1956,12 @@
       const ru = v.rutas.find(x => x.id === a.ruta);
       if (ru && rutaActiva(m, ru)) {
         const hecho = ru.tiles.filter(x => v.camino[x]).length / ru.tiles.length, k = 0.6 + 0.6 * hecho;
-        const oroRuta = (ru.tipo === 'interna' ? 0.5 : 1) * (1 + 0.15 * c.era) * k * (1 + M.tec(c, 'comercio'));
+        const oroRuta = (ru.tipo === 'interna' ? 0.5 : 1) * (1 + 0.15 * c.era) * k * (1 + M.tec(c, 'comercio')) * (pausada(m) && ru.tipo !== 'interna' ? 0.4 : 1);
         c.oro = (c.oro || 0) + oroRuta; c.comercioOro = (c.comercioOro || 0) + oroRuta;
         if (ru.tipo === 'interna') { c.riqueza += (2 + 0.6 * c.era) * k; c.estab = Math.min(100, c.estab + 0.3); }
         else {
           const o = S().civ(m, ru.a === c.id ? ru.b : ru.a);
+          if (pausada(m) && o && o.viva) venderComprar(m, a, c, o);
           c.riqueza += (3 + 0.8 * c.era) * k; o.riqueza += (2 + 0.6 * o.era) * k;
           c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1);
           if (o.era > c.era) c.ciencia += 3; // las ideas viajan con las mercancías
@@ -2352,5 +2533,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, ERA_OBRA, NOMBRE_ERA, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
