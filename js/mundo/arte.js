@@ -362,6 +362,7 @@
       if (nombre === 'fuente') return fuente(H, fase, col);
       if (nombre === 'parque') return parque(H, fase, col);
       if (nombre === 'palacio') return palacio(H, fase, col);
+      if (nombre === 'central') return central(H, fase, col);
       if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
       if (nombre === 'molino' && fase !== 1) return molinoDeFase(H, fase, col);
@@ -452,6 +453,21 @@
     H.r(12, 2, 1, 4, '#3a3a44'); H.p(13, 2, '#3a3a44'); H.p(12, 6, col);
     H.contorno(); return H.lienzo();
   }
+  /*
+   * El adoquín de las plazas: piedras en anillos alrededor del centro de la plaza (dx, dy en píxeles de arte
+   * desde el centro), con juntas oscuras y piedras de tres tonos. Lo usan la fuente y las parcelas de su
+   * explanada, así el dibujo sigue sin cortes de una parcela a otra.
+   */
+  const LOSAS = [['#b8a888', '#a8987a', '#c4b494', '#8a7a5e'], ['#b4aea2', '#a29c90', '#c4beb2', '#7e786e'], ['#c8bca8', '#b8ac98', '#d6ccb8', '#8e8474'], ['#c4c4c0', '#b0b0ac', '#d4d4d0', '#8c8c88']];
+  function piedraPlaza(dx, dy, fase) {
+    const L = LOSAS[Math.max(0, Math.min(3, fase))], d = Math.sqrt(dx * dx + dy * dy);
+    const anillo = Math.floor(d / 2.6), fr = d / 2.6 - anillo;
+    if (anillo === 0) return L[2];
+    const n = Math.max(6, anillo * 7), ang = (Math.atan2(dy, dx) + Math.PI) / (Math.PI * 2) * n + (anillo % 2) * 0.5, seg = Math.floor(ang), fs = ang - seg;
+    if (fr < 0.26 || fs < 0.13) return L[3];
+    const h = ((anillo * 73856093) ^ (seg * 19349663)) >>> 0;
+    return L[h % 3];
+  }
   // ---------- Los edificios públicos (cada uno con su porqué en vida.js), de cada fase ----------
   function pozo(H, fase, col) {
     if (fase === 3) {
@@ -492,18 +508,36 @@
     H.contorno(); return H.lienzo();
   }
   function fuente(H, fase, col) {
-    // Plaza pública: losas, bancos, faroles y una fuente en el centro (pilón, luego taza y surtidor, luego estatua).
-    const losa = fase === 0 ? '#b8a888' : fase === 3 ? '#c8c8c4' : '#c0bcb2', junta = oscuro(losa, 0.12);
-    H.r(0, 0, 16, 16, losa); for (let y = 0; y < 16; y += 4) H.r(0, y, 16, 1, junta); for (let y = 0; y < 16; y += 4) for (let x = (y / 4) % 2 ? 2 : 0; x < 16; x += 4) H.r(x, y, 1, 4, junta);
-    H.r(0, 0, 16, 1, claro(losa, 0.15));
-    H.disco(8, 9, 5.2, fase === 0 ? '#9a968c' : '#d8d4ca', true); H.disco(8, 9, 4, '#2a6ab0'); H.disco(7.4, 8.4, 1.6, '#6aa8e8');
-    if (fase === 0) { H.r(7, 7, 2, 3, '#8a867c'); H.p(8, 6, '#bcd8f0'); }
-    else if (fase === 3) { H.r(7, 4, 2, 6, '#b8b8b4'); H.r(6, 3, 4, 1, '#d8d8d4'); H.p(8, 1, '#e8f4ff'); H.p(7, 2, '#bcd8f0'); H.p(9, 2, '#bcd8f0'); }
-    else { H.r(7, 5, 2, 5, '#c8c4ba'); H.r(6, 4, 4, 1, '#e4e0d6'); H.p(8, 2, '#e8f4ff'); H.p(8, 3, '#bcd8f0'); H.p(6, 5, '#bcd8f0'); H.p(9, 5, '#bcd8f0'); if (fase === 2) { H.r(7, 1, 2, 2, '#b8a060'); } }
-    H.r(1, 14, 4, 1, MADERA); H.r(11, 14, 4, 1, MADERA); H.p(1, 15, oscuro(MADERA, 0.2)); H.p(4, 15, oscuro(MADERA, 0.2)); H.p(11, 15, oscuro(MADERA, 0.2)); H.p(14, 15, oscuro(MADERA, 0.2));
-    if (fase >= 1) for (const x of [1, 14]) { H.r(x, 2, 1, 5, '#3a3a40'); H.r(x - 0 , 1, 1, 1, fase === 3 ? '#f4f4e0' : LUZ); }
-    H.p(3, 3, col); H.p(12, 3, col);
+    // Plaza pública: adoquín en anillos alrededor de una fuente (pilón de piedra, taza con surtidor, estatua
+    // con surtidor; en la era moderna, una fuente de hormigón con chorros). Bancos y macetas con flores.
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) H.p(x, y, piedraPlaza(x - 7.5, y - 7.5, fase));
+    const borde = fase === 3 ? '#e4e4e0' : fase === 0 ? '#9a8e76' : '#d8d0bc';
+    H.disco(7.5, 8, 5.4, oscuro(borde, 0.25)); H.disco(7.5, 7.6, 5, borde, true); H.disco(7.5, 7.8, 3.9, '#2a6ab0'); H.disco(6.8, 7.1, 1.7, '#5a9ae0');
+    H.p(9, 9, '#8ac4f4'); H.p(5, 8, '#8ac4f4');
+    if (fase === 0) { H.r(7, 6, 2, 3, '#8a867c'); H.p(7, 5, '#bcd8f0'); }
+    else if (fase === 3) { H.r(6, 6, 4, 3, '#d8d8d4'); H.p(7, 3, '#e8f4ff'); H.p(8, 2, '#ffffff'); H.p(6, 4, '#bcd8f0'); H.p(9, 4, '#bcd8f0'); H.p(5, 5, '#bcd8f0'); H.p(10, 5, '#bcd8f0'); }
+    else {
+      H.r(7, 5, 2, 4, '#e0d8c8'); H.r(6, 5, 4, 1, '#f0ece0'); H.p(7, 4, '#c8c0b0');
+      if (fase === 2) { H.r(7, 1, 2, 3, '#b8a060'); H.p(7, 1, '#d8c080'); }
+      H.p(7, 2 + (fase === 2 ? -1 : 1), '#ffffff'); H.p(6, 3, '#bcd8f0'); H.p(9, 3, '#bcd8f0'); H.p(5, 4, '#bcd8f0'); H.p(10, 4, '#bcd8f0');
+    }
+    // Macetas con flores en las esquinas y un banco.
+    for (const [x, y] of [[0, 0], [14, 0]]) { H.r(x, y + 1, 2, 1, '#a0583a'); H.p(x, y, '#ff5a7a'); H.p(x + 1, y, '#ffd84a'); }
+    H.r(1, 14, 4, 1, MADERA); H.p(1, 15, oscuro(MADERA, 0.25)); H.p(4, 15, oscuro(MADERA, 0.25));
+    H.r(11, 14, 4, 1, MADERA); H.p(11, 15, oscuro(MADERA, 0.25)); H.p(14, 15, oscuro(MADERA, 0.25));
+    H.p(15, 15, col);
     return H.lienzo();
+  }
+  // La central eléctrica (Era Moderna, solo en ciudades): nave de ladrillo con ventanales, dos chimeneas
+  // altas a franjas, el transformador y un poste de alta tensión.
+  function central(H, fase, col) {
+    H.r(1, 7, 10, 8, '#9a4a36'); for (let y = 8; y < 15; y += 2) for (let x = 1 + (y % 4 ? 0 : 1); x < 11; x += 3) H.p(x, y, '#843c2a');
+    H.r(1, 6, 10, 1, '#6a3022'); for (const x of [2, 5, 8]) { H.r(x, 9, 2, 3, '#e8e0a0'); H.p(x, 9, '#fff4c0'); H.p(x + 1, 11, '#c8b070'); }
+    for (const [x, h] of [[3, 7], [7, 9]]) { H.r(x, 6 - h, 2, h, '#c8c4bc'); for (let y = 6 - h; y < 6; y += 3) H.r(x, y, 2, 1, '#c84a3a'); H.r(x - 0, 5 - h, 2, 1, '#5a5a5a'); }
+    H.r(11, 10, 4, 5, '#7a7e86'); H.r(11, 10, 4, 1, '#9aa0aa'); for (let x = 11; x < 15; x += 2) H.r(x, 11, 1, 3, '#5a5e66'); H.p(13, 12, '#f0d040');
+    H.r(13, 1, 1, 9, '#5a5e66'); H.r(11, 2, 5, 1, '#5a5e66'); H.p(11, 3, '#c8ccd4'); H.p(15, 3, '#c8ccd4'); H.r(12, 4, 3, 1, '#5a5e66');
+    H.p(14, 9, col);
+    H.contorno(); return H.lienzo();
   }
   function parque(H, fase, col) {
     // Parque: césped, un sendero de tierra, árboles redondos, flores de colores, un banco y un estanque.
@@ -950,5 +984,5 @@
     });
   }
 
-  M.arte = { T, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  M.arte = { T, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});

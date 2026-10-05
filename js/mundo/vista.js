@@ -98,7 +98,7 @@
     if (anioAntes == null || !corriendo) $('anio').textContent = m.libre ? 'Año ' + m.anio : S.anioTexto(m.anio);
     const maxEra = Math.max(0, ...S.vivas(m).map(c => c.era));
     $('era').textContent = M.ERAS[maxEra].nombre;
-    $('play').textContent = corriendo ? '❚❚ Pausa' : '▶ Seguir';
+    $('play').innerHTML = corriendo ? '<span class="ico">❚❚</span><span class="txt"> Pausa</span>' : '<span class="ico">▶</span><span class="txt"> Seguir</span>';
     $('play').setAttribute('aria-pressed', corriendo ? 'false' : 'true');
     $('vel').textContent = VELOCIDADES[vel][1];
   }
@@ -216,7 +216,7 @@
   // El árbol de la técnica de un pueblo: lo hecho, lo que se investiga, lo que se puede elegir y lo que vendrá.
   // ---------- El modo arquitecto: eliges un edificio (o calle) y tocas el mapa donde quieres que vaya ----------
   let arquiClave = null;
-  const ARQUI = [['casa', '🏠', 'Casa'], ['camino', '🧱', 'Calle'], ['pozo', '🪣', 'Pozo'], ['granero', '🌾', 'Granero'], ['fuente', '⛲', 'Plaza pública'], ['parque', '🌳', 'Parque'], ['templo', '⛪', 'Templo'], ['saber', '📜', 'Saber'], ['palacio', '🏰', 'Palacio'], ['molino', '⚙', 'Molino'], ['torre', '🗼', 'Torre'], ['puerto', '⚓', 'Puerto'], ['cuartel', '⚔', 'Cuartel'], ['arqueria', '🏹', 'Arquería'], ['castillo', '🏯', 'Castillo']];
+  const ARQUI = [['casa', '🏠', 'Casa'], ['camino', '🧱', 'Calle'], ['pozo', '🪣', 'Pozo'], ['granero', '🌾', 'Granero'], ['fuente', '⛲', 'Plaza pública'], ['parque', '🌳', 'Parque'], ['templo', '⛪', 'Templo'], ['saber', '📜', 'Saber'], ['palacio', '🏰', 'Palacio'], ['central', '⚡', 'Central eléctrica'], ['molino', '⚙', 'Molino'], ['torre', '🗼', 'Torre'], ['puerto', '⚓', 'Puerto'], ['cuartel', '⚔', 'Cuartel'], ['arqueria', '🏹', 'Arquería'], ['castillo', '🏯', 'Castillo']];
   function abrirArquitecto() {
     const c = tuPueblo();
     if (!c) return;
@@ -225,13 +225,16 @@
     const coste = k => { if (k === 'camino') return 'gratis'; const q = V.COSTES[V.OBRA[k]] || [0, 0, 0]; return [q[0] ? q[0] + '🪵' : '', q[1] ? q[1] + '🪨' : '', q[2] ? q[2] + '🪙' : ''].filter(Boolean).join(' ') || 'gratis'; };
     const nec = new Set((c.necesidades || []).filter(n => n.falta).map(n => n.obra));
     el.innerHTML = '<div class="arqui-cabeza"><b>🏗 Arquitecto</b> <span class="tenue" id="arqui-ayuda">' + (arquiClave ? 'Toca el mapa donde quieras ' + esc(nombre(arquiClave).toLowerCase()) + '. Toca otra vez para quitarlo.' : 'Elige qué construir y toca tu tierra. Tus constructores lo harán por orden.') + '</span> <button type="button" class="mando sutil arqui-salir">Salir</button></div>' +
-      '<div class="arqui-lista">' + ARQUI.map(([k, ico]) => {
-        const nivel = V.NIVEL_OBRA[V.OBRA[k]] || 0, bloqueo = k === 'camino' ? null : (c.nivel || 0) < nivel ? ['aldea', 'aldea', 'pueblo', 'villa', 'ciudad'][nivel] : (k === 'castillo' && c.era < 2) ? 'Hierro' : (['templo', 'torre', 'puerto', 'cuartel', 'arqueria', 'castillo'].includes(k) && c.era < 1) ? 'Bronce' : null;
+      '<div class="arqui-lista">' + ARQUI.filter(([k]) => k === 'camino' || (V.ERA_OBRA[V.OBRA[k]] || 0) <= c.era + 1).map(([k, ico]) => {
+        const nivel = V.NIVEL_OBRA[V.OBRA[k]] || 0, eraPide = V.ERA_OBRA[V.OBRA[k]] || 0;
+        const bloqueo = k === 'camino' ? null : c.era < eraPide ? M.ERAS[eraPide].corto.charAt(0) + M.ERAS[eraPide].corto.slice(1).toLowerCase() : (c.nivel || 0) < nivel ? ['aldea', 'aldea', 'pueblo', 'villa', 'ciudad'][nivel] : null;
         return '<button type="button" class="arqui-op' + (arquiClave === k ? ' activa' : '') + (nec.has(k) ? ' falta' : '') + '" data-k="' + k + '"' + (bloqueo ? ' disabled title="Hace falta: ' + bloqueo + '"' : ' title="' + esc(nombre(k) + ' · ' + coste(k) + (nec.has(k) ? ' · ¡hace falta!' : '')) + '"') + '><i>' + ico + '</i><span>' + esc(nombre(k)) + '</span><small>' + (bloqueo ? '🔒 ' + bloqueo : coste(k)) + '</small></button>';
       }).join('') + '</div>';
     el.hidden = false; $('arquitecto-btn').setAttribute('aria-pressed', 'true');
     const cab = document.querySelector('.g-cab');
-    el.style.top = Math.round((cab ? cab.getBoundingClientRect().bottom : 0) + 8) + 'px';
+    el.style.top = movil() ? '' : Math.round((cab ? cab.getBoundingClientRect().bottom : 0) + 8) + 'px';
+    document.body.classList.add('arqui-abierto');
+    if (movil()) { document.body.classList.add('sin-panel'); document.body.classList.remove('ordenes-abiertas'); }
     el.querySelector('.arqui-salir').addEventListener('click', salirArquitecto);
     el.querySelectorAll('.arqui-op').forEach(b => b.addEventListener('click', () => { arquiClave = arquiClave === b.dataset.k ? null : b.dataset.k; ponerArquitecto(); abrirArquitecto(); }));
   }
@@ -243,16 +246,16 @@
       if (ayuda) ayuda.textContent = r.ok ? (r.quitado ? 'Quitado.' : 'Encargado: ' + ((c.plan.encargos || []).length) + ' obra' + ((c.plan.encargos || []).length === 1 ? '' : 's') + ' en cola. Toca otra vez para quitarlo.') : 'No: ' + r.razon + '.';
     } });
   }
-  function salirArquitecto() { arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
+  function salirArquitecto() { document.body.classList.remove('arqui-abierto'); arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
   // La pestaña Ciudad: lo que el pueblo necesita y por qué, el ánimo de la gente, la estación y las obras en marcha.
   function ciudadDe(c) {
     const V = M.vida, nec = c.necesidades || [], est = m.vida.estacion;
-    const ORDEN = { pozo: 'construid un pozo', granero: 'construid un granero', fuente: 'construid una plaza pública', parque: 'haced un parque', palacio: 'construid un palacio', templo: 'construid un templo' };
+    const ORDEN = { central: 'construid una central eléctrica', pozo: 'construid un pozo', granero: 'construid un granero', fuente: 'construid una plaza pública', parque: 'haced un parque', palacio: 'construid un palacio', templo: 'construid un templo' };
     const ESTA = ['🌱 Primavera: se siembra y los campos brotan deprisa.', '☀️ Verano: los campos maduran.', '🍂 Otoño: la gran cosecha. Es el momento de llenar el granero.', '❄️ Invierno: no crece nada, apenas se recolecta y se quema el doble de leña.'];
     const quedan = V.ESTACION_TURNOS - (m.turno % V.ESTACION_TURNOS);
     const animo = c.animo == null ? 70 : c.animo, cara = animo >= 75 ? '😊' : animo >= 50 ? '🙂' : animo >= 30 ? '😟' : '😠';
     const obras = Object.entries(m.vida.andamios || {}).filter(([, a]) => a.civ === c.id);
-    const NOMBRE_OBRA = o => ({ [V.OBRA.casa]: 'casa', [V.OBRA.pozo]: 'pozo', [V.OBRA.granero]: 'granero', [V.OBRA.fuente]: 'plaza pública', [V.OBRA.parque]: 'parque', [V.OBRA.palacio]: 'palacio', [V.OBRA.templo]: c.era === 4 ? 'iglesia' : c.era >= 5 && c.era <= 6 ? 'catedral' : 'templo', [V.OBRA.saber]: M.CASA_SABER(c.era), [V.OBRA.torre]: 'torre', [V.OBRA.molino]: 'molino', [V.OBRA.puerto]: 'puerto', [V.OBRA.cuartel]: 'cuartel', [V.OBRA.arqueria]: 'arquería', [V.OBRA.castillo]: 'castillo' }[o] || 'obra');
+    const NOMBRE_OBRA = o => ({ [V.OBRA.casa]: 'casa', [V.OBRA.pozo]: 'pozo', [V.OBRA.granero]: 'granero', [V.OBRA.fuente]: 'plaza pública', [V.OBRA.parque]: 'parque', [V.OBRA.palacio]: 'palacio', [V.OBRA.central]: 'central eléctrica', [V.OBRA.templo]: c.era === 4 ? 'iglesia' : c.era >= 5 && c.era <= 6 ? 'catedral' : 'templo', [V.OBRA.saber]: M.CASA_SABER(c.era), [V.OBRA.torre]: 'torre', [V.OBRA.molino]: 'molino', [V.OBRA.puerto]: 'puerto', [V.OBRA.cuartel]: 'cuartel', [V.OBRA.arqueria]: 'arquería', [V.OBRA.castillo]: 'castillo' }[o] || 'obra');
     const vistas = new Set();
     const lista = nec.filter(n => { const k = n.obra + (n.capital ? 'c' : n.region); if (vistas.has(k)) return false; vistas.add(k); return true; }).map(n => {
       const donde = n.capital ? '' : ' <span class="tenue">(en ' + esc(((m.ciudades || []).find(x => x.region === n.region) || { nombre: 'otra ciudad' }).nombre) + ')</span>';
@@ -260,6 +263,7 @@
         (n.falta ? ' <span class="tenue">(' + (n.estab < 0 ? n.estab + ' de estabilidad' : '') + ')</span>' + (c.jugador && n.capital && ORDEN[n.obra] ? ' <button type="button" class="obrar nec-obrar" data-orden="' + ORDEN[n.obra] + '">Hacer ' + esc(n.edificio) + '</button>' : '') : '') + '</li>';
     }).join('');
     return '<div class="arbol"><p class="arbol-ayuda">' + (est >= 0 ? esc(ESTA[est]) + ' <span class="tenue">Quedan ' + quedan + ' turnos.</span>' : '') + '</p>' +
+      '<p class="arbol-ayuda">' + ({ aceite: '🏮 Alumbrado: faroles de aceite en las plazas.', gas: '🕯 Alumbrado: farolas de gas victorianas por las calles.', electrico: '💡 Alumbrado eléctrico: farolas y luz en las casas.' }[c.alumbrado] || (c.era >= 7 ? '🌑 Sin luz eléctrica: hace falta una central (y ser ciudad).' : c.era >= 4 ? '🌑 Calles a oscuras: los faroles llegan al ser pueblo' + (c.era >= 6 ? ' (las farolas de gas, al ser villa)' : '') + '.' : '🔥 De noche solo hay hogueras: el alumbrado llega con la Edad Media.')) + '</p>' +
       '<p class="arbol-ayuda">' + cara + ' Ánimo de la gente: <b>' + animo + '</b>/100 <span class="barra mini"><span style="width:' + animo + '%"></span></span></p>' +
       '<div class="tec-era">Lo que necesita ' + esc(c.nombre) + '</div>' +
       (lista ? '<ul class="edad-req nec">' + lista + '</ul>' : '<p class="tenue arbol-ayuda">Un campamento no pide más que comida y techo. Al crecer (aldea, pueblo, villa, ciudad) pedirá granero, plaza, parque y palacio.</p>') +
@@ -528,6 +532,7 @@
     h.hidden = !html;
     if (html && h.innerHTML !== html) h.innerHTML = html;
   }
+  const movil = () => window.matchMedia('(max-width: 899px)').matches;
   function abrirHoja(nombre) {
     for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.classList.toggle('activa', b.dataset.panel === nombre);
     for (const h of document.querySelectorAll('.panel-hoja')) h.hidden = h.dataset.hoja !== nombre;
@@ -769,7 +774,7 @@
 
   // ---------- Arranque ----------
   function iniciar(datos) {
-    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); }, alClicarAldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); } });
+    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); } });
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);
     if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
@@ -800,6 +805,26 @@
     $('ver-panel').addEventListener('click', () => panelAbierto(document.body.classList.contains('sin-panel')));
     $('cerrar-panel').addEventListener('click', () => panelAbierto(false));
     for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.addEventListener('click', () => abrirHoja(b.dataset.panel));
+    // ---- El móvil: barra de abajo, menú ⋯, órdenes plegadas ----
+    const navActiva = () => {
+      const b = document.body, abierto = !b.classList.contains('sin-panel');
+      const hoja = (document.querySelector('.panel-hoja:not([hidden])') || {}).dataset;
+      const v = abierto && hoja ? hoja.hoja : b.classList.contains('ordenes-abiertas') ? 'ordenes' : 'mapa';
+      for (const x of document.querySelectorAll('.nav-b')) x.classList.toggle('activa', x.dataset.v === v);
+      $('nav-punto').hidden = !(!$('cuadrillas-hud').hidden || !$('guerra-hud').hidden);
+    };
+    new MutationObserver(navActiva).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    for (const b of document.querySelectorAll('.nav-b')) b.addEventListener('click', () => {
+      const v = b.dataset.v, bd = document.body, abierto = !bd.classList.contains('sin-panel');
+      bd.classList.remove('menu-abierto');
+      if (v === 'mapa') { panelAbierto(false); bd.classList.remove('ordenes-abiertas'); }
+      else if (v === 'ordenes') { panelAbierto(false); bd.classList.toggle('ordenes-abiertas'); }
+      else { bd.classList.remove('ordenes-abiertas'); if (abierto && b.classList.contains('activa')) panelAbierto(false); else { abrirHoja(v); panelAbierto(true); } }
+      navActiva();
+    });
+    $('mas-menu').addEventListener('click', ev => { ev.stopPropagation(); const on = document.body.classList.toggle('menu-abierto'); $('mas-menu').setAttribute('aria-expanded', on ? 'true' : 'false'); });
+    document.addEventListener('click', ev => { if (document.body.classList.contains('menu-abierto') && !ev.target.closest('#mas-menu')) { document.body.classList.remove('menu-abierto'); $('mas-menu').setAttribute('aria-expanded', 'false'); } });
+    setInterval(navActiva, 1500);
     $('ver-ideas').addEventListener('click', () => { const e = $('ejemplos'); e.hidden = !e.hidden; $('ver-ideas').setAttribute('aria-expanded', e.hidden ? 'false' : 'true'); });
     $('arquitecto-btn').addEventListener('click', () => { if (arquiClave || !$('arquitecto').hidden) salirArquitecto(); else abrirArquitecto(); });
     $('ir-mio').addEventListener('click', () => { const c = tuPueblo(); if (c) P.centrarEn(c.capital, 3); });

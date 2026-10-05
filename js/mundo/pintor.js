@@ -130,7 +130,7 @@
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, c ? (c.era === 4 ? 4 : V.fase(c.era)) : 0), x, y);
-      else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio'][obra - V.OBRA.pozo], color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio || obra === V.OBRA.central) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio', 'central'][obra - V.OBRA.pozo], color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.centro) {
@@ -189,6 +189,20 @@
       for (let k = 0; k < A; k += 5) { gl.fillRect(x + k, y + 1, 1, 2); gl.fillRect(x + k, y + 13, 1, 2); }
       return;
     }
+    // La explanada de una plaza pública o de un palacio: adoquín en anillos que siguen los de la fuente.
+    let plazaEn = -1;
+    for (const d of [-1, 1, -tw, tw, -tw - 1, -tw + 1, tw - 1, tw + 1]) { const n = t + d; if (n >= 0 && n < tw * v.th && Math.abs((n % tw) - tx) <= 1 && (visto.obra[n] === V.OBRA.fuente || visto.obra[n] === V.OBRA.palacio)) { plazaEn = n; break; } }
+    if (plazaEn >= 0 && ter !== 'rio') {
+      const cx = (plazaEn % tw) * A + 7.5, cy = Math.floor(plazaEn / tw) * A + 7.5, fase = V.fase(era), ox = tx * A, oy = Math.floor(t / tw) * A;
+      for (let j = 0; j < A; j++) for (let i = 0; i < A; i++) { gl.fillStyle = ARTE().piedraPlaza(ox + i - cx, oy + j - cy, fase); gl.fillRect(x + i, y + j, 1, 1); }
+      // Bordillo donde la explanada acaba (sin calle ni edificio al lado).
+      const bord = '#6e6a62', libre = n => n < 0 || n >= tw * v.th || (!visto.camino[n] && !visto.obra[n]);
+      if (tx > 0 && libre(t - 1)) gl.fillStyle = bord, gl.fillRect(x, y, 1, A);
+      if (tx < tw - 1 && libre(t + 1)) gl.fillStyle = bord, gl.fillRect(x + A - 1, y, 1, A);
+      if (libre(t - tw)) gl.fillStyle = bord, gl.fillRect(x, y, A, 1);
+      if (libre(t + tw)) gl.fillStyle = bord, gl.fillRect(x, y + A - 1, A, 1);
+      return;
+    }
     // Calles de piedra neutra (gris, sin el color de nadie): tierra apisonada al principio, adoquín desde el
     // Bronce y asfalto en la era moderna.
     const [base, borde, marca] = era >= 7 ? ['#55585f', '#3f4248', '#e8d070'] : era >= 1 ? ['#a4a29c', '#7c7a74', '#bcbab4'] : ['#a08a6a', '#7e6a4e', '#b29c7c'];
@@ -205,6 +219,10 @@
       for (const [si, lx, ly, w, hh] of lados) if (si) for (let j = ly; j < ly + hh; j += 2) for (let i = lx + ((j / 2) % 2); i < lx + w; i += 3) { gl.fillStyle = marca; gl.fillRect(x + i, y + j, 2, 1); }
     }
     else { gl.fillRect(x + 6, y + 6, 1, 1); gl.fillRect(x + 9, y + 8, 1, 1); gl.fillRect(x + 5, y + 10, 1, 1); }
+  }
+  function vecinasPlaza(t) {
+    const tw = m.vida.tw;
+    for (const d of [-1, 1, -tw, tw, -tw - 1, -tw + 1, tw - 1, tw + 1]) { const n = t + d; if (n >= 0 && n < tw * m.vida.th && visto.camino[n]) parcela(n); }
   }
   function vecinasCamino(t) {
     const tw = m.vida.tw;
@@ -295,7 +313,7 @@
     for (const ch of pend) {
       if (ch[4] > hasta || ch.hecho) { if (!ch.hecho) quedan++; continue; }
       const capaN = ch[0] === 0 ? 'arbol' : ch[0] === 1 ? 'roca' : ch[0] === 2 ? 'obra' : ch[0] === 4 ? 'cultivo' : ch[0] === 5 ? 'camino' : null;
-      if (capaN) { if (capaN === 'obra' && ch[3] === V.OBRA.ruina && ch[2] && ch[4] > 0) polvo(ch[1], true); visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); if (capaN === 'camino') vecinasCamino(ch[1]); }
+      if (capaN) { if (capaN === 'obra' && ch[3] === V.OBRA.ruina && ch[2] && ch[4] > 0) polvo(ch[1], true); visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); if (capaN === 'camino') vecinasCamino(ch[1]); if (capaN === 'obra' && [V.OBRA.fuente, V.OBRA.palacio].some(o => o === ch[3] || o === ch[2])) vecinasPlaza(ch[1]); }
       ch.hecho = true;
     }
     if (!quedan) pend = [];
@@ -400,6 +418,7 @@
     marcarPulso(ahora);
     planos(ahora);
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
+    farolas(ahora, x0, y0, x1, y1);
     sueno(ahora, x0, y0, x1, y1);
     resplandor(k, ahora, x0, y0, x1, y1);
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -820,17 +839,69 @@
     if (ahora > lucesHasta) {
       lucesHasta = ahora + 1200; luces = [];
       const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber || ob === V.OBRA.palacio || ob === V.OBRA.fuente) luces.push(t); if (luces.length > 400) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber || ob === V.OBRA.palacio || ob === V.OBRA.fuente || ob === V.OBRA.central) luces.push(t); if (luces.length > 400) break; }
     }
     const a = Math.min(1, (o - 0.3) / 0.4);
     for (const t of luces) {
       const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, parpadeo = ((t * 7 + Math.floor(ahora / 900)) % 11) === 0;
       if (parpadeo) continue;
-      g.fillStyle = 'rgba(255,190,80,' + (0.16 * a).toFixed(3) + ')'; g.fillRect(x + 1, y + 7, 14, 8);
-      g.fillStyle = 'rgba(255,220,120,' + (0.95 * a).toFixed(3) + ')'; g.fillRect(x + 4, y + 10, 2, 2); g.fillRect(x + 10, y + 10, 2, 2);
+      // Con electricidad la luz de las ventanas es blanca; con aceite o gas, amarilla.
+      const du = m.dueno[V.region(m, t)], cv_ = du >= 0 ? S.civ(m, du) : null, elec = cv_ && cv_.alumbrado === 'electrico';
+      g.fillStyle = (elec ? 'rgba(220,230,255,' : 'rgba(255,190,80,') + (0.16 * a).toFixed(3) + ')'; g.fillRect(x + 1, y + 7, 14, 8);
+      g.fillStyle = (elec ? 'rgba(245,248,255,' : 'rgba(255,220,120,') + (0.95 * a).toFixed(3) + ')'; g.fillRect(x + 4, y + 10, 2, 2); g.fillRect(x + 10, y + 10, 2, 2);
     }
   }
 
+  // ---------- Las farolas de cada época, a lo largo de las calles (y su luz por la noche) ----------
+  let farolasLista = [], farolasTurno = -1;
+  function listaFarolas() {
+    const v = m.vida, tw = v.tw, out = [], OB = V.OBRA;
+    const junto = (t, set) => [t - 1, t + 1, t - tw, t + tw].some(n => n >= 0 && n < tw * v.th && set.has(visto.obra[n]));
+    const PLAZAS = new Set([OB.fuente, OB.centro, OB.palacio, OB.ayuntamiento, OB.templo]), CASAS_ = new Set([OB.casa, OB.fuente, OB.centro, OB.palacio, OB.ayuntamiento, OB.templo, OB.saber, OB.granero, OB.parque, OB.central]);
+    for (let t = 0; t < tw * v.th && out.length < 900; t++) {
+      if (!visto.camino[t]) continue;
+      const d = m.dueno[V.region(m, t)]; if (d < 0) continue;
+      const c = S.civ(m, d), tipo = c && c.alumbrado; if (!tipo) continue;
+      const h = (Math.imul(t, 2654435761) >>> 0) % 7;
+      if (tipo === 'aceite' ? (junto(t, PLAZAS) && h < 3) : (junto(t, CASAS_) && h < 2) || (junto(t, PLAZAS) && h < 4)) out.push([t, tipo]);
+    }
+    return out;
+  }
+  function farolas(ahora, x0, y0, x1, y1) {
+    if (farolasTurno !== m.turno) { farolasTurno = m.turno; farolasLista = listaFarolas(); }
+    if (!farolasLista.length) return;
+    const v = m.vida, o = oscuridad(ahora), luz = o > 0.25;
+    for (const [t, tipo] of farolasLista) {
+      const x = (t % v.tw) * P + 13, y = Math.floor(t / v.tw) * P + 2;
+      if (x < x0 - 12 || y < y0 - 12 || x > x1 + 12 || y > y1 + 12) continue;
+      if (luz) {
+        const col = tipo === 'electrico' ? '235,240,255' : tipo === 'gas' ? '255,205,110' : '255,170,70', rr = tipo === 'electrico' ? 14 : tipo === 'gas' ? 10 : 7, lx = tipo === 'electrico' ? x - 4.5 : x + 0.5;
+        const gr = g.createRadialGradient(lx, y + 2, 0, lx, y + 6, rr);
+        gr.addColorStop(0, 'rgba(' + col + ',' + (0.42 * o).toFixed(3) + ')'); gr.addColorStop(1, 'rgba(' + col + ',0)');
+        g.fillStyle = gr; g.fillRect(lx - rr, y - rr + 4, rr * 2 + 1, rr * 2);
+      }
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x, y + 12, 3, 1);
+      if (tipo === 'electrico') {
+        // Farola moderna: báculo gris con brazo curvo y luminaria.
+        g.fillStyle = '#3a3e46'; g.fillRect(x + 1, y + 1, 1, 11);
+        g.fillStyle = '#b4b8c0'; g.fillRect(x, y, 1, 12); g.fillRect(x - 3, y - 1, 4, 1); g.fillRect(x - 4, y, 1, 1);
+        g.fillStyle = '#5a5e66'; g.fillRect(x - 6, y, 3, 1); g.fillRect(x - 1, y + 11, 3, 1);
+        g.fillStyle = luz ? '#ffffff' : '#dce2ea'; g.fillRect(x - 6, y + 1, 3, 1);
+        if (luz) { g.fillStyle = 'rgba(235,240,255,' + (0.18 * o).toFixed(3) + ')'; g.beginPath(); g.moveTo(x - 6, y + 2); g.lineTo(x - 3, y + 2); g.lineTo(x + 1, y + 13); g.lineTo(x - 10, y + 13); g.fill(); }
+      } else if (tipo === 'gas') {
+        // Farola victoriana de hierro: pie con basa, columna fina, farol de cuatro cristales y remate.
+        g.fillStyle = '#1e2026'; g.fillRect(x, y + 3, 1, 9); g.fillRect(x - 1, y + 10, 3, 2); g.fillRect(x - 1, y + 5, 3, 1);
+        g.fillStyle = '#1e2026'; g.fillRect(x - 1, y - 1, 3, 1); g.fillRect(x, y - 2, 1, 1); g.fillRect(x - 1, y + 2, 3, 1);
+        g.fillStyle = luz ? '#ffe49a' : '#b8c4c4'; g.fillRect(x - 1, y, 3, 2);
+        if (luz) { g.fillStyle = '#fff6d0'; g.fillRect(x, y, 1, 1); }
+      } else {
+        // Farol de aceite colgado de un poste de madera.
+        g.fillStyle = '#5a3c20'; g.fillRect(x, y + 1, 1, 11); g.fillRect(x - 2, y + 1, 2, 1);
+        g.fillStyle = '#2a2a2a'; g.fillRect(x - 3, y + 2, 2, 1);
+        g.fillStyle = luz ? (Math.floor(ahora / 140 + t) % 5 ? '#ffb040' : '#ffd070') : '#8a7a5a'; g.fillRect(x - 3, y + 3, 2, 2);
+      }
+    }
+  }
   // ---------- Edificios que se mueven: aspas de molino y banderas de torre ----------
   let especiales = [], especialesHasta = 0;
   function edificiosVivos(ahora, x0, y0, x1, y1) {
@@ -945,9 +1016,20 @@
     if (ahora > chimeneasHasta) {
       chimeneasHasta = ahora + 1500; chimeneas = [];
       const v = m.vida, tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if ((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) chimeneas.push(t); if (chimeneas.length > 60) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if ((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) chimeneas.push(t); else if (o === V.OBRA.central) chimeneas.push(-t - 1); if (chimeneas.length > 60) break; }
     }
-    for (const t of chimeneas) {
+    for (const tt of chimeneas) {
+      // Las dos chimeneas de la central echan mucho más humo, y más oscuro.
+      if (tt < 0) {
+        const t = -tt - 1, bx = (t % m.vida.tw) * P, by = Math.floor(t / m.vida.tw) * P;
+        for (const [cx, cy] of [[bx + 4, by - 2], [bx + 8, by - 4]]) for (let k = 0; k < 5; k++) {
+          const f = ((ahora / 2000 + k / 5 + cx / 13) % 1);
+          g.fillStyle = 'rgba(150,150,158,' + (0.6 * (1 - f)).toFixed(2) + ')';
+          const r = 1 + f * 3; g.fillRect(Math.round(cx + f * 6 + Math.sin(f * 5) * 1.5 - r / 2), Math.round(cy - f * 14 - r / 2), Math.ceil(r), Math.ceil(r));
+        }
+        continue;
+      }
+      const t = tt;
       const x = (t % m.vida.tw) * P + 10, y = Math.floor(t / m.vida.tw) * P + 2;
       for (let k = 0; k < 3; k++) {
         const f = ((ahora / 2400 + k / 3 + (t % 7) / 7) % 1);

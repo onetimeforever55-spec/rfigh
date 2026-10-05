@@ -319,6 +319,28 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
   - **Palacio** (desde ciudad, en la capital): sin sede del gobierno, las demás ciudades obedecen menos. Con palacio, la corte las mantiene leales (gran casa del jefe, palacio de piedra con alas y torrecillas, palacio de gobierno con cúpula de cristal).
   - **Templo**, desde el Bronce: menhires, templo de columnas, **iglesia románica** en la Edad Media, catedral en el Renacimiento e iglesia moderna.
   Se piden también por texto: «construid un pozo», «haced una plaza pública», «quiero un parque», «levantad un palacio», «construid un granero», «una iglesia». La respuesta dice para qué sirve o por qué hace falta.
+- **Cada edificio según su época y su uso**: no hay parques en el Neolítico ni centrales eléctricas en una aldea. La edad decide desde cuándo existe cada obra:
+  - Bronce: templo, torre, puerto, cuartel, arquería, plaza pública y palacio.
+  - Hierro: castillo.
+  - Antigüedad clásica: parque.
+  - Era Moderna: central eléctrica.
+
+  El tamaño decide si hace falta: plaza desde pueblo, parque desde villa, palacio y central desde ciudad. El arquitecto solo enseña lo de tu edad y la siguiente (lo de la siguiente, con candado). Las órdenes lo explican: «¿Una central eléctrica en el Neolítico? Aún no se conoce la electricidad: llega con la Era Moderna».
+- **Alumbrado de calles por época** (no se construye: llega con el progreso). Se ve de día y alumbra de noche con su halo:
+  - **Faroles de aceite** colgados de postes de madera en las plazas, en la Edad Media y el Renacimiento (de pueblo para arriba).
+  - **Farolas de gas victorianas** de hierro negro, con basa, columna fina y farol de cuatro cristales, a lo largo de las calles en la Revolución Industrial (de villa para arriba).
+  - **Farolas eléctricas** de báculo con su cono de luz blanca en la Era Moderna, pero solo donde hay una **central eléctrica**. La central es una nave de ladrillo con dos chimeneas a franjas que echan humo, transformador y torre de alta tensión, y se levanta solo en ciudades. Con electricidad, las ventanas brillan blancas en vez de amarillas.
+
+  Las calles alumbradas suben el ánimo, y la pestaña Ciudad dice qué alumbrado hay y qué falta para el siguiente.
+- **Plazas de adoquín**: la plaza pública es un empedrado en anillos alrededor de la fuente (más claro y fino según la época), con macetas y bancos. Al terminarla, alrededor (y alrededor del palacio) se empiedra una explanada con el mismo dibujo, que sigue los anillos sin cortes de una parcela a otra y lleva bordillo donde acaba.
+- **Interfaz para el móvil**, pensada para el pulgar:
+  - **Arriba**: una barra fina con la fecha, la pausa, la velocidad y un menú ⋯ (sonido, cambiar de modo, mundo nuevo). Debajo, los recursos en una tira que se desliza.
+  - **Abajo**: una barra de secciones (🗺 Mapa, ✍ Órdenes, 🏘 Pueblos, 📜 Crónica, 🏆 Retos).
+    - Las órdenes van plegadas: solo la línea de escribir y el consejo. Con «Órdenes» se despliega todo (ideas, cuadrillas, guerra), y un punto rojo avisa si hay algo en marcha.
+    - El panel sube como una hoja con asa. Los pueblos van en una tira deslizable, con la ficha a la vista.
+  - **Al tocar** un pueblo o un aldeano en el mapa se abre su ficha.
+  - **Botones grandes**: cámara a media altura a la derecha y paleta del arquitecto abajo, al alcance del pulgar.
+  - **Detalles**: campos a 16 px (sin zoom al escribir en iOS) y márgenes de la muesca.
 - **Modo arquitecto** (botón 🏗 junto a la cámara, gobernando un pueblo): eliges una obra de la paleta (casa, calle, pozo, granero, plaza, parque, templo, casa del saber, palacio, molino, torre, puerto, cuartel, arquería o castillo) y tocas tu tierra.
   - Al pasar por encima se ve el edificio en verde, o en rojo con el motivo si no se puede: tierra ajena, agua, ya construido, hace falta ser villa…
   - Lo encargado queda marcado con un marco de trazos, y las calles por empedrar en gris. Tocar otra vez lo quita.

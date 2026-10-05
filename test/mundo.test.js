@@ -505,6 +505,21 @@ console.log('LA VIDA PAUSADA: NOCHES, ESTACIONES, OBRAS Y NECESIDADES');
   comprobar(!X2.entender(m, c.id, 'llenad el granero de comida').some(a => a.tipo === 'construir'), '«llenad el granero» no es construir uno');
 }
 {
+  // Cada edificio existe según la época y el tamaño: ni parques en el Neolítico ni centrales en una aldea.
+  const m = S.crear(4, 5, { ritmo: 3 }), V2 = M.vida, X2 = M.mando;
+  for (let i = 0; i < 20; i++) S.turno(m);
+  const c = S.vivas(m)[0]; X2.gobernar(m, c.id);
+  const t = S.casillas(m, c).flatMap(r => V2.parcelas(m, r)).find(x => !V2.puedeColocar(m, c, x, 'casa'));
+  comprobar(/Era Moderna/.test(V2.puedeColocar(m, c, t, 'central') || ''), 'el arquitecto no deja poner una central eléctrica en el Neolítico (' + V2.puedeColocar(m, c, t, 'central') + ')');
+  comprobar(/no se conoce la electricidad/.test(X2.ordenar(m, c.id, 'construid una central eléctrica').respuesta), 'y la orden lo explica');
+  comprobar(/Antigüedad/.test(V2.puedeColocar(m, c, t, 'parque') || ''), 'los parques llegan con la Antigüedad clásica');
+  const prueba = (era, nivel, centrales) => V2.alumbradoDe(Object.assign({}, c, { era, nivel, centrales }));
+  comprobar(prueba(2, 4, 0) === null && prueba(4, 2, 0) === 'aceite' && prueba(6, 2, 0) === 'aceite' && prueba(6, 3, 0) === 'gas' && prueba(7, 4, 0) === 'gas' && prueba(7, 4, 1) === 'electrico', 'alumbrado: faroles de aceite en la Edad Media, farolas de gas victorianas (villa), eléctricas solo con central');
+  // La plaza pública empiedra su explanada de adoquín.
+  const v = m.vida, libre = S.casillas(m, c).flatMap(r => V2.parcelas(m, r)).find(x => !V2.puedeColocar(m, c, x, 'pozo') && [1, -1, v.tw, -v.tw].every(d => !v.obra[x + d] && !v.camino[x + d] && !V2.puedeColocar(m, c, x + d, 'pozo')));
+  if (libre != null) { V2.cambiar(m, 'obra', libre, 0, 0); const antes = [1, -1, v.tw, -v.tw].filter(d => v.camino[libre + d]).length; c.plan.encargos = []; c.era = 3; c.nivelMax = 4; c.nivel = 4; c.madera = c.piedra = c.oro = 99; const r0 = V2.encargar(m, c, libre, 'fuente'); if (!r0.ok) console.log('   (encargo:', r0.razon + ')'); let ok = false; for (let i = 0; i < 40 && !ok; i++) { S.turno(m); ok = v.obra[libre] === V2.OBRA.fuente; } comprobar(ok && [1, -1, v.tw, -v.tw].filter(d => v.camino[libre + d]).length > antes, 'al acabar la plaza pública, alrededor se empiedra una explanada de adoquín'); }
+}
+{
   // Con ritmo 1 (las pruebas de siempre) nada de esto cambia el mundo.
   const m = S.crear(4, 5);
   for (let i = 0; i < 12; i++) S.turno(m);

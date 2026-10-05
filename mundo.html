@@ -22,10 +22,11 @@
     <div class="mandos">
       <button type="button" class="mando" id="play" aria-pressed="false">❚❚ Pausa</button>
       <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
-      <button type="button" class="mando sutil" id="sonido" aria-pressed="false" title="Sonido">🔈 Sonido</button>
-      <button type="button" class="mando sutil" id="cambiar-modo">Cambiar de modo</button>
-      <button type="button" class="mando sutil" id="nuevo">Nuevo mundo</button>
+      <button type="button" class="mando sutil menu-movil" id="sonido" aria-pressed="false" title="Sonido">🔈 Sonido</button>
+      <button type="button" class="mando sutil menu-movil" id="cambiar-modo">Cambiar de modo</button>
+      <button type="button" class="mando sutil menu-movil" id="nuevo">Nuevo mundo</button>
       <button type="button" class="mando" id="ver-panel" aria-expanded="true" aria-controls="panel" title="Abrir o cerrar el panel">☰ Panel</button>
+      <button type="button" class="mando solo-movil" id="mas-menu" aria-expanded="false" aria-label="Más opciones">⋯</button>
     </div>
   </header>
 
@@ -83,7 +84,17 @@
     <p class="respuesta" id="respuesta" aria-live="polite">El tiempo corre. Escribe cuando quieras intervenir.</p>
   </form>
 
+  <!-- En el móvil: barra de abajo para ir del mapa a las órdenes, tu pueblo, la crónica y los retos. -->
+  <nav class="g-nav solo-movil" id="nav" aria-label="Secciones">
+    <button type="button" class="nav-b activa" data-v="mapa"><i>🗺</i><span>Mapa</span></button>
+    <button type="button" class="nav-b" data-v="ordenes"><i>✍</i><span>Órdenes</span><b class="nav-punto" id="nav-punto" hidden></b></button>
+    <button type="button" class="nav-b" data-v="pueblos"><i>🏘</i><span>Pueblos</span></button>
+    <button type="button" class="nav-b" data-v="cronica"><i>📜</i><span>Crónica</span></button>
+    <button type="button" class="nav-b" data-v="retos"><i>🏆</i><span>Retos</span></button>
+  </nav>
+
   <aside class="panel hud" id="panel" aria-label="Panel">
+    <div class="asa solo-movil" aria-hidden="true"></div>
     <div class="panel-pestanas" role="tablist">
       <button type="button" class="pestana activa" data-panel="pueblos" role="tab">Pueblos</button>
       <button type="button" class="pestana" data-panel="cronica" role="tab">Crónica</button>

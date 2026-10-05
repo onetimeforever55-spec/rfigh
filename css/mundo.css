@@ -270,3 +270,99 @@ body.sin-panel .panel { display: none; }
 .aldeano-oficios { flex-wrap: wrap; gap: 4px; }
 .aldeano-oficios .mando { padding: 3px 8px; font-size: 12px; min-height: 0; }
 .aldeano-oficios .mando.activa { border-color: #ffd76a; color: #ffd76a; }
+
+/* =====================================================================
+   EL MÓVIL: pensado para jugar con el pulgar.
+   Arriba, una barra fina (fecha, recursos, pausa, velocidad y ⋯); abajo, las secciones
+   (Mapa, Órdenes, Pueblos, Crónica, Retos). Las órdenes van plegadas sobre la barra y el
+   panel sube como una hoja desde abajo.
+   ===================================================================== */
+.solo-movil { display: none; }
+@media (max-width: 899px) {
+  :root { --nav: 58px; --abajo: calc(var(--nav) + env(safe-area-inset-bottom)); }
+  .solo-movil { display: revert; }
+  body { font-size: 14px; -webkit-tap-highlight-color: transparent; }
+  input, textarea { font-size: 16px !important; } /* sin zoom automático al escribir en iOS */
+
+  /* Cabecera: una fila con la fecha y los mandos, y debajo los recursos en una tira que se desliza. */
+  .g-cab { top: max(6px, env(safe-area-inset-top)); left: 6px; right: 6px; padding: 6px 8px 5px; display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; border-radius: 12px; }
+  .marca, #ver-panel, .marcador { display: none !important; }
+  .reloj { grid-column: 1; grid-row: 1; flex-direction: row; align-items: baseline; gap: 8px; min-width: 0; overflow: hidden; }
+  .anio { font-size: 18px; white-space: nowrap; }
+  .era { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mandos { grid-column: 2; grid-row: 1; margin: 0; gap: 5px; overflow: visible; position: relative; flex-wrap: nowrap; }
+  .mandos .mando { min-width: 40px; height: 36px; padding: 0 10px; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+  #play .txt { display: none; }
+  .recursos { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin: 0 -2px; padding-bottom: 1px; mask-image: linear-gradient(90deg, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 92%, transparent); }
+  .recursos::-webkit-scrollbar { display: none; }
+  .recursos .rec { flex: none; font-size: 12px; padding: 2px 7px; }
+  /* El menú ⋯: sonido, cambiar de modo y mundo nuevo, en una lista que cae bajo el botón. */
+  .menu-movil { display: none !important; }
+  body.menu-abierto .menu-movil { display: flex !important; position: absolute; right: 0; width: 190px; height: 46px !important; justify-content: flex-start !important; background: var(--panel); border-color: var(--linea); color: var(--pergamino); z-index: 9; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+  body.menu-abierto #sonido { top: 44px; border-radius: 10px 10px 0 0; }
+  body.menu-abierto #cambiar-modo { top: 89px; border-radius: 0; }
+  body.menu-abierto #nuevo { top: 134px; border-radius: 0 0 10px 10px; }
+  #mas-menu { font-size: 20px; letter-spacing: 1px; }
+
+  /* La barra de abajo. */
+  .g-nav { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; z-index: 8; left: 0; right: 0; bottom: 0; height: var(--abajo); padding-bottom: env(safe-area-inset-bottom); background: rgba(11, 16, 30, 0.97); border-top: 1px solid var(--linea); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .nav-b { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: none; border: 0; color: var(--tenue); font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.02em; min-height: 48px; }
+  .nav-b i { font-style: normal; font-size: 21px; line-height: 1.1; filter: grayscale(0.6); opacity: 0.85; }
+  .nav-b.activa { color: var(--oro); }
+  .nav-b.activa i { filter: none; opacity: 1; }
+  .nav-b.activa::before { content: ''; position: absolute; top: 0; left: 28%; right: 28%; height: 3px; border-radius: 0 0 3px 3px; background: var(--oro); }
+  .nav-punto { position: absolute; top: 8px; right: calc(50% - 16px); width: 8px; height: 8px; border-radius: 50%; background: var(--sangre); }
+  .nav-punto[hidden] { display: none; }
+
+  /* Las órdenes: plegadas, solo la línea de escribir y el consejo; con «Órdenes», todo. */
+  .g-voluntad { left: 6px; right: 6px; width: auto !important; bottom: calc(var(--abajo) + 6px); padding: 8px 10px; border-radius: 12px; max-height: 58vh; overflow-y: auto; }
+  .g-voluntad .linea { gap: 6px; }
+  .g-voluntad #orden { height: 44px; min-width: 0; }
+  .g-voluntad .obrar { height: 44px; padding: 0 14px; }
+  body:not(.ordenes-abiertas) .voluntad-cab, body:not(.ordenes-abiertas) #ejemplos, body:not(.ordenes-abiertas) .cuadrillas-hud, body:not(.ordenes-abiertas) .guerra-hud { display: none !important; }
+  body:not(.ordenes-abiertas) .consejo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 6px; font-size: 13px; }
+  body:not(.ordenes-abiertas) .respuesta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 6px 0 0; font-size: 13px; }
+  body.ordenes-abiertas .g-voluntad { box-shadow: 0 -8px 30px rgba(0,0,0,0.45); }
+  body:not(.sin-panel) .g-voluntad, body.arqui-abierto .g-voluntad { display: none; }
+  .ejemplo { min-height: 34px; }
+
+  /* El panel: una hoja que sube desde abajo, con su asa; las pestañas las hace la barra de abajo. */
+  .panel { top: auto !important; left: 0 !important; right: 0 !important; width: auto !important; bottom: var(--abajo) !important; height: min(72vh, 640px) !important; border-radius: 16px 16px 0 0; border-bottom: 0; padding: 0 14px 10px; z-index: 7; animation: sube 0.22s ease-out; }
+  .asa { display: block; width: 44px; height: 5px; border-radius: 3px; background: var(--linea); margin: 8px auto 0; flex: none; }
+  .panel-pestanas { border-bottom: 0; padding-top: 0; min-height: 34px; }
+  .panel-pestanas .pestana { display: none; }
+  .cerrar { font-size: 28px; width: 44px; height: 40px; }
+  .ficha .pestanas { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 2px; }
+  .ficha .pestanas::-webkit-scrollbar { display: none; }
+  .ficha .pestana { flex: none; padding: 10px 12px; font-size: 13px; }
+  .ficha dl { font-size: 14px; }
+  .lista-pueblos button, .lista-pueblos li { min-height: 42px; }
+  .ficha .mando, .ficha .obrar { min-height: 42px; }
+
+  /* La cámara: a la derecha, a media altura, con botones grandes. */
+  .camara { right: 8px; top: 50%; bottom: auto !important; transform: translateY(-50%); gap: 8px; }
+  .mando.cam { width: 46px; height: 46px; font-size: 22px; border-radius: 12px; }
+  body:not(.sin-panel) .camara { display: none; }
+
+  /* El arquitecto: la paleta abajo, al alcance del pulgar. */
+  .arquitecto { top: auto !important; bottom: calc(var(--abajo) + 6px); width: calc(100% - 12px); border-radius: 12px; }
+  .arqui-op { min-width: 70px; min-height: 64px; }
+
+  .aviso-flotante { top: calc(max(6px, env(safe-area-inset-top)) + 84px); font-size: 14px; }
+  .inicio { z-index: 20; padding: 12px; }
+  .inicio-caja { padding: 18px 16px; border-radius: 14px; }
+  .inicio-botones { flex-direction: column; }
+  .inicio-botones .obrar, .inicio-botones .mando { width: 100%; min-height: 48px; }
+}
+@keyframes sube { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@media (max-width: 899px) {
+  .panel-pestanas { position: absolute; top: 2px; right: 6px; min-height: 0; z-index: 2; }
+  .panel-hoja { padding-top: 6px; }
+  /* Los pueblos, en una tira que se desliza; la ficha del elegido debajo, a la vista. */
+  .lista-pueblos { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding: 2px 46px 8px 0; margin: 0 0 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .lista-pueblos::-webkit-scrollbar { display: none; }
+  .lista-pueblos li { flex: none; }
+  .lista-pueblos button { white-space: nowrap; min-height: 40px; }
+  .aviso-flotante { font-size: 13px; padding: 6px 10px; max-width: 78%; }
+}
+@media (max-width: 899px) { body:not(.sin-panel) .aviso-flotante { display: none; } }
