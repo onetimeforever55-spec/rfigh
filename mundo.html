@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Génesis</title>
-<meta name="description" content="Un mundo de píxeles donde pueblos de aldeanos talan, siembran, construyen y guerrean viviendo la historia humana real, de la Edad de Piedra a la era atómica. Tú eres su dios y lo cambias escribiendo.">
+<meta name="description" content="Un mundo de píxeles donde pueblos de aldeanos talan, siembran, construyen y guerrean viviendo la historia humana real, de la Edad de Piedra a la Segunda Guerra Mundial. Tú eres su dios y lo cambias escribiendo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Martian+Mono:wght@400;600&display=swap">
@@ -14,15 +14,17 @@
 </head>
 <body>
 <div class="g">
-  <header class="g-cab">
+  <header class="g-cab hud">
     <h1 class="marca">Génesis</h1>
     <div class="reloj" aria-live="polite"><span class="anio" id="anio">4000 a. C.</span><span class="era" id="era">Neolítico</span></div>
+    <div class="marcador" id="marcador" hidden></div>
     <div class="mandos">
       <button type="button" class="mando" id="play" aria-pressed="false">❚❚ Pausa</button>
       <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
       <button type="button" class="mando sutil" id="sonido" aria-pressed="false" title="Sonido">🔈 Sonido</button>
       <button type="button" class="mando sutil" id="cambiar-modo">Cambiar de modo</button>
       <button type="button" class="mando sutil" id="nuevo">Nuevo mundo</button>
+      <button type="button" class="mando" id="ver-panel" aria-expanded="true" aria-controls="panel" title="Abrir o cerrar el panel">☰ Panel</button>
     </div>
   </header>
 
@@ -38,46 +40,70 @@
             <button type="button" class="obrar" id="modo-pueblo">Gobernar un pueblo</button>
             <button type="button" class="mando" id="modo-dios">Ser un dios</button>
           </div>
+          <p class="clave">Arrastra para moverte; rueda, pellizca o usa + y − para acercarte. Toca una tierra para elegir a su pueblo, o un aldeano para ver quién es.</p>
         </div>
       </div>
+      <div class="inicio" id="fin" hidden>
+        <div class="inicio-caja">
+          <h2 class="inicio-titulo" id="fin-titulo">Fin de la partida</h2>
+          <p class="inicio-texto" id="fin-texto"></p>
+          <div id="fin-retos"></div>
+          <div class="inicio-botones">
+            <button type="button" class="obrar" id="fin-seguir">Seguir jugando</button>
+            <button type="button" class="mando" id="fin-nuevo">Nuevo mundo</button>
+          </div>
+        </div>
+      </div>
+      <div class="aviso-flotante" id="aviso-flotante" hidden></div>
       <div class="camara" role="group" aria-label="Cámara">
+        <button type="button" class="mando cam" id="ir-mio" aria-label="Ir a tu pueblo" title="Ir a tu pueblo" hidden>⌂</button>
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
         <button type="button" class="mando cam" id="zoom-menos" aria-label="Alejar">−</button>
         <button type="button" class="mando cam" id="ver-todo" aria-label="Ver todo el mundo" title="Ver todo el mundo">⤢</button>
       </div>
     </div>
-    <p class="clave">Arrastra para moverte; rueda, pellizca o usa + y − para acercarte. Toca una tierra para elegir a su pueblo. Los leñadores llevan hacha, los mineros pico, los granjeros sombrero de paja y los guerreros casco y espada: la madera que talan paga las tierras nuevas y las casas.</p>
   </section>
 
-  <form class="g-voluntad" id="voluntad" autocomplete="off">
-    <label for="orden" class="etiqueta" id="etiqueta-orden">Tu voluntad</label>
+  <form class="g-voluntad hud" id="voluntad" autocomplete="off">
+    <div class="voluntad-cab">
+      <label for="orden" class="etiqueta" id="etiqueta-orden">Tu voluntad</label>
+      <button type="button" class="ejemplo" id="ver-ideas" aria-expanded="false">Ideas</button>
+    </div>
     <div class="linea">
       <input id="orden" name="orden" type="text" maxlength="200" enterkeyhint="send" placeholder="Peste sobre el más grande, que descubran la pólvora…">
       <button type="submit" class="obrar" id="boton-orden">Obrar</button>
     </div>
     <p class="consejo" id="consejo" hidden><span class="consejo-quien">Tu consejero</span> <span id="consejo-texto"></span> <button type="button" class="ejemplo" id="consejo-orden"></button></p>
-    <div class="ejemplos" id="ejemplos" aria-label="Ejemplos"></div>
+    <div class="ejemplos" id="ejemplos" aria-label="Ejemplos" hidden></div>
     <p class="respuesta" id="respuesta" aria-live="polite">El tiempo corre. Escribe cuando quieras intervenir.</p>
   </form>
 
-  <section class="g-pueblos" aria-label="Los pueblos">
-    <h2 class="etiqueta">Los pueblos</h2>
-    <ul class="lista-pueblos" id="pueblos"></ul>
-    <div class="ficha" id="ficha"></div>
-  </section>
-
-  <section class="g-cronica" aria-label="Crónica del mundo">
-    <div class="cronica-cab">
-      <h2 class="etiqueta">Crónica del mundo</h2>
-      <div class="filtro-cronica" id="filtro-cronica" role="group" aria-label="Qué sucesos ver">
-        <button type="button" class="pestana activa" data-f="todo">Todo</button>
-        <button type="button" class="pestana" data-f="mio" hidden>Tu pueblo</button>
-        <button type="button" class="pestana" data-f="grande">Lo importante</button>
-      </div>
-      <button type="button" class="mando sutil" id="cronista" hidden>Pedir un capítulo al cronista</button>
+  <aside class="panel hud" id="panel" aria-label="Panel">
+    <div class="panel-pestanas" role="tablist">
+      <button type="button" class="pestana activa" data-panel="pueblos" role="tab">Pueblos</button>
+      <button type="button" class="pestana" data-panel="cronica" role="tab">Crónica</button>
+      <button type="button" class="pestana" data-panel="retos" role="tab">Retos</button>
+      <button type="button" class="cerrar" id="cerrar-panel" aria-label="Cerrar el panel">×</button>
     </div>
-    <ol class="cronica" id="cronica"></ol>
-  </section>
+    <section class="g-pueblos panel-hoja" data-hoja="pueblos" aria-label="Los pueblos">
+      <ul class="lista-pueblos" id="pueblos"></ul>
+      <div class="ficha" id="ficha"></div>
+    </section>
+    <section class="g-cronica panel-hoja" data-hoja="cronica" aria-label="Crónica del mundo" hidden>
+      <div class="cronica-cab">
+        <div class="filtro-cronica" id="filtro-cronica" role="group" aria-label="Qué sucesos ver">
+          <button type="button" class="pestana activa" data-f="todo">Todo</button>
+          <button type="button" class="pestana" data-f="mio" hidden>Tu pueblo</button>
+          <button type="button" class="pestana" data-f="grande">Lo importante</button>
+        </div>
+        <button type="button" class="mando sutil" id="cronista" hidden>Pedir un capítulo al cronista</button>
+      </div>
+      <ol class="cronica" id="cronica"></ol>
+    </section>
+    <section class="g-retos panel-hoja" data-hoja="retos" aria-label="Retos" hidden>
+      <div id="retos"></div>
+    </section>
+  </aside>
 </div>
 <!--SCRIPTS-->
 <script src="js/mundo/datos.js"></script>

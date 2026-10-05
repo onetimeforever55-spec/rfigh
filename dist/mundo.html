@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Génesis</title>
-<meta name="description" content="Un mundo de píxeles donde pueblos de aldeanos talan, siembran, construyen y guerrean viviendo la historia humana real, de la Edad de Piedra a la era atómica. Tú eres su dios y lo cambias escribiendo.">
+<meta name="description" content="Un mundo de píxeles donde pueblos de aldeanos talan, siembran, construyen y guerrean viviendo la historia humana real, de la Edad de Piedra a la Segunda Guerra Mundial. Tú eres su dios y lo cambias escribiendo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Martian+Mono:wght@400;600&display=swap">
@@ -28,19 +28,33 @@
 }
 
 * { box-sizing: border-box; }
-html, body { background: var(--noche); color: var(--pergamino); }
-body { margin: 0; font-family: var(--f-libro); font-size: 15px; line-height: 1.5; padding-inline: 16px; padding-block: 12px 32px; }
+html, body { background: var(--noche); color: var(--pergamino); height: 100%; }
+body { margin: 0; font-family: var(--f-libro); font-size: 15px; line-height: 1.5; overflow: hidden; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--oro); outline-offset: 2px; }
 
-/* Una columna en el móvil; en pantallas anchas, el mapa a todo lo ancho y la crónica a la derecha. */
-.g { max-width: 1400px; margin: 0 auto; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
-@media (min-width: 980px) {
-  .g { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-areas: 'cab cab' 'mapa mapa' 'voluntad cronica' 'pueblos cronica'; align-items: start; }
-  .g-cab { grid-area: cab; } .g-mapa { grid-area: mapa; } .g-voluntad { grid-area: voluntad; } .g-pueblos { grid-area: pueblos; }
-  .g-cronica { grid-area: cronica; position: sticky; top: env(safe-area-inset-top, 0px); max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
-  .g-cronica .cronica { overflow-y: auto; min-height: 0; }
+/* ---- Pantalla de juego: el mapa ocupa toda la ventana y todo lo demás flota encima ---- */
+.g { position: fixed; inset: 0; }
+.hud { background: rgba(13, 19, 34, 0.86); border: 1px solid var(--linea); border-radius: 6px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.g-mapa { position: absolute; inset: 0; }
+.g-cab { position: absolute; z-index: 6; top: max(8px, env(safe-area-inset-top)); left: 8px; right: 8px; padding: 6px 10px; }
+.g-voluntad { position: absolute; z-index: 5; left: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: min(720px, calc(100% - 16px)); padding: 10px 12px; }
+.panel { position: absolute; z-index: 5; top: 70px; right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: min(400px, calc(100% - 16px)); display: flex; flex-direction: column; padding: 0 12px 12px; }
+.panel-hoja { overflow-y: auto; min-height: 0; flex: 1; padding-top: 10px; }
+.panel-pestanas { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--linea); padding-top: 6px; }
+.panel-pestanas .pestana { font-size: 12px; padding: 8px 10px; }
+.cerrar { margin-left: auto; background: transparent; border: 0; color: var(--tenue); font-size: 22px; line-height: 1; padding: 4px 6px; }
+.cerrar:hover { color: var(--pergamino); }
+body.sin-panel .panel { display: none; }
+@media (min-width: 900px) { body:not(.sin-panel) .g-voluntad { width: min(720px, calc(100% - 432px)); } body:not(.sin-panel) .camara { right: 420px; } }
+/* En el móvil: cabecera compacta, órdenes abajo, y el panel sube desde abajo por encima de ellas. */
+@media (max-width: 899px) {
+  .g-cab { gap: 6px 10px; padding: 5px 8px; }
+  .marca { display: none; }
+  .mandos { overflow-x: auto; flex-wrap: nowrap; max-width: 100%; scrollbar-width: none; }
+  .panel { top: auto; left: 8px; right: 8px; width: auto; height: min(62vh, 560px); bottom: max(8px, env(safe-area-inset-bottom)); z-index: 7; }
+  .camara { bottom: 190px !important; }
 }
 
 /* ---- Cabecera ---- */
@@ -56,13 +70,12 @@ button { cursor: pointer; }
 .mando:disabled { opacity: 0.5; cursor: wait; }
 
 /* ---- El mapa ---- */
-.marco { position: relative; height: clamp(320px, 70vh, 780px); border: 1px solid var(--linea); border-radius: var(--radio); background: #0b1830; overflow: hidden; }
+.marco { position: absolute; inset: 0; background: #0b1830; overflow: hidden; }
 #mapa { display: block; width: 100%; height: 100%; image-rendering: pixelated; cursor: grab; touch-action: none; }
 #mapa:active { cursor: grabbing; }
-.camara { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.camara { position: absolute; z-index: 4; right: 12px; bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
 .mando.cam { width: 38px; height: 38px; padding: 0; font-size: 20px; line-height: 1; background: rgba(20, 28, 49, 0.88); }
-.clave { margin: 8px 0 0; font-size: 13px; color: var(--tenue); max-width: 110ch; }
-@media (max-width: 600px) { .marco { height: clamp(300px, 62vh, 560px); } }
+.clave { margin: 14px 0 0; font-size: 13px; color: var(--tenue); }
 
 /* ---- Elegir cómo jugar (encima del mapa) ---- */
 .inicio { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
@@ -94,7 +107,9 @@ button { cursor: pointer; }
 
 /* ---- La voluntad ---- */
 .etiqueta { font-family: var(--f-pixel); font-weight: 400; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tenue); margin: 0 0 8px; display: block; }
-.g-voluntad { background: linear-gradient(180deg, var(--oro-hondo), var(--panel) 70%); border: 1px solid var(--oro); border-radius: var(--radio); padding: 14px; }
+.g-voluntad { border-color: rgba(240, 192, 90, 0.55); }
+.voluntad-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.voluntad-cab .etiqueta { margin: 0 0 6px; }
 .g-voluntad .etiqueta { color: var(--oro); }
 .linea { display: flex; gap: 8px; }
 #orden { flex: 1; min-width: 0; background: var(--noche); border: 1px solid var(--linea); border-radius: var(--radio); padding: 10px 12px; font-family: var(--f-libro); font-size: 16px; }
@@ -104,7 +119,7 @@ button { cursor: pointer; }
 .ejemplos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .ejemplo { font-size: 13px; font-family: var(--f-libro); font-style: italic; background: transparent; border: 1px dashed var(--linea); border-radius: var(--radio); padding: 3px 8px; color: var(--tenue); }
 .ejemplo:hover { color: var(--pergamino); border-color: var(--oro); }
-.respuesta { margin: 10px 0 0; font-size: 14px; color: var(--tenue); min-height: 1.5em; }
+.respuesta { margin: 8px 0 0; font-size: 14px; color: var(--tenue); max-height: 4.6em; overflow-y: auto; }
 .respuesta.bien { color: var(--oro); }
 .respuesta.duda { color: var(--pergamino); }
 .respuesta.espera { color: var(--oro); font-style: italic; }
@@ -161,22 +176,72 @@ button { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 
 /* El consejero: lo más urgente de tu pueblo y la orden que lo arregla. */
-.consejo { margin: 10px 0 0; font-size: 14px; line-height: 1.45; }
+.consejo { margin: 8px 0 0; font-size: 14px; line-height: 1.45; }
 .consejo-quien { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--oro); margin-right: 4px; }
 .consejo .ejemplo { margin-left: 4px; }
+
+.reloj { margin-right: 0; }
+.g-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.mandos { margin-left: auto; }
+.marca { font-size: 24px; }
+.ejemplos[hidden] { display: none; }
+.lista-pueblos { margin-bottom: 10px; }
+.ficha { background: rgba(20, 28, 49, 0.7); }
+/* El marcador de tus retos, en la cabecera. */
+.marcador { display: flex; align-items: center; gap: 10px; font-family: var(--f-dato); font-size: 12px; color: var(--pergamino); background: rgba(240, 192, 90, 0.1); border: 1px solid rgba(240, 192, 90, 0.4); border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+.marcador[hidden] { display: none; }
+.marcador b { color: var(--oro); font-family: var(--f-pixel); font-size: 15px; font-weight: 600; }
+/* Avisos que flotan sobre el mapa (reto cumplido, tu orden en marcha). */
+.aviso-flotante { position: absolute; z-index: 4; left: 50%; top: 84px; transform: translateX(-50%); max-width: min(560px, calc(100% - 24px)); background: rgba(13, 19, 34, 0.92); border: 1px solid var(--oro); border-radius: 6px; padding: 8px 14px; font-family: var(--f-pixel); font-size: 16px; color: var(--oro); text-align: center; pointer-events: none; animation: aparece 0.25s ease-out; }
+.aviso-flotante[hidden] { display: none; }
+@keyframes aparece { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* Retos. */
+.reto { border: 1px solid var(--linea); border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; background: rgba(20, 28, 49, 0.6); }
+.reto.hecho { border-color: var(--oro); background: rgba(240, 192, 90, 0.08); }
+.reto.fallado { opacity: 0.55; }
+.reto-cab { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.reto-nombre { font-family: var(--f-pixel); font-size: 15px; }
+.reto-puntos { font-family: var(--f-dato); font-size: 11px; color: var(--oro); flex: none; }
+.reto-texto { margin: 2px 0 6px; font-size: 13px; color: var(--tenue); }
+.reto .barra { width: 100%; }
+.reto .barra span { background: var(--oro); }
+.retos-cab { margin: 0 0 10px; }
+.retos-total { font-family: var(--f-pixel); font-size: 22px; color: var(--oro); }
+.guerra-marcador { border: 1px solid var(--sangre); border-radius: 4px; padding: 8px 10px; margin: 8px 0; }
+.guerra-marcador .barra span { background: var(--sangre); }
+/* Móvil: todo más compacto para que se vea el mundo. */
+@media (max-width: 899px) {
+  .g-cab { flex-wrap: nowrap; }
+  .mandos { flex-wrap: nowrap; overflow-x: auto; margin-left: 0; min-width: 0; }
+  .mando { padding: 4px 9px; font-size: 13px; white-space: nowrap; }
+  .anio { font-size: 18px; }
+  .g-voluntad { padding: 8px 10px; }
+  .voluntad-cab .etiqueta { font-size: 12px; margin-bottom: 4px; }
+  #orden { padding: 8px 10px; font-size: 15px; }
+  .obrar { font-size: 15px; padding: 0 12px; }
+  .respuesta { font-size: 13px; max-height: 3em; }
+  .consejo { font-size: 13px; }
+}
+@media (max-width: 899px) {
+  #ver-panel { order: -1; }
+  .anio { white-space: nowrap; }
+  .camara { bottom: 236px !important; }
+}
 </style>
 </head>
 <body>
 <div class="g">
-  <header class="g-cab">
+  <header class="g-cab hud">
     <h1 class="marca">Génesis</h1>
     <div class="reloj" aria-live="polite"><span class="anio" id="anio">4000 a. C.</span><span class="era" id="era">Neolítico</span></div>
+    <div class="marcador" id="marcador" hidden></div>
     <div class="mandos">
       <button type="button" class="mando" id="play" aria-pressed="false">❚❚ Pausa</button>
       <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
       <button type="button" class="mando sutil" id="sonido" aria-pressed="false" title="Sonido">🔈 Sonido</button>
       <button type="button" class="mando sutil" id="cambiar-modo">Cambiar de modo</button>
       <button type="button" class="mando sutil" id="nuevo">Nuevo mundo</button>
+      <button type="button" class="mando" id="ver-panel" aria-expanded="true" aria-controls="panel" title="Abrir o cerrar el panel">☰ Panel</button>
     </div>
   </header>
 
@@ -192,46 +257,70 @@ button { cursor: pointer; }
             <button type="button" class="obrar" id="modo-pueblo">Gobernar un pueblo</button>
             <button type="button" class="mando" id="modo-dios">Ser un dios</button>
           </div>
+          <p class="clave">Arrastra para moverte; rueda, pellizca o usa + y − para acercarte. Toca una tierra para elegir a su pueblo, o un aldeano para ver quién es.</p>
         </div>
       </div>
+      <div class="inicio" id="fin" hidden>
+        <div class="inicio-caja">
+          <h2 class="inicio-titulo" id="fin-titulo">Fin de la partida</h2>
+          <p class="inicio-texto" id="fin-texto"></p>
+          <div id="fin-retos"></div>
+          <div class="inicio-botones">
+            <button type="button" class="obrar" id="fin-seguir">Seguir jugando</button>
+            <button type="button" class="mando" id="fin-nuevo">Nuevo mundo</button>
+          </div>
+        </div>
+      </div>
+      <div class="aviso-flotante" id="aviso-flotante" hidden></div>
       <div class="camara" role="group" aria-label="Cámara">
+        <button type="button" class="mando cam" id="ir-mio" aria-label="Ir a tu pueblo" title="Ir a tu pueblo" hidden>⌂</button>
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
         <button type="button" class="mando cam" id="zoom-menos" aria-label="Alejar">−</button>
         <button type="button" class="mando cam" id="ver-todo" aria-label="Ver todo el mundo" title="Ver todo el mundo">⤢</button>
       </div>
     </div>
-    <p class="clave">Arrastra para moverte; rueda, pellizca o usa + y − para acercarte. Toca una tierra para elegir a su pueblo. Los leñadores llevan hacha, los mineros pico, los granjeros sombrero de paja y los guerreros casco y espada: la madera que talan paga las tierras nuevas y las casas.</p>
   </section>
 
-  <form class="g-voluntad" id="voluntad" autocomplete="off">
-    <label for="orden" class="etiqueta" id="etiqueta-orden">Tu voluntad</label>
+  <form class="g-voluntad hud" id="voluntad" autocomplete="off">
+    <div class="voluntad-cab">
+      <label for="orden" class="etiqueta" id="etiqueta-orden">Tu voluntad</label>
+      <button type="button" class="ejemplo" id="ver-ideas" aria-expanded="false">Ideas</button>
+    </div>
     <div class="linea">
       <input id="orden" name="orden" type="text" maxlength="200" enterkeyhint="send" placeholder="Peste sobre el más grande, que descubran la pólvora…">
       <button type="submit" class="obrar" id="boton-orden">Obrar</button>
     </div>
     <p class="consejo" id="consejo" hidden><span class="consejo-quien">Tu consejero</span> <span id="consejo-texto"></span> <button type="button" class="ejemplo" id="consejo-orden"></button></p>
-    <div class="ejemplos" id="ejemplos" aria-label="Ejemplos"></div>
+    <div class="ejemplos" id="ejemplos" aria-label="Ejemplos" hidden></div>
     <p class="respuesta" id="respuesta" aria-live="polite">El tiempo corre. Escribe cuando quieras intervenir.</p>
   </form>
 
-  <section class="g-pueblos" aria-label="Los pueblos">
-    <h2 class="etiqueta">Los pueblos</h2>
-    <ul class="lista-pueblos" id="pueblos"></ul>
-    <div class="ficha" id="ficha"></div>
-  </section>
-
-  <section class="g-cronica" aria-label="Crónica del mundo">
-    <div class="cronica-cab">
-      <h2 class="etiqueta">Crónica del mundo</h2>
-      <div class="filtro-cronica" id="filtro-cronica" role="group" aria-label="Qué sucesos ver">
-        <button type="button" class="pestana activa" data-f="todo">Todo</button>
-        <button type="button" class="pestana" data-f="mio" hidden>Tu pueblo</button>
-        <button type="button" class="pestana" data-f="grande">Lo importante</button>
-      </div>
-      <button type="button" class="mando sutil" id="cronista" hidden>Pedir un capítulo al cronista</button>
+  <aside class="panel hud" id="panel" aria-label="Panel">
+    <div class="panel-pestanas" role="tablist">
+      <button type="button" class="pestana activa" data-panel="pueblos" role="tab">Pueblos</button>
+      <button type="button" class="pestana" data-panel="cronica" role="tab">Crónica</button>
+      <button type="button" class="pestana" data-panel="retos" role="tab">Retos</button>
+      <button type="button" class="cerrar" id="cerrar-panel" aria-label="Cerrar el panel">×</button>
     </div>
-    <ol class="cronica" id="cronica"></ol>
-  </section>
+    <section class="g-pueblos panel-hoja" data-hoja="pueblos" aria-label="Los pueblos">
+      <ul class="lista-pueblos" id="pueblos"></ul>
+      <div class="ficha" id="ficha"></div>
+    </section>
+    <section class="g-cronica panel-hoja" data-hoja="cronica" aria-label="Crónica del mundo" hidden>
+      <div class="cronica-cab">
+        <div class="filtro-cronica" id="filtro-cronica" role="group" aria-label="Qué sucesos ver">
+          <button type="button" class="pestana activa" data-f="todo">Todo</button>
+          <button type="button" class="pestana" data-f="mio" hidden>Tu pueblo</button>
+          <button type="button" class="pestana" data-f="grande">Lo importante</button>
+        </div>
+        <button type="button" class="mando sutil" id="cronista" hidden>Pedir un capítulo al cronista</button>
+      </div>
+      <ol class="cronica" id="cronica"></ol>
+    </section>
+    <section class="g-retos panel-hoja" data-hoja="retos" aria-label="Retos" hidden>
+      <div id="retos"></div>
+    </section>
+  </aside>
 </div>
 <script>
 // js/mundo/datos.js
@@ -3536,11 +3625,54 @@ button { cursor: pointer; }
     for (const c of m.civs) { c.jugador = false; }
     const c = civId != null ? S().civ(m, civId) : null;
     m.jugador = c && c.viva ? c.id : null;
-    if (c && c.viva) { c.jugador = true; plan(c); }
+    if (c && c.viva) { c.jugador = true; plan(c); if (!m.retos || m.retos.civ !== c.id) m.retos = { civ: c.id, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; }
     return c;
   }
 
-  M.mando = { entender, aplicar, ordenar, informe, consejo, gobernar, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
+  // ---------- Los retos del modo pueblo: metas con puntos, y el fin de la partida ----------
+  const ciudadesDe = (m, c) => (m.ciudades || []).filter(x => x.civ === c.id).length;
+  const RETOS = [
+    { id: 'gente30', nombre: 'Una aldea de verdad', texto: 'Llega a 30 aldeanos.', puntos: 100, prog: (m, c) => [c.habitantes || 0, 30] },
+    { id: 'bronce', nombre: 'La Edad del Bronce', texto: 'Entra en la Edad del Bronce.', puntos: 100, prog: (m, c) => [c.era, 1] },
+    { id: 'ciudad', nombre: 'Tu primera ciudad', texto: 'Que tus colonos funden una ciudad.', puntos: 150, prog: (m, c) => [ciudadesDe(m, c), 1] },
+    { id: 'granero', nombre: 'Graneros llenos', texto: 'Junta 100 de comida en el granero.', puntos: 100, prog: (m, c) => [Math.floor(c.comida || 0), 100] },
+    { id: 'medieval', nombre: 'Fase medieval', texto: 'Llega a la Edad del Hierro.', puntos: 200, prog: (m, c) => [c.era, 2] },
+    { id: 'castillo', nombre: 'Un castillo', texto: 'Levanta un castillo en tu frontera («construid un castillo»).', puntos: 200, prog: (m, c) => [c.castillos || 0, 1] },
+    { id: 'conquista', nombre: 'Conquistador', texto: 'Toma una ciudad o una capital enemiga.', puntos: 300, prog: m => [m.retos.conquistas || 0, 1] },
+    { id: 'gente100', nombre: 'Una gran ciudad', texto: 'Llega a 100 aldeanos.', puntos: 250, prog: (m, c) => [c.habitantes || 0, 100] },
+    { id: 'tierras40', nombre: 'Un reino grande', texto: 'Gobierna 40 tierras.', puntos: 300, prog: (m, c) => [S().casillas(m, c).length, 40] },
+    { id: 'polvora', nombre: 'La pólvora', texto: 'Llega al Renacimiento.', puntos: 300, prog: (m, c) => [c.era, 5] },
+    { id: 'primero', nombre: 'A la cabeza del mundo', texto: 'Sé el pueblo con más tierras.', puntos: 400, prog: (m, c) => [S().vivas(m).every(o => o === c || S().casillas(m, o).length < S().casillas(m, c).length) ? 1 : 0, 1] },
+    { id: 'moderna', nombre: 'La última fase', texto: 'Llega a la Era Moderna.', puntos: 500, prog: (m, c) => [c.era, 7] },
+    { id: 'sobrevivir', nombre: 'Hasta el final', texto: 'Que tu pueblo siga en pie al terminar la partida.', puntos: 500, prog: (m, c) => [c.viva && finPartida(m) ? 1 : 0, 1] }
+  ];
+  // La partida termina en 1945 (o a los 400 años en el mundo libre).
+  const finPartida = m => (m.libre ? m.anio >= 400 : m.anio >= 1945);
+  // Comprueba los retos tras un turno; devuelve los que se acaban de cumplir.
+  function evaluarRetos(m, nuevos) {
+    const r = m.retos, c = r ? S().civ(m, r.civ) : null;
+    if (!r || !c) return [];
+    for (const e of nuevos || []) if (e.tipo === 'conquista' && e.civ === c.id) r.conquistas = (r.conquistas || 0) + 1;
+    const cumplidos = [];
+    if (!c.viva) return cumplidos;
+    for (const x of RETOS) {
+      if (r.hechos[x.id] != null) continue;
+      const [v, meta] = x.prog(m, c);
+      if (v >= meta) { r.hechos[x.id] = m.anio; r.puntos += x.puntos; cumplidos.push(x); }
+    }
+    return cumplidos;
+  }
+  function estadoRetos(m) {
+    const r = m.retos, c = r ? S().civ(m, r.civ) : null;
+    if (!r || !c) return null;
+    const lista = RETOS.map(x => { const [v, meta] = c.viva ? x.prog(m, c) : [0, 1]; return { id: x.id, nombre: x.nombre, texto: x.texto, puntos: x.puntos, hecho: r.hechos[x.id] != null, cuando: r.hechos[x.id], avance: Math.max(0, Math.min(1, v / meta)), v, meta }; });
+    // La puntuación final suma los retos, la gente y la tierra que tengas.
+    const extra = c.viva ? (c.habitantes || 0) + S().casillas(m, c).length * 5 : 0;
+    const puesto = c.viva ? S().vivas(m).slice().sort((a, b) => S().casillas(m, b).length - S().casillas(m, a).length).indexOf(c) + 1 : null;
+    return { civ: c, lista, puntos: r.puntos, extra, total: r.puntos + extra, hechos: lista.filter(x => x.hecho).length, fin: finPartida(m), puesto };
+  }
+
+  M.mando = { entender, aplicar, ordenar, informe, consejo, gobernar, RETOS, evaluarRetos, estadoRetos, finPartida, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/arte.js
@@ -5276,6 +5408,7 @@ button { cursor: pointer; }
     $('boton-orden').textContent = c ? 'Ordenar' : 'Obrar';
     $('orden').placeholder = c ? 'Más madera, menos ejército, todo a la ciencia, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
     $('voluntad').classList.toggle('es-pueblo', !!c);
+    $('ir-mio').hidden = !c;
     pintarEjemplos();
   }
 
@@ -5550,7 +5683,21 @@ button { cursor: pointer; }
     $('consejo-orden').textContent = '«' + k.orden + '»';
     $('consejo-orden').onclick = () => { $('orden').value = k.orden; $('orden').focus(); };
   }
-  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); }
+  function abrirHoja(nombre) {
+    for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.classList.toggle('activa', b.dataset.panel === nombre);
+    for (const h of document.querySelectorAll('.panel-hoja')) h.hidden = h.dataset.hoja !== nombre;
+    document.body.classList.remove('sin-panel');
+  }
+  // Un aviso grande sobre el mapa durante unos segundos.
+  let avisoHasta = 0;
+  function avisoFlotante(texto, ms) {
+    const e = $('aviso-flotante');
+    e.textContent = texto; e.hidden = false;
+    e.style.animation = 'none'; void e.offsetWidth; e.style.animation = '';
+    avisoHasta = performance.now() + (ms || 3500);
+    setTimeout(() => { if (performance.now() >= avisoHasta - 50) e.hidden = true; }, ms || 3500);
+  }
+  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarRetos(); }
 
   // ---------- El tiempo ----------
   // El año del reloj avanza poco a poco durante el turno, en vez de saltar.
@@ -5575,14 +5722,43 @@ button { cursor: pointer; }
       const nuevos = []; for (const e of m.cronica) { if (e === antes) break; nuevos.push(e); }
       M.sonido.turno(m, VELOCIDADES[vel][0], { cronica: nuevos, nacimientos: m.vida.aldeanos.some(a => a.id >= sigAntes && a.edad === 0) });
     }
+    if (yo || m.retos) retosDelTurno(antes);
     if (yo) avisos(yo, guerrasAntes, antes);
     pintarTodo();
     if (m.turno % 5 === 0) guardar();
+  }
+  // ---------- Retos: lo que cumples, el marcador y el fin de la partida ----------
+  function retosDelTurno(ultimo) {
+    const nuevos = []; for (const e of m.cronica) { if (e === ultimo) break; nuevos.push(e); }
+    const hechos = X.evaluarRetos(m, nuevos);
+    if (hechos.length) {
+      avisoFlotante('★ Reto cumplido: ' + hechos.map(x => x.nombre + ' (+' + x.puntos + ')').join(' · '), 4500);
+      if (M.sonido && M.sonido.activo()) M.sonido.efecto('campana');
+    }
+    const e = X.estadoRetos(m);
+    if (e && !m.retos.terminada && (e.fin || !e.civ.viva)) { m.retos.terminada = true; mostrarFin(e); }
+  }
+  function mostrarFin(e) {
+    corriendo = false; programar();
+    $('fin-titulo').textContent = e.civ.viva ? 'Fin de la partida: ' + e.civ.nombre + ' llega a ' + (m.libre ? 'su año ' + m.anio : '1945') : e.civ.nombre + ' ha caído';
+    $('fin-texto').innerHTML = '<b class="retos-total">' + e.total.toLocaleString('es-ES') + ' puntos</b><br><span class="tenue">' + e.puntos + ' de retos (' + e.hechos + ' de ' + e.lista.length + ')' + (e.civ.viva ? ' + ' + e.extra + ' por tu gente y tu tierra · puesto ' + e.puesto + ' de ' + S.vivas(m).length + ' en tierras' : '') + '</span>';
+    $('fin-retos').innerHTML = '<p class="tenue">' + e.lista.filter(x => x.hecho).map(x => '★ ' + esc(x.nombre)).join(' · ') + '</p>';
+    $('fin').hidden = false;
+  }
+  function pintarRetos() {
+    const e = X.estadoRetos(m), mk = $('marcador');
+    mk.hidden = !e;
+    if (!e) { $('retos').innerHTML = '<p class="vacio">Los retos son para quien gobierna un pueblo. Elige «Cambiar de modo» → «Gobernar un pueblo».</p>'; return; }
+    mk.innerHTML = '★ <b>' + e.total.toLocaleString('es-ES') + '</b> <span>' + e.hechos + '/' + e.lista.length + ' retos</span>';
+    $('retos').innerHTML = '<div class="retos-cab"><span class="retos-total">' + e.total.toLocaleString('es-ES') + ' puntos</span><br><span class="tenue">' + e.puntos + ' de retos + ' + e.extra + ' por tu gente y tu tierra. La partida termina en ' + (m.libre ? 'el año 400' : '1945') + '.</span></div>' +
+      e.lista.map(x => '<div class="reto' + (x.hecho ? ' hecho' : !e.civ.viva ? ' fallado' : '') + '"><div class="reto-cab"><span class="reto-nombre">' + (x.hecho ? '★ ' : '') + esc(x.nombre) + '</span><span class="reto-puntos">+' + x.puntos + '</span></div><p class="reto-texto">' + esc(x.texto) + (x.hecho ? ' <b>Cumplido en ' + esc(m.libre ? 'el año ' + x.cuando : S.anioTexto(x.cuando)) + '.</b>' : '') + '</p>' +
+        (x.hecho ? '' : '<span class="barra"><span style="width:' + Math.round(x.avance * 100) + '%"></span></span> <span class="tenue">' + Math.min(x.v, x.meta) + ' / ' + x.meta + '</span>') + '</div>').join('');
   }
   // Lo que le pasa a tu pueblo mientras corre el tiempo: guerras que te declaran, paces que te ofrecen, tu caída.
   function avisos(yo, guerrasAntes, ultimo) {
     if (!yo.viva) {
       pintarModo();
+      if (!$('fin').hidden) return; // primero se ve la puntuación; al seguir, se elige otro pueblo
       pedirModo('Tu pueblo ha caído', yo.nombre + ' ya no existe. Puedes gobernar otro pueblo (te toca uno al azar, o elige uno en la lista y pulsa «Gobernar este pueblo») o seguir mirando como dios.');
       return;
     }
@@ -5762,6 +5938,17 @@ button { cursor: pointer; }
     $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
     $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
+    // El panel lateral (abajo en el móvil): pestañas, abrir y cerrar. En pantallas pequeñas empieza cerrado.
+    const panelAbierto = abierto => { document.body.classList.toggle('sin-panel', !abierto); $('ver-panel').setAttribute('aria-expanded', abierto ? 'true' : 'false'); };
+    panelAbierto(window.innerWidth >= 900);
+    $('ver-panel').addEventListener('click', () => panelAbierto(document.body.classList.contains('sin-panel')));
+    $('cerrar-panel').addEventListener('click', () => panelAbierto(false));
+    for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.addEventListener('click', () => abrirHoja(b.dataset.panel));
+    $('ver-ideas').addEventListener('click', () => { const e = $('ejemplos'); e.hidden = !e.hidden; $('ver-ideas').setAttribute('aria-expanded', e.hidden ? 'false' : 'true'); });
+    $('ir-mio').addEventListener('click', () => { const c = tuPueblo(); if (c) P.centrarEn(c.capital, 3); });
+    $('marcador').addEventListener('click', () => { panelAbierto(true); abrirHoja('retos'); });
+    $('fin-seguir').addEventListener('click', () => { $('fin').hidden = true; if (!tuPueblo()) pedirModo('Elige otro pueblo', 'Tu pueblo ya no existe. Gobierna otro o sigue mirando como dios.'); else { corriendo = true; programar(); } });
+    $('fin-nuevo').addEventListener('click', () => { $('fin').hidden = true; mundoNuevo(); pintarModo(); pintarTodo(); guardar(); pedirModo(); });
     for (const b of document.querySelectorAll('#filtro-cronica .pestana')) b.addEventListener('click', () => {
       filtroCronica = b.dataset.f;
       for (const o of document.querySelectorAll('#filtro-cronica .pestana')) o.classList.toggle('activa', o === b);

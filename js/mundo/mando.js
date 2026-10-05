@@ -330,9 +330,52 @@
     for (const c of m.civs) { c.jugador = false; }
     const c = civId != null ? S().civ(m, civId) : null;
     m.jugador = c && c.viva ? c.id : null;
-    if (c && c.viva) { c.jugador = true; plan(c); }
+    if (c && c.viva) { c.jugador = true; plan(c); if (!m.retos || m.retos.civ !== c.id) m.retos = { civ: c.id, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; }
     return c;
   }
 
-  M.mando = { entender, aplicar, ordenar, informe, consejo, gobernar, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
+  // ---------- Los retos del modo pueblo: metas con puntos, y el fin de la partida ----------
+  const ciudadesDe = (m, c) => (m.ciudades || []).filter(x => x.civ === c.id).length;
+  const RETOS = [
+    { id: 'gente30', nombre: 'Una aldea de verdad', texto: 'Llega a 30 aldeanos.', puntos: 100, prog: (m, c) => [c.habitantes || 0, 30] },
+    { id: 'bronce', nombre: 'La Edad del Bronce', texto: 'Entra en la Edad del Bronce.', puntos: 100, prog: (m, c) => [c.era, 1] },
+    { id: 'ciudad', nombre: 'Tu primera ciudad', texto: 'Que tus colonos funden una ciudad.', puntos: 150, prog: (m, c) => [ciudadesDe(m, c), 1] },
+    { id: 'granero', nombre: 'Graneros llenos', texto: 'Junta 100 de comida en el granero.', puntos: 100, prog: (m, c) => [Math.floor(c.comida || 0), 100] },
+    { id: 'medieval', nombre: 'Fase medieval', texto: 'Llega a la Edad del Hierro.', puntos: 200, prog: (m, c) => [c.era, 2] },
+    { id: 'castillo', nombre: 'Un castillo', texto: 'Levanta un castillo en tu frontera («construid un castillo»).', puntos: 200, prog: (m, c) => [c.castillos || 0, 1] },
+    { id: 'conquista', nombre: 'Conquistador', texto: 'Toma una ciudad o una capital enemiga.', puntos: 300, prog: m => [m.retos.conquistas || 0, 1] },
+    { id: 'gente100', nombre: 'Una gran ciudad', texto: 'Llega a 100 aldeanos.', puntos: 250, prog: (m, c) => [c.habitantes || 0, 100] },
+    { id: 'tierras40', nombre: 'Un reino grande', texto: 'Gobierna 40 tierras.', puntos: 300, prog: (m, c) => [S().casillas(m, c).length, 40] },
+    { id: 'polvora', nombre: 'La pólvora', texto: 'Llega al Renacimiento.', puntos: 300, prog: (m, c) => [c.era, 5] },
+    { id: 'primero', nombre: 'A la cabeza del mundo', texto: 'Sé el pueblo con más tierras.', puntos: 400, prog: (m, c) => [S().vivas(m).every(o => o === c || S().casillas(m, o).length < S().casillas(m, c).length) ? 1 : 0, 1] },
+    { id: 'moderna', nombre: 'La última fase', texto: 'Llega a la Era Moderna.', puntos: 500, prog: (m, c) => [c.era, 7] },
+    { id: 'sobrevivir', nombre: 'Hasta el final', texto: 'Que tu pueblo siga en pie al terminar la partida.', puntos: 500, prog: (m, c) => [c.viva && finPartida(m) ? 1 : 0, 1] }
+  ];
+  // La partida termina en 1945 (o a los 400 años en el mundo libre).
+  const finPartida = m => (m.libre ? m.anio >= 400 : m.anio >= 1945);
+  // Comprueba los retos tras un turno; devuelve los que se acaban de cumplir.
+  function evaluarRetos(m, nuevos) {
+    const r = m.retos, c = r ? S().civ(m, r.civ) : null;
+    if (!r || !c) return [];
+    for (const e of nuevos || []) if (e.tipo === 'conquista' && e.civ === c.id) r.conquistas = (r.conquistas || 0) + 1;
+    const cumplidos = [];
+    if (!c.viva) return cumplidos;
+    for (const x of RETOS) {
+      if (r.hechos[x.id] != null) continue;
+      const [v, meta] = x.prog(m, c);
+      if (v >= meta) { r.hechos[x.id] = m.anio; r.puntos += x.puntos; cumplidos.push(x); }
+    }
+    return cumplidos;
+  }
+  function estadoRetos(m) {
+    const r = m.retos, c = r ? S().civ(m, r.civ) : null;
+    if (!r || !c) return null;
+    const lista = RETOS.map(x => { const [v, meta] = c.viva ? x.prog(m, c) : [0, 1]; return { id: x.id, nombre: x.nombre, texto: x.texto, puntos: x.puntos, hecho: r.hechos[x.id] != null, cuando: r.hechos[x.id], avance: Math.max(0, Math.min(1, v / meta)), v, meta }; });
+    // La puntuación final suma los retos, la gente y la tierra que tengas.
+    const extra = c.viva ? (c.habitantes || 0) + S().casillas(m, c).length * 5 : 0;
+    const puesto = c.viva ? S().vivas(m).slice().sort((a, b) => S().casillas(m, b).length - S().casillas(m, a).length).indexOf(c) + 1 : null;
+    return { civ: c, lista, puntos: r.puntos, extra, total: r.puntos + extra, hechos: lista.filter(x => x.hecho).length, fin: finPartida(m), puesto };
+  }
+
+  M.mando = { entender, aplicar, ordenar, informe, consejo, gobernar, RETOS, evaluarRetos, estadoRetos, finPartida, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
 })(globalThis.RF = globalThis.RF || {});

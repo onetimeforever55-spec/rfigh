@@ -17,19 +17,33 @@
 }
 
 * { box-sizing: border-box; }
-html, body { background: var(--noche); color: var(--pergamino); }
-body { margin: 0; font-family: var(--f-libro); font-size: 15px; line-height: 1.5; padding-inline: 16px; padding-block: 12px 32px; }
+html, body { background: var(--noche); color: var(--pergamino); height: 100%; }
+body { margin: 0; font-family: var(--f-libro); font-size: 15px; line-height: 1.5; overflow: hidden; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--oro); outline-offset: 2px; }
 
-/* Una columna en el móvil; en pantallas anchas, el mapa a todo lo ancho y la crónica a la derecha. */
-.g { max-width: 1400px; margin: 0 auto; display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
-@media (min-width: 980px) {
-  .g { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-areas: 'cab cab' 'mapa mapa' 'voluntad cronica' 'pueblos cronica'; align-items: start; }
-  .g-cab { grid-area: cab; } .g-mapa { grid-area: mapa; } .g-voluntad { grid-area: voluntad; } .g-pueblos { grid-area: pueblos; }
-  .g-cronica { grid-area: cronica; position: sticky; top: env(safe-area-inset-top, 0px); max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
-  .g-cronica .cronica { overflow-y: auto; min-height: 0; }
+/* ---- Pantalla de juego: el mapa ocupa toda la ventana y todo lo demás flota encima ---- */
+.g { position: fixed; inset: 0; }
+.hud { background: rgba(13, 19, 34, 0.86); border: 1px solid var(--linea); border-radius: 6px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.g-mapa { position: absolute; inset: 0; }
+.g-cab { position: absolute; z-index: 6; top: max(8px, env(safe-area-inset-top)); left: 8px; right: 8px; padding: 6px 10px; }
+.g-voluntad { position: absolute; z-index: 5; left: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: min(720px, calc(100% - 16px)); padding: 10px 12px; }
+.panel { position: absolute; z-index: 5; top: 70px; right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: min(400px, calc(100% - 16px)); display: flex; flex-direction: column; padding: 0 12px 12px; }
+.panel-hoja { overflow-y: auto; min-height: 0; flex: 1; padding-top: 10px; }
+.panel-pestanas { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--linea); padding-top: 6px; }
+.panel-pestanas .pestana { font-size: 12px; padding: 8px 10px; }
+.cerrar { margin-left: auto; background: transparent; border: 0; color: var(--tenue); font-size: 22px; line-height: 1; padding: 4px 6px; }
+.cerrar:hover { color: var(--pergamino); }
+body.sin-panel .panel { display: none; }
+@media (min-width: 900px) { body:not(.sin-panel) .g-voluntad { width: min(720px, calc(100% - 432px)); } body:not(.sin-panel) .camara { right: 420px; } }
+/* En el móvil: cabecera compacta, órdenes abajo, y el panel sube desde abajo por encima de ellas. */
+@media (max-width: 899px) {
+  .g-cab { gap: 6px 10px; padding: 5px 8px; }
+  .marca { display: none; }
+  .mandos { overflow-x: auto; flex-wrap: nowrap; max-width: 100%; scrollbar-width: none; }
+  .panel { top: auto; left: 8px; right: 8px; width: auto; height: min(62vh, 560px); bottom: max(8px, env(safe-area-inset-bottom)); z-index: 7; }
+  .camara { bottom: 190px !important; }
 }
 
 /* ---- Cabecera ---- */
@@ -45,13 +59,12 @@ button { cursor: pointer; }
 .mando:disabled { opacity: 0.5; cursor: wait; }
 
 /* ---- El mapa ---- */
-.marco { position: relative; height: clamp(320px, 70vh, 780px); border: 1px solid var(--linea); border-radius: var(--radio); background: #0b1830; overflow: hidden; }
+.marco { position: absolute; inset: 0; background: #0b1830; overflow: hidden; }
 #mapa { display: block; width: 100%; height: 100%; image-rendering: pixelated; cursor: grab; touch-action: none; }
 #mapa:active { cursor: grabbing; }
-.camara { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.camara { position: absolute; z-index: 4; right: 12px; bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
 .mando.cam { width: 38px; height: 38px; padding: 0; font-size: 20px; line-height: 1; background: rgba(20, 28, 49, 0.88); }
-.clave { margin: 8px 0 0; font-size: 13px; color: var(--tenue); max-width: 110ch; }
-@media (max-width: 600px) { .marco { height: clamp(300px, 62vh, 560px); } }
+.clave { margin: 14px 0 0; font-size: 13px; color: var(--tenue); }
 
 /* ---- Elegir cómo jugar (encima del mapa) ---- */
 .inicio { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
@@ -83,7 +96,9 @@ button { cursor: pointer; }
 
 /* ---- La voluntad ---- */
 .etiqueta { font-family: var(--f-pixel); font-weight: 400; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--tenue); margin: 0 0 8px; display: block; }
-.g-voluntad { background: linear-gradient(180deg, var(--oro-hondo), var(--panel) 70%); border: 1px solid var(--oro); border-radius: var(--radio); padding: 14px; }
+.g-voluntad { border-color: rgba(240, 192, 90, 0.55); }
+.voluntad-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.voluntad-cab .etiqueta { margin: 0 0 6px; }
 .g-voluntad .etiqueta { color: var(--oro); }
 .linea { display: flex; gap: 8px; }
 #orden { flex: 1; min-width: 0; background: var(--noche); border: 1px solid var(--linea); border-radius: var(--radio); padding: 10px 12px; font-family: var(--f-libro); font-size: 16px; }
@@ -93,7 +108,7 @@ button { cursor: pointer; }
 .ejemplos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .ejemplo { font-size: 13px; font-family: var(--f-libro); font-style: italic; background: transparent; border: 1px dashed var(--linea); border-radius: var(--radio); padding: 3px 8px; color: var(--tenue); }
 .ejemplo:hover { color: var(--pergamino); border-color: var(--oro); }
-.respuesta { margin: 10px 0 0; font-size: 14px; color: var(--tenue); min-height: 1.5em; }
+.respuesta { margin: 8px 0 0; font-size: 14px; color: var(--tenue); max-height: 4.6em; overflow-y: auto; }
 .respuesta.bien { color: var(--oro); }
 .respuesta.duda { color: var(--pergamino); }
 .respuesta.espera { color: var(--oro); font-style: italic; }
@@ -150,6 +165,54 @@ button { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 
 /* El consejero: lo más urgente de tu pueblo y la orden que lo arregla. */
-.consejo { margin: 10px 0 0; font-size: 14px; line-height: 1.45; }
+.consejo { margin: 8px 0 0; font-size: 14px; line-height: 1.45; }
 .consejo-quien { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--oro); margin-right: 4px; }
 .consejo .ejemplo { margin-left: 4px; }
+
+.reloj { margin-right: 0; }
+.g-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.mandos { margin-left: auto; }
+.marca { font-size: 24px; }
+.ejemplos[hidden] { display: none; }
+.lista-pueblos { margin-bottom: 10px; }
+.ficha { background: rgba(20, 28, 49, 0.7); }
+/* El marcador de tus retos, en la cabecera. */
+.marcador { display: flex; align-items: center; gap: 10px; font-family: var(--f-dato); font-size: 12px; color: var(--pergamino); background: rgba(240, 192, 90, 0.1); border: 1px solid rgba(240, 192, 90, 0.4); border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+.marcador[hidden] { display: none; }
+.marcador b { color: var(--oro); font-family: var(--f-pixel); font-size: 15px; font-weight: 600; }
+/* Avisos que flotan sobre el mapa (reto cumplido, tu orden en marcha). */
+.aviso-flotante { position: absolute; z-index: 4; left: 50%; top: 84px; transform: translateX(-50%); max-width: min(560px, calc(100% - 24px)); background: rgba(13, 19, 34, 0.92); border: 1px solid var(--oro); border-radius: 6px; padding: 8px 14px; font-family: var(--f-pixel); font-size: 16px; color: var(--oro); text-align: center; pointer-events: none; animation: aparece 0.25s ease-out; }
+.aviso-flotante[hidden] { display: none; }
+@keyframes aparece { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* Retos. */
+.reto { border: 1px solid var(--linea); border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; background: rgba(20, 28, 49, 0.6); }
+.reto.hecho { border-color: var(--oro); background: rgba(240, 192, 90, 0.08); }
+.reto.fallado { opacity: 0.55; }
+.reto-cab { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.reto-nombre { font-family: var(--f-pixel); font-size: 15px; }
+.reto-puntos { font-family: var(--f-dato); font-size: 11px; color: var(--oro); flex: none; }
+.reto-texto { margin: 2px 0 6px; font-size: 13px; color: var(--tenue); }
+.reto .barra { width: 100%; }
+.reto .barra span { background: var(--oro); }
+.retos-cab { margin: 0 0 10px; }
+.retos-total { font-family: var(--f-pixel); font-size: 22px; color: var(--oro); }
+.guerra-marcador { border: 1px solid var(--sangre); border-radius: 4px; padding: 8px 10px; margin: 8px 0; }
+.guerra-marcador .barra span { background: var(--sangre); }
+/* Móvil: todo más compacto para que se vea el mundo. */
+@media (max-width: 899px) {
+  .g-cab { flex-wrap: nowrap; }
+  .mandos { flex-wrap: nowrap; overflow-x: auto; margin-left: 0; min-width: 0; }
+  .mando { padding: 4px 9px; font-size: 13px; white-space: nowrap; }
+  .anio { font-size: 18px; }
+  .g-voluntad { padding: 8px 10px; }
+  .voluntad-cab .etiqueta { font-size: 12px; margin-bottom: 4px; }
+  #orden { padding: 8px 10px; font-size: 15px; }
+  .obrar { font-size: 15px; padding: 0 12px; }
+  .respuesta { font-size: 13px; max-height: 3em; }
+  .consejo { font-size: 13px; }
+}
+@media (max-width: 899px) {
+  #ver-panel { order: -1; }
+  .anio { white-space: nowrap; }
+  .camara { bottom: 236px !important; }
+}

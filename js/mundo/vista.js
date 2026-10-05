@@ -69,6 +69,7 @@
     $('boton-orden').textContent = c ? 'Ordenar' : 'Obrar';
     $('orden').placeholder = c ? 'Más madera, menos ejército, todo a la ciencia, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
     $('voluntad').classList.toggle('es-pueblo', !!c);
+    $('ir-mio').hidden = !c;
     pintarEjemplos();
   }
 
@@ -343,7 +344,21 @@
     $('consejo-orden').textContent = '«' + k.orden + '»';
     $('consejo-orden').onclick = () => { $('orden').value = k.orden; $('orden').focus(); };
   }
-  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); }
+  function abrirHoja(nombre) {
+    for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.classList.toggle('activa', b.dataset.panel === nombre);
+    for (const h of document.querySelectorAll('.panel-hoja')) h.hidden = h.dataset.hoja !== nombre;
+    document.body.classList.remove('sin-panel');
+  }
+  // Un aviso grande sobre el mapa durante unos segundos.
+  let avisoHasta = 0;
+  function avisoFlotante(texto, ms) {
+    const e = $('aviso-flotante');
+    e.textContent = texto; e.hidden = false;
+    e.style.animation = 'none'; void e.offsetWidth; e.style.animation = '';
+    avisoHasta = performance.now() + (ms || 3500);
+    setTimeout(() => { if (performance.now() >= avisoHasta - 50) e.hidden = true; }, ms || 3500);
+  }
+  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarRetos(); }
 
   // ---------- El tiempo ----------
   // El año del reloj avanza poco a poco durante el turno, en vez de saltar.
@@ -368,14 +383,43 @@
       const nuevos = []; for (const e of m.cronica) { if (e === antes) break; nuevos.push(e); }
       M.sonido.turno(m, VELOCIDADES[vel][0], { cronica: nuevos, nacimientos: m.vida.aldeanos.some(a => a.id >= sigAntes && a.edad === 0) });
     }
+    if (yo || m.retos) retosDelTurno(antes);
     if (yo) avisos(yo, guerrasAntes, antes);
     pintarTodo();
     if (m.turno % 5 === 0) guardar();
+  }
+  // ---------- Retos: lo que cumples, el marcador y el fin de la partida ----------
+  function retosDelTurno(ultimo) {
+    const nuevos = []; for (const e of m.cronica) { if (e === ultimo) break; nuevos.push(e); }
+    const hechos = X.evaluarRetos(m, nuevos);
+    if (hechos.length) {
+      avisoFlotante('★ Reto cumplido: ' + hechos.map(x => x.nombre + ' (+' + x.puntos + ')').join(' · '), 4500);
+      if (M.sonido && M.sonido.activo()) M.sonido.efecto('campana');
+    }
+    const e = X.estadoRetos(m);
+    if (e && !m.retos.terminada && (e.fin || !e.civ.viva)) { m.retos.terminada = true; mostrarFin(e); }
+  }
+  function mostrarFin(e) {
+    corriendo = false; programar();
+    $('fin-titulo').textContent = e.civ.viva ? 'Fin de la partida: ' + e.civ.nombre + ' llega a ' + (m.libre ? 'su año ' + m.anio : '1945') : e.civ.nombre + ' ha caído';
+    $('fin-texto').innerHTML = '<b class="retos-total">' + e.total.toLocaleString('es-ES') + ' puntos</b><br><span class="tenue">' + e.puntos + ' de retos (' + e.hechos + ' de ' + e.lista.length + ')' + (e.civ.viva ? ' + ' + e.extra + ' por tu gente y tu tierra · puesto ' + e.puesto + ' de ' + S.vivas(m).length + ' en tierras' : '') + '</span>';
+    $('fin-retos').innerHTML = '<p class="tenue">' + e.lista.filter(x => x.hecho).map(x => '★ ' + esc(x.nombre)).join(' · ') + '</p>';
+    $('fin').hidden = false;
+  }
+  function pintarRetos() {
+    const e = X.estadoRetos(m), mk = $('marcador');
+    mk.hidden = !e;
+    if (!e) { $('retos').innerHTML = '<p class="vacio">Los retos son para quien gobierna un pueblo. Elige «Cambiar de modo» → «Gobernar un pueblo».</p>'; return; }
+    mk.innerHTML = '★ <b>' + e.total.toLocaleString('es-ES') + '</b> <span>' + e.hechos + '/' + e.lista.length + ' retos</span>';
+    $('retos').innerHTML = '<div class="retos-cab"><span class="retos-total">' + e.total.toLocaleString('es-ES') + ' puntos</span><br><span class="tenue">' + e.puntos + ' de retos + ' + e.extra + ' por tu gente y tu tierra. La partida termina en ' + (m.libre ? 'el año 400' : '1945') + '.</span></div>' +
+      e.lista.map(x => '<div class="reto' + (x.hecho ? ' hecho' : !e.civ.viva ? ' fallado' : '') + '"><div class="reto-cab"><span class="reto-nombre">' + (x.hecho ? '★ ' : '') + esc(x.nombre) + '</span><span class="reto-puntos">+' + x.puntos + '</span></div><p class="reto-texto">' + esc(x.texto) + (x.hecho ? ' <b>Cumplido en ' + esc(m.libre ? 'el año ' + x.cuando : S.anioTexto(x.cuando)) + '.</b>' : '') + '</p>' +
+        (x.hecho ? '' : '<span class="barra"><span style="width:' + Math.round(x.avance * 100) + '%"></span></span> <span class="tenue">' + Math.min(x.v, x.meta) + ' / ' + x.meta + '</span>') + '</div>').join('');
   }
   // Lo que le pasa a tu pueblo mientras corre el tiempo: guerras que te declaran, paces que te ofrecen, tu caída.
   function avisos(yo, guerrasAntes, ultimo) {
     if (!yo.viva) {
       pintarModo();
+      if (!$('fin').hidden) return; // primero se ve la puntuación; al seguir, se elige otro pueblo
       pedirModo('Tu pueblo ha caído', yo.nombre + ' ya no existe. Puedes gobernar otro pueblo (te toca uno al azar, o elige uno en la lista y pulsa «Gobernar este pueblo») o seguir mirando como dios.');
       return;
     }
@@ -555,6 +599,17 @@
     $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
     $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
+    // El panel lateral (abajo en el móvil): pestañas, abrir y cerrar. En pantallas pequeñas empieza cerrado.
+    const panelAbierto = abierto => { document.body.classList.toggle('sin-panel', !abierto); $('ver-panel').setAttribute('aria-expanded', abierto ? 'true' : 'false'); };
+    panelAbierto(window.innerWidth >= 900);
+    $('ver-panel').addEventListener('click', () => panelAbierto(document.body.classList.contains('sin-panel')));
+    $('cerrar-panel').addEventListener('click', () => panelAbierto(false));
+    for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.addEventListener('click', () => abrirHoja(b.dataset.panel));
+    $('ver-ideas').addEventListener('click', () => { const e = $('ejemplos'); e.hidden = !e.hidden; $('ver-ideas').setAttribute('aria-expanded', e.hidden ? 'false' : 'true'); });
+    $('ir-mio').addEventListener('click', () => { const c = tuPueblo(); if (c) P.centrarEn(c.capital, 3); });
+    $('marcador').addEventListener('click', () => { panelAbierto(true); abrirHoja('retos'); });
+    $('fin-seguir').addEventListener('click', () => { $('fin').hidden = true; if (!tuPueblo()) pedirModo('Elige otro pueblo', 'Tu pueblo ya no existe. Gobierna otro o sigue mirando como dios.'); else { corriendo = true; programar(); } });
+    $('fin-nuevo').addEventListener('click', () => { $('fin').hidden = true; mundoNuevo(); pintarModo(); pintarTodo(); guardar(); pedirModo(); });
     for (const b of document.querySelectorAll('#filtro-cronica .pestana')) b.addEventListener('click', () => {
       filtroCronica = b.dataset.f;
       for (const o of document.querySelectorAll('#filtro-cronica .pestana')) o.classList.toggle('activa', o === b);
