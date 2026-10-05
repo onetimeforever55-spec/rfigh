@@ -669,19 +669,27 @@
       const c = S().civ(m, m.dueno[region(m, t)]);
       if (!c || !c.guerras.length) continue;
       const tx = t % v.tw, ty = t / v.tw | 0, alcance = castillo ? 6 : 4;
-      let blanco = null, cerca = 0;
+      const blancos = [];
+      let cerca = 0;
       for (let dy = -alcance; dy <= alcance; dy++) for (let dx = -alcance; dx <= alcance; dx++) {
         const lista = guerreros.get((ty + dy) * v.tw + tx + dx);
         if (!lista) continue;
-        for (const b of lista) if (c.guerras.some(g => g.con === b.c)) { if (!blanco) blanco = b; if (Math.abs(dx) + Math.abs(dy) <= 1) cerca++; }
+        for (const b of lista) if (c.guerras.some(g => g.con === b.c)) { blancos.push(b); if (Math.abs(dx) + Math.abs(dy) <= 1) cerca++; }
       }
-      if (blanco && azar(v) < (castillo ? 0.8 : 0.5)) {
-        v.disparos.push([tx, ty, blanco.x, blanco.y, paso, c.era >= 5 ? 1 : 0]);
-        if (azar(v) < 0.6) {
-          // Lo que dispara según la fase: flechas desde la empalizada o la torre, cañón, ametralladora.
-          const f = fase(c.era), tiro = [{ dano: 10 }, { dano: castillo ? 18 : 14 }, { dano: castillo ? 40 : 30, perfora: 0.6 }, { dano: castillo ? 48 : 40, perfora: 0.7 }][f], arm = ARMADURAS[blanco.armadura || 0] || ARMADURAS[0];
-          if (golpear(v, null, blanco, Math.max(1, Math.round(tiro.dano * (0.8 + azar(v) * 0.4) * (1 - arm.reduce * (1 - (tiro.perfora || 0))))), paso + 0.5, tx, ty)) { v.aldeanos = v.aldeanos.filter(a => a !== blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'torre', paso + 0.5]); }
-        }
+      if (blancos.length) {
+        // Los arqueros de las almenas: el castillo suelta varias flechas por paso (la torre, una o dos), cada una a
+        // un blanco; desde la pólvora, además, su cañón o su ametralladora.
+        const f = fase(c.era), arm = b => ARMADURAS[b.armadura || 0] || ARMADURAS[0];
+        const disparo = (b, tiro, bala) => {
+          v.disparos.push([tx, ty, b.x, b.y, paso, bala ? 1 : 0]);
+          if (azar(v) < 0.5 && golpear(v, null, b, Math.max(1, Math.round(tiro.dano * (0.8 + azar(v) * 0.4) * (1 - arm(b).reduce * (1 - (tiro.perfora || 0))))), paso + 0.5, tx, ty)) {
+            v.aldeanos = v.aldeanos.filter(a => a !== b); v.muertos.push([b.x, b.y, b.c, 'torre', paso + 0.5]);
+            const i = blancos.indexOf(b); if (i >= 0) blancos.splice(i, 1);
+          }
+        };
+        const flechas = castillo ? 3 : 1 + (f >= 1 ? 1 : 0), flecha = { dano: castillo ? 14 : 11, perfora: f >= 1 ? 0.1 : 0 };
+        for (let q = 0; q < flechas && blancos.length; q++) if (azar(v) < 0.7) disparo(blancos[Math.floor(azar(v) * blancos.length)], flecha, false);
+        if (f >= 2 && blancos.length && azar(v) < (castillo ? 0.6 : 0.35)) disparo(blancos[0], f === 2 ? { dano: castillo ? 40 : 30, perfora: 0.6 } : { dano: castillo ? 48 : 40, perfora: 0.7 }, true);
       }
       if (cerca) { v.torres[k] -= cerca * 0.4; if (v.torres[k] <= 0) { cambiar(m, 'obra', t, OBRA.ruina, paso); delete v.torres[k]; } }
     }
@@ -724,7 +732,9 @@
     // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
     for (const a of v.aldeanos.concat(v.animales || [])) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + (a.tipo ? 5 : 6)); a.pv0 = a.pv; if (a.pv >= vidaMax(a)) { a.pv = null; a.pv0 = null; } }
     for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : a.edad + 1);
-    v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.barcos = v.barcos || []; v.torres = v.torres || {}; v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
+    v.mena = v.mena || new Array(v.tw * v.th).fill(0); v.barcos = v.barcos || []; v.torres = v.torres || {};
+    // Toda torre o castillo en pie tiene su guarnición (también los de mundos guardados antes).
+    for (let t = 0; t < v.obra.length; t++) if ((v.obra[t] === OBRA.torre || v.obra[t] === OBRA.castillo) && v.torres[t] == null) v.torres[t] = v.obra[t] === OBRA.castillo ? 40 : 12; v.ejercitos = v.ejercitos || {}; v.cultivo = v.cultivo || new Array(v.tw * v.th).fill(0); v.animales = v.animales || []; v.camino = v.camino || new Array(v.tw * v.th).fill(0); v.rutas = v.rutas || [];
     centros(m);
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));

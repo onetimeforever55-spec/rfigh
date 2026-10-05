@@ -613,7 +613,7 @@
     if (ahora > especialesHasta) {
       especialesHasta = ahora + 1000; especiales = [];
       const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if (o === V.OBRA.molino || o === V.OBRA.torre) especiales.push(t); }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if (o === V.OBRA.molino || o === V.OBRA.torre || o === V.OBRA.castillo) especiales.push(t); }
     }
     const fase = ahora / 400;
     for (const t of especiales) {
@@ -623,6 +623,17 @@
         const cx = x + 8, cy = y + 6;
         for (let k = 0; k < 4; k++) { const ang = fase + k * Math.PI / 2; for (let d = 1; d <= 8; d++) { g.fillStyle = d > 3 ? '#f0e6cc' : '#7a5232'; g.fillRect(Math.round(cx + Math.cos(ang) * d), Math.round(cy + Math.sin(ang) * d), d > 3 ? 2 : 1, d > 3 ? 2 : 1); } }
         g.fillStyle = '#5a3a22'; g.fillRect(cx - 1, cy - 1, 2, 2);
+      } else if (o === V.OBRA.castillo) {
+        // En guerra, los arqueros se asoman a las almenas (y tensan el arco por turnos).
+        const c = S.civ(m, m.dueno[V.region(m, t)]);
+        if (!c || !c.guerras.length) continue;
+        for (const [ax, ay] of [[3, 3], [7, 0], [11, 3]]) {
+          const tensa = Math.floor(ahora / 350 + ax) % 2;
+          g.fillStyle = '#1e1a24'; g.fillRect(x + ax - 0.5, y + ay - 0.5, 3, 3.5);
+          g.fillStyle = c.color; g.fillRect(x + ax, y + ay + 1.5, 2, 1.5);
+          g.fillStyle = '#f0c8a0'; g.fillRect(x + ax + 0.5, y + ay, 1, 1.5);
+          g.fillStyle = '#8a5a2b'; g.fillRect(x + ax + 2 + (tensa ? 0.5 : 0), y + ay - 0.5, 0.5, 3);
+        }
       } else {
         const c = S.civ(m, m.dueno[V.region(m, t)]);
         if (!c) continue;
