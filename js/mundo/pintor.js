@@ -137,13 +137,18 @@
     if (visto.roca[t]) { gl.drawImage(ARTE().roca(Math.min(3, visto.roca[t]), (m.vida.mena && m.vida.mena[t]) || 0), x, y); return; }
     const a = visto.arbol[t];
     if (a) {
-      const tipo = m.tipo[V.region(m, t)];
+      const r = V.region(m, t), tipo = m.tipo[r];
+      if (!v.isla) v.isla = V.islas(m);
       const variante = (t * 7) % 5;
-      const maduro = {
-        desierto: 'cactus', nieve: 'nevado3', taiga: variante === 0 ? 'nevado3' : 'pino3', tundra: 'matorral', colina: 'pino3',
-        selva: variante < 2 ? 'palmera' : 'jungla3', sabana: 'acacia', pantano: 'sauce', bosque: variante === 0 ? 'pino3' : 'roble3'
+      // En los bosques densos, una de cada tres parcelas lleva un grupo de árboles apretados.
+      const denso = (h >>> 9) % 3 === 0;
+      let maduro = {
+        desierto: 'cactus', nieve: 'nevado3', taiga: variante === 0 ? 'nevado3' : denso ? 'pinos' : 'pino3', tundra: 'matorral', colina: 'pino3', sakura: variante === 4 ? 'roble3' : 'sakura',
+        selva: variante < 2 ? 'palmera' : denso ? 'junglas' : 'jungla3', sabana: 'acacia', pantano: 'sauce', bosque: variante === 0 ? (denso ? 'pinos' : 'pino3') : denso ? 'robles' : 'roble3'
       }[tipo] || (variante === 0 ? 'pino3' : 'roble3');
-      const nombre = a === 1 ? (tipo === 'tundra' ? 'matorral' : 'arbol1') : a === 2 ? (tipo === 'desierto' ? 'cactus' : tipo === 'tundra' ? 'matorral' : 'arbol2') : maduro;
+      // Playas cálidas e islas: palmeras.
+      if (ter === 'arena' || (v.isla[r] && tipo !== 'nieve' && tipo !== 'tundra' && tipo !== 'taiga' && tipo !== 'desierto' && variante < 4)) maduro = 'palmera';
+      const nombre = a === 1 ? (tipo === 'tundra' ? 'matorral' : 'arbol1') : a === 2 ? (tipo === 'desierto' ? 'cactus' : tipo === 'tundra' ? 'matorral' : maduro === 'sakura' ? 'sakura2' : maduro === 'palmera' ? 'palmera' : 'arbol2') : maduro;
       gl.drawImage(ARTE().arbol(nombre, (h >>> 3) % 5), x, y);
       return;
     }

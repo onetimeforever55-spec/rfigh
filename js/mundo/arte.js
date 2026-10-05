@@ -73,9 +73,9 @@
     montana: ['#8a8790', '#a6a3ac', '#6c6a73'], desierto: ['#e0c88c', '#ecd8a0', '#c9ae74'], nieve: ['#eef3f7', '#ffffff', '#d2dce6'],
     arena: ['#e8d49c', '#f3e3b0', '#d4be84'], selva: ['#3a8a3a', '#4c9e46', '#2c752e'], sabana: ['#bdb35a', '#cdc56c', '#a69d4a'],
     pantano: ['#4f6e48', '#5f8055', '#405c3c'], taiga: ['#4c7457', '#5b8466', '#3f644a'], tundra: ['#9aa694', '#aeb8a8', '#87927f'],
-    agua: ['#1f4f8a', '#2a5f9c', '#1a4478'], bajo: ['#2f6eab', '#3e82c0', '#285f97'], rio: ['#3f8ad2', '#5aa0e2', '#357bc0']
+    sakura: ['#7cb860', '#8cc870', '#6aa452'], agua: ['#1f4f8a', '#2a5f9c', '#1a4478'], bajo: ['#2f6eab', '#3e82c0', '#285f97'], rio: ['#3f8ad2', '#5aa0e2', '#357bc0']
   };
-  const HIERBA = new Set(['llanura', 'bosque', 'colina', 'sabana', 'selva', 'taiga', 'pantano']);
+  const HIERBA = new Set(['llanura', 'bosque', 'colina', 'sabana', 'selva', 'taiga', 'pantano', 'sakura']);
   function suelo(tipo, v) {
     return guardado('s' + tipo + v, () => {
       const [base, cl, os] = SUELO[tipo] || SUELO.llanura, H = hoja(T, T), r = azar(tipo.length * 131 + v * 17 + 7);
@@ -107,7 +107,11 @@
   function adorno(tipo, v) {
     return guardado('a' + tipo + v, () => {
       const H = hoja(T, T), r = azar(v * 97 + tipo.length * 13 + 5);
-      if (tipo === 'llanura' || tipo === 'colina' || tipo === 'sabana' || (tipo === 'bosque' && v % 3 === 0)) {
+      if (tipo === 'sakura') {
+        // Pétalos caídos de los cerezos: motas rosas y blancas por el suelo.
+        for (let k = 0; k < 9; k++) H.p(1 + r() * 14, 1 + r() * 14, ['#ffc4dc', '#ff9ec4', '#fff0f6'][(r() * 3) | 0]);
+        if (r() < 0.5) { const x = 3 + (r() * 10 | 0), y = 4 + (r() * 9 | 0); H.p(x, y, '#ff8ab8'); H.p(x - 1, y, '#ffb4d0'); H.p(x + 1, y, '#ffb4d0'); H.p(x, y - 1, '#ffb4d0'); H.p(x, y + 1, '#ffb4d0'); H.p(x, y, '#ffe066'); }
+      } else if (tipo === 'llanura' || tipo === 'colina' || tipo === 'sabana' || (tipo === 'bosque' && v % 3 === 0)) {
         // Un ramillete: flores de cruz con el centro amarillo, o margaritas sueltas, y alguna hoja.
         const color = FLORES[(r() * FLORES.length) | 0], n = 2 + (r() * 3 | 0);
         for (let k = 0; k < n; k++) {
@@ -204,6 +208,32 @@
         H.r(3, 7, 2, 4, '#4a9a3a'); H.r(3, 10, 4, 2, '#4a9a3a'); H.p(3, 7, '#6ac04a');
         H.r(11, 5, 2, 4, '#4a9a3a'); H.r(10, 8, 3, 2, '#4a9a3a'); H.p(12, 5, '#6ac04a');
         if (v % 3 === 0) { H.p(8, 2, '#ff6ab0'); H.p(7, 2, '#ff9ad0'); }
+      } else if (nombre === 'sakura') {
+        // Cerezo en flor: tronco oscuro y retorcido, copa rosa en nubes, pétalos que caen.
+        H.r(7, 10, 2, 6, '#5a3428'); H.p(6, 9, '#5a3428'); H.p(9, 8, '#5a3428'); H.p(10, 7, '#5a3428'); H.p(5, 8, '#5a3428'); H.r(8, 10, 1, 6, '#3e2218');
+        const rosa = ['#f7a8c8', '#f4b6d2', '#f29abe', '#f8c0d8', '#ee90b8'][v];
+        copa(H, [[8, 5.5, 4.6], [4.4, 7, 3.2], [11.6, 6.6, 3.4], [7, 2.8, 2.8]], rosa);
+        for (let k = 0; k < 6; k++) H.p(3 + r() * 10, 2 + r() * 8, '#fff2f8');
+        for (let k = 0; k < 3; k++) H.p(2 + r() * 12, 11 + r() * 4, '#ffc4dc');
+      } else if (nombre === 'sakura2') {
+        H.r(8, 11, 1, 5, '#5a3428'); H.p(7, 11, '#5a3428');
+        copa(H, [[8, 8.5, 3.4], [6, 10, 2], [10.2, 9.6, 2]], '#f6aed0');
+        H.p(7, 7, '#fff2f8'); H.p(9, 9, '#fff2f8');
+      } else if (nombre === 'robles') {
+        // Bosque denso: tres copas apretadas en una sola parcela.
+        tronco(H, 3, 12, 2, 4); tronco(H, 11, 11, 2, 5); tronco(H, 7, 13, 2, 3);
+        const c = ['#3f8a3e', '#4a9640', '#3a8040', '#468c3a', '#3c8238'][v];
+        copa(H, [[4, 8, 3.6], [12, 7, 3.8]], oscuro(c, 0.08)); copa(H, [[8, 9.5, 4]], c);
+        for (let k = 0; k < 3; k++) H.p(3 + r() * 10, 5 + r() * 5, claro(c, 0.4));
+      } else if (nombre === 'pinos') {
+        for (const [cx, base, alto] of [[4, 15, 10], [11, 15, 12], [8, 16, 9]]) {
+          H.r(cx, base - 2, 1, 2, '#6a4628');
+          for (let y = 0; y < alto; y++) { const half = Math.max(1, Math.round((y + 1) / alto * 3.4)); for (let x = cx - half + 1; x <= cx + half - 1; x++) H.p(x, base - 2 - alto + y, x < cx ? '#3a8a54' : x > cx ? '#225e3c' : '#2e7a4a'); }
+        }
+      } else if (nombre === 'junglas') {
+        tronco(H, 3, 12, 2, 4, '#6a4a2a'); tronco(H, 11, 12, 2, 4, '#6a4a2a');
+        copa(H, [[4, 7, 4.4], [12, 6.5, 4.2], [8, 9, 4.6], [8, 3.5, 3.4]], '#2a7a30');
+        for (let k = 0; k < 4; k++) { const x = 2 + (r() * 12 | 0); for (let y = 11; y < 14; y++) H.p(x, y, '#1e5a22'); }
       } else if (nombre === 'arbol2') {
         tronco(H, 7, 11, 2, 5);
         copa(H, [[8, 8, 3.6], [6, 9.5, 2.2], [10, 9.5, 2.2]], '#4a9640');

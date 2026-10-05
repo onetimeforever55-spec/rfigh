@@ -390,9 +390,9 @@ button { cursor: pointer; }
   // El mundo se diseñó con 32×20 regiones: K escala lo que depende del tamaño (capacidad, expansión, fronteras).
   const K = (W * H) / 640;
   // Lo que da de comer cada bioma (y los ríos suman encima).
-  const TIERRA = { llanura: 3, sabana: 2.3, bosque: 1.6, selva: 1.7, pantano: 1.3, taiga: 1.0, tundra: 0.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
+  const TIERRA = { llanura: 3, sabana: 2.3, bosque: 1.6, sakura: 2.2, selva: 1.7, pantano: 1.3, taiga: 1.0, tundra: 0.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
   // Los bosques talados dejan otro bioma, y vuelven si se dejan crecer.
-  const TALADO = { bosque: 'llanura', selva: 'sabana', taiga: 'tundra' };
+  const TALADO = { bosque: 'llanura', selva: 'sabana', taiga: 'tundra', sakura: 'llanura' };
   const RIO = 2.2;
   // Las prioridades de un jugador (mando.js): 0 nada, 1 normal, 2 máxima. Ciencia, riqueza y ejército
   // compiten entre sí: subir las tres a la vez no da nada, lo que cuenta es cuál pesa más que las otras.
@@ -442,6 +442,13 @@ button { cursor: pointer; }
     };
   }
 
+  // Un ruido suave sin gastar el azar del mundo (así añadir el cerezal no cambia el resto de la historia).
+  function manchaSakura(m, x, y) {
+    const h = (a, b) => { let k = (Math.imul(a, 374761393) + Math.imul(b, 668265263) + Math.imul(m.semilla | 0, 362437)) >>> 0; k = Math.imul(k ^ (k >>> 13), 1274126177); return ((k ^ (k >>> 16)) >>> 0) / 4294967296; };
+    const fx = x / 5, fy = y / 5, x0 = Math.floor(fx), y0 = Math.floor(fy), sx = fx - x0, sy = fy - y0;
+    const a = h(x0, y0) + (h(x0 + 1, y0) - h(x0, y0)) * sx, b = h(x0, y0 + 1) + (h(x0 + 1, y0 + 1) - h(x0, y0 + 1)) * sx;
+    return a + (b - a) * sy;
+  }
   function generarMapa(m) {
     const n1 = ruido(m, 8), n2 = ruido(m, 4), n3 = ruido(m, 2), hum = ruido(m, 6), tem = ruido(m, 9);
     const alto = [], tipo = [], rio = new Array(W * H).fill(false);
@@ -470,6 +477,8 @@ button { cursor: pointer; }
       else if (t > 0.84) tipo.push(u < 0.3 ? 'desierto' : u < 0.5 ? 'sabana' : u > 0.78 && h < nivel + 0.04 ? 'pantano' : 'selva');
       else if (u < 0.26) tipo.push(t > 0.55 ? 'desierto' : 'llanura');
       else if (u > 0.74 && h < nivel + 0.035) tipo.push('pantano');
+      // Bosques de cerezos (sakura): manchas templadas y húmedas, sobre todo junto a las colinas.
+      else if (u > 0.5 && t > 0.42 && t < 0.7 && manchaSakura(m, x, y) > 0.66) tipo.push('sakura');
       else if (u > 0.58) tipo.push('bosque');
       else tipo.push(t > 0.62 && u < 0.4 ? 'sabana' : 'llanura');
     }
@@ -1194,12 +1203,12 @@ button { cursor: pointer; }
   const MENAS = { montana: [0.22, 0.07], colina: [0.12, 0.03], desierto: [0.05, 0.03], tundra: [0.06, 0.02] };
 
   // Árboles y rocas al crear el mundo, según el suelo de la parcela.
-  const ARBOLES = { bosque: 0.78, selva: 0.85, taiga: 0.7, pantano: 0.32, sabana: 0.1, colina: 0.22, llanura: 0.07, tundra: 0.06, nieve: 0.1, desierto: 0.03 };
-  const ROCAS = { montana: 0.3, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
+  const ARBOLES = { bosque: 0.9, selva: 0.93, taiga: 0.82, sakura: 0.62, pantano: 0.32, sabana: 0.1, colina: 0.22, llanura: 0.07, tundra: 0.06, nieve: 0.1, desierto: 0.03 };
+  const ROCAS = { sakura: 0.02, montana: 0.3, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
   // Lo que brota solo cada turno junto a otro árbol (la naturaleza recupera lo que se deja).
-  const BROTE = { bosque: 0.035, selva: 0.05, taiga: 0.025, pantano: 0.015, sabana: 0.005, colina: 0.025, llanura: 0.006, tundra: 0.002, nieve: 0.004, desierto: 0.0015 };
-  const CONSTRUIBLE = new Set(['llanura', 'colina', 'bosque', 'desierto', 'nieve', 'arena', 'sabana', 'selva', 'taiga', 'tundra', 'pantano']);
-  const CULTIVABLE = new Set(['llanura', 'colina', 'bosque', 'sabana', 'selva']);
+  const BROTE = { sakura: 0.03, bosque: 0.035, selva: 0.05, taiga: 0.025, pantano: 0.015, sabana: 0.005, colina: 0.025, llanura: 0.006, tundra: 0.002, nieve: 0.004, desierto: 0.0015 };
+  const CONSTRUIBLE = new Set(['sakura', 'llanura', 'colina', 'bosque', 'desierto', 'nieve', 'arena', 'sabana', 'selva', 'taiga', 'tundra', 'pantano']);
+  const CULTIVABLE = new Set(['llanura', 'colina', 'bosque', 'sabana', 'selva', 'sakura']);
 
   function azar(v) {
     let t = (v.rng = (v.rng + 0x6D2B79F5) >>> 0);
@@ -1328,6 +1337,18 @@ button { cursor: pointer; }
   const mojada = t => t === 'agua' || t === 'bajo' || t === 'rio';
   const andable = ter => !mojada(ter);
 
+  // Las islas: tierras pequeñas rodeadas de mar (como mucho 10 regiones).
+  function islas(m) {
+    const n = m.W * m.H, isla = new Array(n).fill(false), visto = new Array(n).fill(false);
+    for (let i = 0; i < n; i++) {
+      if (visto[i] || !S().esTierra(m, i)) continue;
+      const grupo = [i]; visto[i] = true;
+      for (let k = 0; k < grupo.length && grupo.length <= 11; k++) for (const w of S().vecinos(grupo[k])) if (!visto[w] && S().esTierra(m, w)) { visto[w] = true; grupo.push(w); }
+      if (grupo.length <= 10) for (const g of grupo) isla[g] = true;
+      else { const cola = grupo.slice(); for (let k = 0; k < cola.length; k++) for (const w of S().vecinos(cola[k])) if (!visto[w] && S().esTierra(m, w)) { visto[w] = true; cola.push(w); } }
+    }
+    return isla;
+  }
   // ---------- Crear la vida de un mundo ----------
   function crear(m) {
     const tw = m.W * SUB, th = m.H * SUB, n = tw * th;
@@ -1337,8 +1358,11 @@ button { cursor: pointer; }
     };
     m.vida = v;
     const ter = terrenos(m);
+    v.isla = islas(m);
     for (let t = 0; t < n; t++) {
-      const r = azar(v), pa = ARBOLES[ter[t]] || 0, pr = ROCAS[ter[t]] || 0;
+      // Las playas cálidas y las islas tienen palmeras.
+      const rt = m.tipo[region(m, t)], calido = rt === 'selva' || rt === 'sabana' || rt === 'desierto' || v.isla[region(m, t)];
+      const r = azar(v), pa = ter[t] === 'arena' ? (v.isla[region(m, t)] ? 0.32 : calido ? 0.16 : 0) : (ARBOLES[ter[t]] || 0) + (v.isla[region(m, t)] && ter[t] !== 'montana' ? 0.15 : 0), pr = ROCAS[ter[t]] || 0;
       if (r < pa) v.arbol[t] = azar(v) < 0.75 ? 3 : 2;
       else if (r < pa + pr) { v.roca[t] = 1 + Math.floor(azar(v) * 3); const [ph, po] = MENAS[ter[t]] || [0.04, 0.01], q = azar(v); v.mena[t] = q < po ? 2 : q < po + ph ? 1 : 0; }
     }
@@ -2474,9 +2498,9 @@ button { cursor: pointer; }
 
   // ---------- Los animales: ovejas y vacas junto a las aldeas, ciervos en los bosques, peces en el agua ----------
   const HABITAT = {
-    oveja: t => t === 'llanura' || t === 'sabana' || t === 'colina' || t === 'tundra',
+    oveja: t => t === 'llanura' || t === 'sabana' || t === 'colina' || t === 'tundra' || t === 'sakura',
     vaca: t => t === 'llanura' || t === 'sabana' || t === 'pantano',
-    ciervo: t => t === 'bosque' || t === 'taiga' || t === 'selva' || t === 'llanura',
+    ciervo: t => t === 'bosque' || t === 'taiga' || t === 'selva' || t === 'llanura' || t === 'sakura',
     pez: t => t === 'agua' || t === 'bajo' || t === 'rio',
     lobo: t => t === 'bosque' || t === 'taiga' || t === 'tundra' || t === 'nieve' || t === 'colina' || t === 'llanura' || t === 'sabana'
   };
@@ -2859,7 +2883,7 @@ button { cursor: pointer; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -3595,9 +3619,9 @@ button { cursor: pointer; }
     montana: ['#8a8790', '#a6a3ac', '#6c6a73'], desierto: ['#e0c88c', '#ecd8a0', '#c9ae74'], nieve: ['#eef3f7', '#ffffff', '#d2dce6'],
     arena: ['#e8d49c', '#f3e3b0', '#d4be84'], selva: ['#3a8a3a', '#4c9e46', '#2c752e'], sabana: ['#bdb35a', '#cdc56c', '#a69d4a'],
     pantano: ['#4f6e48', '#5f8055', '#405c3c'], taiga: ['#4c7457', '#5b8466', '#3f644a'], tundra: ['#9aa694', '#aeb8a8', '#87927f'],
-    agua: ['#1f4f8a', '#2a5f9c', '#1a4478'], bajo: ['#2f6eab', '#3e82c0', '#285f97'], rio: ['#3f8ad2', '#5aa0e2', '#357bc0']
+    sakura: ['#7cb860', '#8cc870', '#6aa452'], agua: ['#1f4f8a', '#2a5f9c', '#1a4478'], bajo: ['#2f6eab', '#3e82c0', '#285f97'], rio: ['#3f8ad2', '#5aa0e2', '#357bc0']
   };
-  const HIERBA = new Set(['llanura', 'bosque', 'colina', 'sabana', 'selva', 'taiga', 'pantano']);
+  const HIERBA = new Set(['llanura', 'bosque', 'colina', 'sabana', 'selva', 'taiga', 'pantano', 'sakura']);
   function suelo(tipo, v) {
     return guardado('s' + tipo + v, () => {
       const [base, cl, os] = SUELO[tipo] || SUELO.llanura, H = hoja(T, T), r = azar(tipo.length * 131 + v * 17 + 7);
@@ -3629,7 +3653,11 @@ button { cursor: pointer; }
   function adorno(tipo, v) {
     return guardado('a' + tipo + v, () => {
       const H = hoja(T, T), r = azar(v * 97 + tipo.length * 13 + 5);
-      if (tipo === 'llanura' || tipo === 'colina' || tipo === 'sabana' || (tipo === 'bosque' && v % 3 === 0)) {
+      if (tipo === 'sakura') {
+        // Pétalos caídos de los cerezos: motas rosas y blancas por el suelo.
+        for (let k = 0; k < 9; k++) H.p(1 + r() * 14, 1 + r() * 14, ['#ffc4dc', '#ff9ec4', '#fff0f6'][(r() * 3) | 0]);
+        if (r() < 0.5) { const x = 3 + (r() * 10 | 0), y = 4 + (r() * 9 | 0); H.p(x, y, '#ff8ab8'); H.p(x - 1, y, '#ffb4d0'); H.p(x + 1, y, '#ffb4d0'); H.p(x, y - 1, '#ffb4d0'); H.p(x, y + 1, '#ffb4d0'); H.p(x, y, '#ffe066'); }
+      } else if (tipo === 'llanura' || tipo === 'colina' || tipo === 'sabana' || (tipo === 'bosque' && v % 3 === 0)) {
         // Un ramillete: flores de cruz con el centro amarillo, o margaritas sueltas, y alguna hoja.
         const color = FLORES[(r() * FLORES.length) | 0], n = 2 + (r() * 3 | 0);
         for (let k = 0; k < n; k++) {
@@ -3726,6 +3754,32 @@ button { cursor: pointer; }
         H.r(3, 7, 2, 4, '#4a9a3a'); H.r(3, 10, 4, 2, '#4a9a3a'); H.p(3, 7, '#6ac04a');
         H.r(11, 5, 2, 4, '#4a9a3a'); H.r(10, 8, 3, 2, '#4a9a3a'); H.p(12, 5, '#6ac04a');
         if (v % 3 === 0) { H.p(8, 2, '#ff6ab0'); H.p(7, 2, '#ff9ad0'); }
+      } else if (nombre === 'sakura') {
+        // Cerezo en flor: tronco oscuro y retorcido, copa rosa en nubes, pétalos que caen.
+        H.r(7, 10, 2, 6, '#5a3428'); H.p(6, 9, '#5a3428'); H.p(9, 8, '#5a3428'); H.p(10, 7, '#5a3428'); H.p(5, 8, '#5a3428'); H.r(8, 10, 1, 6, '#3e2218');
+        const rosa = ['#f7a8c8', '#f4b6d2', '#f29abe', '#f8c0d8', '#ee90b8'][v];
+        copa(H, [[8, 5.5, 4.6], [4.4, 7, 3.2], [11.6, 6.6, 3.4], [7, 2.8, 2.8]], rosa);
+        for (let k = 0; k < 6; k++) H.p(3 + r() * 10, 2 + r() * 8, '#fff2f8');
+        for (let k = 0; k < 3; k++) H.p(2 + r() * 12, 11 + r() * 4, '#ffc4dc');
+      } else if (nombre === 'sakura2') {
+        H.r(8, 11, 1, 5, '#5a3428'); H.p(7, 11, '#5a3428');
+        copa(H, [[8, 8.5, 3.4], [6, 10, 2], [10.2, 9.6, 2]], '#f6aed0');
+        H.p(7, 7, '#fff2f8'); H.p(9, 9, '#fff2f8');
+      } else if (nombre === 'robles') {
+        // Bosque denso: tres copas apretadas en una sola parcela.
+        tronco(H, 3, 12, 2, 4); tronco(H, 11, 11, 2, 5); tronco(H, 7, 13, 2, 3);
+        const c = ['#3f8a3e', '#4a9640', '#3a8040', '#468c3a', '#3c8238'][v];
+        copa(H, [[4, 8, 3.6], [12, 7, 3.8]], oscuro(c, 0.08)); copa(H, [[8, 9.5, 4]], c);
+        for (let k = 0; k < 3; k++) H.p(3 + r() * 10, 5 + r() * 5, claro(c, 0.4));
+      } else if (nombre === 'pinos') {
+        for (const [cx, base, alto] of [[4, 15, 10], [11, 15, 12], [8, 16, 9]]) {
+          H.r(cx, base - 2, 1, 2, '#6a4628');
+          for (let y = 0; y < alto; y++) { const half = Math.max(1, Math.round((y + 1) / alto * 3.4)); for (let x = cx - half + 1; x <= cx + half - 1; x++) H.p(x, base - 2 - alto + y, x < cx ? '#3a8a54' : x > cx ? '#225e3c' : '#2e7a4a'); }
+        }
+      } else if (nombre === 'junglas') {
+        tronco(H, 3, 12, 2, 4, '#6a4a2a'); tronco(H, 11, 12, 2, 4, '#6a4a2a');
+        copa(H, [[4, 7, 4.4], [12, 6.5, 4.2], [8, 9, 4.6], [8, 3.5, 3.4]], '#2a7a30');
+        for (let k = 0; k < 4; k++) { const x = 2 + (r() * 12 | 0); for (let y = 11; y < 14; y++) H.p(x, y, '#1e5a22'); }
       } else if (nombre === 'arbol2') {
         tronco(H, 7, 11, 2, 5);
         copa(H, [[8, 8, 3.6], [6, 9.5, 2.2], [10, 9.5, 2.2]], '#4a9640');
@@ -4214,13 +4268,18 @@ button { cursor: pointer; }
     if (visto.roca[t]) { gl.drawImage(ARTE().roca(Math.min(3, visto.roca[t]), (m.vida.mena && m.vida.mena[t]) || 0), x, y); return; }
     const a = visto.arbol[t];
     if (a) {
-      const tipo = m.tipo[V.region(m, t)];
+      const r = V.region(m, t), tipo = m.tipo[r];
+      if (!v.isla) v.isla = V.islas(m);
       const variante = (t * 7) % 5;
-      const maduro = {
-        desierto: 'cactus', nieve: 'nevado3', taiga: variante === 0 ? 'nevado3' : 'pino3', tundra: 'matorral', colina: 'pino3',
-        selva: variante < 2 ? 'palmera' : 'jungla3', sabana: 'acacia', pantano: 'sauce', bosque: variante === 0 ? 'pino3' : 'roble3'
+      // En los bosques densos, una de cada tres parcelas lleva un grupo de árboles apretados.
+      const denso = (h >>> 9) % 3 === 0;
+      let maduro = {
+        desierto: 'cactus', nieve: 'nevado3', taiga: variante === 0 ? 'nevado3' : denso ? 'pinos' : 'pino3', tundra: 'matorral', colina: 'pino3', sakura: variante === 4 ? 'roble3' : 'sakura',
+        selva: variante < 2 ? 'palmera' : denso ? 'junglas' : 'jungla3', sabana: 'acacia', pantano: 'sauce', bosque: variante === 0 ? (denso ? 'pinos' : 'pino3') : denso ? 'robles' : 'roble3'
       }[tipo] || (variante === 0 ? 'pino3' : 'roble3');
-      const nombre = a === 1 ? (tipo === 'tundra' ? 'matorral' : 'arbol1') : a === 2 ? (tipo === 'desierto' ? 'cactus' : tipo === 'tundra' ? 'matorral' : 'arbol2') : maduro;
+      // Playas cálidas e islas: palmeras.
+      if (ter === 'arena' || (v.isla[r] && tipo !== 'nieve' && tipo !== 'tundra' && tipo !== 'taiga' && tipo !== 'desierto' && variante < 4)) maduro = 'palmera';
+      const nombre = a === 1 ? (tipo === 'tundra' ? 'matorral' : 'arbol1') : a === 2 ? (tipo === 'desierto' ? 'cactus' : tipo === 'tundra' ? 'matorral' : maduro === 'sakura' ? 'sakura2' : maduro === 'palmera' ? 'palmera' : 'arbol2') : maduro;
       gl.drawImage(ARTE().arbol(nombre, (h >>> 3) % 5), x, y);
       return;
     }

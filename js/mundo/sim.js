@@ -14,9 +14,9 @@
   // El mundo se diseñó con 32×20 regiones: K escala lo que depende del tamaño (capacidad, expansión, fronteras).
   const K = (W * H) / 640;
   // Lo que da de comer cada bioma (y los ríos suman encima).
-  const TIERRA = { llanura: 3, sabana: 2.3, bosque: 1.6, selva: 1.7, pantano: 1.3, taiga: 1.0, tundra: 0.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
+  const TIERRA = { llanura: 3, sabana: 2.3, bosque: 1.6, sakura: 2.2, selva: 1.7, pantano: 1.3, taiga: 1.0, tundra: 0.6, colina: 1.5, montana: 0.3, desierto: 0.35, nieve: 0.2, mar: 0, costa: 0 };
   // Los bosques talados dejan otro bioma, y vuelven si se dejan crecer.
-  const TALADO = { bosque: 'llanura', selva: 'sabana', taiga: 'tundra' };
+  const TALADO = { bosque: 'llanura', selva: 'sabana', taiga: 'tundra', sakura: 'llanura' };
   const RIO = 2.2;
   // Las prioridades de un jugador (mando.js): 0 nada, 1 normal, 2 máxima. Ciencia, riqueza y ejército
   // compiten entre sí: subir las tres a la vez no da nada, lo que cuenta es cuál pesa más que las otras.
@@ -66,6 +66,13 @@
     };
   }
 
+  // Un ruido suave sin gastar el azar del mundo (así añadir el cerezal no cambia el resto de la historia).
+  function manchaSakura(m, x, y) {
+    const h = (a, b) => { let k = (Math.imul(a, 374761393) + Math.imul(b, 668265263) + Math.imul(m.semilla | 0, 362437)) >>> 0; k = Math.imul(k ^ (k >>> 13), 1274126177); return ((k ^ (k >>> 16)) >>> 0) / 4294967296; };
+    const fx = x / 5, fy = y / 5, x0 = Math.floor(fx), y0 = Math.floor(fy), sx = fx - x0, sy = fy - y0;
+    const a = h(x0, y0) + (h(x0 + 1, y0) - h(x0, y0)) * sx, b = h(x0, y0 + 1) + (h(x0 + 1, y0 + 1) - h(x0, y0 + 1)) * sx;
+    return a + (b - a) * sy;
+  }
   function generarMapa(m) {
     const n1 = ruido(m, 8), n2 = ruido(m, 4), n3 = ruido(m, 2), hum = ruido(m, 6), tem = ruido(m, 9);
     const alto = [], tipo = [], rio = new Array(W * H).fill(false);
@@ -94,6 +101,8 @@
       else if (t > 0.84) tipo.push(u < 0.3 ? 'desierto' : u < 0.5 ? 'sabana' : u > 0.78 && h < nivel + 0.04 ? 'pantano' : 'selva');
       else if (u < 0.26) tipo.push(t > 0.55 ? 'desierto' : 'llanura');
       else if (u > 0.74 && h < nivel + 0.035) tipo.push('pantano');
+      // Bosques de cerezos (sakura): manchas templadas y húmedas, sobre todo junto a las colinas.
+      else if (u > 0.5 && t > 0.42 && t < 0.7 && manchaSakura(m, x, y) > 0.66) tipo.push('sakura');
       else if (u > 0.58) tipo.push('bosque');
       else tipo.push(t > 0.62 && u < 0.4 ? 'sabana' : 'llanura');
     }

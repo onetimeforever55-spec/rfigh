@@ -88,12 +88,12 @@
   const MENAS = { montana: [0.22, 0.07], colina: [0.12, 0.03], desierto: [0.05, 0.03], tundra: [0.06, 0.02] };
 
   // Árboles y rocas al crear el mundo, según el suelo de la parcela.
-  const ARBOLES = { bosque: 0.78, selva: 0.85, taiga: 0.7, pantano: 0.32, sabana: 0.1, colina: 0.22, llanura: 0.07, tundra: 0.06, nieve: 0.1, desierto: 0.03 };
-  const ROCAS = { montana: 0.3, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
+  const ARBOLES = { bosque: 0.9, selva: 0.93, taiga: 0.82, sakura: 0.62, pantano: 0.32, sabana: 0.1, colina: 0.22, llanura: 0.07, tundra: 0.06, nieve: 0.1, desierto: 0.03 };
+  const ROCAS = { sakura: 0.02, montana: 0.3, colina: 0.12, desierto: 0.06, nieve: 0.05, tundra: 0.07, llanura: 0.015, bosque: 0.02, taiga: 0.03, sabana: 0.02 };
   // Lo que brota solo cada turno junto a otro árbol (la naturaleza recupera lo que se deja).
-  const BROTE = { bosque: 0.035, selva: 0.05, taiga: 0.025, pantano: 0.015, sabana: 0.005, colina: 0.025, llanura: 0.006, tundra: 0.002, nieve: 0.004, desierto: 0.0015 };
-  const CONSTRUIBLE = new Set(['llanura', 'colina', 'bosque', 'desierto', 'nieve', 'arena', 'sabana', 'selva', 'taiga', 'tundra', 'pantano']);
-  const CULTIVABLE = new Set(['llanura', 'colina', 'bosque', 'sabana', 'selva']);
+  const BROTE = { sakura: 0.03, bosque: 0.035, selva: 0.05, taiga: 0.025, pantano: 0.015, sabana: 0.005, colina: 0.025, llanura: 0.006, tundra: 0.002, nieve: 0.004, desierto: 0.0015 };
+  const CONSTRUIBLE = new Set(['sakura', 'llanura', 'colina', 'bosque', 'desierto', 'nieve', 'arena', 'sabana', 'selva', 'taiga', 'tundra', 'pantano']);
+  const CULTIVABLE = new Set(['llanura', 'colina', 'bosque', 'sabana', 'selva', 'sakura']);
 
   function azar(v) {
     let t = (v.rng = (v.rng + 0x6D2B79F5) >>> 0);
@@ -222,6 +222,18 @@
   const mojada = t => t === 'agua' || t === 'bajo' || t === 'rio';
   const andable = ter => !mojada(ter);
 
+  // Las islas: tierras pequeñas rodeadas de mar (como mucho 10 regiones).
+  function islas(m) {
+    const n = m.W * m.H, isla = new Array(n).fill(false), visto = new Array(n).fill(false);
+    for (let i = 0; i < n; i++) {
+      if (visto[i] || !S().esTierra(m, i)) continue;
+      const grupo = [i]; visto[i] = true;
+      for (let k = 0; k < grupo.length && grupo.length <= 11; k++) for (const w of S().vecinos(grupo[k])) if (!visto[w] && S().esTierra(m, w)) { visto[w] = true; grupo.push(w); }
+      if (grupo.length <= 10) for (const g of grupo) isla[g] = true;
+      else { const cola = grupo.slice(); for (let k = 0; k < cola.length; k++) for (const w of S().vecinos(cola[k])) if (!visto[w] && S().esTierra(m, w)) { visto[w] = true; cola.push(w); } }
+    }
+    return isla;
+  }
   // ---------- Crear la vida de un mundo ----------
   function crear(m) {
     const tw = m.W * SUB, th = m.H * SUB, n = tw * th;
@@ -231,8 +243,11 @@
     };
     m.vida = v;
     const ter = terrenos(m);
+    v.isla = islas(m);
     for (let t = 0; t < n; t++) {
-      const r = azar(v), pa = ARBOLES[ter[t]] || 0, pr = ROCAS[ter[t]] || 0;
+      // Las playas cálidas y las islas tienen palmeras.
+      const rt = m.tipo[region(m, t)], calido = rt === 'selva' || rt === 'sabana' || rt === 'desierto' || v.isla[region(m, t)];
+      const r = azar(v), pa = ter[t] === 'arena' ? (v.isla[region(m, t)] ? 0.32 : calido ? 0.16 : 0) : (ARBOLES[ter[t]] || 0) + (v.isla[region(m, t)] && ter[t] !== 'montana' ? 0.15 : 0), pr = ROCAS[ter[t]] || 0;
       if (r < pa) v.arbol[t] = azar(v) < 0.75 ? 3 : 2;
       else if (r < pa + pr) { v.roca[t] = 1 + Math.floor(azar(v) * 3); const [ph, po] = MENAS[ter[t]] || [0.04, 0.01], q = azar(v); v.mena[t] = q < po ? 2 : q < po + ph ? 1 : 0; }
     }
@@ -1368,9 +1383,9 @@
 
   // ---------- Los animales: ovejas y vacas junto a las aldeas, ciervos en los bosques, peces en el agua ----------
   const HABITAT = {
-    oveja: t => t === 'llanura' || t === 'sabana' || t === 'colina' || t === 'tundra',
+    oveja: t => t === 'llanura' || t === 'sabana' || t === 'colina' || t === 'tundra' || t === 'sakura',
     vaca: t => t === 'llanura' || t === 'sabana' || t === 'pantano',
-    ciervo: t => t === 'bosque' || t === 'taiga' || t === 'selva' || t === 'llanura',
+    ciervo: t => t === 'bosque' || t === 'taiga' || t === 'selva' || t === 'llanura' || t === 'sakura',
     pez: t => t === 'agua' || t === 'bajo' || t === 'rio',
     lobo: t => t === 'bosque' || t === 'taiga' || t === 'tundra' || t === 'nieve' || t === 'colina' || t === 'llanura' || t === 'sabana'
   };
@@ -1753,5 +1768,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, ARMAS, TIROS, ARMADURAS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

@@ -115,7 +115,7 @@ console.log('LA VIDA: ALDEANOS, ÁRBOLES Y CASAS QUE MUEVEN LA ECONOMÍA');
 {
   // La guerra la ganan también los guerreros que se encuentran en la frontera.
   const m = hasta(S.crear(7, 5), 500), V = M.vida;
-  const a = S.vivas(m).find(x => S.vecinosDe(m, x).length), b = a && S.vecinosDe(m, a)[0];
+  const a = S.vivas(m).filter(x => S.vecinosDe(m, x).length).sort((x, y) => (y.habitantes || 0) - (x.habitantes || 0))[0], b = a && S.vecinosDe(m, a)[0];
   let combates = 0, guerreros = 0;
   if (a && b) {
     if (!S.enGuerra(a, b)) S.declararGuerra(m, a, b, null);
