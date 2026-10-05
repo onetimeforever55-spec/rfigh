@@ -459,12 +459,12 @@
       // Sus campos de la frontera arden: pierden comida y cosecha.
       const fr = S().frontera(m, c, o).slice(0, 4);
       let quemados = 0;
-      for (const r of fr) for (const t of M.vida.parcelas(m, r)) if (v.obra[t] === M.vida.OBRA.campo && S().azar(m) < 0.7) { M.vida.cambiar(m, 'obra', t, 0, 0); quemados++; }
+      for (const r of fr) for (const t of M.vida.parcelas(m, r)) if ((v.obra[t] === M.vida.OBRA.campo || v.arbol[t] >= 2) && S().azar(m) < 0.5) { if (M.vida.prender(m, t, 0, 4)) quemados++; }
       o.comida = Math.max(0, (o.comida || 0) * 0.7); o.rel[c.id] = (o.rel[c.id] || 0) - 15; c.estab -= 2;
       const g = o.guerras.find(x => x.con === c.id); if (g) g.cansancio += 1.5;
       an('🔥 Campos de ' + o.nombre + ' en llamas', fr[0]);
-      S().cronica(m, 'guerra', c.nombre + ' quema los campos de ' + o.nombre, 'Partidas de ' + c.nombre + ' cruzan la frontera de noche y prenden fuego a ' + quemados + ' campos. El hambre será otra arma de esta guerra.', c, fr[0]);
-      textos.push('Tus partidas queman ' + quemados + ' campos de ' + o.nombre + ' en la frontera y arruinan parte de su granero. Se cansarán antes de la guerra.');
+      S().cronica(m, 'guerra', c.nombre + ' quema los campos de ' + o.nombre, 'Partidas de ' + c.nombre + ' cruzan la frontera de noche y prenden fuego a ' + quemados + ' campos y arboledas. El hambre será otra arma de esta guerra.', c, fr[0]);
+      textos.push('Tus partidas prenden fuego en ' + quemados + ' campos y arboledas de ' + o.nombre + ' en la frontera: lo verás arder y extenderse. Su granero pierde un tercio y se cansarán antes de la guerra.');
       return;
     }
     if (a.tipo === 'impuestos') {

@@ -274,7 +274,7 @@
     for (const ch of pend) {
       if (ch[4] > hasta || ch.hecho) { if (!ch.hecho) quedan++; continue; }
       const capaN = ch[0] === 0 ? 'arbol' : ch[0] === 1 ? 'roca' : ch[0] === 2 ? 'obra' : ch[0] === 4 ? 'cultivo' : ch[0] === 5 ? 'camino' : null;
-      if (capaN) { visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); if (capaN === 'camino') vecinasCamino(ch[1]); }
+      if (capaN) { if (capaN === 'obra' && ch[3] === V.OBRA.ruina && ch[2] && ch[4] > 0) polvo(ch[1], true); visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); if (capaN === 'camino') vecinasCamino(ch[1]); }
       ch.hecho = true;
     }
     if (!quedan) pend = [];
@@ -345,6 +345,7 @@
     g.drawImage(lienzo, x0 / E, y0 / E, (x1 - x0) / E, (y1 - y0) / E, x0, y0, x1 - x0, y1 - y0);
     const ec = P / CA;
     g.drawImage(capa, x0 / ec, y0 / ec, (x1 - x0) / ec, (y1 - y0) / ec, x0, y0, x1 - x0, y1 - y0);
+    huellas(k, ahora, x0, y0, x1, y1);
     banderas(ahora);
     agua(ahora, x0, y0, x1, y1);
     barcos(k, ahora, x0, y0, x1, y1);
@@ -353,6 +354,8 @@
     humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
     pintarDisparos(k);
+    llamas(k, ahora, x0, y0, x1, y1);
+    pintarPolvo(ahora);
     pintarTumbas(ahora);
     pintarEfectos(ahora, x0, y0, x1, y1);
     asedios(ahora);
@@ -362,6 +365,7 @@
     pintarAviones(k);
     marcarPulso(ahora);
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
+    resplandor(k, ahora, x0, y0, x1, y1);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
     pintarAnuncios(z, ox, oy, dpr, performance.now());
@@ -438,7 +442,7 @@
       const t = Math.floor(ahora / 150 + a.id) % 2;
       // En el agua (sin puente) no se camina: se nada, con la cabeza fuera y ondas alrededor.
       const tAhora = Math.floor((py + 4) / P) * v.tw + Math.floor((px + 1) / P), ta = tierra[tAhora];
-      if ((ta === 'agua' || ta === 'bajo' || ta === 'rio') && !(visto.camino && visto.camino[tAhora])) {
+      if (((ta === 'agua' || ta === 'bajo' || ta === 'rio') && !(visto.camino && visto.camino[tAhora])) || (v.inundado && v.inundado[tAhora])) {
         const brazo = Math.floor(ahora / 260 + a.id) % 2;
         g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(px - 2 - brazo, py + 4, 7 + brazo * 2, 1); g.fillRect(px - 1, py + 5, 5, 1);
         g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 3, 3, 1);
@@ -924,6 +928,126 @@
     }
   }
 
+
+  // ---------- Fuego, agua y marcas del suelo ----------
+  const enVista = (t, x0, y0, x1, y1) => { const x = (t % m.vida.tw) * P, y = Math.floor(t / m.vida.tw) * P; return x + P >= x0 && y + P >= y0 && x <= x1 && y <= y1; };
+  // Ceniza, cráteres, sangre y escombros (debajo de todo lo que se mueve), y el agua de las inundaciones.
+  function huellas(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, mk = v.marcas || {}, desde = v.marcasPaso || {};
+    for (const key of Object.keys(mk)) {
+      const t = +key;
+      if (desde[t] != null && k < desde[t]) continue;
+      if (!enVista(t, x0, y0, x1, y1)) continue;
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, tipo = mk[key][0], h = q => hash(t * 13 + q);
+      const quedan = mk[key][1] - m.turno, desv = Math.max(0.35, Math.min(1, quedan / 4));
+      g.globalAlpha = desv;
+      if (tipo === 1) {
+        // Ceniza: una mancha gris oscura irregular con tocones y alguna brasa al principio.
+        g.fillStyle = 'rgba(40,36,34,0.55)';
+        for (let q = 0; q < 7; q++) g.fillRect(x + 1 + h(q) * 11, y + 2 + h(q + 9) * 11, 3 + h(q + 3) * 3, 2 + h(q + 5) * 3);
+        g.fillStyle = 'rgba(110,104,98,0.6)'; for (let q = 0; q < 5; q++) g.fillRect(x + h(q + 20) * 15, y + h(q + 30) * 15, 1, 1);
+        if (h(40) < 0.5) { g.fillStyle = '#2a201a'; g.fillRect(x + 6, y + 8, 3, 3); g.fillStyle = '#3a2c22'; g.fillRect(x + 6, y + 7, 3, 1); }
+        if (quedan > 6 && Math.floor(ahora / 300 + t) % 3 === 0) { g.fillStyle = '#ff7a2a'; g.fillRect(x + 4 + h(50) * 8, y + 5 + h(51) * 8, 1, 1); }
+      } else if (tipo === 2) {
+        // Cráter: un hoyo oscuro con borde de tierra removida y terrones alrededor.
+        g.fillStyle = 'rgba(90,64,40,0.85)'; g.beginPath(); g.ellipse(x + 8, y + 9, 7.5, 5.5, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(36,26,18,0.95)'; g.beginPath(); g.ellipse(x + 8, y + 9.5, 5, 3.5, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(20,14,10,0.9)'; g.beginPath(); g.ellipse(x + 8, y + 10, 2.6, 1.8, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#7a5a36'; for (let q = 0; q < 8; q++) { const a = h(q) * Math.PI * 2, r = 8 + h(q + 8) * 3; g.fillRect(x + 8 + Math.cos(a) * r, y + 9 + Math.sin(a) * r * 0.75, 1 + (q % 2), 1); }
+        if (quedan > 10) { g.fillStyle = 'rgba(80,80,80,' + (0.25 + 0.15 * Math.sin(ahora / 300 + t)).toFixed(2) + ')'; g.fillRect(x + 6, y + 3 - (ahora / 200 + t) % 4, 3, 2); }
+      } else if (tipo === 3) {
+        // Sangre: unas salpicaduras de rojo oscuro.
+        g.fillStyle = 'rgba(120,14,14,0.75)';
+        g.fillRect(x + 5 + h(1) * 5, y + 8 + h(2) * 4, 3, 2); g.fillRect(x + 4 + h(3) * 7, y + 7 + h(4) * 5, 1, 1); g.fillRect(x + 7 + h(5) * 5, y + 10 + h(6) * 3, 2, 1);
+        g.fillStyle = 'rgba(80,6,6,0.8)'; g.fillRect(x + 6 + h(7) * 4, y + 9 + h(8) * 3, 1, 1);
+      } else if (tipo === 4) {
+        // Escombros: piedras, vigas y tejas por el suelo.
+        for (let q = 0; q < 9; q++) { g.fillStyle = ['#7a746c', '#5a544c', '#6b4a2b', '#9a8a78', '#a04a3a'][q % 5]; g.fillRect(x + h(q) * 14, y + 4 + h(q + 11) * 11, 1 + (h(q + 22) < 0.4 ? 1 : 0), 1); }
+      }
+    }
+    g.globalAlpha = 1;
+    // El agua desbordada: azul turbio con brillos que se mueven.
+    const inund = v.inundado || {};
+    for (const key of Object.keys(inund)) {
+      const t = +key;
+      if (!enVista(t, x0, y0, x1, y1)) continue;
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, tw = v.tw;
+      // El borde del agua se redondea donde acaba la inundación (charcos con orilla, no cuadros).
+      const n = !inund[t - tw], s2 = !inund[t + tw], o = !inund[t - 1], e = !inund[t + 1];
+      g.fillStyle = 'rgba(52,118,186,0.6)';
+      g.beginPath();
+      if (g.roundRect) g.roundRect(x + (o ? 1 : 0), y + (n ? 1 : 0), P - (o ? 1 : 0) - (e ? 1 : 0), P - (n ? 1 : 0) - (s2 ? 1 : 0), [n && o ? 6 : 0, n && e ? 6 : 0, s2 && e ? 6 : 0, s2 && o ? 6 : 0]);
+      else g.rect(x, y, P, P);
+      g.fill();
+      g.fillStyle = 'rgba(120,80,40,0.25)'; g.fillRect(x + 3, y + 6, 4, 2); // barro arrastrado
+      g.fillStyle = 'rgba(210,235,250,0.55)';
+      const f = (ahora / 500 + t * 0.37) % 1;
+      g.fillRect(x + 2 + f * 8, y + 4, 4, 1); g.fillRect(x + 9 - f * 6, y + 11, 3, 1);
+      if (n) { g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(x + 3, y + 1, P - 6, 1); }
+    }
+  }
+  // Las llamas de este turno: arden desde el paso en que prenden hasta que se apagan, con humo y pavesas.
+  function llamas(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, ll = v.llamas || {};
+    for (const key of Object.keys(ll)) {
+      const t = +key, [ini, fin] = ll[key];
+      if (k < ini || k > fin + 2) continue;
+      if (!enVista(t, x0, y0, x1, y1)) continue;
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P;
+      const vivo = k < fin, apaga = vivo ? Math.min(1, (k - ini) * 2 + 0.3) : Math.max(0, 1 - (k - fin) / 2);
+      // Humo: bocanadas grises que suben y se van a un lado.
+      for (let q = 0; q < 4; q++) {
+        const f = ((ahora / 1400 + q / 4 + hash(t + q) * 0.3) % 1);
+        g.fillStyle = 'rgba(' + (vivo ? '70,66,64' : '110,108,106') + ',' + ((1 - f) * 0.45 * (vivo ? 1 : apaga)).toFixed(2) + ')';
+        const r = 2 + f * 4;
+        g.fillRect(x + 6 + f * 6 + Math.sin(ahora / 400 + q) * 1.5 - r / 2, y + 2 - f * 22 - r / 2, r, r);
+      }
+      if (!vivo) continue;
+      // Brasas en la base y llamas: lenguas afiladas que bailan, rojas abajo, naranjas y amarillas en la punta.
+      g.fillStyle = 'rgba(120,24,10,0.7)'; g.beginPath(); g.ellipse(x + 8, y + 13.5, 6.5, 2, 0, 0, Math.PI * 2); g.fill();
+      for (let q = 0; q < 5; q++) {
+        const ph = ahora / (85 + q * 19) + t + q * 1.7;
+        const alto = (4 + 5 * Math.abs(Math.sin(ph)) + hash(t * 3 + q) * 4) * apaga * (q === 2 ? 1.35 : q === 0 || q === 4 ? 0.7 : 1);
+        const cx = x + 2.5 + q * 2.8 + Math.sin(ph * 0.7) * 0.8, base = y + 14, ladeo = Math.sin(ph * 1.3) * 1.2;
+        const lengua = (col, w, h0) => { g.fillStyle = col; g.beginPath(); g.moveTo(cx - w, base); g.quadraticCurveTo(cx - w * 0.8, base - h0 * 0.6, cx + ladeo, base - h0); g.quadraticCurveTo(cx + w * 0.8, base - h0 * 0.6, cx + w, base); g.closePath(); g.fill(); };
+        lengua('#d0301c', 2.2, alto); lengua('#ff8a1e', 1.6, alto * 0.75); lengua('#ffd84a', 0.9, alto * 0.45);
+      }
+      g.fillStyle = 'rgba(255,248,210,0.9)'; g.fillRect(x + 7, y + 12, 2, 1);
+      // Pavesas que suben.
+      for (let q = 0; q < 3; q++) { const f = (ahora / 700 + q / 3 + hash(t + q * 5)) % 1; g.fillStyle = f < 0.5 ? '#ffd84a' : '#ff6a1a'; g.fillRect(x + 4 + hash(t + q) * 8 + Math.sin(ahora / 200 + q) * 2, y + 6 - f * 16, 1, 1); }
+    }
+  }
+  // Después de la noche: el resplandor del fuego ilumina alrededor (se ve mucho mejor a oscuras).
+  function resplandor(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, ll = v.llamas || {}, o = oscuridad(performance.now());
+    const claves = Object.keys(ll);
+    if (!claves.length) return;
+    g.save(); g.globalCompositeOperation = 'lighter';
+    for (const key of claves) {
+      const t = +key, [ini, fin] = ll[key];
+      if (k < ini || k >= fin || !enVista(t, x0, y0, x1, y1)) continue;
+      const x = (t % v.tw) * P + 8, y = Math.floor(t / v.tw) * P + 9, r = 14 + 2 * Math.sin(ahora / 120 + t);
+      const gr = g.createRadialGradient(x, y, 1, x, y, r);
+      gr.addColorStop(0, 'rgba(255,140,40,' + (0.22 + 0.3 * o).toFixed(2) + ')'); gr.addColorStop(1, 'rgba(255,90,20,0)');
+      g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    g.restore();
+  }
+  // Polvo de los derrumbes y cascotes que saltan con las explosiones.
+  let polvos = [];
+  function polvo(t, fuerte) { polvos.push({ t, inicio: performance.now(), fuerte: !!fuerte }); if (polvos.length > 120) polvos = polvos.slice(-120); }
+  function pintarPolvo(ahora) {
+    polvos = polvos.filter(p => ahora - p.inicio < 1400);
+    for (const p of polvos) {
+      const f = (ahora - p.inicio) / 1400, x = (p.t % m.vida.tw) * P + 8, y = Math.floor(p.t / m.vida.tw) * P + 10;
+      g.fillStyle = 'rgba(170,150,120,' + (0.5 * (1 - f)).toFixed(2) + ')';
+      const r = 4 + f * (p.fuerte ? 14 : 9);
+      g.beginPath(); g.ellipse(x, y - f * 4, r, r * 0.6, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(90,80,70,' + (1 - f).toFixed(2) + ')';
+      for (let q = 0; q < (p.fuerte ? 8 : 4); q++) { const a = hash(p.t + q) * Math.PI * 2, vel = 6 + hash(p.t * 7 + q) * 10; g.fillRect(x + Math.cos(a) * vel * f, y - 10 * f + 18 * f * f + Math.sin(a) * vel * f * 0.6, 1, 1); }
+    }
+  }
+
   // Bombarderos: cruzan desde su capital hasta el blanco (llegan en 1,6 pasos) y siguen de largo, con su sombra.
   function pintarAviones(k) {
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
@@ -950,7 +1074,20 @@
       if (bala === 3) {
         // Bomba de avión: cae en vertical y revienta.
         if (f < 0.75) { const yb = ay - 40 + 40 * (f / 0.75); g.fillStyle = '#2a2a2a'; g.fillRect(Math.round(bx - 0.5), Math.round(yb), 2, 3); }
-        else { const q = (f - 0.75) / 0.25, rr = 2 + q * 7; g.fillStyle = 'rgba(255,' + Math.round(220 - q * 120) + ',80,' + (1 - q * 0.6).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by, rr, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(90,80,70,' + (0.6 * q).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by - 3 - q * 4, rr * 0.8, 0, Math.PI * 2); g.fill(); }
+        else { const q = (f - 0.75) / 0.25, rr = 2 + q * 7;
+          // Onda expansiva y cascotes que saltan.
+          g.strokeStyle = 'rgba(255,240,200,' + (0.6 * (1 - q)).toFixed(2) + ')'; g.lineWidth = 1; g.beginPath(); g.ellipse(bx, by, 4 + q * 16, (4 + q * 16) * 0.6, 0, 0, Math.PI * 2); g.stroke();
+          g.fillStyle = '#4a3a2a'; for (let d = 0; d < 7; d++) { const a = hash(Math.round(bx) * 31 + d) * Math.PI * 2, vel = 10 + hash(Math.round(by) + d) * 12; g.fillRect(bx + Math.cos(a) * vel * q, by - 14 * q + 10 * q * q + Math.sin(a) * vel * q * 0.5, 1, 1); } g.fillStyle = 'rgba(255,' + Math.round(220 - q * 120) + ',80,' + (1 - q * 0.6).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by, rr, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(90,80,70,' + (0.6 * q).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by - 3 - q * 4, rr * 0.8, 0, Math.PI * 2); g.fill(); }
+        continue;
+      }
+      if (bala === 4) {
+        // Flecha incendiaria: arco, punta en llamas y estela de humo.
+        const arcoF = Math.min(14, Math.hypot(bx - ax, by - ay) * 0.25);
+        const posF = q => [ax + (bx - ax) * q, ay + (by - ay) * q - Math.sin(q * Math.PI) * arcoF];
+        const [fx, fy] = posF(f);
+        for (let d = 1; d <= 5; d++) { const [sx, sy] = posF(Math.max(0, f - d * 0.04)); g.fillStyle = 'rgba(120,110,100,' + (0.35 - d * 0.06).toFixed(2) + ')'; g.fillRect(Math.round(sx), Math.round(sy) - 1, 1, 1); }
+        g.fillStyle = '#6b4a2b'; g.fillRect(Math.round(fx) - 1, Math.round(fy), 3, 1);
+        g.fillStyle = Math.floor(performance.now() / 70) % 2 ? '#ffd84a' : '#ff6a1a'; g.fillRect(Math.round(fx) + 1, Math.round(fy) - 1, 2, 2);
         continue;
       }
       if (bala === 2) {

@@ -752,6 +752,127 @@
     void paso;
   }
 
+
+  /*
+   * EL FUEGO, EL AGUA Y LAS MARCAS DEL SUELO, como en WorldBox: el fuego prende en árboles, casas y campos
+   * (flechas incendiarias, obuses, bombas, incendios, sequías, sabotajes), salta a lo de al lado y, al apagarse,
+   * deja ceniza, tocones y ruinas. La gente de la aldea lo apaga; el agua y las inundaciones lo paran.
+   * Las bombas dejan cráteres; las batallas, sangre; los derrumbes, escombros. Todo se va borrando con el tiempo.
+   */
+  const MARCA = { ceniza: 1, crater: 2, sangre: 3, escombros: 4 };
+  const ardible = (v, t) => v.arbol[t] >= 1 || (v.obra[t] && v.obra[t] !== OBRA.ruina && v.obra[t] !== OBRA.puerto);
+  function marcar(m, t, tipo, turnos, paso) {
+    const v = m.vida, mk = v.marcas = v.marcas || {};
+    const ya = mk[t];
+    if (ya && ya[0] === MARCA.crater && tipo !== 'crater') return;
+    mk[t] = [MARCA[tipo], m.turno + turnos];
+    // El paso del turno en que aparece (la vista la enseña en ese momento).
+    if (paso) (v.marcasPaso = v.marcasPaso || {})[t] = paso;
+  }
+  function prender(m, t, paso, fuerza) {
+    const v = m.vida, ter = terrenos(m);
+    if (t < 0 || t >= ter.length || mojada(ter[t]) || !ardible(v, t)) return false;
+    v.fuego = v.fuego || {}; v.inundado = v.inundado || {};
+    if (v.fuego[t] || v.inundado[t]) return false;
+    v.fuego[t] = (fuerza || 3) + Math.floor(azar(v) * 3) + (v.obra[t] === OBRA.casa ? 2 : 0);
+    (v.llamas = v.llamas || {})[t] = [paso || 0, TICKS + 1];
+    return true;
+  }
+  function apagar(m, t, paso) {
+    const v = m.vida;
+    delete v.fuego[t];
+    if (v.llamas && v.llamas[t]) v.llamas[t][1] = paso;
+  }
+  // Lo que deja el fuego al consumirse.
+  function quemado(m, t, paso) {
+    const v = m.vida;
+    if (v.arbol[t] >= 1) cambiar(m, 'arbol', t, 0, paso);
+    const o = v.obra[t];
+    if (o === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
+    else if (o && o !== OBRA.ruina) {
+      cambiar(m, 'obra', t, OBRA.ruina, paso);
+      if (v.torres && v.torres[t] != null) delete v.torres[t];
+      marcar(m, t, 'escombros', 10, paso);
+    }
+    marcar(m, t, 'ceniza', 8, paso);
+  }
+  // Un paso del fuego: arde, salta, quema a quien esté dentro, y la gente lo apaga.
+  function arder(m, paso, gente) {
+    const v = m.vida;
+    if (!v.fuego) return;
+    const claves = Object.keys(v.fuego);
+    if (!claves.length) return;
+    const ter = terrenos(m), tw = v.tw, mucho = claves.length > 500;
+    const humedo = new Set(S().vivas(m).filter(c => c.efectos.some(e => e.comida > 1.2 && e.hasta > m.turno)).map(c => c.id)); // diluvio reciente
+    const seco = new Set(S().vivas(m).filter(c => c.efectos.some(e => e.sequia)).map(c => c.id));
+    const nuevos = [];
+    for (const k of claves) {
+      const t = +k, r = region(m, t), dueno = m.dueno[r];
+      if (!ardible(v, t) || (v.inundado && v.inundado[t]) || humedo.has(dueno)) { apagar(m, t, paso); continue; }
+      // Los vecinos acuden con cubos: cuanta más gente en la comarca, antes se apaga (en sequía, peor).
+      const cubos = Math.min(0.3, 0.012 * (gente.get(r) || 0)) * (seco.has(dueno) ? 0.5 : 1);
+      if (azar(v) < cubos) { apagar(m, t, paso); marcar(m, t, 'ceniza', 3); continue; }
+      v.fuego[t]--;
+      if (v.fuego[t] <= 0) { apagar(m, t, paso); quemado(m, t, paso); continue; }
+      if (mucho) continue;
+      const x = t % tw;
+      for (const nb of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) {
+        if (nb < 0 || nb >= ter.length || v.fuego[nb] || !ardible(v, nb)) continue;
+        const d = m.dueno[region(m, nb)];
+        const p = (v.arbol[nb] >= 1 ? 0.27 : v.obra[nb] === OBRA.campo ? 0.2 : 0.14) * (seco.has(d) ? 1.8 : 1) * (ter[nb] === 'selva' || ter[nb] === 'pantano' ? 0.5 : ter[nb] === 'sabana' || ter[nb] === 'desierto' ? 1.4 : 1);
+        if (azar(v) < p) nuevos.push(nb);
+      }
+    }
+    for (const t of nuevos) prender(m, t, paso, 2);
+    // Quien está en una parcela en llamas se quema.
+    for (const a of v.aldeanos) {
+      const t = a.y * tw + a.x;
+      if (v.fuego[t] && azar(v) < 0.6 && golpear(v, null, a, 7 + Math.floor(azar(v) * 6), paso + 0.3, a.x, a.y - 1)) {
+        a.quemado = 1; v.muertos.push([a.x, a.y, a.c, 'fuego', paso + 0.3]);
+      }
+    }
+    if (v.aldeanos.some(a => a.quemado)) v.aldeanos = v.aldeanos.filter(a => !a.quemado);
+  }
+  // Inundaciones: el agua sube por las tierras bajas junto a ríos y costas; ahoga campos, tumba casas y apaga fuegos.
+  function inundar(m, c, turnos) {
+    const v = m.vida, ter = terrenos(m), tw = v.tw;
+    v.inundado = v.inundado || {};
+    const regiones = new Set(S().casillas(m, c));
+    const dist = new Map(), cola = [];
+    for (let t = 0; t < ter.length; t++) if ((ter[t] === 'rio' || ter[t] === 'bajo') && regiones.has(region(m, t))) { dist.set(t, 0); cola.push(t); }
+    let n = 0;
+    for (let i = 0; i < cola.length; i++) {
+      const t = cola[i], d = dist.get(t), x = t % tw;
+      if (d >= 2) continue;
+      for (const nb of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) {
+        if (nb < 0 || nb >= ter.length || dist.has(nb) || mojada(ter[nb]) || ter[nb] === 'montana' || ter[nb] === 'colina' || !regiones.has(region(m, nb))) continue;
+        if (azar(v) > 0.8) continue;
+        dist.set(nb, d + 1); cola.push(nb);
+        v.inundado[nb] = turnos; n++;
+        if (v.fuego && v.fuego[nb]) apagar(m, nb, 0);
+        if (v.obra[nb] === OBRA.campo && azar(v) < 0.6) { cambiar(m, 'obra', nb, 0, 0); cambiar(m, 'cultivo', nb, 0, 0); }
+        else if (v.obra[nb] === OBRA.casa && azar(v) < 0.2) { cambiar(m, 'obra', nb, OBRA.ruina, 0); marcar(m, nb, 'escombros', 10); }
+      }
+    }
+    return n;
+  }
+  // Al empezar el turno: se secan las inundaciones, se borran las marcas viejas y, en sequía, arde algún bosque.
+  function ambiente(m) {
+    const v = m.vida;
+    v.llamas = {}; v.marcasPaso = {};
+    for (const k of Object.keys(v.fuego || {})) v.llamas[k] = [0, TICKS + 1];
+    for (const k of Object.keys(v.inundado || {})) if (--v.inundado[k] <= 0) delete v.inundado[k];
+    for (const k of Object.keys(v.marcas || {})) if (v.marcas[k][1] <= m.turno) delete v.marcas[k];
+    for (const c of S().vivas(m)) {
+      if (!c.efectos.some(e => e.sequia) || azar(v) > 0.25) continue;
+      const cs = S().casillas(m, c), r = cs[Math.floor(azar(v) * cs.length)];
+      const ts = r != null ? parcelas(m, r).filter(t => v.arbol[t] >= 2) : [];
+      if (ts.length && prender(m, ts[Math.floor(azar(v) * ts.length)], 1, 4)) {
+        if (!(c.ultimoIncendio > m.turno - 8)) { c.ultimoIncendio = m.turno; S().cronica(m, 'incendio', 'Fuego en los bosques de ' + c.nombre, 'La sequía lo ha dejado todo como yesca: un rayo, una brasa mal apagada, y el monte arde. Los aldeanos salen con cubos y ramas.', c, r); }
+      }
+    }
+  }
+
   /*
    * LOS AVIONES (II Guerra Mundial): un pueblo en guerra con metal manda bombarderos sobre el ejército enemigo.
    * Cruzan el mapa desde su capital y sueltan bombas que hieren a todos los guerreros de alrededor.
@@ -776,6 +897,14 @@
         for (let k = 0; k < 3; k++) {
           const bx = b.x + Math.round((azar(v) - 0.5) * 3), by = b.y + Math.round((azar(v) - 0.5) * 3);
           v.disparos.push([bx, by - 5, bx, by, cae - 1 + k * 0.15, 3]);
+          // La bomba arrasa lo que hay: cráter, casas en ruinas, árboles arrancados y fuego.
+          const tb = by * v.tw + bx;
+          if (tb >= 0 && tb < v.obra.length) {
+            marcar(m, tb, 'crater', 14, cae);
+            if (v.arbol[tb] >= 1) cambiar(m, 'arbol', tb, 0, cae);
+            if (v.obra[tb] && v.obra[tb] !== OBRA.ruina && v.obra[tb] !== OBRA.centro) { cambiar(m, 'obra', tb, OBRA.ruina, cae); marcar(m, tb, 'escombros', 12, cae); if (v.torres && v.torres[tb] != null) delete v.torres[tb]; }
+            if (azar(v) < 0.55) for (const d of [0, 1, -1, v.tw]) prender(m, tb + d, Math.min(TICKS, Math.ceil(cae)), 3);
+          }
           for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) for (const o of guerreros.get((by + dy) * v.tw + bx + dx) || []) {
             if (!c.guerras.some(g => g.con === o.c) || !v.aldeanos.includes(o) || azar(v) > 0.55) continue;
             const arm = o.veh ? VEHICULOS[o.veh].blindaje || 0 : (ARMADURAS[o.armadura || 0] || ARMADURAS[0]).reduce;
@@ -863,7 +992,8 @@
     memo = new Map();
     // Vencen las cuadrillas, cupos y prioridades con plazo que mandó el jugador.
     if (M.mando && M.mando.vencer) M.mando.vencer(m);
-    v.cambios = []; v.muertos = []; v.disparos = []; v.aviones = []; v.golpes = []; v.ataques = [];
+    v.cambios = []; v.muertos = []; v.disparos = []; v.aviones = [];
+    ambiente(m); v.golpes = []; v.ataques = [];
     // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
     for (const a of v.aldeanos.concat(v.animales || [])) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + (a.tipo ? 5 : 6)); a.pv0 = a.pv; if (a.pv >= vidaMax(a)) { a.pv = null; a.pv0 = null; } }
     for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : a.edad + 1);
@@ -894,8 +1024,11 @@
       if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
       torres(m, paso, guerreros);
       if (paso === 2) aviones(m, paso, guerreros);
+      if (v.fuego && paso % 2 === 0) { const gente = new Map(); for (const a of v.aldeanos) if ((a.edad || 0) >= ADULTO) { const r = region(m, a.y * v.tw + a.x); gente.set(r, (gente.get(r) || 0) + 1); } arder(m, paso, gente); }
       asedios(m, paso);
     }
+    // Donde cae alguien en batalla queda sangre unos turnos.
+    for (const [x, y, , tipo, paso] of v.muertos) if (['batalla', 'flecha', 'obus', 'bomba', 'torre'].includes(tipo)) marcar(m, y * v.tw + x, 'sangre', 3, paso || 0.1);
     naturaleza(m, ter);
     contar(m);
     ciudades(m);
@@ -990,8 +1123,13 @@
         }
         if (blanco && azar(v) < 0.6) {
           // Una flecha (o una bala) vuela: se dibuja en este paso.
-          const obus = a.veh ? 2 : c.era >= 5 ? 1 : 0;
+          // Flechas incendiarias (de la Edad del Hierro a la pólvora): a veces prenden lo que hay donde caen.
+          const ardiente = !a.veh && c.era >= 2 && c.era < 5 && azar(v) < 0.12;
+          const obus = a.veh ? 2 : c.era >= 5 ? 1 : ardiente ? 4 : 0;
           v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, obus]);
+          if (ardiente) { const dx = Math.round((azar(v) - 0.5) * 2), dy = Math.round((azar(v) - 0.5) * 2); prender(m, (blanco.y + dy) * v.tw + blanco.x + dx, paso + 1, 2); }
+          // El obús revienta: cráter, árboles por el suelo y, a veces, fuego.
+          if (a.veh && VEHICULOS[a.veh].area) { const tb = blanco.y * v.tw + blanco.x; marcar(m, tb, 'crater', 6, paso + 1); if (v.arbol[tb] >= 1 && azar(v) < 0.5) cambiar(m, 'arbol', tb, 0, paso + 1); if (v.obra[tb] && v.obra[tb] !== OBRA.ruina && v.obra[tb] !== OBRA.centro && azar(v) < 0.3) { cambiar(m, 'obra', tb, OBRA.ruina, paso + 1); marcar(m, tb, 'escombros', 10, paso + 1); } if (azar(v) < 0.25) prender(m, tb, paso + 1, 2); }
           // El obús revienta en una zona: hiere a los enemigos de alrededor del blanco.
           if (a.veh && VEHICULOS[a.veh].area) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             const otros = guerreros.get((blanco.y + dy) * v.tw + blanco.x + dx);
@@ -1839,8 +1977,11 @@
     const v = m.vida;
     let quemados = 0;
     if (!v) return 0;
+    // Además de lo que arde en el acto, quedan focos que siguen quemando y saltando los turnos siguientes.
+    const cs = S().casillas(m, c);
+    for (let k = 0; k < 14 && cs.length; k++) { const r = cs[Math.floor(azar(v) * cs.length)], ts = parcelas(m, r).filter(t => ardible(v, t)); if (ts.length) prender(m, ts[Math.floor(azar(v) * ts.length)], 0, 5); }
     for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) {
-      if (v.arbol[t] && azar(v) < 0.75) { cambiar(m, 'arbol', t, 0, 0); quemados++; }
+      if (v.arbol[t] && azar(v) < 0.75) { cambiar(m, 'arbol', t, 0, 0); marcar(m, t, 'ceniza', 8); quemados++; }
       if (v.obra[t] === OBRA.casa && azar(v) < 0.3) cambiar(m, 'obra', t, OBRA.ruina, 0);
       if (v.obra[t] === OBRA.campo && azar(v) < 0.4) cambiar(m, 'obra', t, 0, 0);
     }
@@ -1900,5 +2041,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, mover, cambiar, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

@@ -1971,6 +1971,127 @@ body.sin-panel .panel { display: none; }
     void paso;
   }
 
+
+  /*
+   * EL FUEGO, EL AGUA Y LAS MARCAS DEL SUELO, como en WorldBox: el fuego prende en árboles, casas y campos
+   * (flechas incendiarias, obuses, bombas, incendios, sequías, sabotajes), salta a lo de al lado y, al apagarse,
+   * deja ceniza, tocones y ruinas. La gente de la aldea lo apaga; el agua y las inundaciones lo paran.
+   * Las bombas dejan cráteres; las batallas, sangre; los derrumbes, escombros. Todo se va borrando con el tiempo.
+   */
+  const MARCA = { ceniza: 1, crater: 2, sangre: 3, escombros: 4 };
+  const ardible = (v, t) => v.arbol[t] >= 1 || (v.obra[t] && v.obra[t] !== OBRA.ruina && v.obra[t] !== OBRA.puerto);
+  function marcar(m, t, tipo, turnos, paso) {
+    const v = m.vida, mk = v.marcas = v.marcas || {};
+    const ya = mk[t];
+    if (ya && ya[0] === MARCA.crater && tipo !== 'crater') return;
+    mk[t] = [MARCA[tipo], m.turno + turnos];
+    // El paso del turno en que aparece (la vista la enseña en ese momento).
+    if (paso) (v.marcasPaso = v.marcasPaso || {})[t] = paso;
+  }
+  function prender(m, t, paso, fuerza) {
+    const v = m.vida, ter = terrenos(m);
+    if (t < 0 || t >= ter.length || mojada(ter[t]) || !ardible(v, t)) return false;
+    v.fuego = v.fuego || {}; v.inundado = v.inundado || {};
+    if (v.fuego[t] || v.inundado[t]) return false;
+    v.fuego[t] = (fuerza || 3) + Math.floor(azar(v) * 3) + (v.obra[t] === OBRA.casa ? 2 : 0);
+    (v.llamas = v.llamas || {})[t] = [paso || 0, TICKS + 1];
+    return true;
+  }
+  function apagar(m, t, paso) {
+    const v = m.vida;
+    delete v.fuego[t];
+    if (v.llamas && v.llamas[t]) v.llamas[t][1] = paso;
+  }
+  // Lo que deja el fuego al consumirse.
+  function quemado(m, t, paso) {
+    const v = m.vida;
+    if (v.arbol[t] >= 1) cambiar(m, 'arbol', t, 0, paso);
+    const o = v.obra[t];
+    if (o === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
+    else if (o && o !== OBRA.ruina) {
+      cambiar(m, 'obra', t, OBRA.ruina, paso);
+      if (v.torres && v.torres[t] != null) delete v.torres[t];
+      marcar(m, t, 'escombros', 10, paso);
+    }
+    marcar(m, t, 'ceniza', 8, paso);
+  }
+  // Un paso del fuego: arde, salta, quema a quien esté dentro, y la gente lo apaga.
+  function arder(m, paso, gente) {
+    const v = m.vida;
+    if (!v.fuego) return;
+    const claves = Object.keys(v.fuego);
+    if (!claves.length) return;
+    const ter = terrenos(m), tw = v.tw, mucho = claves.length > 500;
+    const humedo = new Set(S().vivas(m).filter(c => c.efectos.some(e => e.comida > 1.2 && e.hasta > m.turno)).map(c => c.id)); // diluvio reciente
+    const seco = new Set(S().vivas(m).filter(c => c.efectos.some(e => e.sequia)).map(c => c.id));
+    const nuevos = [];
+    for (const k of claves) {
+      const t = +k, r = region(m, t), dueno = m.dueno[r];
+      if (!ardible(v, t) || (v.inundado && v.inundado[t]) || humedo.has(dueno)) { apagar(m, t, paso); continue; }
+      // Los vecinos acuden con cubos: cuanta más gente en la comarca, antes se apaga (en sequía, peor).
+      const cubos = Math.min(0.3, 0.012 * (gente.get(r) || 0)) * (seco.has(dueno) ? 0.5 : 1);
+      if (azar(v) < cubos) { apagar(m, t, paso); marcar(m, t, 'ceniza', 3); continue; }
+      v.fuego[t]--;
+      if (v.fuego[t] <= 0) { apagar(m, t, paso); quemado(m, t, paso); continue; }
+      if (mucho) continue;
+      const x = t % tw;
+      for (const nb of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) {
+        if (nb < 0 || nb >= ter.length || v.fuego[nb] || !ardible(v, nb)) continue;
+        const d = m.dueno[region(m, nb)];
+        const p = (v.arbol[nb] >= 1 ? 0.27 : v.obra[nb] === OBRA.campo ? 0.2 : 0.14) * (seco.has(d) ? 1.8 : 1) * (ter[nb] === 'selva' || ter[nb] === 'pantano' ? 0.5 : ter[nb] === 'sabana' || ter[nb] === 'desierto' ? 1.4 : 1);
+        if (azar(v) < p) nuevos.push(nb);
+      }
+    }
+    for (const t of nuevos) prender(m, t, paso, 2);
+    // Quien está en una parcela en llamas se quema.
+    for (const a of v.aldeanos) {
+      const t = a.y * tw + a.x;
+      if (v.fuego[t] && azar(v) < 0.6 && golpear(v, null, a, 7 + Math.floor(azar(v) * 6), paso + 0.3, a.x, a.y - 1)) {
+        a.quemado = 1; v.muertos.push([a.x, a.y, a.c, 'fuego', paso + 0.3]);
+      }
+    }
+    if (v.aldeanos.some(a => a.quemado)) v.aldeanos = v.aldeanos.filter(a => !a.quemado);
+  }
+  // Inundaciones: el agua sube por las tierras bajas junto a ríos y costas; ahoga campos, tumba casas y apaga fuegos.
+  function inundar(m, c, turnos) {
+    const v = m.vida, ter = terrenos(m), tw = v.tw;
+    v.inundado = v.inundado || {};
+    const regiones = new Set(S().casillas(m, c));
+    const dist = new Map(), cola = [];
+    for (let t = 0; t < ter.length; t++) if ((ter[t] === 'rio' || ter[t] === 'bajo') && regiones.has(region(m, t))) { dist.set(t, 0); cola.push(t); }
+    let n = 0;
+    for (let i = 0; i < cola.length; i++) {
+      const t = cola[i], d = dist.get(t), x = t % tw;
+      if (d >= 2) continue;
+      for (const nb of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) {
+        if (nb < 0 || nb >= ter.length || dist.has(nb) || mojada(ter[nb]) || ter[nb] === 'montana' || ter[nb] === 'colina' || !regiones.has(region(m, nb))) continue;
+        if (azar(v) > 0.8) continue;
+        dist.set(nb, d + 1); cola.push(nb);
+        v.inundado[nb] = turnos; n++;
+        if (v.fuego && v.fuego[nb]) apagar(m, nb, 0);
+        if (v.obra[nb] === OBRA.campo && azar(v) < 0.6) { cambiar(m, 'obra', nb, 0, 0); cambiar(m, 'cultivo', nb, 0, 0); }
+        else if (v.obra[nb] === OBRA.casa && azar(v) < 0.2) { cambiar(m, 'obra', nb, OBRA.ruina, 0); marcar(m, nb, 'escombros', 10); }
+      }
+    }
+    return n;
+  }
+  // Al empezar el turno: se secan las inundaciones, se borran las marcas viejas y, en sequía, arde algún bosque.
+  function ambiente(m) {
+    const v = m.vida;
+    v.llamas = {}; v.marcasPaso = {};
+    for (const k of Object.keys(v.fuego || {})) v.llamas[k] = [0, TICKS + 1];
+    for (const k of Object.keys(v.inundado || {})) if (--v.inundado[k] <= 0) delete v.inundado[k];
+    for (const k of Object.keys(v.marcas || {})) if (v.marcas[k][1] <= m.turno) delete v.marcas[k];
+    for (const c of S().vivas(m)) {
+      if (!c.efectos.some(e => e.sequia) || azar(v) > 0.25) continue;
+      const cs = S().casillas(m, c), r = cs[Math.floor(azar(v) * cs.length)];
+      const ts = r != null ? parcelas(m, r).filter(t => v.arbol[t] >= 2) : [];
+      if (ts.length && prender(m, ts[Math.floor(azar(v) * ts.length)], 1, 4)) {
+        if (!(c.ultimoIncendio > m.turno - 8)) { c.ultimoIncendio = m.turno; S().cronica(m, 'incendio', 'Fuego en los bosques de ' + c.nombre, 'La sequía lo ha dejado todo como yesca: un rayo, una brasa mal apagada, y el monte arde. Los aldeanos salen con cubos y ramas.', c, r); }
+      }
+    }
+  }
+
   /*
    * LOS AVIONES (II Guerra Mundial): un pueblo en guerra con metal manda bombarderos sobre el ejército enemigo.
    * Cruzan el mapa desde su capital y sueltan bombas que hieren a todos los guerreros de alrededor.
@@ -1995,6 +2116,14 @@ body.sin-panel .panel { display: none; }
         for (let k = 0; k < 3; k++) {
           const bx = b.x + Math.round((azar(v) - 0.5) * 3), by = b.y + Math.round((azar(v) - 0.5) * 3);
           v.disparos.push([bx, by - 5, bx, by, cae - 1 + k * 0.15, 3]);
+          // La bomba arrasa lo que hay: cráter, casas en ruinas, árboles arrancados y fuego.
+          const tb = by * v.tw + bx;
+          if (tb >= 0 && tb < v.obra.length) {
+            marcar(m, tb, 'crater', 14, cae);
+            if (v.arbol[tb] >= 1) cambiar(m, 'arbol', tb, 0, cae);
+            if (v.obra[tb] && v.obra[tb] !== OBRA.ruina && v.obra[tb] !== OBRA.centro) { cambiar(m, 'obra', tb, OBRA.ruina, cae); marcar(m, tb, 'escombros', 12, cae); if (v.torres && v.torres[tb] != null) delete v.torres[tb]; }
+            if (azar(v) < 0.55) for (const d of [0, 1, -1, v.tw]) prender(m, tb + d, Math.min(TICKS, Math.ceil(cae)), 3);
+          }
           for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) for (const o of guerreros.get((by + dy) * v.tw + bx + dx) || []) {
             if (!c.guerras.some(g => g.con === o.c) || !v.aldeanos.includes(o) || azar(v) > 0.55) continue;
             const arm = o.veh ? VEHICULOS[o.veh].blindaje || 0 : (ARMADURAS[o.armadura || 0] || ARMADURAS[0]).reduce;
@@ -2082,7 +2211,8 @@ body.sin-panel .panel { display: none; }
     memo = new Map();
     // Vencen las cuadrillas, cupos y prioridades con plazo que mandó el jugador.
     if (M.mando && M.mando.vencer) M.mando.vencer(m);
-    v.cambios = []; v.muertos = []; v.disparos = []; v.aviones = []; v.golpes = []; v.ataques = [];
+    v.cambios = []; v.muertos = []; v.disparos = []; v.aviones = [];
+    ambiente(m); v.golpes = []; v.ataques = [];
     // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
     for (const a of v.aldeanos.concat(v.animales || [])) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + (a.tipo ? 5 : 6)); a.pv0 = a.pv; if (a.pv >= vidaMax(a)) { a.pv = null; a.pv0 = null; } }
     for (const a of v.aldeanos) a.edad = (a.edad == null ? ADULTO + (a.id % 10) : a.edad + 1);
@@ -2113,8 +2243,11 @@ body.sin-panel .panel { display: none; }
       if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
       torres(m, paso, guerreros);
       if (paso === 2) aviones(m, paso, guerreros);
+      if (v.fuego && paso % 2 === 0) { const gente = new Map(); for (const a of v.aldeanos) if ((a.edad || 0) >= ADULTO) { const r = region(m, a.y * v.tw + a.x); gente.set(r, (gente.get(r) || 0) + 1); } arder(m, paso, gente); }
       asedios(m, paso);
     }
+    // Donde cae alguien en batalla queda sangre unos turnos.
+    for (const [x, y, , tipo, paso] of v.muertos) if (['batalla', 'flecha', 'obus', 'bomba', 'torre'].includes(tipo)) marcar(m, y * v.tw + x, 'sangre', 3, paso || 0.1);
     naturaleza(m, ter);
     contar(m);
     ciudades(m);
@@ -2209,8 +2342,13 @@ body.sin-panel .panel { display: none; }
         }
         if (blanco && azar(v) < 0.6) {
           // Una flecha (o una bala) vuela: se dibuja en este paso.
-          const obus = a.veh ? 2 : c.era >= 5 ? 1 : 0;
+          // Flechas incendiarias (de la Edad del Hierro a la pólvora): a veces prenden lo que hay donde caen.
+          const ardiente = !a.veh && c.era >= 2 && c.era < 5 && azar(v) < 0.12;
+          const obus = a.veh ? 2 : c.era >= 5 ? 1 : ardiente ? 4 : 0;
           v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, obus]);
+          if (ardiente) { const dx = Math.round((azar(v) - 0.5) * 2), dy = Math.round((azar(v) - 0.5) * 2); prender(m, (blanco.y + dy) * v.tw + blanco.x + dx, paso + 1, 2); }
+          // El obús revienta: cráter, árboles por el suelo y, a veces, fuego.
+          if (a.veh && VEHICULOS[a.veh].area) { const tb = blanco.y * v.tw + blanco.x; marcar(m, tb, 'crater', 6, paso + 1); if (v.arbol[tb] >= 1 && azar(v) < 0.5) cambiar(m, 'arbol', tb, 0, paso + 1); if (v.obra[tb] && v.obra[tb] !== OBRA.ruina && v.obra[tb] !== OBRA.centro && azar(v) < 0.3) { cambiar(m, 'obra', tb, OBRA.ruina, paso + 1); marcar(m, tb, 'escombros', 10, paso + 1); } if (azar(v) < 0.25) prender(m, tb, paso + 1, 2); }
           // El obús revienta en una zona: hiere a los enemigos de alrededor del blanco.
           if (a.veh && VEHICULOS[a.veh].area) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             const otros = guerreros.get((blanco.y + dy) * v.tw + blanco.x + dx);
@@ -3058,8 +3196,11 @@ body.sin-panel .panel { display: none; }
     const v = m.vida;
     let quemados = 0;
     if (!v) return 0;
+    // Además de lo que arde en el acto, quedan focos que siguen quemando y saltando los turnos siguientes.
+    const cs = S().casillas(m, c);
+    for (let k = 0; k < 14 && cs.length; k++) { const r = cs[Math.floor(azar(v) * cs.length)], ts = parcelas(m, r).filter(t => ardible(v, t)); if (ts.length) prender(m, ts[Math.floor(azar(v) * ts.length)], 0, 5); }
     for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) {
-      if (v.arbol[t] && azar(v) < 0.75) { cambiar(m, 'arbol', t, 0, 0); quemados++; }
+      if (v.arbol[t] && azar(v) < 0.75) { cambiar(m, 'arbol', t, 0, 0); marcar(m, t, 'ceniza', 8); quemados++; }
       if (v.obra[t] === OBRA.casa && azar(v) < 0.3) cambiar(m, 'obra', t, OBRA.ruina, 0);
       if (v.obra[t] === OBRA.campo && azar(v) < 0.4) cambiar(m, 'obra', t, 0, 0);
     }
@@ -3119,7 +3260,7 @@ body.sin-panel .panel { display: none; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, mover, cambiar, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -3234,7 +3375,7 @@ body.sin-panel .panel { display: none; }
     },
     {
       id: 'diluvio', re: /\b(diluvio|inundaci\w*|tsunami|maremoto|crecida|lluvia torrencial|que llueva)\b/, minimo: 1,
-      hacer: (m, cs) => { let e = null; for (const c of cs) { c.pob *= 0.82; c.estab -= 8; dano(m, c, 'diluvio'); c.efectos.push({ comida: 1.35, hasta: m.turno + 6 }); e = S().cronica(m, 'diluvio', 'Diluvio sobre ' + c.nombre, 'Llueve cuarenta días. Las aguas se llevan aldeas, puentes y algún templo. Cuando bajan, dejan los campos cubiertos de un barro negro y fértil.', c); } return e; }
+      hacer: (m, cs) => { let e = null; for (const c of cs) { c.pob *= 0.82; c.estab -= 8; dano(m, c, 'diluvio'); c.efectos.push({ comida: 1.35, hasta: m.turno + 6 }); if (M.vida && m.vida) M.vida.inundar(m, c, 4); e = S().cronica(m, 'diluvio', 'Diluvio sobre ' + c.nombre, 'Llueve cuarenta días. Las aguas se llevan aldeas, puentes y algún templo. Cuando bajan, dejan los campos cubiertos de un barro negro y fértil.', c); } return e; }
     },
     {
       id: 'terremoto', re: /\b(terremoto|seismo|sismo|volcan|erupcion|meteor\w*|asteroide|rayo|fuego del cielo|lluvia de fuego|cometa)\b/, minimo: 1,
@@ -3901,12 +4042,12 @@ body.sin-panel .panel { display: none; }
       // Sus campos de la frontera arden: pierden comida y cosecha.
       const fr = S().frontera(m, c, o).slice(0, 4);
       let quemados = 0;
-      for (const r of fr) for (const t of M.vida.parcelas(m, r)) if (v.obra[t] === M.vida.OBRA.campo && S().azar(m) < 0.7) { M.vida.cambiar(m, 'obra', t, 0, 0); quemados++; }
+      for (const r of fr) for (const t of M.vida.parcelas(m, r)) if ((v.obra[t] === M.vida.OBRA.campo || v.arbol[t] >= 2) && S().azar(m) < 0.5) { if (M.vida.prender(m, t, 0, 4)) quemados++; }
       o.comida = Math.max(0, (o.comida || 0) * 0.7); o.rel[c.id] = (o.rel[c.id] || 0) - 15; c.estab -= 2;
       const g = o.guerras.find(x => x.con === c.id); if (g) g.cansancio += 1.5;
       an('🔥 Campos de ' + o.nombre + ' en llamas', fr[0]);
-      S().cronica(m, 'guerra', c.nombre + ' quema los campos de ' + o.nombre, 'Partidas de ' + c.nombre + ' cruzan la frontera de noche y prenden fuego a ' + quemados + ' campos. El hambre será otra arma de esta guerra.', c, fr[0]);
-      textos.push('Tus partidas queman ' + quemados + ' campos de ' + o.nombre + ' en la frontera y arruinan parte de su granero. Se cansarán antes de la guerra.');
+      S().cronica(m, 'guerra', c.nombre + ' quema los campos de ' + o.nombre, 'Partidas de ' + c.nombre + ' cruzan la frontera de noche y prenden fuego a ' + quemados + ' campos y arboledas. El hambre será otra arma de esta guerra.', c, fr[0]);
+      textos.push('Tus partidas prenden fuego en ' + quemados + ' campos y arboledas de ' + o.nombre + ' en la frontera: lo verás arder y extenderse. Su granero pierde un tercio y se cansarán antes de la guerra.');
       return;
     }
     if (a.tipo === 'impuestos') {
@@ -5327,7 +5468,7 @@ body.sin-panel .panel { display: none; }
     for (const ch of pend) {
       if (ch[4] > hasta || ch.hecho) { if (!ch.hecho) quedan++; continue; }
       const capaN = ch[0] === 0 ? 'arbol' : ch[0] === 1 ? 'roca' : ch[0] === 2 ? 'obra' : ch[0] === 4 ? 'cultivo' : ch[0] === 5 ? 'camino' : null;
-      if (capaN) { visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); if (capaN === 'camino') vecinasCamino(ch[1]); }
+      if (capaN) { if (capaN === 'obra' && ch[3] === V.OBRA.ruina && ch[2] && ch[4] > 0) polvo(ch[1], true); visto[capaN][ch[1]] = ch[3]; parcela(ch[1]); if (capaN === 'camino') vecinasCamino(ch[1]); }
       ch.hecho = true;
     }
     if (!quedan) pend = [];
@@ -5398,6 +5539,7 @@ body.sin-panel .panel { display: none; }
     g.drawImage(lienzo, x0 / E, y0 / E, (x1 - x0) / E, (y1 - y0) / E, x0, y0, x1 - x0, y1 - y0);
     const ec = P / CA;
     g.drawImage(capa, x0 / ec, y0 / ec, (x1 - x0) / ec, (y1 - y0) / ec, x0, y0, x1 - x0, y1 - y0);
+    huellas(k, ahora, x0, y0, x1, y1);
     banderas(ahora);
     agua(ahora, x0, y0, x1, y1);
     barcos(k, ahora, x0, y0, x1, y1);
@@ -5406,6 +5548,8 @@ body.sin-panel .panel { display: none; }
     humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
     pintarDisparos(k);
+    llamas(k, ahora, x0, y0, x1, y1);
+    pintarPolvo(ahora);
     pintarTumbas(ahora);
     pintarEfectos(ahora, x0, y0, x1, y1);
     asedios(ahora);
@@ -5415,6 +5559,7 @@ body.sin-panel .panel { display: none; }
     pintarAviones(k);
     marcarPulso(ahora);
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
+    resplandor(k, ahora, x0, y0, x1, y1);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
     pintarAnuncios(z, ox, oy, dpr, performance.now());
@@ -5491,7 +5636,7 @@ body.sin-panel .panel { display: none; }
       const t = Math.floor(ahora / 150 + a.id) % 2;
       // En el agua (sin puente) no se camina: se nada, con la cabeza fuera y ondas alrededor.
       const tAhora = Math.floor((py + 4) / P) * v.tw + Math.floor((px + 1) / P), ta = tierra[tAhora];
-      if ((ta === 'agua' || ta === 'bajo' || ta === 'rio') && !(visto.camino && visto.camino[tAhora])) {
+      if (((ta === 'agua' || ta === 'bajo' || ta === 'rio') && !(visto.camino && visto.camino[tAhora])) || (v.inundado && v.inundado[tAhora])) {
         const brazo = Math.floor(ahora / 260 + a.id) % 2;
         g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(px - 2 - brazo, py + 4, 7 + brazo * 2, 1); g.fillRect(px - 1, py + 5, 5, 1);
         g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 3, 3, 1);
@@ -5977,6 +6122,126 @@ body.sin-panel .panel { display: none; }
     }
   }
 
+
+  // ---------- Fuego, agua y marcas del suelo ----------
+  const enVista = (t, x0, y0, x1, y1) => { const x = (t % m.vida.tw) * P, y = Math.floor(t / m.vida.tw) * P; return x + P >= x0 && y + P >= y0 && x <= x1 && y <= y1; };
+  // Ceniza, cráteres, sangre y escombros (debajo de todo lo que se mueve), y el agua de las inundaciones.
+  function huellas(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, mk = v.marcas || {}, desde = v.marcasPaso || {};
+    for (const key of Object.keys(mk)) {
+      const t = +key;
+      if (desde[t] != null && k < desde[t]) continue;
+      if (!enVista(t, x0, y0, x1, y1)) continue;
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, tipo = mk[key][0], h = q => hash(t * 13 + q);
+      const quedan = mk[key][1] - m.turno, desv = Math.max(0.35, Math.min(1, quedan / 4));
+      g.globalAlpha = desv;
+      if (tipo === 1) {
+        // Ceniza: una mancha gris oscura irregular con tocones y alguna brasa al principio.
+        g.fillStyle = 'rgba(40,36,34,0.55)';
+        for (let q = 0; q < 7; q++) g.fillRect(x + 1 + h(q) * 11, y + 2 + h(q + 9) * 11, 3 + h(q + 3) * 3, 2 + h(q + 5) * 3);
+        g.fillStyle = 'rgba(110,104,98,0.6)'; for (let q = 0; q < 5; q++) g.fillRect(x + h(q + 20) * 15, y + h(q + 30) * 15, 1, 1);
+        if (h(40) < 0.5) { g.fillStyle = '#2a201a'; g.fillRect(x + 6, y + 8, 3, 3); g.fillStyle = '#3a2c22'; g.fillRect(x + 6, y + 7, 3, 1); }
+        if (quedan > 6 && Math.floor(ahora / 300 + t) % 3 === 0) { g.fillStyle = '#ff7a2a'; g.fillRect(x + 4 + h(50) * 8, y + 5 + h(51) * 8, 1, 1); }
+      } else if (tipo === 2) {
+        // Cráter: un hoyo oscuro con borde de tierra removida y terrones alrededor.
+        g.fillStyle = 'rgba(90,64,40,0.85)'; g.beginPath(); g.ellipse(x + 8, y + 9, 7.5, 5.5, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(36,26,18,0.95)'; g.beginPath(); g.ellipse(x + 8, y + 9.5, 5, 3.5, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(20,14,10,0.9)'; g.beginPath(); g.ellipse(x + 8, y + 10, 2.6, 1.8, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#7a5a36'; for (let q = 0; q < 8; q++) { const a = h(q) * Math.PI * 2, r = 8 + h(q + 8) * 3; g.fillRect(x + 8 + Math.cos(a) * r, y + 9 + Math.sin(a) * r * 0.75, 1 + (q % 2), 1); }
+        if (quedan > 10) { g.fillStyle = 'rgba(80,80,80,' + (0.25 + 0.15 * Math.sin(ahora / 300 + t)).toFixed(2) + ')'; g.fillRect(x + 6, y + 3 - (ahora / 200 + t) % 4, 3, 2); }
+      } else if (tipo === 3) {
+        // Sangre: unas salpicaduras de rojo oscuro.
+        g.fillStyle = 'rgba(120,14,14,0.75)';
+        g.fillRect(x + 5 + h(1) * 5, y + 8 + h(2) * 4, 3, 2); g.fillRect(x + 4 + h(3) * 7, y + 7 + h(4) * 5, 1, 1); g.fillRect(x + 7 + h(5) * 5, y + 10 + h(6) * 3, 2, 1);
+        g.fillStyle = 'rgba(80,6,6,0.8)'; g.fillRect(x + 6 + h(7) * 4, y + 9 + h(8) * 3, 1, 1);
+      } else if (tipo === 4) {
+        // Escombros: piedras, vigas y tejas por el suelo.
+        for (let q = 0; q < 9; q++) { g.fillStyle = ['#7a746c', '#5a544c', '#6b4a2b', '#9a8a78', '#a04a3a'][q % 5]; g.fillRect(x + h(q) * 14, y + 4 + h(q + 11) * 11, 1 + (h(q + 22) < 0.4 ? 1 : 0), 1); }
+      }
+    }
+    g.globalAlpha = 1;
+    // El agua desbordada: azul turbio con brillos que se mueven.
+    const inund = v.inundado || {};
+    for (const key of Object.keys(inund)) {
+      const t = +key;
+      if (!enVista(t, x0, y0, x1, y1)) continue;
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, tw = v.tw;
+      // El borde del agua se redondea donde acaba la inundación (charcos con orilla, no cuadros).
+      const n = !inund[t - tw], s2 = !inund[t + tw], o = !inund[t - 1], e = !inund[t + 1];
+      g.fillStyle = 'rgba(52,118,186,0.6)';
+      g.beginPath();
+      if (g.roundRect) g.roundRect(x + (o ? 1 : 0), y + (n ? 1 : 0), P - (o ? 1 : 0) - (e ? 1 : 0), P - (n ? 1 : 0) - (s2 ? 1 : 0), [n && o ? 6 : 0, n && e ? 6 : 0, s2 && e ? 6 : 0, s2 && o ? 6 : 0]);
+      else g.rect(x, y, P, P);
+      g.fill();
+      g.fillStyle = 'rgba(120,80,40,0.25)'; g.fillRect(x + 3, y + 6, 4, 2); // barro arrastrado
+      g.fillStyle = 'rgba(210,235,250,0.55)';
+      const f = (ahora / 500 + t * 0.37) % 1;
+      g.fillRect(x + 2 + f * 8, y + 4, 4, 1); g.fillRect(x + 9 - f * 6, y + 11, 3, 1);
+      if (n) { g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(x + 3, y + 1, P - 6, 1); }
+    }
+  }
+  // Las llamas de este turno: arden desde el paso en que prenden hasta que se apagan, con humo y pavesas.
+  function llamas(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, ll = v.llamas || {};
+    for (const key of Object.keys(ll)) {
+      const t = +key, [ini, fin] = ll[key];
+      if (k < ini || k > fin + 2) continue;
+      if (!enVista(t, x0, y0, x1, y1)) continue;
+      const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P;
+      const vivo = k < fin, apaga = vivo ? Math.min(1, (k - ini) * 2 + 0.3) : Math.max(0, 1 - (k - fin) / 2);
+      // Humo: bocanadas grises que suben y se van a un lado.
+      for (let q = 0; q < 4; q++) {
+        const f = ((ahora / 1400 + q / 4 + hash(t + q) * 0.3) % 1);
+        g.fillStyle = 'rgba(' + (vivo ? '70,66,64' : '110,108,106') + ',' + ((1 - f) * 0.45 * (vivo ? 1 : apaga)).toFixed(2) + ')';
+        const r = 2 + f * 4;
+        g.fillRect(x + 6 + f * 6 + Math.sin(ahora / 400 + q) * 1.5 - r / 2, y + 2 - f * 22 - r / 2, r, r);
+      }
+      if (!vivo) continue;
+      // Brasas en la base y llamas: lenguas afiladas que bailan, rojas abajo, naranjas y amarillas en la punta.
+      g.fillStyle = 'rgba(120,24,10,0.7)'; g.beginPath(); g.ellipse(x + 8, y + 13.5, 6.5, 2, 0, 0, Math.PI * 2); g.fill();
+      for (let q = 0; q < 5; q++) {
+        const ph = ahora / (85 + q * 19) + t + q * 1.7;
+        const alto = (4 + 5 * Math.abs(Math.sin(ph)) + hash(t * 3 + q) * 4) * apaga * (q === 2 ? 1.35 : q === 0 || q === 4 ? 0.7 : 1);
+        const cx = x + 2.5 + q * 2.8 + Math.sin(ph * 0.7) * 0.8, base = y + 14, ladeo = Math.sin(ph * 1.3) * 1.2;
+        const lengua = (col, w, h0) => { g.fillStyle = col; g.beginPath(); g.moveTo(cx - w, base); g.quadraticCurveTo(cx - w * 0.8, base - h0 * 0.6, cx + ladeo, base - h0); g.quadraticCurveTo(cx + w * 0.8, base - h0 * 0.6, cx + w, base); g.closePath(); g.fill(); };
+        lengua('#d0301c', 2.2, alto); lengua('#ff8a1e', 1.6, alto * 0.75); lengua('#ffd84a', 0.9, alto * 0.45);
+      }
+      g.fillStyle = 'rgba(255,248,210,0.9)'; g.fillRect(x + 7, y + 12, 2, 1);
+      // Pavesas que suben.
+      for (let q = 0; q < 3; q++) { const f = (ahora / 700 + q / 3 + hash(t + q * 5)) % 1; g.fillStyle = f < 0.5 ? '#ffd84a' : '#ff6a1a'; g.fillRect(x + 4 + hash(t + q) * 8 + Math.sin(ahora / 200 + q) * 2, y + 6 - f * 16, 1, 1); }
+    }
+  }
+  // Después de la noche: el resplandor del fuego ilumina alrededor (se ve mucho mejor a oscuras).
+  function resplandor(k, ahora, x0, y0, x1, y1) {
+    const v = m.vida, ll = v.llamas || {}, o = oscuridad(performance.now());
+    const claves = Object.keys(ll);
+    if (!claves.length) return;
+    g.save(); g.globalCompositeOperation = 'lighter';
+    for (const key of claves) {
+      const t = +key, [ini, fin] = ll[key];
+      if (k < ini || k >= fin || !enVista(t, x0, y0, x1, y1)) continue;
+      const x = (t % v.tw) * P + 8, y = Math.floor(t / v.tw) * P + 9, r = 14 + 2 * Math.sin(ahora / 120 + t);
+      const gr = g.createRadialGradient(x, y, 1, x, y, r);
+      gr.addColorStop(0, 'rgba(255,140,40,' + (0.22 + 0.3 * o).toFixed(2) + ')'); gr.addColorStop(1, 'rgba(255,90,20,0)');
+      g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    g.restore();
+  }
+  // Polvo de los derrumbes y cascotes que saltan con las explosiones.
+  let polvos = [];
+  function polvo(t, fuerte) { polvos.push({ t, inicio: performance.now(), fuerte: !!fuerte }); if (polvos.length > 120) polvos = polvos.slice(-120); }
+  function pintarPolvo(ahora) {
+    polvos = polvos.filter(p => ahora - p.inicio < 1400);
+    for (const p of polvos) {
+      const f = (ahora - p.inicio) / 1400, x = (p.t % m.vida.tw) * P + 8, y = Math.floor(p.t / m.vida.tw) * P + 10;
+      g.fillStyle = 'rgba(170,150,120,' + (0.5 * (1 - f)).toFixed(2) + ')';
+      const r = 4 + f * (p.fuerte ? 14 : 9);
+      g.beginPath(); g.ellipse(x, y - f * 4, r, r * 0.6, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(90,80,70,' + (1 - f).toFixed(2) + ')';
+      for (let q = 0; q < (p.fuerte ? 8 : 4); q++) { const a = hash(p.t + q) * Math.PI * 2, vel = 6 + hash(p.t * 7 + q) * 10; g.fillRect(x + Math.cos(a) * vel * f, y - 10 * f + 18 * f * f + Math.sin(a) * vel * f * 0.6, 1, 1); }
+    }
+  }
+
   // Bombarderos: cruzan desde su capital hasta el blanco (llegan en 1,6 pasos) y siguen de largo, con su sombra.
   function pintarAviones(k) {
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
@@ -6003,7 +6268,20 @@ body.sin-panel .panel { display: none; }
       if (bala === 3) {
         // Bomba de avión: cae en vertical y revienta.
         if (f < 0.75) { const yb = ay - 40 + 40 * (f / 0.75); g.fillStyle = '#2a2a2a'; g.fillRect(Math.round(bx - 0.5), Math.round(yb), 2, 3); }
-        else { const q = (f - 0.75) / 0.25, rr = 2 + q * 7; g.fillStyle = 'rgba(255,' + Math.round(220 - q * 120) + ',80,' + (1 - q * 0.6).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by, rr, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(90,80,70,' + (0.6 * q).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by - 3 - q * 4, rr * 0.8, 0, Math.PI * 2); g.fill(); }
+        else { const q = (f - 0.75) / 0.25, rr = 2 + q * 7;
+          // Onda expansiva y cascotes que saltan.
+          g.strokeStyle = 'rgba(255,240,200,' + (0.6 * (1 - q)).toFixed(2) + ')'; g.lineWidth = 1; g.beginPath(); g.ellipse(bx, by, 4 + q * 16, (4 + q * 16) * 0.6, 0, 0, Math.PI * 2); g.stroke();
+          g.fillStyle = '#4a3a2a'; for (let d = 0; d < 7; d++) { const a = hash(Math.round(bx) * 31 + d) * Math.PI * 2, vel = 10 + hash(Math.round(by) + d) * 12; g.fillRect(bx + Math.cos(a) * vel * q, by - 14 * q + 10 * q * q + Math.sin(a) * vel * q * 0.5, 1, 1); } g.fillStyle = 'rgba(255,' + Math.round(220 - q * 120) + ',80,' + (1 - q * 0.6).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by, rr, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(90,80,70,' + (0.6 * q).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by - 3 - q * 4, rr * 0.8, 0, Math.PI * 2); g.fill(); }
+        continue;
+      }
+      if (bala === 4) {
+        // Flecha incendiaria: arco, punta en llamas y estela de humo.
+        const arcoF = Math.min(14, Math.hypot(bx - ax, by - ay) * 0.25);
+        const posF = q => [ax + (bx - ax) * q, ay + (by - ay) * q - Math.sin(q * Math.PI) * arcoF];
+        const [fx, fy] = posF(f);
+        for (let d = 1; d <= 5; d++) { const [sx, sy] = posF(Math.max(0, f - d * 0.04)); g.fillStyle = 'rgba(120,110,100,' + (0.35 - d * 0.06).toFixed(2) + ')'; g.fillRect(Math.round(sx), Math.round(sy) - 1, 1, 1); }
+        g.fillStyle = '#6b4a2b'; g.fillRect(Math.round(fx) - 1, Math.round(fy), 3, 1);
+        g.fillStyle = Math.floor(performance.now() / 70) % 2 ? '#ffd84a' : '#ff6a1a'; g.fillRect(Math.round(fx) + 1, Math.round(fy) - 1, 2, 2);
         continue;
       }
       if (bala === 2) {

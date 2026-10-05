@@ -438,5 +438,23 @@ console.log('TODO LO QUE SE LE PUEDE DECIR');
   comprobar(g.length > 0 && g.every(a => a.o === 4), 'los escuadrones siguen formados y armados');
 }
 
+console.log('FUEGO, AGUA Y MARCAS');
+{
+  const m = hasta(S.crear(5, 5), 600), v = m.vida, V2 = M.vida;
+  const c = S.vivas(m)[0], ts = S.casillas(m, c).flatMap(r => V2.parcelas(m, r)).filter(t => v.arbol[t] >= 2);
+  const t0 = ts[0];
+  comprobar(V2.prender(m, t0, 0, 4) && v.fuego[t0] > 0, 'el fuego prende en un árbol');
+  const arboles0 = v.arbol.filter(x => x >= 1).length;
+  for (let i = 0; i < 4; i++) S.turno(m);
+  comprobar(!v.fuego[t0] && v.arbol[t0] === 0 && v.arbol.filter(x => x >= 1).length < arboles0 + 40, 'al consumirse deja el árbol quemado');
+  comprobar(Object.values(v.marcas || {}).some(x => x[0] === V2.MARCA.ceniza), 'y ceniza en el suelo');
+  const n = V2.inundar(m, c, 3);
+  comprobar(n > 0 && Object.keys(v.inundado).length >= n, 'el diluvio inunda tierras bajas junto al agua');
+  for (let i = 0; i < 4; i++) S.turno(m);
+  comprobar(!Object.keys(v.inundado || {}).length, 'y el agua se retira');
+  const tv = ts.find(t => v.arbol[t] >= 1 && !v.fuego[t]);
+  if (tv != null) { V2.inundar(m, c, 2); v.inundado[tv] = 2; comprobar(!V2.prender(m, tv, 0, 3), 'lo inundado no arde'); }
+}
+
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
 process.exit(fallos ? 1 : 0);

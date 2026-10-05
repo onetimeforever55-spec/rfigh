@@ -109,7 +109,7 @@
     },
     {
       id: 'diluvio', re: /\b(diluvio|inundaci\w*|tsunami|maremoto|crecida|lluvia torrencial|que llueva)\b/, minimo: 1,
-      hacer: (m, cs) => { let e = null; for (const c of cs) { c.pob *= 0.82; c.estab -= 8; dano(m, c, 'diluvio'); c.efectos.push({ comida: 1.35, hasta: m.turno + 6 }); e = S().cronica(m, 'diluvio', 'Diluvio sobre ' + c.nombre, 'Llueve cuarenta días. Las aguas se llevan aldeas, puentes y algún templo. Cuando bajan, dejan los campos cubiertos de un barro negro y fértil.', c); } return e; }
+      hacer: (m, cs) => { let e = null; for (const c of cs) { c.pob *= 0.82; c.estab -= 8; dano(m, c, 'diluvio'); c.efectos.push({ comida: 1.35, hasta: m.turno + 6 }); if (M.vida && m.vida) M.vida.inundar(m, c, 4); e = S().cronica(m, 'diluvio', 'Diluvio sobre ' + c.nombre, 'Llueve cuarenta días. Las aguas se llevan aldeas, puentes y algún templo. Cuando bajan, dejan los campos cubiertos de un barro negro y fértil.', c); } return e; }
     },
     {
       id: 'terremoto', re: /\b(terremoto|seismo|sismo|volcan|erupcion|meteor\w*|asteroide|rayo|fuego del cielo|lluvia de fuego|cometa)\b/, minimo: 1,
