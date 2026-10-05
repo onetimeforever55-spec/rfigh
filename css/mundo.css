@@ -200,6 +200,9 @@ body.sin-panel .panel { display: none; }
 .guerra-marcador .barra span { background: var(--sangre); }
 .guerra-marcador .barra { display: inline-block; width: 60px; vertical-align: middle; }
 .guerra-hud .guerra-marcador { margin: 6px 0 0; padding: 5px 9px; font-size: 12.5px; line-height: 1.4; }
+.cuadrillas-hud { margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--pergamino); }
+.cuadrillas-hud b { font-family: var(--f-dato); font-weight: normal; color: var(--oro); }
+.cuadrillas-hud .sep { color: var(--linea); }
 .guerra-mas { margin: 4px 0 0; font-size: 12px; }
 .verde { color: #7fc77a; }
 /* Móvil: todo más compacto para que se vea el mundo. */

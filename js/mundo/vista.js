@@ -67,7 +67,7 @@
     const c = tuPueblo();
     $('etiqueta-orden').textContent = c ? 'Tus órdenes a ' + c.nombre : 'Tu voluntad';
     $('boton-orden').textContent = c ? 'Ordenar' : 'Obrar';
-    $('orden').placeholder = c ? 'Más madera, menos ejército, todo a la ciencia, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
+    $('orden').placeholder = c ? '5 granjeros a talar 2 minutos, quiero 10 leñadores, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
     $('voluntad').classList.toggle('es-pueblo', !!c);
     $('ir-mio').hidden = !c;
     pintarEjemplos();
@@ -185,6 +185,12 @@
     if (socios.length) l.push(fila('Tratados', esc(socios.join(', '))));
     const ofertas = Object.keys(m.ofertas || {}).map(Number).filter(id => S.civ(m, id) && S.enGuerra(c, S.civ(m, id)) && m.turno - m.ofertas[id] <= 15).map(id => S.civ(m, id).nombre);
     if (ofertas.length) l.push(fila('Te ofrecen paz', '<span class="rojo">' + esc(ofertas.join(', ')) + '</span>'));
+    const cq = (p.cuadrillas || []).map(g => esc(g.texto) + ' <span class="tenue">' + (g.hasta ? esc(X.queda(m, c, g.hasta, VELOCIDADES[vel][0])) : 'hasta nueva orden') + '</span>');
+    if (cq.length) l.push(fila('Cuadrillas', cq.join('<br>')));
+    const cupos = Object.keys(p.cupos || {}).map(k => p.cupos[k].n + ' ' + X.OFICIOS_N[k] + (p.cupos[k].hasta ? ' <span class="tenue">' + esc(X.queda(m, c, p.cupos[k].hasta, VELOCIDADES[vel][0])) + '</span>' : ''));
+    if (cupos.length) l.push(fila('Cupos', cupos.join(', ')));
+    const n = X.cuentaOficios(m, c);
+    l.push(fila('Oficios', n.map((k, i) => k + ' ' + X.OFICIOS_N[i]).join(', ')));
     return '<div class="plan"><p class="plan-titulo">Prioridades <span class="tenue">· tu pueblo se gobierna solo; cámbialas escribiendo («más madera», «menos ejército», «todo a la ciencia»)</span></p><div class="prios">' + barras + '</div>' + (l.length ? '<dl>' + l.join('') + '</dl>' : '') + '</div>';
   }
 
@@ -325,7 +331,7 @@
   function pintarEjemplos() {
     const vecino = tuPueblo() && (S.vecinosDe(m, tuPueblo())[0] || S.vivas(m).find(o => o.id !== m.jugador));
     const ej = tuPueblo()
-      ? ['Informe', 'Más madera', 'Más comida y casas', 'Todo a la ciencia', 'Menos ejército', 'Expandíos hacia el norte', vecino ? 'Atacad a ' + vecino.nombre : 'Atacad al vecino más débil', vecino ? 'Comerciad con ' + vecino.nombre : 'Comerciad con el más rico', 'Como antes']
+      ? ['5 granjeros a talar durante 2 minutos', 'Quiero 10 leñadores', 'Talad 20 árboles', 'La mitad de los mineros a construir hasta tener 30 casas', '¿Cuántos guerreros tengo?', 'Liberad las cuadrillas', 'Informe', 'Más madera', 'Más comida y casas', 'Todo a la ciencia', 'Menos ejército', 'Expandíos hacia el norte', vecino ? 'Atacad a ' + vecino.nombre : 'Atacad al vecino más débil', vecino ? 'Comerciad con ' + vecino.nombre : 'Comerciad con el más rico', 'Como antes']
       : ['Peste sobre el más grande', 'Que el más atrasado descubra la imprenta', 'Incendio en el más grande', 'Que planten bosques en el más pequeño', 'Paz para todos', 'Que aparezca un pueblo nuevo', 'Que llueva oro sobre el más pobre'];
     const cont = $('ejemplos');
     cont.innerHTML = '';
@@ -371,6 +377,22 @@
         '<br>' + que + amenaza + (corto ? '' : '<br><span class="tenue">Órdenes: «atacad ' + esc(((m.ciudades || []).find(x => x.civ === o.id) || {}).nombre || 'su capital') + '», «defended la capital», «paz con ' + esc(o.nombre) + '».</span>') + '</div>';
     }).join('');
   }
+  // Las cuadrillas, cupos y metas en marcha, con lo que les queda (cuenta atrás si se dio en minutos).
+  let ultimoPlanHud = '';
+  function pintarCuadrillas() {
+    const c = tuPueblo(), h = $('cuadrillas-hud');
+    if (!h) return;
+    if (m.vida) m.vida.msTurno = VELOCIDADES[vel][0];
+    const p = c && c.plan, partes = [];
+    if (p) {
+      for (const g of p.cuadrillas || []) partes.push('⚒ ' + esc(g.texto) + ' <b>' + (g.hasta ? esc(X.queda(m, c, g.hasta, VELOCIDADES[vel][0])) : '∞') + '</b>');
+      for (const k of Object.keys(p.cupos || {})) partes.push('📌 ' + p.cupos[k].n + ' ' + X.OFICIOS_N[k] + (p.cupos[k].hasta ? ' <b>' + esc(X.queda(m, c, p.cupos[k].hasta, VELOCIDADES[vel][0])) + '</b>' : ''));
+      for (const t of p.temporales || []) partes.push('⏱ ' + esc(X.NOMBRE_RECURSO[t.k]) + ' ' + esc(X.NIVEL(t.puesto)) + ' <b>' + esc(X.queda(m, c, t.hasta, VELOCIDADES[vel][0])) + '</b>');
+    }
+    const html = partes.join('<span class="sep"> · </span>');
+    if (html === ultimoPlanHud) return;
+    ultimoPlanHud = html; h.innerHTML = html; h.hidden = !html;
+  }
   function pintarGuerra() {
     const c = tuPueblo(), h = $('guerra-hud');
     const html = c && c.guerras.length ? marcadorGuerra(c, true, 2) + (c.guerras.length > 2 ? '<p class="tenue guerra-mas">y ' + (c.guerras.length - 2) + ' guerra' + (c.guerras.length > 3 ? 's' : '') + ' más (pestaña Ejército)</p>' : '') : '';
@@ -391,7 +413,7 @@
     avisoHasta = performance.now() + (ms || 3500);
     setTimeout(() => { if (performance.now() >= avisoHasta - 50) e.hidden = true; }, ms || 3500);
   }
-  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarGuerra(); pintarRetos(); }
+  function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarGuerra(); pintarCuadrillas(); pintarRetos(); }
 
   // ---------- El tiempo ----------
   // El año del reloj avanza poco a poco durante el turno, en vez de saltar.
@@ -401,6 +423,7 @@
     // Para depurar desde la consola: genesis.mundo() devuelve el mundo vivo.
     window.genesis = { mundo: () => m, aldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); } };
     if (!m || anioAntes == null) return;
+    if (performance.now() - (relojSuave.ult || 0) > 500) { relojSuave.ult = performance.now(); pintarCuadrillas(); }
     const f = corriendo ? Math.min(1, (performance.now() - inicioTurno) / VELOCIDADES[vel][0]) : 1;
     const anio = Math.round(anioAntes + (m.anio - anioAntes) * f);
     const texto = m.libre ? 'Año ' + anio : S.anioTexto(anio);
@@ -415,6 +438,9 @@
     setTimeout(() => despuesDelTurno(antes, yo, guerrasAntes, sigAntes), 40);
   }
   function despuesDelTurno(antes, yo, guerrasAntes, sigAntes) {
+    // Avisos del turno sobre el mapa (plazas ganadas, cuadrillas que terminan) y en la línea de respuesta.
+    for (const an of (m.vida.anuncios || []).splice(0)) { const c = S.civ(m, an.civ); if (c && (!m.jugador || an.civ === m.jugador || an.region != null)) P.anunciar(an.region != null ? an.region : c.capital, an.texto, /[⚔✖]/.test(an.texto) ? '#ff8a7a' : /🏴/.test(an.texto) ? '#ffd76a' : null); }
+    for (const av of (m.avisosPlan || []).splice(0)) if (av.civ === m.jugador) responder(av.texto, 'bien');
     if (m.cronica[0] !== antes) marcar(m.cronica[0]);
     if (M.sonido && M.sonido.activo()) {
       const nuevos = []; for (const e of m.cronica) { if (e === antes) break; nuevos.push(e); }
@@ -562,9 +588,10 @@
   // Las órdenes a tu pueblo: el intérprete local, y si no entiende, Claude las traduce a las mismas acciones.
   async function ordenar(texto) {
     const yo = tuPueblo();
+    if (m.vida) m.vida.msTurno = VELOCIDADES[vel][0];
     const r = X.ordenar(m, yo.id, texto);
     if (r.ok) { despuesDeOrden(r); return; }
-    if (!sample) { responder('Tu gente no entiende la orden. Prueba con: más madera, más comida, menos ejército, todo a la ciencia, nada de piedra, expandíos hacia el norte, atacad a X, haced la paz con X, comerciad con X, proclamad la república, informe, como antes.', 'duda'); return; }
+    if (!sample) { responder('Tu gente no entiende la orden. Prueba con: 5 granjeros a talar durante 2 minutos, quiero 10 leñadores, talad 20 árboles, más madera, más comida, menos ejército, todo a la ciencia, nada de piedra, expandíos hacia el norte, atacad a X, haced la paz con X, comerciad con X, proclamad la república, informe, como antes.', 'duda'); return; }
     ocupado = true;
     responder('Tus consejeros discuten la orden…', 'espera');
     try {

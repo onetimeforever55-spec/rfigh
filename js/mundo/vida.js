@@ -384,7 +384,7 @@
     // Los que viven en tierra que cambia de dueño (conquista, rebelión) pasan a ser de ese pueblo.
     for (const a of v.aldeanos) {
       const d = m.dueno[a.h];
-      if (d >= 0 && d !== a.c && a.colono == null) { const o = S().civ(m, d); if (o && o.viva) { a.c = d; a.llego = m.turno; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; } }
+      if (d >= 0 && d !== a.c && a.colono == null) { const o = S().civ(m, d); if (o && o.viva) { a.c = d; a.llego = m.turno; delete a.fijo; delete a.veh; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; } }
     }
     for (const c of vivas) porCiv[c.id] = [];
     for (const a of v.aldeanos) if (porCiv[a.c]) porCiv[a.c].push(a);
@@ -446,23 +446,55 @@
   }
   // Reparte los oficios de un pueblo. Con «ya» (una orden del jugador), cambian en el acto todos los que no
   // vayan cargados, no solo los que estaban libres: la orden se ve obedecer enseguida.
+  // Cambia de oficio a un aldeano (quien deja las armas, las entrega).
+  function mover(a, k) {
+    if (a.o === GUERRERO && k !== GUERRERO) { a.arma = 0; a.armadura = 0; a.tirador = null; delete a.veh; if (a.pv != null) { a.pv = Math.min(a.pv, vidaMax(a)); a.pv0 = a.pv; } }
+    a.o = k; a.e = LIBRE; a.k = 0; a.kt = 0; a.paseo = 0; a.tx = -1; a.ty = -1; a.pastor = null; a.caza = null; a.cantera = 0; a.siega = 0;
+  }
+  // Las órdenes concretas del jugador mandan sobre el gobernador automático:
+  //  · CUADRILLAS: aldeanos con un encargo fijo (a.fijo) que nadie les cambia hasta que vence;
+  //  · CUPOS: «quiero 10 leñadores» fija cuántos hay de un oficio (c.plan.cupos), el resto se reparte solo.
   function reasignar(m, c, recursos, ya) {
     const v = m.vida;
-    {
-      const lista = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.colono == null), p = reparto(c, recursos || { arboles: 1, rocas: 1 });
-      const tiene = [0, 0, 0, 0, 0, 0];
-      for (const a of lista) tiene[a.o]++;
-      for (const a of lista) {
-        // En guerra se llama a las armas a cualquiera que no vaya cargado; en paz, solo cambian los que están libres.
-        // Los ancianos dejan las armas y vuelven al campo; nadie los llama a filas.
-        const viejo = (a.edad || 0) >= VIEJO;
-        if (viejo && a.o === GUERRERO) { tiene[GUERRERO]--; tiene[GRANJERO]++; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; continue; }
-        const llamada = c.guerras.length && !a.k && a.o !== GUERRERO && !esNino(a) && !viejo;
-        if (!llamada && !(ya && !a.k) && a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
-        const falta = p.map((x, i) => (viejo && i === GUERRERO ? -1e9 : x * lista.length - tiene[i] + (i === a.o ? 1 : 0)));
+    const todos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.colono == null);
+    const cupos = (c.plan && c.plan.cupos) || {};
+    const conCupo = i => cupos[i] != null;
+    const tiene = [0, 0, 0, 0, 0, 0];
+    for (const a of todos) tiene[a.o]++;
+    const libres = todos.filter(a => !a.fijo);
+    let p = reparto(c, recursos || { arboles: 1, rocas: 1 });
+    // Los oficios con cupo salen del reparto automático; lo demás se reparte en proporción.
+    if (Object.keys(cupos).length) { p = p.map((x, i) => (conCupo(i) ? 0 : x)); const sum = p.reduce((k, x) => k + x, 0) || 1; p = p.map(x => x / sum); }
+    const fuera = libres.filter(a => !conCupo(a.o)).length;
+    // 1. Cumplir los cupos: quitar a los que sobran y traer a los que faltan (primero de lo que más sobra).
+    for (const k of Object.keys(cupos).map(Number)) {
+      const meta = Math.max(0, Math.min(cupos[k].n, todos.length));
+      const orden = l => l.sort((x, y) => (x.k ? 1 : 0) - (y.k ? 1 : 0));
+      for (const a of orden(libres.filter(a => a.o === k))) {
+        if (tiene[k] <= meta) break;
+        const falta = p.map((x, i) => (conCupo(i) ? -1e9 : x * fuera - tiene[i]));
         const mejor = falta.indexOf(Math.max(...falta));
-        if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; a.tx = -1; a.ty = -1; }
+        tiene[k]--; tiene[mejor]++; mover(a, mejor);
       }
+      if (tiene[k] < meta) {
+        const viejoNo = a => !(k === GUERRERO && (a.edad || 0) >= VIEJO);
+        const candidatos = orden(libres.filter(a => a.o !== k && !conCupo(a.o) && viejoNo(a)));
+        candidatos.sort((x, y) => (tiene[y.o] - p[y.o] * fuera) - (tiene[x.o] - p[x.o] * fuera) || (x.k ? 1 : 0) - (y.k ? 1 : 0));
+        for (const a of candidatos) { if (tiene[k] >= meta) break; tiene[a.o]--; tiene[k]++; mover(a, k); }
+      }
+    }
+    // 2. El reparto automático, con los que no tienen encargo ni oficio con cupo.
+    for (const a of libres) {
+      if (conCupo(a.o)) continue;
+      // En guerra se llama a las armas a cualquiera que no vaya cargado; en paz, solo cambian los que están libres.
+      // Los ancianos dejan las armas y vuelven al campo; nadie los llama a filas.
+      const viejo = (a.edad || 0) >= VIEJO;
+      if (viejo && a.o === GUERRERO) { tiene[GUERRERO]--; tiene[GRANJERO]++; mover(a, GRANJERO); continue; }
+      const llamada = c.guerras.length && !a.k && a.o !== GUERRERO && !viejo && !conCupo(GUERRERO);
+      if (!llamada && !(ya && !a.k) && a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
+      const falta = p.map((x, i) => (conCupo(i) || (viejo && i === GUERRERO) ? -1e9 : x * fuera - tiene[i] + (i === a.o ? 1 : 0)));
+      const mejor = falta.indexOf(Math.max(...falta));
+      if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; mover(a, mejor); }
     }
   }
 
@@ -827,6 +859,8 @@
     if (!m.vida) crear(m);
     const v = m.vida;
     memo = new Map();
+    // Vencen las cuadrillas, cupos y prioridades con plazo que mandó el jugador.
+    if (M.mando && M.mando.vencer) M.mando.vencer(m);
     v.cambios = []; v.muertos = []; v.disparos = []; v.aviones = []; v.golpes = []; v.ataques = [];
     // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
     for (const a of v.aldeanos.concat(v.animales || [])) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + (a.tipo ? 5 : 6)); a.pv0 = a.pv; if (a.pv >= vidaMax(a)) { a.pv = null; a.pv0 = null; } }
@@ -1220,9 +1254,10 @@
     const v = m.vida, t = a.ty * v.tw + a.tx;
     if (a.e === VOLVER) {
       // Descarga en la aldea: aquí entra la madera y la piedra en la economía del pueblo.
-      if (a.o === LENADOR) c.madera += a.k;
-      else if (a.kt === 3) { c.comida = (c.comida || 0) + a.k; a.kt = 0; } // el trigo llega al molino (o a casa)
-      else if (a.o === MINERO) { if (a.kt === 1) c.metal = (c.metal || 0) + a.k; else if (a.kt === 2) { c.oro = (c.oro || 0) + a.k; c.riqueza += 6 * a.k; } else { c.piedra += a.k; c.riqueza += a.k * 0.3; } a.kt = 0; }
+      const h = c.hecho = c.hecho || {};
+      if (a.o === LENADOR) { c.madera += a.k; h.madera = (h.madera || 0) + a.k; }
+      else if (a.kt === 3) { c.comida = (c.comida || 0) + a.k; h.comida = (h.comida || 0) + a.k; a.kt = 0; } // el trigo llega al molino (o a casa)
+      else if (a.o === MINERO) { if (a.kt === 1) { c.metal = (c.metal || 0) + a.k; h.metal = (h.metal || 0) + a.k; } else if (a.kt === 2) { c.oro = (c.oro || 0) + a.k; c.riqueza += 6 * a.k; h.oro = (h.oro || 0) + a.k; } else { c.piedra += a.k; c.riqueza += a.k * 0.3; h.piedra = (h.piedra || 0) + a.k; } a.kt = 0; }
       a.k = 0; a.e = ESPERAR; a.t = 1;
       return;
     }
@@ -1254,7 +1289,7 @@
 
   function terminar(m, a, c, rec, ter, paso) {
     const v = m.vida, t = a.ty * v.tw + a.tx;
-    if (a.o === LENADOR && v.arbol[t] >= 2) { a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === LENADOR && v.arbol[t] >= 2) { c.hecho = c.hecho || {}; c.hecho.arboles = (c.hecho.arboles || 0) + 1; a.k = v.arbol[t] === 3 ? 4 : 2; cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && a.cantera && !v.roca[t]) { a.cantera = 0; a.k = 2; a.kt = ter[t] === 'montana' && azar(v) < 0.25 ? 1 : 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && v.roca[t] > 0) { a.k = v.mena[t] ? 1 : 2; a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === GRANJERO && a.caza != null) {
@@ -1290,13 +1325,13 @@
       ir(a, molinoMasCercano(m, t) ?? centro(m, a.h), v.tw, VOLVER);
       return;
     }
-    else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; }
+    else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; c.hecho = c.hecho || {}; c.hecho.campos = (c.hecho.campos || 0) + 1; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) {
       // Un tramo de camino: se quita el árbol o la roca; desde la Antigüedad se empiedra (cuesta un poco de piedra).
       if (!v.camino[t] && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 1, paso); if (c.era >= 3 && c.piedra >= 0.25) c.piedra -= 0.25; }
       a.obraCamino = 0;
     }
-    else if (a.o === CONSTRUCTOR && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.casa, paso); c.casas++; }
+    else if (a.o === CONSTRUCTOR && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.casa, paso); c.casas++; c.hecho = c.hecho || {}; c.hecho.casas = (c.hecho.casas || 0) + 1; }
     else if (a.o === COMERCIANTE && a.comercio) {
       // Llega la carreta: se vende, se compra, y los dos lados ganan (más si el camino está terminado).
       const ru = v.rutas.find(x => x.id === a.ruta);
@@ -1856,5 +1891,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, mover, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

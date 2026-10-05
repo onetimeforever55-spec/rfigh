@@ -391,5 +391,33 @@ console.log('DIRIGIR LA GUERRA');
   comprobar(m.vida.aldeanos.every(a => !a.veh || a.o === 4), 'solo los guerreros manejan vehículos');
 }
 
+console.log('CUADRILLAS, CUPOS Y PLAZOS');
+{
+  const X = M.mando;
+  const m = hasta(S.crear(9, 5), -500);
+  const yo = S.vivas(m).sort((a, b) => b.pob - a.pob)[0];
+  X.gobernar(m, yo.id);
+  const e = t => X.entender(m, yo.id, t)[0] || {};
+  comprobar(JSON.stringify(e('quiero 5 granjeros talando')) === JSON.stringify({ tipo: 'cuadrilla', n: 5, de: 1, a: 0, hasta: null }), '«quiero 5 granjeros talando» es una cuadrilla de 5 granjeros a talar');
+  comprobar(e('5 granjeros a talar durante 3 minutos').hasta.ms === 180000 && e('pon a 4 a la mina 2 turnos').hasta.turnos === 2 && e('todos los mineros a sembrar durante 20 años').hasta.anios === 20, 'entiende plazos en minutos, turnos y años');
+  comprobar(e('la mitad de los granjeros a construir hasta tener 30 casas').hasta.cosa === 'casas' && e('tres soldados a cosechar hasta juntar 100 de comida').n === 3, 'entiende metas («hasta tener 30 casas») y números en letra');
+  comprobar(e('quiero 10 leñadores').tipo === 'cupo' && e('3 leñadores más').relativo === 1 && e('talad 20 árboles').tipo === 'meta' && e('liberad las cuadrillas').tipo === 'liberar' && e('cuántos leñadores tengo').tipo === 'consulta', 'cupos, metas, liberar y preguntas');
+  comprobar(e('atacad a ' + S.vivas(m).find(c => c !== yo).nombre + ' con 10 soldados').tipo === 'guerra', 'un número dentro de otra orden no la tapa');
+  const r = X.ordenar(m, yo.id, '5 granjeros a talar durante 3 turnos');
+  const ids = m.vida.aldeanos.filter(a => a.fijo).map(a => a.id);
+  comprobar(r.ok && ids.length === 5 && ids.every(i => m.vida.aldeanos.find(a => a.id === i).o === 0), 'cinco granjeros concretos pasan a talar en el acto');
+  X.ordenar(m, yo.id, 'quiero 6 mineros durante 5 turnos');
+  comprobar(X.cuentaOficios(m, yo)[3] === 6, 'el cupo deja exactamente 6 mineros');
+  S.turno(m); S.turno(m);
+  comprobar(m.vida.aldeanos.filter(a => ids.includes(a.id)).every(a => a.o === 0 && a.fijo) && X.cuentaOficios(m, yo)[3] === 6, 'el gobernador no deshace la cuadrilla ni el cupo mientras duran');
+  S.turno(m);
+  comprobar(!m.vida.aldeanos.some(a => a.fijo) && !(yo.plan.cuadrillas || []).length, 'al vencer el plazo vuelven a su oficio');
+  for (let i = 0; i < 3; i++) S.turno(m);
+  comprobar(!Object.keys(yo.plan.cupos || {}).length, 'y el cupo se quita a su tiempo');
+  X.ordenar(m, yo.id, 'más madera durante 2 turnos');
+  const antes = yo.plan.prioridad.madera; S.turno(m); S.turno(m); S.turno(m);
+  comprobar(antes > 1 && yo.plan.prioridad.madera === 1, 'una prioridad con plazo vuelve a como estaba');
+}
+
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
 process.exit(fallos ? 1 : 0);
