@@ -21,7 +21,7 @@
   const ADULTO = 2, VIEJO = 18;
   const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
   const esNino = a => (a.edad || 0) < ADULTO;
-  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12 };
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13 };
   // Hasta dónde llegan los campos de un molino (parcelas): más allá no se ara.
   const RANGO_MOLINO = 4;
   const fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
@@ -599,8 +599,8 @@
    * un molino junto a los campos (desde la Edad Media) y un puerto si hay costa. Cuestan madera y piedra.
    */
   // Madera, piedra y oro de cada edificio; y el nivel de asentamiento que hace falta (aldea, pueblo, villa).
-  const COSTES = { [OBRA.torre]: [6, 4, 4], [OBRA.templo]: [8, 6, 10], [OBRA.molino]: [3, 0, 0], [OBRA.puerto]: [10, 0, 8], [OBRA.cuartel]: [10, 6, 12], [OBRA.arqueria]: [10, 2, 8], [OBRA.castillo]: [16, 24, 30] };
-  const NIVEL_OBRA = { [OBRA.torre]: 1, [OBRA.puerto]: 1, [OBRA.templo]: 2, [OBRA.cuartel]: 2, [OBRA.arqueria]: 2, [OBRA.castillo]: 3, [OBRA.molino]: 0 };
+  const COSTES = { [OBRA.saber]: [6, 2, 0], [OBRA.torre]: [6, 4, 4], [OBRA.templo]: [8, 6, 10], [OBRA.molino]: [3, 0, 0], [OBRA.puerto]: [10, 0, 8], [OBRA.cuartel]: [10, 6, 12], [OBRA.arqueria]: [10, 2, 8], [OBRA.castillo]: [16, 24, 30] };
+  const NIVEL_OBRA = { [OBRA.saber]: 1, [OBRA.torre]: 1, [OBRA.puerto]: 1, [OBRA.templo]: 2, [OBRA.cuartel]: 2, [OBRA.arqueria]: 2, [OBRA.castillo]: 3, [OBRA.molino]: 0 };
   // La plaza más expuesta (la que tiene otro reino más cerca); si no hay vecinos, la capital.
   function plazaFronteriza(m, c, r, plazas) {
     const todas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
@@ -622,16 +622,23 @@
       if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
+      // La casa del saber (cabaña del chamán, academia, monasterio, universidad, laboratorio): donde estudian los eruditos.
+      if (!tiene(OBRA.saber) && (r === c.capital || c.era >= 3)) pide.push([OBRA.saber, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       // Lo militar, según la fase: cuartel de soldados y arquería en la capital desde el Bronce, y un castillo
       // (luego fortaleza o búnker) en una plaza de frontera desde la Edad del Hierro.
       if (c.era >= 1 && r === c.capital && !(c.cuarteles > 0) && !tiene(OBRA.cuartel)) pide.push([OBRA.cuartel, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && r === c.capital && !(c.arquerias > 0) && !tiene(OBRA.arqueria)) pide.push([OBRA.arqueria, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
-      if (c.era >= 2 && !(c.castillos > 0) && (plazaFronteriza(m, c, r, plazas) || (c.plan && c.plan.obra === 'castillo' && r === c.capital))) pide.push([OBRA.castillo, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
+      if (c.era >= 2 && !(c.castillos > 0) && (plazaFronteriza(m, c, r, plazas) || (c.plan && c.plan.obra === 'castillo' && r === c.capital))) pide.push([OBRA.castillo, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t])) || libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
+      // Lo que pide la edad siguiente (un templo, un cuartel, un castillo) se levanta en la capital, y antes que nada.
+      const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra ? OBRA[M.EDADES[c.era + 1].pide.obra] : null;
+      const cuentaDe = { [OBRA.templo]: 'templos', [OBRA.cuartel]: 'cuarteles', [OBRA.castillo]: 'castillos' };
+      if (pideEdad && r === c.capital && !(c[cuentaDe[pideEdad]] > 0) && !tiene(pideEdad) && !pide.some(x => x[0] === pideEdad) && (pideEdad !== OBRA.castillo || c.era >= 2)) pide.unshift([pideEdad, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
+      else if (pideEdad && r === c.capital) { const i = pide.findIndex(x => x[0] === pideEdad); if (i > 0) pide.unshift(pide.splice(i, 1)[0]); }
       // Lo que pidió el jugador va primero; cuando ya está hecho en la plaza, se olvida el encargo.
       const encargo = c.plan && c.plan.obra ? OBRA[c.plan.obra] : null;
       if (encargo && r === c.capital && tiene(encargo)) {
-        const NOMBRES = { [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino', [OBRA.cuartel]: 'El cuartel', [OBRA.arqueria]: 'La arquería', [OBRA.castillo]: 'El castillo' };
+        const NOMBRES = { [OBRA.saber]: 'La casa del saber', [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino', [OBRA.cuartel]: 'El cuartel', [OBRA.arqueria]: 'La arquería', [OBRA.castillo]: 'El castillo' };
         S().cronica(m, 'obra', (NOMBRES[encargo] || 'La obra') + ' de ' + c.nombre + (encargo === OBRA.torre || encargo === OBRA.arqueria ? ' está terminada' : ' está terminado'), 'Los constructores de ' + c.nombre + ' terminan lo que su gobierno les encargó y lo celebran con una fiesta en la plaza.', c);
         c.plan.obra = null;
       }
@@ -1305,12 +1312,17 @@
     }
     else if (a.o === ERUDITO) {
       // Al templo (si hay) o a la plaza, a estudiar, enseñar, rezar u observar el cielo.
-      const sitios = []; for (const r of [a.h, c.capital]) for (const x of parcelas(m, r)) if (v.obra[x] === OBRA.templo) sitios.push(x);
+      // Primero la casa del saber; si no hay, el templo; si no, la plaza.
+      let sitios = [], donde = 0;
+      for (const [obra, nivel] of [[OBRA.saber, 3], [OBRA.templo, 2]]) {
+        for (const r of [a.h, c.capital, ...S().vecinos(a.h)]) for (const x of parcelas(m, r)) if (v.obra[x] === obra && m.dueno[region(m, x)] === c.id) sitios.push(x);
+        if (sitios.length) { donde = nivel; break; }
+      }
       const base = sitios.length ? sitios[a.id % sitios.length] : centro(m, c.capital);
       const dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 2) + 1;
       t = base + dx + dy * v.tw;
       if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
-      a.estudio = sitios.length ? 2 : 1;
+      a.estudio = donde || 1;
     }
     else if (a.o === GUERRERO && a.fijo && a.fijo.guardia != null) {
       // Un escuadrón con misión: monta guardia en su plaza (o marcha sobre la plaza enemiga que le mandaron).
@@ -1345,7 +1357,7 @@
   const faltanCamas = c => (c.sinCama || 0) > 0 || !!(c.plan && (c.plan.temporales || []).some(t => t.hasta && t.hasta.cosa === 'casas')) || (c.camas || 0) - (c.aldeanos || 0) < 2 + Math.round(prio(c, 'casas') * 1.5);
   // Una casa nueva va siempre pegada a lo que ya hay (casas, plaza, molino, caminos), lo más cerca posible de la plaza:
   // así el pueblo crece como una mancha alrededor de su centro.
-  const PEGA = new Set([OBRA.casa, OBRA.centro, OBRA.ayuntamiento, OBRA.molino, OBRA.templo, OBRA.torre, OBRA.cuartel, OBRA.arqueria, OBRA.castillo]);
+  const PEGA = new Set([OBRA.saber, OBRA.casa, OBRA.centro, OBRA.ayuntamiento, OBRA.molino, OBRA.templo, OBRA.torre, OBRA.cuartel, OBRA.arqueria, OBRA.castillo]);
   function casaNueva(m, a, c, rec, ter) {
     const v = m.vida, base = centro(m, a.h), regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 1e9;
@@ -1472,7 +1484,7 @@
     const v = m.vida, t = a.ty * v.tw + a.tx;
     // El erudito termina su jornada de estudio: el saber entra en el pueblo (más en el templo, y más los sabios).
     if (a.o === ERUDITO) {
-      const k = 0.9 * (1 + 0.15 * c.era) * (a.estudio === 2 ? 1.35 : 1) * (tieneR(a, 'sabio') ? 1.5 : 1) * (tieneR(a, 'perezoso') ? 0.6 : 1);
+      const k = 1.05 * (1 + 0.15 * c.era) * (a.estudio === 3 ? 1.6 : a.estudio === 2 ? 1.25 : 1) * (tieneR(a, 'sabio') ? 1.5 : 1) * (tieneR(a, 'perezoso') ? 0.6 : 1);
       c.saber = (c.saber || 0) + k; a.estudios = (a.estudios || 0) + 1;
       a.e = ESPERAR; a.t = 1; return;
     }
@@ -1999,7 +2011,7 @@
     for (const a of v.aldeanos) { gente[a.c] = (gente[a.c] || 0) + 1; if (a.o === GUERRERO) { guerreros[a.c] = (guerreros[a.c] || 0) + 1; if ((a.arma || 0) > 0) armados[a.c] = (armados[a.c] || 0) + 1; } if (a.o === COMERCIANTE) comerciantes[a.c] = (comerciantes[a.c] || 0) + 1; }
     for (const c of m.civs) {
       c.casas = Math.round(casas[c.id] || 0); c.campos = campos[c.id] || 0; c.arboles = arboles[c.id] || 0; c.aldeanos = gente[c.id] || 0; c.guerreros = guerreros[c.id] || 0; c.armados = armados[c.id] || 0; c.comerciantes = comerciantes[c.id] || 0; c.camas = Math.round(camas[c.id] || 0) + 2;
-      const e = edif[c.id] || {}; c.torres = e[OBRA.torre] || 0; c.cuarteles = e[OBRA.cuartel] || 0; c.arquerias = e[OBRA.arqueria] || 0; c.castillos = e[OBRA.castillo] || 0; c.templos = e[OBRA.templo] || 0; c.molinos = e[OBRA.molino] || 0; c.puertos = e[OBRA.puerto] || 0;
+      const e = edif[c.id] || {}; c.torres = e[OBRA.torre] || 0; c.cuarteles = e[OBRA.cuartel] || 0; c.arquerias = e[OBRA.arqueria] || 0; c.castillos = e[OBRA.castillo] || 0; c.templos = e[OBRA.templo] || 0; c.saberes = e[OBRA.saber] || 0; c.molinos = e[OBRA.molino] || 0; c.puertos = e[OBRA.puerto] || 0;
       c.metal = c.metal || 0; c.oro = c.oro == null ? 10 : c.oro;
       c.madera = c.madera || 0; c.piedra = c.piedra || 0;
       // El nivel del asentamiento (campamento, aldea, pueblo, villa, ciudad), que abre edificios nuevos.

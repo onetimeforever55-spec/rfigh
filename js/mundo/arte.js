@@ -356,6 +356,11 @@
       if (nombre === 'cuartel') return cuartel(H, fase, col);
       if (nombre === 'arqueria') return arqueria(H, fase, col);
       if (nombre === 'castillo') return castillo(H, fase, col);
+      if (nombre === 'saber') return casaSaber(H, fase, col);
+      if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
+      if (nombre === 'molino' && fase !== 1) return molinoDeFase(H, fase, col);
+      if (nombre === 'puerto' && fase !== 1) return puertoDeFase(H, fase, col);
+      if (nombre === 'ayuntamiento' && fase !== 1) return ayuntamientoDeFase(H, fase, col);
       if (nombre === 'ayuntamiento') {
         H.r(1, 8, 14, 7, '#e0d0a8'); H.r(1, 14, 14, 1, '#a89a7a');
         for (const x of [2, 5, 10, 13]) H.r(x, 9, 1, 5, '#f4ecd8');
@@ -399,6 +404,135 @@
     });
   }
   // Torres según la fase: empalizada de troncos (tribal), piedra (medieval), torre artillada (pólvora), búnker con ametralladora.
+  // ---------- La casa del saber de cada época (donde estudian los eruditos) ----------
+  function casaSaber(H, tipo, col) {
+    if (tipo === 'chaman' || tipo === 0) {
+      // Tienda de pieles del chamán, un tótem pintado y una hoguera con humo.
+      for (let y = 4; y < 15; y++) { const half = Math.round((y - 3) * 0.55); for (let x = 6 - half; x <= 6 + half; x++) H.p(x, y, x < 6 ? '#c8a070' : '#a07a4a'); }
+      for (let y = 4; y < 15; y += 3) H.p(6, y, '#6a4a2a'); H.r(5, 11, 2, 4, '#3a2416'); H.p(6, 3, '#6a4a2a'); H.p(5, 2, '#6a4a2a'); H.p(7, 2, '#6a4a2a');
+      H.r(12, 3, 2, 12, '#8a5a32'); H.r(12, 3, 2, 2, col); H.r(11, 5, 4, 1, '#c83a2a'); H.r(12, 7, 2, 2, '#f0c040'); H.p(12, 7, '#1a1a1a'); H.p(13, 10, '#3a8ad0');
+      H.r(9, 13, 3, 1, '#5a3a22'); H.p(10, 12, '#ff8a1e'); H.p(9, 12, '#ffd84a'); H.p(10, 11, '#ffd84a');
+      H.contorno(); return H.lienzo();
+    }
+    if (tipo === 'filosofo') {
+      // Academia: pórtico de columnas, escalones, un banco de piedra y rollos.
+      H.r(1, 13, 14, 2, '#d8d0bc'); H.r(2, 12, 12, 1, '#e8e0cc');
+      for (const x of [2, 5, 8, 11]) { H.r(x, 6, 2, 6, '#f4f0e4'); H.p(x, 6, '#c8c0ac'); }
+      H.r(1, 4, 14, 2, '#e8e0cc'); H.r(1, 4, 14, 1, col); H.r(3, 2, 10, 2, '#e8e0cc');
+      H.r(6, 9, 4, 1, '#efe2b8'); H.p(13, 11, '#efe2b8');
+      H.contorno(); return H.lienzo();
+    }
+    if (tipo === 'monje') {
+      // Monasterio: muros de piedra, tejado, campanario con su campana y una ventana de arco.
+      H.r(1, 7, 10, 8, PIEDRA); H.r(1, 7, 1, 8, claro(PIEDRA, 0.15)); tejado(H, 0, 11, 3, 7, oscuro(col, 0.1));
+      H.r(11, 2, 4, 13, oscuro(PIEDRA, 0.05)); H.r(11, 2, 4, 1, oscuro(col, 0.2)); H.r(12, 4, 2, 2, '#2a2a30'); H.p(12, 5, '#e0b040'); H.p(13, 5, '#e0b040');
+      H.r(12, 0, 2, 2, oscuro(col, 0.2)); H.p(12, -1 + 1, '#e0c060');
+      H.r(4, 10, 2, 3, '#2a2a30'); H.p(4, 9, '#2a2a30'); H.p(5, 9, '#2a2a30'); H.r(8, 11, 2, 4, '#4a3020');
+      H.contorno(); return H.lienzo();
+    }
+    if (tipo === 'erudito') {
+      // Universidad: fachada clara con cúpula, reloj y ventanales.
+      H.r(1, 8, 14, 7, '#e8dcc4'); H.r(1, 14, 14, 1, '#b8a888');
+      for (const x of [2, 5, 10, 13]) ventana(H, x, 10, true);
+      H.r(7, 11, 2, 4, '#5a3a22');
+      for (let y = 2; y < 8; y++) { const half = Math.round(Math.sqrt(Math.max(0, 9 - (y - 7) * (y - 7) * 0.25)) * 1.4); for (let x = 8 - half; x < 8 + half; x++) H.p(x, y, x < 8 ? claro(col, 0.15) : oscuro(col, 0.12)); }
+      H.r(7, 0, 2, 2, '#e0b040'); H.r(7, 5, 2, 2, '#f4f4f4'); H.p(8, 6, '#2a2a2a');
+      H.contorno(); return H.lienzo();
+    }
+    // Laboratorio y observatorio: ladrillo, chimenea humeante y cúpula con telescopio.
+    H.r(1, 7, 10, 8, '#a0503a'); for (let y = 8; y < 15; y += 2) for (let x = 1 + (y % 4 ? 0 : 1); x < 11; x += 3) H.p(x, y, '#8a3e2a');
+    H.r(2, 9, 2, 2, LUZ); H.r(6, 9, 2, 2, LUZ); H.r(4, 12, 2, 3, '#3a2a2a'); H.r(2, 4, 2, 3, '#6a3a2a');
+    H.r(10, 9, 5, 6, '#c8ccd4'); for (let y = 4; y < 9; y++) { const half = Math.round(Math.sqrt(Math.max(0, 6.25 - (y - 9) * (y - 9) * 0.25))); for (let x = 12 - half; x <= 12 + half; x++) H.p(x, y, '#e4e8ee'); }
+    H.r(12, 2, 1, 4, '#3a3a44'); H.p(13, 2, '#3a3a44'); H.p(12, 6, col);
+    H.contorno(); return H.lienzo();
+  }
+  // ---------- Templo, molino, puerto y ayuntamiento de cada fase (0 tribal, 2 pólvora, 3 moderna) ----------
+  function temploDeFase(H, fase, col) {
+    if (fase === 0) {
+      // Círculo de menhires con un altar y una ofrenda.
+      for (const [x, y, h] of [[2, 8, 6], [5, 6, 7], [10, 6, 7], [13, 8, 6], [7, 11, 3]]) { H.r(x, y + 7 - h, 2, h, '#9a968c'); H.p(x, y + 7 - h, '#b8b4aa'); }
+      H.r(6, 12, 4, 2, '#8a867c'); H.p(7, 11, col); H.p(8, 11, '#ffd84a');
+      H.contorno(); return H.lienzo();
+    }
+    if (fase === 2) {
+      // Catedral con rosetón, arcos y una aguja alta.
+      H.r(2, 6, 12, 9, PIEDRA); H.r(2, 6, 1, 9, claro(PIEDRA, 0.15)); H.r(13, 6, 1, 9, oscuro(PIEDRA, 0.2));
+      H.r(6, 0, 4, 6, PIEDRA); H.p(7, 0, oscuro(col, 0.1)); H.p(8, 0, oscuro(col, 0.1)); for (let y = 1; y < 4; y++) H.r(7, y, 2, 1, oscuro(PIEDRA, 0.1));
+      H.r(7, 8, 2, 2, col); H.p(7, 8, claro(col, 0.3)); H.r(7, 11, 2, 4, '#3a2a1e'); H.p(7, 10, '#3a2a1e'); H.p(8, 10, '#3a2a1e');
+      for (const x of [3, 11]) { H.r(x, 9, 2, 3, CRISTAL); H.p(x, 8, CRISTAL); }
+      tejado(H, 1, 6, 4, 7, oscuro(col, 0.15)); tejado(H, 10, 15, 4, 7, oscuro(col, 0.15));
+      H.contorno(); return H.lienzo();
+    }
+    // Iglesia moderna: hormigón claro, torre de campanas fina, vidriera alargada.
+    H.r(2, 7, 9, 8, '#dcdcd8'); H.r(2, 7, 9, 1, '#f0f0ec'); H.r(4, 9, 1, 5, col); H.r(6, 9, 1, 5, claro(col, 0.2)); H.r(8, 9, 1, 5, col);
+    H.r(12, 1, 3, 14, '#c8c8c4'); H.r(12, 3, 3, 1, '#9a9a96'); H.p(13, 0, '#e0b040'); H.r(13, 5, 1, 2, '#2a2a30');
+    H.contorno(); return H.lienzo();
+  }
+  function molinoDeFase(H, fase, col) {
+    if (fase === 0) {
+      // Granero de barro con techo de paja y una piedra de moler.
+      H.r(3, 8, 10, 7, '#b08a5a'); H.r(3, 8, 1, 7, '#c8a070'); H.r(7, 11, 2, 4, '#4a3020');
+      const paja = mezcla(col, '#d8b060', 0.8);
+      for (let y = 3; y < 9; y++) { const half = Math.round((y - 2) * 1.1) + 1; for (let x = 8 - half; x < 8 + half; x++) H.p(x, y, (x + y) % 3 ? paja : oscuro(paja, 0.2)); }
+      H.r(12, 12, 3, 2, '#8a867c'); H.p(13, 11, '#a8a49a'); H.p(13, 12, '#e8d080');
+      H.contorno(); return H.lienzo();
+    }
+    if (fase === 2) {
+      // Molino de ladrillo, más alto, con galería de madera (las aspas giran aparte).
+      for (let y = 4; y < 15; y++) { const half = 2 + Math.round((y - 4) * 0.35); for (let x = 8 - half; x < 8 + half; x++) H.p(x, y, (x + y) % 3 ? '#a0503a' : '#8a3e2a'); }
+      H.r(4, 9, 8, 1, '#6a4a2a'); H.r(7, 11, 2, 4, '#3a2a1e'); ventana(H, 7, 6, true);
+      for (let y = 1; y < 5; y++) { const half = Math.round(y * 0.8) + 1; for (let x = 8 - half; x < 8 + half; x++) H.p(x, y, x < 8 ? claro(col, 0.1) : oscuro(col, 0.15)); }
+      H.contorno(); return H.lienzo();
+    }
+    // Silos de grano y una nave: metal y hormigón.
+    for (const x0 of [2, 7]) { H.r(x0, 3, 4, 12, '#c8ccd4'); H.r(x0, 3, 1, 12, '#e4e8ee'); H.r(x0 + 3, 3, 1, 12, '#9aa0aa'); H.r(x0, 2, 4, 1, '#9aa0aa'); for (let y = 5; y < 15; y += 3) H.r(x0, y, 4, 1, '#aab0ba'); }
+    H.r(11, 9, 4, 6, '#8a8e96'); H.r(11, 8, 4, 1, col); H.r(12, 11, 2, 4, '#3a3e48');
+    H.contorno(); return H.lienzo();
+  }
+  function puertoDeFase(H, fase, col) {
+    if (fase === 0) {
+      // Embarcadero de troncos atados y una canoa varada.
+      H.r(1, 7, 9, 3, '#8a5a2b'); for (let x = 1; x < 10; x += 2) H.p(x, 8, '#6a4220');
+      for (const x of [2, 8]) H.r(x, 10, 1, 3, '#5a3a22');
+      H.r(9, 12, 6, 2, '#7a4a22'); H.r(10, 12, 4, 1, '#5a3418'); H.p(14, 11, '#7a4a22'); H.p(11, 11, col);
+      H.contorno(); return H.lienzo();
+    }
+    if (fase === 2) {
+      // Muelle de piedra con una grúa de madera y fardos.
+      H.r(0, 6, 16, 6, PIEDRA); for (let x = 0; x < 16; x += 3) H.r(x, 9, 2, 1, oscuro(PIEDRA, 0.12)); H.r(0, 6, 16, 1, claro(PIEDRA, 0.15));
+      H.r(11, 0, 1, 6, '#5a3a22'); H.r(8, 0, 4, 1, '#5a3a22'); H.r(8, 1, 1, 3, '#c8c0a8');
+      H.r(3, 3, 3, 3, '#c8a060'); H.r(3, 4, 3, 1, '#8a6a3a'); H.r(6, 4, 2, 2, '#8a5a2a');
+      H.contorno(); return H.lienzo();
+    }
+    // Dársena de hormigón con grúa metálica y contenedores.
+    H.r(0, 7, 16, 6, '#a8acb4'); H.r(0, 7, 16, 1, '#c8ccd4'); H.r(0, 12, 16, 1, '#7a7e86');
+    H.r(12, 0, 1, 7, '#e0a030'); H.r(7, 0, 6, 1, '#e0a030'); H.r(8, 1, 1, 2, '#3a3a44');
+    H.r(2, 4, 4, 3, col); H.r(2, 4, 4, 1, claro(col, 0.25)); H.r(6, 5, 4, 2, '#3a7a5a'); H.r(6, 5, 4, 1, '#5a9a7a');
+    H.contorno(); return H.lienzo();
+  }
+  function ayuntamientoDeFase(H, fase, col) {
+    if (fase === 0) {
+      // Casa comunal: una choza alargada grande, con postes tallados en la entrada.
+      H.r(1, 9, 14, 6, '#b08a5a'); H.r(1, 9, 14, 1, '#c8a070'); H.r(7, 11, 2, 4, '#4a3020');
+      const paja = mezcla(col, '#d8b060', 0.8);
+      for (let y = 3; y < 10; y++) { const half = Math.round((y - 2) * 1.05) + 1; for (let x = 8 - half; x < 8 + half; x++) H.p(x, y, (x + y) % 3 ? paja : oscuro(paja, 0.2)); }
+      H.r(5, 10, 1, 5, '#8a5a32'); H.r(10, 10, 1, 5, '#8a5a32'); H.p(5, 9, col); H.p(10, 9, col);
+      H.contorno(); return H.lienzo();
+    }
+    if (fase === 2) {
+      // Ayuntamiento con torre del reloj y balcón.
+      H.r(1, 8, 14, 7, '#e8d4b0'); H.r(1, 14, 14, 1, '#b0a080'); for (const x of [2, 12]) ventana(H, x, 10, true);
+      H.r(5, 9, 6, 1, '#6a4a2a'); H.r(7, 11, 2, 4, '#5a3a22');
+      tejado(H, 0, 15, 5, 8, col);
+      H.r(6, 0, 4, 6, '#e8d4b0'); H.r(7, 2, 2, 2, '#f8f8f0'); H.p(8, 3, '#2a2a2a'); H.p(7, 0, oscuro(col, 0.2)); H.p(8, 0, oscuro(col, 0.2));
+      H.contorno(); return H.lienzo();
+    }
+    // Edificio de gobierno moderno: columnas, escalinata, bandera.
+    H.r(1, 6, 14, 9, '#d8d8d4'); H.r(1, 6, 14, 1, '#f0f0ec'); for (const x of [2, 5, 8, 11, 14]) H.r(x, 7, 1, 7, '#f4f4f0');
+    H.r(0, 14, 16, 1, '#a8a8a4'); H.r(7, 10, 2, 4, '#3a3e48');
+    H.r(8, 0, 1, 6, '#5a5a62'); H.r(9, 0, 4, 3, col);
+    H.contorno(); return H.lienzo();
+  }
   function torreDeFase(H, fase, col) {
     if (fase === 0) {
       for (let x = 3; x < 13; x += 2) { H.r(x, 4, 2, 11, '#8a5a2b'); H.r(x + 1, 4, 1, 11, '#6a4220'); H.p(x, 3, '#a8784a'); }
@@ -669,5 +803,47 @@
     });
   }
 
-  M.arte = { T, pico, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  // ---------- Barcos de cada época (de pesca y mercantes), mirando a la derecha ----------
+  function barco(tipo, fase, col) {
+    return guardado('barco' + tipo + fase + col, () => {
+      const H = hoja(20, 16);
+      if (tipo === 'pesca') {
+        if (fase === 0) { // canoa con un pescador y su remo
+          H.r(3, 11, 13, 2, '#7a4a22'); H.r(4, 13, 11, 1, '#5a3418'); H.r(3, 11, 13, 1, '#9a6a3a'); H.p(2, 10, '#7a4a22'); H.p(16, 10, '#7a4a22');
+          H.r(9, 8, 2, 3, col); H.r(9, 6, 2, 2, '#e8b890'); H.r(12, 7, 1, 6, '#6b4a2b'); H.r(12, 12, 2, 2, '#6b4a2b');
+        } else if (fase <= 1) { // barca de vela latina
+          H.r(3, 11, 13, 2, '#6b4a2b'); H.r(4, 13, 11, 1, '#5a3a22'); H.r(3, 11, 13, 1, '#8a6a42');
+          H.r(9, 2, 1, 9, '#3a2a1e'); for (let y = 2; y < 10; y++) H.r(10, y, Math.round((y - 1) * 0.7), 1, '#e8e0c8'); H.p(11, 5, col); H.r(5, 9, 2, 2, '#e8b890');
+        } else if (fase === 2) { // pesquero de dos velas
+          H.r(2, 11, 16, 3, '#5a3a22'); H.r(2, 11, 16, 1, '#8a6a42'); H.r(3, 14, 14, 1, '#3a2a1e');
+          for (const [x, h] of [[6, 8], [12, 9]]) { H.r(x, 11 - h, 1, h, '#3a2a1e'); H.r(x + 1, 12 - h, 3, h - 2, '#f0e8d4'); H.r(x + 1, 13 - h, 3, 1, col); }
+        } else { // arrastrero de motor con chimenea
+          H.r(1, 10, 18, 4, '#3a4a6a'); H.r(1, 10, 18, 1, '#5a6a8a'); H.r(2, 14, 16, 1, '#2a3248'); H.r(1, 12, 18, 1, col);
+          H.r(5, 6, 6, 4, '#e8e8e4'); H.r(6, 7, 1, 1, CRISTAL); H.r(8, 7, 1, 1, CRISTAL); H.r(12, 4, 2, 6, '#2a2a2a'); H.r(12, 4, 2, 1, col); H.r(15, 3, 1, 7, '#5a5a62');
+        }
+      } else {
+        if (fase === 0) { // balsa de troncos con una vela de piel y fardos
+          H.r(2, 11, 15, 2, '#8a5a2b'); for (let x = 2; x < 17; x += 3) H.p(x, 12, '#6a4220'); H.r(3, 13, 13, 1, '#5a3418');
+          H.r(9, 3, 1, 8, '#5a3a22'); H.r(6, 4, 6, 5, '#c8a070'); H.r(6, 6, 6, 1, col); H.r(4, 9, 3, 2, '#c8b07a'); H.r(13, 9, 2, 2, '#a07a4a');
+        } else if (fase <= 1) { // galera: remos y vela cuadrada
+          H.r(1, 10, 18, 3, '#6b4a2b'); H.r(1, 10, 18, 1, '#9a6a3a'); H.r(2, 13, 16, 1, '#4a3020'); H.p(0, 9, '#6b4a2b'); H.p(19, 8, '#6b4a2b');
+          for (let x = 3; x < 17; x += 3) { H.p(x, 13, '#8a6a42'); H.p(x - 1, 14, '#8a6a42'); }
+          H.r(9, 1, 1, 9, '#3a2a1e'); H.r(5, 2, 9, 6, '#e8dcc0'); H.r(5, 4, 9, 1, col); H.r(5, 6, 9, 1, col);
+        } else if (fase === 2) { // galeón de tres palos
+          H.r(1, 10, 18, 4, '#5a3a22'); H.r(1, 10, 18, 1, '#8a5a2a'); H.r(14, 7, 5, 3, '#5a3a22'); H.r(1, 8, 4, 2, '#5a3a22');
+          for (let x = 3; x < 17; x += 3) H.p(x, 12, '#2a1a10');
+          for (const [x, h] of [[5, 7], [9, 9], [13, 7]]) { H.r(x, 10 - h, 1, h, '#3a2a1e'); H.r(x - 2, 11 - h, 5, h - 4, '#f4ecd8'); H.r(x - 2, 12 - h, 5, 1, col); }
+          H.r(9, 0, 2, 1, col);
+        } else { // vapor: casco de hierro, chimeneas y humo
+          H.r(0, 9, 20, 5, '#2a2e38'); H.r(0, 9, 20, 1, '#4a4e58'); H.r(0, 12, 20, 1, '#a03a2a');
+          H.r(4, 5, 11, 4, '#e8e8e4'); for (let x = 5; x < 14; x += 2) H.p(x, 6, CRISTAL);
+          for (const x of [7, 11]) { H.r(x, 1, 2, 4, col); H.r(x, 1, 2, 1, '#1a1a1a'); }
+        }
+      }
+      H.contorno();
+      return H.lienzo();
+    });
+  }
+
+  M.arte = { T, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});

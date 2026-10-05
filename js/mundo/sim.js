@@ -426,7 +426,7 @@
   const aniosTurno = m => m.libre ? 1 : ritmo(m) > 1 ? M.ERAS[maxEraDe(m)].aniosLento : M.ERAS[maxEraDe(m)].anios;
   const pausa = m => ritmo(m) > 1 && !m.libre ? aniosTurno(m) / M.ERAS[maxEraDe(m)].anios : ritmo(m) > 1 ? 1 / ritmo(m) : 1;
   // ¿Se puede investigar ya? Hace falta su edificio (el molino, el templo, el cuartel…) y pagar su precio.
-  const EDIFICIO = { plaza: () => true, molino: c => c.molinos > 0, templo: c => c.templos > 0, cuartel: c => c.cuarteles > 0, puerto: c => c.puertos > 0 };
+  const EDIFICIO = { saber: c => c.saberes > 0, plaza: () => true, molino: c => c.molinos > 0, templo: c => c.templos > 0, cuartel: c => c.cuarteles > 0, puerto: c => c.puertos > 0 };
   function faltaPara(m, c, t) {
     const falta = [];
     if (m.vida && !EDIFICIO[t.lugar || 'plaza'](c)) falta.push('un ' + (t.lugar || 'plaza'));

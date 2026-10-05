@@ -81,20 +81,21 @@
     if (t.id === 'carabela') return 'puerto';
     if (e.cosecha || e.granero || e.ganado) return 'molino';
     if (e.ataque || e.defensa || e.vida) return t.era >= 1 ? 'cuartel' : 'plaza';
-    if ((e.ciencia || e.estab) && t.era >= 1) return 'templo';
+    if (e.ciencia) return t.era >= 1 ? 'saber' : 'plaza';
+    if (e.estab && t.era >= 1) return 'templo';
     return 'plaza'; };
   const BASE_COSTE = era => Math.round(18 * Math.pow(1 + era, 1.45));
   for (const t of M.TECNOLOGIAS) {
     t.lugar = LUGAR_DE(t);
     const b = BASE_COSTE(t.era), oro = t.era >= 1;
     t.precio = t.lugar === 'molino' ? { madera: Math.round(b * 0.7), oro: oro ? Math.round(b * 0.3) : 0 }
-      : t.lugar === 'templo' ? { comida: Math.round(b * 0.5), oro: Math.round(b * 0.5) }
+      : t.lugar === 'templo' || t.lugar === 'saber' ? { comida: Math.round(b * 0.5), oro: Math.round(b * 0.5) }
       : t.lugar === 'cuartel' ? { madera: Math.round(b * 0.5), oro: Math.round(b * 0.4), metal: t.era >= 2 ? Math.round(b * 0.1) : 0 }
       : t.lugar === 'puerto' ? { madera: Math.round(b * 0.6), oro: Math.round(b * 0.5) }
       : { comida: Math.round(b * 0.6), madera: Math.round(b * 0.5), oro: oro ? Math.round(b * 0.2) : 0 };
     for (const k of Object.keys(t.precio)) if (!t.precio[k]) delete t.precio[k];
   }
-  M.LUGARES = { plaza: 'la plaza', molino: 'el molino', templo: 'el templo', cuartel: 'el cuartel', puerto: 'el puerto' };
+  M.LUGARES = { saber: 'la casa del saber', plaza: 'la plaza', molino: 'el molino', templo: 'el templo', cuartel: 'el cuartel', puerto: 'el puerto' };
   /*
    * SUBIR DE EDAD, como en Age of Empires: no llega sola. Hace falta el saber acumulado (la ciencia de los
    * eruditos), su fecha (en la historia real), unos edificios o un tamaño de asentamiento, y pagar el precio;
@@ -111,6 +112,8 @@
     { comida: 130, oro: 170, metal: 30, pide: { nivel: 4 }, texto: 'ser una ciudad' },
     { comida: 150, oro: 210, metal: 45, pide: { nivel: 4 }, texto: 'ser una ciudad' }
   ];
+  // La casa del saber de cada época, donde estudian los eruditos.
+  M.CASA_SABER = era => era <= 1 ? 'cabaña del chamán' : era <= 3 ? 'academia' : era === 4 ? 'monasterio' : era === 5 ? 'universidad' : 'laboratorio';
   // El erudito de cada época: quien guarda y busca el saber del pueblo.
   M.ERUDITO = era => era <= 1 ? { uno: 'chamán', varios: 'chamanes', tipo: 'chaman' } : era <= 3 ? { uno: 'filósofo', varios: 'filósofos', tipo: 'filosofo' } : era === 4 ? { uno: 'monje', varios: 'monjes', tipo: 'monje' } : era === 5 ? { uno: 'erudito', varios: 'eruditos', tipo: 'erudito' } : { uno: 'científico', varios: 'científicos', tipo: 'cientifico' };
   // Lo investigado por un pueblo (los mundos antiguos y los pueblos nuevos reciben todo lo de las eras que ya pasaron).

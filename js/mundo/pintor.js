@@ -123,14 +123,15 @@
         if (hv % 2) { gl.save(); gl.translate(x + A, y + oy); gl.scale(-1, 1); gl.drawImage(img, 0, 0); gl.restore(); } else gl.drawImage(img, x, y + oy);
       }
       else if (obra === V.OBRA.ruina) gl.drawImage(ARTE().edificio('ruina', '#888888'), x, y);
-      else if (obra === V.OBRA.ayuntamiento) gl.drawImage(ARTE().edificio('ayuntamiento', color), x, y);
+      else if (obra === V.OBRA.ayuntamiento) gl.drawImage(ARTE().edificio('ayuntamiento', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.saber) gl.drawImage(ARTE().edificio('saber', color, M.ERUDITO(c ? c.era : 0).tipo), x, y);
       else if (obra === V.OBRA.torre) gl.drawImage(ARTE().edificio('torre', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color), x, y);
-      else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color), x, y);
-      else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color), x, y);
+      else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.centro) {
         // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
         const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
@@ -168,6 +169,16 @@
     const tx = t % tw;
     // Centro de 8×8 y brazos hacia los vecinos (izquierda, derecha, arriba, abajo).
     const lados = [[tx > 0 && une(t - 1), 0, 4, 4, 8], [tx < tw - 1 && une(t + 1), 12, 4, 4, 8], [une(t - tw), 4, 0, 8, 4], [une(t + tw), 4, 12, 8, 4]];
+    if (ter === 'rio' && era >= 3) {
+      // Puente de piedra con arcos (Antigüedad) o de acero y hormigón (era moderna).
+      const acero = era >= 7;
+      gl.fillStyle = acero ? '#8a8e96' : '#a8a49a'; gl.fillRect(x, y + 3, A, 10);
+      gl.fillStyle = acero ? '#55585f' : '#8a867c'; gl.fillRect(x, y + 3, A, 1); gl.fillRect(x, y + 12, A, 1);
+      gl.fillStyle = acero ? '#3f4248' : '#b9ad94'; gl.fillRect(x, y + 5, A, 6);
+      if (acero) { gl.fillStyle = '#e8d070'; for (let k = 1; k < A; k += 4) gl.fillRect(x + k, y + 8, 2, 1); gl.fillStyle = '#c84a3a'; for (let k = 0; k < A; k += 4) { gl.fillRect(x + k, y + 1, 1, 3); gl.fillRect(x + k, y + 12, 1, 3); } gl.fillRect(x, y + 1, A, 1); }
+      else { gl.fillStyle = '#6a665e'; gl.fillRect(x + 2, y + 13, 3, 2); gl.fillRect(x + 11, y + 13, 3, 2); gl.fillStyle = '#8a867c'; for (let k = 0; k < A; k += 4) gl.fillRect(x + k, y + 2, 2, 1); }
+      return;
+    }
     if (ter === 'rio') {
       // Puente de tablas con barandilla.
       gl.fillStyle = '#8a5a2a'; gl.fillRect(x, y + 3, A, 10);
@@ -712,7 +723,7 @@
     if (ahora > lucesHasta) {
       lucesHasta = ahora + 1200; luces = [];
       const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo) luces.push(t); if (luces.length > 400) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber) luces.push(t); if (luces.length > 400) break; }
     }
     const a = Math.min(1, (o - 0.3) / 0.4);
     for (const t of luces) {
@@ -735,6 +746,8 @@
     const fase = ahora / 400;
     for (const t of especiales) {
       const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P, o = visto.obra[t];
+      const dueno = S.civ(m, m.dueno[V.region(m, t)]), fd = dueno ? V.fase(dueno.era) : 1;
+      if (o === V.OBRA.molino && (fd === 0 || fd === 3)) continue; // el granero tribal y los silos no tienen aspas
       if (o === V.OBRA.molino) {
         // Cuatro aspas que giran.
         const cx = x + 8, cy = y + 6;
@@ -768,19 +781,18 @@
       if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;
       px = Math.round(px + 4); py = Math.round(py + 4 + Math.sin(ahora / 500 + b.id) * 0.8);
       const c = S.civ(m, b.c), color = c ? c.color : '#ccc';
-      // Barcos del tamaño de una casa: se dibujan con píxeles de arte (2×2).
+      // Barcos de su época (canoa, vela, galeón, vapor), del tamaño de una casa.
       const r = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(px - 4 + x * 2, py - 6 + y * 2, w * 2, h * 2); };
       g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px - 6, py + 12 + (Math.floor(ahora / 400 + b.id) % 2), 20, 1);
-      if (b.tipo === 'pesca') {
-        r(1, 6, 6, 2, '#6b4a2b'); r(2, 8, 4, 1, '#5a3a22'); r(1, 6, 6, 1, '#8a6a42');
-        r(4, 1, 1, 5, '#3a2a1e'); r(5, 1, 2, 4, '#e8e0c8'); r(5, 2, 1, 1, color);
-        r(2, 5, 1, 1, '#f0c8a0');
-        if (Math.floor(ahora / 700 + b.id) % 3 === 0) { r(7, 5, 2, 1, '#c8d4dc'); r(8, 7, 1, 1, '#c8d4dc'); }
-      } else {
-        r(0, 7, 8, 2, '#5a3a22'); r(1, 9, 6, 1, '#3a2a1e'); r(0, 7, 8, 1, '#7a5232'); r(1, 8, 1, 1, '#2a1a10'); r(4, 8, 1, 1, '#2a1a10');
-        r(3, 0, 1, 7, '#3a2a1e'); r(1, 1, 2, 5, '#f4ecd8'); r(4, 1, 3, 5, '#f4ecd8'); r(4, 3, 3, 1, color); r(1, 3, 2, 1, color);
-        r(3, -1, 2, 1, color);
-      }
+      const img = ARTE().barco(b.tipo === 'pesca' ? 'pesca' : 'mercante', c ? grupoEra(c.era) : 1, color);
+      const ida = b.r && b.r.length >= 4 ? Math.sign(b.r[Math.min(b.r.length - 2, paso * 2 + 2)] - b.r[paso * 2]) : 0;
+      const izq = ida < 0 || (!ida && (b.izq || false)); if (ida) b.izq = ida < 0;
+      g.save(); if (izq) { g.translate(px * 2 + 12, 0); g.scale(-1, 1); }
+      g.drawImage(img, px - 4, py - 6);
+      g.restore();
+      // Humo de los vapores y arrastreros.
+      if (c && grupoEra(c.era) === 3) { for (let q = 0; q < 3; q++) { const f = ((ahora / 1200) + q / 3) % 1; g.fillStyle = 'rgba(80,80,80,' + (0.5 * (1 - f)).toFixed(2) + ')'; g.fillRect(px + (izq ? 6 : 4) + (b.tipo === 'pesca' ? 4 : 0) - f * 6 * (izq ? -1 : 1), py - 6 - f * 10, 2 + f * 3, 2 + f * 3); } }
+      if (b.tipo === 'pesca' && Math.floor(ahora / 700 + b.id) % 3 === 0) { r(8, 5, 2, 1, '#c8d4dc'); }
     }
   }
   // Las plazas sitiadas: espadas cruzadas y el porcentaje de captura.
@@ -958,7 +970,7 @@
       const barras = [];
       const inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
       if (inv) {
-        const obraL = { molino: V.OBRA.molino, templo: V.OBRA.templo, cuartel: V.OBRA.cuartel, puerto: V.OBRA.puerto }[inv.lugar];
+        const obraL = { saber: V.OBRA.saber, molino: V.OBRA.molino, templo: V.OBRA.templo, cuartel: V.OBRA.cuartel, puerto: V.OBRA.puerto }[inv.lugar];
         let t = null;
         if (obraL) for (const r of [c.capital, ...S.vecinos(c.capital)]) { for (const x of V.parcelas(m, r)) if (visto.obra[x] === obraL) { t = x; break; } if (t != null) break; }
         if (t == null) t = V.plaza(m, c.capital)[0];
