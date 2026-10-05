@@ -357,6 +357,7 @@
     barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
+    progresos(x0, y0, x1, y1);
     humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
     pintarDisparos(k);
@@ -427,7 +428,8 @@
       col, oficio: nino ? 'nino' : oficio, edad: nino ? 'nino' : (a.edad || 0) >= V.VIEJO ? 'viejo' : 'adulto',
       paso: paso || 0, alto: alto || 0, carga: carga || 0,
       arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
-      piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4
+      piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4,
+      sabio: oficio === 'erudito' ? M.ERUDITO((S.civ(m, a.c) || { era: 0 }).era).tipo : undefined
     });
   }
   function aldeanos(k, ahora, x0, y0, x1, y1) {
@@ -949,6 +951,28 @@
   }
 
 
+  // Lo que se investiga y la subida de edad, con su barra sobre el edificio (o la plaza), como en Age of Empires.
+  function progresos(x0, y0, x1, y1) {
+    const v = m.vida;
+    for (const c of S.vivas(m)) {
+      const barras = [];
+      const inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
+      if (inv) {
+        const obraL = { molino: V.OBRA.molino, templo: V.OBRA.templo, cuartel: V.OBRA.cuartel, puerto: V.OBRA.puerto }[inv.lugar];
+        let t = null;
+        if (obraL) for (const r of [c.capital, ...S.vecinos(c.capital)]) { for (const x of V.parcelas(m, r)) if (visto.obra[x] === obraL) { t = x; break; } if (t != null) break; }
+        if (t == null) t = V.plaza(m, c.capital)[0];
+        barras.push([t, Math.min(1, c.investigacion.puntos / M.costeTec(inv)), '#7ab8ff']);
+      }
+      if (c.subiendo) barras.push([V.plaza(m, c.capital)[1], (m.turno - c.subiendo.desde) / Math.max(1, c.subiendo.hasta - c.subiendo.desde), '#ffd76a']);
+      for (const [t, f, col] of barras) {
+        const x = (t % v.tw) * P + 1, y = Math.floor(t / v.tw) * P - 4;
+        if (x + 16 < x0 || y + 6 < y0 || x > x1 || y > y1) continue;
+        g.fillStyle = 'rgba(10,12,20,0.75)'; g.fillRect(x - 0.5, y - 0.5, 15, 3);
+        g.fillStyle = col; g.fillRect(x, y, Math.max(1, 14 * Math.max(0, Math.min(1, f))), 2);
+      }
+    }
+  }
   // ---------- Fuego, agua y marcas del suelo ----------
   const enVista = (t, x0, y0, x1, y1) => { const x = (t % m.vida.tw) * P, y = Math.floor(t / m.vida.tw) * P; return x + P >= x0 && y + P >= y0 && x <= x1 && y <= y1; };
   // Ceniza, cráteres, sangre y escombros (debajo de todo lo que se mueve), y el agua de las inundaciones.

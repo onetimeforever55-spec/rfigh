@@ -76,6 +76,43 @@
     { id: 'tanque', era: 8, nombre: 'Carro de combate', invento: 'el tanque', efecto: { ataque: 0.15 }, texto: 'daño +15 %' },
     { id: 'radar', era: 8, nombre: 'Radar', invento: 'el radar', efecto: { defensa: 0.1, estab: 2 }, texto: 'armaduras +10 %, +2 de estabilidad' }
   ];
+  // Dónde se investiga cada tecnología (como en Age of Empires: cada edificio, sus mejoras) y lo que cuesta en recursos.
+  const LUGAR_DE = t => { const e = t.efecto;
+    if (t.id === 'carabela') return 'puerto';
+    if (e.cosecha || e.granero || e.ganado) return 'molino';
+    if (e.ataque || e.defensa || e.vida) return t.era >= 1 ? 'cuartel' : 'plaza';
+    if ((e.ciencia || e.estab) && t.era >= 1) return 'templo';
+    return 'plaza'; };
+  const BASE_COSTE = era => Math.round(18 * Math.pow(1 + era, 1.45));
+  for (const t of M.TECNOLOGIAS) {
+    t.lugar = LUGAR_DE(t);
+    const b = BASE_COSTE(t.era), oro = t.era >= 1;
+    t.precio = t.lugar === 'molino' ? { madera: Math.round(b * 0.7), oro: oro ? Math.round(b * 0.3) : 0 }
+      : t.lugar === 'templo' ? { comida: Math.round(b * 0.5), oro: Math.round(b * 0.5) }
+      : t.lugar === 'cuartel' ? { madera: Math.round(b * 0.5), oro: Math.round(b * 0.4), metal: t.era >= 2 ? Math.round(b * 0.1) : 0 }
+      : t.lugar === 'puerto' ? { madera: Math.round(b * 0.6), oro: Math.round(b * 0.5) }
+      : { comida: Math.round(b * 0.6), madera: Math.round(b * 0.5), oro: oro ? Math.round(b * 0.2) : 0 };
+    for (const k of Object.keys(t.precio)) if (!t.precio[k]) delete t.precio[k];
+  }
+  M.LUGARES = { plaza: 'la plaza', molino: 'el molino', templo: 'el templo', cuartel: 'el cuartel', puerto: 'el puerto' };
+  /*
+   * SUBIR DE EDAD, como en Age of Empires: no llega sola. Hace falta el saber acumulado (la ciencia de los
+   * eruditos), su fecha (en la historia real), unos edificios o un tamaño de asentamiento, y pagar el precio;
+   * luego tarda unos turnos. La IA sube sola cuando puede; el jugador lo ordena («avanzad de edad»).
+   */
+  M.EDADES = [
+    null,
+    { comida: 20, madera: 15, pide: { nivel: 1 }, texto: 'ser una aldea' },
+    { comida: 35, oro: 20, pide: { nivel: 2, obra: 'templo' }, texto: 'ser un pueblo con templo' },
+    { comida: 50, oro: 40, piedra: 15, pide: { nivel: 2, obra: 'cuartel' }, texto: 'tener un cuartel' },
+    { comida: 70, oro: 65, piedra: 25, pide: { nivel: 3 }, texto: 'ser una villa' },
+    { comida: 90, oro: 95, pide: { nivel: 3, obra: 'castillo' }, texto: 'tener un castillo' },
+    { comida: 110, oro: 130, metal: 15, pide: { nivel: 3 }, texto: 'ser una villa' },
+    { comida: 130, oro: 170, metal: 30, pide: { nivel: 4 }, texto: 'ser una ciudad' },
+    { comida: 150, oro: 210, metal: 45, pide: { nivel: 4 }, texto: 'ser una ciudad' }
+  ];
+  // El erudito de cada época: quien guarda y busca el saber del pueblo.
+  M.ERUDITO = era => era <= 1 ? { uno: 'chamán', varios: 'chamanes', tipo: 'chaman' } : era <= 3 ? { uno: 'filósofo', varios: 'filósofos', tipo: 'filosofo' } : era === 4 ? { uno: 'monje', varios: 'monjes', tipo: 'monje' } : era === 5 ? { uno: 'erudito', varios: 'eruditos', tipo: 'erudito' } : { uno: 'científico', varios: 'científicos', tipo: 'cientifico' };
   // Lo investigado por un pueblo (los mundos antiguos y los pueblos nuevos reciben todo lo de las eras que ya pasaron).
   M.tecsDe = c => {
     if (!c.tecs) c.tecs = M.TECNOLOGIAS.filter(t => t.era < (c.era || 0)).map(t => t.id);
@@ -172,6 +209,7 @@
     profeta: [['Una fe nueva puede unir a pueblos dispersos y lanzarlos más allá de sus fronteras.', 'El islam pasó de Arabia a Hispania y a la India en menos de un siglo.']],
     anacronismo: [['Un invento sin la sociedad que lo aproveche se queda en curiosidad.', 'Herón de Alejandría construyó una máquina de vapor en el siglo I. Se usó como juguete en los templos.']],
     nuevo_pueblo: [['Los pueblos de las estepas y los desiertos aparecen de pronto en la historia y la cambian.', 'Los mongoles de Gengis Kan pasaron de tribus enfrentadas a dominar de Corea a Hungría en cincuenta años.']],
+    avance: [['Pasar de una época a otra cuesta: hace falta excedente para alimentar a quien no produce comida (sabios, escribas, artesanos) y tiempo para que lo nuevo arraigue.', 'La Revolución Neolítica tardó milenios en extenderse desde el Creciente Fértil hasta Europa.']],
     tecnica: [['Cada técnica nueva se apoya en las anteriores: sin cerámica no hay graneros, sin escritura no hay leyes, sin hierro no hay arado que rompa la tierra dura.', 'La rueda aparece en Mesopotamia hacia el 3500 a. C., primero para hacer vasijas y solo después para los carros.']],
     nivel: [['Un asentamiento crece cuando hay comida de sobra para alimentar a quien no siembra: artesanos, sacerdotes, soldados.', 'Çatalhöyük, en Anatolia, pasó de unas chozas a una aldea de miles de personas hacia el 7000 a. C.']],
     quiebra: [['Un ejército que no cobra deja de ser un ejército: desertores, saqueos, motines.', 'En 1575 los tercios españoles en Flandes, sin paga, saquearon Amberes (la «furia española»).']],

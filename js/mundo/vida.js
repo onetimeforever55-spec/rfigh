@@ -25,8 +25,9 @@
   // Hasta dónde llegan los campos de un molino (parcelas): más allá no se ara.
   const RANGO_MOLINO = 4;
   const fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
-  const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante'];
-  const [LENADOR, GRANJERO, CONSTRUCTOR, MINERO, GUERRERO, COMERCIANTE] = [0, 1, 2, 3, 4, 5];
+  const OFICIOS = ['lenador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante', 'erudito'];
+  // El erudito (chamán, filósofo, monje, erudito, científico según la época) estudia en el templo o la plaza: trae el saber.
+  const [LENADOR, GRANJERO, CONSTRUCTOR, MINERO, GUERRERO, COMERCIANTE, ERUDITO] = [0, 1, 2, 3, 4, 5, 6];
   // Estados del aldeano y lo que hace en cada paso (la vista elige el dibujo con esto).
   const [LIBRE, IR, TRABAJAR, VOLVER, ESPERAR, VIAJAR] = [0, 1, 2, 3, 4, 5];
   const ACC = { andar: 0, trabajar: 1, luchar: 2, cargar: 3 };
@@ -62,7 +63,7 @@
   // La armadura de cada era (con la pólvora las placas ya no sirven y se aligeran).
   const armaduraDeEra = era => (era <= 0 ? 1 : era === 1 ? 2 : era <= 3 ? 3 : era === 4 ? 4 : era <= 6 ? 5 : 6);
   // Lo que pega quien no es guerrero: su herramienta.
-  const HERRAMIENTA = { 0: { nombre: 'hacha', dano: 9 }, 1: { nombre: 'azada', dano: 6 }, 2: { nombre: 'martillo', dano: 7 }, 3: { nombre: 'pico', dano: 8 }, 5: { nombre: 'cuchillo', dano: 5 } };
+  const HERRAMIENTA = { 0: { nombre: 'hacha', dano: 9 }, 1: { nombre: 'azada', dano: 6 }, 2: { nombre: 'martillo', dano: 7 }, 3: { nombre: 'pico', dano: 8 }, 5: { nombre: 'cuchillo', dano: 5 }, 6: { nombre: 'bastón', dano: 4 } };
   const tieneR = (a, r) => !!(a.rasgos && a.rasgos.includes(r));
   // Puntos de vida de todos: aldeanos (según edad y rasgos) y animales.
   const VIDA_ANIMAL = { oveja: 25, vaca: 50, ciervo: 35, lobo: 55, pez: 10 };
@@ -319,7 +320,7 @@
    * Poca madera → más leñadores; la gente cerca del límite de comida → más granjeros; faltan casas → más
    * constructores; guerra → guerreros. Las prioridades del jugador (0 a 2) pesan sobre esas necesidades.
    */
-  const PRIO_OFICIO = ['madera', 'comida', 'casas', 'piedra', 'ejercito', 'riqueza'];
+  const PRIO_OFICIO = ['madera', 'comida', 'casas', 'piedra', 'ejercito', 'riqueza', 'ciencia'];
   const prio = (c, k) => (c.plan && c.plan.prioridad && c.plan.prioridad[k] != null ? c.plan.prioridad[k] : 1);
   const metaMadera = c => 30 + 12 * c.era;
   function reparto(c, recursos) {
@@ -332,10 +333,14 @@
       recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) + ((c.metal || 0) < 10 ? 0.08 : 0) : 0.04) : 0,
       guerra ? 0.6 : c.era >= 2 ? 0.07 : 0.04,
       // Un comerciante por cada ruta abierta, más o menos.
-      Math.min(0.2, 0.06 * (c.rutas || 0))
+      Math.min(0.2, 0.06 * (c.rutas || 0)),
+      // Eruditos: pocos en una tribu (un chamán), más con templo, escritura y ciudades; los pueblos sabios, más.
+      (c.aldeanos || 0) < 8 ? 0.02 : 0.045 + 0.01 * c.era + ((c.templos || 0) > 0 ? 0.02 : 0) + (c.caracter === 'sabio' || c.caracter === 'devoto' ? 0.025 : 0)
     ];
     for (let i = 0; i < p.length; i++) {
       const w = prio(c, PRIO_OFICIO[i]);
+      // Lo que el jugador pone al máximo pesa siempre, aunque el almacén esté lleno.
+      if (w >= 2 && (i !== 0 || recursos.arboles) && (i !== 3 || recursos.rocas)) p[i] = Math.max(p[i], 0.25);
       p[i] *= w === 0 ? 0.03 : w;
     }
     const suma = p.reduce((k, x) => k + x, 0) || 1;
@@ -461,7 +466,7 @@
     const todos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.colono == null);
     const cupos = (c.plan && c.plan.cupos) || {};
     const conCupo = i => cupos[i] != null;
-    const tiene = [0, 0, 0, 0, 0, 0];
+    const tiene = [0, 0, 0, 0, 0, 0, 0];
     for (const a of todos) tiene[a.o]++;
     const libres = todos.filter(a => !a.fijo);
     let p = reparto(c, recursos || { arboles: 1, rocas: 1 });
@@ -494,7 +499,7 @@
       // Los ancianos dejan las armas y vuelven al campo; nadie los llama a filas.
       const viejo = (a.edad || 0) >= VIEJO;
       if (viejo && a.o === GUERRERO) { tiene[GUERRERO]--; tiene[GRANJERO]++; mover(a, GRANJERO); continue; }
-      const llamada = c.guerras.length && !a.k && a.o !== GUERRERO && !viejo && !conCupo(GUERRERO);
+      const llamada = c.guerras.length && !a.k && a.o !== GUERRERO && a.o !== ERUDITO && !viejo && !conCupo(GUERRERO);
       if (!llamada && !(ya && !a.k) && a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
       const falta = p.map((x, i) => (conCupo(i) || (viejo && i === GUERRERO) ? -1e9 : x * fuera - tiene[i] + (i === a.o ? 1 : 0)));
       const mejor = falta.indexOf(Math.max(...falta));
@@ -636,6 +641,9 @@
         if (c.enCurso && c.enCurso[obra] > m.turno - 3) continue;
         const coste = COSTES[obra];
         if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
+        // Ahorrando para la edad, solo se levanta lo que la edad pide (o lo que mandó el jugador).
+        const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
+        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
         const t = donde();
         if (t != null) { if (obra !== OBRA.molino) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
       }
@@ -1295,6 +1303,15 @@
         t = ru.tiles[a.i];
       }
     }
+    else if (a.o === ERUDITO) {
+      // Al templo (si hay) o a la plaza, a estudiar, enseñar, rezar u observar el cielo.
+      const sitios = []; for (const r of [a.h, c.capital]) for (const x of parcelas(m, r)) if (v.obra[x] === OBRA.templo) sitios.push(x);
+      const base = sitios.length ? sitios[a.id % sitios.length] : centro(m, c.capital);
+      const dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 2) + 1;
+      t = base + dx + dy * v.tw;
+      if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
+      a.estudio = sitios.length ? 2 : 1;
+    }
     else if (a.o === GUERRERO && a.fijo && a.fijo.guardia != null) {
       // Un escuadrón con misión: monta guardia en su plaza (o marcha sobre la plaza enemiga que le mandaron).
       const base = centro(m, a.fijo.guardia), dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 3) - 1;
@@ -1427,7 +1444,8 @@
     if (a.viajeColono) { a.viajeColono = 0; if (a.colono != null) fundar(m, a, c); a.e = ESPERAR; a.t = 2; return; }
     if (a.o === COMERCIANTE && a.viaje) { a.viaje = 0; a.e = VIAJAR; return; }
     if (a.paseo) { a.e = ESPERAR; a.t = a.paseo === 2 ? 3 : 1 + Math.floor(azar(v) * 2); a.paseo = 0; return; }
-    if (a.o === LENADOR) { if (v.arbol[t] >= 2) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE; }
+    if (a.o === ERUDITO) { a.e = TRABAJAR; a.t = 3; }
+    else if (a.o === LENADOR) { if (v.arbol[t] >= 2) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE; }
     else if (a.o === MINERO) { if (v.roca[t] > 0) { a.e = TRABAJAR; a.t = 3; } else if (a.cantera) { a.e = TRABAJAR; a.t = 4; } else a.e = LIBRE; }
     else if (a.o === GRANJERO && (a.pastor != null || a.caza != null)) { a.e = TRABAJAR; a.t = 3; }
     else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else { a.e = LIBRE; a.siega = 0; } }
@@ -1452,6 +1470,12 @@
 
   function terminar(m, a, c, rec, ter, paso) {
     const v = m.vida, t = a.ty * v.tw + a.tx;
+    // El erudito termina su jornada de estudio: el saber entra en el pueblo (más en el templo, y más los sabios).
+    if (a.o === ERUDITO) {
+      const k = 0.9 * (1 + 0.15 * c.era) * (a.estudio === 2 ? 1.35 : 1) * (tieneR(a, 'sabio') ? 1.5 : 1) * (tieneR(a, 'perezoso') ? 0.6 : 1);
+      c.saber = (c.saber || 0) + k; a.estudios = (a.estudios || 0) + 1;
+      a.e = ESPERAR; a.t = 1; return;
+    }
     if (a.o === LENADOR && v.arbol[t] >= 2) { c.hecho = c.hecho || {}; c.hecho.arboles = (c.hecho.arboles || 0) + 1; a.k = (v.arbol[t] === 3 ? 4 : 2) + M.tec(c, 'lena'); cambiar(m, 'arbol', t, 0, paso); ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && a.cantera && !v.roca[t]) { a.cantera = 0; a.k = 2; a.kt = ter[t] === 'montana' && azar(v) < 0.25 ? 1 : 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === MINERO && v.roca[t] > 0) { a.k = (v.mena[t] ? 1 : 2) + M.tec(c, 'piedra'); a.kt = v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
@@ -2072,5 +2096,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

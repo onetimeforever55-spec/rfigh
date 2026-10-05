@@ -222,6 +222,12 @@ body.sin-panel .panel { display: none; }
 .tec.cerrada { opacity: 0.55; }
 .tec .barra.mini { width: 50px; height: 6px; display: inline-block; vertical-align: middle; }
 .tec .barra.mini span { background: #7ab8ff; }
+.edad { border: 1px solid var(--oro); border-radius: 4px; padding: 6px 10px; margin: 8px 0; }
+.edad-req { list-style: none; margin: 4px 0 8px; padding: 0; font-size: 13px; }
+.edad-req .ok { color: #9ad08a; }
+.edad-req .no { color: #ff8a7a; }
+.avanzar-edad[disabled] { opacity: 0.45; cursor: not-allowed; }
+.tec-precio { font-family: var(--f-dato); font-size: 11px; color: var(--pergamino); opacity: 0.75; }
 .guerra-mas { margin: 4px 0 0; font-size: 12px; }
 .verde { color: #7fc77a; }
 /* Móvil: todo más compacto para que se vea el mundo. */

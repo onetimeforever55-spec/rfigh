@@ -21,7 +21,7 @@
     piedra: /\b(minas?|miner\w*|piedra|canteras?|picad|picar)\b/,
     casas: /\b(constru\w*|casas?|edific\w*|obras?|viviendas?|caminos?|carreteras?|calzadas?)\b/,
     ejercito: /\b(reclut\w*|ejercitos?|soldados?|guerreros?|militar\w*|milicias?|defensa|tropas?|armas)\b/,
-    ciencia: /\b(cienc\w*|investig\w*|estudi\w*|sabios?|escuelas?|tecnolog\w*|universidad\w*|inventos?)\b/,
+    ciencia: /\b(cienc\w*|investig\w*|estudi\w*|sabios?|chaman\w*|filosof\w*|monjes?|erudit\w*|cientific\w*|sacerdot\w*|druid\w*|escuelas?|tecnolog\w*|universidad\w*|inventos?)\b/,
     riqueza: /\b(riqueza|oro|dinero|mercados?|negocios?|enriquec\w*|impuestos|comercio|comerciantes?|caravanas?|carretas?|mercaderes)\b/
   };
   const NOMBRE_RECURSO = { madera: 'madera', comida: 'comida', piedra: 'piedra', casas: 'casas', ejercito: 'ejército', ciencia: 'ciencia', riqueza: 'riqueza', expansion: 'expansión' };
@@ -47,9 +47,9 @@
   // ---------- Cuadrillas: órdenes con número, oficio y tiempo ----------
   // «5 granjeros a talar durante 3 minutos», «quiero 10 leñadores», «la mitad de los mineros a construir hasta
   // tener 20 casas», «todos los soldados a sembrar 2 años». Se cumplen con aldeanos concretos.
-  const OFICIOS_N = ['leñadores', 'granjeros', 'constructores', 'mineros', 'guerreros', 'comerciantes'];
-  const OFICIO_1 = ['leñador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante'];
-  const VERBO = ['talar', 'el campo', 'construir', 'la mina', 'las armas', 'comerciar'];
+  const OFICIOS_N = ['leñadores', 'granjeros', 'constructores', 'mineros', 'guerreros', 'comerciantes', 'eruditos'];
+  const OFICIO_1 = ['leñador', 'granjero', 'constructor', 'minero', 'guerrero', 'comerciante', 'erudito'];
+  const VERBO = ['talar', 'el campo', 'construir', 'la mina', 'las armas', 'comerciar', 'estudiar'];
   const NUMEROS = { un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiuno: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100, ciento: 100, docena: 12, par: 2 };
   const NUM = '(\\d+(?:[.,]\\d+)?|' + Object.keys(NUMEROS).join('|') + '|media docena|una docena|un par|medio|media)';
   const numero = t => { if (t == null) return null; t = t.trim(); if (/^\d/.test(t)) return parseFloat(t.replace(',', '.')); if (t === 'media docena') return 6; if (t === 'una docena') return 12; if (t === 'un par') return 2; if (t === 'medio' || t === 'media') return 0.5; return NUMEROS[t] != null ? NUMEROS[t] : null; };
@@ -60,6 +60,7 @@
     [3, 'miner\\w*|canter\\w*|picapedrer\\w*|herrer\\w*'],
     [4, 'guerrer\\w*|soldad\\w*|tropas?|arquer\\w*|milician\\w*|reclutas?|caballer\\w*|tanquistas?|artiller\\w*'],
     [5, 'comerciant\\w*|mercader\\w*|tender\\w*|buhoner\\w*'],
+    [6, 'erudit\\w*|sabios?|chaman\\w*|filosof\\w*|monjes?|frailes?|sacerdot\\w*|cientific\\w*|druid\\w*|escribas?|maestros?|investigador\\w*'],
     [-1, 'aldean\\w*|personas?|gente|hombres|mujeres|trabajador\\w*|vecinos|habitantes|tipos|curritos|peones|mios']
   ];
   const ACTIVIDAD = [
@@ -68,7 +69,8 @@
     [2, /\b(constru\w*|edific\w*|levant\w*|obras?|casas?|caminos?|viviendas?|carreteras?)\b/],
     [3, /\b(min(a|as|ar|ando|en|ad|e)|pic(ar|ad|ando|en|a)|canteras?|piedras?|metal|hierro|oro|minerales?)\b/],
     [4, /\b(luch\w*|pele\w*|combat\w*|armas|ejercito|guerra|frente|frontera|defend\w*|patrull\w*|cuartel|filas|milicia|reclut\w*)\b/],
-    [5, /\b(comerci\w*|vend\w*|mercados?|caravanas?|negoci\w*)\b/]
+    [5, /\b(comerci\w*|vend\w*|mercados?|caravanas?|negoci\w*)\b/],
+    [6, /\b(estudi\w*|investig\w*|rez(ar|en|ad)|ensen\w*|aprend\w*|escrib\w*|medit\w*|pens\w*|templo|biblioteca|observ\w* (el cielo|las estrellas))\b/]
   ];
   // El plazo: tiempo real (minutos o segundos, que se pasan a turnos a la velocidad actual), turnos, años, o una meta.
   const COSAS = { madera: 'madera', lena: 'madera', comida: 'comida', trigo: 'comida', alimento: 'comida', alimentos: 'comida', piedra: 'piedra', piedras: 'piedra', metal: 'metal', hierro: 'metal', oro: 'oro', casas: 'casas', casa: 'casas', campos: 'campos', campo: 'campos', arboles: 'arboles', arbol: 'arboles', guerreros: 'guerreros', soldados: 'guerreros' };
@@ -169,7 +171,7 @@
     if (!h) return siempre ? ' hasta nueva orden' : '';
     if (h.ms) { const s2 = Math.round(h.ms / 1000); return ' durante ' + (s2 >= 60 ? (s2 % 60 ? (s2 / 60).toFixed(1).replace('.', ',') : s2 / 60) + ' min' : s2 + ' s') + ' (' + (h.turno - m.turno) + ' turnos a esta velocidad)'; }
     if (h.turno != null) return ' durante ' + (h.turno - m.turno) + ' turno' + (h.turno - m.turno === 1 ? '' : 's');
-    if (h.anio != null) return ' hasta el año ' + S().anioTexto(h.anio).replace(/\.$/, '');
+    if (h.anio != null) return ' hasta el año ' + S().anioTexto(h.anio).replace(/(\d)\.$/, '$1');
     if (h.cosa) return h.nuevo ? ' hasta ' + ({ arboles: 'talar ', casas: 'levantar ', campos: 'sembrar ' }[h.cosa] || 'sacar ') + h.n + ' ' + (h.cosa === 'arboles' ? 'árboles' : h.cosa === 'casas' ? 'casas' : h.cosa === 'campos' ? 'campos' : 'de ' + h.cosa) : ' hasta tener ' + h.n + ' ' + (['casas', 'campos', 'guerreros'].includes(h.cosa) ? h.cosa : 'de ' + h.cosa);
     return '';
   }
@@ -182,7 +184,7 @@
     return '';
   }
   const adultosDe = (m, c) => (m.vida ? m.vida.aldeanos.filter(a => a.c === c.id && (a.edad || 0) >= M.vida.ADULTO && a.colono == null) : []);
-  function cuentaOficios(m, c) { const n = [0, 0, 0, 0, 0, 0]; for (const a of adultosDe(m, c)) n[a.o]++; return n; }
+  function cuentaOficios(m, c) { const n = [0, 0, 0, 0, 0, 0, 0]; for (const a of adultosDe(m, c)) n[a.o]++; return n; }
   // Vencer lo que tenía plazo (al empezar cada turno): las cuadrillas vuelven a su oficio, los cupos se quitan,
   // las prioridades vuelven a como estaban. Cada cosa se anuncia sobre el pueblo.
   function vencer(m) {
@@ -236,10 +238,10 @@
     fuente.sort((x, y) => (x.k ? 1 : 0) - (y.k ? 1 : 0));
     const quiero = a.n === 'todos' ? fuente.length : a.n < 1 ? Math.round(fuente.length * a.n) : Math.round(a.n);
     const elegidos = fuente.slice(0, Math.max(0, quiero));
-    const nombreDe = a.de >= 0 ? OFICIOS_N[a.de] : 'aldeanos';
+    const nombreDe = a.de >= 0 ? nombreOf(c, a.de, true) : 'aldeanos';
     if (!elegidos.length) { textos.push(a.de >= 0 ? 'No tienes ' + nombreDe + ' que puedan ir' + (a.de === 4 ? '' : '') + '.' : 'No queda gente libre para eso.'); return; }
     const id = (p.sigCuadrilla = (p.sigCuadrilla || 0) + 1);
-    const texto = elegidos.length + ' ' + (elegidos.length === 1 ? (a.de >= 0 ? OFICIO_1[a.de] : 'aldeano') : nombreDe) + ' → ' + VERBO[a.a];
+    const texto = elegidos.length + ' ' + (elegidos.length === 1 ? (a.de >= 0 ? nombreOf(c, a.de, false) : 'aldeano') : nombreDe) + ' → ' + VERBO[a.a];
     for (const x of elegidos) { x.fijo = { g: id, vuelve: x.o }; M.vida.mover(x, a.a); }
     // Sin plazo, la cuadrilla se queda así hasta nueva orden (el gobernador no la deshace).
     (p.cuadrillas = p.cuadrillas || []).push({ id, n: elegidos.length, de: a.de, a: a.a, hasta: h, texto });
@@ -252,6 +254,8 @@
     const faltan = quiero - elegidos.length;
     textos.push('Hecho: ' + elegidos.length + ' ' + (elegidos.length === 1 ? (a.de >= 0 ? OFICIO_1[a.de] : 'aldeano') : nombreDe) + ' dejan lo que hacían y se ponen a ' + VERBO[a.a].replace(/^(el|la|las) /, 'trabajar en $1 ').replace('trabajar en las armas', 'empuñar las armas') + textoPlazo(m, h, !h) + '.' + (faltan > 0 ? ' (Solo había ' + elegidos.length + '.)' : '') + (h ? ' Luego vuelven a su oficio.' : ' Se quedan así hasta que digas «liberad las cuadrillas» (o pon un plazo: «durante 3 minutos»).') + avisos.join(''));
   }
+  // El nombre de un oficio en la época de ese pueblo (el erudito es chamán, filósofo, monje…).
+  const nombreOf = (c, i, varios) => i === 6 ? (varios ? M.ERUDITO(c.era).varios : M.ERUDITO(c.era).uno) : varios ? OFICIOS_N[i] : OFICIO_1[i];
   function aplicarCupo(m, c, a, textos) {
     const p = plan(c), antes = cuentaOficios(m, c);
     const n = Math.max(0, a.relativo ? antes[a.o] + a.relativo * a.n : a.n);
@@ -261,8 +265,8 @@
     M.vida.reasignar(m, c, null, true);
     const ahora = cuentaOficios(m, c);
     const total = adultosDe(m, c).length;
-    (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: (ahora[a.o] >= antes[a.o] ? '▲ ' : '▼ ') + OFICIOS_N[a.o] + ' ' + antes[a.o] + ' → ' + ahora[a.o] });
-    textos.push('Ahora tienes ' + ahora[a.o] + ' ' + (ahora[a.o] === 1 ? OFICIO_1[a.o] : OFICIOS_N[a.o]) + ' (antes ' + antes[a.o] + ')' + textoPlazo(m, h, a.siempre) + '.' + (ahora[a.o] < n ? ' No hay más adultos que puedan serlo (' + total + ' en total).' : '') + ' El resto del trabajo se reparte solo. Para quitar el cupo: «liberad los cupos».');
+    (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: (ahora[a.o] >= antes[a.o] ? '▲ ' : '▼ ') + nombreOf(c, a.o, true) + ' ' + antes[a.o] + ' → ' + ahora[a.o] });
+    textos.push('Ahora tienes ' + ahora[a.o] + ' ' + nombreOf(c, a.o, ahora[a.o] !== 1) + ' (antes ' + antes[a.o] + ')' + textoPlazo(m, h, a.siempre) + '.' + (ahora[a.o] < n ? ' No hay más adultos que puedan serlo (' + total + ' en total).' : '') + ' El resto del trabajo se reparte solo. Para quitar el cupo: «liberad los cupos».');
   }
   function aplicarMeta(m, c, a, textos) {
     // La gente del oficio sube al máximo hasta producir lo pedido; luego vuelve a como estaba.
@@ -364,6 +368,12 @@
     return null;
   }
   function economia(m, c, n) {
+    // Subir de edad: «avanzad de edad», «pasad a la Edad del Hierro», «¿qué nos falta para la próxima edad?».
+    const edad = /\b(edad|era|epoca)\b/.test(n);
+    if (edad && /\b(que (nos )?falta|que necesit\w*|requisitos|cuando (llega|podemos)|como (llegamos|pasamos))\b/.test(n)) return [{ tipo: 'consulta_edad' }];
+    if (edad && /\b(solos?|automatic\w*|cuando pueda\w*|por su cuenta)\b/.test(n) && /\b(avanz\w*|sub\w*|pas\w*)\b/.test(n)) return [{ tipo: 'edad_auto', si: !/\b(no|nunca|dejad de)\b/.test(n) }];
+    if (edad && /\b(ahorr\w*|guard\w*|junt\w*)\b/.test(n)) return [{ tipo: 'ahorrar_edad', si: !/\b(no|dejad de)\b/.test(n) }];
+    if (edad && /\b(avanz\w*|sub\w*|pas\w*|entr\w*|lleg\w*|adelant\w*|cambi\w*|ir a|vamos a)\b/.test(n)) return [{ tipo: 'edad' }];
     // Una tecnología por su nombre (o por lo que da): «investigad la rueda», «quiero la imprenta», «estudiad el hierro».
     const quiereTec = /\b(investig\w*|estudi\w*|descubr\w*|invent\w*|desarroll\w*|aprend\w*|quiero|queremos|centr\w* en|prioriz\w*)\b/.test(n);
     const tec = M.TECNOLOGIAS.find(t => n.includes(norm(t.nombre))) || M.TECNOLOGIAS.find(t => n.includes(norm(t.invento).replace(/^(el|la|los|las) /, ''))) || M.TECNOLOGIAS.find(t => new RegExp('\\b' + t.id.replace('_', ' ') + '\\b').test(n));
@@ -381,24 +391,42 @@
   const PRECIO = { madera: 0.6, comida: 0.5, piedra: 0.9, metal: 2.5 };
   function aplicarEconomia(m, c, a, textos) {
     const p = plan(c), v = m.vida, an = t => v && (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t });
+    if (a.tipo === 'edad' || a.tipo === 'consulta_edad') {
+      const sig = M.ERAS[c.era + 1];
+      if (!sig) { textos.push('Ya estáis en la última edad.'); return; }
+      if (c.subiendo) { textos.push('Ya estáis pasando a ' + sig.con + ': faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos.'); return; }
+      const r = S().puedeSubir(m, c), req = M.EDADES[c.era + 1];
+      const precio = req ? ['comida', 'madera', 'piedra', 'oro', 'metal'].filter(k => req[k]).map(k => req[k] + ' de ' + k).join(', ') : '';
+      if (a.tipo === 'edad' && r.ok) {
+        S().empezarSubida(m, c);
+        an('⏫ Hacia ' + sig.nombre);
+        textos.push('¡Adelante! Pagáis ' + precio + ' y empieza el paso a ' + sig.con + ' (' + (c.subiendo.hasta - m.turno) + ' turnos). Cuando termine, llegan sus armas, edificios y técnicas.');
+        return;
+      }
+      textos.push((a.tipo === 'edad' ? 'Aún no podéis pasar a ' + sig.con + '. ' : 'Para pasar a ' + sig.con + ' hace falta: saber ' + sig.umbral + (sig.desde != null && !m.libre ? ', llegar al año ' + S().anioTexto(sig.desde).replace(/(\d)\.$/, '$1') : '') + (req ? ', ' + req.texto + ' y pagar ' + precio : '') + '. ') + (r.falta.length ? 'Os falta: ' + r.falta.join(', ') + '.' : '¡Lo tenéis todo! Decid «avanzad de edad».') + (r.falta.some(x => /saber/.test(x)) ? ' El saber lo traen tus ' + M.ERUDITO(c.era).varios + ': «más ' + M.ERUDITO(c.era).varios + '».' : ''));
+      return;
+    }
+    if (a.tipo === 'edad_auto') { p.autoEdad = !!a.si; textos.push(a.si ? 'Tu gobierno pasará de edad solo en cuanto se pueda.' : 'Pasar de edad volverá a ser decisión tuya («avanzad de edad»).'); return; }
+    if (a.tipo === 'ahorrar_edad') { p.ahorrarEdad = !!a.si; textos.push(a.si ? 'Se ahorra para la próxima edad: cuando tengáis el saber, no se gastará oro en mejoras ni edificios que no pida la edad.' : 'Se deja de ahorrar: el oro vuelve a gastarse en mejoras y edificios.'); return; }
     if (a.tipo === 'investigar') {
       const t = M.TECNOLOGIAS.find(x => x.id === a.id);
       if (!t) { textos.push('No conozco esa tecnología.'); return; }
       const ts = M.tecsDe(c);
       if (ts.includes(t.id)) { textos.push('Ya domináis ' + t.nombre.toLowerCase() + '.'); return; }
-      if (t.era > c.era) { const faltan = M.TECNOLOGIAS.filter(x => x.era <= c.era && !ts.includes(x.id)); textos.push(t.nombre + ' es ' + ('de ' + M.ERAS[t.era].con).replace(/^de el /, 'del ') + '. Antes hay que dominar lo de ahora' + (faltan.length ? ': ' + faltan.map(x => x.nombre.toLowerCase()).join(', ') : '') + (m.libre || !M.ERAS[c.era + 1] || M.ERAS[c.era + 1].desde == null ? '' : ', y la nueva era no llega antes de ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/\.$/, '')) + '.'); return; }
+      if (t.era > c.era) { const faltan = M.TECNOLOGIAS.filter(x => x.era <= c.era && !ts.includes(x.id)); textos.push(t.nombre + ' es ' + ('de ' + M.ERAS[t.era].con).replace(/^de el /, 'del ') + '. Antes hay que dominar lo de ahora' + (faltan.length ? ': ' + faltan.map(x => x.nombre.toLowerCase()).join(', ') : '') + (m.libre || !M.ERAS[c.era + 1] || M.ERAS[c.era + 1].desde == null ? '' : ', y la nueva era no llega antes de ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) + '.'); return; }
+      const falta = S().faltaPara(m, c, t), inv = c.investigacion = c.investigacion || { id: null, puntos: 0 };
+      if (falta.length && inv.id !== t.id) { p.investigar = t.id; textos.push(t.nombre + ' se investiga en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' y cuesta ' + Object.keys(t.precio).map(k => t.precio[k] + ' de ' + k).join(', ') + '. Os falta: ' + falta.join(', ') + '. Queda apuntada: empezará en cuanto se pueda.'); return; }
       p.investigar = t.id;
-      const inv = c.investigacion = c.investigacion || { id: null, puntos: 0 };
       // Lo que llevaba la investigación anterior no se pierde del todo: la mitad pasa a la nueva.
-      if (inv.id !== t.id) { inv.puntos = (inv.puntos || 0) * 0.5; inv.id = t.id; }
+      if (inv.id !== t.id) { inv.puntos = 0; inv.id = t.id; for (const k of Object.keys(t.precio || {})) c[k] = (c[k] || 0) - t.precio[k]; }
       an('🔬 Investigando: ' + t.nombre);
-      textos.push('Tus sabios se ponen con ' + t.nombre.toLowerCase() + ' (' + t.texto + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.cienciaTurno || 1)))) + ' turnos. Más ciencia: más gente, estabilidad, ciudades, rutas y oro para los sabios.');
+      textos.push('Tus ' + M.ERUDITO(c.era).varios + ' se ponen con ' + t.nombre.toLowerCase() + ' en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' (' + t.texto + '; pagado: ' + Object.keys(t.precio).map(k => t.precio[k] + ' de ' + k).join(', ') + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.cienciaTurno || 1)))) + ' turnos. Más ciencia: más gente, estabilidad, ciudades, rutas y oro para los sabios.');
       return;
     }
     if (a.tipo === 'consulta_tec') {
       const ts = M.tecsDe(c), inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
       const libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !ts.includes(t.id));
-      textos.push((inv ? 'Investigáis ' + inv.nombre.toLowerCase() + ' (' + Math.round(100 * c.investigacion.puntos / M.costeTec(inv)) + ' %). ' : '') + (libres.length ? 'Podéis investigar: ' + libres.map(t => t.nombre + ' (' + t.texto + ')').join('; ') + '.' : 'Domináis todo lo de ' + M.ERAS[c.era].con + (M.ERAS[c.era + 1] ? '; la próxima era llegará ' + (m.libre || M.ERAS[c.era + 1].desde == null ? 'enseguida' : 'en ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/\.$/, '')) : '') + '.') + ' Dominadas: ' + ts.length + ' de ' + M.TECNOLOGIAS.length + '.');
+      textos.push((inv ? 'Investigáis ' + inv.nombre.toLowerCase() + ' (' + Math.round(100 * c.investigacion.puntos / M.costeTec(inv)) + ' %). ' : '') + (libres.length ? 'Podéis investigar: ' + libres.map(t => t.nombre + ' (' + t.texto + ')').join('; ') + '.' : 'Domináis todo lo de ' + M.ERAS[c.era].con + (M.ERAS[c.era + 1] ? '; la próxima era llegará ' + (m.libre || M.ERAS[c.era + 1].desde == null ? 'enseguida' : 'en ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) : '') + '.') + ' Dominadas: ' + ts.length + ' de ' + M.TECNOLOGIAS.length + '.');
       return;
     }
     if (a.tipo === 'comprar' || a.tipo === 'vender') {
@@ -658,7 +686,7 @@
     const cambios = {};
     const solo = /\b(solo|todo a|todos a|todo el mundo a|que todos)\b/.test(n);
     for (const [k, re] of Object.entries(RECURSOS)) {
-      if (conCuadrilla && k !== 'ciencia') continue;
+      if (conCuadrilla && (k !== 'ciencia' || acciones.some(x => x.o === 6 || x.a === 6))) continue;
       if (k === 'ejercito' && (guerra || paz) && !/\breclut/.test(n)) continue;
       if (k === 'riqueza' && tratado) continue;
       const mt = n.match(re);
@@ -706,7 +734,7 @@
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
-      else if (['investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);
+      else if (['edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);
       else if (TIPOS_EXTRA.includes(a.tipo)) aplicarExtra(m, c, a, textos);
       else if (a.tipo === 'consulta') textos.push(consulta(m, c, a.o));
       else if (a.tipo === 'cuadrilla') aplicarCuadrilla(m, c, a, textos);
@@ -728,11 +756,11 @@
         // Con plazo («durante 2 minutos»), al vencer vuelve cada prioridad a como estaba.
         const hp = plazoAbsoluto(m, c, a.hasta);
         if (hp) for (const k of tocados) { p.temporales = (p.temporales || []).filter(t => t.k !== k); p.temporales.push({ k, antes: previas[k] != null ? previas[k] : 1, puesto: pr[k], hasta: hp }); }
-        const cuenta = () => { const n = [0, 0, 0, 0, 0, 0]; if (m.vida) for (const x of m.vida.aldeanos) if (x.c === c.id && (x.edad || 0) >= M.vida.ADULTO && x.colono == null) n[x.o]++; return n; };
+        const cuenta = () => { const n = [0, 0, 0, 0, 0, 0, 0]; if (m.vida) for (const x of m.vida.aldeanos) if (x.c === c.id && (x.edad || 0) >= M.vida.ADULTO && x.colono == null) n[x.o]++; return n; };
         const antesOficios = cuenta();
         // La gente cambia de oficio en el acto (sin esperar al turno siguiente).
         if (M.vida && m.vida) M.vida.reasignar(m, c, null, true);
-        const ahora = cuenta(), cambios = tocados.filter(k => OFICIO_DE[k] && ahora[OFICIO_DE[k][0]] !== antesOficios[OFICIO_DE[k][0]]).map(k => (ahora[OFICIO_DE[k][0]] > antesOficios[OFICIO_DE[k][0]] ? '▲ ' : '▼ ') + OFICIO_DE[k][1] + ' ' + antesOficios[OFICIO_DE[k][0]] + ' → ' + ahora[OFICIO_DE[k][0]]);
+        const ahora = cuenta(), cambios = tocados.filter(k => OFICIO_DE[k] && ahora[OFICIO_DE[k][0]] !== antesOficios[OFICIO_DE[k][0]]).map(k => (ahora[OFICIO_DE[k][0]] > antesOficios[OFICIO_DE[k][0]] ? '▲ ' : '▼ ') + (OFICIO_DE[k][0] === 6 ? M.ERUDITO(c.era).varios : OFICIO_DE[k][1]) + ' ' + antesOficios[OFICIO_DE[k][0]] + ' → ' + ahora[OFICIO_DE[k][0]]);
         (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: cambios.length ? cambios.join('  ') : 'Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') });
         textos.push('Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') + (a.solo ? ' (lo demás, baja)' : '') + (hp ? textoPlazo(m, hp) + '; luego vuelven a como estaban' : '') + '.' + (cambios.length ? ' Ya cambian de oficio: ' + cambios.map(x => x.slice(2)).join(', ') + '.' : oficiosNuevos(m, c, antesReparto, tocados)));
       }
@@ -862,7 +890,7 @@
   const T = s => s.charAt(0).toUpperCase() + s.slice(1);
   const aEra = con => (con.startsWith('el ') ? 'al ' + con.slice(3) : 'a ' + con); // «al Renacimiento», «a la Edad Media»
   // Cuánta gente hay en cada oficio según el gobernador automático, para decir qué cambia con una orden.
-  const OFICIO_DE = { madera: [0, 'leñadores'], comida: [1, 'granjeros'], casas: [2, 'constructores'], piedra: [3, 'mineros'], ejercito: [4, 'guerreros'], riqueza: [5, 'comerciantes'] };
+  const OFICIO_DE = { ciencia: [6, 'eruditos'], madera: [0, 'leñadores'], comida: [1, 'granjeros'], casas: [2, 'constructores'], piedra: [3, 'mineros'], ejercito: [4, 'guerreros'], riqueza: [5, 'comerciantes'] };
   function repartoDe(m, c) {
     if (!M.vida || !m.vida) return null;
     const adultos = m.vida.aldeanos.filter(x => x.c === c.id && (x.edad || 0) >= M.vida.ADULTO && x.colono == null).length;
@@ -871,7 +899,7 @@
   function oficiosNuevos(m, c, antes, tocados) {
     const ahora = repartoDe(m, c);
     if (!antes || !ahora) return ' Tu gente se reorganiza sola según eso.';
-    const partes = tocados.filter(k => OFICIO_DE[k] && antes[OFICIO_DE[k][0]] !== ahora[OFICIO_DE[k][0]]).map(k => OFICIO_DE[k][1] + ' ' + antes[OFICIO_DE[k][0]] + ' → ' + ahora[OFICIO_DE[k][0]]);
+    const partes = tocados.filter(k => OFICIO_DE[k] && antes[OFICIO_DE[k][0]] !== ahora[OFICIO_DE[k][0]]).map(k => (OFICIO_DE[k][0] === 6 ? M.ERUDITO(c.era).varios : OFICIO_DE[k][1]) + ' ' + antes[OFICIO_DE[k][0]] + ' → ' + ahora[OFICIO_DE[k][0]]);
     return partes.length ? ' Irán cambiando de oficio: ' + partes.join(', ') + '.' : ' Tu gente se reorganiza sola según eso.';
   }
 
@@ -904,6 +932,8 @@
     if (rebelde) return { texto: rebelde.nombre + ' no es leal (' + Math.round(rebelde.lealtad) + '): pronto se rebelará. Una corte más estable o un ejército cerca la retienen.', orden: 'Más soldados' };
     if (c.sinCama > 0 && (pr.casas || 1) < 2) return { texto: 'Hay parejas que quieren tener hijos y no tienen cama: faltan casas.', orden: 'Más casas' };
     if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : 'Construid un templo' };
+    if (M.ERAS[c.era + 1] && !c.subiendo && S().puedeSubir(m, c).ok) return { texto: '¡Podéis pasar a ' + M.ERAS[c.era + 1].con + '! Tenéis el saber, los edificios y con qué pagarlo.', orden: 'Avanzad de edad' };
+    if (M.ERAS[c.era + 1] && !c.subiendo && S().ahorrando(Object.assign({}, m), Object.assign({}, c, { jugador: false })) && !S().puedeSubir(m, c).ok && S().puedeSubir(m, c).falta.every(x => /de (comida|madera|piedra|oro|metal)$/.test(x))) return { texto: 'Para ' + M.ERAS[c.era + 1].con + ' solo os falta pagar: ' + S().puedeSubir(m, c).falta.join(', ') + '.', orden: 'Ahorrad para la edad' };
     if ((c.oro || 0) < 0) return { texto: 'Las arcas están vacías: los soldados no cobran y desertan, y la gente se queja.', orden: (c.plan && c.plan.impuesto || 1) < 1.5 ? 'Subid los impuestos' : 'Vended madera' };
     if (c.investigacion && !c.investigacion.id && M.TECNOLOGIAS.some(t => t.era <= c.era && !M.tecsDe(c).includes(t.id))) return { texto: 'Tus sabios esperan saber qué investigar.', orden: '¿Qué investigamos?' };
     if (c.plan && c.plan.obra) return { texto: 'Tus constructores esperan madera y piedra para el encargo (' + c.plan.obra + ').', orden: 'Más piedra' };
@@ -928,7 +958,7 @@
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante; -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal","n":numero|null}; {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"}; {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante, 6 erudito (chamán, filósofo, monje, científico); -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal","n":numero|null}; {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"edad"} (pasar a la edad siguiente, como en Age of Empires: cuesta recursos y pide edificios); {"tipo":"consulta_edad"} (qué falta para la próxima edad); {"tipo":"edad_auto","si":bool}; {"tipo":"ahorrar_edad","si":bool}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -938,7 +968,7 @@
       '\nPlazas (región, dueño): ' + JSON.stringify([...S().vivas(m).map(o => ({ region: o.capital, nombre: 'capital de ' + o.nombre, dueno: o.id })), ...(m.ciudades || []).map(x => ({ region: x.region, nombre: x.nombre, dueno: m.dueno[x.region] }))]) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
+  const TIPOS = new Set(['edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
@@ -954,13 +984,14 @@
         }
         if (Object.keys(cambios).length) out.push({ tipo: 'prioridad', cambios });
       } else if (a.tipo === 'cuadrilla' || a.tipo === 'cupo' || a.tipo === 'meta') {
-        const oficio = x => (Number.isInteger(Number(x)) && Number(x) >= -1 && Number(x) <= 5 ? Number(x) : null);
+        const oficio = x => (Number.isInteger(Number(x)) && Number(x) >= -1 && Number(x) <= 6 ? Number(x) : null);
         const h = a.hasta && typeof a.hasta === 'object' ? (a.hasta.ms > 0 ? { ms: Math.min(7200000, Number(a.hasta.ms)) } : a.hasta.turnos > 0 ? { turnos: Math.min(500, Math.round(a.hasta.turnos)) } : a.hasta.anios > 0 ? { anios: Math.min(2000, Number(a.hasta.anios)) } : COSAS[a.hasta.cosa] && a.hasta.n > 0 ? { cosa: COSAS[a.hasta.cosa], n: Math.min(10000, Math.round(a.hasta.n)), nuevo: !!a.hasta.nuevo } : null) : null;
         const n = a.n === 'todos' ? 'todos' : Number(a.n) > 0 ? Math.min(500, Number(a.n)) : null;
         if (a.tipo === 'cuadrilla' && n != null && oficio(a.de) != null && oficio(a.a) >= 0) out.push({ tipo: 'cuadrilla', n, de: oficio(a.de), a: oficio(a.a), hasta: h });
         else if (a.tipo === 'cupo' && n != null && n !== 'todos' && oficio(a.o) >= 0) out.push({ tipo: 'cupo', o: oficio(a.o), n: Math.round(n), hasta: h });
         else if (a.tipo === 'meta' && n != null && n !== 'todos' && COSAS[a.cosa] && oficio(a.o) >= 0) out.push({ tipo: 'meta', cosa: COSAS[a.cosa], n: Math.round(n), o: oficio(a.o) });
-      } else if (a.tipo === 'liberar' || a.tipo === 'consulta' || a.tipo === 'consulta_tec' || a.tipo === 'consulta_oro') out.push({ tipo: a.tipo });
+      } else if (['liberar', 'consulta', 'consulta_tec', 'consulta_oro', 'edad', 'consulta_edad'].includes(a.tipo)) out.push({ tipo: a.tipo });
+      else if (a.tipo === 'edad_auto' || a.tipo === 'ahorrar_edad') out.push({ tipo: a.tipo, si: a.si !== false });
       else if (a.tipo === 'investigar') { if (M.TECNOLOGIAS.some(t => t.id === a.id)) out.push({ tipo: 'investigar', id: a.id }); }
       else if (a.tipo === 'comprar' || a.tipo === 'vender') { if (PRECIO[a.que]) out.push({ tipo: a.tipo, que: a.que, n: Number(a.n) > 0 ? Math.min(1000, Math.round(Number(a.n))) : null }); }
       else if (a.tipo === 'tesoro') out.push({ tipo: 'tesoro', guardar: !!a.guardar });

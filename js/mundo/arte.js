@@ -528,7 +528,7 @@
   const PIEL = ['#f0c8a0', '#d8a878', '#b07a50', '#8a5a3a'], PELO = ['#3a2418', '#1e1a1a', '#c89a4a', '#7a3a1e'];
   const MAT = ['#a3a9b5', '#8a5a32', '#c89a3a', '#8a909c', '#cfd6e2', '#b8c0cc', '#6a7a5a'];
   function aldeano(o) {
-    const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo].join(':');
+    const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo, o.sabio || ''].join(':');
     return guardado(clave, () => {
       const H = hoja(12, 14), piel = PIEL[o.piel || 0], pelo = o.edad === 'viejo' ? '#e8e8ec' : PELO[o.pelo || 0];
       if (o.edad === 'nino') {
@@ -580,6 +580,41 @@
         else {
           H.r(10, 3 + a, 1, 6, arma >= 4 ? '#eef1f6' : '#c8ccd6'); H.p(10, 2 + a, '#ffffff'); H.r(9, 8 + a, 3, 1, '#c8a050'); H.p(10, 9 + a, '#6a4a2a');
           if (arma >= 3) { H.r(1, 7, 3, 4, o.col); H.p(2, 8, claro(o.col, 0.4)); H.r(1, 7, 3, 1, '#c8a050'); }
+        }
+      }
+      // El erudito de cada época, con su ropa larga, su tocado y lo que lleva en la mano.
+      if (o.oficio === 'erudito') {
+        const tipo = o.sabio || 'chaman', a2 = o.alto || 0;
+        const tunica = { chaman: '#8a5a32', filosofo: '#eeeae0', monje: '#6a4a30', erudito: '#3a2a4a', cientifico: '#f2f2f4' }[tipo];
+        // Ropa larga hasta los pies (tapa las piernas), con el color del pueblo en un detalle.
+        H.r(4, 7, 5, 5, tunica); H.r(4, 7, 1, 5, claro(tunica, 0.12)); H.r(8, 7, 1, 5, oscuro(tunica, 0.18)); H.r(3, 11, 7, 1, oscuro(tunica, 0.1));
+        H.p(5, 12, '#2a1e14'); H.p(7, 12, '#2a1e14');
+        H.p(3, 8, tunica); H.p(9, 8, tunica);
+        if (tipo === 'chaman') {
+          // Flecos de cuero, pinturas en la cara, un tocado de plumas y un bastón con un hueso.
+          for (let x = 4; x <= 8; x += 2) H.p(x, 11, '#5a3a1e');
+          H.p(6, 6, '#c83a2a'); H.r(4, 2, 5, 1, o.col);
+          H.p(4, 1, '#e04030'); H.p(5, 0, '#f0c040'); H.p(6, 0, '#3a8ad0'); H.p(7, 0, '#f0c040'); H.p(8, 1, '#e04030');
+          H.r(10, 2 + a2, 1, 10, '#6b4a2b'); H.p(10, 1 + a2, '#e8e0c8'); H.p(11, 1 + a2, '#e8e0c8'); H.p(11, 3 + a2, '#e04030');
+        } else if (tipo === 'filosofo') {
+          // Toga blanca con banda del color del pueblo, barba gris y un rollo de pergamino.
+          for (let k = 0; k < 4; k++) H.p(4 + k, 7 + k, o.col);
+          H.r(5, 6, 3, 2, '#c8c8d0'); H.p(5, 2, piel); H.p(6, 2, piel);
+          H.r(9, 7 + a2, 3, 3, '#efe2b8'); H.p(9, 7 + a2, '#c8b080'); H.p(11, 9 + a2, '#c8b080');
+        } else if (tipo === 'monje') {
+          // Hábito pardo con capucha, cordón y un libro.
+          H.r(4, 2, 5, 1, '#5a3a22'); H.p(4, 3, '#5a3a22'); H.p(4, 4, '#5a3a22'); H.p(4, 5, '#5a3a22'); H.p(8, 3, '#5a3a22'); H.p(8, 4, '#5a3a22');
+          H.r(4, 9, 5, 1, '#d8c890'); H.p(6, 10, '#d8c890');
+          H.r(9, 8 + a2, 3, 3, '#7a2a1a'); H.r(9, 8 + a2, 3, 1, '#f0e8d0'); H.p(10, 9 + a2, '#e0c060');
+        } else if (tipo === 'erudito') {
+          // Toga oscura, birrete negro, cuello blanco y una pluma.
+          H.r(4, 1, 5, 2, '#1a1a22'); H.p(8, 1, '#2a2a3a');
+          H.r(5, 7, 3, 1, '#f0f0f0'); H.p(6, 8, o.col);
+          H.r(9, 8 + a2, 3, 3, '#3a5a8a'); H.p(10, 6 + a2, '#f4f4f4'); H.p(11, 5 + a2, '#f4f4f4');
+        } else {
+          // Bata blanca abierta (camisa del color del pueblo), gafas y un matraz con algo verde.
+          H.r(6, 7, 1, 4, o.col); H.p(6, 5, '#2a2a2a'); H.p(5, 5, '#2a2a2a');
+          H.p(10, 7 + a2, '#cfe8f0'); H.r(9, 8 + a2, 3, 3, '#cfe8f0'); H.r(9, 9 + a2, 3, 2, '#5ac05a'); H.p(10, 9 + a2, '#9af09a');
         }
       }
       H.contorno(0.68);

@@ -360,14 +360,15 @@
       + ((m.ciudades || []).filter(x => x.civ === c.id).length * 1.2 + (c.rutas || 0) * 1.5);
     // Cada era acelera la siguiente: la escritura, la imprenta y la ciencia se apoyan unas en otras.
     // Con el ritmo pausado (partidas nuevas), la técnica avanza más despacio por turno: hay tiempo de vivir cada era.
-    const ganancia = (Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia) * (1 + M.tec(c, 'ciencia')) * pausa(m);
+    // Con aldeanos, buena parte del saber lo traen los eruditos (chamanes, filósofos, monjes, científicos) que
+    // estudian en el templo o en la plaza (vida.js, c.saber); el resto, la gente y lo que llega de fuera.
+    const deLaGente = m.vida && M.vida ? 0.9 : 1, eruditos = m.vida && M.vida ? (c.saber || 0) : 0; c.saber = 0;
+    const ganancia = (deLaGente * (Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia) + eruditos) * (1 + M.tec(c, 'ciencia')) * pausa(m);
     c.ciencia += ganancia; c.cienciaTurno = ganancia;
     investigar(m, c, ganancia);
-    const sig = M.ERAS[c.era + 1];
-    // Una era nueva llega cuando se han dominado todas las tecnologías de la anterior; y la historia no se salta
-    // siglos: ninguna era llega antes de su fecha más temprana posible (salvo en el mundo libre).
-    const dominada = M.TECNOLOGIAS.filter(t => t.era <= c.era).every(t => M.tecsDe(c).includes(t.id));
-    if (sig && dominada && (m.libre || sig.desde == null || m.anio >= sig.desde)) subirEra(m, c, null);
+    // Subir de edad (como en Age of Empires): cuando se cumple todo, la IA empieza sola; el jugador lo ordena.
+    if (c.subiendo) { if (m.turno >= c.subiendo.hasta) { c.subiendo = null; subirEra(m, c, null); } }
+    else if (M.ERAS[c.era + 1] && (!c.jugador || (c.plan && c.plan.autoEdad)) && puedeSubir(m, c).ok) empezarSubida(m, c);
     tesoro(m, c);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
     const objetivo = 62 + car.estab - Math.max(0, n / K - 22) * 0.7 - c.guerras.length * 5 - (c.pob > cap * 0.98 ? 6 : 0) + (c.riqueza > 60 ? 4 : 0) + rasgo(c, 'estab') * 0.5 + Math.min(6, (c.templos || 0) * 2) + M.tec(c, 'estab') + (c.oro < 0 ? -6 : 0) - ((c.plan && c.plan.impuesto) || 1) * 16 + 16 + c.efectos.reduce((k, e) => k + (e.estab || 0), 0);
@@ -424,11 +425,28 @@
   const maxEraDe = m => Math.max(0, ...vivas(m).map(c => c.era));
   const aniosTurno = m => m.libre ? 1 : ritmo(m) > 1 ? M.ERAS[maxEraDe(m)].aniosLento : M.ERAS[maxEraDe(m)].anios;
   const pausa = m => ritmo(m) > 1 && !m.libre ? aniosTurno(m) / M.ERAS[maxEraDe(m)].anios : ritmo(m) > 1 ? 1 / ritmo(m) : 1;
+  // ¿Se puede investigar ya? Hace falta su edificio (el molino, el templo, el cuartel…) y pagar su precio.
+  const EDIFICIO = { plaza: () => true, molino: c => c.molinos > 0, templo: c => c.templos > 0, cuartel: c => c.cuarteles > 0, puerto: c => c.puertos > 0 };
+  function faltaPara(m, c, t) {
+    const falta = [];
+    if (m.vida && !EDIFICIO[t.lugar || 'plaza'](c)) falta.push('un ' + (t.lugar || 'plaza'));
+    if (m.vida) for (const k of Object.keys(t.precio || {})) if ((c[k] || 0) < t.precio[k]) falta.push((t.precio[k] - Math.floor(c[k] || 0)) + ' de ' + k);
+    return falta;
+  }
+  function pagar(c, precio) { for (const k of Object.keys(precio || {})) c[k] = (c[k] || 0) - precio[k]; }
+  // ¿Está ahorrando para subir de edad? (Ya tiene el saber y la fecha: solo le falta pagar.) La IA no gasta
+  // entonces en mejoras; el jugador, si lo pide («ahorrad para la edad»).
+  function ahorrando(m, c) {
+    if (!M.ERAS[c.era + 1] || c.subiendo || (c.jugador && !(c.plan && c.plan.ahorrarEdad))) return false;
+    const sig = M.ERAS[c.era + 1];
+    return c.ciencia >= sig.umbral * 0.85 && (m.libre || sig.desde == null || m.anio >= sig.desde - aniosTurno(m) * 4);
+  }
   function elegirTec(m, c) {
-    const ts = M.tecsDe(c), libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !ts.includes(t.id));
-    if (!libres.length) return null;
+    if (m.vida && ahorrando(m, c) && !(c.plan && c.plan.investigar)) return null;
+    const ts = M.tecsDe(c), libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !ts.includes(t.id) && !faltaPara(m, c, t).length);
     const pide = c.plan && c.plan.investigar;
-    if (pide && libres.some(t => t.id === pide)) return pide;
+    if (pide) { const t = M.TECNOLOGIAS.find(x => x.id === pide); if (t && !ts.includes(pide) && t.era <= c.era) return faltaPara(m, c, t).length ? null : pide; }
+    if (!libres.length) return null;
     // La IA (y el gobernador del jugador si no elige) va según su carácter y lo que le falta.
     const gusto = t => { const e = t.efecto; let k = 0;
       if (c.caracter === 'guerrero') k += (e.ataque || 0) * 10 + (e.defensa || 0) * 8;
@@ -445,7 +463,12 @@
     // Lo que se investiga mientras se espera la era siguiente no se pierde: los sabios adelantan trabajo.
     let resto = puntos + (inv.banco || 0); inv.banco = 0;
     for (let vueltas = 0; resto > 1e-9 && vueltas < 6; vueltas++) {
-      if (!inv.id || ts.includes(inv.id)) { inv.id = elegirTec(m, c); inv.puntos = 0; if (!inv.id) { inv.banco = Math.min(resto, 4000); return; } }
+      if (!inv.id || ts.includes(inv.id)) {
+        inv.id = elegirTec(m, c); inv.puntos = 0;
+        if (!inv.id) { inv.banco = Math.min(resto, 4000); return; }
+        // Se paga al empezar (en el edificio donde se investiga).
+        pagar(c, M.TECNOLOGIAS.find(x => x.id === inv.id).precio);
+      }
       const t = M.TECNOLOGIAS.find(x => x.id === inv.id), coste = M.costeTec(t);
       const pon = Math.min(resto, coste - inv.puntos);
       inv.puntos += pon; resto -= pon;
@@ -472,12 +495,30 @@
     c.ingresos = ingreso + (c.comercioOro || 0); c.gastos = gasto; c.comercioOro = 0;
     if (c.oro < 0 && c.jugador && !(c.ultimaQuiebra > m.turno - 10)) { c.ultimaQuiebra = m.turno; cronica(m, 'quiebra', 'Las arcas de ' + c.nombre + ' están vacías', 'No hay con qué pagar a los soldados: algunos cuelgan las armas y vuelven al campo, y en las plazas se oyen quejas. Hacen falta más impuestos, comercio o minas de oro.', c); }
   }
+  // ¿Puede este pueblo subir de edad? Saber (ciencia acumulada), fecha, requisitos de edificios y tamaño, y precio.
+  const OBRA_CUENTA = { templo: 'templos', cuartel: 'cuarteles', castillo: 'castillos', molino: 'molinos', puerto: 'puertos' };
+  function puedeSubir(m, c) {
+    const sig = M.ERAS[c.era + 1], req = M.EDADES[c.era + 1], falta = [];
+    if (!sig) return { ok: false, falta: ['no hay más edades'] };
+    if (c.ciencia < sig.umbral) falta.push('saber (' + Math.floor(c.ciencia) + ' de ' + sig.umbral + ')');
+    if (!m.libre && sig.desde != null && m.anio < sig.desde) falta.push('llegar al año ' + anioTexto(sig.desde).replace(/(\d)\.$/, '$1'));
+    if (m.vida && req) {
+      if (req.pide.nivel && (c.nivel || 0) < req.pide.nivel) falta.push(['', 'ser una aldea', 'ser un pueblo', 'ser una villa', 'ser una ciudad'][req.pide.nivel]);
+      if (req.pide.obra && !(c[OBRA_CUENTA[req.pide.obra]] > 0)) falta.push('un ' + req.pide.obra);
+      for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k] && (c[k] || 0) < req[k]) falta.push((req[k] - Math.floor(c[k] || 0)) + ' de ' + k);
+    }
+    return { ok: !falta.length, falta };
+  }
+  function empezarSubida(m, c) {
+    const req = M.EDADES[c.era + 1];
+    if (m.vida && req) for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k]) c[k] = (c[k] || 0) - req[k];
+    const dura = ritmo(m) > 1 ? 4 : 1;
+    c.subiendo = { a: c.era + 1, desde: m.turno, hasta: m.turno + dura };
+    if (c.jugador) cronica(m, 'avance', c.nombre + ' se prepara para ' + M.ERAS[c.era + 1].con, 'Los sabios de ' + c.nombre + ' ponen por escrito lo aprendido, los artesanos ensayan técnicas nuevas y el gobierno paga lo que haga falta: en unos años, otra época.', c);
+  }
   function subirEra(m, c, regalo) {
-    c.era++;
+    c.era++; c.subiendo = null;
     const E = M.ERAS[c.era];
-    // Se da por dominado todo lo de las eras anteriores (un invento regalado, una era que se salta…).
-    const ts = M.tecsDe(c);
-    for (const t of M.TECNOLOGIAS) if (t.era < c.era && !ts.includes(t.id)) ts.push(t.id);
     const nuevos = E.inventos.filter(x => !c.inventos.includes(x));
     const invento = regalo || (c.inventos.length ? c.inventos[c.inventos.length - 1] : elegir(m, nuevos.length ? nuevos : E.inventos));
     if (regalo) c.inventos.push(invento);
@@ -573,7 +614,7 @@
    */
   const maxCiudades = c => 2 + Math.floor(c.era / 2) + (c.rey && c.rey.rasgo === 'constructor' ? 1 : 0);
   function motivosLealtad(m, c, x) {
-    const out = [['base', 40]];
+    const out = [['base', 35]];
     const d = distancia(x.region, c.capital);
     if (d > 8) out.push(['lejos de la capital', -Math.round((d - 8) * 1.2)]);
     const suyas = (m.ciudades || []).filter(y => y.civ === c.id).length;
@@ -586,6 +627,8 @@
     if (m.turno - c.ultimaHambre < 4) out.push(['hambre', -15]); else if ((c.comida || 0) > 20) out.push(['graneros llenos', 5]);
     out.push(['estabilidad del reino', Math.round((c.estab - 50) * 0.4)]);
     if (c.guerras.some(g => g.cansancio > 4)) out.push(['cansancio de la guerra', -10]);
+    if (c.plan && c.plan.impuesto > 1) out.push(['impuestos altos', -Math.round((c.plan.impuesto - 1) * 40)]);
+    if ((c.oro || 0) < 0) out.push(['arcas vacías', -10]);
     return out;
   }
   function lealtades(m) {
@@ -801,6 +844,6 @@
     });
   }
 
-  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, elegirTec, investigar, pausa, aniosTurno, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

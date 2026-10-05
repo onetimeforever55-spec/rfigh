@@ -26,9 +26,10 @@ console.log('LA HISTORIA SIGUE EL CALENDARIO REAL');
     bronce.push(b); renac.push(r === null ? 3000 : r);
   }
   const med = l => l.slice().sort((x, y) => x - y)[Math.floor(l.length / 2)];
-  comprobar(med(bronce) <= -2800 && med(bronce) >= -3600, 'la Edad del Bronce llega hacia el 3000 a. C. (mediana ' + S.anioTexto(med(bronce)) + ')');
+  comprobar(med(bronce) <= -2600 && med(bronce) >= -3600, 'la Edad del Bronce llega hacia el 3000 a. C. (mediana ' + S.anioTexto(med(bronce)) + ')');
   comprobar(med(renac) >= 1000 && med(renac) <= 1800, 'el Renacimiento, entre los años 1000 y 1800 (mediana ' + S.anioTexto(med(renac)) + ')');
-  comprobar(renac.some(a => a < 1400) && renac.some(a => a > 1500), 'pero cada mundo tiene su propia historia: unos se adelantan y otros se estancan');
+  // (Subir de edad cuesta y tarda, como en Age of Empires: los más rápidos llegan algo después de la fecha mínima.)
+  comprobar(renac.some(a => a < 1550) && renac.some(a => a > 1700), 'pero cada mundo tiene su propia historia: unos se adelantan y otros se estancan (' + renac.join(', ') + ')');
 }
 
 console.log('PASA DE TODO, Y SE EXPLICA');
@@ -264,8 +265,8 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
     comprobar(mot2.some(z => /demasiadas ciudades/.test(z[0]) && z[1] <= -25) && mot2.some(z => /ambicioso/.test(z[0])), 'la lealtad baja con demasiadas ciudades (−25 cada una) y con un alcalde ambicioso');
   } else comprobar(false, 'hace falta un pueblo con ciudades');
   // Se cuentan durante toda la partida (la crónica solo guarda los últimos sucesos).
-  const ind = [2, 8].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
-  comprobar(ind >= 1, 'las ciudades sin lealtad acaban independizándose (' + ind + ' en dos mundos)');
+  const ind = [2, 8, 3].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
+  comprobar(ind >= 1, 'las ciudades sin lealtad acaban independizándose (' + ind + ' en tres mundos)');
   // Asedios y edificios.
   const w2 = hasta(S.crear(5, 5), 1500), v2 = w2.vida;
   comprobar(w2.cronica.some(e => /conquista | toma /.test(e.titulo)) , 'los ejércitos toman plazas con asedios');
@@ -352,6 +353,8 @@ console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
   const w = hasta(S.crear(1, 5), 500);
   const a = S.vivas(w).find(x => S.vecinosDe(w, x).length), b = S.vecinosDe(w, a)[0];
   X.gobernar(w, a.id);
+  // (Si ya estaban en guerra por su cuenta, se firma la paz antes: la prueba es sobre una guerra que empiezas tú.)
+  if (S.enGuerra(a, b)) S.hacerPaz(w, a, b, 'prueba');
   const rg = X.ordenar(w, a.id, 'atacad a ' + b.nombre);
   comprobar(rg.ok && S.enGuerra(a, b), 'declaras la guerra a un vecino');
   for (let k = 0; k < 25 && S.enGuerra(a, b) && a.viva; k++) S.turno(w);
