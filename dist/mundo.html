@@ -210,10 +210,12 @@ body.sin-panel .panel { display: none; }
 .guerra-marcador { border: 1px solid var(--sangre); border-radius: 4px; padding: 8px 10px; margin: 8px 0; }
 .guerra-marcador .barra span { background: var(--sangre); }
 .guerra-marcador .barra { display: inline-block; width: 60px; vertical-align: middle; }
-.guerra-hud .guerra-marcador { margin: 8px 0 0; font-size: 13px; line-height: 1.45; }
+.guerra-hud .guerra-marcador { margin: 6px 0 0; padding: 5px 9px; font-size: 12.5px; line-height: 1.4; }
+.guerra-mas { margin: 4px 0 0; font-size: 12px; }
 .verde { color: #7fc77a; }
 /* Móvil: todo más compacto para que se vea el mundo. */
 @media (max-width: 899px) {
+  .guerra-hud .guerra-marcador + .guerra-marcador, .guerra-mas { display: none; }
   .g-cab { flex-wrap: nowrap; }
   .mandos { flex-wrap: nowrap; overflow-x: auto; margin-left: 0; min-width: 0; }
   .mando { padding: 4px 9px; font-size: 13px; white-space: nowrap; }
@@ -3921,14 +3923,32 @@ body.sin-panel .panel { display: none; }
       if (tipo === 'tundra') for (let k = 0; k < 2; k++) { const x = r() * 12 | 0, y = r() * 13 | 0; H.r(x, y, 3, 2, '#e8eef2'); H.p(x + 3, y + 1, '#e8eef2'); }
       if (tipo === 'nieve') for (let k = 0; k < 4; k++) H.p(r() * T, r() * T, '#c4d0dc');
       if (tipo === 'montana') {
-        // Roca con caras de luz y sombra; la mitad de las parcelas, con un pico nevado.
-        for (let k = 0; k < 3; k++) { const x = r() * 12 | 0, y = r() * 12 | 0; H.r(x, y, 4, 1, os); H.r(x, y - 1, 3, 1, cl); }
-        if (v < 2) {
-          const cx = 7 + v, top = 2;
-          for (let y = top; y < 15; y++) { const half = Math.round((y - top) * 0.62); for (let x = cx - half; x <= cx + half; x++) H.p(x, y, x < cx ? (y < top + 4 ? '#f4f8fb' : '#b0aeb8') : (y < top + 3 ? '#dfe6ee' : '#6a6872')); }
-          H.p(cx, top - 1, '#f4f8fb');
+        // Roca suelta: peñascos redondeados con luz y sombra y alguna grieta en diagonal (sin rayas que se repitan).
+        for (let k = 0; k < 3; k++) H.disco(2 + r() * 12, 2 + r() * 12, 1.4 + r() * 1.3, r() < 0.5 ? base : cl, true);
+        for (let k = 0; k < 2; k++) { let x = r() * 14 | 0, y = r() * 12 | 0; for (let q = 0; q < 3; q++) { H.p(x, y, os); x += r() < 0.5 ? 1 : 0; y++; } }
+      }
+      return H.lienzo();
+    });
+  }
+
+  // ---------- Picos de montaña: tamaño, sitio y nieve distintos en cada uno ----------
+  function pico(v) {
+    return guardado('pico' + v, () => {
+      const H = hoja(T, T), r = azar(v * 53 + 11), alto = 9 + (r() * 5 | 0), cx = 5 + (r() * 6 | 0), base = 15, top = base - alto, nieve = 2 + (r() * 3 | 0);
+      const ancho = 0.55 + r() * 0.25;
+      for (let y = top; y <= base; y++) {
+        const half = Math.round((y - top) * ancho + (y > top + 2 ? (r() < 0.3 ? 1 : 0) : 0));
+        for (let x = cx - half; x <= cx + half; x++) {
+          const luz = x < cx, cumbre = y < top + nieve + (luz ? 1 : 0);
+          H.p(x, y, cumbre ? (luz ? '#f4f8fb' : '#d4dce6') : luz ? (x < cx - half + 2 ? '#c2c0c8' : '#a6a3ac') : (x > cx + half - 2 ? '#5c5a63' : '#77757e'));
         }
       }
+      // Un segundo pico más bajo al lado, a veces.
+      if (r() < 0.5) {
+        const c2 = cx + (r() < 0.5 ? -4 : 4), t2 = top + 4 + (r() * 2 | 0);
+        for (let y = t2; y <= base; y++) { const half = Math.round((y - t2) * 0.6); for (let x = c2 - half; x <= c2 + half; x++) if (!H.g(x, y)) H.p(x, y, x < c2 ? (y < t2 + 2 ? '#eef3f7' : '#9a98a2') : (y < t2 + 2 ? '#cfd6e0' : '#6c6a73')); }
+      }
+      H.contorno(0.45, true);
       return H.lienzo();
     });
   }
@@ -4447,7 +4467,7 @@ body.sin-panel .panel { display: none; }
     });
   }
 
-  M.arte = { T, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  M.arte = { T, pico, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/pintor.js
@@ -4486,7 +4506,7 @@ body.sin-panel .panel { display: none; }
   // Dónde se dibujó cada aldeano en el último fotograma (para tocarlo y para seguirlo con la cámara).
   const dibujados = new Map();
   let siguiendo = null, elegido = null;
-  let lienzo = null, gl = null, capa = null, gc = null;
+  let lienzo = null, gl = null, capa = null, gc = null, regionDe = null, territorioPendiente = false;
   let visto = null, tierra = null, firma = [], pend = [], inicio = 0, duracion = 1000;
   let cam = { x: 0, y: 0, z: 2 }, sel = null, pulso = null, reducido = false, listo = false;
   let efectos = [], tumbas = [], cartel = null;
@@ -4527,7 +4547,7 @@ body.sin-panel .panel { display: none; }
 
   // ---------- Pintar el suelo y las obras ----------
   function mundo(nuevo, enfocar) {
-    m = nuevo;
+    m = nuevo; regionDe = null;
     if (!m.vida) V.crear(m);
     const v = m.vida;
     lienzo = document.createElement('canvas'); lienzo.width = v.tw * A; lienzo.height = v.th * A; gl = lienzo.getContext('2d');
@@ -4558,6 +4578,11 @@ body.sin-panel .panel { display: none; }
     gl.clearRect(x, y, A, A);
     gl.drawImage(ARTE().suelo(ter, h % 4), x, y);
     if (visto.camino && visto.camino[t]) caminoEn(t, x, y, ter);
+    // Picos solo dentro de la sierra (rodeados de montaña) y repartidos al azar, no en filas.
+    else if (ter === 'montana' && !visto.obra[t]) {
+      const tx = t % v.tw, dentro = ['montana', 'nieve'].includes(tierra[t - 1]) + ['montana', 'nieve'].includes(tierra[t + 1]) + ['montana', 'nieve'].includes(tierra[t - v.tw]) + ['montana', 'nieve'].includes(tierra[t + v.tw]);
+      if (tx > 0 && tx < v.tw - 1 && dentro >= 3 && (h >>> 11) % 5 < (dentro === 4 ? 3 : 1)) gl.drawImage(ARTE().pico((h >>> 3) % 8), x, y);
+    }
     const obra = visto.obra[t];
     if (obra) {
       const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
@@ -4645,12 +4670,14 @@ body.sin-panel .panel { display: none; }
   // crece parcela a parcela según se levanta el pueblo, aunque el reino reclame regiones enteras.
   function territorio() {
     const v = m.vida, tw = v.tw, n = tw * v.th, RADIO = 3;
+    // La región de cada parcela no cambia nunca: se calcula una vez.
+    if (!regionDe || regionDe.length !== n) { regionDe = new Int32Array(n); for (let t = 0; t < n; t++) regionDe[t] = V.region(m, t); }
     gc.clearRect(0, 0, capa.width, capa.height);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
     const zona = new Int16Array(n).fill(-1), dist = new Uint8Array(n).fill(255), cola = [];
     for (let t = 0; t < n; t++) {
-      const d = m.dueno[V.region(m, t)];
+      const d = m.dueno[regionDe[t]];
       if (d < 0) continue;
       const o = visto.obra[t];
       if ((o && o !== V.OBRA.ruina) || (visto.camino && visto.camino[t])) { zona[t] = d; dist[t] = 0; cola.push(t); }
@@ -4659,31 +4686,58 @@ body.sin-panel .panel { display: none; }
       const t = cola[i], d = zona[t], x = t % tw;
       if (dist[t] >= RADIO) continue;
       for (const nb of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) {
-        if (nb < 0 || nb >= n || zona[nb] >= 0 || m.dueno[V.region(m, nb)] !== d) continue;
+        if (nb < 0 || nb >= n || zona[nb] >= 0 || m.dueno[regionDe[nb]] !== d) continue;
         const tr = tierra[nb];
         if (tr === 'agua' || tr === 'bajo') continue;
         zona[nb] = d; dist[nb] = dist[t] + 1; cola.push(nb);
       }
     }
+    // Bordes orgánicos: cada parcela es un cuadro con las esquinas salientes cortadas en diagonal, así las escaleras
+    // de parcelas se ven como líneas suaves. Se rellena por pueblo (un solo trazo por color) y luego se perfila.
+    const H = CA / 2, mismo = (t, dx, dy) => { const x = t % tw + dx, y = (t / tw | 0) + dy; return x >= 0 && y >= 0 && x < tw && y < v.th ? zona[y * tw + x] : -2; };
+    const formas = new Map(), lineas = new Map();
+    const linea = (col, a1, b1, a2, b2) => { let l = lineas.get(col); if (!l) lineas.set(col, l = []); l.push(a1, b1, a2, b2); };
     for (let t = 0; t < n; t++) {
       const d = zona[t];
       if (d < 0 || !color[d]) continue;
       const x = (t % tw) * CA, y = Math.floor(t / tw) * CA;
-      gc.globalAlpha = sel == null ? 0.18 : sel === d ? 0.24 : 0.1;
-      gc.fillStyle = color[d]; gc.fillRect(x, y, CA, CA);
-      gc.globalAlpha = 1;
-      const tx = t % tw;
-      const lados = [[tx > 0 ? t - 1 : -1, x, y, 1, CA], [tx < tw - 1 ? t + 1 : -1, x + CA - 1, y, 1, CA], [t - tw, x, y, CA, 1], [t + tw < n ? t + tw : -1, x, y + CA - 1, CA, 1]];
-      for (const [o, rx, ry, rw, rh] of lados) {
-        const od = o >= 0 ? zona[o] : -2;
-        if (od === d) continue;
-        const enGuerra = od >= 0 && guerra.has(Math.min(d, od) + ':' + Math.max(d, od));
-        gc.fillStyle = enGuerra ? '#ff4b3a' : sel === d ? '#fff6dc' : color[d];
-        gc.globalAlpha = enGuerra || sel === d ? 1 : 0.9;
-        gc.fillRect(rx, ry, rw, rh);
-        gc.globalAlpha = 1;
-      }
+      const N = mismo(t, 0, -1), S2 = mismo(t, 0, 1), O = mismo(t, -1, 0), E = mismo(t, 1, 0);
+      // Una esquina se corta si los dos vecinos que la tocan son de otro (y la parcela no queda aislada en una punta).
+      const cTL = N !== d && O !== d && (S2 === d || E === d), cTR = N !== d && E !== d && (S2 === d || O === d);
+      const cBR = S2 !== d && E !== d && (N === d || O === d), cBL = S2 !== d && O !== d && (N === d || E === d);
+      const pts = [];
+      if (cTL) pts.push(x, y + H, x + H, y); else pts.push(x, y);
+      if (cTR) pts.push(x + CA - H, y, x + CA, y + H); else pts.push(x + CA, y);
+      if (cBR) pts.push(x + CA, y + CA - H, x + CA - H, y + CA); else pts.push(x + CA, y + CA);
+      if (cBL) pts.push(x + H, y + CA, x, y + CA - H); else pts.push(x, y + CA);
+      let f = formas.get(d); if (!f) formas.set(d, f = []); f.push(pts);
+      // El perfil: los lados que dan a otro (más corto si la esquina está cortada) y las diagonales.
+      const estilo = od => { const enGuerra = od >= 0 && guerra.has(Math.min(d, od) + ':' + Math.max(d, od)); return enGuerra ? 'G' : sel === d ? 'S' : 'C' + d; };
+      if (N !== d) linea(estilo(N), x + (cTL ? H : 0), y + 0.5, x + CA - (cTR ? H : 0), y + 0.5);
+      if (S2 !== d) linea(estilo(S2), x + (cBL ? H : 0), y + CA - 0.5, x + CA - (cBR ? H : 0), y + CA - 0.5);
+      if (O !== d) linea(estilo(O), x + 0.5, y + (cTL ? H : 0), x + 0.5, y + CA - (cBL ? H : 0));
+      if (E !== d) linea(estilo(E), x + CA - 0.5, y + (cTR ? H : 0), x + CA - 0.5, y + CA - (cBR ? H : 0));
+      if (cTL) linea(estilo(N >= 0 ? N : O), x + 0.4, y + H + 0.4, x + H + 0.4, y + 0.4);
+      if (cTR) linea(estilo(N >= 0 ? N : E), x + CA - H - 0.4, y + 0.4, x + CA - 0.4, y + H + 0.4);
+      if (cBR) linea(estilo(S2 >= 0 ? S2 : E), x + CA - 0.4, y + CA - H - 0.4, x + CA - H - 0.4, y + CA - 0.4);
+      if (cBL) linea(estilo(S2 >= 0 ? S2 : O), x + H + 0.4, y + CA - 0.4, x + 0.4, y + CA - H - 0.4);
     }
+    for (const [d, lista] of formas) {
+      gc.globalAlpha = sel == null ? 0.18 : sel === d ? 0.24 : 0.1;
+      gc.fillStyle = color[d];
+      gc.beginPath();
+      for (const p of lista) { gc.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) gc.lineTo(p[i], p[i + 1]); gc.closePath(); }
+      gc.fill();
+    }
+    gc.lineWidth = 1; gc.lineCap = 'round';
+    for (const [k, l] of lineas) {
+      gc.strokeStyle = k === 'G' ? '#ff4b3a' : k === 'S' ? '#fff6dc' : color[+k.slice(1)];
+      gc.globalAlpha = k === 'G' || k === 'S' ? 1 : 0.9;
+      gc.beginPath();
+      for (let i = 0; i < l.length; i += 4) { gc.moveTo(l[i], l[i + 1]); gc.lineTo(l[i + 2], l[i + 3]); }
+      gc.stroke();
+    }
+    gc.globalAlpha = 1;
   }
 
 
@@ -4720,9 +4774,10 @@ body.sin-panel .panel { display: none; }
   function turno(mundoActual, ms) {
     if (mundoActual !== m || !listo) { mundo(mundoActual); }
     sincronizar(m.vida.cambios || []);
-    territorio();
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
     recogerMuertos(duracion);
+    // El territorio se repinta en el fotograma siguiente: así el cálculo del turno no se junta en un solo tirón.
+    if (!territorioPendiente) { territorioPendiente = true; setTimeout(() => { territorioPendiente = false; if (m && listo) territorio(); }, 16); }
   }
   // Tras un poder del dios (fuera del turno): todo al día, sin animación.
   function refrescar() {
@@ -5964,9 +6019,11 @@ body.sin-panel .panel { display: none; }
   }
   // El marcador de cada guerra: bajas, plazas ganadas y perdidas, qué hace el ejército y cómo va el asedio.
   const nombrePlaza = r => { const x = (m.ciudades || []).find(y => y.region === r); if (x) return x.nombre; const o = S.vivas(m).find(y => y.capital === r); return o ? 'capital de ' + o.nombre : 'una plaza'; };
-  function marcadorGuerra(c, corto) {
+  function marcadorGuerra(c, corto, max) {
     const v = m.vida, e = v && v.ejercitos && v.ejercitos[c.id];
-    return c.guerras.map(g => {
+    // Primero la guerra en que está el ejército, luego las de más bajas.
+    const lista = c.guerras.slice().sort((x, y) => ((e && e.con === y.con) - (e && e.con === x.con)) || ((y.muertos || 0) + (y.matados || 0)) - ((x.muertos || 0) + (x.matados || 0))).slice(0, max || 99);
+    return lista.map(g => {
       const o = S.civ(m, g.con);
       if (!o) return '';
       const nuestro = e && e.con === o.id ? e : null, suyo = v && v.ejercitos && v.ejercitos[o.id];
@@ -5983,7 +6040,7 @@ body.sin-panel .panel { display: none; }
   }
   function pintarGuerra() {
     const c = tuPueblo(), h = $('guerra-hud');
-    const html = c && c.guerras.length ? marcadorGuerra(c, true) : '';
+    const html = c && c.guerras.length ? marcadorGuerra(c, true, 2) + (c.guerras.length > 2 ? '<p class="tenue guerra-mas">y ' + (c.guerras.length - 2) + ' guerra' + (c.guerras.length > 3 ? 's' : '') + ' más (pestaña Ejército)</p>' : '') : '';
     h.hidden = !html;
     if (html && h.innerHTML !== html) h.innerHTML = html;
   }
@@ -6021,6 +6078,10 @@ body.sin-panel .panel { display: none; }
     const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [], sigAntes = m.vida ? m.vida.sig : 0;
     S.turno(m);
     P.turno(m, VELOCIDADES[vel][0]);
+    // Los paneles, los retos y el guardado van después, en otro fotograma (menos tirón al cambiar de turno).
+    setTimeout(() => despuesDelTurno(antes, yo, guerrasAntes, sigAntes), 40);
+  }
+  function despuesDelTurno(antes, yo, guerrasAntes, sigAntes) {
     if (m.cronica[0] !== antes) marcar(m.cronica[0]);
     if (M.sonido && M.sonido.activo()) {
       const nuevos = []; for (const e of m.cronica) { if (e === antes) break; nuevos.push(e); }

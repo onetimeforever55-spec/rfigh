@@ -33,7 +33,7 @@
   // Dónde se dibujó cada aldeano en el último fotograma (para tocarlo y para seguirlo con la cámara).
   const dibujados = new Map();
   let siguiendo = null, elegido = null;
-  let lienzo = null, gl = null, capa = null, gc = null;
+  let lienzo = null, gl = null, capa = null, gc = null, regionDe = null, territorioPendiente = false;
   let visto = null, tierra = null, firma = [], pend = [], inicio = 0, duracion = 1000;
   let cam = { x: 0, y: 0, z: 2 }, sel = null, pulso = null, reducido = false, listo = false;
   let efectos = [], tumbas = [], cartel = null;
@@ -74,7 +74,7 @@
 
   // ---------- Pintar el suelo y las obras ----------
   function mundo(nuevo, enfocar) {
-    m = nuevo;
+    m = nuevo; regionDe = null;
     if (!m.vida) V.crear(m);
     const v = m.vida;
     lienzo = document.createElement('canvas'); lienzo.width = v.tw * A; lienzo.height = v.th * A; gl = lienzo.getContext('2d');
@@ -105,6 +105,11 @@
     gl.clearRect(x, y, A, A);
     gl.drawImage(ARTE().suelo(ter, h % 4), x, y);
     if (visto.camino && visto.camino[t]) caminoEn(t, x, y, ter);
+    // Picos solo dentro de la sierra (rodeados de montaña) y repartidos al azar, no en filas.
+    else if (ter === 'montana' && !visto.obra[t]) {
+      const tx = t % v.tw, dentro = ['montana', 'nieve'].includes(tierra[t - 1]) + ['montana', 'nieve'].includes(tierra[t + 1]) + ['montana', 'nieve'].includes(tierra[t - v.tw]) + ['montana', 'nieve'].includes(tierra[t + v.tw]);
+      if (tx > 0 && tx < v.tw - 1 && dentro >= 3 && (h >>> 11) % 5 < (dentro === 4 ? 3 : 1)) gl.drawImage(ARTE().pico((h >>> 3) % 8), x, y);
+    }
     const obra = visto.obra[t];
     if (obra) {
       const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
@@ -192,12 +197,14 @@
   // crece parcela a parcela según se levanta el pueblo, aunque el reino reclame regiones enteras.
   function territorio() {
     const v = m.vida, tw = v.tw, n = tw * v.th, RADIO = 3;
+    // La región de cada parcela no cambia nunca: se calcula una vez.
+    if (!regionDe || regionDe.length !== n) { regionDe = new Int32Array(n); for (let t = 0; t < n; t++) regionDe[t] = V.region(m, t); }
     gc.clearRect(0, 0, capa.width, capa.height);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
     const zona = new Int16Array(n).fill(-1), dist = new Uint8Array(n).fill(255), cola = [];
     for (let t = 0; t < n; t++) {
-      const d = m.dueno[V.region(m, t)];
+      const d = m.dueno[regionDe[t]];
       if (d < 0) continue;
       const o = visto.obra[t];
       if ((o && o !== V.OBRA.ruina) || (visto.camino && visto.camino[t])) { zona[t] = d; dist[t] = 0; cola.push(t); }
@@ -206,31 +213,58 @@
       const t = cola[i], d = zona[t], x = t % tw;
       if (dist[t] >= RADIO) continue;
       for (const nb of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) {
-        if (nb < 0 || nb >= n || zona[nb] >= 0 || m.dueno[V.region(m, nb)] !== d) continue;
+        if (nb < 0 || nb >= n || zona[nb] >= 0 || m.dueno[regionDe[nb]] !== d) continue;
         const tr = tierra[nb];
         if (tr === 'agua' || tr === 'bajo') continue;
         zona[nb] = d; dist[nb] = dist[t] + 1; cola.push(nb);
       }
     }
+    // Bordes orgánicos: cada parcela es un cuadro con las esquinas salientes cortadas en diagonal, así las escaleras
+    // de parcelas se ven como líneas suaves. Se rellena por pueblo (un solo trazo por color) y luego se perfila.
+    const H = CA / 2, mismo = (t, dx, dy) => { const x = t % tw + dx, y = (t / tw | 0) + dy; return x >= 0 && y >= 0 && x < tw && y < v.th ? zona[y * tw + x] : -2; };
+    const formas = new Map(), lineas = new Map();
+    const linea = (col, a1, b1, a2, b2) => { let l = lineas.get(col); if (!l) lineas.set(col, l = []); l.push(a1, b1, a2, b2); };
     for (let t = 0; t < n; t++) {
       const d = zona[t];
       if (d < 0 || !color[d]) continue;
       const x = (t % tw) * CA, y = Math.floor(t / tw) * CA;
-      gc.globalAlpha = sel == null ? 0.18 : sel === d ? 0.24 : 0.1;
-      gc.fillStyle = color[d]; gc.fillRect(x, y, CA, CA);
-      gc.globalAlpha = 1;
-      const tx = t % tw;
-      const lados = [[tx > 0 ? t - 1 : -1, x, y, 1, CA], [tx < tw - 1 ? t + 1 : -1, x + CA - 1, y, 1, CA], [t - tw, x, y, CA, 1], [t + tw < n ? t + tw : -1, x, y + CA - 1, CA, 1]];
-      for (const [o, rx, ry, rw, rh] of lados) {
-        const od = o >= 0 ? zona[o] : -2;
-        if (od === d) continue;
-        const enGuerra = od >= 0 && guerra.has(Math.min(d, od) + ':' + Math.max(d, od));
-        gc.fillStyle = enGuerra ? '#ff4b3a' : sel === d ? '#fff6dc' : color[d];
-        gc.globalAlpha = enGuerra || sel === d ? 1 : 0.9;
-        gc.fillRect(rx, ry, rw, rh);
-        gc.globalAlpha = 1;
-      }
+      const N = mismo(t, 0, -1), S2 = mismo(t, 0, 1), O = mismo(t, -1, 0), E = mismo(t, 1, 0);
+      // Una esquina se corta si los dos vecinos que la tocan son de otro (y la parcela no queda aislada en una punta).
+      const cTL = N !== d && O !== d && (S2 === d || E === d), cTR = N !== d && E !== d && (S2 === d || O === d);
+      const cBR = S2 !== d && E !== d && (N === d || O === d), cBL = S2 !== d && O !== d && (N === d || E === d);
+      const pts = [];
+      if (cTL) pts.push(x, y + H, x + H, y); else pts.push(x, y);
+      if (cTR) pts.push(x + CA - H, y, x + CA, y + H); else pts.push(x + CA, y);
+      if (cBR) pts.push(x + CA, y + CA - H, x + CA - H, y + CA); else pts.push(x + CA, y + CA);
+      if (cBL) pts.push(x + H, y + CA, x, y + CA - H); else pts.push(x, y + CA);
+      let f = formas.get(d); if (!f) formas.set(d, f = []); f.push(pts);
+      // El perfil: los lados que dan a otro (más corto si la esquina está cortada) y las diagonales.
+      const estilo = od => { const enGuerra = od >= 0 && guerra.has(Math.min(d, od) + ':' + Math.max(d, od)); return enGuerra ? 'G' : sel === d ? 'S' : 'C' + d; };
+      if (N !== d) linea(estilo(N), x + (cTL ? H : 0), y + 0.5, x + CA - (cTR ? H : 0), y + 0.5);
+      if (S2 !== d) linea(estilo(S2), x + (cBL ? H : 0), y + CA - 0.5, x + CA - (cBR ? H : 0), y + CA - 0.5);
+      if (O !== d) linea(estilo(O), x + 0.5, y + (cTL ? H : 0), x + 0.5, y + CA - (cBL ? H : 0));
+      if (E !== d) linea(estilo(E), x + CA - 0.5, y + (cTR ? H : 0), x + CA - 0.5, y + CA - (cBR ? H : 0));
+      if (cTL) linea(estilo(N >= 0 ? N : O), x + 0.4, y + H + 0.4, x + H + 0.4, y + 0.4);
+      if (cTR) linea(estilo(N >= 0 ? N : E), x + CA - H - 0.4, y + 0.4, x + CA - 0.4, y + H + 0.4);
+      if (cBR) linea(estilo(S2 >= 0 ? S2 : E), x + CA - 0.4, y + CA - H - 0.4, x + CA - H - 0.4, y + CA - 0.4);
+      if (cBL) linea(estilo(S2 >= 0 ? S2 : O), x + H + 0.4, y + CA - 0.4, x + 0.4, y + CA - H - 0.4);
     }
+    for (const [d, lista] of formas) {
+      gc.globalAlpha = sel == null ? 0.18 : sel === d ? 0.24 : 0.1;
+      gc.fillStyle = color[d];
+      gc.beginPath();
+      for (const p of lista) { gc.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) gc.lineTo(p[i], p[i + 1]); gc.closePath(); }
+      gc.fill();
+    }
+    gc.lineWidth = 1; gc.lineCap = 'round';
+    for (const [k, l] of lineas) {
+      gc.strokeStyle = k === 'G' ? '#ff4b3a' : k === 'S' ? '#fff6dc' : color[+k.slice(1)];
+      gc.globalAlpha = k === 'G' || k === 'S' ? 1 : 0.9;
+      gc.beginPath();
+      for (let i = 0; i < l.length; i += 4) { gc.moveTo(l[i], l[i + 1]); gc.lineTo(l[i + 2], l[i + 3]); }
+      gc.stroke();
+    }
+    gc.globalAlpha = 1;
   }
 
 
@@ -267,9 +301,10 @@
   function turno(mundoActual, ms) {
     if (mundoActual !== m || !listo) { mundo(mundoActual); }
     sincronizar(m.vida.cambios || []);
-    territorio();
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
     recogerMuertos(duracion);
+    // El territorio se repinta en el fotograma siguiente: así el cálculo del turno no se junta en un solo tirón.
+    if (!territorioPendiente) { territorioPendiente = true; setTimeout(() => { territorioPendiente = false; if (m && listo) territorio(); }, 16); }
   }
   // Tras un poder del dios (fuera del turno): todo al día, sin animación.
   function refrescar() {

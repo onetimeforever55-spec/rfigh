@@ -411,6 +411,10 @@
     const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [], sigAntes = m.vida ? m.vida.sig : 0;
     S.turno(m);
     P.turno(m, VELOCIDADES[vel][0]);
+    // Los paneles, los retos y el guardado van después, en otro fotograma (menos tirón al cambiar de turno).
+    setTimeout(() => despuesDelTurno(antes, yo, guerrasAntes, sigAntes), 40);
+  }
+  function despuesDelTurno(antes, yo, guerrasAntes, sigAntes) {
     if (m.cronica[0] !== antes) marcar(m.cronica[0]);
     if (M.sonido && M.sonido.activo()) {
       const nuevos = []; for (const e of m.cronica) { if (e === antes) break; nuevos.push(e); }

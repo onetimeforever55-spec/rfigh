@@ -204,6 +204,7 @@ body.sin-panel .panel { display: none; }
 .verde { color: #7fc77a; }
 /* Móvil: todo más compacto para que se vea el mundo. */
 @media (max-width: 899px) {
+  .guerra-hud .guerra-marcador + .guerra-marcador, .guerra-mas { display: none; }
   .g-cab { flex-wrap: nowrap; }
   .mandos { flex-wrap: nowrap; overflow-x: auto; margin-left: 0; min-width: 0; }
   .mando { padding: 4px 9px; font-size: 13px; white-space: nowrap; }

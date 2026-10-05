@@ -90,14 +90,32 @@
       if (tipo === 'tundra') for (let k = 0; k < 2; k++) { const x = r() * 12 | 0, y = r() * 13 | 0; H.r(x, y, 3, 2, '#e8eef2'); H.p(x + 3, y + 1, '#e8eef2'); }
       if (tipo === 'nieve') for (let k = 0; k < 4; k++) H.p(r() * T, r() * T, '#c4d0dc');
       if (tipo === 'montana') {
-        // Roca con caras de luz y sombra; la mitad de las parcelas, con un pico nevado.
-        for (let k = 0; k < 3; k++) { const x = r() * 12 | 0, y = r() * 12 | 0; H.r(x, y, 4, 1, os); H.r(x, y - 1, 3, 1, cl); }
-        if (v < 2) {
-          const cx = 7 + v, top = 2;
-          for (let y = top; y < 15; y++) { const half = Math.round((y - top) * 0.62); for (let x = cx - half; x <= cx + half; x++) H.p(x, y, x < cx ? (y < top + 4 ? '#f4f8fb' : '#b0aeb8') : (y < top + 3 ? '#dfe6ee' : '#6a6872')); }
-          H.p(cx, top - 1, '#f4f8fb');
+        // Roca suelta: peñascos redondeados con luz y sombra y alguna grieta en diagonal (sin rayas que se repitan).
+        for (let k = 0; k < 3; k++) H.disco(2 + r() * 12, 2 + r() * 12, 1.4 + r() * 1.3, r() < 0.5 ? base : cl, true);
+        for (let k = 0; k < 2; k++) { let x = r() * 14 | 0, y = r() * 12 | 0; for (let q = 0; q < 3; q++) { H.p(x, y, os); x += r() < 0.5 ? 1 : 0; y++; } }
+      }
+      return H.lienzo();
+    });
+  }
+
+  // ---------- Picos de montaña: tamaño, sitio y nieve distintos en cada uno ----------
+  function pico(v) {
+    return guardado('pico' + v, () => {
+      const H = hoja(T, T), r = azar(v * 53 + 11), alto = 9 + (r() * 5 | 0), cx = 5 + (r() * 6 | 0), base = 15, top = base - alto, nieve = 2 + (r() * 3 | 0);
+      const ancho = 0.55 + r() * 0.25;
+      for (let y = top; y <= base; y++) {
+        const half = Math.round((y - top) * ancho + (y > top + 2 ? (r() < 0.3 ? 1 : 0) : 0));
+        for (let x = cx - half; x <= cx + half; x++) {
+          const luz = x < cx, cumbre = y < top + nieve + (luz ? 1 : 0);
+          H.p(x, y, cumbre ? (luz ? '#f4f8fb' : '#d4dce6') : luz ? (x < cx - half + 2 ? '#c2c0c8' : '#a6a3ac') : (x > cx + half - 2 ? '#5c5a63' : '#77757e'));
         }
       }
+      // Un segundo pico más bajo al lado, a veces.
+      if (r() < 0.5) {
+        const c2 = cx + (r() < 0.5 ? -4 : 4), t2 = top + 4 + (r() * 2 | 0);
+        for (let y = t2; y <= base; y++) { const half = Math.round((y - t2) * 0.6); for (let x = c2 - half; x <= c2 + half; x++) if (!H.g(x, y)) H.p(x, y, x < c2 ? (y < t2 + 2 ? '#eef3f7' : '#9a98a2') : (y < t2 + 2 ? '#cfd6e0' : '#6c6a73')); }
+      }
+      H.contorno(0.45, true);
       return H.lienzo();
     });
   }
@@ -616,5 +634,5 @@
     });
   }
 
-  M.arte = { T, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  M.arte = { T, pico, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});

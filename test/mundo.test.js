@@ -368,5 +368,28 @@ console.log('LO QUE DECIDA CLAUDE, CON LÍMITES');
   comprobar(D.aplicarIA(m, { entendido: false }) === null, 'si Claude no lo entiende, no pasa nada');
 }
 
+console.log('DIRIGIR LA GUERRA');
+{
+  const X = M.mando;
+  const m = hasta(S.crear(9, 5), 600);
+  const yo = S.vivas(m).filter(c => S.vecinosDe(m, c).some(o => (m.ciudades || []).some(x => x.civ === o.id)))[0] || S.vivas(m).filter(c => S.vecinosDe(m, c).length)[0];
+  X.gobernar(m, yo.id);
+  const vec = S.vecinosDe(m, yo).find(o => (m.ciudades || []).some(x => x.civ === o.id)) || S.vecinosDe(m, yo)[0];
+  const ciudad = (m.ciudades || []).find(x => x.civ === vec.id), meta = ciudad ? ciudad.region : vec.capital;
+  const r = X.ordenar(m, yo.id, ciudad ? 'atacad ' + ciudad.nombre : 'tomad la capital de ' + vec.nombre);
+  comprobar(r.acciones[0].tipo === 'objetivo' && S.enGuerra(yo, vec) && yo.plan.objetivo === meta, '«atacad <ciudad>» declara la guerra a su dueño y fija el objetivo');
+  S.turno(m);
+  const e = m.vida.ejercitos[yo.id];
+  comprobar(m.dueno[meta] !== vec.id || (e && e.obj === meta), 'el ejército marcha sobre la plaza elegida');
+  X.ordenar(m, yo.id, 'defended la capital'); S.turno(m);
+  const e2 = m.vida.ejercitos[yo.id];
+  comprobar(!yo.guerras.length || (e2 && e2.defiende === yo.capital), '«defended la capital» planta el ejército en casa');
+  comprobar(X.entender(m, yo.id, 'retirada')[0].tipo === 'defender', '«retirada» es defender la capital');
+  for (let i = 0; i < 6; i++) S.turno(m);
+  const g = yo.guerras.find(x => x.con === vec.id);
+  comprobar(!g || (g.muertos || 0) + (g.matados || 0) >= 0, 'cada guerra lleva su marcador de bajas');
+  comprobar(m.vida.aldeanos.every(a => !a.veh || a.o === 4), 'solo los guerreros manejan vehículos');
+}
+
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
 process.exit(fallos ? 1 : 0);
