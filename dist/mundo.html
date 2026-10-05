@@ -2047,7 +2047,7 @@ body.sin-panel .panel { display: none; }
     for (const a of v.aldeanos) {
       const t = a.y * tw + a.x;
       if (v.fuego[t] && azar(v) < 0.6 && golpear(v, null, a, 7 + Math.floor(azar(v) * 6), paso + 0.3, a.x, a.y - 1)) {
-        a.quemado = 1; v.muertos.push([a.x, a.y, a.c, 'fuego', paso + 0.3]);
+        a.quemado = 1; v.muertos.push([a.x, a.y, a.c, 'fuego', paso + 0.3, a]);
       }
     }
     if (v.aldeanos.some(a => a.quemado)) v.aldeanos = v.aldeanos.filter(a => !a.quemado);
@@ -2128,7 +2128,7 @@ body.sin-panel .panel { display: none; }
             if (!c.guerras.some(g => g.con === o.c) || !v.aldeanos.includes(o) || azar(v) > 0.55) continue;
             const arm = o.veh ? VEHICULOS[o.veh].blindaje || 0 : (ARMADURAS[o.armadura || 0] || ARMADURAS[0]).reduce;
             if (golpear(v, null, o, Math.round(55 * (0.8 + azar(v) * 0.4) * (1 - arm * 0.4)), cae, bx, by)) {
-              v.aldeanos = v.aldeanos.filter(x => x !== o); v.muertos.push([o.x, o.y, o.c, 'bomba', cae]); apuntarBaja(m, c.id, o); c.victorias = (c.victorias || 0) + 1;
+              v.aldeanos = v.aldeanos.filter(x => x !== o); v.muertos.push([o.x, o.y, o.c, 'bomba', cae, o]); apuntarBaja(m, c.id, o); c.victorias = (c.victorias || 0) + 1;
             }
           }
         }
@@ -2164,7 +2164,7 @@ body.sin-panel .panel { display: none; }
         const disparo = (b, tiro, bala) => {
           v.disparos.push([tx, ty, b.x, b.y, paso, bala ? 1 : 0]);
           if (azar(v) < 0.5 && golpear(v, null, b, Math.max(1, Math.round(tiro.dano * (0.8 + azar(v) * 0.4) * (1 - arm(b).reduce * (1 - (tiro.perfora || 0))))), paso + 0.5, tx, ty)) {
-            v.aldeanos = v.aldeanos.filter(a => a !== b); v.muertos.push([b.x, b.y, b.c, 'torre', paso + 0.5]); apuntarBaja(m, c.id, b);
+            v.aldeanos = v.aldeanos.filter(a => a !== b); v.muertos.push([b.x, b.y, b.c, 'torre', paso + 0.5, b]); apuntarBaja(m, c.id, b);
             const i = blancos.indexOf(b); if (i >= 0) blancos.splice(i, 1);
           }
         };
@@ -2313,7 +2313,7 @@ body.sin-panel .panel { display: none; }
         }
       }
     }
-    if (a.ahogado) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'ahogado', paso]); return; }
+    if (a.ahogado) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'ahogado', paso, a]); return; }
     // Los guerreros luchan: cuerpo a cuerpo con el enemigo de al lado; los tiradores disparan desde lejos.
     if (a.o === GUERRERO && c.guerras.length) {
       const enemigo = b => b !== a && !muertos.has(b) && c.guerras.some(g => g.con === b.c);
@@ -2327,7 +2327,7 @@ body.sin-panel .panel { display: none; }
         // Cuerpo a cuerpo: se cruzan golpes; el más fuerte acierta más y pega más fuerte.
         if (acierta(v, a, rival)) {
           if (golpear(v, a, rival, danoContra(v, a, rival, false), paso, a.x, a.y)) {
-            muertos.add(rival); v.muertos.push([rival.x, rival.y, rival.c, 'batalla', paso]); apuntarBaja(m, c.id, rival);
+            muertos.add(rival); v.muertos.push([rival.x, rival.y, rival.c, 'batalla', paso, rival]); apuntarBaja(m, c.id, rival);
             c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1;
           }
         }
@@ -2352,11 +2352,11 @@ body.sin-panel .panel { display: none; }
           // El obús revienta en una zona: hiere a los enemigos de alrededor del blanco.
           if (a.veh && VEHICULOS[a.veh].area) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             const otros = guerreros.get((blanco.y + dy) * v.tw + blanco.x + dx);
-            for (const b of otros || []) if (enemigo(b) && azar(v) < 0.6 && golpear(v, null, b, Math.round(danoContra(v, a, b, true) * 0.5), paso + 0.5, blanco.x, blanco.y)) { muertos.add(b); v.muertos.push([b.x, b.y, b.c, 'obus', paso + 0.5]); apuntarBaja(m, c.id, b); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+            for (const b of otros || []) if (enemigo(b) && azar(v) < 0.6 && golpear(v, null, b, Math.round(danoContra(v, a, b, true) * 0.5), paso + 0.5, blanco.x, blanco.y)) { muertos.add(b); v.muertos.push([b.x, b.y, b.c, 'obus', paso + 0.5, b]); apuntarBaja(m, c.id, b); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
           }
           if (azar(v) < (a.veh ? 0.65 : 0.5) + (tieneR(a, 'sabio') ? 0.05 : 0)) {
             // La flecha llega al final del paso: el golpe se ve un poco después de soltarla.
-            if (golpear(v, null, blanco, danoContra(v, a, blanco, true), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5]); apuntarBaja(m, c.id, blanco); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+            if (golpear(v, null, blanco, danoContra(v, a, blanco, true), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5, blanco]); apuntarBaja(m, c.id, blanco); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
           }
           acc = ACC.luchar;
           // El tirador se para a disparar: deshace el paso de este turno si iba andando.
@@ -2667,7 +2667,7 @@ body.sin-panel .panel { display: none; }
           // Tres lanzadas (o tiros); si no cae, huye herido y otro día será.
           let muere = false;
           for (let q = 0; q < 3 && !muere; q++) if (azar(v) < 0.6) muere = golpear(v, a, b, Math.round((12 + c.era * 3) * (0.8 + azar(v) * 0.4) * (tieneR(a, 'fuerte') ? 1.2 : 1)), paso, a.x, a.y);
-          if (muere) { v.animales = v.animales.filter(x => x !== b); c.comida = (c.comida || 0) + 4; }
+          if (muere) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + 4; }
         }
         else { c.comida = (c.comida || 0) + (seca ? 0.6 : 1.2); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
       }
@@ -2679,7 +2679,7 @@ body.sin-panel .panel { display: none; }
       a.pastor = null;
       if (b && dist(m, t, b.y * v.tw + b.x) <= 4) {
         const rebano = v.animales.filter(x => x.c === c.id && x.tipo === b.tipo).length;
-        if ((c.comida || 0) < hab * 0.2 && rebano > 3) { v.animales = v.animales.filter(x => x !== b); c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 9 : 5); }
+        if ((c.comida || 0) < hab * 0.2 && rebano > 3) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 9 : 5); }
         else c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 1.5 : 0.8) * (c.efectos.some(e => e.sequia) ? 0.4 : 1);
       }
       return;
@@ -2853,7 +2853,7 @@ body.sin-panel .panel { display: none; }
         for (const a of lista) a.hambre = (a.hambre || 0) + 1;
         const caen = lista.filter(a => a.hambre >= 2).sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, Math.ceil(lista.length * 0.3));
         if (caen.length && lista.length - caen.length >= 1) {
-          for (const a of caen) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'hambre', TICKS]); }
+          for (const a of caen) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'hambre', TICKS - 0.5, a]); }
           if (m.turno - c.ultimaHambre > 6) S().cronica(m, 'hambruna', 'Hambre en ' + c.nombre, 'Los graneros de ' + c.nombre + ' están vacíos. Mueren ' + caen.length + ' aldeanos, primero los más viejos; los demás comen raíces y miran al cielo.', c);
           c.ultimaHambre = m.turno;
         }
@@ -2902,8 +2902,8 @@ body.sin-panel .panel { display: none; }
         // Pelea de verdad: el lobo muerde (si se atreve: con un guerrero o un adulto, menos) y el aldeano le
         // devuelve el golpe con lo que lleve en la mano.
         const ataca = esNino(a) ? 0.3 : a.o === GUERRERO ? 0.25 : 0.12;
-        if (azar(v) < ataca && acierta(v, b, a) && golpear(v, b, a, danoContra(v, b, a, false), paso, b.x, b.y)) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'lobo', paso]); v.mordidos[a.c] = (v.mordidos[a.c] || 0) + 1; break; }
-        if (!esNino(a) && acierta(v, a, b) && golpear(v, a, b, danoContra(v, a, b, false), paso, a.x, a.y)) { b.muerta = 1; a.bajas = (a.bajas || 0) + 1; break; }
+        if (azar(v) < ataca && acierta(v, b, a) && golpear(v, b, a, danoContra(v, b, a, false), paso, b.x, b.y)) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'lobo', paso, a]); v.mordidos[a.c] = (v.mordidos[a.c] || 0) + 1; break; }
+        if (!esNino(a) && acierta(v, a, b) && golpear(v, a, b, danoContra(v, a, b, false), paso, a.x, a.y)) { b.muerta = 1; v.muertos.push([b.x, b.y, null, 'animal', paso, b]); a.bajas = (a.bajas || 0) + 1; break; }
       }
     }
     if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
@@ -2922,7 +2922,7 @@ body.sin-panel .panel { display: none; }
       if (o) {
         const dx = Math.sign(o.x - b.x), dy = Math.sign(o.y - b.y), [mx, my] = dx && (!dy || azar(v) < 0.5) ? [dx, 0] : [0, dy];
         if (HABITAT.lobo(ter[(b.y + my) * v.tw + b.x + mx]) || andable(ter[(b.y + my) * v.tw + b.x + mx])) { b.x += mx; b.y += my; }
-        if (Math.abs(o.x - b.x) + Math.abs(o.y - b.y) <= 1 && azar(v) < 0.35 && golpear(v, b, o, danoContra(v, b, o, false), (b.r.length >> 1) || 1, b.x, b.y)) { o.muerta = 1; b.presa = null; v.presas = (v.presas || 0) + 1; if (o.c != null) v.robadas[o.c] = (v.robadas[o.c] || 0) + 1; }
+        if (Math.abs(o.x - b.x) + Math.abs(o.y - b.y) <= 1 && azar(v) < 0.35 && golpear(v, b, o, danoContra(v, b, o, false), (b.r.length >> 1) || 1, b.x, b.y)) { o.muerta = 1; v.muertos.push([o.x, o.y, null, 'animal', (b.r.length >> 1) || 1, o]); b.presa = null; v.presas = (v.presas || 0) + 1; if (o.c != null) v.robadas[o.c] = (v.robadas[o.c] || 0) + 1; }
         b.r.push(b.x, b.y);
         return;
       }
@@ -5507,9 +5507,15 @@ body.sin-panel .panel { display: none; }
     territorio();
     recogerMuertos();
   }
+  // Quien muere durante el turno sigue en pie (y peleando) hasta el paso en que cae; luego, su caída.
+  let caidos = [];
   function recogerMuertos(dur) {
     const ahora = performance.now();
-    for (const [x, y, c, tipo, paso] of (m.vida.muertos || [])) tumbas.push({ x, y, c, tipo, inicio: ahora + (paso ? (paso / V.TICKS) * (dur || 1000) : Math.random() * 500) });
+    caidos = [];
+    for (const [x, y, c, tipo, paso, quien] of (m.vida.muertos || [])) {
+      if (quien && paso) caidos.push({ a: quien, paso, animal: tipo === 'animal' });
+      tumbas.push({ x, y, c, tipo, quien: quien || null, inicio: ahora + (paso ? (paso / V.TICKS) * (dur || 1000) : Math.random() * 500) });
+    }
     m.vida.muertos = [];
     if (tumbas.length > 400) tumbas = tumbas.slice(-400);
   }
@@ -5608,12 +5614,23 @@ body.sin-panel .panel { display: none; }
   }
 
   const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map();
+  // El dibujo de un aldeano (también para su caída).
+  function figura(a, col, paso, alto, carga) {
+    const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
+    return ARTE().aldeano({
+      col, oficio: nino ? 'nino' : oficio, edad: nino ? 'nino' : (a.edad || 0) >= V.VIEJO ? 'viejo' : 'adulto',
+      paso: paso || 0, alto: alto || 0, carga: carga || 0,
+      arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
+      piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4
+    });
+  }
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const ig = golpesDelTurno(v);
     dibujados.clear();
-    for (const a of v.aldeanos) {
+    const todos = caidos.length ? v.aldeanos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : v.aldeanos;
+    for (const a of todos) {
       const r = a.r;
       let px, py, acc;
       if (r && r.length >= 6) {
@@ -5668,12 +5685,7 @@ body.sin-panel .panel { display: none; }
       // El aldeano: un dibujo de 12×14 con contorno (arte.js), según su oficio, edad, equipo y lo que hace.
       const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
       const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
-      const img = ARTE().aldeano({
-        col: color[a.c] || '#cccccc', oficio: nino ? 'nino' : oficio, edad: nino ? 'nino' : (a.edad || 0) >= V.VIEJO ? 'viejo' : 'adulto',
-        paso: anda && t ? 1 : 0, alto, carga: acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0,
-        arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
-        piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4
-      });
+      const img = figura(a, color[a.c] || '#cccccc', anda && t ? 1 : 0, alto, acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0);
       // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
       const ix = px - 1.5, iy = py - 1, EA = 0.5;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
@@ -5697,6 +5709,13 @@ body.sin-panel .panel { display: none; }
       if (oficio === 'guerrero' && !nino) {
         const ej = m.vida.ejercitos && m.vida.ejercitos[a.c], col = color[a.c] || '#ccc';
         if (ej && ej.capitan === a.id) { g.fillStyle = '#2a1e14'; g.fillRect(px - 1, py - 8, 1, 13); g.fillStyle = col; g.fillRect(px, py - 8, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 7, 2, 2); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(px, py - 5, 6, 0.5); }
+      }
+      // El tajo: un arco blanco delante de quien golpea cuerpo a cuerpo.
+      if (pega && !a.tirador && oficio === 'guerrero') {
+        const [at, d] = pega, dx = Math.sign(at[2]) || 1, dy = Math.sign(at[3]);
+        g.strokeStyle = 'rgba(255,255,240,' + (0.9 * (1 - d)).toFixed(2) + ')'; g.lineWidth = 0.8;
+        const cx = px + 1.5 + dx * 3, cy = py + 2 + dy * 2, ang = Math.atan2(dy, dx);
+        g.beginPath(); g.arc(cx, cy, 3.2, ang - 1.2 + d * 0.6, ang + 0.2 + d * 1.2); g.stroke();
       }
       if (acc === 2 && !(a.tirador)) { const ch = Math.floor(ahora / 90 + a.id) % 4; g.fillStyle = ch % 2 ? '#fff6a0' : '#ffd23a'; g.fillRect(px + 4 + ch, py - 1 - (ch % 2), 1, 1); g.fillRect(px + 5, py + 1 + (ch % 3) - 1, 1, 1); if (ch === 0) { g.fillStyle = '#ffffff'; g.fillRect(px + 4, py, 2, 1); } }
       else if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); }
@@ -6084,7 +6103,8 @@ body.sin-panel .panel { display: none; }
   function animales(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const ig = golpesDelTurno(v);
-    for (const b of v.animales || []) {
+    const todos = caidos.length ? (v.animales || []).concat(caidos.filter(x => x.animal && k < x.paso && !(v.animales || []).includes(x.a)).map(x => x.a)) : (v.animales || []);
+    for (const b of todos) {
       let px = b.x * P + 6, py = b.y * P + 8;
       if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 6; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 8; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
@@ -6313,7 +6333,7 @@ body.sin-panel .panel { display: none; }
 
   // Donde muere un aldeano queda una cruz un rato.
   function pintarTumbas(ahora) {
-    tumbas = tumbas.filter(tb => ahora - tb.inicio < 9000);
+    tumbas = tumbas.filter(tb => ahora - tb.inicio < (tb.quien ? 11600 : 9000));
     for (const tb of tumbas) {
       const t = ahora - tb.inicio;
       if (t < 0) continue;
@@ -6328,7 +6348,47 @@ body.sin-panel .panel { display: none; }
         g.globalAlpha = 1;
         continue;
       }
-      if ((tb.tipo === 'batalla' || tb.tipo === 'flecha' || tb.tipo === 'torre' || tb.tipo === 'lobo') && t < 900) {
+      if (tb.tipo === 'animal') {
+        // El animal cae de lado y queda tendido un momento.
+        if (t > 2600 || !tb.quien) continue;
+        const b = tb.quien, col = { oveja: '#eeeae0', vaca: '#6b4a2b', ciervo: '#9a6a3a', lobo: '#7a7a82' }[b.tipo] || '#999';
+        if (b.tipo === 'pez') continue;
+        g.globalAlpha = t < 1800 ? 1 : 1 - (t - 1800) / 800;
+        const ax = tb.x * P + 6, ay = tb.y * P + 9, cae = Math.min(1, t / 220);
+        if (t < 260) { g.fillStyle = '#ff2a2a'; g.fillRect(ax - 1, ay - 2 + cae * 2, 6, 4); }
+        else {
+          g.fillStyle = 'rgba(110,10,10,' + Math.min(0.7, (t - 260) / 900).toFixed(2) + ')'; g.beginPath(); g.ellipse(ax + 2, ay + 3, 2 + Math.min(3, t / 500), 1.2 + Math.min(1, t / 900), 0, 0, Math.PI * 2); g.fill();
+          g.fillStyle = col; g.fillRect(ax - 1, ay, 6, 3);
+          g.fillStyle = '#3a2a1e'; g.fillRect(ax, ay - 1, 1, 1); g.fillRect(ax + 3, ay - 1, 1, 1); g.fillRect(ax + 5, ay + 1, 1, 1);
+        }
+        g.globalAlpha = 1;
+        continue;
+      }
+      if (tb.quien && t < 2600 && !['ahogado', 'vejez', 'hambre', 'peste', 'plaga'].includes(tb.tipo)) {
+        // Cae como en WorldBox: destello rojo, se ladea y queda tendido con un charco de sangre; luego se desvanece.
+        const a = tb.quien, civ = m.civs.find(c => c.id === tb.c), col = civ ? civ.color : '#cccccc';
+        const img = a.veh ? ARTE().vehiculo(a.veh, col, 0) : figura(a, col, 0, 0, 0), EA = a.veh ? 0.55 : 0.5;
+        const w = img.width * EA, h = img.height * EA, cx = tb.x * P + 8, cy = tb.y * P + 12;
+        const giro = Math.min(1, t / 260) * Math.PI / 2 * ((a.id % 2) ? 1 : -1);
+        if (t > 200 && !a.veh) { g.fillStyle = 'rgba(120,10,10,' + Math.min(0.7, (t - 200) / 700).toFixed(2) + ')'; g.beginPath(); g.ellipse(cx, cy + 1, 2 + Math.min(4, t / 350), 1.2 + Math.min(1.5, t / 700), 0, 0, Math.PI * 2); g.fill(); }
+        g.globalAlpha = t < 1800 ? 1 : 1 - (t - 1800) / 800;
+        g.save(); g.translate(cx, cy);
+        if (a.veh) {
+          // El vehículo destrozado: se ennegrece y humea.
+          g.drawImage(img, -w / 2, -h, w, h);
+          g.globalAlpha *= Math.min(0.75, t / 400); g.drawImage(ARTE().tenido(img, '#1a1612'), -w / 2, -h, w, h);
+        } else {
+          g.rotate(giro);
+          g.drawImage(img, -w / 2, -h, w, h);
+          if (t < 300) { g.globalAlpha = t < 150 ? 0.9 : 0.5; g.drawImage(ARTE().tenido(img, t < 150 ? '#ff2a2a' : '#ffffff'), -w / 2, -h, w, h); }
+          else { g.globalAlpha *= Math.min(0.45, (t - 300) / 1500); g.drawImage(ARTE().tenido(img, '#2a2026'), -w / 2, -h, w, h); }
+        }
+        g.restore(); g.globalAlpha = 1;
+        if (a.veh) { for (let q = 0; q < 3; q++) { const f = ((t / 900) + q / 3) % 1; g.fillStyle = 'rgba(60,56,54,' + (0.5 * (1 - f)).toFixed(2) + ')'; g.fillRect(cx - 1 + f * 4, cy - 6 - f * 14, 2 + f * 3, 2 + f * 3); } }
+        if (tb.tipo === 'fuego' && t < 1500) { g.fillStyle = Math.floor(t / 80) % 2 ? '#ff8a1e' : '#ffd84a'; g.fillRect(cx - 2, cy - 4, 2, 3); g.fillRect(cx + 1, cy - 3, 1, 2); }
+        if (t < 2600) continue;
+      }
+      if ((tb.tipo === 'batalla' || tb.tipo === 'flecha' || tb.tipo === 'torre' || tb.tipo === 'lobo') && t < 900 && !tb.quien) {
         // Cae de lado: el cuerpo tendido, en rojo al principio, que se desvanece antes de que aparezca la cruz.
         const civ = m.civs.find(c => c.id === tb.c), col = civ ? civ.color : '#cccccc';
         g.globalAlpha = t < 600 ? 1 : 1 - (t - 600) / 300;
@@ -6344,8 +6404,9 @@ body.sin-panel .panel { display: none; }
         g.globalAlpha = 1;
         if (t < 600) continue;
       }
+      if (tb.quien && tb.tipo === 'ahogado') continue;
       g.globalAlpha = t < 400 ? 1 : Math.max(0, 1 - (t - 400) / 8600);
-      if (t < 400 && tb.tipo !== 'batalla' && tb.tipo !== 'flecha' && tb.tipo !== 'torre' && tb.tipo !== 'lobo') { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
+      if (t < 400 && !tb.quien && tb.tipo !== 'batalla' && tb.tipo !== 'flecha' && tb.tipo !== 'torre' && tb.tipo !== 'lobo') { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
       g.fillStyle = '#d8d8e0'; g.fillRect(x + 1, y, 1, 5); g.fillRect(x, y + 1, 3, 1);
       g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, y + 5, 3, 1);
     }

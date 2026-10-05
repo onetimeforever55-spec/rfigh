@@ -828,7 +828,7 @@
     for (const a of v.aldeanos) {
       const t = a.y * tw + a.x;
       if (v.fuego[t] && azar(v) < 0.6 && golpear(v, null, a, 7 + Math.floor(azar(v) * 6), paso + 0.3, a.x, a.y - 1)) {
-        a.quemado = 1; v.muertos.push([a.x, a.y, a.c, 'fuego', paso + 0.3]);
+        a.quemado = 1; v.muertos.push([a.x, a.y, a.c, 'fuego', paso + 0.3, a]);
       }
     }
     if (v.aldeanos.some(a => a.quemado)) v.aldeanos = v.aldeanos.filter(a => !a.quemado);
@@ -909,7 +909,7 @@
             if (!c.guerras.some(g => g.con === o.c) || !v.aldeanos.includes(o) || azar(v) > 0.55) continue;
             const arm = o.veh ? VEHICULOS[o.veh].blindaje || 0 : (ARMADURAS[o.armadura || 0] || ARMADURAS[0]).reduce;
             if (golpear(v, null, o, Math.round(55 * (0.8 + azar(v) * 0.4) * (1 - arm * 0.4)), cae, bx, by)) {
-              v.aldeanos = v.aldeanos.filter(x => x !== o); v.muertos.push([o.x, o.y, o.c, 'bomba', cae]); apuntarBaja(m, c.id, o); c.victorias = (c.victorias || 0) + 1;
+              v.aldeanos = v.aldeanos.filter(x => x !== o); v.muertos.push([o.x, o.y, o.c, 'bomba', cae, o]); apuntarBaja(m, c.id, o); c.victorias = (c.victorias || 0) + 1;
             }
           }
         }
@@ -945,7 +945,7 @@
         const disparo = (b, tiro, bala) => {
           v.disparos.push([tx, ty, b.x, b.y, paso, bala ? 1 : 0]);
           if (azar(v) < 0.5 && golpear(v, null, b, Math.max(1, Math.round(tiro.dano * (0.8 + azar(v) * 0.4) * (1 - arm(b).reduce * (1 - (tiro.perfora || 0))))), paso + 0.5, tx, ty)) {
-            v.aldeanos = v.aldeanos.filter(a => a !== b); v.muertos.push([b.x, b.y, b.c, 'torre', paso + 0.5]); apuntarBaja(m, c.id, b);
+            v.aldeanos = v.aldeanos.filter(a => a !== b); v.muertos.push([b.x, b.y, b.c, 'torre', paso + 0.5, b]); apuntarBaja(m, c.id, b);
             const i = blancos.indexOf(b); if (i >= 0) blancos.splice(i, 1);
           }
         };
@@ -1094,7 +1094,7 @@
         }
       }
     }
-    if (a.ahogado) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'ahogado', paso]); return; }
+    if (a.ahogado) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'ahogado', paso, a]); return; }
     // Los guerreros luchan: cuerpo a cuerpo con el enemigo de al lado; los tiradores disparan desde lejos.
     if (a.o === GUERRERO && c.guerras.length) {
       const enemigo = b => b !== a && !muertos.has(b) && c.guerras.some(g => g.con === b.c);
@@ -1108,7 +1108,7 @@
         // Cuerpo a cuerpo: se cruzan golpes; el más fuerte acierta más y pega más fuerte.
         if (acierta(v, a, rival)) {
           if (golpear(v, a, rival, danoContra(v, a, rival, false), paso, a.x, a.y)) {
-            muertos.add(rival); v.muertos.push([rival.x, rival.y, rival.c, 'batalla', paso]); apuntarBaja(m, c.id, rival);
+            muertos.add(rival); v.muertos.push([rival.x, rival.y, rival.c, 'batalla', paso, rival]); apuntarBaja(m, c.id, rival);
             c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1;
           }
         }
@@ -1133,11 +1133,11 @@
           // El obús revienta en una zona: hiere a los enemigos de alrededor del blanco.
           if (a.veh && VEHICULOS[a.veh].area) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             const otros = guerreros.get((blanco.y + dy) * v.tw + blanco.x + dx);
-            for (const b of otros || []) if (enemigo(b) && azar(v) < 0.6 && golpear(v, null, b, Math.round(danoContra(v, a, b, true) * 0.5), paso + 0.5, blanco.x, blanco.y)) { muertos.add(b); v.muertos.push([b.x, b.y, b.c, 'obus', paso + 0.5]); apuntarBaja(m, c.id, b); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+            for (const b of otros || []) if (enemigo(b) && azar(v) < 0.6 && golpear(v, null, b, Math.round(danoContra(v, a, b, true) * 0.5), paso + 0.5, blanco.x, blanco.y)) { muertos.add(b); v.muertos.push([b.x, b.y, b.c, 'obus', paso + 0.5, b]); apuntarBaja(m, c.id, b); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
           }
           if (azar(v) < (a.veh ? 0.65 : 0.5) + (tieneR(a, 'sabio') ? 0.05 : 0)) {
             // La flecha llega al final del paso: el golpe se ve un poco después de soltarla.
-            if (golpear(v, null, blanco, danoContra(v, a, blanco, true), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5]); apuntarBaja(m, c.id, blanco); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+            if (golpear(v, null, blanco, danoContra(v, a, blanco, true), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5, blanco]); apuntarBaja(m, c.id, blanco); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
           }
           acc = ACC.luchar;
           // El tirador se para a disparar: deshace el paso de este turno si iba andando.
@@ -1448,7 +1448,7 @@
           // Tres lanzadas (o tiros); si no cae, huye herido y otro día será.
           let muere = false;
           for (let q = 0; q < 3 && !muere; q++) if (azar(v) < 0.6) muere = golpear(v, a, b, Math.round((12 + c.era * 3) * (0.8 + azar(v) * 0.4) * (tieneR(a, 'fuerte') ? 1.2 : 1)), paso, a.x, a.y);
-          if (muere) { v.animales = v.animales.filter(x => x !== b); c.comida = (c.comida || 0) + 4; }
+          if (muere) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + 4; }
         }
         else { c.comida = (c.comida || 0) + (seca ? 0.6 : 1.2); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
       }
@@ -1460,7 +1460,7 @@
       a.pastor = null;
       if (b && dist(m, t, b.y * v.tw + b.x) <= 4) {
         const rebano = v.animales.filter(x => x.c === c.id && x.tipo === b.tipo).length;
-        if ((c.comida || 0) < hab * 0.2 && rebano > 3) { v.animales = v.animales.filter(x => x !== b); c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 9 : 5); }
+        if ((c.comida || 0) < hab * 0.2 && rebano > 3) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 9 : 5); }
         else c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 1.5 : 0.8) * (c.efectos.some(e => e.sequia) ? 0.4 : 1);
       }
       return;
@@ -1634,7 +1634,7 @@
         for (const a of lista) a.hambre = (a.hambre || 0) + 1;
         const caen = lista.filter(a => a.hambre >= 2).sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, Math.ceil(lista.length * 0.3));
         if (caen.length && lista.length - caen.length >= 1) {
-          for (const a of caen) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'hambre', TICKS]); }
+          for (const a of caen) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'hambre', TICKS - 0.5, a]); }
           if (m.turno - c.ultimaHambre > 6) S().cronica(m, 'hambruna', 'Hambre en ' + c.nombre, 'Los graneros de ' + c.nombre + ' están vacíos. Mueren ' + caen.length + ' aldeanos, primero los más viejos; los demás comen raíces y miran al cielo.', c);
           c.ultimaHambre = m.turno;
         }
@@ -1683,8 +1683,8 @@
         // Pelea de verdad: el lobo muerde (si se atreve: con un guerrero o un adulto, menos) y el aldeano le
         // devuelve el golpe con lo que lleve en la mano.
         const ataca = esNino(a) ? 0.3 : a.o === GUERRERO ? 0.25 : 0.12;
-        if (azar(v) < ataca && acierta(v, b, a) && golpear(v, b, a, danoContra(v, b, a, false), paso, b.x, b.y)) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'lobo', paso]); v.mordidos[a.c] = (v.mordidos[a.c] || 0) + 1; break; }
-        if (!esNino(a) && acierta(v, a, b) && golpear(v, a, b, danoContra(v, a, b, false), paso, a.x, a.y)) { b.muerta = 1; a.bajas = (a.bajas || 0) + 1; break; }
+        if (azar(v) < ataca && acierta(v, b, a) && golpear(v, b, a, danoContra(v, b, a, false), paso, b.x, b.y)) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'lobo', paso, a]); v.mordidos[a.c] = (v.mordidos[a.c] || 0) + 1; break; }
+        if (!esNino(a) && acierta(v, a, b) && golpear(v, a, b, danoContra(v, a, b, false), paso, a.x, a.y)) { b.muerta = 1; v.muertos.push([b.x, b.y, null, 'animal', paso, b]); a.bajas = (a.bajas || 0) + 1; break; }
       }
     }
     if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
@@ -1703,7 +1703,7 @@
       if (o) {
         const dx = Math.sign(o.x - b.x), dy = Math.sign(o.y - b.y), [mx, my] = dx && (!dy || azar(v) < 0.5) ? [dx, 0] : [0, dy];
         if (HABITAT.lobo(ter[(b.y + my) * v.tw + b.x + mx]) || andable(ter[(b.y + my) * v.tw + b.x + mx])) { b.x += mx; b.y += my; }
-        if (Math.abs(o.x - b.x) + Math.abs(o.y - b.y) <= 1 && azar(v) < 0.35 && golpear(v, b, o, danoContra(v, b, o, false), (b.r.length >> 1) || 1, b.x, b.y)) { o.muerta = 1; b.presa = null; v.presas = (v.presas || 0) + 1; if (o.c != null) v.robadas[o.c] = (v.robadas[o.c] || 0) + 1; }
+        if (Math.abs(o.x - b.x) + Math.abs(o.y - b.y) <= 1 && azar(v) < 0.35 && golpear(v, b, o, danoContra(v, b, o, false), (b.r.length >> 1) || 1, b.x, b.y)) { o.muerta = 1; v.muertos.push([o.x, o.y, null, 'animal', (b.r.length >> 1) || 1, o]); b.presa = null; v.presas = (v.presas || 0) + 1; if (o.c != null) v.robadas[o.c] = (v.robadas[o.c] || 0) + 1; }
         b.r.push(b.x, b.y);
         return;
       }

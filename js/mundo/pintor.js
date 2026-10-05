@@ -313,9 +313,15 @@
     territorio();
     recogerMuertos();
   }
+  // Quien muere durante el turno sigue en pie (y peleando) hasta el paso en que cae; luego, su caída.
+  let caidos = [];
   function recogerMuertos(dur) {
     const ahora = performance.now();
-    for (const [x, y, c, tipo, paso] of (m.vida.muertos || [])) tumbas.push({ x, y, c, tipo, inicio: ahora + (paso ? (paso / V.TICKS) * (dur || 1000) : Math.random() * 500) });
+    caidos = [];
+    for (const [x, y, c, tipo, paso, quien] of (m.vida.muertos || [])) {
+      if (quien && paso) caidos.push({ a: quien, paso, animal: tipo === 'animal' });
+      tumbas.push({ x, y, c, tipo, quien: quien || null, inicio: ahora + (paso ? (paso / V.TICKS) * (dur || 1000) : Math.random() * 500) });
+    }
     m.vida.muertos = [];
     if (tumbas.length > 400) tumbas = tumbas.slice(-400);
   }
@@ -414,12 +420,23 @@
   }
 
   const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map();
+  // El dibujo de un aldeano (también para su caída).
+  function figura(a, col, paso, alto, carga) {
+    const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
+    return ARTE().aldeano({
+      col, oficio: nino ? 'nino' : oficio, edad: nino ? 'nino' : (a.edad || 0) >= V.VIEJO ? 'viejo' : 'adulto',
+      paso: paso || 0, alto: alto || 0, carga: carga || 0,
+      arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
+      piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4
+    });
+  }
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const ig = golpesDelTurno(v);
     dibujados.clear();
-    for (const a of v.aldeanos) {
+    const todos = caidos.length ? v.aldeanos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : v.aldeanos;
+    for (const a of todos) {
       const r = a.r;
       let px, py, acc;
       if (r && r.length >= 6) {
@@ -474,12 +491,7 @@
       // El aldeano: un dibujo de 12×14 con contorno (arte.js), según su oficio, edad, equipo y lo que hace.
       const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
       const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
-      const img = ARTE().aldeano({
-        col: color[a.c] || '#cccccc', oficio: nino ? 'nino' : oficio, edad: nino ? 'nino' : (a.edad || 0) >= V.VIEJO ? 'viejo' : 'adulto',
-        paso: anda && t ? 1 : 0, alto, carga: acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0,
-        arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
-        piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4
-      });
+      const img = figura(a, color[a.c] || '#cccccc', anda && t ? 1 : 0, alto, acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0);
       // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
       const ix = px - 1.5, iy = py - 1, EA = 0.5;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
@@ -503,6 +515,13 @@
       if (oficio === 'guerrero' && !nino) {
         const ej = m.vida.ejercitos && m.vida.ejercitos[a.c], col = color[a.c] || '#ccc';
         if (ej && ej.capitan === a.id) { g.fillStyle = '#2a1e14'; g.fillRect(px - 1, py - 8, 1, 13); g.fillStyle = col; g.fillRect(px, py - 8, 6, 4); g.fillStyle = '#fff6dc'; g.fillRect(px + 2, py - 7, 2, 2); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(px, py - 5, 6, 0.5); }
+      }
+      // El tajo: un arco blanco delante de quien golpea cuerpo a cuerpo.
+      if (pega && !a.tirador && oficio === 'guerrero') {
+        const [at, d] = pega, dx = Math.sign(at[2]) || 1, dy = Math.sign(at[3]);
+        g.strokeStyle = 'rgba(255,255,240,' + (0.9 * (1 - d)).toFixed(2) + ')'; g.lineWidth = 0.8;
+        const cx = px + 1.5 + dx * 3, cy = py + 2 + dy * 2, ang = Math.atan2(dy, dx);
+        g.beginPath(); g.arc(cx, cy, 3.2, ang - 1.2 + d * 0.6, ang + 0.2 + d * 1.2); g.stroke();
       }
       if (acc === 2 && !(a.tirador)) { const ch = Math.floor(ahora / 90 + a.id) % 4; g.fillStyle = ch % 2 ? '#fff6a0' : '#ffd23a'; g.fillRect(px + 4 + ch, py - 1 - (ch % 2), 1, 1); g.fillRect(px + 5, py + 1 + (ch % 3) - 1, 1, 1); if (ch === 0) { g.fillStyle = '#ffffff'; g.fillRect(px + 4, py, 2, 1); } }
       else if (acc === 2 && t) { g.fillStyle = '#ff4b3a'; g.fillRect(px + 4, py - 1, 1, 1); }
@@ -890,7 +909,8 @@
   function animales(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const ig = golpesDelTurno(v);
-    for (const b of v.animales || []) {
+    const todos = caidos.length ? (v.animales || []).concat(caidos.filter(x => x.animal && k < x.paso && !(v.animales || []).includes(x.a)).map(x => x.a)) : (v.animales || []);
+    for (const b of todos) {
       let px = b.x * P + 6, py = b.y * P + 8;
       if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 6; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 8; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
@@ -1119,7 +1139,7 @@
 
   // Donde muere un aldeano queda una cruz un rato.
   function pintarTumbas(ahora) {
-    tumbas = tumbas.filter(tb => ahora - tb.inicio < 9000);
+    tumbas = tumbas.filter(tb => ahora - tb.inicio < (tb.quien ? 11600 : 9000));
     for (const tb of tumbas) {
       const t = ahora - tb.inicio;
       if (t < 0) continue;
@@ -1134,7 +1154,47 @@
         g.globalAlpha = 1;
         continue;
       }
-      if ((tb.tipo === 'batalla' || tb.tipo === 'flecha' || tb.tipo === 'torre' || tb.tipo === 'lobo') && t < 900) {
+      if (tb.tipo === 'animal') {
+        // El animal cae de lado y queda tendido un momento.
+        if (t > 2600 || !tb.quien) continue;
+        const b = tb.quien, col = { oveja: '#eeeae0', vaca: '#6b4a2b', ciervo: '#9a6a3a', lobo: '#7a7a82' }[b.tipo] || '#999';
+        if (b.tipo === 'pez') continue;
+        g.globalAlpha = t < 1800 ? 1 : 1 - (t - 1800) / 800;
+        const ax = tb.x * P + 6, ay = tb.y * P + 9, cae = Math.min(1, t / 220);
+        if (t < 260) { g.fillStyle = '#ff2a2a'; g.fillRect(ax - 1, ay - 2 + cae * 2, 6, 4); }
+        else {
+          g.fillStyle = 'rgba(110,10,10,' + Math.min(0.7, (t - 260) / 900).toFixed(2) + ')'; g.beginPath(); g.ellipse(ax + 2, ay + 3, 2 + Math.min(3, t / 500), 1.2 + Math.min(1, t / 900), 0, 0, Math.PI * 2); g.fill();
+          g.fillStyle = col; g.fillRect(ax - 1, ay, 6, 3);
+          g.fillStyle = '#3a2a1e'; g.fillRect(ax, ay - 1, 1, 1); g.fillRect(ax + 3, ay - 1, 1, 1); g.fillRect(ax + 5, ay + 1, 1, 1);
+        }
+        g.globalAlpha = 1;
+        continue;
+      }
+      if (tb.quien && t < 2600 && !['ahogado', 'vejez', 'hambre', 'peste', 'plaga'].includes(tb.tipo)) {
+        // Cae como en WorldBox: destello rojo, se ladea y queda tendido con un charco de sangre; luego se desvanece.
+        const a = tb.quien, civ = m.civs.find(c => c.id === tb.c), col = civ ? civ.color : '#cccccc';
+        const img = a.veh ? ARTE().vehiculo(a.veh, col, 0) : figura(a, col, 0, 0, 0), EA = a.veh ? 0.55 : 0.5;
+        const w = img.width * EA, h = img.height * EA, cx = tb.x * P + 8, cy = tb.y * P + 12;
+        const giro = Math.min(1, t / 260) * Math.PI / 2 * ((a.id % 2) ? 1 : -1);
+        if (t > 200 && !a.veh) { g.fillStyle = 'rgba(120,10,10,' + Math.min(0.7, (t - 200) / 700).toFixed(2) + ')'; g.beginPath(); g.ellipse(cx, cy + 1, 2 + Math.min(4, t / 350), 1.2 + Math.min(1.5, t / 700), 0, 0, Math.PI * 2); g.fill(); }
+        g.globalAlpha = t < 1800 ? 1 : 1 - (t - 1800) / 800;
+        g.save(); g.translate(cx, cy);
+        if (a.veh) {
+          // El vehículo destrozado: se ennegrece y humea.
+          g.drawImage(img, -w / 2, -h, w, h);
+          g.globalAlpha *= Math.min(0.75, t / 400); g.drawImage(ARTE().tenido(img, '#1a1612'), -w / 2, -h, w, h);
+        } else {
+          g.rotate(giro);
+          g.drawImage(img, -w / 2, -h, w, h);
+          if (t < 300) { g.globalAlpha = t < 150 ? 0.9 : 0.5; g.drawImage(ARTE().tenido(img, t < 150 ? '#ff2a2a' : '#ffffff'), -w / 2, -h, w, h); }
+          else { g.globalAlpha *= Math.min(0.45, (t - 300) / 1500); g.drawImage(ARTE().tenido(img, '#2a2026'), -w / 2, -h, w, h); }
+        }
+        g.restore(); g.globalAlpha = 1;
+        if (a.veh) { for (let q = 0; q < 3; q++) { const f = ((t / 900) + q / 3) % 1; g.fillStyle = 'rgba(60,56,54,' + (0.5 * (1 - f)).toFixed(2) + ')'; g.fillRect(cx - 1 + f * 4, cy - 6 - f * 14, 2 + f * 3, 2 + f * 3); } }
+        if (tb.tipo === 'fuego' && t < 1500) { g.fillStyle = Math.floor(t / 80) % 2 ? '#ff8a1e' : '#ffd84a'; g.fillRect(cx - 2, cy - 4, 2, 3); g.fillRect(cx + 1, cy - 3, 1, 2); }
+        if (t < 2600) continue;
+      }
+      if ((tb.tipo === 'batalla' || tb.tipo === 'flecha' || tb.tipo === 'torre' || tb.tipo === 'lobo') && t < 900 && !tb.quien) {
         // Cae de lado: el cuerpo tendido, en rojo al principio, que se desvanece antes de que aparezca la cruz.
         const civ = m.civs.find(c => c.id === tb.c), col = civ ? civ.color : '#cccccc';
         g.globalAlpha = t < 600 ? 1 : 1 - (t - 600) / 300;
@@ -1150,8 +1210,9 @@
         g.globalAlpha = 1;
         if (t < 600) continue;
       }
+      if (tb.quien && tb.tipo === 'ahogado') continue;
       g.globalAlpha = t < 400 ? 1 : Math.max(0, 1 - (t - 400) / 8600);
-      if (t < 400 && tb.tipo !== 'batalla' && tb.tipo !== 'flecha' && tb.tipo !== 'torre' && tb.tipo !== 'lobo') { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
+      if (t < 400 && !tb.quien && tb.tipo !== 'batalla' && tb.tipo !== 'flecha' && tb.tipo !== 'torre' && tb.tipo !== 'lobo') { g.fillStyle = '#ff4b3a'; g.fillRect(x - 1, y - 1, 6, 7); }
       g.fillStyle = '#d8d8e0'; g.fillRect(x + 1, y, 1, 5); g.fillRect(x, y + 1, 3, 1);
       g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, y + 5, 3, 1);
     }
