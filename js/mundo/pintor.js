@@ -313,6 +313,7 @@
     if (mundoActual !== m || !listo) { mundo(mundoActual); }
     sincronizar(m.vida.cambios || []);
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
+    vistos = new Set();
     recogerMuertos(duracion);
     // El territorio se repinta en el fotograma siguiente: así el cálculo del turno no se junta en un solo tirón.
     if (!territorioPendiente) { territorioPendiente = true; setTimeout(() => { territorioPendiente = false; if (m && listo) territorio(); }, 16); }
@@ -372,7 +373,10 @@
     humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
     pintarDisparos(k);
+    eventosParticulas(k, x0, y0, x1, y1);
     llamas(k, ahora, x0, y0, x1, y1);
+    pintarParticulas(ahora);
+    gestos(k, ahora);
     pintarPolvo(ahora);
     pintarTumbas(ahora);
     pintarEfectos(ahora, x0, y0, x1, y1);
@@ -432,6 +436,7 @@
   }
 
   const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map();
+  let quietos = [], gritos = [];
   // El dibujo de un aldeano (también para su caída).
   function figura(a, col, paso, alto, carga) {
     const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
@@ -447,7 +452,9 @@
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const ig = golpesDelTurno(v);
-    dibujados.clear();
+    dibujados.clear(); quietos = []; gritos = [];
+    const fiesta = new Set(), hambre = new Set();
+    for (const c of S.vivas(m)) { if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 1) fiesta.add(c.id); if ((c.comida || 0) < (c.aldeanos || 0) * 0.15) hambre.add(c.id); }
     const todos = caidos.length ? v.aldeanos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : v.aldeanos;
     for (const a of todos) {
       const r = a.r;
@@ -474,6 +481,7 @@
       const tAhora = Math.floor((py + 4) / P) * v.tw + Math.floor((px + 1) / P), ta = tierra[tAhora];
       if (((ta === 'agua' || ta === 'bajo' || ta === 'rio') && !(visto.camino && visto.camino[tAhora])) || (v.inundado && v.inundado[tAhora])) {
         const brazo = Math.floor(ahora / 260 + a.id) % 2;
+        if (Math.random() < 0.035) emitir(px + 1.5, py + 4, 3, { v: 10, g: 60, vida: 450, cols: ['#e8f4ff', '#a8d0f0', '#ffffff'], tipo: 'solido', tam: 0.7, dy: -14, suelo: 1 });
         g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(px - 2 - brazo, py + 4, 7 + brazo * 2, 1); g.fillRect(px - 1, py + 5, 5, 1);
         g.fillStyle = color[a.c] || '#cccccc'; g.fillRect(px, py + 3, 3, 1);
         g.fillStyle = '#f0c8a0'; g.fillRect(px + 1, py + 2, 1, 1); g.fillRect(brazo ? px - 1 : px + 3, py + 3 - brazo, 1, 1);
@@ -518,7 +526,25 @@
         g.fillStyle = '#9a6a3a'; g.fillRect(cx, cy + 1, 6, 3); g.fillStyle = '#7a5028'; g.fillRect(cx, cy + 3, 6, 0.5);
         g.fillStyle = '#e0c050'; g.fillRect(cx + 1, cy, 1.5, 1.5); g.fillStyle = '#c84a3a'; g.fillRect(cx + 2.5, cy, 1.5, 1.5); g.fillStyle = '#4a8ad0'; g.fillRect(cx + 4, cy, 1.5, 1.5);
       }
-      g.drawImage(img, ix, iy, img.width * EA, img.height * EA);
+      // En fiesta, la gente que no trabaja baila (da saltitos al ritmo).
+      const baila = fiesta.has(a.c) && acc === 0 && !anda && Math.sin(ahora / 140 + a.id) > 0.3;
+      g.drawImage(img, ix, iy - (baila ? 1 : 0), img.width * EA, img.height * EA);
+      // Partículas del trabajo: astillas, lascas, terrones, polvo de obra, y la chispa de una idea.
+      if (acc === 1 && !nino && Math.random() < 0.07) {
+        const hx = px + 4.5, hy = py + 3;
+        if (oficio === 'lenador') emitir(hx, hy, 3, { v: 18, g: 90, vida: 600, cols: ['#c8a070', '#8a5a2b', '#e0c090'], tipo: 'solido', tam: 0.7, dy: -16 });
+        else if (oficio === 'minero') emitir(hx, hy, 3, { v: 20, g: 100, vida: 550, cols: ['#9a98a2', '#c8c4cc', '#6a6870'], tipo: 'solido', tam: 0.7, dy: -18 });
+        else if (oficio === 'granjero') emitir(hx, hy + 2, 2, { v: 12, g: 90, vida: 500, cols: ['#6a4a2a', '#8a6a3a', '#e0c050'], tipo: 'solido', tam: 0.7, dy: -12 });
+        else if (oficio === 'constructor') { emitir(hx, hy + 2, 2, { v: 6, g: -4, vida: 900, cols: [POLVO], tipo: 'humo', tam: 2 }); if (Math.random() < 0.4) emitir(hx, hy - 1, 2, { v: 18, g: 40, vida: 200, cols: ['#ffe080'], tipo: 'chispa', tam: 0.6 }); }
+        else if (oficio === 'erudito') emitir(px + 1.5, py - 3, 1, { v: 4, g: -14, vida: 900, cols: ['#ffe080', '#bfe0ff'], tipo: 'chispa', tam: 0.8 });
+      }
+      // Chispas del choque de armas cuerpo a cuerpo, y el polvo de los que cargan.
+      if (acc === 2 && !a.tirador && Math.random() < 0.12) emitir(px + 4.5, py + 1, 3, { v: 30, g: 50, vida: 220, cols: ['#fff6a0', '#ffd23a', '#ffffff'], tipo: 'chispa', tam: 0.6 });
+      if (anda && oficio === 'guerrero' && Math.random() < 0.025) emitir(px + 1.5, py + 6, 2, { v: 5, g: -2, vida: 700, cols: [POLVO], tipo: 'humo', tam: 1.6 });
+      // Para los gestos: quién está quieto (charla, juega, baila) y quién grita al cargar.
+      if (!anda && acc === 0 && !a.veh) quietos.push({ a, px, py, oficio, nino, fiesta: fiesta.has(a.c), hambre: hambre.has(a.c) });
+      else if (acc === 2 && oficio === 'guerrero' && !a.tirador) gritos.push({ a, px, py });
+      else if (acc === 1 && oficio === 'erudito') quietos.push({ a, px, py, oficio, nino, piensa: true });
       // Quien acaba de cambiar de oficio (por tu orden) lleva un destello dorado un par de segundos.
       const antes = ultimoOficio.get(a.id);
       if (antes != null && antes !== a.o) cambioVisto.set(a.id, ahora);
@@ -985,6 +1011,164 @@
       }
     }
   }
+
+  // ---------- Gestos: charlas, risas, saludos, amores, discusiones, juegos, bailes, gritos de guerra ----------
+  // Los que están quietos cerca de otro de su pueblo hablan entre ellos, como en WorldBox. Cada pareja tiene su
+  // «conversación» unos segundos (según quiénes son y la hora), con un bocadillo y algún gesto con la mano.
+  function bocadillo(x, y, dibujo, borde) {
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x - 0.5, y + 0.5, 9, 6);
+    g.fillStyle = '#ffffff'; g.fillRect(x - 1, y, 9, 6); g.fillRect(x, y - 0.5, 7, 7); g.fillRect(x + 1, y + 6, 2, 1); g.fillRect(x + 1, y + 7, 1, 1);
+    if (borde) { g.fillStyle = borde; g.fillRect(x - 1, y, 9, 0.5); }
+    dibujo(x, y);
+  }
+  const DIBUJOS = {
+    charla: (x, y) => { g.fillStyle = '#3a3a44'; g.fillRect(x + 1, y + 3, 1, 1); g.fillRect(x + 3, y + 3, 1, 1); g.fillRect(x + 5, y + 3, 1, 1); },
+    risa: (x, y) => { g.fillStyle = '#c8682a'; g.fillRect(x + 1, y + 1, 1, 3); g.fillRect(x + 2, y + 3, 1, 1); g.fillRect(x + 4, y + 2, 2, 1); g.fillRect(x + 4, y + 3, 1, 1); g.fillRect(x + 5, y + 3, 1, 1); },
+    amor: (x, y) => { g.fillStyle = '#e8304a'; g.fillRect(x + 1, y + 1, 2, 2); g.fillRect(x + 4, y + 1, 2, 2); g.fillRect(x + 1, y + 2, 5, 2); g.fillRect(x + 2, y + 4, 3, 1); g.fillRect(x + 3, y + 5, 1, 1); },
+    moneda: (x, y) => { g.fillStyle = '#e0b030'; g.fillRect(x + 2, y + 1, 3, 5); g.fillRect(x + 1, y + 2, 5, 3); g.fillStyle = '#fff4a0'; g.fillRect(x + 3, y + 2, 1, 2); },
+    enfado: (x, y) => { g.fillStyle = '#d02a2a'; g.fillRect(x + 3, y + 1, 1, 3); g.fillRect(x + 3, y + 5, 1, 1); g.fillRect(x + 5, y + 1, 1, 3); g.fillRect(x + 5, y + 5, 1, 1); },
+    nota: (x, y) => { g.fillStyle = '#2a2a3a'; g.fillRect(x + 4, y + 1, 1, 4); g.fillRect(x + 5, y + 1, 1, 1); g.fillRect(x + 6, y + 2, 1, 1); g.fillRect(x + 2, y + 4, 2, 2); },
+    idea: (x, y) => { g.fillStyle = '#ffd23a'; g.fillRect(x + 2, y + 1, 3, 3); g.fillRect(x + 1, y + 2, 5, 1); g.fillStyle = '#8a8a8a'; g.fillRect(x + 3, y + 4, 1, 2); },
+    libro: (x, y) => { g.fillStyle = '#7a2a1a'; g.fillRect(x + 1, y + 2, 5, 3); g.fillStyle = '#f0e8d0'; g.fillRect(x + 1, y + 2, 2, 2); g.fillRect(x + 4, y + 2, 2, 2); },
+    triste: (x, y) => { g.fillStyle = '#5a7aba'; g.fillRect(x + 2, y + 2, 1, 1); g.fillRect(x + 4, y + 2, 1, 1); g.fillRect(x + 2, y + 4, 3, 1); g.fillRect(x + 1, y + 5, 1, 1); g.fillRect(x + 5, y + 5, 1, 1); },
+    grito: (x, y) => { g.fillStyle = '#d02a2a'; g.fillRect(x + 3, y + 1, 1, 3); g.fillRect(x + 3, y + 5, 1, 1); },
+    pregunta: (x, y) => { g.fillStyle = '#3a5a9a'; g.fillRect(x + 2, y + 1, 3, 1); g.fillRect(x + 4, y + 2, 1, 1); g.fillRect(x + 3, y + 3, 1, 1); g.fillRect(x + 3, y + 5, 1, 1); }
+  };
+  function gestos(k, ahora) {
+    if (cam.z < 1.6) return; // de lejos no se distinguen
+    const slot = Math.floor(ahora / 4200), dentro = (ahora % 4200) / 4200;
+    const usado = new Set(), cubo = new Map();
+    for (const q of quietos) { const key = Math.floor(q.px / 14) + ',' + Math.floor(q.py / 14); (cubo.get(key) || cubo.set(key, []).get(key)).push(q); }
+    let n = 0;
+    for (const q of quietos) {
+      if (usado.has(q) || n > 40) continue;
+      // Los eruditos que estudian piensan solos: una bombilla o un libro.
+      if (q.piensa) { if (hash(q.a.id * 7 + slot) < 0.35 && dentro < 0.6) { bocadillo(q.px + 2, q.py - 9, hash(q.a.id + slot) < 0.5 ? DIBUJOS.idea : DIBUJOS.libro); n++; } continue; }
+      // Con hambre, alguno se lamenta solo.
+      if (q.hambre && hash(q.a.id * 3 + slot) < 0.15 && dentro < 0.5) { bocadillo(q.px + 2, q.py - 9, DIBUJOS.triste); usado.add(q); n++; continue; }
+      const cx = Math.floor(q.px / 14), cy = Math.floor(q.py / 14);
+      let otro = null;
+      for (let dy = -1; dy <= 1 && !otro; dy++) for (let dx = -1; dx <= 1 && !otro; dx++) for (const o of cubo.get((cx + dx) + ',' + (cy + dy)) || []) if (o !== q && !usado.has(o) && !o.piensa && o.a.c === q.a.c && Math.abs(o.px - q.px) + Math.abs(o.py - q.py) <= 22) { otro = o; break; }
+      if (!otro) continue;
+      usado.add(q); usado.add(otro);
+      const par = Math.min(q.a.id, otro.a.id) * 31 + Math.max(q.a.id, otro.a.id), h = hash(par + slot * 7);
+      if (h > 0.7 || dentro > 0.82) continue; // no todos hablan todo el rato
+      n++;
+      // Los niños juegan a la pelota.
+      if (q.nino && otro.nino) {
+        const f = (ahora / 500) % 2, ida = f < 1 ? f : 2 - f, bx = q.px + 1.5 + (otro.px - q.px) * ida, by = q.py + 4 + (otro.py - q.py) * ida - Math.sin(ida * Math.PI) * 4;
+        g.fillStyle = '#e04030'; g.fillRect(bx, by, 1.5, 1.5); g.fillStyle = '#ffffff'; g.fillRect(bx, by, 0.6, 0.6);
+        continue;
+      }
+      // Qué se dicen: según quiénes son y cómo va su pueblo.
+      const comerciante = q.oficio === 'comerciante' || otro.oficio === 'comerciante';
+      const tipo = q.fiesta ? 'nota' : comerciante && h < 0.25 ? 'moneda' : h < 0.06 && !q.nino && !otro.nino ? 'amor' : h < 0.14 ? 'enfado' : h < 0.28 ? 'risa' : h < 0.36 ? 'pregunta' : h < 0.46 ? 'saludo' : 'charla';
+      const habla = Math.floor(ahora / 1100 + par) % 2 ? q : otro, escucha = habla === q ? otro : q;
+      if (tipo === 'saludo') {
+        // Se saludan con la mano: el brazo sube y baja.
+        for (const w of [q, otro]) { const arriba = Math.floor(ahora / 180 + w.a.id) % 2; g.fillStyle = '#e8b890'; g.fillRect(w.px + 3.5, w.py + (arriba ? -0.5 : 0.5), 1, 1); g.fillRect(w.px + 3, w.py + 1, 1, 1); }
+        continue;
+      }
+      bocadillo(habla.px + 2, habla.py - 9, DIBUJOS[tipo], tipo === 'enfado' ? '#d02a2a' : null);
+      // El que habla gesticula (brazo arriba); el que escucha asiente.
+      g.fillStyle = '#e8b890';
+      if (Math.floor(ahora / 220) % 2) g.fillRect(habla.px + 3.5, habla.py, 1, 1);
+      if (tipo === 'amor' && Math.random() < 0.02) emitir(escucha.px + 1.5, escucha.py - 2, 1, { v: 3, g: -10, vida: 1200, cols: ['#e8304a', '#ff8aa0'], tipo: 'chispa', tam: 1 });
+      if (tipo === 'nota' && Math.random() < 0.04) emitir(habla.px + 3, habla.py - 3, 1, { v: 6, g: -12, vida: 1100, cols: ['#2a2a3a', '#4a4a6a'], tipo: 'chispa', tam: 1 });
+    }
+    // Los que cargan en la batalla gritan.
+    for (const w of gritos) { if (n > 60) break; if (hash(w.a.id + slot * 13) < 0.25 && dentro < 0.45) { bocadillo(w.px + 2, w.py - 9, DIBUJOS.grito, '#d02a2a'); n++; } }
+  }
+  // ---------- Partículas: sangre, chispas, humo, fogonazos, astillas, cascotes, salpicaduras ----------
+  // Todo lo que salta, cae o sube durante unos instantes. Son solo para la vista (no tocan el mundo).
+  let parts = [], ultimoCuadro = 0;
+  const elegirDe = l => l[(Math.random() * l.length) | 0];
+  // Emite n partículas en (x, y) (píxeles del mundo). o: v (velocidad), dx/dy (empuje), g (gravedad), vida (ms),
+  // cols, tam, tipo ('sangre' salpica y queda en el suelo; 'humo' sube y crece; 'chispa' brilla; 'solido' rebota).
+  function emitir(x, y, n, o) {
+    if (parts.length > 1400) return;
+    for (let i = 0; i < n; i++) {
+      const ang = o.cono != null ? o.ang + (Math.random() - 0.5) * o.cono : Math.random() * Math.PI * 2, vel = (o.v || 20) * (0.4 + Math.random() * 0.8);
+      parts.push({ x, y, vx: Math.cos(ang) * vel + (o.dx || 0), vy: Math.sin(ang) * vel * (o.plano ? 0.5 : 1) + (o.dy || 0), g: o.g != null ? o.g : 70,
+        t: 0, vida: (o.vida || 600) * (0.6 + Math.random() * 0.8), col: elegirDe(o.cols || ['#ffffff']), tam: (o.tam || 1) * (o.tamAzar ? 0.6 + Math.random() * 0.8 : 1), tipo: o.tipo || 'solido', suelo: y + (o.suelo != null ? o.suelo : 3 + Math.random() * 3) });
+    }
+  }
+  function pintarParticulas(ahora) {
+    const dt = Math.min(0.05, Math.max(0, (ahora - (ultimoCuadro || ahora)) / 1000)); ultimoCuadro = ahora;
+    const vivas = [];
+    for (const q of parts) {
+      q.t += dt * 1000;
+      if (q.t > q.vida) continue;
+      vivas.push(q);
+      const f = q.t / q.vida;
+      if (q.tipo === 'humo') { q.x += (q.vx * 0.3 + 4) * dt; q.y += (q.vy * 0.3 - 9) * dt; const r = q.tam * (1 + f * 2.5); g.fillStyle = q.col.replace('A', (0.45 * (1 - f)).toFixed(2)); g.fillRect(q.x - r / 2, q.y - r / 2, r, r); continue; }
+      if (!q.parado) {
+        q.vy += q.g * dt; q.x += q.vx * dt; q.y += q.vy * dt;
+        if (q.y >= q.suelo && q.vy > 0) {
+          if (q.tipo === 'sangre') { q.parado = 1; q.y = q.suelo; q.tam *= 1.3; }
+          else if (q.tipo === 'solido' && Math.abs(q.vy) > 8) { q.vy *= -0.35; q.vx *= 0.6; q.y = q.suelo; }
+          else { q.parado = 1; q.y = q.suelo; }
+        }
+      }
+      g.globalAlpha = q.tipo === 'chispa' ? 1 - f : q.parado ? Math.min(1, (1 - f) * 2) : 1;
+      g.fillStyle = q.tipo === 'chispa' && Math.floor(q.t / 60) % 2 ? '#fff6c0' : q.col;
+      g.fillRect(q.x, q.y, q.tam, q.tam * (q.parado && q.tipo === 'sangre' ? 0.6 : 1));
+    }
+    g.globalAlpha = 1;
+    parts = vivas;
+  }
+  const SANGRE = ['#b01818', '#8a0e0e', '#d02a2a', '#6a0a0a'];
+  const HUMO_GRIS = 'rgba(90,86,84,A)', HUMO_CLARO = 'rgba(200,200,205,A)', POLVO = 'rgba(170,150,120,A)';
+  // Lo que pasa en este turno y ya se ha visto en pantalla (cada cosa suelta sus partículas una sola vez).
+  let vistos = new Set();
+  function eventosParticulas(k, x0, y0, x1, y1) {
+    const v = m.vida, enVistaPx = (x, y) => x > x0 - 20 && y > y0 - 20 && x < x1 + 20 && y < y1 + 20;
+    // Golpes: un chorro de sangre en la dirección del golpe (y chispas si chocan metales).
+    for (const gp of v.golpes || []) {
+      if (k < gp[1] - 0.05 || vistos.has(gp)) continue;
+      vistos.add(gp);
+      const pos = dibujados.get(gp[0]);
+      if (!pos) continue;
+      const [px, py] = pos;
+      if (!enVistaPx(px, py)) continue;
+      const ang = Math.atan2(py - (gp[3] * P + 6), px - (gp[2] * P + 6.5)), n = Math.min(14, 4 + Math.round(gp[4] / 4));
+      emitir(px + 1.5, py + 2, n, { v: 26 + gp[4], ang, cono: 1.6, g: 90, vida: 1600, cols: SANGRE, tipo: 'sangre', tam: 0.8, tamAzar: 1, dy: -10 });
+      if (gp[4] >= 12 && Math.random() < 0.6) emitir(px + 1.5, py + 1, 3, { v: 30, g: 40, vida: 260, cols: ['#ffe080', '#ffffff'], tipo: 'chispa', tam: 0.6 });
+    }
+    // Disparos: fogonazo y humo al salir; al llegar, polvo, astillas o una explosión.
+    for (const d of v.disparos || []) {
+      const [x1d, y1d, x2d, y2d, paso, tipo] = d;
+      const ax = x1d * P + 8, ay = y1d * P + 7, bx = x2d * P + 8, by = y2d * P + 7;
+      if (k >= paso - 1 && !vistos.has(d)) {
+        vistos.add(d);
+        if (enVistaPx(ax, ay)) {
+          if (tipo === 1) { emitir(ax + 2, ay - 2, 4, { v: 14, g: -5, vida: 900, cols: [HUMO_CLARO], tipo: 'humo', tam: 2 }); emitir(ax + 2, ay - 1, 4, { v: 30, ang: Math.atan2(by - ay, bx - ax), cono: 0.6, g: 0, vida: 150, cols: ['#ffd23a', '#fff6a0'], tipo: 'chispa', tam: 1 }); }
+          else if (tipo === 2) { emitir(ax, ay - 3, 8, { v: 18, g: -5, vida: 1400, cols: [HUMO_CLARO, HUMO_GRIS], tipo: 'humo', tam: 3 }); emitir(ax, ay - 2, 6, { v: 40, ang: Math.atan2(by - ay, bx - ax), cono: 0.7, g: 0, vida: 200, cols: ['#ff9a3a', '#ffd23a'], tipo: 'chispa', tam: 1.4 }); }
+          else if (tipo === 4) emitir(ax, ay - 1, 3, { v: 10, g: 20, vida: 500, cols: ['#ff8a1e', '#ffd84a'], tipo: 'chispa', tam: 0.8 });
+        }
+      }
+      const llega = tipo === 3 ? paso : tipo === 2 ? paso - 0.15 : paso;
+      const clave = d.length + 'l';
+      if (k >= llega && !(d.impacto)) {
+        d.impacto = 1; void clave;
+        if (!enVistaPx(bx, by)) continue;
+        if (tipo === 2 || tipo === 3) {
+          // Explosión: bola de fuego, tierra y cascotes que vuelan, y una columna de humo negro.
+          emitir(bx, by, 16, { v: 50, g: 20, vida: 380, cols: ['#ffd84a', '#ff8a1e', '#ff4b1a', '#fff6c0'], tipo: 'chispa', tam: 1.6, tamAzar: 1 });
+          emitir(bx, by, 14, { v: 55, g: 120, vida: 1400, cols: ['#4a3a2a', '#6a5a46', '#2a221a', '#7a746c'], tipo: 'solido', tam: 1.2, tamAzar: 1, dy: -40 });
+          emitir(bx, by - 2, 10, { v: 16, g: -8, vida: 2600, cols: [HUMO_GRIS, 'rgba(40,36,34,A)'], tipo: 'humo', tam: 4, tamAzar: 1 });
+        } else if (tipo === 1) {
+          emitir(bx, by + 2, 5, { v: 22, g: 80, vida: 500, cols: ['#a89070', '#8a7458', '#c8b090'], tipo: 'solido', tam: 0.8, dy: -18 });
+          emitir(bx, by + 1, 2, { v: 8, g: -4, vida: 700, cols: [POLVO], tipo: 'humo', tam: 2 });
+        } else if (tipo === 4) {
+          emitir(bx, by, 6, { v: 20, g: 30, vida: 700, cols: ['#ff8a1e', '#ffd84a', '#ff4b1a'], tipo: 'chispa', tam: 1 });
+        } else {
+          emitir(bx, by + 2, 4, { v: 16, g: 90, vida: 500, cols: ['#8a5a2b', '#c8a070', '#6b4a2b'], tipo: 'solido', tam: 0.7, dy: -14 });
+        }
+      }
+    }
+  }
+
   // ---------- Fuego, agua y marcas del suelo ----------
   const enVista = (t, x0, y0, x1, y1) => { const x = (t % m.vida.tw) * P, y = Math.floor(t / m.vida.tw) * P; return x + P >= x0 && y + P >= y0 && x <= x1 && y <= y1; };
   // Ceniza, cráteres, sangre y escombros (debajo de todo lo que se mueve), y el agua de las inundaciones.
@@ -1069,6 +1253,8 @@
         lengua('#d0301c', 2.2, alto); lengua('#ff8a1e', 1.6, alto * 0.75); lengua('#ffd84a', 0.9, alto * 0.45);
       }
       g.fillStyle = 'rgba(255,248,210,0.9)'; g.fillRect(x + 7, y + 12, 2, 1);
+      if (Math.random() < 0.06) emitir(x + 4 + Math.random() * 8, y + 6, 1, { v: 6, g: -30, vida: 1300, cols: ['#ffd84a', '#ff8a1e', '#ff4b1a'], tipo: 'chispa', tam: 0.8 });
+      if (Math.random() < 0.03) emitir(x + 8, y + 2, 1, { v: 4, g: -6, vida: 2200, cols: [HUMO_GRIS], tipo: 'humo', tam: 3 });
       // Pavesas que suben.
       for (let q = 0; q < 3; q++) { const f = (ahora / 700 + q / 3 + hash(t + q * 5)) % 1; g.fillStyle = f < 0.5 ? '#ffd84a' : '#ff6a1a'; g.fillRect(x + 4 + hash(t + q) * 8 + Math.sin(ahora / 200 + q) * 2, y + 6 - f * 16, 1, 1); }
     }
@@ -1206,6 +1392,7 @@
         g.globalAlpha = 1;
         continue;
       }
+      if (!tb.estallo && tb.quien && ['batalla', 'flecha', 'torre', 'lobo', 'obus', 'bomba'].includes(tb.tipo)) { tb.estallo = 1; emitir(tb.x * P + 8, tb.y * P + 9, 14, { v: 34, g: 100, vida: 1800, cols: SANGRE, tipo: 'sangre', tam: 0.9, tamAzar: 1, dy: -22 }); }
       if (tb.quien && t < 2600 && !['ahogado', 'vejez', 'hambre', 'peste', 'plaga'].includes(tb.tipo)) {
         // Cae como en WorldBox: destello rojo, se ladea y queda tendido con un charco de sangre; luego se desvanece.
         const a = tb.quien, civ = m.civs.find(c => c.id === tb.c), col = civ ? civ.color : '#cccccc';
