@@ -417,9 +417,12 @@
       for (const a of lista) tiene[a.o]++;
       for (const a of lista) {
         // En guerra se llama a las armas a cualquiera que no vaya cargado; en paz, solo cambian los que están libres.
-        const llamada = c.guerras.length && !a.k && a.o !== GUERRERO && !esNino(a);
+        // Los ancianos dejan las armas y vuelven al campo; nadie los llama a filas.
+        const viejo = (a.edad || 0) >= VIEJO;
+        if (viejo && a.o === GUERRERO) { tiene[GUERRERO]--; tiene[GRANJERO]++; a.o = GRANJERO; a.e = LIBRE; a.k = 0; a.arma = 0; a.armadura = 0; a.tirador = null; continue; }
+        const llamada = c.guerras.length && !a.k && a.o !== GUERRERO && !esNino(a) && !viejo;
         if (!llamada && a.e !== LIBRE && a.e !== ESPERAR && !a.paseo && !(a.o === GUERRERO && !c.guerras.length && prio(c, 'ejercito') <= 1)) continue;
-        const falta = p.map((x, i) => x * lista.length - tiene[i] + (i === a.o ? 1 : 0));
+        const falta = p.map((x, i) => (viejo && i === GUERRERO ? -1e9 : x * lista.length - tiene[i] + (i === a.o ? 1 : 0)));
         const mejor = falta.indexOf(Math.max(...falta));
         if (mejor !== a.o && falta[mejor] - (falta[a.o] - 1) >= 1) { tiene[a.o]--; tiene[mejor]++; a.o = mejor; a.e = LIBRE; a.k = 0; a.paseo = 0; }
       }
@@ -523,8 +526,8 @@
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       // Lo militar, según la fase: cuartel de soldados y arquería en la capital desde el Bronce, y un castillo
       // (luego fortaleza o búnker) en una plaza de frontera desde la Edad del Hierro.
-      if (c.era >= 1 && r === c.capital && !tiene(OBRA.cuartel)) pide.push([OBRA.cuartel, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
-      if (c.era >= 1 && r === c.capital && !tiene(OBRA.arqueria)) pide.push([OBRA.arqueria, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
+      if (c.era >= 1 && r === c.capital && !(c.cuarteles > 0) && !tiene(OBRA.cuartel)) pide.push([OBRA.cuartel, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
+      if (c.era >= 1 && r === c.capital && !(c.arquerias > 0) && !tiene(OBRA.arqueria)) pide.push([OBRA.arqueria, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 2 && !(c.castillos > 0) && (plazaFronteriza(m, c, r, plazas) || (c.plan && c.plan.obra === 'castillo' && r === c.capital))) pide.push([OBRA.castillo, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
       // Lo que pidió el jugador va primero; cuando ya está hecho en la plaza, se olvida el encargo.

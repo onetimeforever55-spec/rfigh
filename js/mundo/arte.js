@@ -401,8 +401,12 @@
   // fortín de hormigón con alambradas (guerras mundiales). En la fase tribal, un recinto de empalizada.
   function castillo(H, fase, col) {
     if (fase === 0) {
-      for (let x = 1; x < 15; x += 2) { H.r(x, 6, 2, 9, '#8a5a2b'); H.p(x, 5, '#a8784a'); }
-      H.r(5, 1, 6, 6, '#a07a48'); tejado(H, 4, 11, 0, 3, col);
+      // Recinto tribal: una choza grande tras una empalizada de estacas puntiagudas, con su estandarte.
+      for (let y = 2; y < 9; y++) { const half = Math.round((y - 1) * 0.75); for (let x = 8 - half; x < 8 + half; x++) H.p(x, y, x < 8 ? claro(mezcla(col, '#d8b060', 0.45), 0.08) : oscuro(mezcla(col, '#d8b060', 0.45), 0.1)); }
+      H.r(5, 8, 6, 3, '#b08a5a'); H.r(7, 9, 2, 2, '#4a3020');
+      for (let x = 0; x < 16; x += 2) { H.r(x, 10, 1, 5, '#8a5a2b'); H.r(x + 1, 10, 1, 5, '#6a4220'); H.p(x, 9, '#a8784a'); }
+      H.r(0, 12, 16, 1, '#5a3a1e');
+      H.r(14, 1, 1, 9, '#5a3a1e'); H.r(15, 1, 1, 3, col);
     } else if (fase === 1) {
       const P = '#a8a49a';
       H.r(1, 6, 14, 9, P); for (let x = 1; x < 15; x += 3) H.r(x, 4, 2, 2, P);

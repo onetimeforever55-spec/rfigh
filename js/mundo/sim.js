@@ -294,8 +294,25 @@
     const anios = m.libre ? 1 : M.ERAS[maxEra].anios;
     for (const c of vivas(m)) reinar(m, c, anios);
     m.anio += anios;
-    // Los pueblos nacidos en este turno (una rebelión, uno nuevo) quedan contados ya: casas, camas, gente.
-    if (m.vida && M.vida && vivas(m).some(c => c.camas == null)) M.vida.contar(m);
+    // Al cerrar el turno, todo en orden: quien perdió su capital en una conquista de este turno se muda a su
+    // mejor tierra (o cae si no le queda ninguna), y los aldeanos de pueblos que ya no existen pasan al dueño
+    // de la tierra donde viven (o se dispersan si nadie la gobierna).
+    for (const c of vivas(m)) {
+      if (m.dueno[c.capital] === c.id) continue;
+      const cs = casillas(m, c);
+      if (!cs.length) morir(m, c, null); else c.capital = cs.sort((a, b) => fertil(m, b) - fertil(m, a))[0];
+    }
+    if (m.vida && M.vida) {
+      const vivos = new Set(vivas(m).map(c => c.id));
+      m.vida.aldeanos = m.vida.aldeanos.filter(a => {
+        if (vivos.has(a.c)) return true;
+        const d = m.dueno[a.h];
+        if (d >= 0 && vivos.has(d)) { a.c = d; a.llego = m.turno; a.o = 1; a.e = 0; a.colono = null; a.arma = 0; a.armadura = 0; a.tirador = null; return true; }
+        return false;
+      });
+      // Los pueblos nacidos en este turno (una rebelión, uno nuevo) quedan contados ya: casas, camas, gente.
+      if (vivas(m).some(c => c.camas == null)) M.vida.contar(m);
+    }
     return m;
   }
 

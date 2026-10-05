@@ -46,7 +46,7 @@
     const libre = $('mundo-libre').checked;
     try { localStorage.setItem('genesis.libre', libre ? '1' : '0'); } catch (e) { /* sin guardado */ }
     if (libre && !m.libre) { m.libre = true; if (m.anio < 1) m.anio = 1; }
-    else if (!libre && m.libre) m.libre = false;
+    else if (!libre && m.libre) { m.libre = false; if (m.turno < 3) m.anio = -4000; } // un mundo recién creado vuelve al calendario histórico desde el principio
     m.modo = modo;
     if (modo === 'pueblo') {
       // Si no se elige uno, te toca un pueblo al azar entre los que tienen sitio para crecer.
