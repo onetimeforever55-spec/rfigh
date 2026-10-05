@@ -343,6 +343,15 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
   - **Detalles**: campos a 16 px (sin zoom al escribir en iOS) y márgenes de la muesca.
 - **Mercado global**: comida, madera, piedra, metal y armas tienen un precio mundial que sale de lo que hay en todos los almacenes frente a lo que todos necesitan. Si en el mundo sobra madera, la madera baja; si escasea el metal, se encarece.
   - **Cada reino elige a qué dedicarse** (su especialidad) según su tierra, su carácter y los precios, y se fija en lo que hace mejor que los demás (ventaja comparativa). Produce de más de lo suyo para venderlo y lo revisa cada dos estaciones. Quien se dedica a las armas forja metal en armas en su cuartel, y las armas compradas equipan a los guerreros sin gastar metal.
+  - **Diversifican y cambian según lo que rinda.** Cada seis turnos cada reino recalcula lo que le rinde cada bien:
+    - lo que su tierra da mejor que la de los demás, y su carácter;
+    - el precio de hoy y su tendencia;
+    - el oro que de verdad le ha dado venderlo;
+    - cuántos reinos hacen ya lo mismo (el mercado se llenará);
+    - si tiene el almacén a rebosar sin poder venderlo.
+
+    Reparte el trabajo entre sus dos o tres bienes más rentables (su cartera, en porcentajes). Solo cambia de bien principal si el nuevo rinde al menos un 25 % más y han pasado 24 turnos desde el último cambio. El cambio se anuncia con su motivo («se paga mejor», «le da más oro», «su tierra rinde más en eso»).
+  - **Minas en la montaña**: agotadas las vetas sueltas, los mineros de un reino que necesita o vende metal abren minas en montañas y colinas que siguen dando metal. Así el precio del metal sube y baja de verdad en vez de quedarse siempre en el máximo.
   - **Solo se comercia con quien hay ruta.** Los comerciantes salen con la carreta cargada de lo que al otro reino le falta y a su pueblo le sobra (se ve en la carreta: sacos, troncos, piedras, lingotes o armas). Lo venden a precio de mercado, más caro si al otro le corre prisa (hambre, guerra sin armas), y vuelven con lo que falta en casa pagado con oro.
   - Quien tiene socios produce menos de lo que le traen. Quien no tiene, lo hace todo él.
   - **Órdenes**:

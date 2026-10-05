@@ -528,6 +528,10 @@ console.log('EL MERCADO GLOBAL');
   comprobar(V2.BIENES.some(k => (mk.historia[k] || []).some(x => Math.abs(x - mk.precio[k]) > 0.02)), 'y los precios se mueven con la oferta y la demanda');
   const esp = new Set(S.vivas(m).map(c => c.especialidad));
   comprobar(esp.size >= 2, 'cada reino elige a qué dedicarse, y no todos a lo mismo (' + [...esp].join(', ') + ')');
+  const conCartera = S.vivas(m).filter(c => c.cartera && Object.keys(c.cartera).length >= 2);
+  comprobar(conCartera.length >= S.vivas(m).length * 0.6, 'y diversifican: reparten el trabajo entre dos o tres bienes (' + conCartera.slice(0, 2).map(c => c.nombre + ' ' + JSON.stringify(c.cartera)).join(', ') + ')');
+  comprobar(S.vivas(m).some(c => (c.cambiosEsp || []).length), 'cambian de bien principal cuando otro rinde más (' + S.vivas(m).flatMap(c => c.cambiosEsp || []).slice(0, 2).map(x => x.de + '→' + x.a + ': ' + x.motivo).join('; ') + ')');
+  comprobar(S.vivas(m).every(c => V2.BIENES.every(k => (c[k] || 0) >= 0)), 'y nadie queda con existencias negativas');
   comprobar((mk.tratos || []).length > 3 && mk.tratos.every(x => x.vende !== x.compra && x.oro > 0 && x.n > 0), 'los comerciantes venden y compran entre reinos a cambio de oro (' + (mk.tratos || []).length + ' tratos)');
   comprobar((mk.tratos || []).every(x => x.ruta === 'externa'), 'y solo con los reinos con los que hay ruta de comercio');
   // El precio: con mucha más madera en el mundo, la madera baja.
