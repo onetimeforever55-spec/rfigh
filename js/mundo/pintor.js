@@ -412,7 +412,7 @@
     barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
-    if (civPorId.size) { vias(x0, y0, x1, y1); if (!reducido) trafico(ahora, x0, y0, x1, y1); }
+    if (civPorId.size) { vias(x0, y0, x1, y1, ahora); if (!reducido) trafico(ahora, x0, y0, x1, y1); }
     andamios(ahora, x0, y0, x1, y1);
     progresos(x0, y0, x1, y1);
     humo(ahora, x0, y0, x1, y1);
@@ -549,43 +549,68 @@
     }
   }
   const civPorId = new Map(), rutaPorId = new Map();
-  // Un tren: locomotora de vapor (o diésel en la era moderna) con su humo y dos vagones con la carga.
-  function tren(px, py, dir, dy, era, col, carga, ahora, id) {
-    const piezas = 3, paso_ = 7;
-    for (let k = piezas - 1; k >= 0; k--) {
-      const x = px - (dir || 0) * k * paso_ - 3, y = py - (dir ? 0 : dy * k * 5) + 1;
-      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, y + 5, 7, 1);
-      g.fillStyle = '#1e1e22'; g.fillRect(x + 1, y + 4, 1, 1); g.fillRect(x + 5, y + 4, 1, 1);
-      if (k === 0) {
-        g.fillStyle = era >= 7 ? '#c84a3a' : '#2a2e34'; g.fillRect(x, y, 7, 4);
-        g.fillStyle = era >= 7 ? '#f0d040' : '#c8a040'; g.fillRect(x, y + 3, 7, 0.6);
-        const fx = dir >= 0 ? x + 5 : x + 1;
-        g.fillStyle = '#5a5e66'; g.fillRect(fx, y - 2, 1.4, 2);
-        g.fillStyle = 'rgba(255,240,180,0.9)'; g.fillRect(dir >= 0 ? x + 6.5 : x - 0.5, y + 1, 0.8, 1);
-        if (era < 7 && Math.random() < 0.3) emitir(fx + 0.7, y - 2, 1, { v: 6, g: -12, vida: 900, cols: ['#d8d8dc', '#b8b8c0', '#ffffff'], tipo: 'humo', tam: 1.4, dy: -10 });
-      } else {
-        g.fillStyle = k === 1 ? col : mezclar(col, '#000000', 0.25); g.fillRect(x, y + 0.5, 7, 3.5);
-        g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(x, y + 0.5, 7, 0.6);
-        if (carga && k === 1) { g.fillStyle = { comida: '#e8d08a', madera: '#8a5a2a', piedra: '#a8a49a', metal: '#b8c0cc', armas: '#d0d4dc' }[carga.que] || '#c8a040'; g.fillRect(x + 1, y - 0.5, 5, 1.2); }
+  // Las vías: su propia línea de estación a estación (no van sobre los caminos, solo los cruzan), con
+  // traviesas de madera y dos raíles; en los cruces con una calle, un paso a nivel. Por cada línea va y viene
+  // un tren (de vapor en la era industrial, diésel en la moderna) mientras haya carbón y paz.
+  function vias(x0, y0, x1, y1, ahora) {
+    const v = m.vida, tw = v.tw;
+    for (const k of Object.keys(v.vias || {})) {
+      const L = v.vias[k], T = L.tiles;
+      for (let i = 0; i < T.length; i++) {
+        const t = T[i]; if (visto.obra[t] && visto.obra[t] !== V.OBRA.campo) continue;
+        const x = (t % tw) * P, y = Math.floor(t / tw) * P;
+        if (x + P < x0 || y + P < y0 || x > x1 || y > y1) continue;
+        const ant = T[Math.max(0, i - 1)], sig = T[Math.min(T.length - 1, i + 1)];
+        const h = n => n !== t && Math.floor(n / tw) === Math.floor(t / tw), w = n => n !== t && n % tw === t % tw;
+        const izq = [ant, sig].some(n => h(n) && n < t), der = [ant, sig].some(n => h(n) && n > t), arr = [ant, sig].some(n => w(n) && n < t), aba = [ant, sig].some(n => w(n) && n > t);
+        const cruce = visto.camino[t];
+        // Traviesas y raíles por cada lado por el que sigue la vía (así las curvas quedan unidas).
+        const tramo = (hx, hy, ww, hh, horiz) => {
+          g.fillStyle = '#5a3c22';
+          if (horiz) for (let q = hx + 1; q < hx + ww; q += 3) g.fillRect(x + q, y + 5, 1.5, 6);
+          else for (let q = hy + 1; q < hy + hh; q += 3) g.fillRect(x + 5, y + q, 6, 1.5);
+          g.fillStyle = '#a8aeb8';
+          if (horiz) { g.fillRect(x + hx, y + 6, ww, 1); g.fillRect(x + hx, y + 9, ww, 1); }
+          else { g.fillRect(x + 6, y + hy, 1, hh); g.fillRect(x + 9, y + hy, 1, hh); }
+        };
+        if (izq) tramo(0, 0, 8, 0, true); if (der) tramo(8, 0, 8, 0, true);
+        if (arr) tramo(0, 0, 0, 8, false); if (aba) tramo(0, 8, 0, 8, false);
+        if (!izq && !der && !arr && !aba) tramo(0, 0, P, 0, true);
+        if (cruce) { g.fillStyle = '#e8e4d8'; g.fillRect(x + 2, y + 2, 1, 1); g.fillRect(x + 13, y + 13, 1, 1); g.fillStyle = '#d83a32'; g.fillRect(x + 1, y + 1, 1, 2); }
       }
+      // El tren de esta línea.
+      const ru = rutaPorId.get(L.ru), a = ru ? civPorId.get(ru.a) : null, b = ru ? civPorId.get(ru.b) : null;
+      const dueno = a && a.estaciones > 0 && a.era >= 6 ? a : b;
+      const activa = ru && a && b && !(a.guerras || []).some(gg => gg.con === b.id);
+      if (!dueno || !activa || !V.enMarcha(dueno, 'tren') || T.length < 4) continue;
+      trenEnVia(T, ahora, dueno, k);
     }
   }
-  // Las vías: sobre los caminos de las rutas entre reinos de quien tiene estación, traviesas y dos raíles.
-  function vias(x0, y0, x1, y1) {
-    const v = m.vida;
-    for (const ru of v.rutas || []) {
-      if (ru.tipo !== 'externa') continue;
-      const a = civPorId.get(ru.a), b = civPorId.get(ru.b);
-      if (!((a && a.estaciones > 0 && a.era >= 6 && V.enMarcha(a, 'tren')) || (b && b.estaciones > 0 && b.era >= 6 && V.enMarcha(b, 'tren')))) continue;
-      for (let i = 0; i < ru.tiles.length; i++) {
-        const t = ru.tiles[i]; if (!visto.camino[t]) continue;
-        const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P;
-        if (x + P < x0 || y + P < y0 || x > x1 || y > y1) continue;
-        const sig = ru.tiles[Math.min(ru.tiles.length - 1, i + 1)], ant = ru.tiles[Math.max(0, i - 1)];
-        const horiz = Math.abs((sig % v.tw) - (ant % v.tw)) >= Math.abs(Math.floor(sig / v.tw) - Math.floor(ant / v.tw));
-        g.fillStyle = '#6a4a2a';
-        if (horiz) { for (let k = 1; k < P; k += 3) g.fillRect(x + k, y + 5, 1.5, 6); g.fillStyle = '#9aa0aa'; g.fillRect(x, y + 6, P, 1); g.fillRect(x, y + 9, P, 1); }
-        else { for (let k = 1; k < P; k += 3) g.fillRect(x + 5, y + k, 6, 1.5); g.fillStyle = '#9aa0aa'; g.fillRect(x + 6, y, 1, P); g.fillRect(x + 9, y, 1, P); }
+  // Un tren por su vía: la locomotora delante y dos vagones detrás, cada pieza siguiendo las curvas.
+  let ultimosTrenes = [];
+  function trenEnVia(T, ahora, c, k) {
+    const tw = m.vida.tw, n = T.length - 1, ms = c.era >= 7 ? 160 : 240, vuelta = n * 2 * ms + 3000;
+    let h = 0; for (let q = 0; q < k.length; q++) h = (h * 31 + k.charCodeAt(q)) | 0;
+    const f = ((ahora + Math.abs(h) % vuelta) % vuelta);
+    // Va, espera un poco en la estación y vuelve.
+    const ida = f < n * ms, quieto = f >= n * ms && f < n * ms + 1500 || f >= 2 * n * ms + 1500;
+    let s = ida ? f / ms : quieto ? (f < n * ms + 1500 ? n : 0) : n - (f - n * ms - 1500) / ms;
+    s = Math.max(0, Math.min(n, s));
+    const sentido = ida ? 1 : -1, pos = q => { const qq = Math.max(0, Math.min(n, q)), i = Math.floor(qq), j = Math.min(n, i + 1), fr = qq - i; const ax = T[i] % tw, ay = Math.floor(T[i] / tw), bx = T[j] % tw, by = Math.floor(T[j] / tw); return [(ax + (bx - ax) * fr) * P + 8, (ay + (by - ay) * fr) * P + 8, bx - ax, by - ay]; };
+    const col = c.color || '#ccc';
+    ultimosTrenes.push([k, pos(s)[0], pos(s)[1]]); if (ultimosTrenes.length > 12) ultimosTrenes.shift();
+    for (let p = 2; p >= 0; p--) {
+      const [x, y, dx, dy] = pos(s - sentido * p * 0.55), horiz = dx !== 0 || dy === 0;
+      const w = horiz ? 7 : 4, hh = horiz ? 4 : 7, X = Math.round(x - w / 2), Y = Math.round(y - hh / 2);
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(X, Y + hh, w, 1);
+      if (p === 0) {
+        g.fillStyle = c.era >= 7 ? '#c84a3a' : '#2a2e34'; g.fillRect(X, Y, w, hh);
+        g.fillStyle = c.era >= 7 ? '#f0d040' : '#c8a040'; if (horiz) g.fillRect(X, Y + hh - 1, w, 0.6); else g.fillRect(X + w - 1, Y, 0.6, hh);
+        g.fillStyle = 'rgba(255,240,180,0.9)'; g.fillRect(horiz ? (sentido * (dx || 1) > 0 ? X + w - 0.5 : X - 0.5) : X + 1.5, horiz ? Y + 1.5 : (sentido * dy > 0 ? Y + hh - 0.5 : Y - 0.5), 1, 1);
+        if (c.era < 7 && !quieto && Math.random() < 0.3) emitir(X + w / 2, Y - 1, 1, { v: 6, g: -12, vida: 900, cols: ['#d8d8dc', '#b8b8c0', '#ffffff'], tipo: 'humo', tam: 1.4, dy: -10 });
+      } else {
+        g.fillStyle = p === 1 ? col : mezclar(col, '#000000', 0.25); g.fillRect(X, Y, w, hh);
+        g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(X, Y, w, 0.6);
       }
     }
   }
@@ -700,15 +725,6 @@
       // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
       const ix = px - 1.5, iy = py - 1, EA = 0.5;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
-      // Con estación de tren (Revolución Industrial en adelante), el comerciante viaja en tren por las rutas entre reinos.
-      const civA = oficio === 'comerciante' && !nino ? civPorId.get(a.c) : null, rutaA = civA && a.ruta != null ? rutaPorId.get(a.ruta) : null;
-      if (civA && civA.estaciones > 0 && civA.era >= 6 && V.enMarcha(civA, 'tren') && rutaA && rutaA.tipo === 'externa' && a.e === 5) {
-        const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
-        const dx = r && r.length >= 6 ? Math.sign(r[j] - r[i]) : 0, dy = r && r.length >= 6 ? Math.sign(r[j + 1] - r[i + 1]) : 0;
-        const dir = dx || (dy ? 0 : (ultimaDir.get(a.id) || 1)); if (dx) ultimaDir.set(a.id, dx);
-        tren(px, py, dir, dy, civA.era, color[a.c] || '#ccc', a.carga, ahora, a.id);
-        continue;
-      }
       if (oficio === 'comerciante' && !nino) {
         // La carreta va detrás del comerciante, según hacia dónde camina.
         const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
@@ -1971,5 +1987,5 @@
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});

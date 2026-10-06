@@ -92,7 +92,7 @@ body.sin-panel .panel { display: none; }
 .clave { margin: 14px 0 0; font-size: 13px; color: var(--tenue); }
 
 /* ---- Elegir cómo jugar (encima del mapa) ---- */
-.inicio { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
+.inicio { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
 .inicio[hidden] { display: none; }
 .fin-historia { text-align: left; border-top: 1px solid var(--linea); margin-top: 10px; padding-top: 8px; font-size: 14px; line-height: 1.5; }
 .fin-historia h3 { margin: 0 0 6px; font-size: 15px; color: var(--oro); }
@@ -1854,11 +1854,11 @@ table.mercado td:first-child { white-space: nowrap; }
     { nombre: 'garrote', material: 'madera', dano: 8 }, { nombre: 'lanza de bronce', material: 'bronce', dano: 12 },
     { nombre: 'espada de hierro', material: 'hierro', dano: 16 }, { nombre: 'espada y escudo', material: 'hierro', dano: 17, bloqueo: 0.15 },
     { nombre: 'espada de acero y escudo', material: 'acero', dano: 22, bloqueo: 0.15 }, { nombre: 'arcabuz y pica', material: 'pólvora', dano: 28, perfora: 0.5 },
-    { nombre: 'mosquete y bayoneta', material: 'pólvora', dano: 33, perfora: 0.5 }, { nombre: 'fusil', material: 'pólvora', dano: 40, perfora: 0.6 },
+    { nombre: 'espingarda con bayoneta', material: 'pólvora', dano: 35, perfora: 0.55 }, { nombre: 'fusil', material: 'pólvora', dano: 40, perfora: 0.6 },
     { nombre: 'fusil automático', material: 'pólvora', dano: 48, perfora: 0.7 }
   ];
-  const TIROS = ['honda', 'arco', 'arco', 'arco largo', 'ballesta', 'arcabuz', 'mosquete', 'fusil', 'fusil automático'];
-  const TIRO = [{ dano: 6 }, { dano: 9 }, { dano: 10 }, { dano: 12 }, { dano: 15, perfora: 0.3 }, { dano: 26, perfora: 0.5 }, { dano: 30, perfora: 0.5 }, { dano: 38, perfora: 0.6 }, { dano: 45, perfora: 0.7 }];
+  const TIROS = ['honda', 'arco', 'arco', 'arco largo', 'ballesta', 'arcabuz', 'espingarda', 'fusil', 'fusil automático'];
+  const TIRO = [{ dano: 6 }, { dano: 9 }, { dano: 10 }, { dano: 12 }, { dano: 15, perfora: 0.3 }, { dano: 26, perfora: 0.5 }, { dano: 33, perfora: 0.55 }, { dano: 38, perfora: 0.6 }, { dano: 45, perfora: 0.7 }];
   const ARMADURAS = [
     { nombre: 'sin armadura', material: null, reduce: 0 }, { nombre: 'jubón de cuero', material: 'cuero', reduce: 0.15 },
     { nombre: 'peto de bronce', material: 'bronce', reduce: 0.25 }, { nombre: 'cota de malla', material: 'hierro', reduce: 0.35 },
@@ -3141,6 +3141,7 @@ table.mercado td:first-child { white-space: nowrap; }
     if (v.obra[t] && !(v.obra[t] === OBRA.campo && PUBLICAS.has(o))) return 'ya hay algo construido';
     if (v.andamios && v.andamios[t]) return 'ya hay una obra';
     if (v.camino[t]) return 'es una calle';
+    if (esVia(v, t)) return 'por ahí pasa la vía del tren';
     if (pausada(m) && v.plan && v.plan[t] === 1) return 'ahí va una calle del plano';
     if (o === OBRA.puerto ? !(ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
     if (c.era < (ERA_OBRA[o] || 0)) return 'aún no existe: llega con ' + NOMBRE_ERA[ERA_OBRA[o]];
@@ -3279,12 +3280,12 @@ table.mercado td:first-child { white-space: nowrap; }
       const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)];
       const tiles = zona.flatMap(z => parcelas(m, z));
       const tiene = o => tiles.some(t => v.obra[t] === o || (v.andamios && v.andamios[t] && v.andamios[t].o === o));
-      const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !calleDelPlan(m, t) && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+      const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !esVia(v, t) && !calleDelPlan(m, t) && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       // El sitio de un molino nuevo: tierra de cultivo fuera del casco, lejos de los otros molinos, lo más cerca posible del pueblo.
-      const sitioMolino = () => tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && !tiles.some(u => v.obra[u] === OBRA.molino && dist(m, u, t) < rangoMolino(m) * 2 - 1)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+      const sitioMolino = () => tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !esVia(v, t) && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && !tiles.some(u => v.obra[u] === OBRA.molino && dist(m, u, t) < rangoMolino(m) * 2 - 1)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
       if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => (pausada(m) ? sitioMolino() : null) || libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
-      else if (pausada(m) && c.campos < metaCampos(c) && !(c.enCurso && c.enCurso[OBRA.molino] > m.turno - 8) && tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && molinoCerca(m, c, null, t)).length < 3) {
+      else if (pausada(m) && c.campos < metaCampos(c) && !(c.enCurso && c.enCurso[OBRA.molino] > m.turno - 8) && tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !esVia(v, t) && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && molinoCerca(m, c, null, t)).length < 3) {
         // Los molinos que hay ya no dan para más campos: otro en el borde de la huerta.
         pide.unshift([OBRA.molino, sitioMolino]);
       }
@@ -3721,8 +3722,11 @@ table.mercado td:first-child { white-space: nowrap; }
             const i = blancos.indexOf(b); if (i >= 0) blancos.splice(i, 1);
           }
         };
-        const flechas = castillo ? 3 : 1 + (f >= 1 ? 1 : 0), flecha = { dano: castillo ? 14 : 11, perfora: f >= 1 ? 0.1 : 0 };
-        for (let q = 0; q < flechas && blancos.length; q++) if (azar(v) < 0.7) disparo(blancos[Math.floor(azar(v) * blancos.length)], flecha, false);
+        // Desde la pólvora, los defensores de las almenas ya no tiran flechas: disparan arcabuces, mosquetes y
+        // rifles (balas con fogonazo y humo); en la Era Moderna, fusiles de repetición.
+        const fuego = f >= 2, flechas = castillo ? 3 : 1 + (f >= 1 ? 1 : 0) + (f >= 3 ? 1 : 0);
+        const flecha = fuego ? { dano: (castillo ? 30 : 24) + (f >= 3 ? 8 : 0), perfora: f >= 3 ? 0.65 : 0.5 } : { dano: castillo ? 14 : 11, perfora: f >= 1 ? 0.1 : 0 };
+        for (let q = 0; q < flechas && blancos.length; q++) if (azar(v) < 0.7) disparo(blancos[Math.floor(azar(v) * blancos.length)], flecha, fuego);
         if (f >= 2 && blancos.length && azar(v) < (castillo ? 0.6 : 0.35)) disparo(blancos[0], f === 2 ? { dano: castillo ? 40 : 30, perfora: 0.6 } : { dano: castillo ? 48 : 40, perfora: 0.7 }, true);
       }
       if (cerca) { v.torres[k] -= cerca * 0.4; if (v.torres[k] <= 0) { cambiar(m, 'obra', t, OBRA.ruina, paso); delete v.torres[k]; } }
@@ -3831,6 +3835,7 @@ table.mercado td:first-child { white-space: nowrap; }
     ciudades(m);
     abandonos(m);
     planificarRutas(m, terrenos(m));
+    if (pausada(m)) planificarVias(m, terrenos(m));
     fauna(m, ter);
     comer(m);
     if (pausada(m)) { subsuelo(m, ter); mercado(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length, carbones: x.carbones.length }))); }
@@ -4197,7 +4202,7 @@ table.mercado td:first-child { white-space: nowrap; }
     for (const r of regiones) for (const t of parcelas(m, r)) {
       const plano = pausada(m) && v.plan && v.centros && v.centros.length;
       const huertaVieja = plano && v.obra[t] === OBRA.campo && v.plan[t] === 2;
-      if ((v.obra[t] && !huertaVieja) || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !CONSTRUIBLE.has(ter[t]) || rec.reservadas.has(t)) continue;
+      if ((v.obra[t] && !huertaVieja) || v.roca[t] || v.camino[t] || esVia(v, t) || v.arbol[t] >= 2 || !CONSTRUIBLE.has(ter[t]) || rec.reservadas.has(t)) continue;
       if (plano && v.plan[t] !== 2) continue; // solo en los solares del casco
       const x = t % v.tw;
       let junto = false;
@@ -4296,7 +4301,7 @@ table.mercado td:first-child { white-space: nowrap; }
     const regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 99;
     for (const r of regiones) for (const t of parcelas(m, r)) {
-      if (v.obra[t] || v.roca[t] || v.camino[t] || (v.arbol[t] >= 2 && !desbrozar) || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || esVia(v, t) || (v.arbol[t] >= 2 && !desbrozar) || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
       // Con plan, la huerta se abre junto a otros campos (en bloques ordenados) y, si hace falta, se desbroza.
       const d = dist(m, base, t) + azar(v) * 1.5 + (desbrozar ? (v.arbol[t] >= 2 ? 2 : 0) - [t - 1, t + 1, t - v.tw, t + v.tw].filter(n => v.obra[n] === OBRA.campo).length * 0.8 : 0);
       if (d < md) { md = d; mejor = t; }
@@ -4504,11 +4509,57 @@ table.mercado td:first-child { white-space: nowrap; }
    * reinos vecinos que se llevan bien abren rutas entre sí; y cada ciudad tiene sus calles. Los constructores
    * empiedran los caminos parcela a parcela, y los comerciantes los recorren con su carreta.
    */
-  function trazar(m, de, a, ter) {
+  /*
+   * LAS VÍAS DEL TREN: una línea propia de estación a estación (o hasta la plaza del otro reino si no tiene),
+   * aparte de los caminos: cruza las calles en pasos a nivel pero no va por encima de ellas, rodea los
+   * edificios y prefiere el llano (los túneles y los puentes salen caros). Por ella circula un tren cada rato.
+   * Nadie construye encima: si un edificio la corta, se vuelve a trazar.
+   */
+  const esVia = (v, t) => !!(v.via && v.via[t]);
+  function planificarVias(m, ter) {
+    const v = m.vida, tw = v.tw;
+    v.vias = v.vias || {};
+    const estacionDe = c => { const cap = centro(m, c.capital); let mejor = null, md = 1e9; for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) if (v.obra[t] === OBRA.estacion) { const d = dist(m, t, cap); if (d < md) { md = d; mejor = t; } } return mejor; };
+    const quedan = new Set();
+    let nuevas = 0;
+    for (const ru of v.rutas) {
+      if (ru.tipo !== 'externa' || !rutaActiva(m, ru)) continue;
+      const a = S().civ(m, ru.a), b = S().civ(m, ru.b);
+      const ea = a && a.era >= 6 && a.estaciones > 0 ? estacionDe(a) : null, eb = b && b.era >= 6 && b.estaciones > 0 ? estacionDe(b) : null;
+      if (ea == null && eb == null) continue;
+      const de = ea != null ? ea : centro(m, a.capital), hasta = eb != null ? eb : centro(m, b.capital);
+      const k = ru.clave, viejo = v.vias[k];
+      quedan.add(k);
+      // Sigue valiendo si va entre las mismas estaciones y nada la ha cortado.
+      if (viejo && viejo.de === de && viejo.a === hasta && viejo.tiles.every((t, i) => i === 0 || i === viejo.tiles.length - 1 || (!v.obra[t] || v.obra[t] === OBRA.campo) && !(ter[t] === 'agua' || ter[t] === 'bajo'))) continue;
+      if (nuevas >= 2) continue;
+      nuevas++;
+      costeVia.v = v; costeVia.ter = ter; costeVia.de = de; costeVia.a = hasta;
+      const tiles = trazar(m, de, hasta, ter, true);
+      if (tiles && tiles.length > 3) v.vias[k] = { de, a: hasta, tiles, ru: ru.id, desde: m.turno };
+      else delete v.vias[k];
+    }
+    for (const k of Object.keys(v.vias)) if (!quedan.has(k)) delete v.vias[k];
+    v.via = new Array(tw * v.th).fill(0);
+    // Por donde pasa la vía se tala el bosque y se aparta la piedra.
+    for (const k of Object.keys(v.vias)) for (const t of v.vias[k].tiles) if (!v.obra[t] || v.obra[t] === OBRA.campo) { v.via[t] = 1; if (v.arbol[t]) cambiar(m, 'arbol', t, 0, 0); if (v.roca[t]) cambiar(m, 'roca', t, 0, 0); }
+  }
+  function costeVia(t) {
+    const { v, ter } = costeVia, tr = ter[t];
+    if (tr === 'agua' || tr === 'bajo') return Infinity;
+    const o = v.obra[t];
+    if (o && o !== OBRA.campo) return t === costeVia.de || t === costeVia.a ? 1 : Infinity;
+    if (v.camino[t]) return 6;
+    if (v.via && v.via[t]) return 0.6;
+    if (v.plan && v.plan[t] === 1) return 7;
+    if (v.plan && v.plan[t] === 2) return 5;
+    return (tr === 'montana' ? 9 : tr === 'rio' ? 5 : tr === 'pantano' ? 3 : o === OBRA.campo ? 3 : 1) + (v.arbol[t] >= 2 ? 0.5 : 0) + (v.roca[t] ? 1 : 0);
+  }
+  function trazar(m, de, a, ter, via) {
     const v = m.vida, tw = v.tw, th = v.th;
     const [ax, ay] = [de % tw, de / tw | 0], [bx, by] = [a % tw, a / tw | 0];
     const x0 = Math.max(0, Math.min(ax, bx) - 14), x1 = Math.min(tw - 1, Math.max(ax, bx) + 14), y0 = Math.max(0, Math.min(ay, by) - 14), y1 = Math.min(th - 1, Math.max(ay, by) + 14);
-    const coste = t => {
+    const coste = via ? costeVia : t => {
       const tr = ter[t];
       if (tr === 'agua' || tr === 'bajo') return Infinity;
       if (v.camino[t]) return 0.35;
@@ -4809,7 +4860,7 @@ table.mercado td:first-child { white-space: nowrap; }
         else if (ob === OBRA.ruina && azar(v) < 0.04) cambiar(m, 'obra', t, 0, F);
       } else if (ob === OBRA.ruina && azar(v) < 0.02) cambiar(m, 'obra', t, 0, F);
       if (v.camino[t] && dueno < 0 && azar(v) < 0.01) cambiar(m, 'camino', t, 0, F);
-      if (v.obra[t] || v.roca[t] || v.camino[t] || tierra === 'rio' || tierra === 'arena' || tierra === 'agua' || tierra === 'bajo') continue;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || esVia(v, t) || tierra === 'rio' || tierra === 'arena' || tierra === 'agua' || tierra === 'bajo') continue;
       const a = v.arbol[t];
       if (a === 1 || a === 2) { if (azar(v) < 0.4) cambiar(m, 'arbol', t, a + 1, F); continue; }
       if (a) continue;
@@ -5137,7 +5188,7 @@ table.mercado td:first-child { white-space: nowrap; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -7631,10 +7682,13 @@ table.mercado td:first-child { white-space: nowrap; }
       else if (o.oficio === 'constructor') { H.r(10, 6 + a, 1, 4, '#7a5232'); H.r(9, 5 + a, 3, 2, '#5e5e68'); }
       else if (guerrero) {
         const arma = o.arma || 0;
-        if (o.tirador && arma >= 5) { for (let k = 0; k < 6; k++) H.p(6 + k, 9 - Math.floor(k * 0.8), k < 2 ? '#5a3a1e' : '#3a3a44'); }
+        // La espingarda (Revolución Industrial): el rifle largo de culata de madera, cañón muy largo y bayoneta.
+        if (o.tirador && arma === 6) { for (let k = 0; k < 9; k++) H.p(4 + k, 10 - Math.floor(k * 0.75), k < 3 ? '#7a4a22' : '#3a3a44'); H.p(13, 3, '#dfe4ec'); H.p(14, 2, '#dfe4ec'); }
+        else if (o.tirador && arma >= 5) { for (let k = 0; k < 6; k++) H.p(6 + k, 9 - Math.floor(k * 0.8), k < 2 ? '#5a3a1e' : '#3a3a44'); }
         else if (o.tirador && arma >= 1) { for (let y = 4; y <= 11; y++) H.p(10 + (y > 5 && y < 10 ? 1 : 0), y, '#8a5a2b'); H.r(10, 5, 1, 6, '#e8e0c8'); H.r(2, 7, 1, 4, '#7a5232'); H.p(2, 6, '#e8e0c8'); }
         else if (arma === 0) { H.r(10, 5 + a, 1, 6, '#6b4a2b'); H.r(10, 4 + a, 2, 2, '#5a3a20'); }
         else if (arma === 1) { H.r(10, 0 + a, 1, 12, '#7a5232'); H.r(10, -1 + a, 1, 2, '#d8b060'); }
+        else if (arma === 6) { H.r(10, 7, 1, 5, '#7a4a22'); H.r(10, 2, 1, 5, '#3a3a44'); H.p(11, 10, '#7a4a22'); H.r(10, 0, 1, 2, '#dfe4ec'); H.p(9, 6, '#5a5a62'); }
         else if (arma >= 5) { H.r(10, 1, 1, 11, '#5a3a1e'); H.p(10, 0, '#cfd6e2'); }
         else {
           H.r(10, 3 + a, 1, 6, arma >= 4 ? '#eef1f6' : '#c8ccd6'); H.p(10, 2 + a, '#ffffff'); H.r(9, 8 + a, 3, 1, '#c8a050'); H.p(10, 9 + a, '#6a4a2a');
@@ -8224,7 +8278,7 @@ table.mercado td:first-child { white-space: nowrap; }
     barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
-    if (civPorId.size) { vias(x0, y0, x1, y1); if (!reducido) trafico(ahora, x0, y0, x1, y1); }
+    if (civPorId.size) { vias(x0, y0, x1, y1, ahora); if (!reducido) trafico(ahora, x0, y0, x1, y1); }
     andamios(ahora, x0, y0, x1, y1);
     progresos(x0, y0, x1, y1);
     humo(ahora, x0, y0, x1, y1);
@@ -8361,43 +8415,68 @@ table.mercado td:first-child { white-space: nowrap; }
     }
   }
   const civPorId = new Map(), rutaPorId = new Map();
-  // Un tren: locomotora de vapor (o diésel en la era moderna) con su humo y dos vagones con la carga.
-  function tren(px, py, dir, dy, era, col, carga, ahora, id) {
-    const piezas = 3, paso_ = 7;
-    for (let k = piezas - 1; k >= 0; k--) {
-      const x = px - (dir || 0) * k * paso_ - 3, y = py - (dir ? 0 : dy * k * 5) + 1;
-      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, y + 5, 7, 1);
-      g.fillStyle = '#1e1e22'; g.fillRect(x + 1, y + 4, 1, 1); g.fillRect(x + 5, y + 4, 1, 1);
-      if (k === 0) {
-        g.fillStyle = era >= 7 ? '#c84a3a' : '#2a2e34'; g.fillRect(x, y, 7, 4);
-        g.fillStyle = era >= 7 ? '#f0d040' : '#c8a040'; g.fillRect(x, y + 3, 7, 0.6);
-        const fx = dir >= 0 ? x + 5 : x + 1;
-        g.fillStyle = '#5a5e66'; g.fillRect(fx, y - 2, 1.4, 2);
-        g.fillStyle = 'rgba(255,240,180,0.9)'; g.fillRect(dir >= 0 ? x + 6.5 : x - 0.5, y + 1, 0.8, 1);
-        if (era < 7 && Math.random() < 0.3) emitir(fx + 0.7, y - 2, 1, { v: 6, g: -12, vida: 900, cols: ['#d8d8dc', '#b8b8c0', '#ffffff'], tipo: 'humo', tam: 1.4, dy: -10 });
-      } else {
-        g.fillStyle = k === 1 ? col : mezclar(col, '#000000', 0.25); g.fillRect(x, y + 0.5, 7, 3.5);
-        g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(x, y + 0.5, 7, 0.6);
-        if (carga && k === 1) { g.fillStyle = { comida: '#e8d08a', madera: '#8a5a2a', piedra: '#a8a49a', metal: '#b8c0cc', armas: '#d0d4dc' }[carga.que] || '#c8a040'; g.fillRect(x + 1, y - 0.5, 5, 1.2); }
+  // Las vías: su propia línea de estación a estación (no van sobre los caminos, solo los cruzan), con
+  // traviesas de madera y dos raíles; en los cruces con una calle, un paso a nivel. Por cada línea va y viene
+  // un tren (de vapor en la era industrial, diésel en la moderna) mientras haya carbón y paz.
+  function vias(x0, y0, x1, y1, ahora) {
+    const v = m.vida, tw = v.tw;
+    for (const k of Object.keys(v.vias || {})) {
+      const L = v.vias[k], T = L.tiles;
+      for (let i = 0; i < T.length; i++) {
+        const t = T[i]; if (visto.obra[t] && visto.obra[t] !== V.OBRA.campo) continue;
+        const x = (t % tw) * P, y = Math.floor(t / tw) * P;
+        if (x + P < x0 || y + P < y0 || x > x1 || y > y1) continue;
+        const ant = T[Math.max(0, i - 1)], sig = T[Math.min(T.length - 1, i + 1)];
+        const h = n => n !== t && Math.floor(n / tw) === Math.floor(t / tw), w = n => n !== t && n % tw === t % tw;
+        const izq = [ant, sig].some(n => h(n) && n < t), der = [ant, sig].some(n => h(n) && n > t), arr = [ant, sig].some(n => w(n) && n < t), aba = [ant, sig].some(n => w(n) && n > t);
+        const cruce = visto.camino[t];
+        // Traviesas y raíles por cada lado por el que sigue la vía (así las curvas quedan unidas).
+        const tramo = (hx, hy, ww, hh, horiz) => {
+          g.fillStyle = '#5a3c22';
+          if (horiz) for (let q = hx + 1; q < hx + ww; q += 3) g.fillRect(x + q, y + 5, 1.5, 6);
+          else for (let q = hy + 1; q < hy + hh; q += 3) g.fillRect(x + 5, y + q, 6, 1.5);
+          g.fillStyle = '#a8aeb8';
+          if (horiz) { g.fillRect(x + hx, y + 6, ww, 1); g.fillRect(x + hx, y + 9, ww, 1); }
+          else { g.fillRect(x + 6, y + hy, 1, hh); g.fillRect(x + 9, y + hy, 1, hh); }
+        };
+        if (izq) tramo(0, 0, 8, 0, true); if (der) tramo(8, 0, 8, 0, true);
+        if (arr) tramo(0, 0, 0, 8, false); if (aba) tramo(0, 8, 0, 8, false);
+        if (!izq && !der && !arr && !aba) tramo(0, 0, P, 0, true);
+        if (cruce) { g.fillStyle = '#e8e4d8'; g.fillRect(x + 2, y + 2, 1, 1); g.fillRect(x + 13, y + 13, 1, 1); g.fillStyle = '#d83a32'; g.fillRect(x + 1, y + 1, 1, 2); }
       }
+      // El tren de esta línea.
+      const ru = rutaPorId.get(L.ru), a = ru ? civPorId.get(ru.a) : null, b = ru ? civPorId.get(ru.b) : null;
+      const dueno = a && a.estaciones > 0 && a.era >= 6 ? a : b;
+      const activa = ru && a && b && !(a.guerras || []).some(gg => gg.con === b.id);
+      if (!dueno || !activa || !V.enMarcha(dueno, 'tren') || T.length < 4) continue;
+      trenEnVia(T, ahora, dueno, k);
     }
   }
-  // Las vías: sobre los caminos de las rutas entre reinos de quien tiene estación, traviesas y dos raíles.
-  function vias(x0, y0, x1, y1) {
-    const v = m.vida;
-    for (const ru of v.rutas || []) {
-      if (ru.tipo !== 'externa') continue;
-      const a = civPorId.get(ru.a), b = civPorId.get(ru.b);
-      if (!((a && a.estaciones > 0 && a.era >= 6 && V.enMarcha(a, 'tren')) || (b && b.estaciones > 0 && b.era >= 6 && V.enMarcha(b, 'tren')))) continue;
-      for (let i = 0; i < ru.tiles.length; i++) {
-        const t = ru.tiles[i]; if (!visto.camino[t]) continue;
-        const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P;
-        if (x + P < x0 || y + P < y0 || x > x1 || y > y1) continue;
-        const sig = ru.tiles[Math.min(ru.tiles.length - 1, i + 1)], ant = ru.tiles[Math.max(0, i - 1)];
-        const horiz = Math.abs((sig % v.tw) - (ant % v.tw)) >= Math.abs(Math.floor(sig / v.tw) - Math.floor(ant / v.tw));
-        g.fillStyle = '#6a4a2a';
-        if (horiz) { for (let k = 1; k < P; k += 3) g.fillRect(x + k, y + 5, 1.5, 6); g.fillStyle = '#9aa0aa'; g.fillRect(x, y + 6, P, 1); g.fillRect(x, y + 9, P, 1); }
-        else { for (let k = 1; k < P; k += 3) g.fillRect(x + 5, y + k, 6, 1.5); g.fillStyle = '#9aa0aa'; g.fillRect(x + 6, y, 1, P); g.fillRect(x + 9, y, 1, P); }
+  // Un tren por su vía: la locomotora delante y dos vagones detrás, cada pieza siguiendo las curvas.
+  let ultimosTrenes = [];
+  function trenEnVia(T, ahora, c, k) {
+    const tw = m.vida.tw, n = T.length - 1, ms = c.era >= 7 ? 160 : 240, vuelta = n * 2 * ms + 3000;
+    let h = 0; for (let q = 0; q < k.length; q++) h = (h * 31 + k.charCodeAt(q)) | 0;
+    const f = ((ahora + Math.abs(h) % vuelta) % vuelta);
+    // Va, espera un poco en la estación y vuelve.
+    const ida = f < n * ms, quieto = f >= n * ms && f < n * ms + 1500 || f >= 2 * n * ms + 1500;
+    let s = ida ? f / ms : quieto ? (f < n * ms + 1500 ? n : 0) : n - (f - n * ms - 1500) / ms;
+    s = Math.max(0, Math.min(n, s));
+    const sentido = ida ? 1 : -1, pos = q => { const qq = Math.max(0, Math.min(n, q)), i = Math.floor(qq), j = Math.min(n, i + 1), fr = qq - i; const ax = T[i] % tw, ay = Math.floor(T[i] / tw), bx = T[j] % tw, by = Math.floor(T[j] / tw); return [(ax + (bx - ax) * fr) * P + 8, (ay + (by - ay) * fr) * P + 8, bx - ax, by - ay]; };
+    const col = c.color || '#ccc';
+    ultimosTrenes.push([k, pos(s)[0], pos(s)[1]]); if (ultimosTrenes.length > 12) ultimosTrenes.shift();
+    for (let p = 2; p >= 0; p--) {
+      const [x, y, dx, dy] = pos(s - sentido * p * 0.55), horiz = dx !== 0 || dy === 0;
+      const w = horiz ? 7 : 4, hh = horiz ? 4 : 7, X = Math.round(x - w / 2), Y = Math.round(y - hh / 2);
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(X, Y + hh, w, 1);
+      if (p === 0) {
+        g.fillStyle = c.era >= 7 ? '#c84a3a' : '#2a2e34'; g.fillRect(X, Y, w, hh);
+        g.fillStyle = c.era >= 7 ? '#f0d040' : '#c8a040'; if (horiz) g.fillRect(X, Y + hh - 1, w, 0.6); else g.fillRect(X + w - 1, Y, 0.6, hh);
+        g.fillStyle = 'rgba(255,240,180,0.9)'; g.fillRect(horiz ? (sentido * (dx || 1) > 0 ? X + w - 0.5 : X - 0.5) : X + 1.5, horiz ? Y + 1.5 : (sentido * dy > 0 ? Y + hh - 0.5 : Y - 0.5), 1, 1);
+        if (c.era < 7 && !quieto && Math.random() < 0.3) emitir(X + w / 2, Y - 1, 1, { v: 6, g: -12, vida: 900, cols: ['#d8d8dc', '#b8b8c0', '#ffffff'], tipo: 'humo', tam: 1.4, dy: -10 });
+      } else {
+        g.fillStyle = p === 1 ? col : mezclar(col, '#000000', 0.25); g.fillRect(X, Y, w, hh);
+        g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(X, Y, w, 0.6);
       }
     }
   }
@@ -8512,15 +8591,6 @@ table.mercado td:first-child { white-space: nowrap; }
       // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
       const ix = px - 1.5, iy = py - 1, EA = 0.5;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
-      // Con estación de tren (Revolución Industrial en adelante), el comerciante viaja en tren por las rutas entre reinos.
-      const civA = oficio === 'comerciante' && !nino ? civPorId.get(a.c) : null, rutaA = civA && a.ruta != null ? rutaPorId.get(a.ruta) : null;
-      if (civA && civA.estaciones > 0 && civA.era >= 6 && V.enMarcha(civA, 'tren') && rutaA && rutaA.tipo === 'externa' && a.e === 5) {
-        const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
-        const dx = r && r.length >= 6 ? Math.sign(r[j] - r[i]) : 0, dy = r && r.length >= 6 ? Math.sign(r[j + 1] - r[i + 1]) : 0;
-        const dir = dx || (dy ? 0 : (ultimaDir.get(a.id) || 1)); if (dx) ultimaDir.set(a.id, dx);
-        tren(px, py, dir, dy, civA.era, color[a.c] || '#ccc', a.carga, ahora, a.id);
-        continue;
-      }
       if (oficio === 'comerciante' && !nino) {
         // La carreta va detrás del comerciante, según hacia dónde camina.
         const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
@@ -9783,7 +9853,7 @@ table.mercado td:first-child { white-space: nowrap; }
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/sonido.js

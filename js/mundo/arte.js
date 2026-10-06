@@ -976,10 +976,13 @@
       else if (o.oficio === 'constructor') { H.r(10, 6 + a, 1, 4, '#7a5232'); H.r(9, 5 + a, 3, 2, '#5e5e68'); }
       else if (guerrero) {
         const arma = o.arma || 0;
-        if (o.tirador && arma >= 5) { for (let k = 0; k < 6; k++) H.p(6 + k, 9 - Math.floor(k * 0.8), k < 2 ? '#5a3a1e' : '#3a3a44'); }
+        // La espingarda (Revolución Industrial): el rifle largo de culata de madera, cañón muy largo y bayoneta.
+        if (o.tirador && arma === 6) { for (let k = 0; k < 9; k++) H.p(4 + k, 10 - Math.floor(k * 0.75), k < 3 ? '#7a4a22' : '#3a3a44'); H.p(13, 3, '#dfe4ec'); H.p(14, 2, '#dfe4ec'); }
+        else if (o.tirador && arma >= 5) { for (let k = 0; k < 6; k++) H.p(6 + k, 9 - Math.floor(k * 0.8), k < 2 ? '#5a3a1e' : '#3a3a44'); }
         else if (o.tirador && arma >= 1) { for (let y = 4; y <= 11; y++) H.p(10 + (y > 5 && y < 10 ? 1 : 0), y, '#8a5a2b'); H.r(10, 5, 1, 6, '#e8e0c8'); H.r(2, 7, 1, 4, '#7a5232'); H.p(2, 6, '#e8e0c8'); }
         else if (arma === 0) { H.r(10, 5 + a, 1, 6, '#6b4a2b'); H.r(10, 4 + a, 2, 2, '#5a3a20'); }
         else if (arma === 1) { H.r(10, 0 + a, 1, 12, '#7a5232'); H.r(10, -1 + a, 1, 2, '#d8b060'); }
+        else if (arma === 6) { H.r(10, 7, 1, 5, '#7a4a22'); H.r(10, 2, 1, 5, '#3a3a44'); H.p(11, 10, '#7a4a22'); H.r(10, 0, 1, 2, '#dfe4ec'); H.p(9, 6, '#5a5a62'); }
         else if (arma >= 5) { H.r(10, 1, 1, 11, '#5a3a1e'); H.p(10, 0, '#cfd6e2'); }
         else {
           H.r(10, 3 + a, 1, 6, arma >= 4 ? '#eef1f6' : '#c8ccd6'); H.p(10, 2 + a, '#ffffff'); H.r(9, 8 + a, 3, 1, '#c8a050'); H.p(10, 9 + a, '#6a4a2a');

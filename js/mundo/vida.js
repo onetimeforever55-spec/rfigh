@@ -59,11 +59,11 @@
     { nombre: 'garrote', material: 'madera', dano: 8 }, { nombre: 'lanza de bronce', material: 'bronce', dano: 12 },
     { nombre: 'espada de hierro', material: 'hierro', dano: 16 }, { nombre: 'espada y escudo', material: 'hierro', dano: 17, bloqueo: 0.15 },
     { nombre: 'espada de acero y escudo', material: 'acero', dano: 22, bloqueo: 0.15 }, { nombre: 'arcabuz y pica', material: 'pólvora', dano: 28, perfora: 0.5 },
-    { nombre: 'mosquete y bayoneta', material: 'pólvora', dano: 33, perfora: 0.5 }, { nombre: 'fusil', material: 'pólvora', dano: 40, perfora: 0.6 },
+    { nombre: 'espingarda con bayoneta', material: 'pólvora', dano: 35, perfora: 0.55 }, { nombre: 'fusil', material: 'pólvora', dano: 40, perfora: 0.6 },
     { nombre: 'fusil automático', material: 'pólvora', dano: 48, perfora: 0.7 }
   ];
-  const TIROS = ['honda', 'arco', 'arco', 'arco largo', 'ballesta', 'arcabuz', 'mosquete', 'fusil', 'fusil automático'];
-  const TIRO = [{ dano: 6 }, { dano: 9 }, { dano: 10 }, { dano: 12 }, { dano: 15, perfora: 0.3 }, { dano: 26, perfora: 0.5 }, { dano: 30, perfora: 0.5 }, { dano: 38, perfora: 0.6 }, { dano: 45, perfora: 0.7 }];
+  const TIROS = ['honda', 'arco', 'arco', 'arco largo', 'ballesta', 'arcabuz', 'espingarda', 'fusil', 'fusil automático'];
+  const TIRO = [{ dano: 6 }, { dano: 9 }, { dano: 10 }, { dano: 12 }, { dano: 15, perfora: 0.3 }, { dano: 26, perfora: 0.5 }, { dano: 33, perfora: 0.55 }, { dano: 38, perfora: 0.6 }, { dano: 45, perfora: 0.7 }];
   const ARMADURAS = [
     { nombre: 'sin armadura', material: null, reduce: 0 }, { nombre: 'jubón de cuero', material: 'cuero', reduce: 0.15 },
     { nombre: 'peto de bronce', material: 'bronce', reduce: 0.25 }, { nombre: 'cota de malla', material: 'hierro', reduce: 0.35 },
@@ -1346,6 +1346,7 @@
     if (v.obra[t] && !(v.obra[t] === OBRA.campo && PUBLICAS.has(o))) return 'ya hay algo construido';
     if (v.andamios && v.andamios[t]) return 'ya hay una obra';
     if (v.camino[t]) return 'es una calle';
+    if (esVia(v, t)) return 'por ahí pasa la vía del tren';
     if (pausada(m) && v.plan && v.plan[t] === 1) return 'ahí va una calle del plano';
     if (o === OBRA.puerto ? !(ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
     if (c.era < (ERA_OBRA[o] || 0)) return 'aún no existe: llega con ' + NOMBRE_ERA[ERA_OBRA[o]];
@@ -1484,12 +1485,12 @@
       const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)];
       const tiles = zona.flatMap(z => parcelas(m, z));
       const tiene = o => tiles.some(t => v.obra[t] === o || (v.andamios && v.andamios[t] && v.andamios[t].o === o));
-      const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !calleDelPlan(m, t) && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+      const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !esVia(v, t) && !calleDelPlan(m, t) && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       // El sitio de un molino nuevo: tierra de cultivo fuera del casco, lejos de los otros molinos, lo más cerca posible del pueblo.
-      const sitioMolino = () => tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && !tiles.some(u => v.obra[u] === OBRA.molino && dist(m, u, t) < rangoMolino(m) * 2 - 1)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+      const sitioMolino = () => tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !esVia(v, t) && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && !tiles.some(u => v.obra[u] === OBRA.molino && dist(m, u, t) < rangoMolino(m) * 2 - 1)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
       if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => (pausada(m) ? sitioMolino() : null) || libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
-      else if (pausada(m) && c.campos < metaCampos(c) && !(c.enCurso && c.enCurso[OBRA.molino] > m.turno - 8) && tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && molinoCerca(m, c, null, t)).length < 3) {
+      else if (pausada(m) && c.campos < metaCampos(c) && !(c.enCurso && c.enCurso[OBRA.molino] > m.turno - 8) && tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !esVia(v, t) && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && molinoCerca(m, c, null, t)).length < 3) {
         // Los molinos que hay ya no dan para más campos: otro en el borde de la huerta.
         pide.unshift([OBRA.molino, sitioMolino]);
       }
@@ -1926,8 +1927,11 @@
             const i = blancos.indexOf(b); if (i >= 0) blancos.splice(i, 1);
           }
         };
-        const flechas = castillo ? 3 : 1 + (f >= 1 ? 1 : 0), flecha = { dano: castillo ? 14 : 11, perfora: f >= 1 ? 0.1 : 0 };
-        for (let q = 0; q < flechas && blancos.length; q++) if (azar(v) < 0.7) disparo(blancos[Math.floor(azar(v) * blancos.length)], flecha, false);
+        // Desde la pólvora, los defensores de las almenas ya no tiran flechas: disparan arcabuces, mosquetes y
+        // rifles (balas con fogonazo y humo); en la Era Moderna, fusiles de repetición.
+        const fuego = f >= 2, flechas = castillo ? 3 : 1 + (f >= 1 ? 1 : 0) + (f >= 3 ? 1 : 0);
+        const flecha = fuego ? { dano: (castillo ? 30 : 24) + (f >= 3 ? 8 : 0), perfora: f >= 3 ? 0.65 : 0.5 } : { dano: castillo ? 14 : 11, perfora: f >= 1 ? 0.1 : 0 };
+        for (let q = 0; q < flechas && blancos.length; q++) if (azar(v) < 0.7) disparo(blancos[Math.floor(azar(v) * blancos.length)], flecha, fuego);
         if (f >= 2 && blancos.length && azar(v) < (castillo ? 0.6 : 0.35)) disparo(blancos[0], f === 2 ? { dano: castillo ? 40 : 30, perfora: 0.6 } : { dano: castillo ? 48 : 40, perfora: 0.7 }, true);
       }
       if (cerca) { v.torres[k] -= cerca * 0.4; if (v.torres[k] <= 0) { cambiar(m, 'obra', t, OBRA.ruina, paso); delete v.torres[k]; } }
@@ -2036,6 +2040,7 @@
     ciudades(m);
     abandonos(m);
     planificarRutas(m, terrenos(m));
+    if (pausada(m)) planificarVias(m, terrenos(m));
     fauna(m, ter);
     comer(m);
     if (pausada(m)) { subsuelo(m, ter); mercado(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length, carbones: x.carbones.length }))); }
@@ -2402,7 +2407,7 @@
     for (const r of regiones) for (const t of parcelas(m, r)) {
       const plano = pausada(m) && v.plan && v.centros && v.centros.length;
       const huertaVieja = plano && v.obra[t] === OBRA.campo && v.plan[t] === 2;
-      if ((v.obra[t] && !huertaVieja) || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !CONSTRUIBLE.has(ter[t]) || rec.reservadas.has(t)) continue;
+      if ((v.obra[t] && !huertaVieja) || v.roca[t] || v.camino[t] || esVia(v, t) || v.arbol[t] >= 2 || !CONSTRUIBLE.has(ter[t]) || rec.reservadas.has(t)) continue;
       if (plano && v.plan[t] !== 2) continue; // solo en los solares del casco
       const x = t % v.tw;
       let junto = false;
@@ -2501,7 +2506,7 @@
     const regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 99;
     for (const r of regiones) for (const t of parcelas(m, r)) {
-      if (v.obra[t] || v.roca[t] || v.camino[t] || (v.arbol[t] >= 2 && !desbrozar) || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || esVia(v, t) || (v.arbol[t] >= 2 && !desbrozar) || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
       // Con plan, la huerta se abre junto a otros campos (en bloques ordenados) y, si hace falta, se desbroza.
       const d = dist(m, base, t) + azar(v) * 1.5 + (desbrozar ? (v.arbol[t] >= 2 ? 2 : 0) - [t - 1, t + 1, t - v.tw, t + v.tw].filter(n => v.obra[n] === OBRA.campo).length * 0.8 : 0);
       if (d < md) { md = d; mejor = t; }
@@ -2709,11 +2714,57 @@
    * reinos vecinos que se llevan bien abren rutas entre sí; y cada ciudad tiene sus calles. Los constructores
    * empiedran los caminos parcela a parcela, y los comerciantes los recorren con su carreta.
    */
-  function trazar(m, de, a, ter) {
+  /*
+   * LAS VÍAS DEL TREN: una línea propia de estación a estación (o hasta la plaza del otro reino si no tiene),
+   * aparte de los caminos: cruza las calles en pasos a nivel pero no va por encima de ellas, rodea los
+   * edificios y prefiere el llano (los túneles y los puentes salen caros). Por ella circula un tren cada rato.
+   * Nadie construye encima: si un edificio la corta, se vuelve a trazar.
+   */
+  const esVia = (v, t) => !!(v.via && v.via[t]);
+  function planificarVias(m, ter) {
+    const v = m.vida, tw = v.tw;
+    v.vias = v.vias || {};
+    const estacionDe = c => { const cap = centro(m, c.capital); let mejor = null, md = 1e9; for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) if (v.obra[t] === OBRA.estacion) { const d = dist(m, t, cap); if (d < md) { md = d; mejor = t; } } return mejor; };
+    const quedan = new Set();
+    let nuevas = 0;
+    for (const ru of v.rutas) {
+      if (ru.tipo !== 'externa' || !rutaActiva(m, ru)) continue;
+      const a = S().civ(m, ru.a), b = S().civ(m, ru.b);
+      const ea = a && a.era >= 6 && a.estaciones > 0 ? estacionDe(a) : null, eb = b && b.era >= 6 && b.estaciones > 0 ? estacionDe(b) : null;
+      if (ea == null && eb == null) continue;
+      const de = ea != null ? ea : centro(m, a.capital), hasta = eb != null ? eb : centro(m, b.capital);
+      const k = ru.clave, viejo = v.vias[k];
+      quedan.add(k);
+      // Sigue valiendo si va entre las mismas estaciones y nada la ha cortado.
+      if (viejo && viejo.de === de && viejo.a === hasta && viejo.tiles.every((t, i) => i === 0 || i === viejo.tiles.length - 1 || (!v.obra[t] || v.obra[t] === OBRA.campo) && !(ter[t] === 'agua' || ter[t] === 'bajo'))) continue;
+      if (nuevas >= 2) continue;
+      nuevas++;
+      costeVia.v = v; costeVia.ter = ter; costeVia.de = de; costeVia.a = hasta;
+      const tiles = trazar(m, de, hasta, ter, true);
+      if (tiles && tiles.length > 3) v.vias[k] = { de, a: hasta, tiles, ru: ru.id, desde: m.turno };
+      else delete v.vias[k];
+    }
+    for (const k of Object.keys(v.vias)) if (!quedan.has(k)) delete v.vias[k];
+    v.via = new Array(tw * v.th).fill(0);
+    // Por donde pasa la vía se tala el bosque y se aparta la piedra.
+    for (const k of Object.keys(v.vias)) for (const t of v.vias[k].tiles) if (!v.obra[t] || v.obra[t] === OBRA.campo) { v.via[t] = 1; if (v.arbol[t]) cambiar(m, 'arbol', t, 0, 0); if (v.roca[t]) cambiar(m, 'roca', t, 0, 0); }
+  }
+  function costeVia(t) {
+    const { v, ter } = costeVia, tr = ter[t];
+    if (tr === 'agua' || tr === 'bajo') return Infinity;
+    const o = v.obra[t];
+    if (o && o !== OBRA.campo) return t === costeVia.de || t === costeVia.a ? 1 : Infinity;
+    if (v.camino[t]) return 6;
+    if (v.via && v.via[t]) return 0.6;
+    if (v.plan && v.plan[t] === 1) return 7;
+    if (v.plan && v.plan[t] === 2) return 5;
+    return (tr === 'montana' ? 9 : tr === 'rio' ? 5 : tr === 'pantano' ? 3 : o === OBRA.campo ? 3 : 1) + (v.arbol[t] >= 2 ? 0.5 : 0) + (v.roca[t] ? 1 : 0);
+  }
+  function trazar(m, de, a, ter, via) {
     const v = m.vida, tw = v.tw, th = v.th;
     const [ax, ay] = [de % tw, de / tw | 0], [bx, by] = [a % tw, a / tw | 0];
     const x0 = Math.max(0, Math.min(ax, bx) - 14), x1 = Math.min(tw - 1, Math.max(ax, bx) + 14), y0 = Math.max(0, Math.min(ay, by) - 14), y1 = Math.min(th - 1, Math.max(ay, by) + 14);
-    const coste = t => {
+    const coste = via ? costeVia : t => {
       const tr = ter[t];
       if (tr === 'agua' || tr === 'bajo') return Infinity;
       if (v.camino[t]) return 0.35;
@@ -3014,7 +3065,7 @@
         else if (ob === OBRA.ruina && azar(v) < 0.04) cambiar(m, 'obra', t, 0, F);
       } else if (ob === OBRA.ruina && azar(v) < 0.02) cambiar(m, 'obra', t, 0, F);
       if (v.camino[t] && dueno < 0 && azar(v) < 0.01) cambiar(m, 'camino', t, 0, F);
-      if (v.obra[t] || v.roca[t] || v.camino[t] || tierra === 'rio' || tierra === 'arena' || tierra === 'agua' || tierra === 'bajo') continue;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || esVia(v, t) || tierra === 'rio' || tierra === 'arena' || tierra === 'agua' || tierra === 'bajo') continue;
       const a = v.arbol[t];
       if (a === 1 || a === 2) { if (azar(v) < 0.4) cambiar(m, 'arbol', t, a + 1, F); continue; }
       if (a) continue;
@@ -3342,5 +3393,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

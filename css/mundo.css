@@ -71,7 +71,7 @@ body.sin-panel .panel { display: none; }
 .clave { margin: 14px 0 0; font-size: 13px; color: var(--tenue); }
 
 /* ---- Elegir cómo jugar (encima del mapa) ---- */
-.inicio { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
+.inicio { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
 .inicio[hidden] { display: none; }
 .fin-historia { text-align: left; border-top: 1px solid var(--linea); margin-top: 10px; padding-top: 8px; font-size: 14px; line-height: 1.5; }
 .fin-historia h3 { margin: 0 0 6px; font-size: 15px; color: var(--oro); }
