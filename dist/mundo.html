@@ -94,6 +94,15 @@ body.sin-panel .panel { display: none; }
 /* ---- Elegir cómo jugar (encima del mapa) ---- */
 .inicio { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
 .inicio[hidden] { display: none; }
+.fin-historia { text-align: left; border-top: 1px solid var(--linea); margin-top: 10px; padding-top: 8px; font-size: 14px; line-height: 1.5; }
+.fin-historia h3 { margin: 0 0 6px; font-size: 15px; color: var(--oro); }
+.fin-historia p { margin: 4px 0; }
+#fin .inicio-caja { max-height: min(86vh, 680px); overflow-y: auto; overscroll-behavior: contain; }
+.ayuda { z-index: 25; }
+.ayuda-caja { max-height: min(80vh, 640px); overflow-y: auto; overscroll-behavior: contain; }
+.ayuda details { border-top: 1px solid var(--linea); padding: 6px 0; }
+.ayuda summary { cursor: pointer; font-weight: 600; color: var(--oro); padding: 6px 0; min-height: 32px; }
+.ayuda details p { margin: 4px 0 8px; font-size: 14px; line-height: 1.5; }
 .inicio-caja { max-width: 460px; background: var(--panel); border: 1px solid var(--oro); border-radius: var(--radio); padding: 20px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
 .inicio-titulo { margin: 0 0 8px; font-family: var(--f-pixel); font-weight: 600; font-size: 24px; color: var(--oro); }
 .inicio-texto { margin: 0 0 16px; color: var(--pergamino); }
@@ -191,6 +200,7 @@ body.sin-panel .panel { display: none; }
 
 /* El consejero: lo más urgente de tu pueblo y la orden que lo arregla. */
 .consejo { margin: 8px 0 0; font-size: 14px; line-height: 1.45; }
+.consejo.guia { background: rgba(240, 200, 90, 0.08); border-left: 3px solid var(--oro); padding: 4px 8px; border-radius: 4px; }
 .consejo-quien { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--oro); margin-right: 4px; }
 .consejo .ejemplo { margin-left: 4px; }
 
@@ -345,8 +355,9 @@ body.sin-panel .panel { display: none; }
   .g-voluntad #orden { height: 44px; min-width: 0; }
   .g-voluntad .obrar { height: 44px; padding: 0 14px; }
   body:not(.ordenes-abiertas) .voluntad-cab, body:not(.ordenes-abiertas) #ejemplos, body:not(.ordenes-abiertas) .cuadrillas-hud, body:not(.ordenes-abiertas) .guerra-hud { display: none !important; }
-  body:not(.ordenes-abiertas) .consejo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 6px; font-size: 13px; }
-  body:not(.ordenes-abiertas) .respuesta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 6px 0 0; font-size: 13px; }
+  /* El consejo y la respuesta caben en dos líneas; si no caben, se tocan y se leen enteros. */
+  body:not(.ordenes-abiertas) .consejo, body:not(.ordenes-abiertas) .respuesta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 6px 0 0; font-size: 13px; cursor: pointer; }
+  body:not(.ordenes-abiertas) .consejo.entero, body:not(.ordenes-abiertas) .respuesta.entero { display: block; -webkit-line-clamp: unset; overflow: visible; max-height: none; }
   body.ordenes-abiertas .g-voluntad { box-shadow: 0 -8px 30px rgba(0,0,0,0.45); }
   body:not(.sin-panel) .g-voluntad, body.arqui-abierto .g-voluntad { display: none; }
   .ejemplo { min-height: 34px; }
@@ -520,6 +531,7 @@ table.mercado td:first-child { white-space: nowrap; }
       <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
       <button type="button" class="mando sutil menu-movil" id="sonido" aria-pressed="false" title="Sonido">🔈 Sonido</button>
       <button type="button" class="mando sutil menu-movil" id="cambiar-modo">Cambiar de modo</button>
+      <button type="button" class="mando sutil menu-movil" id="ayuda-abrir">? Cómo se juega</button>
       <button type="button" class="mando sutil menu-movil" id="nuevo">Nuevo mundo</button>
       <button type="button" class="mando" id="ver-panel" aria-expanded="true" aria-controls="panel" title="Abrir o cerrar el panel">☰ Panel</button>
       <button type="button" class="mando solo-movil" id="mas-menu" aria-expanded="false" aria-label="Más opciones">⋯</button>
@@ -539,6 +551,31 @@ table.mercado td:first-child { white-space: nowrap; }
             <button type="button" class="mando" id="modo-dios">Ser un dios</button>
           </div>
           <p class="clave">Arrastra para moverte; rueda, pellizca o usa + y − para acercarte. Toca una tierra para elegir a su pueblo, o un aldeano para ver quién es.</p>
+          <p class="clave"><button type="button" class="enlace" id="ayuda-inicio">¿Primera vez? Cómo se juega</button></p>
+        </div>
+      </div>
+      <div class="inicio ayuda" id="ayuda" hidden>
+        <div class="inicio-caja ayuda-caja" role="dialog" aria-labelledby="ayuda-titulo">
+          <h2 class="inicio-titulo" id="ayuda-titulo">Cómo se juega</h2>
+          <details open><summary>Lo básico</summary>
+            <p>Tu pueblo vive solo: talan, siembran, construyen, tienen hijos y envejecen. Tú decides las grandes cosas. Arrastra el mapa para moverte y pellizca o usa + y − para acercarte. Toca una tierra, una casa o un aldeano para ver su ficha.</p></details>
+          <details><summary>Las órdenes</summary>
+            <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. El consejero te sugiere la orden que más falta hace: tócala para escribirla.</p></details>
+          <details><summary>Comida y molinos</summary>
+            <p>Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
+          <details><summary>La corte y las eras</summary>
+            <p>Toca tu plaza o el botón 🏛 para abrir la corte. Ahí eliges qué investigan tus sabios. Para pasar a la era siguiente hacen falta 3 mejoras de la era actual, el saber suficiente, haber llegado a su fecha y lo que pida (un templo, un cuartel, recursos…). Cuando todo está, pulsa «Avanzar». Sobre la plaza sale ⏫ si ya puedes avanzar, o ? si los sabios esperan que elijas.</p></details>
+          <details><summary>Gente y salud</summary>
+            <p>Cada aldeano tiene nombre, padres, pareja y una salud. La muerte es una probabilidad que sube con la edad y con cómo ha vivido: el hambre, las heridas, dormir sin casa o el frío la acercan; una casa, un hospital y la medicina de su época la alejan. Sin casas libres no nacen niños.</p></details>
+          <details><summary>Comercio y mercado</summary>
+            <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero.</p></details>
+          <details><summary>La guerra</summary>
+            <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan.</p></details>
+          <details><summary>Retos y final</summary>
+            <p>En la pestaña Retos tienes metas con puntos: llegar a 30 aldeanos, fundar una ciudad, llegar al Renacimiento… La partida termina en 1945 (en el mundo libre, en el año 400) con tu puntuación y la historia de tu pueblo. Puedes seguir jugando después.</p></details>
+          <details><summary>Ser un dios</summary>
+            <p>En el modo dios no gobiernas a nadie: escribes poderes sobre el mundo («que llueva sobre Nombre», «peste sobre el más grande», «terremoto en Nombre», «que descubran la pólvora») y miras qué hacen los pueblos.</p></details>
+          <div class="inicio-botones"><button type="button" class="obrar" id="ayuda-cerrar">Entendido</button></div>
         </div>
       </div>
       <div class="inicio" id="fin" hidden>
@@ -6304,6 +6341,27 @@ table.mercado td:first-child { white-space: nowrap; }
     return c;
   }
 
+  // ---------- Los primeros pasos: una guía corta para quien empieza a gobernar ----------
+  // Cada paso se comprueba solo; los que el pueblo ya cumple por su cuenta se saltan. Al acabar, se apaga.
+  const GUIA = [
+    { id: 'ficha', texto: 'Toca tu tierra o una casa de tu pueblo en el mapa para ver quién vive ahí y qué le falta.', boton: 'Ver mi pueblo', accion: 'ficha', hecho: m => !!m.guia.vioFicha },
+    { id: 'orden', texto: 'Escribe tu primera orden abajo, como hablarías. Por ejemplo, pide casas: con camas nacen más niños.', boton: 'Haced 3 casas', accion: 'orden', hecho: m => (m.guia.ordenes || 0) > 0 },
+    { id: 'comida', texto: 'Sin molino no hay tierra de cultivo. Que levanten un molino y siembren al menos 3 campos.', boton: 'Más comida', accion: 'orden', hecho: (m, c) => (c.molinos || 0) > 0 && (c.campos || 0) >= 3 },
+    { id: 'corte', texto: 'Abre la corte (🏛 a la derecha, o toca tu plaza): ahí eliges qué investigan tus sabios.', boton: 'Abrir la corte', accion: 'corte', hecho: m => !!m.guia.corte },
+    { id: 'mejoras', texto: 'Para pasar de edad hacen falta 3 mejoras de la edad actual. Elígelas en la corte y paga lo que piden.', boton: 'Abrir la corte', accion: 'corte', hecho: (m, c) => c.era > 0 || S().mejorasDeEdad(c).hechas >= S().mejorasDeEdad(c).pide },
+    { id: 'edad', texto: 'Ya casi: cuando tengas el saber y lo que pide la edad, pulsa «Avanzar» en la corte para llegar a la Edad del Bronce.', boton: 'Abrir la corte', accion: 'corte', hecho: (m, c) => c.era > 0 }
+  ];
+  // El paso que toca ahora (o null si la guía terminó, se ocultó o no se gobierna ningún pueblo).
+  function guia(m) {
+    const c = m.jugador != null ? S().civ(m, m.jugador) : null;
+    if (!c || !c.viva || m.modo !== 'pueblo') return null;
+    const g = m.guia = m.guia || {};
+    if (g.oculta || g.fin) return null;
+    const i = GUIA.findIndex(x => !x.hecho(m, c));
+    if (i < 0) { g.fin = m.anio; return null; }
+    return Object.assign({ n: i + 1, de: GUIA.length }, GUIA[i]);
+  }
+
   // ---------- Los retos del modo pueblo: metas con puntos, y el fin de la partida ----------
   const ciudadesDe = (m, c) => (m.ciudades || []).filter(x => x.civ === c.id).length;
   const RETOS = [
@@ -6330,6 +6388,14 @@ table.mercado td:first-child { white-space: nowrap; }
     for (const e of nuevos || []) if (e.tipo === 'conquista' && e.civ === c.id) r.conquistas = (r.conquistas || 0) + 1;
     const cumplidos = [];
     if (!c.viva) return cumplidos;
+    // La historia de tu pueblo, para contarla al final: cuándo llegó a cada era, su mayor tamaño, sus guerras y sus reyes.
+    const h = r.hist = r.hist || { eras: {}, maxHab: 0, maxTierras: 0, enemigos: [], reyes: [], ciudades: 0, desde: m.anio };
+    if (h.eras[c.era] == null) h.eras[c.era] = m.anio;
+    h.maxHab = Math.max(h.maxHab, c.habitantes || 0); h.maxTierras = Math.max(h.maxTierras, S().casillas(m, c).length);
+    h.ciudades = Math.max(h.ciudades, ciudadesDe(m, c));
+    for (const g of c.guerras) { const o = S().civ(m, g.con); if (o && !h.enemigos.includes(o.nombre)) h.enemigos.push(o.nombre); }
+    const rey = S().nombreRey ? S().nombreRey(c) : null;
+    if (rey && rey !== '—' && h.reyes[h.reyes.length - 1] !== rey) { h.reyes.push(rey); if (h.reyes.length > 12) h.reyes.splice(1, 1); }
     for (const x of RETOS) {
       if (r.hechos[x.id] != null) continue;
       const [v, meta] = x.prog(m, c);
@@ -6344,10 +6410,10 @@ table.mercado td:first-child { white-space: nowrap; }
     // La puntuación final suma los retos, la gente y la tierra que tengas.
     const extra = c.viva ? (c.habitantes || 0) + S().casillas(m, c).length * 5 : 0;
     const puesto = c.viva ? S().vivas(m).slice().sort((a, b) => S().casillas(m, b).length - S().casillas(m, a).length).indexOf(c) + 1 : null;
-    return { civ: c, lista, puntos: r.puntos, extra, total: r.puntos + extra, hechos: lista.filter(x => x.hecho).length, fin: finPartida(m), puesto };
+    return { civ: c, lista, puntos: r.puntos, extra, total: r.puntos + extra, hechos: lista.filter(x => x.hecho).length, fin: finPartida(m), puesto, hist: r.hist || null, conquistas: r.conquistas || 0 };
   }
 
-  M.mando = { vencer, queda, textoPlazo, cuentaOficios, OFICIOS_N, entender, aplicar, ordenar, informe, consejo, gobernar, RETOS, evaluarRetos, estadoRetos, finPartida, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
+  M.mando = { GUIA, guia, vencer, queda, textoPlazo, cuentaOficios, OFICIOS_N, entender, aplicar, ordenar, informe, consejo, gobernar, RETOS, evaluarRetos, estadoRetos, finPartida, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/arte.js
@@ -8283,12 +8349,19 @@ table.mercado td:first-child { white-space: nowrap; }
     for (const a of anuncios) {
       const k = porRegion[a.region] = (porRegion[a.region] || 0) + 1, t = (ahora - a.inicio) / 4200;
       const wx = (a.region % m.W) * V.SUB * P + V.SUB * P / 2, wy = Math.floor(a.region / m.W) * V.SUB * P;
-      const sx = ox + wx * z, sy = oy + wy * z - (30 + 44 * t + (k - 1) * 24) * dpr;
+      let sx = ox + wx * z;
+      const sy = oy + wy * z - (30 + 44 * t + (k - 1) * 24) * dpr;
       g.globalAlpha = t < 0.75 ? 1 : 1 - (t - 0.75) / 0.25;
-      const ancho = g.measureText(a.texto).width + 16 * dpr;
+      // El cartel no se mete bajo los botones de la derecha (en el móvil) ni se sale de la pantalla: si no cabe,
+      // la letra se encoge un poco.
+      const izq = 8 * dpr, der = g.canvas.width - (window.innerWidth < 900 ? 66 : 8) * dpr, hueco = der - izq;
+      let ancho = g.measureText(a.texto).width + 16 * dpr;
+      if (ancho > hueco) { const t2 = Math.max(9 * dpr, Math.floor(tam * hueco / ancho)); g.font = '600 ' + t2 + 'px "Pixelify Sans", "Courier New", monospace'; ancho = g.measureText(a.texto).width + 16 * dpr; }
+      sx = Math.max(izq + ancho / 2, Math.min(der - ancho / 2, sx));
       g.fillStyle = 'rgba(13,19,34,0.88)'; g.fillRect(sx - ancho / 2, sy - tam * 0.8, ancho, tam * 1.6);
       g.strokeStyle = a.color; g.lineWidth = 1 * dpr; g.strokeRect(sx - ancho / 2 + 0.5, sy - tam * 0.8 + 0.5, ancho - 1, tam * 1.6 - 1);
       g.fillStyle = a.color; g.fillText(a.texto, sx, sy);
+      g.font = '600 ' + tam + 'px "Pixelify Sans", "Courier New", monospace';
     }
     g.globalAlpha = 1;
   }
@@ -9617,7 +9690,7 @@ table.mercado td:first-child { white-space: nowrap; }
     const c = tuPueblo();
     $('etiqueta-orden').textContent = c ? 'Tus órdenes a ' + c.nombre : 'Tu voluntad';
     $('boton-orden').textContent = c ? 'Ordenar' : 'Obrar';
-    $('orden').placeholder = c ? '5 granjeros a talar 2 minutos, quiero 10 leñadores, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
+    $('orden').placeholder = movil() ? (c ? 'Escribe una orden…' : 'Escribe un poder…') : c ? '5 granjeros a talar 2 minutos, quiero 10 leñadores, atacad a…' : 'Peste sobre el más grande, que descubran la pólvora…';
     $('voluntad').classList.toggle('es-pueblo', !!c);
     $('ir-mio').hidden = !c;
     $('arquitecto-btn').hidden = !c || !M.vida.pausada(m);
@@ -9636,7 +9709,7 @@ table.mercado td:first-child { white-space: nowrap; }
     P.seleccionar(sel);
     const c = sel != null ? S.civ(m, sel) : null;
     if (centrar && c) P.centrarEn(c.capital);
-    pintarPueblos();
+    pintarPueblos(); if (m.guia) pintarConsejo();
   }
 
   // ---------- Los números ----------
@@ -9777,7 +9850,7 @@ table.mercado td:first-child { white-space: nowrap; }
   // botón; abajo, lo que pide la siguiente edad y el botón grande para avanzar. Hacen falta tres mejoras.
   let corteDe = null;
   const SEDE = ['Gran choza del jefe', 'Casa comunal', 'Palacio de piedra', 'Palacio', 'Castillo del rey', 'Palacio real', 'Palacio de gobierno', 'Sede del gobierno', 'Cuartel general'];
-  function abrirCorte(id) { corteDe = id; pintarCorte(); if (movil()) document.body.classList.add('sin-panel'); }
+  function abrirCorte(id) { corteDe = id; if (tuPueblo() && id === tuPueblo().id) (m.guia = m.guia || {}).corte = 1; pintarCorte(); pintarConsejo(); if (movil()) document.body.classList.add('sin-panel'); }
   function cerrarCorte() { corteDe = null; $('corte').hidden = true; document.body.classList.remove('corte-abierta'); }
   function pintarCorte() {
     const el = $('corte'), c = corteDe != null ? S.civ(m, corteDe) : null;
@@ -10207,8 +10280,28 @@ table.mercado td:first-child { white-space: nowrap; }
     }
   }
 
+  // Lo que hace el botón de cada paso de la guía.
+  function hacerPasoGuia(p) {
+    const c = tuPueblo(); if (!c) return;
+    if (p.accion === 'ficha') { (m.guia = m.guia || {}).vioFicha = 1; elegir(c.id, true); document.body.classList.remove('sin-panel'); abrirHoja('pueblos'); }
+    else if (p.accion === 'corte') abrirCorte(c.id);
+    else { $('orden').value = p.boton; $('orden').focus(); }
+    pintarConsejo();
+  }
   function pintarConsejo() {
     const c = tuPueblo(), k = c ? X.consejo(m, c.id) : null;
+    // Mientras dura la guía, el consejero enseña el paso que toca (salvo que haya hambre o guerra: eso va antes).
+    const p = c && X.guia ? X.guia(m) : null, urgente = c && (c.guerras.length || (c.comida || 0) < (c.habitantes || 1) * 0.15);
+    $('consejo').classList.toggle('guia', !!(p && !urgente));
+    if (p && !urgente) {
+      $('consejo').hidden = false;
+      $('consejo').querySelector('.consejo-quien').textContent = 'Primeros pasos ' + p.n + '/' + p.de;
+      $('consejo-texto').textContent = p.texto;
+      $('consejo-orden').textContent = p.accion === 'orden' ? '«' + p.boton + '»' : p.boton + ' ›';
+      $('consejo-orden').onclick = ev => { ev.stopPropagation(); hacerPasoGuia(p); };
+      return;
+    }
+    $('consejo').querySelector('.consejo-quien').textContent = 'Tu consejero';
     $('consejo').hidden = !k;
     if (!k) return;
     $('consejo-texto').textContent = k.texto;
@@ -10350,11 +10443,25 @@ table.mercado td:first-child { white-space: nowrap; }
     const e = X.estadoRetos(m);
     if (e && !m.retos.terminada && (e.fin || !e.civ.viva)) { m.retos.terminada = true; mostrarFin(e); }
   }
+  // La historia de tu pueblo, en pocas líneas: de dónde vino, cada era con su año, su mayor tamaño, sus guerras y sus reyes.
+  function historiaFinal(e) {
+    const h = e.hist; if (!h) return '';
+    const anio = a => m.libre ? 'el año ' + Math.round(a) : S.anioTexto(a);
+    const eras = Object.keys(h.eras).map(Number).sort((a, b) => a - b).filter(k => k > 0).map(k => esc(M.ERAS[k].nombre) + ' <span class="tenue">(' + esc(anio(h.eras[k])) + ')</span>');
+    const filas = [
+      'Empezó en ' + esc(anio(h.desde)) + ' como un campamento de chozas.',
+      eras.length ? 'Recorrió ' + eras.join(' → ') + '.' : 'No llegó a salir de ' + esc(M.ERAS[0].con) + '.',
+      'En su mejor momento tuvo <b>' + h.maxHab + '</b> vecinos y <b>' + h.maxTierras + '</b> tierras' + (h.ciudades ? ', con ' + h.ciudades + (h.ciudades === 1 ? ' ciudad hija' : ' ciudades hijas') : '') + '.',
+      h.enemigos.length ? 'Luchó contra ' + esc(h.enemigos.slice(0, 6).join(', ')) + (h.enemigos.length > 6 ? ' y ' + (h.enemigos.length - 6) + ' más' : '') + (e.conquistas ? ', y conquistó ' + e.conquistas + (e.conquistas === 1 ? ' plaza' : ' plazas') : '') + '.' : 'Vivió sin guerras: nadie le declaró la guerra ni la declaró.',
+      h.reyes.length ? 'La gobernaron ' + esc(h.reyes.slice(0, 5).join(', ')) + (h.reyes.length > 5 ? '… hasta ' + esc(h.reyes[h.reyes.length - 1]) : '') + '.' : ''
+    ].filter(Boolean);
+    return '<div class="fin-historia"><h3>La historia de ' + esc(e.civ.nombre) + '</h3>' + filas.map(f => '<p>' + f + '</p>').join('') + '</div>';
+  }
   function mostrarFin(e) {
     corriendo = false; programar();
     $('fin-titulo').textContent = e.civ.viva ? 'Fin de la partida: ' + e.civ.nombre + ' llega a ' + (m.libre ? 'su año ' + m.anio : '1945') : e.civ.nombre + ' ha caído';
     $('fin-texto').innerHTML = '<b class="retos-total">' + e.total.toLocaleString('es-ES') + ' puntos</b><br><span class="tenue">' + e.puntos + ' de retos (' + e.hechos + ' de ' + e.lista.length + ')' + (e.civ.viva ? ' + ' + e.extra + ' por tu gente y tu tierra · puesto ' + e.puesto + ' de ' + S.vivas(m).length + ' en tierras' : '') + '</span>';
-    $('fin-retos').innerHTML = '<p class="tenue">' + e.lista.filter(x => x.hecho).map(x => '★ ' + esc(x.nombre)).join(' · ') + '</p>';
+    $('fin-retos').innerHTML = '<p class="tenue">' + e.lista.filter(x => x.hecho).map(x => '★ ' + esc(x.nombre)).join(' · ') + '</p>' + historiaFinal(e);
     $('fin').hidden = false;
   }
   function pintarRetos() {
@@ -10362,9 +10469,13 @@ table.mercado td:first-child { white-space: nowrap; }
     mk.hidden = !e;
     if (!e) { $('retos').innerHTML = '<p class="vacio">Los retos son para quien gobierna un pueblo. Elige «Cambiar de modo» → «Gobernar un pueblo».</p>'; return; }
     mk.innerHTML = '★ <b>' + e.total.toLocaleString('es-ES') + '</b> <span>' + e.hechos + '/' + e.lista.length + ' retos</span>';
-    $('retos').innerHTML = '<div class="retos-cab"><span class="retos-total">' + e.total.toLocaleString('es-ES') + ' puntos</span><br><span class="tenue">' + e.puntos + ' de retos + ' + e.extra + ' por tu gente y tu tierra. La partida termina en ' + (m.libre ? 'el año 400' : '1945') + '.</span></div>' +
+    const pg = X.guia(m), c = tuPueblo();
+    const guiaHtml = pg && c ? '<div class="reto guia-lista"><div class="reto-cab"><span class="reto-nombre">Primeros pasos</span><button type="button" class="mando sutil" id="saltar-guia">Saltar la guía</button></div>' +
+      X.GUIA.map((x, i) => '<p class="reto-texto">' + (x.hecho(m, c) ? '✓ ' : i + 1 === pg.n ? '▶ ' : '· ') + esc(x.texto) + '</p>').join('') + '</div>' : '';
+    $('retos').innerHTML = guiaHtml + '<div class="retos-cab"><span class="retos-total">' + e.total.toLocaleString('es-ES') + ' puntos</span><br><span class="tenue">' + e.puntos + ' de retos + ' + e.extra + ' por tu gente y tu tierra. La partida termina en ' + (m.libre ? 'el año 400' : '1945') + '.</span></div>' +
       e.lista.map(x => '<div class="reto' + (x.hecho ? ' hecho' : !e.civ.viva ? ' fallado' : '') + '"><div class="reto-cab"><span class="reto-nombre">' + (x.hecho ? '★ ' : '') + esc(x.nombre) + '</span><span class="reto-puntos">+' + x.puntos + '</span></div><p class="reto-texto">' + esc(x.texto) + (x.hecho ? ' <b>Cumplido en ' + esc(m.libre ? 'el año ' + x.cuando : S.anioTexto(x.cuando)) + '.</b>' : '') + '</p>' +
         (x.hecho ? '' : '<span class="barra"><span style="width:' + Math.round(x.avance * 100) + '%"></span></span> <span class="tenue">' + Math.min(x.v, x.meta) + ' / ' + x.meta + '</span>') + '</div>').join('');
+    const sg = $('saltar-guia'); if (sg) sg.addEventListener('click', () => { (m.guia = m.guia || {}).oculta = 1; pintarRetos(); pintarConsejo(); guardar(); });
   }
   // Lo que le pasa a tu pueblo mientras corre el tiempo: guerras que te declaran, paces que te ofrecen, tu caída.
   function avisos(yo, guerrasAntes, ultimo) {
@@ -10442,6 +10553,7 @@ table.mercado td:first-child { white-space: nowrap; }
   }
 
   async function obrar(texto) {
+    (m.guia = m.guia || {}).ordenes = (m.guia.ordenes || 0) + 1;
     if (ocupado) return;
     const antes = foto();
     if (tuPueblo()) { ordenar(texto); return; }
@@ -10565,9 +10677,11 @@ table.mercado td:first-child { white-space: nowrap; }
   }
   function iniciar(datos) {
     atarPantalla();
+    // En el móvil, el consejo y la respuesta se leen enteros al tocarlos (y se vuelven a plegar).
+    for (const id of ['consejo', 'respuesta']) { const e = $(id); if (e) e.addEventListener('click', ev => { if (ev.target.closest('button')) return; e.classList.toggle('entero'); }); }
     // Instalado como app (o abierto desde un servidor): se guarda para jugar sin internet.
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* sin modo sin internet */ });
-    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; edificioSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarEdificio: t => { aldeanoSel = null; P.elegirAldeano(null); edificioSel = t; pintarFicha(); abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
+    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; edificioSel = null; P.elegirAldeano(null); const d = m.dueno[region]; if (tuPueblo() && d === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarEdificio: t => { if (tuPueblo() && m.dueno[M.vida.region(m, t)] === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; aldeanoSel = null; P.elegirAldeano(null); edificioSel = t; pintarFicha(); abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);
     if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
@@ -10584,6 +10698,12 @@ table.mercado td:first-child { white-space: nowrap; }
     $('modo-pueblo').addEventListener('click', () => elegirModo('pueblo', sel != null && S.civ(m, sel) && S.civ(m, sel).viva ? sel : null));
     $('modo-dios').addEventListener('click', () => elegirModo('dios'));
     $('cambiar-modo').addEventListener('click', () => pedirModo());
+    // La ayuda: se abre desde el menú o desde la pantalla de inicio, y se cierra con «Entendido» o tocando fuera.
+    const ayuda = abrir => { $('ayuda').hidden = !abrir; };
+    $('ayuda-abrir').addEventListener('click', () => ayuda(true));
+    $('ayuda-inicio').addEventListener('click', () => ayuda(true));
+    $('ayuda-cerrar').addEventListener('click', () => ayuda(false));
+    $('ayuda').addEventListener('click', ev => { if (ev.target === $('ayuda')) ayuda(false); });
     // El sonido empieza apagado (los navegadores solo dejan sonar tras un gesto); se recuerda la preferencia.
     const pintarSonido = () => { const on = M.sonido.activo(); $('sonido').textContent = on ? '🔊 Sonido' : '🔈 Sonido'; $('sonido').setAttribute('aria-pressed', on ? 'true' : 'false'); };
     $('sonido').addEventListener('click', () => { const on = M.sonido.alternar(); try { localStorage.setItem('genesis.sonido', on ? '1' : '0'); } catch (e) { /* sin guardado */ } pintarSonido(); });

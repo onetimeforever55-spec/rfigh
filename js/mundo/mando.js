@@ -1085,6 +1085,27 @@
     return c;
   }
 
+  // ---------- Los primeros pasos: una guía corta para quien empieza a gobernar ----------
+  // Cada paso se comprueba solo; los que el pueblo ya cumple por su cuenta se saltan. Al acabar, se apaga.
+  const GUIA = [
+    { id: 'ficha', texto: 'Toca tu tierra o una casa de tu pueblo en el mapa para ver quién vive ahí y qué le falta.', boton: 'Ver mi pueblo', accion: 'ficha', hecho: m => !!m.guia.vioFicha },
+    { id: 'orden', texto: 'Escribe tu primera orden abajo, como hablarías. Por ejemplo, pide casas: con camas nacen más niños.', boton: 'Haced 3 casas', accion: 'orden', hecho: m => (m.guia.ordenes || 0) > 0 },
+    { id: 'comida', texto: 'Sin molino no hay tierra de cultivo. Que levanten un molino y siembren al menos 3 campos.', boton: 'Más comida', accion: 'orden', hecho: (m, c) => (c.molinos || 0) > 0 && (c.campos || 0) >= 3 },
+    { id: 'corte', texto: 'Abre la corte (🏛 a la derecha, o toca tu plaza): ahí eliges qué investigan tus sabios.', boton: 'Abrir la corte', accion: 'corte', hecho: m => !!m.guia.corte },
+    { id: 'mejoras', texto: 'Para pasar de edad hacen falta 3 mejoras de la edad actual. Elígelas en la corte y paga lo que piden.', boton: 'Abrir la corte', accion: 'corte', hecho: (m, c) => c.era > 0 || S().mejorasDeEdad(c).hechas >= S().mejorasDeEdad(c).pide },
+    { id: 'edad', texto: 'Ya casi: cuando tengas el saber y lo que pide la edad, pulsa «Avanzar» en la corte para llegar a la Edad del Bronce.', boton: 'Abrir la corte', accion: 'corte', hecho: (m, c) => c.era > 0 }
+  ];
+  // El paso que toca ahora (o null si la guía terminó, se ocultó o no se gobierna ningún pueblo).
+  function guia(m) {
+    const c = m.jugador != null ? S().civ(m, m.jugador) : null;
+    if (!c || !c.viva || m.modo !== 'pueblo') return null;
+    const g = m.guia = m.guia || {};
+    if (g.oculta || g.fin) return null;
+    const i = GUIA.findIndex(x => !x.hecho(m, c));
+    if (i < 0) { g.fin = m.anio; return null; }
+    return Object.assign({ n: i + 1, de: GUIA.length }, GUIA[i]);
+  }
+
   // ---------- Los retos del modo pueblo: metas con puntos, y el fin de la partida ----------
   const ciudadesDe = (m, c) => (m.ciudades || []).filter(x => x.civ === c.id).length;
   const RETOS = [
@@ -1111,6 +1132,14 @@
     for (const e of nuevos || []) if (e.tipo === 'conquista' && e.civ === c.id) r.conquistas = (r.conquistas || 0) + 1;
     const cumplidos = [];
     if (!c.viva) return cumplidos;
+    // La historia de tu pueblo, para contarla al final: cuándo llegó a cada era, su mayor tamaño, sus guerras y sus reyes.
+    const h = r.hist = r.hist || { eras: {}, maxHab: 0, maxTierras: 0, enemigos: [], reyes: [], ciudades: 0, desde: m.anio };
+    if (h.eras[c.era] == null) h.eras[c.era] = m.anio;
+    h.maxHab = Math.max(h.maxHab, c.habitantes || 0); h.maxTierras = Math.max(h.maxTierras, S().casillas(m, c).length);
+    h.ciudades = Math.max(h.ciudades, ciudadesDe(m, c));
+    for (const g of c.guerras) { const o = S().civ(m, g.con); if (o && !h.enemigos.includes(o.nombre)) h.enemigos.push(o.nombre); }
+    const rey = S().nombreRey ? S().nombreRey(c) : null;
+    if (rey && rey !== '—' && h.reyes[h.reyes.length - 1] !== rey) { h.reyes.push(rey); if (h.reyes.length > 12) h.reyes.splice(1, 1); }
     for (const x of RETOS) {
       if (r.hechos[x.id] != null) continue;
       const [v, meta] = x.prog(m, c);
@@ -1125,8 +1154,8 @@
     // La puntuación final suma los retos, la gente y la tierra que tengas.
     const extra = c.viva ? (c.habitantes || 0) + S().casillas(m, c).length * 5 : 0;
     const puesto = c.viva ? S().vivas(m).slice().sort((a, b) => S().casillas(m, b).length - S().casillas(m, a).length).indexOf(c) + 1 : null;
-    return { civ: c, lista, puntos: r.puntos, extra, total: r.puntos + extra, hechos: lista.filter(x => x.hecho).length, fin: finPartida(m), puesto };
+    return { civ: c, lista, puntos: r.puntos, extra, total: r.puntos + extra, hechos: lista.filter(x => x.hecho).length, fin: finPartida(m), puesto, hist: r.hist || null, conquistas: r.conquistas || 0 };
   }
 
-  M.mando = { vencer, queda, textoPlazo, cuentaOficios, OFICIOS_N, entender, aplicar, ordenar, informe, consejo, gobernar, RETOS, evaluarRetos, estadoRetos, finPartida, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
+  M.mando = { GUIA, guia, vencer, queda, textoPlazo, cuentaOficios, OFICIOS_N, entender, aplicar, ordenar, informe, consejo, gobernar, RETOS, evaluarRetos, estadoRetos, finPartida, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
 })(globalThis.RF = globalThis.RF || {});

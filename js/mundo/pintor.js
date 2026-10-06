@@ -791,12 +791,19 @@
     for (const a of anuncios) {
       const k = porRegion[a.region] = (porRegion[a.region] || 0) + 1, t = (ahora - a.inicio) / 4200;
       const wx = (a.region % m.W) * V.SUB * P + V.SUB * P / 2, wy = Math.floor(a.region / m.W) * V.SUB * P;
-      const sx = ox + wx * z, sy = oy + wy * z - (30 + 44 * t + (k - 1) * 24) * dpr;
+      let sx = ox + wx * z;
+      const sy = oy + wy * z - (30 + 44 * t + (k - 1) * 24) * dpr;
       g.globalAlpha = t < 0.75 ? 1 : 1 - (t - 0.75) / 0.25;
-      const ancho = g.measureText(a.texto).width + 16 * dpr;
+      // El cartel no se mete bajo los botones de la derecha (en el móvil) ni se sale de la pantalla: si no cabe,
+      // la letra se encoge un poco.
+      const izq = 8 * dpr, der = g.canvas.width - (window.innerWidth < 900 ? 66 : 8) * dpr, hueco = der - izq;
+      let ancho = g.measureText(a.texto).width + 16 * dpr;
+      if (ancho > hueco) { const t2 = Math.max(9 * dpr, Math.floor(tam * hueco / ancho)); g.font = '600 ' + t2 + 'px "Pixelify Sans", "Courier New", monospace'; ancho = g.measureText(a.texto).width + 16 * dpr; }
+      sx = Math.max(izq + ancho / 2, Math.min(der - ancho / 2, sx));
       g.fillStyle = 'rgba(13,19,34,0.88)'; g.fillRect(sx - ancho / 2, sy - tam * 0.8, ancho, tam * 1.6);
       g.strokeStyle = a.color; g.lineWidth = 1 * dpr; g.strokeRect(sx - ancho / 2 + 0.5, sy - tam * 0.8 + 0.5, ancho - 1, tam * 1.6 - 1);
       g.fillStyle = a.color; g.fillText(a.texto, sx, sy);
+      g.font = '600 ' + tam + 'px "Pixelify Sans", "Courier New", monospace';
     }
     g.globalAlpha = 1;
   }

@@ -34,6 +34,7 @@
       <button type="button" class="mando" id="vel" title="Velocidad del tiempo">1×</button>
       <button type="button" class="mando sutil menu-movil" id="sonido" aria-pressed="false" title="Sonido">🔈 Sonido</button>
       <button type="button" class="mando sutil menu-movil" id="cambiar-modo">Cambiar de modo</button>
+      <button type="button" class="mando sutil menu-movil" id="ayuda-abrir">? Cómo se juega</button>
       <button type="button" class="mando sutil menu-movil" id="nuevo">Nuevo mundo</button>
       <button type="button" class="mando" id="ver-panel" aria-expanded="true" aria-controls="panel" title="Abrir o cerrar el panel">☰ Panel</button>
       <button type="button" class="mando solo-movil" id="mas-menu" aria-expanded="false" aria-label="Más opciones">⋯</button>
@@ -53,6 +54,31 @@
             <button type="button" class="mando" id="modo-dios">Ser un dios</button>
           </div>
           <p class="clave">Arrastra para moverte; rueda, pellizca o usa + y − para acercarte. Toca una tierra para elegir a su pueblo, o un aldeano para ver quién es.</p>
+          <p class="clave"><button type="button" class="enlace" id="ayuda-inicio">¿Primera vez? Cómo se juega</button></p>
+        </div>
+      </div>
+      <div class="inicio ayuda" id="ayuda" hidden>
+        <div class="inicio-caja ayuda-caja" role="dialog" aria-labelledby="ayuda-titulo">
+          <h2 class="inicio-titulo" id="ayuda-titulo">Cómo se juega</h2>
+          <details open><summary>Lo básico</summary>
+            <p>Tu pueblo vive solo: talan, siembran, construyen, tienen hijos y envejecen. Tú decides las grandes cosas. Arrastra el mapa para moverte y pellizca o usa + y − para acercarte. Toca una tierra, una casa o un aldeano para ver su ficha.</p></details>
+          <details><summary>Las órdenes</summary>
+            <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. El consejero te sugiere la orden que más falta hace: tócala para escribirla.</p></details>
+          <details><summary>Comida y molinos</summary>
+            <p>Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
+          <details><summary>La corte y las eras</summary>
+            <p>Toca tu plaza o el botón 🏛 para abrir la corte. Ahí eliges qué investigan tus sabios. Para pasar a la era siguiente hacen falta 3 mejoras de la era actual, el saber suficiente, haber llegado a su fecha y lo que pida (un templo, un cuartel, recursos…). Cuando todo está, pulsa «Avanzar». Sobre la plaza sale ⏫ si ya puedes avanzar, o ? si los sabios esperan que elijas.</p></details>
+          <details><summary>Gente y salud</summary>
+            <p>Cada aldeano tiene nombre, padres, pareja y una salud. La muerte es una probabilidad que sube con la edad y con cómo ha vivido: el hambre, las heridas, dormir sin casa o el frío la acercan; una casa, un hospital y la medicina de su época la alejan. Sin casas libres no nacen niños.</p></details>
+          <details><summary>Comercio y mercado</summary>
+            <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero.</p></details>
+          <details><summary>La guerra</summary>
+            <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan.</p></details>
+          <details><summary>Retos y final</summary>
+            <p>En la pestaña Retos tienes metas con puntos: llegar a 30 aldeanos, fundar una ciudad, llegar al Renacimiento… La partida termina en 1945 (en el mundo libre, en el año 400) con tu puntuación y la historia de tu pueblo. Puedes seguir jugando después.</p></details>
+          <details><summary>Ser un dios</summary>
+            <p>En el modo dios no gobiernas a nadie: escribes poderes sobre el mundo («que llueva sobre Nombre», «peste sobre el más grande», «terremoto en Nombre», «que descubran la pólvora») y miras qué hacen los pueblos.</p></details>
+          <div class="inicio-botones"><button type="button" class="obrar" id="ayuda-cerrar">Entendido</button></div>
         </div>
       </div>
       <div class="inicio" id="fin" hidden>

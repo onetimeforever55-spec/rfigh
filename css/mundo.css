@@ -73,6 +73,15 @@ body.sin-panel .panel { display: none; }
 /* ---- Elegir cómo jugar (encima del mapa) ---- */
 .inicio { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(9, 14, 28, 0.62); padding: 16px; }
 .inicio[hidden] { display: none; }
+.fin-historia { text-align: left; border-top: 1px solid var(--linea); margin-top: 10px; padding-top: 8px; font-size: 14px; line-height: 1.5; }
+.fin-historia h3 { margin: 0 0 6px; font-size: 15px; color: var(--oro); }
+.fin-historia p { margin: 4px 0; }
+#fin .inicio-caja { max-height: min(86vh, 680px); overflow-y: auto; overscroll-behavior: contain; }
+.ayuda { z-index: 25; }
+.ayuda-caja { max-height: min(80vh, 640px); overflow-y: auto; overscroll-behavior: contain; }
+.ayuda details { border-top: 1px solid var(--linea); padding: 6px 0; }
+.ayuda summary { cursor: pointer; font-weight: 600; color: var(--oro); padding: 6px 0; min-height: 32px; }
+.ayuda details p { margin: 4px 0 8px; font-size: 14px; line-height: 1.5; }
 .inicio-caja { max-width: 460px; background: var(--panel); border: 1px solid var(--oro); border-radius: var(--radio); padding: 20px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
 .inicio-titulo { margin: 0 0 8px; font-family: var(--f-pixel); font-weight: 600; font-size: 24px; color: var(--oro); }
 .inicio-texto { margin: 0 0 16px; color: var(--pergamino); }
@@ -170,6 +179,7 @@ body.sin-panel .panel { display: none; }
 
 /* El consejero: lo más urgente de tu pueblo y la orden que lo arregla. */
 .consejo { margin: 8px 0 0; font-size: 14px; line-height: 1.45; }
+.consejo.guia { background: rgba(240, 200, 90, 0.08); border-left: 3px solid var(--oro); padding: 4px 8px; border-radius: 4px; }
 .consejo-quien { font-family: var(--f-dato); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--oro); margin-right: 4px; }
 .consejo .ejemplo { margin-left: 4px; }
 
@@ -324,8 +334,9 @@ body.sin-panel .panel { display: none; }
   .g-voluntad #orden { height: 44px; min-width: 0; }
   .g-voluntad .obrar { height: 44px; padding: 0 14px; }
   body:not(.ordenes-abiertas) .voluntad-cab, body:not(.ordenes-abiertas) #ejemplos, body:not(.ordenes-abiertas) .cuadrillas-hud, body:not(.ordenes-abiertas) .guerra-hud { display: none !important; }
-  body:not(.ordenes-abiertas) .consejo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 6px; font-size: 13px; }
-  body:not(.ordenes-abiertas) .respuesta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 6px 0 0; font-size: 13px; }
+  /* El consejo y la respuesta caben en dos líneas; si no caben, se tocan y se leen enteros. */
+  body:not(.ordenes-abiertas) .consejo, body:not(.ordenes-abiertas) .respuesta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 6px 0 0; font-size: 13px; cursor: pointer; }
+  body:not(.ordenes-abiertas) .consejo.entero, body:not(.ordenes-abiertas) .respuesta.entero { display: block; -webkit-line-clamp: unset; overflow: visible; max-height: none; }
   body.ordenes-abiertas .g-voluntad { box-shadow: 0 -8px 30px rgba(0,0,0,0.45); }
   body:not(.sin-panel) .g-voluntad, body.arqui-abierto .g-voluntad { display: none; }
   .ejemplo { min-height: 34px; }

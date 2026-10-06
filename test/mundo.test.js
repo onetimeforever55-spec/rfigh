@@ -648,6 +648,24 @@ console.log('LAS ERAS NO SE ATASCAN (RITMO PAUSADO)');
   comprobar(m.anio <= (M.ERAS[maxEra + 1] ? M.ERAS[maxEra + 1].desde + 150 : 2100), 'el calendario no se escapa de la historia: ' + S.anioTexto(m.anio) + ' con ' + M.ERAS[maxEra].con);
 }
 
+console.log('PRIMEROS PASOS Y LA HISTORIA DE TU PUEBLO');
+{
+  const X = M.mando, m = S.crear(11, 5, { ritmo: 3 });
+  m.modo = 'pueblo'; X.gobernar(m, S.vivas(m)[0].id);
+  const p1 = X.guia(m);
+  comprobar(p1 && p1.n === 1 && p1.de === X.GUIA.length && p1.accion === 'ficha', 'al empezar, la guía pide mirar tu pueblo (paso 1 de ' + X.GUIA.length + ')');
+  m.guia.vioFicha = 1; m.guia.ordenes = 1;
+  const p3 = X.guia(m);
+  comprobar(p3 && p3.id === 'comida', 'tras mirar el pueblo y dar una orden, toca el molino y los campos');
+  for (let k = 0; k < 80; k++) { S.turno(m); X.evaluarRetos(m, []); }
+  const e = X.estadoRetos(m);
+  comprobar(e.hist && e.hist.eras[0] != null && e.hist.maxHab > 0 && e.hist.reyes.length > 0, 'se apunta la historia: era de inicio, mayor tamaño (' + e.hist.maxHab + ' vecinos) y reyes (' + e.hist.reyes.join(', ') + ')');
+  m.guia.oculta = 1;
+  comprobar(X.guia(m) === null, 'la guía se puede saltar');
+  const m2 = S.crear(12, 5, { ritmo: 3 }); m2.modo = 'dios';
+  comprobar(X.guia(m2) === null, 'en el modo dios no hay guía');
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;
