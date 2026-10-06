@@ -29,7 +29,7 @@
   const CASAS = ['choza', 'casa', 'entramado', 'bloque'];
 
   // ---------- Estado ----------
-  let cv = null, g = null, m = null, V = null, S = null, alClicar = null, alClicarAldeano = null, alClicarCorte = null;
+  let cv = null, g = null, m = null, V = null, S = null, alClicar = null, alClicarAldeano = null, alClicarCorte = null, alClicarEdificio = null;
   // Dónde se dibujó cada aldeano en el último fotograma (para tocarlo y para seguirlo con la cámara).
   const dibujados = new Map();
   let siguiendo = null, elegido = null;
@@ -45,6 +45,7 @@
     alClicar = (opciones && opciones.alClicar) || null;
     alClicarAldeano = (opciones && opciones.alClicarAldeano) || null;
     alClicarCorte = (opciones && opciones.alClicarCorte) || null;
+    alClicarEdificio = (opciones && opciones.alClicarEdificio) || null;
     reducido = !!(opciones && opciones.reducido);
     S = M.sim; V = M.vida;
     entradas();
@@ -114,7 +115,9 @@
     const obra = visto.obra[t];
     if (obra) {
       const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
-      const color = c ? c.color : '#9a7a5a', ge = c ? grupoEra(c.era) : 0;
+      // Cada edificio se ve con el estilo de la edad en que se levantó (o de su última reforma).
+      const rec = m.vida.edificios && m.vida.edificios[t], eraT = rec && !rec.ruina && rec.tipo === obra ? rec.era : c ? c.era : 0;
+      const color = c ? c.color : '#9a7a5a', ge = grupoEra(eraT);
       if (obra === V.OBRA.campo) gl.drawImage(ARTE().campo((visto.cultivo && visto.cultivo[t]) || 0, t % 2, V.pausada && V.pausada(m) ? V.cultivoTipo(m, tierra, t) : 'trigo'), x, y);
       else if (obra === V.OBRA.casa) {
         // Cada casa un poco distinta: unas en espejo, con el tejado más claro u oscuro, y algunas un píxel más abajo.
@@ -124,17 +127,17 @@
         if (hv % 2) { gl.save(); gl.translate(x + A, y + oy); gl.scale(-1, 1); gl.drawImage(img, 0, 0); gl.restore(); } else gl.drawImage(img, x, y + oy);
       }
       else if (obra === V.OBRA.ruina) gl.drawImage(ARTE().edificio('ruina', '#888888'), x, y);
-      else if (obra === V.OBRA.ayuntamiento) gl.drawImage(ARTE().edificio('ayuntamiento', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.saber) gl.drawImage(ARTE().edificio('saber', color, M.ERUDITO(c ? c.era : 0).tipo), x, y);
-      else if (obra === V.OBRA.torre) gl.drawImage(ARTE().edificio('torre', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.campamento) gl.drawImage(ARTE().edificio('campamento', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, c ? (c.era === 4 ? 4 : V.fase(c.era)) : 0), x, y);
-      else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio || (obra >= V.OBRA.central && obra <= V.OBRA.aerodromo)) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio', 'central', 'banco', 'fabrica', 'estacion', 'hospital', 'aerodromo'][obra - V.OBRA.pozo], color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color, c ? V.fase(c.era) : 0), x, y);
-      else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.ayuntamiento) gl.drawImage(ARTE().edificio('ayuntamiento', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.saber) gl.drawImage(ARTE().edificio('saber', color, M.ERUDITO(eraT).tipo), x, y);
+      else if (obra === V.OBRA.torre) gl.drawImage(ARTE().edificio('torre', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.campamento) gl.drawImage(ARTE().edificio('campamento', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, eraT === 4 ? 4 : V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio || (obra >= V.OBRA.central && obra <= V.OBRA.aerodromo)) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio', 'central', 'banco', 'fabrica', 'estacion', 'hospital', 'aerodromo'][obra - V.OBRA.pozo], color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.centro) {
         // La plaza ocupa 2×2 parcelas: cada una pinta su cuarto del edificio grande.
         const lx = (t % v.tw) % V.SUB - 1, ly = Math.floor(t / v.tw) % V.SUB - 1;
@@ -1880,7 +1883,15 @@
         const R = V.SUB * P, rx = Math.floor(wx / R), ry = Math.floor(wy / R);
         if (arqui) { const tx = Math.floor(wx / P), ty = Math.floor(wy / P); arqui.wx = wx; arqui.wy = wy; if (tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th) arqui.alColocar(ty * m.vida.tw + tx); }
         else if (cerca != null && alClicarAldeano) alClicarAldeano(cerca);
-        else if (alClicarCorte && (() => { const tx = Math.floor(wx / P), ty = Math.floor(wy / P), t = ty * m.vida.tw + tx; const o = tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th ? visto.obra[t] : 0; if (o === V.OBRA.centro || o === V.OBRA.ayuntamiento || o === V.OBRA.palacio) { const d = m.dueno[V.region(m, t)]; if (d >= 0) { alClicarCorte(d, t); return true; } } return false; })()) { /* la corte del rey */ }
+        else if ((() => {
+          // Tocar un edificio: la plaza del rey abre la corte; cualquier otro, su ficha (y el ayuntamiento, la de su ciudad).
+          const tx = Math.floor(wx / P), ty = Math.floor(wy / P), t = ty * m.vida.tw + tx;
+          if (tx < 0 || ty < 0 || tx >= m.vida.tw || ty >= m.vida.th) return false;
+          const o = visto.obra[t], d = m.dueno[V.region(m, t)];
+          if (alClicarCorte && (o === V.OBRA.centro || o === V.OBRA.palacio) && d >= 0) { alClicarCorte(d, t); return true; }
+          if (alClicarEdificio && ((o && o !== V.OBRA.campo) || (m.vida.andamios && m.vida.andamios[t]))) { alClicarEdificio(t); return true; }
+          return false;
+        })()) { /* edificio */ }
         else if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
       }
       if (punteros.size === 1) { const [p] = [...punteros.values()]; arrastre = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, movido: 99 }; }

@@ -412,6 +412,28 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
   - **Campamento**: los colonos llegan andando y plantan dos tiendas (de pieles al principio, de lona con el color del pueblo después) junto a una hoguera que humea, un montón de leña y el banderín. Sus hijos nacen allí, y cada pocos turnos alguna familia de la capital se muda andando, a veces como constructora.
   - **En obras**: con seis vecinos y dos casas alrededor, se levanta el ayuntamiento sobre un andamio, con su barra. Lo construyen los constructores del reino y, poco a poco, los propios vecinos.
   - **Aldea**: con el ayuntamiento acabado, la crónica lo cuenta y llegan su plaza y su plano de calles. El trazado crece con la gente que vive allí, no con el tamaño del reino.
+- **Cada cosa con su historia**:
+  - **Los edificios tienen nombre propio**: «Casa de los Areda», «Molino de la Loma», «Templo de Aret», «Iglesia de San Teodo», «Academia de Coran», «Torre del Río», «Fábrica Norur e Hijos», «Estación de Kaikum»… Recuerdan el año en que se levantaron y quién los construyó.
+  - **Cada edificio conserva el estilo de su época.** Una casa del Bronce sigue siendo del Bronce aunque el reino pase a la Edad Media, hasta que un constructor la reforma (paga madera y piedra, y queda apuntado en su historia). Así, cuando el reino cambia de edad, el pueblo no cambia de golpe, sino casa a casa.
+  - Al tocar un edificio se abre su ficha:
+    - nombre y tipo;
+    - año y antigüedad;
+    - quién lo construyó y su estilo;
+    - quién vive en él, con enlaces;
+    - en obras, el avance y quién trabaja;
+    - su historia.
+  - Al tocar el ayuntamiento o el campamento de una ciudad se abre la ficha de la ciudad:
+    - fundación y años;
+    - fundadores y reino de origen;
+    - vecinos y casas, y lo que le falta para ser aldea;
+    - alcalde, lealtad y sus edificios con nombre;
+    - su historia: fundada, obras, aldea, conquistas.
+  - **Los aldeanos tienen padre y madre.** Al tener el primer hijo, el padre forma pareja con alguien soltero de su pueblo y, si puede, de otro apellido. La ficha enseña:
+    - edad;
+    - padres (con enlace si viven, con † si murieron);
+    - pareja, hijos con sus nombres y hermanos;
+    - dónde y cuándo nació;
+    - en qué casa vive.
 - **Modo arquitecto** (botón 🏗 junto a la cámara, gobernando un pueblo): eliges una obra de la paleta (casa, calle, pozo, granero, plaza, parque, templo, casa del saber, palacio, molino, torre, puerto, cuartel, arquería o castillo) y tocas tu tierra.
   - Al pasar por encima se ve el edificio en verde, o en rojo con el motivo si no se puede: tierra ajena, agua, ya construido, hace falta ser villa…
   - Lo encargado queda marcado con un marco de trazos, y las calles por empedrar en gris. Tocar otra vez lo quita.

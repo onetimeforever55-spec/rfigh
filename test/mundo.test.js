@@ -580,6 +580,21 @@ console.log('LAS CIUDADES NUEVAS EMPIEZAN COMO CAMPAMENTO');
   const camp = (m.ciudades || []).find(x => x.fase === 'campamento');
   if (camp) comprobar(m.vida.obra[V2.centro(m, camp.region)] === V2.OBRA.campamento && !(m.vida.rutas || []).some(ru => ru.clave === 'c:' + camp.region), 'el campamento tiene sus tiendas y todavía no tiene calles trazadas');
 }
+console.log('FICHAS: EDIFICIOS CON NOMBRE E HISTORIA, CIUDADES CON FUNDADORES, ALDEANOS CON PADRES');
+{
+  const m = S.crear(4, 5, { ritmo: 3 }), V2 = M.vida, v = m.vida;
+  for (let i = 0; i < 200; i++) S.turno(m);
+  const fichas = Object.values(v.edificios || {});
+  comprobar(fichas.length > 50 && fichas.every(e => e.nombre && e.anio != null && e.historia.length), 'cada edificio tiene nombre, año y su historia (' + fichas.slice(0, 3).map(e => e.nombre).join(', ') + ')');
+  comprobar(fichas.some(e => e.por && e.por.length), 'y se sabe quién lo construyó');
+  comprobar(fichas.some(e => e.historia.some(h => /reformado/.test(h.texto))), 'los edificios viejos se reforman uno a uno al estilo de la edad nueva');
+  comprobar(new Set(fichas.filter(e => e.tipo === V2.OBRA.casa).map(e => e.era)).size >= 2, 'y no todas las casas tienen el mismo estilo a la vez');
+  const x = (m.ciudades || []).find(y => y.fundadores && y.fundadores.length);
+  comprobar(x && x.madre && x.historia && x.historia.length, 'cada ciudad sabe quién la fundó y de qué reino salió (' + (x ? x.nombre + ': ' + x.fundadores.join(', ') : '') + ')');
+  const hijos = v.aldeanos.filter(a => a.padres && a.padres[1]);
+  comprobar(hijos.length > 10, 'los niños tienen padre y madre (' + (hijos[0] ? hijos[0].nombre + ', hijo de ' + hijos[0].padres.join(' y ') : '') + ')');
+  comprobar(hijos.filter(a => a.padres[0].split(' ').pop() === a.padres[1].split(' ').pop()).length < hijos.length * 0.5, 'y casi nunca son de la misma familia');
+}
 console.log('LA CORTE: MEJORAS Y EDADES');
 {
   const m = S.crear(4, 5, { ritmo: 3 }), X2 = M.mando;

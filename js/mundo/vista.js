@@ -14,7 +14,7 @@
   const VELOCIDADES = [[8000, '1×'], [4000, '2×'], [1600, '5×'], [500, '15×']];
   const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let aldeanoSel = null, pestana = 'resumen';
+  let aldeanoSel = null, edificioSel = null, pestana = 'resumen';
   let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
 
   // ---------- Guardar y cargar (comodidad de este navegador) ----------
@@ -84,7 +84,7 @@
     P.marcar(e.casilla, e.divino ? '#f0c05a' : e.tipo === 'guerra' || e.tipo === 'conquista' || e.tipo === 'caida' ? '#ff4b3a' : '#fff6dc');
   }
   function elegir(id, centrar) {
-    sel = id;
+    sel = id; edificioSel = null;
     P.seleccionar(sel);
     const c = sel != null ? S.civ(m, sel) : null;
     if (centrar && c) P.centrarEn(c.capital);
@@ -164,6 +164,7 @@
 
   function pintarFicha() {
     const f = $('ficha');
+    if (edificioSel != null && fichaEdificio(f)) return;
     if (aldeanoSel != null && fichaAldeano(f)) return;
     const c = sel != null ? S.civ(m, sel) : tuPueblo();
     if (!c || !c.viva) {
@@ -464,6 +465,50 @@
   // Las ciudades con su lealtad (y su peor motivo); las que conspiran, en rojo con el progreso del complot.
   // La ficha de un aldeano: es un agente con su vida propia.
   const OFICIO1 = { lenador: 'leñador', granjero: 'granjero', constructor: 'constructor', minero: 'minero', guerrero: 'guerrero', comerciante: 'comerciante' };
+  // ---------- La ficha de un edificio (y la de una ciudad, si es su ayuntamiento o su campamento) ----------
+  const NOMBRE_TIPO = o => { const O = M.vida.OBRA; return ({ [O.casa]: 'casa', [O.molino]: 'molino', [O.templo]: 'templo', [O.saber]: 'casa del saber', [O.torre]: 'torre', [O.cuartel]: 'cuartel', [O.arqueria]: 'arquería', [O.castillo]: 'castillo', [O.puerto]: 'puerto', [O.pozo]: 'pozo', [O.granero]: 'granero', [O.fuente]: 'plaza pública', [O.parque]: 'parque', [O.palacio]: 'palacio', [O.central]: 'central eléctrica', [O.banco]: 'banco', [O.fabrica]: 'fábrica', [O.estacion]: 'estación de tren', [O.hospital]: 'hospital', [O.aerodromo]: 'aeródromo', [O.campamento]: 'campamento', [O.ayuntamiento]: 'ayuntamiento', [O.centro]: 'plaza mayor', [O.ruina]: 'ruinas' })[o] || 'edificio'; };
+  const hace = anio => { const d = Math.max(0, Math.round(m.anio - anio)); return d === 0 ? 'este año' : d === 1 ? 'hace 1 año' : 'hace ' + d.toLocaleString('es-ES') + ' años'; };
+  const anioTxt = a => S.anioTexto(a).replace(/(\d)\.$/, '$1');
+  function fichaEdificio(f) {
+    const v = m.vida, t = edificioSel, o = v.obra[t], an = v.andamios && v.andamios[t], rec = v.edificios && v.edificios[t];
+    if (!o && !an) { edificioSel = null; return false; }
+    const r = M.vida.region(m, t), c = S.civ(m, m.dueno[r]);
+    const ciudad = (m.ciudades || []).find(x => x.region === r && (o === M.vida.OBRA.ayuntamiento || o === M.vida.OBRA.campamento || (an && an.o === M.vida.OBRA.ayuntamiento)));
+    if (ciudad) return fichaCiudad(f, ciudad, c, rec);
+    const vecinos = o === M.vida.OBRA.casa ? v.aldeanos.filter(a => a.casa === t) : [];
+    const obreros = an && v.obreros && v.obreros[t] ? v.obreros[t].map(id => v.aldeanos.find(a => a.id === id)).filter(Boolean) : [];
+    const titulo = rec ? rec.nombre : an ? NOMBRE_TIPO(an.o).charAt(0).toUpperCase() + NOMBRE_TIPO(an.o).slice(1) + ' en obras' : NOMBRE_TIPO(o).charAt(0).toUpperCase() + NOMBRE_TIPO(o).slice(1);
+    f.innerHTML = '<h3><span class="muestra"></span>' + esc(titulo) + '</h3><p class="subt">' + esc(NOMBRE_TIPO(an ? an.o : o)) + (c ? ' de ' + esc(c.nombre) : '') + ' · en ' + esc(M.vida.lugarDe ? M.vida.lugarDe(m, t) : '') + '</p><dl>' +
+      (an ? fila('Obras', '<span class="barra"><span style="width:' + Math.round(100 * (1 - Math.max(0, an.falta) / an.total)) + '%"></span></span> ' + Math.round(100 * (1 - Math.max(0, an.falta) / an.total)) + ' %') + (obreros.length ? fila('Trabajan', esc(obreros.map(a => a.nombre + ' ' + (a.familia || '')).join(', '))) : '') : '') +
+      (rec ? fila('Construido', esc(anioTxt(rec.anio)) + ' <span class="tenue">(' + hace(rec.anio) + ')</span>') + (rec.por && rec.por.length ? fila('Lo levantó', esc(rec.por.join(', '))) : '') + fila('Estilo', 'de ' + esc(M.ERAS[rec.era].con) + (c && M.vida.fase(rec.era) < M.vida.fase(c.era) ? ' <span class="tenue">(antiguo: lo reformarán)</span>' : '')) : (!an ? fila('Construido', '<span class="tenue">antes de que nadie lo apuntara</span>') : '')) +
+      (vecinos.length ? fila('Viven aquí', vecinos.map(a => '<button type="button" class="enlace ver-aldeano" data-id="' + a.id + '">' + esc(a.nombre + ' ' + (a.familia || '')) + '</button> <span class="tenue">(' + M.vida.anos(a) + ')</span>').join(', ')) : o === M.vida.OBRA.casa ? fila('Viven aquí', '<span class="tenue">nadie ahora mismo</span>') : '') +
+      (rec && rec.historia && rec.historia.length ? fila('Historia', rec.historia.slice(-6).map(h => esc(anioTxt(h.anio)) + ': ' + esc(h.texto)).join('<br>')) : '') +
+      '</dl><div class="linea" style="margin-top:10px"><button type="button" class="mando sutil" id="volver-pueblo">Ver su pueblo</button></div>';
+    f.querySelector('.muestra').style.background = c ? c.color : '#ccc';
+    f.querySelectorAll('.ver-aldeano').forEach(b => b.addEventListener('click', () => { edificioSel = null; aldeanoSel = +b.dataset.id; P.elegirAldeano(aldeanoSel); pintarFicha(); }));
+    f.querySelector('#volver-pueblo').addEventListener('click', () => { edificioSel = null; if (c) elegir(c.id, true); });
+    return true;
+  }
+  function fichaCiudad(f, x, c, rec) {
+    const v = m.vida, vecinos = v.aldeanos.filter(a => a.c === x.civ && a.h === x.region);
+    const zona = [x.region, ...S.vecinos(x.region)].filter(r => m.dueno[r] === x.civ);
+    const edificios = Object.entries(v.edificios || {}).filter(([t, e]) => zona.includes(M.vida.region(m, +t)) && !e.ruina && e.tipo !== M.vida.OBRA.casa && v.obra[+t] === e.tipo).map(([, e]) => e.nombre);
+    const casas = zona.flatMap(r => M.vida.parcelas(m, r)).filter(t => v.obra[t] === M.vida.OBRA.casa).length;
+    const FASE = { campamento: '⛺ campamento de colonos', obras: '🏗 levantando su ayuntamiento', aldea: '🏘 aldea' };
+    f.innerHTML = '<h3><span class="muestra"></span>' + esc(x.nombre) + '</h3><p class="subt">' + esc(FASE[x.fase] || 'ciudad') + (c ? ' de ' + esc(c.nombre) : '') + '</p><dl>' +
+      fila('Fundada', x.fundada != null ? esc(anioTxt(x.fundada)) + ' <span class="tenue">(' + hace(x.fundada) + ')</span>' : '<span class="tenue">hace mucho</span>') +
+      (x.fundadores && x.fundadores.length ? fila('La fundaron', esc(x.fundadores.join(', ')) + (x.madre ? ' <span class="tenue">· colonos de ' + esc(x.madre) + '</span>' : '')) : x.madre ? fila('Hija de', esc(x.madre)) : '') +
+      fila('Vecinos', vecinos.length + ' <span class="tenue">· ' + casas + ' casas</span>') +
+      (x.fase === 'campamento' ? fila('Para ser aldea', 'necesita 6 vecinos (' + vecinos.length + ') y 2 casas (' + (x.casasCerca || 0) + '); entonces levantará su ayuntamiento') : '') +
+      fila('Alcalde', esc(x.alcalde || '—') + (x.rasgo ? ' <span class="tenue">(' + esc(x.rasgo) + ')</span>' : '')) +
+      (x.lealtad != null ? fila('Lealtad', Math.round(x.lealtad)) : '') +
+      (edificios.length ? fila('Edificios', esc(edificios.slice(0, 8).join(' · '))) : '') +
+      (x.historia && x.historia.length ? fila('Historia', x.historia.slice(-6).map(h => esc(anioTxt(h.anio)) + ': ' + esc(h.texto)).join('<br>')) : '') +
+      '</dl><div class="linea" style="margin-top:10px"><button type="button" class="mando sutil" id="volver-pueblo">Ver su reino</button></div>';
+    f.querySelector('.muestra').style.background = c ? c.color : '#ccc';
+    f.querySelector('#volver-pueblo').addEventListener('click', () => { edificioSel = null; if (c) elegir(c.id, true); });
+    return true;
+  }
   function fichaAldeano(f) {
     const a = m.vida.aldeanos.find(x => x.id === aldeanoSel);
     if (!a) {
@@ -473,16 +518,28 @@
     }
     const c = S.civ(m, a.c), ciudad = (m.ciudades || []).find(x => x.region === a.h);
     const padre = a.padre != null ? m.vida.aldeanos.find(x => x.id === a.padre) : null;
-    const hijosVivos = m.vida.aldeanos.filter(x => x.padre === a.id).length;
+    const hijosVivos = m.vida.aldeanos.filter(x => x.padre === a.id || x.madre === a.id).length;
     const etapa = (a.edad || 0) < M.vida.ADULTO ? 'niño' : (a.edad || 0) >= M.vida.VIEJO ? 'anciano' : 'adulto';
     const oficio = (a.edad || 0) < M.vida.ADULTO ? 'juega cerca de casa' : a.colono != null ? 'colono, de camino a tierras nuevas' : (M.vida.OFICIOS[a.o] === 'erudito' ? M.ERUDITO((S.civ(m, a.c) || { era: 0 }).era).uno + (a.estudios ? ' · ' + a.estudios + ' jornadas de estudio' : '') : OFICIO1[M.vida.OFICIOS[a.o]]) + (M.vida.OFICIOS[a.o] === 'guerrero' ? (a.tirador ? ' tirador' : ' de cuerpo a cuerpo') : '');
     const siguiendo = P.siguiendoA() === a.id;
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(a.nombre + ' ' + (a.familia || '')) + '</h3>' +
       '<p class="subt">' + esc(etapa) + ' de ' + esc(c ? c.nombre : '—') + (ciudad ? ', vive en ' + esc(ciudad.nombre) : c && a.h === c.capital ? ', vive en la capital' : '') + '</p>' +
-      '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', M.vida.anos(a) + ' años <span class="tenue">(nació ' + (m.libre ? 'el año ' + (a.nacio != null ? a.nacio : m.anio) : 'en ' + M.ERAS[a.eraNacio != null ? a.eraNacio : c.era].con) + ')</span>') +
+      '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', M.vida.anos(a) + ' años <span class="tenue">(nació en ' + M.ERAS[a.eraNacio != null ? a.eraNacio : c.era].con + ')</span>') +
       fila('Vida', vidaAldeano(a)) + fila('Lleva', equipoAldeano(a)) +
       fila('Rasgos', a.rasgos && a.rasgos.length ? esc(a.rasgos.join(', ')) : '<span class="tenue">ninguno especial</span>') +
-      fila('Familia', (padre ? 'hijo de ' + esc(padre.nombre) + ' · ' : '') + (a.hijos || 0) + ((a.hijos || 0) === 1 ? ' hijo' : ' hijos') + (hijosVivos !== (a.hijos || 0) ? ' <span class="tenue">(' + hijosVivos + ' vivos)</span>' : '')) +
+      fila('Padres', (() => {
+        // Padre y madre (con enlace si viven); si murieron, su nombre queda en la ficha.
+        const vivo = id => id != null ? m.vida.aldeanos.find(x => x.id === id) : null, l = [];
+        const ps = a.padres || (padre ? [padre.nombre + ' ' + (padre.familia || ''), null] : null);
+        if (!ps) return '<span class="tenue">llegó de fuera (de los primeros pobladores)</span>';
+        [[a.padre, ps[0]], [a.madre, ps[1]]].forEach(([id, nom]) => { if (!nom) return; const p = vivo(id); l.push(p ? '<button type="button" class="enlace ver-aldeano" data-id="' + p.id + '">' + esc(nom) + '</button> <span class="tenue">(' + M.vida.anos(p) + ')</span>' : esc(nom) + ' <span class="tenue">(†)</span>'); });
+        return l.join(' y ');
+      })()) +
+      (a.parejaNombre ? fila('Pareja', (() => { const p = m.vida.aldeanos.find(x => x.id === a.pareja); return p ? '<button type="button" class="enlace ver-aldeano" data-id="' + p.id + '">' + esc(a.parejaNombre) + '</button>' : esc(a.parejaNombre) + ' <span class="tenue">(†)</span>'; })()) : '') +
+      fila('Hijos', (a.hijos || 0) + (hijosVivos !== (a.hijos || 0) ? ' <span class="tenue">(' + hijosVivos + ' vivos)</span>' : '') + (() => { const hs = m.vida.aldeanos.filter(x => x.padre === a.id || x.madre === a.id).slice(0, 5); return hs.length ? ': ' + hs.map(h => '<button type="button" class="enlace ver-aldeano" data-id="' + h.id + '">' + esc(h.nombre) + '</button>').join(', ') : ''; })()) +
+      (() => { const her = a.padre != null ? m.vida.aldeanos.filter(x => x !== a && x.padre === a.padre).length : 0; return her ? fila('Hermanos', her) : ''; })() +
+      fila('Nació', (a.nacioEn ? 'en ' + esc(a.nacioEn) + ', ' : '') + (m.libre ? 'el año ' + (a.nacio != null ? a.nacio : m.anio) : esc(anioTxt(a.nacio != null ? a.nacio : m.anio)))) +
+      (a.casa != null && m.vida.edificios && m.vida.edificios[a.casa] ? fila('Vive en', '<button type="button" class="enlace ver-edificio" data-t="' + a.casa + '">' + esc(m.vida.edificios[a.casa].nombre) + '</button>') : '') +
       (a.bajas ? fila('En combate', a.bajas + ' enemigos abatidos') : '') +
       fila('Hambre', a.hambre ? '<span class="rojo">' + a.hambre + ' turnos sin comer bien</span>' : 'bien alimentado') +
       (M.vida.pausada(m) ? fila('Ánimo', (() => { const k = M.vida.animoDe(m, a); return (k >= 75 ? '😊 contento' : k >= 50 ? '🙂 tranquilo' : k >= 30 ? '😟 preocupado' : '😠 harto') + ' <span class="tenue">(' + k + ')</span>'; })()) + fila('Ahora', a.dormir ? (a.enCasa ? 'duerme en casa 💤' : 'vuelve a casa a dormir') : a.paseo === 2 ? 'descansa en la plaza o el parque' : esc(OFICIO1[M.vida.OFICIOS[a.o]] || 'trabaja')) : '') + '</dl>' +
@@ -490,6 +547,8 @@
       '<div class="linea" style="margin-top:10px"><button type="button" class="mando" id="seguir">' + (siguiendo ? 'Dejar de seguir' : 'Seguir con la cámara') + '</button> <button type="button" class="mando sutil" id="volver-pueblo">Ver su pueblo</button></div>';
     f.querySelector('.muestra').style.background = c ? c.color : '#ccc';
     f.querySelector('#seguir').addEventListener('click', () => { P.seguir(siguiendo ? null : a.id); pintarFicha(); });
+    f.querySelectorAll('.ver-aldeano').forEach(b => b.addEventListener('click', () => { aldeanoSel = +b.dataset.id; P.elegirAldeano(aldeanoSel); pintarFicha(); }));
+    f.querySelectorAll('.ver-edificio').forEach(b => b.addEventListener('click', () => { aldeanoSel = null; P.elegirAldeano(null); edificioSel = +b.dataset.t; pintarFicha(); }));
     f.querySelectorAll('.oficio-a').forEach(b => b.addEventListener('click', () => { const k = +b.dataset.k; a.fijo = { g: 'mano', vuelve: a.o }; M.vida.mover(a, k); pintarFicha(); }));
     const libre = f.querySelector('.oficio-libre');
     if (libre) libre.addEventListener('click', () => { delete a.fijo; a.e = 0; pintarFicha(); });
@@ -667,7 +726,7 @@
   function relojSuave() {
     requestAnimationFrame(relojSuave);
     // Para depurar desde la consola: genesis.mundo() devuelve el mundo vivo.
-    window.genesis = { mundo: () => m, aldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); } };
+    window.genesis = { mundo: () => m, aldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); }, edificio: t => { aldeanoSel = null; edificioSel = t; pintarFicha(); } };
     if (!m || anioAntes == null) return;
     if (performance.now() - (relojSuave.ult || 0) > 500) { relojSuave.ult = performance.now(); pintarCuadrillas(); }
     const f = corriendo ? Math.min(1, (performance.now() - inicioTurno) / VELOCIDADES[vel][0]) : 1;
@@ -909,7 +968,7 @@
 
   // ---------- Arranque ----------
   function iniciar(datos) {
-    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
+    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; edificioSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarEdificio: t => { aldeanoSel = null; P.elegirAldeano(null); edificioSel = t; pintarFicha(); abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);
     if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
