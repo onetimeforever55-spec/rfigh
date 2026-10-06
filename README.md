@@ -408,6 +408,10 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
   - **El casco** crece con el tamaño del pueblo. Dentro van las casas y los edificios, nunca en mitad de una calle, y llenan las manzanas de dentro afuera. Las calles se empiedran a medida que tienen casas al lado, y los caminos entre ciudades entran por ellas en vez de cruzar los solares.
   - **Fuera del casco está la huerta.** Solo se ara junto a un molino. Cuando el casco crece sobre la huerta vieja, se construye encima.
   - **Molinos con alcance medio**: 3 parcelas (antes 4), y cada uno da para unos diez campos. Cuando los que hay no tienen sitio libre, se levanta otro en el borde de la huerta, lejos de los demás. Los granjeros desbrozan el bosque para abrir campos nuevos (tardan más).
+- **Las ciudades nuevas pasan por fases**, para que no aparezcan de golpe ni como un plano vacío:
+  - **Campamento**: los colonos llegan andando y plantan dos tiendas (de pieles al principio, de lona con el color del pueblo después) junto a una hoguera que humea, un montón de leña y el banderín. Sus hijos nacen allí, y cada pocos turnos alguna familia de la capital se muda andando, a veces como constructora.
+  - **En obras**: con seis vecinos y dos casas alrededor, se levanta el ayuntamiento sobre un andamio, con su barra. Lo construyen los constructores del reino y, poco a poco, los propios vecinos.
+  - **Aldea**: con el ayuntamiento acabado, la crónica lo cuenta y llegan su plaza y su plano de calles. El trazado crece con la gente que vive allí, no con el tamaño del reino.
 - **Modo arquitecto** (botón 🏗 junto a la cámara, gobernando un pueblo): eliges una obra de la paleta (casa, calle, pozo, granero, plaza, parque, templo, casa del saber, palacio, molino, torre, puerto, cuartel, arquería o castillo) y tocas tu tierra.
   - Al pasar por encima se ve el edificio en verde, o en rojo con el motivo si no se puede: tierra ajena, agua, ya construido, hace falta ser villa…
   - Lo encargado queda marcado con un marco de trazos, y las calles por empedrar en gris. Tocar otra vez lo quita.

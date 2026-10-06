@@ -130,6 +130,7 @@
       else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.campamento) gl.drawImage(ARTE().edificio('campamento', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, c ? (c.era === 4 ? 4 : V.fase(c.era)) : 0), x, y);
       else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio || (obra >= V.OBRA.central && obra <= V.OBRA.aerodromo)) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio', 'central', 'banco', 'fabrica', 'estacion', 'hospital', 'aerodromo'][obra - V.OBRA.pozo], color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color, c ? V.fase(c.era) : 0), x, y);
@@ -1044,7 +1045,7 @@
     if (ahora > lucesHasta) {
       lucesHasta = ahora + 1200; luces = [];
       const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber || ob === V.OBRA.palacio || ob === V.OBRA.fuente || (ob >= V.OBRA.central && ob <= V.OBRA.aerodromo)) luces.push(t); if (luces.length > 400) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber || ob === V.OBRA.campamento || ob === V.OBRA.palacio || ob === V.OBRA.fuente || (ob >= V.OBRA.central && ob <= V.OBRA.aerodromo)) luces.push(t); if (luces.length > 400) break; }
     }
     const a = Math.min(1, (o - 0.3) / 0.4);
     for (const t of luces) {
@@ -1221,7 +1222,7 @@
     if (ahora > chimeneasHasta) {
       chimeneasHasta = ahora + 1500; chimeneas = [];
       const v = m.vida, tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if ((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) chimeneas.push(t); else if (o === V.OBRA.central || o === V.OBRA.fabrica) chimeneas.push(-t - 1); if (chimeneas.length > 60) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if (((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) || o === V.OBRA.campamento) chimeneas.push(t); else if (o === V.OBRA.central || o === V.OBRA.fabrica) chimeneas.push(-t - 1); if (chimeneas.length > 60) break; }
     }
     for (const tt of chimeneas) {
       // Las dos chimeneas de la central echan mucho más humo, y más oscuro.

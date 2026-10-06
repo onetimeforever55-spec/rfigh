@@ -569,6 +569,17 @@ console.log('EL PLAN URBANO Y LOS MOLINOS');
   comprobar(casasEnCalle <= Math.max(2, casas * 0.05), 'las casas no se levantan en mitad de las calles del plan (' + casasEnCalle + ' de ' + casas + ')');
   comprobar(campos > 10 && camposSinMolino <= campos * 0.15, 'los campos están junto a un molino (' + (campos - camposSinMolino) + ' de ' + campos + ')');
 }
+console.log('LAS CIUDADES NUEVAS EMPIEZAN COMO CAMPAMENTO');
+{
+  const m = S.crear(4, 5, { ritmo: 3 }), V2 = M.vida;
+  const fases = {};
+  for (let i = 0; i < 200; i++) { S.turno(m); for (const x of m.ciudades || []) { const f = fases[x.nombre] = fases[x.nombre] || []; if (f[f.length - 1] !== x.fase) f.push(x.fase); } }
+  const listas = Object.values(fases);
+  comprobar(listas.length > 3 && listas.every(f => f[0] === 'campamento'), 'toda ciudad nueva nace como campamento de colonos');
+  comprobar(listas.some(f => f.join('>') === 'campamento>obras>aldea'), 'y pasa por las obras del ayuntamiento antes de ser aldea');
+  const camp = (m.ciudades || []).find(x => x.fase === 'campamento');
+  if (camp) comprobar(m.vida.obra[V2.centro(m, camp.region)] === V2.OBRA.campamento && !(m.vida.rutas || []).some(ru => ru.clave === 'c:' + camp.region), 'el campamento tiene sus tiendas y todavía no tiene calles trazadas');
+}
 console.log('LA CORTE: MEJORAS Y EDADES');
 {
   const m = S.crear(4, 5, { ritmo: 3 }), X2 = M.mando;

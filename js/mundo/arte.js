@@ -400,6 +400,7 @@
       if (nombre === 'palacio') return palacio(H, fase, col);
       if (nombre === 'central') return central(H, fase, col);
       if (nombre === 'banco') return banco(H, fase, col);
+      if (nombre === 'campamento') return campamento(H, fase, col);
       if (nombre === 'fabrica') return fabrica(H, fase, col);
       if (nombre === 'estacion') return estacion(H, fase, col);
       if (nombre === 'hospital') return hospital(H, fase, col);
@@ -568,6 +569,20 @@
     H.r(11, 14, 4, 1, MADERA); H.p(11, 15, oscuro(MADERA, 0.25)); H.p(14, 15, oscuro(MADERA, 0.25));
     H.p(15, 15, col);
     return H.lienzo();
+  }
+  // El campamento de los colonos: dos tiendas (de pieles al principio, de lona con el color del pueblo después),
+  // la hoguera con sus piedras, un montón de leña y el banderín. En la era industrial y moderna, carros y casetas.
+  function campamento(H, fase, col) {
+    const lona = fase === 0 ? '#c8a070' : mezcla(col, '#e8e0cc', 0.55), sombra = oscuro(lona, 0.25);
+    for (const [x0, y0, w] of [[1, 3, 6], [8, 6, 6]]) {
+      for (let y = 0; y < w; y++) { const half = Math.round(y * 0.6); for (let x = -half; x <= half; x++) H.p(x0 + 3 + x, y0 + y, x < 0 ? lona : sombra); }
+      H.p(x0 + 3, y0 - 1, MADERA); H.r(x0 + 3, y0 + w - 3, 1, 3, '#2a1a10');
+    }
+    H.disco(5, 12.5, 2, '#7a7a74'); H.p(5, 12, '#ff8a1e'); H.p(4, 12, '#ffd84a'); H.p(5, 11, '#ffd84a'); H.p(6, 12, '#ff5a1e');
+    H.r(10, 13, 4, 1, '#7a4a24'); H.r(11, 12, 3, 1, '#8a5a2a'); H.p(10, 13, '#c89a62'); H.p(11, 12, '#c89a62');
+    H.r(14, 1, 1, 6, MADERA); H.r(15, 1, 1, 2, col);
+    if (fase >= 2) { H.r(0, 13, 3, 2, '#7a5530'); H.p(0, 15, '#2a2a2a'); H.p(2, 15, '#2a2a2a'); }
+    H.contorno(); return H.lienzo();
   }
   // El banco (Renacimiento en adelante): fachada de piedra con columnas, frontón, escalinata y la moneda dorada.
   function banco(H, fase, col) {
