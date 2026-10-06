@@ -532,7 +532,8 @@
         const vivo = id => id != null ? m.vida.aldeanos.find(x => x.id === id) : null, l = [];
         const ps = a.padres || (padre ? [padre.nombre + ' ' + (padre.familia || ''), null] : null);
         if (!ps) return '<span class="tenue">llegó de fuera (de los primeros pobladores)</span>';
-        [[a.padre, ps[0]], [a.madre, ps[1]]].forEach(([id, nom]) => { if (!nom) return; const p = vivo(id); l.push(p ? '<button type="button" class="enlace ver-aldeano" data-id="' + p.id + '">' + esc(nom) + '</button> <span class="tenue">(' + M.vida.anos(p) + ')</span>' : esc(nom) + ' <span class="tenue">(†)</span>'); });
+        const dif = m.vida.difuntos || {};
+        [[a.padre, ps[0]], [a.madre, ps[1]]].forEach(([id, nom]) => { if (!nom) return; const p = vivo(id), d = id != null ? dif[id] : null; l.push(p ? '<button type="button" class="enlace ver-aldeano" data-id="' + p.id + '">' + esc(nom) + '</button> <span class="tenue">(' + M.vida.anos(p) + ')</span>' : esc(nom) + ' <span class="tenue">(†' + (d ? ' a los ' + d.anos + ', de ' + esc(d.causa) : '') + ')</span>'); });
         return l.join(' y ');
       })()) +
       (a.parejaNombre ? fila('Pareja', (() => { const p = m.vida.aldeanos.find(x => x.id === a.pareja); return p ? '<button type="button" class="enlace ver-aldeano" data-id="' + p.id + '">' + esc(a.parejaNombre) + '</button>' : esc(a.parejaNombre) + ' <span class="tenue">(†)</span>'; })()) : '') +
@@ -542,6 +543,13 @@
       (a.casa != null && m.vida.edificios && m.vida.edificios[a.casa] ? fila('Vive en', '<button type="button" class="enlace ver-edificio" data-t="' + a.casa + '">' + esc(m.vida.edificios[a.casa].nombre) + '</button>') : '') +
       (a.bajas ? fila('En combate', a.bajas + ' enemigos abatidos') : '') +
       fila('Hambre', a.hambre ? '<span class="rojo">' + a.hambre + ' turnos sin comer bien</span>' : 'bien alimentado') +
+      (M.vida.pausada(m) && M.vida.riesgoAnual ? (() => {
+        // La salud: lo que le acerca o le aleja de la muerte, y la probabilidad de no llegar al año que viene.
+        const r = M.vida.riesgoAnual(m, a, c), pct = r.p * 100, f = r.salud.f;
+        const estado = f <= 0.85 ? '💚 buena' : f <= 1.25 ? '💛 normal' : f <= 1.8 ? '🧡 delicada' : '❤️‍🩹 mala';
+        const motivos = r.salud.motivos.sort((x, y) => Math.abs(Math.log(y[0])) - Math.abs(Math.log(x[0]))).slice(0, 4).map(([k, t]) => '<span class="' + (k > 1 ? 'rojo' : 'verde') + '">' + (k > 1 ? '▲ ' : '▼ ') + esc(t) + '</span>').join(' · ');
+        return fila('Salud', estado + ' <span class="tenue">· riesgo de morir este año: ' + (pct < 1 ? pct.toFixed(1) : Math.round(pct)) + ' %</span>' + (motivos ? '<br>' + motivos : ''));
+      })() : '') +
       (M.vida.pausada(m) ? fila('Ánimo', (() => { const k = M.vida.animoDe(m, a); return (k >= 75 ? '😊 contento' : k >= 50 ? '🙂 tranquilo' : k >= 30 ? '😟 preocupado' : '😠 harto') + ' <span class="tenue">(' + k + ')</span>'; })()) + fila('Ahora', a.dormir ? (a.enCasa ? 'duerme en casa 💤' : 'vuelve a casa a dormir') : a.paseo === 2 ? 'descansa en la plaza o el parque' : esc(OFICIO1[M.vida.OFICIOS[a.o]] || 'trabaja')) : '') + '</dl>' +
       (c && c.jugador && (a.edad || 0) >= M.vida.ADULTO && a.colono == null ? '<div class="tec-era">Mándale un oficio</div><div class="linea aldeano-oficios">' + M.vida.OFICIOS.map((o, k) => '<button type="button" class="mando sutil oficio-a' + (a.o === k ? ' activa' : '') + '" data-k="' + k + '">' + esc(o === 'erudito' ? M.ERUDITO(c.era).uno : OFICIO1[o] || o) + '</button>').join('') + (a.fijo ? ' <button type="button" class="mando sutil oficio-libre" title="Que vuelva a hacer lo que el pueblo necesite">Que decida el pueblo</button>' : '') + '</div>' + (a.fijo && a.fijo.g === 'mano' ? '<p class="tenue arbol-ayuda">Hace lo que le mandaste y nadie se lo cambia.</p>' : '') : '') +
       '<div class="linea" style="margin-top:10px"><button type="button" class="mando" id="seguir">' + (siguiendo ? 'Dejar de seguir' : 'Seguir con la cámara') + '</button> <button type="button" class="mando sutil" id="volver-pueblo">Ver su pueblo</button></div>';

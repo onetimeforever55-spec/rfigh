@@ -107,6 +107,8 @@
     if (victima.pv == null) victima.pv = vidaMax(victima);
     if (victima.pv0 == null) victima.pv0 = victima.pv;
     victima.pv -= dano;
+    // Un golpe fuerte deja una herida que tarda en curar (cuenta para su salud).
+    if (!victima.tipo && victima.pv > 0 && dano >= vidaMax(victima) * 0.3) victima.heridas = Math.min(8, (victima.heridas || 0) + 1);
     v.golpes.push([victima.id, paso, ax, ay, dano]);
     if (atacante) v.ataques.push([atacante.id, paso, victima.x - atacante.x, victima.y - atacante.y]);
     return victima.pv <= 0;
@@ -780,6 +782,50 @@
   const escala = c => 1.2 * (1 + 0.15 * c.era);
   const tiene = (a, r) => !!(a.rasgos && a.rasgos.includes(r));
   const APELLIDOS = ['ez', 'ar', 'in', 'os', 'ani', 'ov', 'eda', 'ur'];
+  /*
+   * LA SALUD DE CADA ALDEANO (partidas pausadas): la probabilidad de morir cada año sale de su edad (cada vez
+   * mayor, como en la vida real) multiplicada por cómo ha vivido:
+   *  · hambre: cada temporada mal comida deja huella (se va borrando si después come bien);
+   *  · heridas de guerra que no terminan de curar;
+   *  · vivir sin casa, un oficio duro (mina, guerra), un ánimo por los suelos, un invierno sin leña;
+   *  · y a favor: un hospital, las técnicas de salud (vacunas…), la edad de su reino, ser longevo o fuerte.
+   */
+  function salud(m, a, c) {
+    const v = m.vida, motivos = [];
+    let f = 1;
+    const pon = (k, txt) => { f *= k; motivos.push([k, txt]); };
+    const desn = a.desnutricion || 0;
+    if (desn >= 1) pon(1 + Math.min(1.5, desn * 0.12), desn >= 6 ? 'ha pasado mucha hambre' : 'ha pasado hambre');
+    if ((a.heridas || 0) >= 1) pon(1 + Math.min(1, a.heridas * 0.12), a.heridas >= 3 ? 'muchas heridas de guerra' : 'heridas de guerra');
+    if (a.casa == null || ![OBRA.casa, OBRA.centro, OBRA.ayuntamiento, OBRA.campamento].includes(v.obra[a.casa])) pon(1.3, 'vive sin casa');
+    else if (v.obra[a.casa] === OBRA.campamento) pon(1.15, 'vive en una tienda');
+    if (a.o === MINERO && !esNino(a)) pon(1.2, 'trabajo duro en la mina');
+    if (a.o === GUERRERO && !esNino(a)) pon(1.12, 'vida de soldado');
+    if (a.o === ERUDITO && !esNino(a)) pon(0.9, 'vida tranquila de estudio');
+    if (c) {
+      const animo = animoDe(m, a);
+      if (animo < 30) pon(1.25, 'está harto de la vida');
+      else if (animo > 75) pon(0.9, 'es feliz');
+      if (v.estacion === 3 && (c.madera || 0) < 3) pon(1.35, 'invierno sin leña');
+      if (c.hospitales > 0) pon(0.7, 'hay hospital');
+      const tec = M.tec(c, 'vida'); if (tec > 0) pon(Math.max(0.6, 1 - tec / 40), 'medicina de su época');
+    }
+    if (tiene(a, 'longevo')) pon(0.6, 'es longevo');
+    if (tiene(a, 'fuerte')) pon(0.85, 'es fuerte');
+    return { f, motivos };
+  }
+  function riesgoAnual(m, a, c) {
+    const anos = M.vida.anos(a), era = c ? c.era : 0, s_ = salud(m, a, c);
+    // Mortalidad de Gompertz: muy baja de joven, se dobla cada ~8 años de vejez; mejora con las edades.
+    const base = anos < 5 ? 0.012 * Math.max(0.3, 1 - 0.09 * era) : 0.0003 * Math.max(0.35, 1 - 0.07 * era) * Math.exp(0.08 * anos);
+    return { p: Math.min(0.9, base * s_.f), salud: s_, anos };
+  }
+  // Lo que queda escrito de quien muere (para la ficha de sus hijos y de su casa).
+  function recordarMuerte(m, a, c) {
+    const v = m.vida;
+    (v.difuntos = v.difuntos || {})[a.id] = { nombre: a.nombre + ' ' + (a.familia || ''), anos: Math.round(M.vida.anos(a)), anio: m.anio, causa: a.causa || 'vejez' };
+    const ids = Object.keys(v.difuntos); if (ids.length > 400) delete v.difuntos[ids[0]];
+  }
   function nuevoAldeano(m, c, casa, edad, padre) {
     const v = m.vida, rasgos = [];
     if (azar(v) < 0.6) rasgos.push(RASGOS_ALDEANO[Math.floor(azar(v) * RASGOS_ALDEANO.length)]);
@@ -846,8 +892,22 @@
       }
       if (soloQuitar) continue;
       // Mueren de viejos los que llegan al final de su vida (si el pueblo no se queda sin nadie).
-      const hosp = pausada(m) && c.hospitales > 0 ? 6 : 0;
-      for (const a of lista) if (!quitar.has(a) && (a.edad || 0) > limiteVida(a) + hosp && lista.length - quitar.size > 2) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, 'vejez', 0]); }
+      if (pausada(m)) {
+        // En las partidas pausadas no hay edad fija: cada año hay una probabilidad de morir que crece con la edad
+        // y con cómo ha vivido cada uno (ver salud()).
+        let quedan = lista.filter(x => !quitar.has(x)).length;
+        for (const a of lista) {
+          const anos = M.vida.anos(a), antes = a.anosVistos != null ? a.anosVistos : anos;
+          a.anosVistos = anos;
+          const dy = Math.max(0, anos - antes);
+          if (!dy || quitar.has(a) || quedan <= 2) continue;
+          const p = 1 - Math.pow(1 - riesgoAnual(m, a, c).p, dy);
+          if (azar(v) < p) { quitar.add(a); quedan--; a.causa = anos >= 55 ? 'vejez' : esNino(a) ? 'enfermedad de niño' : 'enfermedad'; v.muertos.push([a.x, a.y, a.c, anos >= 55 ? 'vejez' : 'enfermedad', 0]); recordarMuerte(m, a, c); }
+        }
+      } else {
+        const hosp = 0;
+        for (const a of lista) if (!quitar.has(a) && (a.edad || 0) > limiteVida(a) + hosp && lista.length - quitar.size > 2) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, 'vejez', 0]); }
+      }
       // Nacen bebés de los adultos, si hay cama libre, comida en el granero y tierra que los sostenga.
       const vivos = lista.filter(a => !quitar.has(a));
       const camasLibres = Math.max(0, (c.camas || 6) - vivos.length);
@@ -1650,6 +1710,7 @@
     v.cambios = []; v.muertos = []; v.disparos = []; v.aviones = [];
     ambiente(m); v.golpes = []; v.ataques = [];
     // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
+    for (const a of v.aldeanos) if (a.heridas) a.heridas = Math.max(0, a.heridas - (S().civ(m, a.c) && S().civ(m, a.c).hospitales > 0 ? 0.08 : 0.03));
     for (const a of v.aldeanos.concat(v.animales || [])) if (a.pv != null) { a.pv = Math.min(vidaMax(a), a.pv + (a.tipo ? 5 : 6)); a.pv0 = a.pv; if (a.pv >= vidaMax(a)) { a.pv = null; a.pv0 = null; } }
     // Con el ritmo pausado se envejece más despacio por turno (cada turno son menos años).
     v.bio = bio(m);
@@ -2502,14 +2563,18 @@
       c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
       if (c.comida < 0) {
         c.comida = 0;
-        for (const a of lista) a.hambre = (a.hambre || 0) + 1;
+        for (const a of lista) { a.hambre = (a.hambre || 0) + 1; a.desnutricion = Math.min(12, (a.desnutricion || 0) + 1); }
         const pausa = pausada(m), caen = lista.filter(a => a.hambre >= (pausa ? 3 : 2)).sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, Math.ceil(lista.length * (pausa ? 0.12 : 0.3)));
         if (caen.length && lista.length - caen.length >= 1) {
           for (const a of caen) { muertos.add(a); v.muertos.push([a.x, a.y, a.c, 'hambre', TICKS - 0.5, a]); }
           if (m.turno - c.ultimaHambre > 6) S().cronica(m, 'hambruna', 'Hambre en ' + c.nombre, 'Los graneros de ' + c.nombre + ' están vacíos. Mueren ' + caen.length + ' aldeanos, primero los más viejos; los demás comen raíces y miran al cielo.', c);
           c.ultimaHambre = m.turno;
         }
-      } else for (const a of lista) a.hambre = Math.max(0, (a.hambre || 0) - 1);
+      } else {
+        // Comer poco (el granero casi vacío) también deja huella; comer bien la va borrando.
+        const escaso = (c.comida || 0) < lista.length * 0.3;
+        for (const a of lista) { a.hambre = Math.max(0, (a.hambre || 0) - 1); a.desnutricion = escaso ? Math.min(12, (a.desnutricion || 0) + 0.3) : Math.max(0, (a.desnutricion || 0) * 0.96 - 0.02); }
+      }
       c.comida = Math.min(c.comida, topeComida(c, lista.length));
     }
     if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
@@ -2982,5 +3047,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

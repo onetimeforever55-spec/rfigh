@@ -593,7 +593,23 @@ console.log('FICHAS: EDIFICIOS CON NOMBRE E HISTORIA, CIUDADES CON FUNDADORES, A
   comprobar(x && x.madre && x.historia && x.historia.length, 'cada ciudad sabe quién la fundó y de qué reino salió (' + (x ? x.nombre + ': ' + x.fundadores.join(', ') : '') + ')');
   const hijos = v.aldeanos.filter(a => a.padres && a.padres[1]);
   comprobar(hijos.length > 10, 'los niños tienen padre y madre (' + (hijos[0] ? hijos[0].nombre + ', hijo de ' + hijos[0].padres.join(' y ') : '') + ')');
-  comprobar(hijos.filter(a => a.padres[0].split(' ').pop() === a.padres[1].split(' ').pop()).length < hijos.length * 0.5, 'y casi nunca son de la misma familia');
+  const porId = new Map(v.aldeanos.map(a => [a.id, a]));
+  const incesto = hijos.filter(a => { const p = porId.get(a.padre), q = porId.get(a.madre); return p && q && ((p.padre != null && p.padre === q.padre) || q.padre === p.id || p.padre === q.id || q.madre === p.id || p.madre === q.id); });
+  comprobar(incesto.length === 0, 'y las parejas nunca son hermanos ni padres e hijos');
+}
+console.log('LA MUERTE DEPENDE DE CÓMO SE HA VIVIDO');
+{
+  const m = S.crear(4, 5, { ritmo: 3 }), V2 = M.vida;
+  for (let i = 0; i < 200; i++) S.turno(m);
+  const v = m.vida, edades = v.aldeanos.map(a => V2.anos(a));
+  comprobar(Math.max(...edades) < 110, 'nadie vive eternamente (el más viejo tiene ' + Math.round(Math.max(...edades)) + ' años)');
+  const a = v.aldeanos.find(x => V2.anos(x) > 40 && V2.anos(x) < 60 && x.o !== 3 && x.o !== 4) || v.aldeanos[0], c = S.civ(m, a.c);
+  const sano = Object.assign({}, a, { desnutricion: 0, heridas: 0, rasgos: [] }), enfermo = Object.assign({}, a, { desnutricion: 8, heridas: 4, rasgos: [], casa: null });
+  const p1 = V2.riesgoAnual(m, sano, c).p, p2 = V2.riesgoAnual(m, enfermo, c).p;
+  comprobar(p2 > p1 * 1.8, 'quien ha pasado hambre, tiene heridas y vive sin casa corre mucho más riesgo (' + (p1 * 100).toFixed(1) + ' % frente a ' + (p2 * 100).toFixed(1) + ' %)');
+  const joven = Object.assign({}, sano, { edad: 4 }), viejo = Object.assign({}, sano, { edad: 24 });
+  comprobar(V2.riesgoAnual(m, viejo, c).p > V2.riesgoAnual(m, joven, c).p * 5, 'y el riesgo crece mucho con la edad');
+  comprobar(Object.values(v.difuntos || {}).some(d => d.causa === 'vejez') && Object.values(v.difuntos || {}).some(d => d.causa === 'enfermedad'), 'se recuerda de qué murió cada uno (vejez, enfermedad…)');
 }
 console.log('LA CORTE: MEJORAS Y EDADES');
 {

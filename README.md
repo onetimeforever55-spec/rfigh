@@ -434,6 +434,11 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
     - pareja, hijos con sus nombres y hermanos;
     - dónde y cuándo nació;
     - en qué casa vive.
+- **La muerte depende de cómo se ha vivido**: no hay una edad fija de muerte. Cada año, cada aldeano tiene una probabilidad de morir que crece con la edad (casi nula de joven, se dobla cada pocos años en la vejez) y que se multiplica según su vida.
+  - **La sube**: haber pasado hambre (cada temporada mal comido deja huella, que se va borrando si después come bien), las heridas fuertes de guerra que tardan en curar, vivir sin casa o en una tienda, la mina o la vida de soldado, estar harto de la vida o un invierno sin leña.
+  - **La baja**: un hospital (que además cura antes las heridas), la medicina de su época, la edad de su reino (en la era moderna se vive más), ser feliz, el estudio, ser longevo o fuerte.
+
+  La ficha del aldeano dice su salud (buena, normal, delicada, mala), su riesgo de morir este año y por qué. De los padres muertos queda a qué edad y de qué murieron. Se acabaron los aldeanos de 200 años: la mitad muere hacia los 60 y los más sanos pasan de los 80.
 - **Modo arquitecto** (botón 🏗 junto a la cámara, gobernando un pueblo): eliges una obra de la paleta (casa, calle, pozo, granero, plaza, parque, templo, casa del saber, palacio, molino, torre, puerto, cuartel, arquería o castillo) y tocas tu tierra.
   - Al pasar por encima se ve el edificio en verde, o en rojo con el motivo si no se puede: tierra ajena, agua, ya construido, hace falta ser villa…
   - Lo encargado queda marcado con un marco de trazos, y las calles por empedrar en gris. Tocar otra vez lo quita.
