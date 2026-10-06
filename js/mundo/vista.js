@@ -979,7 +979,42 @@
   }
 
   // ---------- Arranque ----------
+  /**
+   * Que deslizar el dedo no saque al jugador del juego: ni tirar para recargar, ni el rebote de la página, ni el
+   * zoom de la página entera (el mapa tiene el suyo), ni el gesto de «atrás» del navegador. Las listas y paneles
+   * que se desplazan siguen desplazándose. Y si aun así se sale, la partida queda guardada.
+   */
+  function atarPantalla() {
+    const desplazable = (el, dx, dy) => {
+      for (; el && el !== document.body; el = el.parentElement) {
+        const cs = getComputedStyle(el);
+        if (Math.abs(dy) >= Math.abs(dx) && /(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 1) {
+          if ((dy > 0 && el.scrollTop > 0) || (dy < 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1)) return true;
+        }
+        if (Math.abs(dx) > Math.abs(dy) && /(auto|scroll)/.test(cs.overflowX) && el.scrollWidth > el.clientWidth + 1) {
+          if ((dx > 0 && el.scrollLeft > 0) || (dx < 0 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1)) return true;
+        }
+      }
+      return false;
+    };
+    let x0 = 0, y0 = 0;
+    document.addEventListener('touchstart', ev => { if (ev.touches.length === 1) { x0 = ev.touches[0].clientX; y0 = ev.touches[0].clientY; } }, { passive: true });
+    document.addEventListener('touchmove', ev => {
+      if (ev.target && ev.target.id === 'mapa') { ev.preventDefault(); return; }
+      if (ev.touches.length > 1) { ev.preventDefault(); return; }
+      const t = ev.touches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+      if (!desplazable(ev.target, dx, dy)) ev.preventDefault();
+    }, { passive: false });
+    // Safari: el pellizco sobre la página no la amplía.
+    for (const g of ['gesturestart', 'gesturechange']) document.addEventListener(g, ev => ev.preventDefault(), { passive: false });
+    // El gesto o el botón de «atrás» no cierra el juego: se queda en la partida.
+    try { history.pushState({ genesis: 1 }, ''); window.addEventListener('popstate', () => { try { history.pushState({ genesis: 1 }, ''); } catch (e) { /* sin historial */ } }); } catch (e) { /* sin historial */ }
+    // Si se cierra o se cambia de app, se guarda antes.
+    window.addEventListener('pagehide', guardar);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) guardar(); });
+  }
   function iniciar(datos) {
+    atarPantalla();
     P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; edificioSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarEdificio: t => { aldeanoSel = null; P.elegirAldeano(null); edificioSel = t; pintarFicha(); abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);

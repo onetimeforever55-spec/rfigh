@@ -17,7 +17,11 @@
 }
 
 * { box-sizing: border-box; }
-html, body { background: var(--noche); color: var(--pergamino); height: 100%; }
+html, body { background: var(--noche); color: var(--pergamino); height: 100%; overscroll-behavior: none; }
+/* La página no se mueve ni rebota: solo se mueve el mapa (y lo que tiene su propio desplazamiento). */
+body { position: fixed; inset: 0; width: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
+.panel-hoja, .respuesta, .g-voluntad, .mandos, .recursos, .arqui-lista, .lista-pueblos, .ficha .pestanas { overscroll-behavior: contain; }
 body { margin: 0; font-family: var(--f-libro); font-size: 15px; line-height: 1.5; overflow: hidden; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
