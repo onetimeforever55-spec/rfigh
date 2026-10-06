@@ -393,6 +393,16 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
 - **Una economía con sorpresas**:
   - **Sucesos del mercado mundial**: sequía lejana (el grano se dispara), años de abundancia, una flota que trae madera barata, fiebre de construir barcos, auge de la construcción, minas que se agotan, una gran veta, guerra en otras tierras (las armas al doble). Duran unos turnos y mueven los precios para todos. Salen en la crónica, en un aviso y en la pestaña Mercado.
   - **Ofertas de los mercaderes de tus socios**: te dejan algo un 25 % más barato que el mercado, o te compran lo que te sobra un 35 % más caro. Las ofertas valen unos turnos. Se aceptan con «acepto el trato» o con el botón de la pestaña Mercado; el consejero las recuerda.
+- **La corte (como en Age of Empires)**: al tocar la plaza de un pueblo (gran choza del jefe, casa comunal, palacio, castillo del rey, sede del gobierno… según la edad) o el botón 🏛 se abre su menú.
+  - **Arriba, las mejoras de la edad**, cada una en su tarjeta: qué da, cuánto cuesta, dónde se investiga, qué falta y un botón «Investigar». Si se está investigando, sale la barra y los turnos que quedan. Las mejoras pendientes de edades anteriores van aparte.
+  - **Abajo, la siguiente edad**, con cada requisito marcado ✓ / ✗ y el botón grande «⏫ Avanzar a…», más la casilla «Avanzar solos en cuanto se pueda».
+  - Requisitos para avanzar:
+    - **tres mejoras de la edad**;
+    - el saber;
+    - el año;
+    - el tamaño y el edificio que pide la edad;
+    - el pago.
+  - Sobre la plaza de tu pueblo salta una señal ▲ cuando ya puedes avanzar, o ? cuando tus sabios no tienen nada que investigar. El menú de un pueblo ajeno se ve, pero no se toca.
 - **Modo arquitecto** (botón 🏗 junto a la cámara, gobernando un pueblo): eliges una obra de la paleta (casa, calle, pozo, granero, plaza, parque, templo, casa del saber, palacio, molino, torre, puerto, cuartel, arquería o castillo) y tocas tu tierra.
   - Al pasar por encima se ve el edificio en verde, o en rojo con el motivo si no se puede: tierra ajena, agua, ya construido, hace falta ser villa…
   - Lo encargado queda marcado con un marco de trazos, y las calles por empedrar en gris. Tocar otra vez lo quita.

@@ -445,3 +445,35 @@ table.mercado td:first-child { white-space: nowrap; }
 .oferta { margin: 6px 0 10px; padding: 8px 10px; background: rgba(240, 192, 90, 0.08); box-shadow: 0 0 0 2px var(--px-negro), inset 0 0 0 1px rgba(240, 192, 90, 0.5); font-size: 13px; }
 .oferta .linea { gap: 6px; margin-top: 6px; }
 .oferta .obrar, .oferta .mando { padding: 4px 12px; font-size: 13px; }
+
+/* La corte: el menú del palacio con las mejoras de la edad y el paso a la siguiente. */
+.corte { position: absolute; z-index: 9; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 24px)); max-height: min(82vh, 760px); display: flex; flex-direction: column; padding: 4px 8px 8px; }
+.corte[hidden] { display: none; }
+.corte-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 4px 4px 6px; border-bottom: 2px solid var(--px-negro); }
+.corte-sede { margin: 0; font-size: 18px; color: var(--oro); text-shadow: 2px 2px 0 #05070e; }
+.corte-era { margin: 2px 0 0; font-family: var(--f-dato); font-size: 11px; color: var(--tenue); text-transform: uppercase; }
+.corte-cuerpo { overflow-y: auto; padding: 4px 4px 2px; }
+.mejoras { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin: 6px 0 10px; }
+.mejora { padding: 8px 10px; background: #0b1120; box-shadow: inset 2px 2px 0 #02040a, inset -2px -2px 0 #26324f, 0 0 0 2px var(--px-negro); display: flex; flex-direction: column; gap: 4px; }
+.mejora.hecha { opacity: 0.75; box-shadow: inset 2px 2px 0 #02040a, inset -2px -2px 0 #2a4a2a, 0 0 0 2px #3a6a3a; }
+.mejora.ahora { box-shadow: inset 2px 2px 0 #02040a, inset -2px -2px 0 #26324f, 0 0 0 2px #7ab8ff; }
+.mejora-cab { display: flex; justify-content: space-between; gap: 6px; font-size: 15px; }
+.mejora-texto { margin: 0; font-size: 13px; color: var(--pergamino); }
+.mejora-precio { margin: 0; font-size: 12px; }
+.mejora-falta { margin: 0; font-size: 12px; }
+.mejora .obrar, .mejora .mando { margin-top: 4px; align-self: flex-start; padding: 5px 14px; font-size: 14px; }
+.mejora-barra { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.mejora-barra .barra { flex: 1; }
+.corte-avanzar { width: 100%; padding: 10px 14px; font-size: 17px; margin: 4px 2px 8px; }
+.corte-avanzar:disabled { filter: grayscale(0.85); opacity: 0.7; }
+.corte-auto { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--tenue); cursor: pointer; }
+.corte-auto input { accent-color: var(--oro); width: 18px; height: 18px; }
+.corte-viejas summary { cursor: pointer; font-size: 13px; color: var(--tenue); margin: 4px 0; }
+.corte-subiendo { display: flex; align-items: center; gap: 8px; }
+.corte-subiendo .barra { flex: 1; }
+.rec.tec { cursor: pointer; }
+@media (max-width: 899px) {
+  .corte { position: fixed; left: 0; right: 0; top: auto; bottom: var(--abajo); transform: none; width: auto; max-height: 76vh; }
+  body.corte-abierta .g-voluntad { display: none; }
+  .mejoras { grid-template-columns: 1fr; }
+}

@@ -557,6 +557,19 @@ console.log('EL MERCADO GLOBAL');
     comprobar(/Precios del mundo/.test(X2.ordenar(m, con.id, '¿cómo está el mercado?').respuesta), '«¿cómo está el mercado?»');
   }
 }
+console.log('LA CORTE: MEJORAS Y EDADES');
+{
+  const m = S.crear(4, 5, { ritmo: 3 }), X2 = M.mando;
+  for (let i = 0; i < 10; i++) S.turno(m);
+  const c = S.vivas(m)[0]; X2.gobernar(m, c.id);
+  const med = S.mejorasDeEdad(c);
+  comprobar(med.lista.length >= 3 && med.pide === 3, 'cada edad tiene sus mejoras y hacen falta tres para avanzar (' + med.lista.map(t => t.nombre).join(', ') + ')');
+  const ts = M.tecsDe(c); ts.length = 0; c.ciencia = 9999; m.anio = 9999; for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) c[k] = 999; c.nivelMax = c.nivel = 4;
+  comprobar(/mejoras más de esta edad/.test(S.puedeSubir(m, c).falta.join(' ')), 'sin las mejoras no se puede pasar de edad');
+  for (const t of med.lista.slice(0, 3)) ts.push(t.id);
+  comprobar(!/mejora/.test(S.puedeSubir(m, c).falta.join(' ')), 'con tres mejoras, ese requisito se cumple');
+  comprobar(X2.entender(m, c.id, 'no avancéis de edad solos').some(a => a.tipo === 'edad_auto' && !a.si), '«no avancéis de edad solos»');
+}
 {
   // Con ritmo 1 (las pruebas de siempre) nada de esto cambia el mundo.
   const m = S.crear(4, 5);

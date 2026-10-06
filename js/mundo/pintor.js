@@ -29,7 +29,7 @@
   const CASAS = ['choza', 'casa', 'entramado', 'bloque'];
 
   // ---------- Estado ----------
-  let cv = null, g = null, m = null, V = null, S = null, alClicar = null, alClicarAldeano = null;
+  let cv = null, g = null, m = null, V = null, S = null, alClicar = null, alClicarAldeano = null, alClicarCorte = null;
   // Dónde se dibujó cada aldeano en el último fotograma (para tocarlo y para seguirlo con la cámara).
   const dibujados = new Map();
   let siguiendo = null, elegido = null;
@@ -44,6 +44,7 @@
     cv = canvas; g = cv.getContext('2d');
     alClicar = (opciones && opciones.alClicar) || null;
     alClicarAldeano = (opciones && opciones.alClicarAldeano) || null;
+    alClicarCorte = (opciones && opciones.alClicarCorte) || null;
     reducido = !!(opciones && opciones.reducido);
     S = M.sim; V = M.vida;
     entradas();
@@ -428,6 +429,7 @@
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
     pintarBatallas(ahora, z, ox, oy, dpr);
+    avisoCorte(ahora, z, ox, oy, dpr);
     pintarAnuncios(z, ox, oy, dpr, performance.now());
     pintarCartel(ahora, dpr);
   }
@@ -792,6 +794,26 @@
       g.fillStyle = a.color; g.fillText(a.texto, sx, sy);
     }
     g.globalAlpha = 1;
+  }
+  // Sobre la plaza de tu pueblo, una señal que salta cuando la corte te necesita: ⏫ si puedes pasar de edad,
+  // ? si tus sabios no tienen nada que investigar. Se toca la plaza para abrir el menú.
+  let corteAviso = null, corteTurno = -1;
+  function avisoCorte(ahora, z, ox, oy, dpr) {
+    const c = m && S.vivas(m).find(x => x.jugador);
+    if (!c) return;
+    if (corteTurno !== m.turno) {
+      corteTurno = m.turno;
+      const r = S.puedeSubir(m, c), libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !M.tecsDe(c).includes(t.id));
+      corteAviso = c.subiendo ? null : r.ok ? '⏫' : (!c.investigacion || !c.investigacion.id) && libres.length ? '?' : null;
+    }
+    if (!corteAviso) return;
+    const pl = V.plaza(m, c.capital), t = pl && pl.length ? pl[0] : V.centro(m, c.capital);
+    const sx = ((t % m.vida.tw) * P + P) * z + ox, sy = (Math.floor(t / m.vida.tw) * P - 6) * z + oy - 18 * dpr + Math.round(Math.sin(ahora / 200) * 3 * dpr);
+    const w = 26 * dpr;
+    g.fillStyle = '#05070e'; g.fillRect(sx - w / 2 - 2 * dpr, sy - w / 2 - 2 * dpr, w + 4 * dpr, w + 4 * dpr);
+    g.fillStyle = corteAviso === '⏫' ? '#f0c05a' : '#7ab8ff'; g.fillRect(sx - w / 2, sy - w / 2, w, w);
+    g.fillStyle = '#05070e'; g.font = 'bold ' + Math.round(16 * dpr) + 'px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(corteAviso === '⏫' ? '▲' : '?', sx, sy + 1 * dpr); g.textBaseline = 'alphabetic';
   }
   // ---------- Las batallas: dónde se está luchando, para que no pasen sin verse ----------
   // Se agrupan los golpes y las muertes en combate del turno por zonas de 10×10 parcelas; una batalla dura en
@@ -1857,6 +1879,7 @@
         const R = V.SUB * P, rx = Math.floor(wx / R), ry = Math.floor(wy / R);
         if (arqui) { const tx = Math.floor(wx / P), ty = Math.floor(wy / P); arqui.wx = wx; arqui.wy = wy; if (tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th) arqui.alColocar(ty * m.vida.tw + tx); }
         else if (cerca != null && alClicarAldeano) alClicarAldeano(cerca);
+        else if (alClicarCorte && (() => { const tx = Math.floor(wx / P), ty = Math.floor(wy / P), t = ty * m.vida.tw + tx; const o = tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th ? visto.obra[t] : 0; if (o === V.OBRA.centro || o === V.OBRA.ayuntamiento || o === V.OBRA.palacio) { const d = m.dueno[V.region(m, t)]; if (d >= 0) { alClicarCorte(d, t); return true; } } return false; })()) { /* la corte del rey */ }
         else if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
       }
       if (punteros.size === 1) { const [p] = [...punteros.values()]; arrastre = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, movido: 99 }; }

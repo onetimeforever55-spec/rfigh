@@ -497,11 +497,17 @@
   }
   // ¿Puede este pueblo subir de edad? Saber (ciencia acumulada), fecha, requisitos de edificios y tamaño, y precio.
   const OBRA_CUENTA = { templo: 'templos', cuartel: 'cuarteles', castillo: 'castillos', molino: 'molinos', puerto: 'puertos' };
+  function mejorasDeEdad(c) {
+    const lista = M.TECNOLOGIAS.filter(t => t.era === c.era), ts = M.tecsDe(c);
+    return { lista, hechas: lista.filter(t => ts.includes(t.id)).length, pide: Math.min(3, lista.length) };
+  }
   function puedeSubir(m, c) {
     const sig = M.ERAS[c.era + 1], req = M.EDADES[c.era + 1], falta = [];
     if (!sig) return { ok: false, falta: ['no hay más edades'] };
     if (c.ciencia < sig.umbral) falta.push('saber (' + Math.floor(c.ciencia) + ' de ' + sig.umbral + ')');
     if (!m.libre && sig.desde != null && m.anio < sig.desde) falta.push('llegar al año ' + anioTexto(sig.desde).replace(/(\d)\.$/, '$1'));
+    // Como en Age of Empires: antes de pasar de edad hay que haber hecho las mejoras de la edad (tres).
+    if (m.vida && ritmo(m) > 1) { const r = mejorasDeEdad(c); if (r.hechas < r.pide) falta.push('investigar ' + (r.pide - r.hechas) + (r.pide - r.hechas === 1 ? ' mejora' : ' mejoras') + ' más de esta edad'); }
     if (m.vida && req) {
       if (req.pide.nivel && (c.nivel || 0) < req.pide.nivel) falta.push(['', 'ser una aldea', 'ser un pueblo', 'ser una villa', 'ser una ciudad'][req.pide.nivel]);
       if (req.pide.obra && !(c[OBRA_CUENTA[req.pide.obra]] > 0)) falta.push('un ' + req.pide.obra);
@@ -846,6 +852,6 @@
     });
   }
 
-  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

@@ -456,6 +456,38 @@ table.mercado td:first-child { white-space: nowrap; }
 .oferta { margin: 6px 0 10px; padding: 8px 10px; background: rgba(240, 192, 90, 0.08); box-shadow: 0 0 0 2px var(--px-negro), inset 0 0 0 1px rgba(240, 192, 90, 0.5); font-size: 13px; }
 .oferta .linea { gap: 6px; margin-top: 6px; }
 .oferta .obrar, .oferta .mando { padding: 4px 12px; font-size: 13px; }
+
+/* La corte: el menú del palacio con las mejoras de la edad y el paso a la siguiente. */
+.corte { position: absolute; z-index: 9; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100% - 24px)); max-height: min(82vh, 760px); display: flex; flex-direction: column; padding: 4px 8px 8px; }
+.corte[hidden] { display: none; }
+.corte-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 4px 4px 6px; border-bottom: 2px solid var(--px-negro); }
+.corte-sede { margin: 0; font-size: 18px; color: var(--oro); text-shadow: 2px 2px 0 #05070e; }
+.corte-era { margin: 2px 0 0; font-family: var(--f-dato); font-size: 11px; color: var(--tenue); text-transform: uppercase; }
+.corte-cuerpo { overflow-y: auto; padding: 4px 4px 2px; }
+.mejoras { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin: 6px 0 10px; }
+.mejora { padding: 8px 10px; background: #0b1120; box-shadow: inset 2px 2px 0 #02040a, inset -2px -2px 0 #26324f, 0 0 0 2px var(--px-negro); display: flex; flex-direction: column; gap: 4px; }
+.mejora.hecha { opacity: 0.75; box-shadow: inset 2px 2px 0 #02040a, inset -2px -2px 0 #2a4a2a, 0 0 0 2px #3a6a3a; }
+.mejora.ahora { box-shadow: inset 2px 2px 0 #02040a, inset -2px -2px 0 #26324f, 0 0 0 2px #7ab8ff; }
+.mejora-cab { display: flex; justify-content: space-between; gap: 6px; font-size: 15px; }
+.mejora-texto { margin: 0; font-size: 13px; color: var(--pergamino); }
+.mejora-precio { margin: 0; font-size: 12px; }
+.mejora-falta { margin: 0; font-size: 12px; }
+.mejora .obrar, .mejora .mando { margin-top: 4px; align-self: flex-start; padding: 5px 14px; font-size: 14px; }
+.mejora-barra { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.mejora-barra .barra { flex: 1; }
+.corte-avanzar { width: 100%; padding: 10px 14px; font-size: 17px; margin: 4px 2px 8px; }
+.corte-avanzar:disabled { filter: grayscale(0.85); opacity: 0.7; }
+.corte-auto { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--tenue); cursor: pointer; }
+.corte-auto input { accent-color: var(--oro); width: 18px; height: 18px; }
+.corte-viejas summary { cursor: pointer; font-size: 13px; color: var(--tenue); margin: 4px 0; }
+.corte-subiendo { display: flex; align-items: center; gap: 8px; }
+.corte-subiendo .barra { flex: 1; }
+.rec.tec { cursor: pointer; }
+@media (max-width: 899px) {
+  .corte { position: fixed; left: 0; right: 0; top: auto; bottom: var(--abajo); transform: none; width: auto; max-height: 76vh; }
+  body.corte-abierta .g-voluntad { display: none; }
+  .mejoras { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -504,9 +536,11 @@ table.mercado td:first-child { white-space: nowrap; }
       </div>
       <div class="aviso-flotante" id="aviso-flotante" hidden></div>
       <div class="arquitecto hud" id="arquitecto" role="toolbar" aria-label="Modo arquitecto" hidden></div>
+      <div class="corte hud" id="corte" role="dialog" aria-label="La corte: mejoras y edades" hidden></div>
       <div class="camara" role="group" aria-label="Cámara">
         <button type="button" class="mando cam batalla-btn" id="ir-batalla" aria-label="Ir a la batalla" title="Ir a la batalla más grande" hidden>⚔</button>
         <button type="button" class="mando cam" id="ir-mio" aria-label="Ir a tu pueblo" title="Ir a tu pueblo" hidden>⌂</button>
+        <button type="button" class="mando cam" id="corte-btn" aria-label="La corte: mejoras y edades" title="La corte: mejoras de la edad y pasar a la siguiente" hidden>🏛</button>
         <button type="button" class="mando cam" id="arquitecto-btn" aria-label="Modo arquitecto" title="Modo arquitecto: toca el mapa para decir dónde va cada edificio o calle" aria-pressed="false" hidden>🏗</button>
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
         <button type="button" class="mando cam" id="zoom-menos" aria-label="Alejar">−</button>
@@ -1316,11 +1350,17 @@ table.mercado td:first-child { white-space: nowrap; }
   }
   // ¿Puede este pueblo subir de edad? Saber (ciencia acumulada), fecha, requisitos de edificios y tamaño, y precio.
   const OBRA_CUENTA = { templo: 'templos', cuartel: 'cuarteles', castillo: 'castillos', molino: 'molinos', puerto: 'puertos' };
+  function mejorasDeEdad(c) {
+    const lista = M.TECNOLOGIAS.filter(t => t.era === c.era), ts = M.tecsDe(c);
+    return { lista, hechas: lista.filter(t => ts.includes(t.id)).length, pide: Math.min(3, lista.length) };
+  }
   function puedeSubir(m, c) {
     const sig = M.ERAS[c.era + 1], req = M.EDADES[c.era + 1], falta = [];
     if (!sig) return { ok: false, falta: ['no hay más edades'] };
     if (c.ciencia < sig.umbral) falta.push('saber (' + Math.floor(c.ciencia) + ' de ' + sig.umbral + ')');
     if (!m.libre && sig.desde != null && m.anio < sig.desde) falta.push('llegar al año ' + anioTexto(sig.desde).replace(/(\d)\.$/, '$1'));
+    // Como en Age of Empires: antes de pasar de edad hay que haber hecho las mejoras de la edad (tres).
+    if (m.vida && ritmo(m) > 1) { const r = mejorasDeEdad(c); if (r.hechas < r.pide) falta.push('investigar ' + (r.pide - r.hechas) + (r.pide - r.hechas === 1 ? ' mejora' : ' mejoras') + ' más de esta edad'); }
     if (m.vida && req) {
       if (req.pide.nivel && (c.nivel || 0) < req.pide.nivel) falta.push(['', 'ser una aldea', 'ser un pueblo', 'ser una villa', 'ser una ciudad'][req.pide.nivel]);
       if (req.pide.obra && !(c[OBRA_CUENTA[req.pide.obra]] > 0)) falta.push('un ' + req.pide.obra);
@@ -1665,7 +1705,7 @@ table.mercado td:first-child { white-space: nowrap; }
     });
   }
 
-  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
@@ -5091,7 +5131,7 @@ table.mercado td:first-child { white-space: nowrap; }
     // Subir de edad: «avanzad de edad», «pasad a la Edad del Hierro», «¿qué nos falta para la próxima edad?».
     const edad = /\b(edad|era|epoca)\b/.test(n);
     if (edad && /\b(que (nos )?falta|que necesit\w*|requisitos|cuando (llega|podemos)|como (llegamos|pasamos))\b/.test(n)) return [{ tipo: 'consulta_edad' }];
-    if (edad && /\b(solos?|automatic\w*|cuando pueda\w*|por su cuenta)\b/.test(n) && /\b(avanz\w*|sub\w*|pas\w*)\b/.test(n)) return [{ tipo: 'edad_auto', si: !/\b(no|nunca|dejad de)\b/.test(n) }];
+    if (edad && /\b(solos?|automatic\w*|cuando pueda\w*|por su cuenta)\b/.test(n) && /\b(avan[zc]\w*|sub\w*|pas\w*)\b/.test(n)) return [{ tipo: 'edad_auto', si: !/\b(no|nunca|dejad de)\b/.test(n) }];
     if (edad && /\b(ahorr\w*|guard\w*|junt\w*)\b/.test(n)) return [{ tipo: 'ahorrar_edad', si: !/\b(no|dejad de)\b/.test(n) }];
     if (edad && /\b(avanz\w*|sub\w*|pas\w*|entr\w*|lleg\w*|adelant\w*|cambi\w*|ir a|vamos a)\b/.test(n)) return [{ tipo: 'edad' }];
     // Una tecnología por su nombre (o por lo que da): «investigad la rueda», «quiero la imprenta», «estudiad el hierro».
@@ -5702,7 +5742,7 @@ table.mercado td:first-child { white-space: nowrap; }
     const falta = !(c.plan && c.plan.obra) && (c.necesidades || []).find(x => x.falta && x.capital !== false && ORDEN[x.obra]);
     if (falta) return { texto: falta.nombre + ': ' + falta.mal + '. Hace falta ' + falta.edificio + '.', orden: ORDEN[falta.obra] };
     if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : 'Construid un templo' };
-    if (M.ERAS[c.era + 1] && !c.subiendo && S().puedeSubir(m, c).ok) return { texto: '¡Podéis pasar a ' + M.ERAS[c.era + 1].con + '! Tenéis el saber, los edificios y con qué pagarlo.', orden: 'Avanzad de edad' };
+    if (M.ERAS[c.era + 1] && !c.subiendo && S().puedeSubir(m, c).ok) return { texto: '¡Podéis pasar a ' + M.ERAS[c.era + 1].con + '! Tenéis las mejoras, el saber, los edificios y con qué pagarlo. Toca tu plaza (o 🏛) y pulsa «Avanzar».', orden: 'Avanzad de edad' };
     if (M.ERAS[c.era + 1] && !c.subiendo && S().ahorrando(Object.assign({}, m), Object.assign({}, c, { jugador: false })) && !S().puedeSubir(m, c).ok && S().puedeSubir(m, c).falta.every(x => /de (comida|madera|piedra|oro|metal)$/.test(x))) return { texto: 'Para ' + M.ERAS[c.era + 1].con + ' solo os falta pagar: ' + S().puedeSubir(m, c).falta.join(', ') + '.', orden: 'Ahorrad para la edad' };
     if ((c.oro || 0) < 0) return { texto: 'Las arcas están vacías: los soldados no cobran y desertan, y la gente se queja.', orden: (c.plan && c.plan.impuesto || 1) < 1.5 ? 'Subid los impuestos' : 'Vended madera' };
     if (c.investigacion && !c.investigacion.id && M.TECNOLOGIAS.some(t => t.era <= c.era && !M.tecsDe(c).includes(t.id))) return { texto: 'Tus sabios esperan saber qué investigar.', orden: '¿Qué investigamos?' };
@@ -6994,7 +7034,7 @@ table.mercado td:first-child { white-space: nowrap; }
   const CASAS = ['choza', 'casa', 'entramado', 'bloque'];
 
   // ---------- Estado ----------
-  let cv = null, g = null, m = null, V = null, S = null, alClicar = null, alClicarAldeano = null;
+  let cv = null, g = null, m = null, V = null, S = null, alClicar = null, alClicarAldeano = null, alClicarCorte = null;
   // Dónde se dibujó cada aldeano en el último fotograma (para tocarlo y para seguirlo con la cámara).
   const dibujados = new Map();
   let siguiendo = null, elegido = null;
@@ -7009,6 +7049,7 @@ table.mercado td:first-child { white-space: nowrap; }
     cv = canvas; g = cv.getContext('2d');
     alClicar = (opciones && opciones.alClicar) || null;
     alClicarAldeano = (opciones && opciones.alClicarAldeano) || null;
+    alClicarCorte = (opciones && opciones.alClicarCorte) || null;
     reducido = !!(opciones && opciones.reducido);
     S = M.sim; V = M.vida;
     entradas();
@@ -7393,6 +7434,7 @@ table.mercado td:first-child { white-space: nowrap; }
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
     pintarBatallas(ahora, z, ox, oy, dpr);
+    avisoCorte(ahora, z, ox, oy, dpr);
     pintarAnuncios(z, ox, oy, dpr, performance.now());
     pintarCartel(ahora, dpr);
   }
@@ -7757,6 +7799,26 @@ table.mercado td:first-child { white-space: nowrap; }
       g.fillStyle = a.color; g.fillText(a.texto, sx, sy);
     }
     g.globalAlpha = 1;
+  }
+  // Sobre la plaza de tu pueblo, una señal que salta cuando la corte te necesita: ⏫ si puedes pasar de edad,
+  // ? si tus sabios no tienen nada que investigar. Se toca la plaza para abrir el menú.
+  let corteAviso = null, corteTurno = -1;
+  function avisoCorte(ahora, z, ox, oy, dpr) {
+    const c = m && S.vivas(m).find(x => x.jugador);
+    if (!c) return;
+    if (corteTurno !== m.turno) {
+      corteTurno = m.turno;
+      const r = S.puedeSubir(m, c), libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !M.tecsDe(c).includes(t.id));
+      corteAviso = c.subiendo ? null : r.ok ? '⏫' : (!c.investigacion || !c.investigacion.id) && libres.length ? '?' : null;
+    }
+    if (!corteAviso) return;
+    const pl = V.plaza(m, c.capital), t = pl && pl.length ? pl[0] : V.centro(m, c.capital);
+    const sx = ((t % m.vida.tw) * P + P) * z + ox, sy = (Math.floor(t / m.vida.tw) * P - 6) * z + oy - 18 * dpr + Math.round(Math.sin(ahora / 200) * 3 * dpr);
+    const w = 26 * dpr;
+    g.fillStyle = '#05070e'; g.fillRect(sx - w / 2 - 2 * dpr, sy - w / 2 - 2 * dpr, w + 4 * dpr, w + 4 * dpr);
+    g.fillStyle = corteAviso === '⏫' ? '#f0c05a' : '#7ab8ff'; g.fillRect(sx - w / 2, sy - w / 2, w, w);
+    g.fillStyle = '#05070e'; g.font = 'bold ' + Math.round(16 * dpr) + 'px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(corteAviso === '⏫' ? '▲' : '?', sx, sy + 1 * dpr); g.textBaseline = 'alphabetic';
   }
   // ---------- Las batallas: dónde se está luchando, para que no pasen sin verse ----------
   // Se agrupan los golpes y las muertes en combate del turno por zonas de 10×10 parcelas; una batalla dura en
@@ -8822,6 +8884,7 @@ table.mercado td:first-child { white-space: nowrap; }
         const R = V.SUB * P, rx = Math.floor(wx / R), ry = Math.floor(wy / R);
         if (arqui) { const tx = Math.floor(wx / P), ty = Math.floor(wy / P); arqui.wx = wx; arqui.wy = wy; if (tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th) arqui.alColocar(ty * m.vida.tw + tx); }
         else if (cerca != null && alClicarAldeano) alClicarAldeano(cerca);
+        else if (alClicarCorte && (() => { const tx = Math.floor(wx / P), ty = Math.floor(wy / P), t = ty * m.vida.tw + tx; const o = tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th ? visto.obra[t] : 0; if (o === V.OBRA.centro || o === V.OBRA.ayuntamiento || o === V.OBRA.palacio) { const d = m.dueno[V.region(m, t)]; if (d >= 0) { alClicarCorte(d, t); return true; } } return false; })()) { /* la corte del rey */ }
         else if (rx >= 0 && ry >= 0 && rx < m.W && ry < m.H) alClicar(ry * m.W + rx);
       }
       if (punteros.size === 1) { const [p] = [...punteros.values()]; arrastre = { x: p.x, y: p.y, cx: cam.x, cy: cam.y, movido: 99 }; }
@@ -9033,6 +9096,7 @@ table.mercado td:first-child { white-space: nowrap; }
     $('voluntad').classList.toggle('es-pueblo', !!c);
     $('ir-mio').hidden = !c;
     $('arquitecto-btn').hidden = !c || !M.vida.pausada(m);
+    $('corte-btn').hidden = !c;
     if ((!c || !M.vida.pausada(m)) && arquiClave) salirArquitecto();
     pintarEjemplos();
   }
@@ -9095,7 +9159,7 @@ table.mercado td:first-child { white-space: nowrap; }
       (c.era >= 1 && (c.armas || 0) >= 1 ? chip('⚔', r(c.armas || 0), 'Armas forjadas o compradas, listas para tus guerreros' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.armas.toFixed(2) : ''), '') : '') +
       chip('👥', (c.aldeanos || 0) + '<small class="tenue">/' + (c.camas || 0) + '</small>', 'Aldeanos / camas', (c.aldeanos || 0) >= (c.camas || 0) ? 'mal' : '') +
       chip('🏘', esc(nivel.nombre), nivel.nombre + (M.NIVELES[(c.nivel || 0) + 1] ? ' · a ' + M.NIVELES[(c.nivel || 0) + 1].desde + ' vecinos será ' + M.NIVELES[(c.nivel || 0) + 1].nombre.toLowerCase() + ' (' + M.NIVELES[(c.nivel || 0) + 1].abre + ')' : '')) +
-      (c.subiendo ? chip('⏫', esc(M.ERAS[c.subiendo.a].nombre) + ' <span class="barra mini"><span style="width:' + Math.round(100 * (m.turno - c.subiendo.desde) / Math.max(1, c.subiendo.hasta - c.subiendo.desde)) + '%"></span></span>', 'Pasando de edad', 'oro') : M.ERAS[c.era + 1] && S.puedeSubir(m, c).ok ? chip('⏫', '¡' + esc(M.ERAS[c.era + 1].nombre) + '!', 'Podéis avanzar de edad: «avanzad de edad» o el botón de la pestaña Técnica', 'oro') : '') +
+      (c.subiendo ? chip('⏫', esc(M.ERAS[c.subiendo.a].nombre) + ' <span class="barra mini"><span style="width:' + Math.round(100 * (m.turno - c.subiendo.desde) / Math.max(1, c.subiendo.hasta - c.subiendo.desde)) + '%"></span></span>', 'Pasando de edad', 'oro') : M.ERAS[c.era + 1] && S.puedeSubir(m, c).ok ? chip('⏫', '¡' + esc(M.ERAS[c.era + 1].nombre) + '!', 'Podéis avanzar de edad: toca tu plaza (o 🏛) y pulsa «Avanzar»', 'oro') : '') +
       chip('🔬', inv ? esc(inv.nombre) + ' <span class="barra mini"><span style="width:' + pct + '%"></span></span>' : '<span class="tenue">' + (M.ERAS[c.era + 1] ? (m.libre || M.ERAS[c.era + 1].desde == null ? 'próxima era' : M.ERAS[c.era + 1].nombre + ' en ' + S.anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) : 'todo investigado') + '</span>', inv ? 'Investigando: ' + inv.nombre + ' (' + inv.texto + ') · ' + pct + ' %' : 'Sin nada que investigar hasta la próxima era', 'tec');
     el.hidden = false;
   }
@@ -9182,6 +9246,54 @@ table.mercado td:first-child { white-space: nowrap; }
 
   // Las prioridades de tu pueblo como barras: el pueblo se gobierna solo y esto es lo que pesa en sus decisiones.
   // El árbol de la técnica de un pueblo: lo hecho, lo que se investiga, lo que se puede elegir y lo que vendrá.
+  // ---------- LA CORTE: el menú del palacio (o de la casa del jefe), como en Age of Empires ----------
+  // Se abre tocando la plaza de un pueblo (o el botón 🏛). Arriba, las mejoras de la edad, cada una con su
+  // botón; abajo, lo que pide la siguiente edad y el botón grande para avanzar. Hacen falta tres mejoras.
+  let corteDe = null;
+  const SEDE = ['Gran choza del jefe', 'Casa comunal', 'Palacio de piedra', 'Palacio', 'Castillo del rey', 'Palacio real', 'Palacio de gobierno', 'Sede del gobierno', 'Cuartel general'];
+  function abrirCorte(id) { corteDe = id; pintarCorte(); if (movil()) document.body.classList.add('sin-panel'); }
+  function cerrarCorte() { corteDe = null; $('corte').hidden = true; document.body.classList.remove('corte-abierta'); }
+  function pintarCorte() {
+    const el = $('corte'), c = corteDe != null ? S.civ(m, corteDe) : null;
+    if (!c || !c.viva) { cerrarCorte(); return; }
+    const mio = !!c.jugador, ts = M.tecsDe(c), inv = c.investigacion && c.investigacion.id, med = S.mejorasDeEdad(c);
+    const sig = M.ERAS[c.era + 1], req = M.EDADES[c.era + 1], r = S.puedeSubir(m, c);
+    const precioTxt = p => Object.keys(p || {}).map(k => (px(k) || '') + ' ' + p[k]).join(' ');
+    const tarjeta = t => {
+      const hecha = ts.includes(t.id), ahora = inv === t.id, falta = hecha || ahora ? [] : S.faltaPara(m, c, t);
+      const pct = ahora ? Math.min(100, Math.round(100 * c.investigacion.puntos / M.costeTec(t))) : 0;
+      const turnos = ahora ? Math.max(1, Math.ceil((M.costeTec(t) - c.investigacion.puntos) / Math.max(0.01, c.cienciaTurno || 1))) : 0;
+      return '<div class="mejora' + (hecha ? ' hecha' : ahora ? ' ahora' : falta.length ? ' falta' : '') + '">' +
+        '<div class="mejora-cab"><b>' + esc(t.nombre) + '</b>' + (hecha ? '<span class="verde">✓ hecha</span>' : '') + '</div>' +
+        '<p class="mejora-texto">' + esc(t.texto) + '</p>' +
+        (hecha ? '' : '<p class="mejora-precio">' + precioTxt(t.precio) + ' <span class="tenue">· en ' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · ' + M.costeTec(t) + ' de saber</span></p>') +
+        (ahora ? '<div class="mejora-barra"><span class="barra"><span style="width:' + pct + '%"></span></span> ' + pct + ' % <span class="tenue">· unos ' + turnos + ' turnos</span></div>' :
+          !hecha && mio ? (falta.length ? '<p class="rojo mejora-falta">Falta: ' + esc(falta.join(', ')) + '</p>' : '') + '<button type="button" class="' + (falta.length ? 'mando sutil' : 'obrar') + ' corte-tec" data-nombre="' + esc(t.nombre) + '">' + (falta.length ? 'Apuntar para después' : 'Investigar') + '</button>' : '') +
+        '</div>';
+    };
+    const pendientesViejas = M.TECNOLOGIAS.filter(t => t.era < c.era && !ts.includes(t.id));
+    const item = (ok, txt) => '<li class="' + (ok ? 'ok' : 'no') + '">' + (ok ? '✓' : '✗') + ' ' + txt + '</li>';
+    const ft = r.falta.join(' ');
+    const pideEdad = sig ? '<ul class="edad-req">' +
+      item(!/mejora/.test(ft), 'Mejoras de esta edad: <b>' + med.hechas + ' / ' + med.pide + '</b>') +
+      item(!/saber/.test(ft), 'Saber ' + Math.floor(c.ciencia) + ' / ' + sig.umbral + ' <span class="tenue">(lo traen tus ' + esc(M.ERUDITO(c.era).varios) + ')</span>') +
+      (sig.desde != null && !m.libre ? item(!/llegar al año/.test(ft), 'Llegar al año ' + esc(S.anioTexto(sig.desde).replace(/(\d)\.$/, '$1'))) : '') +
+      (req ? item(!/ser una|ser un|un templo|un cuartel|un castillo/.test(ft), esc(req.texto.charAt(0).toUpperCase() + req.texto.slice(1))) + item(!/ de (comida|madera|piedra|oro|metal)/.test(ft), 'Pagar ' + ['comida', 'madera', 'piedra', 'oro', 'metal'].filter(k => req[k]).map(k => (px(k) || '') + ' ' + req[k]).join(' ')) : '') + '</ul>' : '';
+    el.innerHTML = '<div class="corte-cab"><div><p class="corte-sede">🏛 ' + esc(SEDE[c.era] || 'La corte') + ' de ' + esc(c.nombre) + '</p><p class="corte-era">' + esc(M.ERAS[c.era].nombre) + (mio ? '' : ' <span class="tenue">· no es tu pueblo</span>') + '</p></div><button type="button" class="cerrar corte-cerrar" aria-label="Cerrar">×</button></div>' +
+      '<div class="corte-cuerpo">' +
+      '<p class="tec-era">' + esc(('Mejoras de ' + M.ERAS[c.era].con).replace(/ de el /, ' del ')) + ' <span class="tenue">· ' + med.hechas + ' de ' + med.lista.length + ' hechas (hacen falta ' + med.pide + ' para avanzar)</span></p>' +
+      '<div class="mejoras">' + med.lista.map(tarjeta).join('') + '</div>' +
+      (pendientesViejas.length ? '<details class="corte-viejas"><summary>Mejoras pendientes de edades anteriores (' + pendientesViejas.length + ')</summary><div class="mejoras">' + pendientesViejas.map(tarjeta).join('') + '</div></details>' : '') +
+      (sig ? '<p class="tec-era">Siguiente edad: ' + esc(sig.nombre) + '</p>' + (c.subiendo ? '<p class="corte-subiendo">⏫ Pasando a ' + esc(sig.con) + ' <span class="barra"><span style="width:' + Math.round(100 * (m.turno - c.subiendo.desde) / Math.max(1, c.subiendo.hasta - c.subiendo.desde)) + '%"></span></span> faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos</p>' : pideEdad +
+        (mio ? '<button type="button" class="obrar corte-avanzar"' + (r.ok ? '' : ' disabled') + '>' + (r.ok ? '⏫ Avanzar a ' + esc(sig.nombre) : 'Aún no se puede avanzar') + '</button>' +
+          '<label class="corte-auto"><input type="checkbox" class="corte-auto-c"' + (c.plan && c.plan.autoEdad ? ' checked' : '') + '> Avanzar solos en cuanto se pueda</label>' : '')) : '<p class="tenue">Es la última edad.</p>') +
+      '</div>';
+    el.hidden = false; document.body.classList.add('corte-abierta');
+    el.querySelector('.corte-cerrar').addEventListener('click', cerrarCorte);
+    el.querySelectorAll('.corte-tec').forEach(b => b.addEventListener('click', () => { const res = X.ordenar(m, c.id, 'investigad ' + b.dataset.nombre); if (res.ok) despuesDeOrden(res); pintarCorte(); }));
+    const av = el.querySelector('.corte-avanzar'); if (av) av.addEventListener('click', () => { const res = X.ordenar(m, c.id, 'avanzad de edad'); if (res.ok) despuesDeOrden(res); pintarCorte(); });
+    const au = el.querySelector('.corte-auto-c'); if (au) au.addEventListener('change', () => { X.ordenar(m, c.id, au.checked ? 'avanzad de edad solos' : 'no avancéis de edad solos'); pintarCorte(); });
+  }
   // ---------- El modo arquitecto: eliges un edificio (o calle) y tocas el mapa donde quieres que vaya ----------
   let arquiClave = null;
   const ARQUI = [['casa', '🏠', 'Casa'], ['camino', '🧱', 'Calle'], ['pozo', '🪣', 'Pozo'], ['granero', '🌾', 'Granero'], ['fuente', '⛲', 'Plaza pública'], ['parque', '🌳', 'Parque'], ['templo', '⛪', 'Templo'], ['saber', '📜', 'Saber'], ['palacio', '🏰', 'Palacio'], ['central', '⚡', 'Central eléctrica'], ['banco', '🏦', 'Banco'], ['fabrica', '🏭', 'Fábrica'], ['estacion', '🚂', 'Estación de tren'], ['hospital', '🏥', 'Hospital'], ['aerodromo', '✈', 'Aeródromo'], ['molino', '⚙', 'Molino'], ['torre', '🗼', 'Torre'], ['puerto', '⚓', 'Puerto'], ['cuartel', '⚔', 'Cuartel'], ['arqueria', '🏹', 'Arquería'], ['castillo', '🏯', 'Castillo']];
@@ -9627,6 +9739,7 @@ table.mercado td:first-child { white-space: nowrap; }
     if (yo || m.retos) retosDelTurno(antes);
     if (yo) avisos(yo, guerrasAntes, antes);
     avisarBatallas();
+    if (corteDe != null) pintarCorte();
     pintarTodo();
     if (m.turno % 5 === 0) guardar();
   }
@@ -9819,7 +9932,7 @@ table.mercado td:first-child { white-space: nowrap; }
 
   // ---------- Arranque ----------
   function iniciar(datos) {
-    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); } });
+    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; P.elegirAldeano(null); const d = m.dueno[region]; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);
     if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
@@ -9875,6 +9988,8 @@ table.mercado td:first-child { white-space: nowrap; }
     $('ver-ideas').addEventListener('click', () => { const e = $('ejemplos'); e.hidden = !e.hidden; $('ver-ideas').setAttribute('aria-expanded', e.hidden ? 'false' : 'true'); });
     $('arquitecto-btn').addEventListener('click', () => { if (arquiClave || !$('arquitecto').hidden) salirArquitecto(); else abrirArquitecto(); });
     $('ir-batalla').addEventListener('click', irABatalla);
+    $('corte-btn').addEventListener('click', () => { const c = tuPueblo(); if (corteDe != null) cerrarCorte(); else if (c) abrirCorte(c.id); });
+    $('recursos').addEventListener('click', ev => { const ch = ev.target.closest('.rec.tec, .rec.oro'); const c = tuPueblo(); if (ch && c && (ch.classList.contains('tec') || /Avanzar|avanzar|edad/i.test(ch.title))) abrirCorte(c.id); });
     $('ir-mio').addEventListener('click', () => { const c = tuPueblo(); if (c) P.centrarEn(c.capital, 3); });
     $('marcador').addEventListener('click', () => { panelAbierto(true); abrirHoja('retos'); });
     $('fin-seguir').addEventListener('click', () => { $('fin').hidden = true; if (!tuPueblo()) pedirModo('Elige otro pueblo', 'Tu pueblo ya no existe. Gobierna otro o sigue mirando como dios.'); else { corriendo = true; programar(); } });
