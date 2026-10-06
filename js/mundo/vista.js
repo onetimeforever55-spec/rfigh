@@ -10,7 +10,8 @@
   const $ = id => document.getElementById(id);
   const CLAVE = 'genesis.mundo.v1';
   // Como en WorldBox, el tiempo pasa despacio: a 1×, cada turno dura más de tres segundos.
-  const VELOCIDADES = [[3400, '1×'], [1200, '3×'], [400, '10×']];
+  // La velocidad original es lenta, como en WorldBox: se ve a cada aldeano ir y venir. Las otras aceleran.
+  const VELOCIDADES = [[8000, '1×'], [4000, '2×'], [1600, '5×'], [500, '15×']];
   const reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let aldeanoSel = null, pestana = 'resumen';
@@ -223,7 +224,7 @@
   // El árbol de la técnica de un pueblo: lo hecho, lo que se investiga, lo que se puede elegir y lo que vendrá.
   // ---------- El modo arquitecto: eliges un edificio (o calle) y tocas el mapa donde quieres que vaya ----------
   let arquiClave = null;
-  const ARQUI = [['casa', '🏠', 'Casa'], ['camino', '🧱', 'Calle'], ['pozo', '🪣', 'Pozo'], ['granero', '🌾', 'Granero'], ['fuente', '⛲', 'Plaza pública'], ['parque', '🌳', 'Parque'], ['templo', '⛪', 'Templo'], ['saber', '📜', 'Saber'], ['palacio', '🏰', 'Palacio'], ['central', '⚡', 'Central eléctrica'], ['molino', '⚙', 'Molino'], ['torre', '🗼', 'Torre'], ['puerto', '⚓', 'Puerto'], ['cuartel', '⚔', 'Cuartel'], ['arqueria', '🏹', 'Arquería'], ['castillo', '🏯', 'Castillo']];
+  const ARQUI = [['casa', '🏠', 'Casa'], ['camino', '🧱', 'Calle'], ['pozo', '🪣', 'Pozo'], ['granero', '🌾', 'Granero'], ['fuente', '⛲', 'Plaza pública'], ['parque', '🌳', 'Parque'], ['templo', '⛪', 'Templo'], ['saber', '📜', 'Saber'], ['palacio', '🏰', 'Palacio'], ['central', '⚡', 'Central eléctrica'], ['banco', '🏦', 'Banco'], ['fabrica', '🏭', 'Fábrica'], ['estacion', '🚂', 'Estación de tren'], ['hospital', '🏥', 'Hospital'], ['aerodromo', '✈', 'Aeródromo'], ['molino', '⚙', 'Molino'], ['torre', '🗼', 'Torre'], ['puerto', '⚓', 'Puerto'], ['cuartel', '⚔', 'Cuartel'], ['arqueria', '🏹', 'Arquería'], ['castillo', '🏯', 'Castillo']];
   function abrirArquitecto() {
     const c = tuPueblo();
     if (!c) return;
@@ -279,6 +280,8 @@
     const pedidos = ((c.plan && c.plan.pedidos) || []).map(x => '📦 ' + x.n + ' ' + x.que).concat(((c.plan && c.plan.ventas) || []).map(x => '🏷 ' + x.n + ' ' + x.que)).join(' · ');
     return '<div class="arbol">' +
       '<p class="arbol-ayuda">El precio de cada cosa sale de lo que hay en todo el mundo frente a lo que todos necesitan: si sobra, baja; si escasea, sube. Pero solo se compra y se vende con los reinos con los que hay ruta: sus comerciantes traen lo que os falta y se llevan lo que os sobra, a cambio de oro.</p>' +
+      (mk.suceso ? '<p class="arbol-ayuda"><b>📈 ' + esc(mk.suceso.titulo) + '</b>: ' + esc(mk.suceso.k) + (mk.suceso.f > 1 ? ' más caro' : ' más barato') + ' durante ' + Math.max(1, mk.suceso.hasta - m.turno) + ' turnos más.</p>' : '') +
+      (c.oferta && c.jugador ? '<div class="oferta"><b>🤝 ' + esc((S.civ(m, c.oferta.de) || {}).nombre || 'Un mercader') + '</b> ' + (c.oferta.tipo === 'venta' ? 'os ofrece ' + c.oferta.n + ' ' + ICONO_BIEN[c.oferta.que] + ' ' + c.oferta.que + ' por ' + Math.round(c.oferta.oro) + ' de oro' : 'quiere comprar ' + c.oferta.n + ' ' + ICONO_BIEN[c.oferta.que] + ' ' + c.oferta.que + ' por ' + Math.round(c.oferta.oro) + ' de oro') + ' <span class="tenue">(mercado: ' + Math.round(mk.precio[c.oferta.que] * c.oferta.n) + ')</span><div class="linea"><button type="button" class="obrar mercado-orden" data-orden="acepto el trato">Aceptar</button><button type="button" class="mando sutil mercado-orden" data-orden="rechazo el trato">Rechazar</button></div></div>' : '') +
       '<div class="tec-era">Precios del mundo</div>' + tabla +
       '<div class="tec-era">' + esc(c.nombre) + ' se dedica a</div>' +
       '<p class="arbol-ayuda">' + (esp ? ICONO_BIEN[esp] + ' <b>' + esp + '</b>' + (elegida ? ' (lo mandaste tú)' : ' — reparte su trabajo según lo que le rinde, y cambia cuando otra cosa se paga mejor') : 'aún nada en especial') + '</p>' +
@@ -302,12 +305,12 @@
   // La pestaña Ciudad: lo que el pueblo necesita y por qué, el ánimo de la gente, la estación y las obras en marcha.
   function ciudadDe(c) {
     const V = M.vida, nec = c.necesidades || [], est = m.vida.estacion;
-    const ORDEN = { central: 'construid una central eléctrica', pozo: 'construid un pozo', granero: 'construid un granero', fuente: 'construid una plaza pública', parque: 'haced un parque', palacio: 'construid un palacio', templo: 'construid un templo' };
+    const ORDEN = { banco: 'abrid un banco', fabrica: 'construid una fábrica', estacion: 'construid una estación de tren', hospital: 'construid un hospital', aerodromo: 'construid un aeródromo', central: 'construid una central eléctrica', pozo: 'construid un pozo', granero: 'construid un granero', fuente: 'construid una plaza pública', parque: 'haced un parque', palacio: 'construid un palacio', templo: 'construid un templo' };
     const ESTA = ['🌱 Primavera: se siembra y los campos brotan deprisa.', '☀️ Verano: los campos maduran.', '🍂 Otoño: la gran cosecha. Es el momento de llenar el granero.', '❄️ Invierno: no crece nada, apenas se recolecta y se quema el doble de leña.'];
     const quedan = V.ESTACION_TURNOS - (m.turno % V.ESTACION_TURNOS);
     const animo = c.animo == null ? 70 : c.animo, cara = animo >= 75 ? '😊' : animo >= 50 ? '🙂' : animo >= 30 ? '😟' : '😠';
     const obras = Object.entries(m.vida.andamios || {}).filter(([, a]) => a.civ === c.id);
-    const NOMBRE_OBRA = o => ({ [V.OBRA.casa]: 'casa', [V.OBRA.pozo]: 'pozo', [V.OBRA.granero]: 'granero', [V.OBRA.fuente]: 'plaza pública', [V.OBRA.parque]: 'parque', [V.OBRA.palacio]: 'palacio', [V.OBRA.central]: 'central eléctrica', [V.OBRA.templo]: c.era === 4 ? 'iglesia' : c.era >= 5 && c.era <= 6 ? 'catedral' : 'templo', [V.OBRA.saber]: M.CASA_SABER(c.era), [V.OBRA.torre]: 'torre', [V.OBRA.molino]: 'molino', [V.OBRA.puerto]: 'puerto', [V.OBRA.cuartel]: 'cuartel', [V.OBRA.arqueria]: 'arquería', [V.OBRA.castillo]: 'castillo' }[o] || 'obra');
+    const NOMBRE_OBRA = o => ({ [V.OBRA.casa]: 'casa', [V.OBRA.pozo]: 'pozo', [V.OBRA.granero]: 'granero', [V.OBRA.fuente]: 'plaza pública', [V.OBRA.parque]: 'parque', [V.OBRA.palacio]: 'palacio', [V.OBRA.central]: 'central eléctrica', [V.OBRA.banco]: 'banco', [V.OBRA.fabrica]: 'fábrica', [V.OBRA.estacion]: 'estación de tren', [V.OBRA.hospital]: 'hospital', [V.OBRA.aerodromo]: 'aeródromo', [V.OBRA.templo]: c.era === 4 ? 'iglesia' : c.era >= 5 && c.era <= 6 ? 'catedral' : 'templo', [V.OBRA.saber]: M.CASA_SABER(c.era), [V.OBRA.torre]: 'torre', [V.OBRA.molino]: 'molino', [V.OBRA.puerto]: 'puerto', [V.OBRA.cuartel]: 'cuartel', [V.OBRA.arqueria]: 'arquería', [V.OBRA.castillo]: 'castillo' }[o] || 'obra');
     const vistas = new Set();
     const lista = nec.filter(n => { const k = n.obra + (n.capital ? 'c' : n.region); if (vistas.has(k)) return false; vistas.add(k); return true; }).map(n => {
       const donde = n.capital ? '' : ' <span class="tenue">(en ' + esc(((m.ciudades || []).find(x => x.region === n.region) || { nombre: 'otra ciudad' }).nombre) + ')</span>';
@@ -317,6 +320,14 @@
     return '<div class="arbol"><p class="arbol-ayuda">' + (est >= 0 ? esc(ESTA[est]) + ' <span class="tenue">Quedan ' + quedan + ' turnos.</span>' : '') + '</p>' +
       '<p class="arbol-ayuda">' + ({ aceite: '🏮 Alumbrado: faroles de aceite en las plazas.', gas: '🕯 Alumbrado: farolas de gas victorianas por las calles.', electrico: '💡 Alumbrado eléctrico: farolas y luz en las casas.' }[c.alumbrado] || (c.era >= 7 ? '🌑 Sin luz eléctrica: hace falta una central (y ser ciudad).' : c.era >= 4 ? '🌑 Calles a oscuras: los faroles llegan al ser pueblo' + (c.era >= 6 ? ' (las farolas de gas, al ser villa)' : '') + '.' : '🔥 De noche solo hay hogueras: el alumbrado llega con la Edad Media.')) + '</p>' +
       '<p class="arbol-ayuda">' + cara + ' Ánimo de la gente: <b>' + animo + '</b>/100 <span class="barra mini"><span style="width:' + animo + '%"></span></span></p>' +
+      (() => {
+        // Los campos: cuántos de cada cultivo, cuántos con regadío y lo cosechado.
+        const v = m.vida, ter = V.terrenos(m), cuenta = {}; let reg = 0;
+        for (const r of S.casillas(m, c)) for (const t of V.parcelas(m, r)) if (v.obra[t] === V.OBRA.campo) { const k = V.cultivoTipo(m, ter, t); cuenta[k] = (cuenta[k] || 0) + 1; if (V.regadio(m, ter, t)) reg++; }
+        const NOM = { trigo: '🌾 trigo', maiz: '🌽 maíz', arroz: '🍚 arroz', vina: '🍇 viña' }, tot = Object.values(cuenta).reduce((a, b) => a + b, 0);
+        if (!tot) return '';
+        return '<div class="tec-era">Los campos</div><p class="arbol-ayuda">' + Object.keys(cuenta).map(k => NOM[k] + ' ' + cuenta[k]).join(' · ') + ' · <b>' + reg + '</b> con regadío (junto al río rinden más)' + (c.cosechaRecord && m.turno - c.cosechaRecord < 12 ? ' · <b class="verde">¡cosecha récord!</b>' : '') + '</p><p class="arbol-ayuda tenue">Cada cultivo según la tierra: el trigo en la llanura, el maíz en la selva y la sabana (rinde más), el arroz en los pantanos y junto al agua, la viña en las colinas (menos comida, pero su vino se vende por oro).</p>';
+      })() +
       '<div class="tec-era">Lo que necesita ' + esc(c.nombre) + '</div>' +
       (lista ? '<ul class="edad-req nec">' + lista + '</ul>' : '<p class="tenue arbol-ayuda">Un campamento no pide más que comida y techo. Al crecer (aldea, pueblo, villa, ciudad) pedirá granero, plaza, parque y palacio.</p>') +
       '<div class="tec-era">Obras en marcha</div>' +
@@ -623,6 +634,27 @@
     // Los paneles, los retos y el guardado van después, en otro fotograma (menos tirón al cambiar de turno).
     setTimeout(() => despuesDelTurno(antes, yo, guerrasAntes, sigAntes), 40);
   }
+  // Las batallas: el botón ⚔ lleva a la mayor (y, pulsando otra vez, a la siguiente); si lucha tu pueblo, se avisa.
+  let batallaVista = 0, ultimaBatallaAvisada = -99;
+  const regionDeBatalla = b => Math.floor(b.ty / M.vida.SUB) * m.W + Math.floor(b.tx / M.vida.SUB);
+  function avisarBatallas() {
+    const bs = P.batallas ? P.batallas() : [];
+    $('ir-batalla').hidden = !bs.length;
+    $('ir-batalla').classList.toggle('viva', bs.some(b => b.turno === m.turno));
+    const mia = m.jugador != null && bs.find(b => b.turno === m.turno && b.civs.includes(m.jugador));
+    if (mia && m.turno - ultimaBatallaAvisada > 4) {
+      ultimaBatallaAvisada = m.turno;
+      const otros = mia.civs.filter(id => id !== m.jugador).map(id => (S.civ(m, id) || {}).nombre).filter(Boolean);
+      avisoFlotante('⚔ ¡Batalla' + (otros.length ? ' contra ' + otros.join(' y ') : '') + '! Toca ⚔ para verla', 3500);
+    }
+  }
+  function irABatalla() {
+    const bs = P.batallas ? P.batallas() : [];
+    if (!bs.length) return;
+    batallaVista = (batallaVista + 1) % bs.length;
+    if (P.centrarEnParcela) P.centrarEnParcela(bs[batallaVista].tx, bs[batallaVista].ty, 5); else P.centrarEn(regionDeBatalla(bs[batallaVista]), 5);
+    if (movil()) document.body.classList.add('sin-panel');
+  }
   function despuesDelTurno(antes, yo, guerrasAntes, sigAntes) {
     // Avisos del turno sobre el mapa (plazas ganadas, cuadrillas que terminan) y en la línea de respuesta.
     for (const an of (m.vida.anuncios || []).splice(0)) { const c = S.civ(m, an.civ); if (c && (!m.jugador || an.civ === m.jugador || an.region != null)) P.anunciar(an.region != null ? an.region : c.capital, an.texto, /[⚔✖]/.test(an.texto) ? '#ff8a7a' : /🏴/.test(an.texto) ? '#ffd76a' : null); }
@@ -634,6 +666,7 @@
     }
     if (yo || m.retos) retosDelTurno(antes);
     if (yo) avisos(yo, guerrasAntes, antes);
+    avisarBatallas();
     pintarTodo();
     if (m.turno % 5 === 0) guardar();
   }
@@ -881,6 +914,7 @@
     setInterval(navActiva, 1500);
     $('ver-ideas').addEventListener('click', () => { const e = $('ejemplos'); e.hidden = !e.hidden; $('ver-ideas').setAttribute('aria-expanded', e.hidden ? 'false' : 'true'); });
     $('arquitecto-btn').addEventListener('click', () => { if (arquiClave || !$('arquitecto').hidden) salirArquitecto(); else abrirArquitecto(); });
+    $('ir-batalla').addEventListener('click', irABatalla);
     $('ir-mio').addEventListener('click', () => { const c = tuPueblo(); if (c) P.centrarEn(c.capital, 3); });
     $('marcador').addEventListener('click', () => { panelAbierto(true); abrirHoja('retos'); });
     $('fin-seguir').addEventListener('click', () => { $('fin').hidden = true; if (!tuPueblo()) pedirModo('Elige otro pueblo', 'Tu pueblo ya no existe. Gobierna otro o sigue mirando como dios.'); else { corriendo = true; programar(); } });

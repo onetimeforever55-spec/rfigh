@@ -513,6 +513,8 @@ console.log('LA VIDA PAUSADA: NOCHES, ESTACIONES, OBRAS Y NECESIDADES');
   comprobar(/Era Moderna/.test(V2.puedeColocar(m, c, t, 'central') || ''), 'el arquitecto no deja poner una central eléctrica en el Neolítico (' + V2.puedeColocar(m, c, t, 'central') + ')');
   comprobar(/no se conoce la electricidad/.test(X2.ordenar(m, c.id, 'construid una central eléctrica').respuesta), 'y la orden lo explica');
   comprobar(/Antigüedad/.test(V2.puedeColocar(m, c, t, 'parque') || ''), 'los parques llegan con la Antigüedad clásica');
+  for (const [k, era] of [['banco', 5], ['fabrica', 6], ['estacion', 6], ['hospital', 7], ['aerodromo', 8]]) comprobar(V2.ERA_OBRA[V2.OBRA[k]] === era && /llega con/.test(V2.puedeColocar(m, c, t, k) || ''), k + ' existe desde ' + V2.NOMBRE_ERA[era]);
+  { const viejo = { era: c.era, nivelMax: c.nivelMax }; c.era = 8; c.nivelMax = 4; c.nivel = 4; c.rutas = 2; c.oro = 99; c.cuarteles = 1; V2.necesidades(m, c); const nec = c.necesidades.map(n => n.obra); comprobar(['banco', 'fabrica', 'estacion', 'hospital', 'aerodromo'].every(k => nec.includes(k)), 'una ciudad de la II Guerra Mundial pide banco, fábrica, estación, hospital y aeródromo (' + nec.join(', ') + ')'); c.era = viejo.era; c.nivelMax = viejo.nivelMax; V2.contar(m); }
   const prueba = (era, nivel, centrales) => V2.alumbradoDe(Object.assign({}, c, { era, nivel, centrales }));
   comprobar(prueba(2, 4, 0) === null && prueba(4, 2, 0) === 'aceite' && prueba(6, 2, 0) === 'aceite' && prueba(6, 3, 0) === 'gas' && prueba(7, 4, 0) === 'gas' && prueba(7, 4, 1) === 'electrico', 'alumbrado: faroles de aceite en la Edad Media, farolas de gas victorianas (villa), eléctricas solo con central');
   // La plaza pública empiedra su explanada de adoquín.
@@ -532,11 +534,16 @@ console.log('EL MERCADO GLOBAL');
   comprobar(conCartera.length >= S.vivas(m).length * 0.6, 'y diversifican: reparten el trabajo entre dos o tres bienes (' + conCartera.slice(0, 2).map(c => c.nombre + ' ' + JSON.stringify(c.cartera)).join(', ') + ')');
   comprobar(S.vivas(m).some(c => (c.cambiosEsp || []).length), 'cambian de bien principal cuando otro rinde más (' + S.vivas(m).flatMap(c => c.cambiosEsp || []).slice(0, 2).map(x => x.de + '→' + x.a + ': ' + x.motivo).join('; ') + ')');
   comprobar(S.vivas(m).every(c => V2.BIENES.every(k => (c[k] || 0) >= 0)), 'y nadie queda con existencias negativas');
+  const cosechado = S.vivas(m).reduce((o, c) => { for (const k of Object.keys(c.cosechado || {})) o[k] = (o[k] || 0) + c.cosechado[k]; return o; }, {});
+  comprobar(Object.keys(cosechado).length >= 2, 'se cultivan cosas distintas según la tierra (' + Object.keys(cosechado).map(k => k + ' ' + Math.round(cosechado[k])).join(', ') + ')');
   comprobar((mk.tratos || []).length > 3 && mk.tratos.every(x => x.vende !== x.compra && x.oro > 0 && x.n > 0), 'los comerciantes venden y compran entre reinos a cambio de oro (' + (mk.tratos || []).length + ' tratos)');
   comprobar((mk.tratos || []).every(x => x.ruta === 'externa'), 'y solo con los reinos con los que hay ruta de comercio');
   // El precio: con mucha más madera en el mundo, la madera baja.
-  const antes = mk.precio.madera; for (const c of S.vivas(m)) c.madera += 600; for (let i = 0; i < 6; i++) S.turno(m);
-  comprobar(mk.precio.madera < antes, 'si sobra madera en el mundo, baja de precio (' + antes + ' → ' + mk.precio.madera + ')');
+  mk.suceso = { k: 'piedra', f: 1, titulo: 'calma', hasta: m.turno + 100 }; // sin sucesos que muevan los precios durante la prueba
+  const p0 = mk.precio.madera; for (let i = 0; i < 6; i++) { for (const c of S.vivas(m)) c.madera = 0; S.turno(m); }
+  const p1 = mk.precio.madera; for (const c of S.vivas(m)) c.madera += 600; for (let i = 0; i < 6; i++) S.turno(m);
+  comprobar(p1 > p0 && mk.precio.madera < p1, 'si falta madera en el mundo, sube; si sobra, baja (' + p0 + ' → ' + p1 + ' → ' + mk.precio.madera + ')');
+  mk.suceso = null;
   // Las órdenes del mercado.
   const solo = S.vivas(m).find(c => !(m.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)));
   const con = S.vivas(m).find(c => (m.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)));

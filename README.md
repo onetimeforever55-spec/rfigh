@@ -369,6 +369,30 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
 
     Lo comprado y vendido en un turno sale en un solo aviso sobre tu pueblo.
 - **Interfaz de píxeles**: marcos con esquinas cortadas y remaches dorados, botones con bisel que se hunden al tocarlos, campos de texto hundidos, barras por segmentos y letra de píxeles (Pixelify Sans y Silkscreen; la crónica sigue con letra de libro para leerla a gusto). Los iconos de los recursos, las estaciones, la barra de abajo y el arquitecto están dibujados a 12×12 píxeles con el mismo estilo que el mapa: moneda, espiga, tronco, piedra, lingote, espada, aldeano, casa, matraz, flor, sol, hoja, copo, mapa, pluma, pueblo, pergamino y copa.
+- **Ritmo lento, como WorldBox en su velocidad original**: a 1× un turno dura 8 segundos (antes 3,4) y se ve a cada aldeano ir y venir. Las otras velocidades son 2×, 5× y 15×.
+- **Batallas a la vista**: donde se está luchando sale un aro rojo que late, espadas cruzadas con los colores de los dos bandos y la etiqueta «⚔ BATALLA · N caídos». Si la batalla está fuera de la pantalla, una flecha en el borde (sin quedar tapada por el panel) apunta hacia ella. El botón ⚔ junto a la cámara late mientras se lucha y lleva a la batalla mayor (pulsando otra vez, a la siguiente). Si lucha tu pueblo, sale un aviso.
+- **Las últimas eras, completas**, cada edificio con su porqué:
+  - **Banco** (Renacimiento, desde villa): da intereses al oro guardado.
+  - **Fábrica** (Revolución Industrial): nave de ladrillo con tejado de dientes de sierra y chimenea humeante. Forja armas en serie y convierte la madera sobrante en muebles que se venden por oro.
+  - **Estación de tren** (Revolución Industrial, con rutas): las rutas entre reinos se cubren de vías y los comerciantes viajan en tren, con locomotora de vapor y humo (diésel roja en la era moderna) y vagones con la carga. Llevan el doble y llegan antes.
+  - **Hospital** (Era Moderna): la gente vive más años.
+  - **Aeródromo** (II Guerra Mundial): sin él no despegan los aviones.
+
+  Por las calles de las villas y ciudades circulan coches de caballos en la era industrial y coches de colores en la moderna. Todos los edificios se pueden pedir por texto («construid una fábrica», «abrid un banco», «construid una estación de tren», «un hospital», «un aeródromo») o con el arquitecto, y la IA los levanta cuando le hacen falta.
+- **Cultivos según la tierra**:
+  - **trigo** en la llanura;
+  - **maíz** en la selva y la sabana, que rinde más;
+  - **arroz** en bancales anegados en los pantanos y junto al agua;
+  - **viña** con racimos morados en las colinas, que da menos comida pero su vino se vende por oro.
+
+  Cada uno tiene su dibujo y sus fases. Los campos a dos parcelas de un río o un lago tienen **regadío** y rinden más.
+  - **Plaga de langostas** en verano: una nube oscura barre los campos y se come los sembrados sin madurar.
+  - **Cosecha récord** en otoño: durante la estación cada siega rinde la mitad más, y el pueblo hace la fiesta de la cosecha en la plaza.
+
+  La pestaña Ciudad cuenta los campos de cada cultivo, los que tienen regadío y si hay cosecha récord.
+- **Una economía con sorpresas**:
+  - **Sucesos del mercado mundial**: sequía lejana (el grano se dispara), años de abundancia, una flota que trae madera barata, fiebre de construir barcos, auge de la construcción, minas que se agotan, una gran veta, guerra en otras tierras (las armas al doble). Duran unos turnos y mueven los precios para todos. Salen en la crónica, en un aviso y en la pestaña Mercado.
+  - **Ofertas de los mercaderes de tus socios**: te dejan algo un 25 % más barato que el mercado, o te compran lo que te sobra un 35 % más caro. Las ofertas valen unos turnos. Se aceptan con «acepto el trato» o con el botón de la pestaña Mercado; el consejero las recuerda.
 - **Modo arquitecto** (botón 🏗 junto a la cámara, gobernando un pueblo): eliges una obra de la paleta (casa, calle, pozo, granero, plaza, parque, templo, casa del saber, palacio, molino, torre, puerto, cuartel, arquería o castillo) y tocas tu tierra.
   - Al pasar por encima se ve el edificio en verde, o en rojo con el motivo si no se puede: tierra ajena, agua, ya construido, hace falta ser villa…
   - Lo encargado queda marcado con un marco de trazos, y las calles por empedrar en gris. Tocar otra vez lo quita.

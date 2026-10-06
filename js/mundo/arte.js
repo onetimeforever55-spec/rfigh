@@ -279,7 +279,8 @@
   }
 
   // ---------- Campos de trigo ----------
-  function campo(fase, v) {
+  function campo(fase, v, tipo) {
+    if (tipo && tipo !== 'trigo') return campoDe(tipo, fase, v);
     return guardado('c' + fase + v, () => {
       const H = hoja(T, T);
       H.r(0, 0, T, T, '#8a6a3c');
@@ -288,6 +289,41 @@
         if (fase === 1) H.p(x, y, '#8fc35a');
         else if (fase === 2) { H.p(x, y, '#5f9e3a'); H.p(x, y - 1, '#7ab84a'); }
         else { H.p(x, y, '#c8a03a'); H.p(x, y - 1, '#e8c850'); H.p(x, y - 2, x % 4 ? '#f8e080' : '#e0b840'); }
+      }
+      H.r(0, T - 1, T, 1, '#5a4024');
+      return H.lienzo();
+    });
+  }
+
+  // Maíz (selva y sabana), arroz (pantanos y junto al agua) y viñas (colinas), cada uno con sus fases.
+  function campoDe(tipo, fase, v) {
+    return guardado('c' + tipo + fase + v, () => {
+      const H = hoja(T, T);
+      if (tipo === 'arroz') {
+        // Bancales anegados: agua entre los caballones y matas verdes que se doran.
+        H.r(0, 0, T, T, '#6a7a4a');
+        for (let y = 1; y < T; y += 4) { H.r(0, y, T, 2, '#4a7a9a'); H.r(0, y, T, 1, '#6a9ab8'); H.r(0, y + 2, T, 1, '#7a6a3a'); }
+        if (fase >= 1) for (let y = 0; y < T; y += 4) for (let x = (y / 4 + v) % 2; x < T; x += 2) { H.p(x, y + 1, fase === 3 ? '#c8c060' : fase === 2 ? '#5aa040' : '#8fd060'); if (fase >= 2) H.p(x, y, fase === 3 ? '#e0d070' : '#7ac050'); }
+        H.r(0, T - 1, T, 1, '#4a5a30');
+        return H.lienzo();
+      }
+      H.r(0, 0, T, T, '#8a6a3c');
+      for (let y = 1; y < T; y += 3) { H.r(0, y, T, 1, '#6e5230'); H.r(0, y + 1, T, 1, '#9a7a48'); }
+      if (tipo === 'maiz') {
+        // Matas altas de maíz en hileras, con mazorcas amarillas y penachos al madurar.
+        if (fase >= 1) for (let x = 1 + v % 2; x < T; x += 3) for (let y = 2; y < T; y += 5) {
+          const alto = fase === 1 ? 1 : fase === 2 ? 3 : 4;
+          for (let k = 0; k < alto; k++) H.p(x, y - k + 1, fase === 3 ? '#7a9a3a' : '#4a9a3a');
+          if (fase >= 2) { H.p(x - 1, y, '#6ab84a'); H.p(x + 1, y - 1, '#6ab84a'); }
+          if (fase === 3) { H.p(x + 1, y, '#f0c840'); H.p(x, y - alto + 1, '#c89a5a'); }
+        }
+      } else {
+        // Viña: espalderas de estacas con sarmientos, hojas y racimos morados al final del verano.
+        for (let y = 2; y < T; y += 4) { H.r(0, y + 1, T, 1, '#7a5530'); for (let x = 1; x < T; x += 5) H.r(x, y - 1, 1, 3, '#5a3a20'); }
+        if (fase >= 1) for (let y = 2; y < T; y += 4) for (let x = (v + y) % 2; x < T; x += 2) {
+          H.p(x, y, fase === 1 ? '#8fc35a' : '#4a8a3a'); if (fase >= 2) H.p(x, y - 1, '#5a9a3a');
+          if (fase === 3 && x % 4 === 1) { H.p(x, y + 1, '#7a3a8a'); H.p(x + 1, y + 1, '#5a2a6a'); H.p(x, y + 2, '#6a2a7a'); }
+        }
       }
       H.r(0, T - 1, T, 1, '#5a4024');
       return H.lienzo();
@@ -363,6 +399,11 @@
       if (nombre === 'parque') return parque(H, fase, col);
       if (nombre === 'palacio') return palacio(H, fase, col);
       if (nombre === 'central') return central(H, fase, col);
+      if (nombre === 'banco') return banco(H, fase, col);
+      if (nombre === 'fabrica') return fabrica(H, fase, col);
+      if (nombre === 'estacion') return estacion(H, fase, col);
+      if (nombre === 'hospital') return hospital(H, fase, col);
+      if (nombre === 'aerodromo') return aerodromo(H, fase, col);
       if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
       if (nombre === 'molino' && fase !== 1) return molinoDeFase(H, fase, col);
@@ -527,6 +568,57 @@
     H.r(11, 14, 4, 1, MADERA); H.p(11, 15, oscuro(MADERA, 0.25)); H.p(14, 15, oscuro(MADERA, 0.25));
     H.p(15, 15, col);
     return H.lienzo();
+  }
+  // El banco (Renacimiento en adelante): fachada de piedra con columnas, frontón, escalinata y la moneda dorada.
+  function banco(H, fase, col) {
+    const muro = fase >= 3 ? '#e4e4de' : '#e0d4b8';
+    H.r(1, 6, 14, 9, muro); H.r(1, 14, 14, 1, oscuro(muro, 0.25)); H.r(0, 15, 16, 1, oscuro(muro, 0.35));
+    for (let y = 1; y < 6; y++) H.r(8 - y * 1.4, y, Math.round(y * 2.8), 1, y === 5 ? oscuro(muro, 0.15) : muro);
+    H.p(8, 1, oscuro(col, 0.1)); H.r(7, 3, 2, 2, '#e0b040'); H.p(7, 3, '#fff0a0');
+    for (const x of [2, 5, 10, 13]) { H.r(x, 7, 1, 7, '#fafaf2'); H.p(x, 7, oscuro(muro, 0.1)); }
+    H.r(7, 9, 2, 5, '#4a3020'); H.r(7, 8, 2, 1, '#e0b040');
+    H.p(3, 10, CRISTAL); H.p(4, 10, CRISTAL); H.p(11, 10, CRISTAL); H.p(12, 10, CRISTAL);
+    H.contorno(); return H.lienzo();
+  }
+  // La fábrica (Revolución Industrial): nave de ladrillo con tejado de dientes de sierra, ventanales y una chimenea alta.
+  function fabrica(H, fase, col) {
+    const lad = fase >= 3 ? '#8a8e96' : '#a0503a', jun = oscuro(lad, 0.15);
+    H.r(0, 8, 13, 7, lad); for (let y = 9; y < 15; y += 2) for (let x = (y % 4 ? 0 : 1); x < 13; x += 3) H.p(x, y, jun);
+    for (const x0 of [0, 4, 8]) for (let k = 0; k < 4; k++) { H.r(x0 + k, 7 - k, 1, k + 1, k === 3 ? '#a8c0d0' : oscuro(lad, 0.25)); }
+    for (const x of [1, 5, 9]) H.r(x, 10, 2, 2, LUZ);
+    H.r(13, 1, 3, 14, '#7a3a2a'); H.r(13, 1, 3, 1, '#3a2a2a'); for (let y = 3; y < 15; y += 3) H.r(13, y, 3, 1, '#5a2a1e');
+    H.r(4, 12, 3, 3, '#3a2a2a'); H.p(12, 14, col);
+    H.contorno(); return H.lienzo();
+  }
+  // La estación de tren: edificio con reloj, marquesina sobre el andén y las vías delante.
+  function estacion(H, fase, col) {
+    const muro = fase >= 3 ? '#d8d4cc' : '#c8a878';
+    H.r(2, 3, 12, 7, muro); tejado(H, 1, 14, 0, 3, oscuro(col, 0.2)); H.r(6, 0, 4, 1, oscuro(col, 0.3));
+    H.disco(8, 5, 1.8, '#f4f4ec'); H.p(8, 5, '#2a2a2a'); H.p(8, 4, '#2a2a2a');
+    for (const x of [3, 11]) H.r(x, 6, 2, 3, CRISTAL);
+    H.r(0, 9, 16, 1, '#5a5e66'); for (const x of [1, 7, 14]) H.r(x, 10, 1, 2, '#5a5e66'); H.r(0, 10, 16, 2, null);
+    H.r(0, 12, 16, 1, '#c8c4ba');
+    for (let x = 0; x < 16; x += 2) H.r(x, 13, 1, 3, '#7a5530'); H.r(0, 13, 16, 1, '#8a8e96'); H.r(0, 15, 16, 1, '#8a8e96');
+    H.contorno(); return H.lienzo();
+  }
+  // El hospital: edificio blanco de varias plantas con la cruz roja, ventanas y una ambulancia (o un carro) en la puerta.
+  function hospital(H, fase, col) {
+    H.r(1, 3, 14, 12, '#f0f0ec'); H.r(1, 3, 14, 1, '#d8d8d4'); H.r(14, 4, 1, 11, '#c8c8c4');
+    for (const y of [5, 8]) for (const x of [2, 5, 10, 13]) H.r(x, y, 1, 2, CRISTAL);
+    H.r(7, 4, 2, 6, '#e03a3a'); H.r(5, 6, 6, 2, '#e03a3a');
+    H.r(6, 11, 4, 4, '#a8c8d8'); H.r(7, 11, 2, 4, '#88a8b8');
+    if (fase >= 3) { H.r(11, 12, 4, 3, '#f8f8f4'); H.p(12, 12, '#e03a3a'); H.p(11, 15, '#2a2a2a'); H.p(14, 15, '#2a2a2a'); }
+    H.p(1, 2, col);
+    H.contorno(); return H.lienzo();
+  }
+  // El aeródromo: pista de hormigón con marcas, un hangar de chapa abovedado, un avión y la manga de viento.
+  function aerodromo(H, fase, col) {
+    H.r(0, 9, 16, 7, '#6a6e74'); for (let x = 1; x < 16; x += 4) H.r(x, 12, 2, 1, '#f0f0e8');
+    for (let y = 2; y < 9; y++) { const w = Math.round(Math.sqrt(Math.max(0, 36 - (y - 8) * (y - 8))) ); H.r(7 - w, y, w * 2, 1, y % 2 ? '#9aa4ae' : '#8a949e'); }
+    H.r(5, 6, 4, 3, '#2a2e34');
+    H.r(10, 13, 5, 1, '#5a6a4a'); H.r(12, 11, 1, 4, '#5a6a4a'); H.r(11, 14, 3, 1, '#5a6a4a'); H.p(15, 13, col);
+    H.r(14, 2, 1, 7, '#c8c8c8'); H.r(15, 2, 1, 2, '#ff7a30'); H.p(15, 4, '#ffffff');
+    H.contorno(); return H.lienzo();
   }
   // La central eléctrica (Era Moderna, solo en ciudades): nave de ladrillo con ventanales, dos chimeneas
   // altas a franjas, el transformador y un poste de alta tensión.

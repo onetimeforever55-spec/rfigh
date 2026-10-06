@@ -114,7 +114,7 @@
     if (obra) {
       const r = V.region(m, t), c = m.dueno[r] >= 0 ? S.civ(m, m.dueno[r]) : null;
       const color = c ? c.color : '#9a7a5a', ge = c ? grupoEra(c.era) : 0;
-      if (obra === V.OBRA.campo) gl.drawImage(ARTE().campo((visto.cultivo && visto.cultivo[t]) || 0, t % 2), x, y);
+      if (obra === V.OBRA.campo) gl.drawImage(ARTE().campo((visto.cultivo && visto.cultivo[t]) || 0, t % 2, V.pausada && V.pausada(m) ? V.cultivoTipo(m, tierra, t) : 'trigo'), x, y);
       else if (obra === V.OBRA.casa) {
         // Cada casa un poco distinta: unas en espejo, con el tejado más claro u oscuro, y algunas un píxel más abajo.
         const hv = (Math.imul(t, 2246822519) >>> 0) % 4;
@@ -130,7 +130,7 @@
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, c ? (c.era === 4 ? 4 : V.fase(c.era)) : 0), x, y);
-      else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio || obra === V.OBRA.central) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio', 'central'][obra - V.OBRA.pozo], color, c ? V.fase(c.era) : 0), x, y);
+      else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio || (obra >= V.OBRA.central && obra <= V.OBRA.aerodromo)) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio', 'central', 'banco', 'fabrica', 'estacion', 'hospital', 'aerodromo'][obra - V.OBRA.pozo], color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.molino) gl.drawImage(ARTE().edificio('molino', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.puerto) gl.drawImage(ARTE().edificio('puerto', color, c ? V.fase(c.era) : 0), x, y);
       else if (obra === V.OBRA.centro) {
@@ -343,6 +343,8 @@
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
     vistos = new Set();
     recogerMuertos(duracion);
+    buscarBatallas();
+    for (const p_ of m.vida.plagas || []) if (p_.turno === m.turno && !plagasVistas.has(p_)) { plagasVistas.add(p_); plagasAnim.push({ regiones: p_.regiones, inicio: performance.now() }); }
     // El territorio se repinta en el fotograma siguiente: así el cálculo del turno no se junta en un solo tirón.
     if (!territorioPendiente) { territorioPendiente = true; setTimeout(() => { territorioPendiente = false; if (m && listo) territorio(); }, 16); }
   }
@@ -397,6 +399,7 @@
     barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
+    if (civPorId.size) { vias(x0, y0, x1, y1); if (!reducido) trafico(ahora, x0, y0, x1, y1); }
     andamios(ahora, x0, y0, x1, y1);
     progresos(x0, y0, x1, y1);
     humo(ahora, x0, y0, x1, y1);
@@ -405,6 +408,7 @@
     eventosParticulas(k, x0, y0, x1, y1);
     llamas(k, ahora, x0, y0, x1, y1);
     pintarParticulas(ahora);
+    if (plagasAnim.length) pintarPlagas(ahora, x0, y0, x1, y1);
     gestos(k, ahora);
     pintarPolvo(ahora);
     pintarTumbas(ahora);
@@ -423,6 +427,7 @@
     resplandor(k, ahora, x0, y0, x1, y1);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
+    pintarBatallas(ahora, z, ox, oy, dpr);
     pintarAnuncios(z, ox, oy, dpr, performance.now());
     pintarCartel(ahora, dpr);
   }
@@ -529,7 +534,89 @@
       g.fillStyle = '#ffb04a'; g.fillRect(x + 1, y - 4, Math.max(1, 14 * f), 2);
     }
   }
+  const civPorId = new Map(), rutaPorId = new Map();
+  // Un tren: locomotora de vapor (o diésel en la era moderna) con su humo y dos vagones con la carga.
+  function tren(px, py, dir, dy, era, col, carga, ahora, id) {
+    const piezas = 3, paso_ = 7;
+    for (let k = piezas - 1; k >= 0; k--) {
+      const x = px - (dir || 0) * k * paso_ - 3, y = py - (dir ? 0 : dy * k * 5) + 1;
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, y + 5, 7, 1);
+      g.fillStyle = '#1e1e22'; g.fillRect(x + 1, y + 4, 1, 1); g.fillRect(x + 5, y + 4, 1, 1);
+      if (k === 0) {
+        g.fillStyle = era >= 7 ? '#c84a3a' : '#2a2e34'; g.fillRect(x, y, 7, 4);
+        g.fillStyle = era >= 7 ? '#f0d040' : '#c8a040'; g.fillRect(x, y + 3, 7, 0.6);
+        const fx = dir >= 0 ? x + 5 : x + 1;
+        g.fillStyle = '#5a5e66'; g.fillRect(fx, y - 2, 1.4, 2);
+        g.fillStyle = 'rgba(255,240,180,0.9)'; g.fillRect(dir >= 0 ? x + 6.5 : x - 0.5, y + 1, 0.8, 1);
+        if (era < 7 && Math.random() < 0.3) emitir(fx + 0.7, y - 2, 1, { v: 6, g: -12, vida: 900, cols: ['#d8d8dc', '#b8b8c0', '#ffffff'], tipo: 'humo', tam: 1.4, dy: -10 });
+      } else {
+        g.fillStyle = k === 1 ? col : mezclar(col, '#000000', 0.25); g.fillRect(x, y + 0.5, 7, 3.5);
+        g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(x, y + 0.5, 7, 0.6);
+        if (carga && k === 1) { g.fillStyle = { comida: '#e8d08a', madera: '#8a5a2a', piedra: '#a8a49a', metal: '#b8c0cc', armas: '#d0d4dc' }[carga.que] || '#c8a040'; g.fillRect(x + 1, y - 0.5, 5, 1.2); }
+      }
+    }
+  }
+  // Las vías: sobre los caminos de las rutas entre reinos de quien tiene estación, traviesas y dos raíles.
+  function vias(x0, y0, x1, y1) {
+    const v = m.vida;
+    for (const ru of v.rutas || []) {
+      if (ru.tipo !== 'externa') continue;
+      const a = civPorId.get(ru.a), b = civPorId.get(ru.b);
+      if (!((a && a.estaciones > 0 && a.era >= 6) || (b && b.estaciones > 0 && b.era >= 6))) continue;
+      for (let i = 0; i < ru.tiles.length; i++) {
+        const t = ru.tiles[i]; if (!visto.camino[t]) continue;
+        const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P;
+        if (x + P < x0 || y + P < y0 || x > x1 || y > y1) continue;
+        const sig = ru.tiles[Math.min(ru.tiles.length - 1, i + 1)], ant = ru.tiles[Math.max(0, i - 1)];
+        const horiz = Math.abs((sig % v.tw) - (ant % v.tw)) >= Math.abs(Math.floor(sig / v.tw) - Math.floor(ant / v.tw));
+        g.fillStyle = '#6a4a2a';
+        if (horiz) { for (let k = 1; k < P; k += 3) g.fillRect(x + k, y + 5, 1.5, 6); g.fillStyle = '#9aa0aa'; g.fillRect(x, y + 6, P, 1); g.fillRect(x, y + 9, P, 1); }
+        else { for (let k = 1; k < P; k += 3) g.fillRect(x + 5, y + k, 6, 1.5); g.fillStyle = '#9aa0aa'; g.fillRect(x + 6, y, 1, P); g.fillRect(x + 9, y, 1, P); }
+      }
+    }
+  }
+  // El tráfico: coches por las calles de las ciudades modernas y coches de caballos en la era industrial.
+  let coches = [], cochesTurno = -1;
+  function trafico(ahora, x0, y0, x1, y1) {
+    const v = m.vida, tw = v.tw;
+    if (cochesTurno !== m.turno) {
+      cochesTurno = m.turno;
+      const porCiv = new Map();
+      for (let t = 0; t < tw * v.th; t++) { if (!visto.camino[t]) continue; const d = m.dueno[V.region(m, t)]; const c = d >= 0 ? civPorId.get(d) : null; if (!c || c.era < 6 || (c.nivel || 0) < 3) continue; (porCiv.get(d) || porCiv.set(d, []).get(d)).push(t); }
+      const vivos = coches.filter(k => visto.camino[k.t] && porCiv.has(k.civ));
+      coches = vivos;
+      for (const [d, lista] of porCiv) {
+        const quiere = Math.min(14, Math.floor(lista.length / 10)), tiene = coches.filter(k => k.civ === d).length;
+        for (let i = tiene; i < quiere; i++) { const t = lista[Math.floor(Math.random() * lista.length)]; coches.push({ civ: d, t, sig: t, desde: ahora, ant: -1, col: ['#c83a3a', '#3a6ac8', '#e8e0d0', '#2a2a2a', '#3a9a5a', '#e0b040'][i % 6] }); }
+      }
+    }
+    for (const k of coches) {
+      const c = civPorId.get(k.civ), dur = c && c.era >= 7 ? 700 : 1300;
+      if (ahora - k.desde > dur) {
+        k.ant = k.t; k.t = k.sig; k.desde = ahora;
+        const op = [k.t - 1, k.t + 1, k.t - tw, k.t + tw].filter(n => n >= 0 && n < tw * v.th && visto.camino[n] && n !== k.ant && Math.abs((n % tw) - (k.t % tw)) <= 1);
+        k.sig = op.length ? op[Math.floor(Math.random() * op.length)] : k.ant >= 0 ? k.ant : k.t;
+      }
+      const f = Math.min(1, (ahora - k.desde) / dur), ax = k.t % tw, ay = Math.floor(k.t / tw), bx = k.sig % tw, by = Math.floor(k.sig / tw);
+      const x = (ax + (bx - ax) * f) * P + 5, y = (ay + (by - ay) * f) * P + 6 + (bx !== ax ? (bx > ax ? 1 : -1) : 0);
+      if (x < x0 - 8 || y < y0 - 8 || x > x1 + 8 || y > y1 + 8) continue;
+      const horiz = bx !== ax || by === ay;
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x, y + 3, horiz ? 6 : 3, 1);
+      if (c && c.era >= 7) {
+        // Coche: carrocería del color, techo y ventanillas, faros.
+        if (horiz) { g.fillStyle = k.col; g.fillRect(x, y, 6, 3); g.fillStyle = '#a8c8e8'; g.fillRect(x + 1.5, y - 1, 3, 1.2); g.fillStyle = '#1a1a1a'; g.fillRect(x + 1, y + 2.6, 1, 0.8); g.fillRect(x + 4, y + 2.6, 1, 0.8); }
+        else { g.fillStyle = k.col; g.fillRect(x + 1, y - 2, 3, 6); g.fillStyle = '#a8c8e8'; g.fillRect(x + 1.5, y - 1, 2, 1.5); }
+      } else {
+        // Coche de caballos: el caballo delante y la caja detrás.
+        const dir = bx >= ax ? 1 : -1;
+        g.fillStyle = '#7a5030'; g.fillRect(x + (dir > 0 ? 4 : 0), y, 2, 2); g.fillRect(x + (dir > 0 ? 5 : 0), y - 1, 1, 1);
+        g.fillStyle = '#2a2a2e'; g.fillRect(x + (dir > 0 ? 0 : 2), y - 1, 4, 3); g.fillStyle = '#c8a040'; g.fillRect(x + (dir > 0 ? 0 : 2), y - 1, 4, 0.6);
+      }
+    }
+  }
   function aldeanos(k, ahora, x0, y0, x1, y1) {
+    civPorId.clear(); for (const c of m.civs) civPorId.set(c.id, c);
+    rutaPorId.clear(); for (const ru of m.vida.rutas || []) rutaPorId.set(ru.id, ru);
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const ig = golpesDelTurno(v);
@@ -599,6 +686,15 @@
       // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
       const ix = px - 1.5, iy = py - 1, EA = 0.5;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
+      // Con estación de tren (Revolución Industrial en adelante), el comerciante viaja en tren por las rutas entre reinos.
+      const civA = oficio === 'comerciante' && !nino ? civPorId.get(a.c) : null, rutaA = civA && a.ruta != null ? rutaPorId.get(a.ruta) : null;
+      if (civA && civA.estaciones > 0 && civA.era >= 6 && rutaA && rutaA.tipo === 'externa' && a.e === 5) {
+        const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
+        const dx = r && r.length >= 6 ? Math.sign(r[j] - r[i]) : 0, dy = r && r.length >= 6 ? Math.sign(r[j + 1] - r[i + 1]) : 0;
+        const dir = dx || (dy ? 0 : (ultimaDir.get(a.id) || 1)); if (dx) ultimaDir.set(a.id, dx);
+        tren(px, py, dir, dy, civA.era, color[a.c] || '#ccc', a.carga, ahora, a.id);
+        continue;
+      }
       if (oficio === 'comerciante' && !nino) {
         // La carreta va detrás del comerciante, según hacia dónde camina.
         const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
@@ -696,6 +792,86 @@
       g.fillStyle = a.color; g.fillText(a.texto, sx, sy);
     }
     g.globalAlpha = 1;
+  }
+  // ---------- Las batallas: dónde se está luchando, para que no pasen sin verse ----------
+  // Se agrupan los golpes y las muertes en combate del turno por zonas de 10×10 parcelas; una batalla dura en
+  // pantalla un par de turnos después del último golpe.
+  let batallas = [];
+  // Las langostas: una nube de puntos oscuros que barre los campos del pueblo durante unos segundos.
+  const plagasVistas = new WeakSet(); let plagasAnim = [];
+  function pintarPlagas(ahora, x0, y0, x1, y1) {
+    plagasAnim = plagasAnim.filter(p_ => ahora - p_.inicio < 6000);
+    const R = V.SUB * P;
+    for (const p_ of plagasAnim) {
+      const f = (ahora - p_.inicio) / 6000, a = f < 0.2 ? f / 0.2 : f > 0.8 ? (1 - f) / 0.2 : 1;
+      for (const r of p_.regiones) {
+        const rx = (r % m.W) * R, ry = Math.floor(r / m.W) * R;
+        if (rx + R < x0 || ry + R < y0 || rx > x1 || ry > y1) continue;
+        g.fillStyle = 'rgba(40,36,20,' + (0.8 * a).toFixed(2) + ')';
+        for (let i = 0; i < 70; i++) {
+          const fase = ahora / 700 + i * 2.3, cx = rx + R / 2 + Math.sin(fase + r) * R * 0.45 + Math.sin(i * 7.1) * R * 0.25, cy = ry + R / 2 + Math.cos(fase * 1.3 + i) * R * 0.35 + Math.cos(i * 3.7) * R * 0.2;
+          g.fillRect(Math.round(cx), Math.round(cy), 1, 1);
+        }
+      }
+    }
+  }
+  function buscarBatallas() {
+    const v = m.vida, tw = v.tw, zonas = new Map(), Z = 10;
+    const pon = (x, y, peso, civ) => { const k = Math.floor(x / Z) + ',' + Math.floor(y / Z); const b = zonas.get(k) || zonas.set(k, { x: 0, y: 0, n: 0, golpes: 0, muertos: 0, civs: new Set() }).get(k); b.x += x * peso; b.y += y * peso; b.n += peso; if (civ != null) b.civs.add(civ); return b; };
+    const porId = new Map(v.aldeanos.map(a => [a.id, a]));
+    for (const gp of v.golpes || []) { const vic = porId.get(gp[0]); pon(gp[2], gp[3], 1, vic ? vic.c : null).golpes++; }
+    for (const mu of v.muertos || []) if (['batalla', 'flecha', 'obus', 'bomba', 'torre'].includes(mu[3])) pon(mu[0], mu[1], 2, mu[2]).muertos++;
+    const nuevas = [];
+    for (const b of zonas.values()) if (b.golpes + b.muertos * 2 >= 3) nuevas.push({ tx: b.x / b.n, ty: b.y / b.n, fuerza: b.golpes + b.muertos * 3, muertos: b.muertos, civs: [...b.civs], turno: m.turno });
+    // Se juntan con las del turno anterior que están cerca (la misma batalla sigue).
+    for (const viejo of batallas) if (m.turno - viejo.turno < 2 && !nuevas.some(n => Math.hypot(n.tx - viejo.tx, n.ty - viejo.ty) < Z)) nuevas.push(viejo);
+    batallas = nuevas.sort((a, b) => b.fuerza - a.fuerza).slice(0, 12);
+  }
+  function listaBatallas() { return batallas.filter(b => m.turno - b.turno < 2); }
+  function pintarBatallas(ahora, z, ox, oy, dpr) {
+    if (!m || !batallas.length) return;
+    // Lo que tapa el panel lateral (en el escritorio) y las barras: las flechas quedan dentro de lo visible.
+    const panelAbierto = !document.body.classList.contains('sin-panel') && window.innerWidth >= 900;
+    const W = cv.width - (panelAbierto ? 420 * dpr : 0), H = cv.height - (window.innerWidth < 900 ? 170 * dpr : 0), margen = 40 * dpr, arriba = 90 * dpr;
+    const color = {}; for (const c of m.civs) color[c.id] = c.color;
+    for (const b of listaBatallas()) {
+      const wx = b.tx * P + 8, wy = b.ty * P + 8, sx = wx * z + ox, sy = wy * z + oy, viva = b.turno === m.turno, f = (ahora % 1200) / 1200;
+      const dentro = sx > 0 && sy > arriba && sx < W && sy < H;
+      if (dentro) {
+        // Un aro rojo que late y un par de espadas cruzadas encima del combate.
+        const r = (22 + Math.min(30, b.fuerza * 1.5)) * dpr * Math.max(0.7, Math.min(1.6, z / 3));
+        for (const d of [0, 0.5]) { const ff = (f + d) % 1; g.strokeStyle = 'rgba(255,70,50,' + ((viva ? 0.9 : 0.4) * (1 - ff)).toFixed(2) + ')'; g.lineWidth = 4 * dpr; g.beginPath(); g.arc(sx, sy, r * (0.5 + ff * 0.8), 0, Math.PI * 2); g.stroke(); }
+        espadas(sx, sy - r - 16 * dpr, 2 * dpr, viva, b);
+        // Etiqueta: «BATALLA» y las bajas.
+        g.font = 'bold ' + Math.round(11 * dpr) + 'px monospace'; g.textAlign = 'center';
+        const txt = (viva ? '⚔ BATALLA' : 'batalla') + (b.muertos ? ' · ' + b.muertos + ' caídos' : ''), w = g.measureText(txt).width + 10 * dpr;
+        g.fillStyle = 'rgba(5,7,14,0.85)'; g.fillRect(sx - w / 2, sy - r - 50 * dpr, w, 15 * dpr);
+        g.fillStyle = viva ? '#ff7a66' : '#c8a090'; g.fillText(txt, sx, sy - r - 39 * dpr);
+      } else {
+        // Fuera de la pantalla: una flecha en el borde que apunta hacia la batalla.
+        const cx = W / 2, cy = (H + arriba) / 2, ang = Math.atan2(sy - cy, sx - cx);
+        const k = Math.min((W / 2 - margen) / Math.max(1e-6, Math.abs(Math.cos(ang))), ((H - arriba) / 2 - margen) / Math.max(1e-6, Math.abs(Math.sin(ang))));
+        const px_ = cx + Math.cos(ang) * k, py_ = cy + Math.sin(ang) * k;
+        g.save(); g.translate(px_, py_); g.rotate(ang);
+        const late = 1 + 0.15 * Math.sin(ahora / 150);
+        g.scale(late, late);
+        g.fillStyle = 'rgba(5,7,14,0.9)'; g.fillRect(-20 * dpr, -15 * dpr, 42 * dpr, 30 * dpr);
+        g.fillStyle = viva ? '#ff5a46' : '#b05a4a';
+        g.beginPath(); g.moveTo(20 * dpr, 0); g.lineTo(8 * dpr, -11 * dpr); g.lineTo(8 * dpr, 11 * dpr); g.closePath(); g.fill();
+        g.restore();
+        espadas(px_ - Math.cos(ang) * 6 * dpr, py_ - Math.sin(ang) * 6 * dpr, 1.2 * dpr, viva, null);
+      }
+    }
+    function espadas(x, y, e, viva, b) {
+      g.save(); g.translate(Math.round(x), Math.round(y)); g.scale(e, e);
+      if (b) { g.fillStyle = 'rgba(5,7,14,0.85)'; g.fillRect(-13, -11, 26, 22); g.fillStyle = viva ? '#ff5a46' : '#8a4a40'; g.fillRect(-13, 9, 26, 2); }
+      for (const s of [1, -1]) {
+        g.fillStyle = '#e8ecf4'; for (let k = -7; k <= 5; k++) g.fillRect(s * k - 1, k - 1, 2, 2);
+        g.fillStyle = '#c8a040'; g.fillRect(s * 4 - 3, 4, 6, 2); g.fillStyle = '#6a4220'; g.fillRect(s * 6 - 1, 6, 2, 3);
+      }
+      if (b && b.civs.length) b.civs.slice(0, 2).forEach((id, i) => { g.fillStyle = color[id] || '#ccc'; g.fillRect(i ? 7 : -11, -9, 4, 4); });
+      g.restore();
+    }
   }
   function nombres(z, ox, oy, dpr) {
     if (cam.z < zMin() * 1.15 && S.vivas(m).length > 6) return;
@@ -846,7 +1022,7 @@
     if (ahora > lucesHasta) {
       lucesHasta = ahora + 1200; luces = [];
       const tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber || ob === V.OBRA.palacio || ob === V.OBRA.fuente || ob === V.OBRA.central) luces.push(t); if (luces.length > 400) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, ob = visto.obra[t]; if (ob === V.OBRA.casa || ob === V.OBRA.ayuntamiento || ob === V.OBRA.centro || ob === V.OBRA.templo || ob === V.OBRA.saber || ob === V.OBRA.palacio || ob === V.OBRA.fuente || (ob >= V.OBRA.central && ob <= V.OBRA.aerodromo)) luces.push(t); if (luces.length > 400) break; }
     }
     const a = Math.min(1, (o - 0.3) / 0.4);
     for (const t of luces) {
@@ -1023,7 +1199,7 @@
     if (ahora > chimeneasHasta) {
       chimeneasHasta = ahora + 1500; chimeneas = [];
       const v = m.vida, tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if ((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) chimeneas.push(t); else if (o === V.OBRA.central) chimeneas.push(-t - 1); if (chimeneas.length > 60) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if ((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) chimeneas.push(t); else if (o === V.OBRA.central || o === V.OBRA.fabrica) chimeneas.push(-t - 1); if (chimeneas.length > 60) break; }
     }
     for (const tt of chimeneas) {
       // Las dos chimeneas de la central echan mucho más humo, y más oscuro.
@@ -1617,6 +1793,13 @@
   }
 
   // ---------- La cámara ----------
+  // Centra la cámara en una parcela concreta (tx, ty) y acerca.
+  function centrarEnParcela(tx, ty, acercar) {
+    if (!m) return;
+    cam.x = tx * P + P / 2; cam.y = ty * P + P / 2;
+    if (acercar) cam.z = Math.max(cam.z, acercar);
+    limitar();
+  }
   function centrarEn(region, acercar) {
     if (!m) return;
     const R = V.SUB * P;
@@ -1696,6 +1879,7 @@
     if (clave === 'casa') return ARTE().casa(CASAS[c ? grupoEra(c.era) : 0], color, 0);
     if (clave === 'templo') return ARTE().edificio('templo', color, c && c.era === 4 ? 4 : fase);
     if (clave === 'saber') return ARTE().edificio('saber', color, M.ERUDITO(c ? c.era : 0).tipo);
+    if (['banco', 'fabrica', 'estacion', 'hospital', 'aerodromo', 'central'].includes(clave)) return ARTE().edificio(clave, color, Math.max(2, fase));
     return ARTE().edificio(clave, color, fase);
   }
   function planos(ahora) {
@@ -1727,5 +1911,5 @@
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { P, arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});
