@@ -1,0 +1,17 @@
+{
+  "name": "Génesis",
+  "short_name": "Génesis",
+  "description": "Simulador de dios y de reinos: de la Edad de Piedra a la Segunda Guerra Mundial.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1630",
+  "theme_color": "#0d1630",
+  "icons": [
+    { "src": "icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
