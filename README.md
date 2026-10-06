@@ -403,6 +403,11 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
     - el tamaño y el edificio que pide la edad;
     - el pago.
   - Sobre la plaza de tu pueblo salta una señal ▲ cuando ya puedes avanzar, o ? cuando tus sabios no tienen nada que investigar. El menú de un pueblo ajeno se ve, pero no se toca.
+- **Plan urbano**: cada pueblo y cada ciudad crece con orden alrededor de su plaza.
+  - **Calles en cuadrícula** cada tres parcelas, alineadas con la plaza, con manzanas de 2×2 entre ellas.
+  - **El casco** crece con el tamaño del pueblo. Dentro van las casas y los edificios, nunca en mitad de una calle, y llenan las manzanas de dentro afuera. Las calles se empiedran a medida que tienen casas al lado, y los caminos entre ciudades entran por ellas en vez de cruzar los solares.
+  - **Fuera del casco está la huerta.** Solo se ara junto a un molino. Cuando el casco crece sobre la huerta vieja, se construye encima.
+  - **Molinos con alcance medio**: 3 parcelas (antes 4), y cada uno da para unos diez campos. Cuando los que hay no tienen sitio libre, se levanta otro en el borde de la huerta, lejos de los demás. Los granjeros desbrozan el bosque para abrir campos nuevos (tardan más).
 - **Modo arquitecto** (botón 🏗 junto a la cámara, gobernando un pueblo): eliges una obra de la paleta (casa, calle, pozo, granero, plaza, parque, templo, casa del saber, palacio, molino, torre, puerto, cuartel, arquería o castillo) y tocas tu tierra.
   - Al pasar por encima se ve el edificio en verde, o en rojo con el motivo si no se puede: tierra ajena, agua, ya construido, hace falta ser villa…
   - Lo encargado queda marcado con un marco de trazos, y las calles por empedrar en gris. Tocar otra vez lo quita.

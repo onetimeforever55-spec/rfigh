@@ -24,6 +24,10 @@
   const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18, central: 19, banco: 20, fabrica: 21, estacion: 22, hospital: 23, aerodromo: 24 };
   // Hasta dónde llegan los campos de un molino (parcelas): más allá no se ara.
   const RANGO_MOLINO = 4;
+  // En las partidas pausadas el molino alcanza menos (un rango medio): hacen falta varios molinos repartidos
+  // por la huerta, y sin molino cerca no hay tierra que arar.
+  const rangoMolino = m => ((m.ritmo || 1) > 1 && !m.sinVidaPausada ? 3 : RANGO_MOLINO);
+  const CAMPOS_POR_MOLINO = 10;
   const fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
   /*
    * LA VIDA PAUSADA (partidas nuevas, m.ritmo > 1): días y noches, estaciones y obras que tardan.
@@ -1148,9 +1152,15 @@
       const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)];
       const tiles = zona.flatMap(z => parcelas(m, z));
       const tiene = o => tiles.some(t => v.obra[t] === o || (v.andamios && v.andamios[t] && v.andamios[t].o === o));
-      const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+      const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !calleDelPlan(m, t) && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+      // El sitio de un molino nuevo: tierra de cultivo fuera del casco, lejos de los otros molinos, lo más cerca posible del pueblo.
+      const sitioMolino = () => tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && !tiles.some(u => v.obra[u] === OBRA.molino && dist(m, u, t) < rangoMolino(m) * 2 - 1)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
-      if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
+      if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => (pausada(m) ? sitioMolino() : null) || libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
+      else if (pausada(m) && c.campos < metaCampos(c) && !(c.enCurso && c.enCurso[OBRA.molino] > m.turno - 8) && tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && molinoCerca(m, c, null, t)).length < 3) {
+        // Los molinos que hay ya no dan para más campos: otro en el borde de la huerta.
+        pide.unshift([OBRA.molino, sitioMolino]);
+      }
       if (c.era >= 1 && !tiene(OBRA.torre)) pide.push([OBRA.torre, () => libreEn(parcelas(m, r), t => CONSTRUIBLE.has(ter[t]))]);
       if (c.era >= 1 && !tiene(OBRA.templo)) pide.push([OBRA.templo, () => libreEn(tiles, t => CONSTRUIBLE.has(ter[t]))]);
       // La casa del saber (cabaña del chamán, academia, monasterio, universidad, laboratorio): donde estudian los eruditos.
@@ -1193,7 +1203,7 @@
         const necesaria = (c.necesidades || []).some(n => n.falta && OBRA[n.obra] === obra);
         if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
         const t = donde();
-        if (t != null) { if (obra !== OBRA.molino) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
+        if (t != null) { if (obra !== OBRA.molino || pausada(m)) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
       }
     }
     return null;
@@ -1823,7 +1833,7 @@
       if (!memo.has(km)) memo.set(km, [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)].flatMap(r => parcelas(m, r)).filter(x => v.obra[x] === OBRA.campo));
       const maduros = memo.get(km).filter(x => v.cultivo[x] >= 3 && v.obra[x] === OBRA.campo && !rec.reservadas.has(x));
       if (maduros.length) { t = maduros[Math.floor(azar(v) * maduros.length)]; a.siega = 1; }
-      else if (c.campos < metaCampos(c) && memo.get('campo:' + a.h) !== -1) { t = libre(m, a, c, rec, ter, CULTIVABLE, junto => molinoCerca(m, c, null, junto)); if (t < 0) { memo.set('campo:' + a.h, -1); c.sinCampo = m.turno; } }
+      else if (c.campos < metaCampos(c) && memo.get('campo:' + a.h) !== -1) { t = libre(m, a, c, rec, ter, CULTIVABLE, junto => !enCasco(m, junto) && molinoCerca(m, c, null, junto)); if (t < 0) { memo.set('campo:' + a.h, -1); c.sinCampo = m.turno; } }
       // Sin campo que segar ni que arar, el granjero hace de pastor: va a ordeñar o esquilar una res del pueblo.
       a.pastor = null;
       if (t < 0) {
@@ -1948,9 +1958,13 @@
     const v = m.vida, base = centro(m, a.h), regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 1e9;
     for (const r of regiones) for (const t of parcelas(m, r)) {
-      if (v.obra[t] || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !CONSTRUIBLE.has(ter[t]) || rec.reservadas.has(t)) continue;
+      const plano = pausada(m) && v.plan && v.centros && v.centros.length;
+      const huertaVieja = plano && v.obra[t] === OBRA.campo && v.plan[t] === 2;
+      if ((v.obra[t] && !huertaVieja) || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !CONSTRUIBLE.has(ter[t]) || rec.reservadas.has(t)) continue;
+      if (plano && v.plan[t] !== 2) continue; // solo en los solares del casco
       const x = t % v.tw;
       let junto = false;
+      if (plano) for (const d of [-1, 1, -v.tw, v.tw]) if (v.plan[t + d] === 1) { junto = true; break; }
       for (const d of [-1, 1, -v.tw, v.tw, -v.tw - 1, -v.tw + 1, v.tw - 1, v.tw + 1]) { const n = t + d; if (n < 0 || n >= v.obra.length || Math.abs((n % v.tw) - x) > 1) continue; if (PEGA.has(v.obra[n]) || v.camino[n]) { junto = true; break; } }
       if (!junto) continue;
       // Distancia redonda (no en rombo), un sesgo fijo por parcela y ganas de arrimarse a otras casas:
@@ -1959,7 +1973,10 @@
       let vecinas = 0;
       for (const d of [-1, 1, -v.tw, v.tw]) if (v.obra[t + d] === OBRA.casa) vecinas++;
       const sesgo = ((Math.imul(t, 2654435761) >>> 0) % 1000) / 1000;
-      const dd = Math.hypot(x - bx, ty - by) * (0.75 + sesgo * 0.5) + [0, -0.4, 0.8, 2.5, 4][vecinas] + azar(v) * 3;
+      const dd = plano
+        // Con plan: lo más cerca de la plaza, junto a la calle, rellenando manzanas (y la huerta vieja, solo si no hay otra cosa).
+        ? Math.hypot(x - bx, ty - by) + (huertaVieja ? 2.5 : 0) - Math.min(2, vecinas) * 0.6 + azar(v) * 0.8
+        : Math.hypot(x - bx, ty - by) * (0.75 + sesgo * 0.5) + [0, -0.4, 0.8, 2.5, 4][vecinas] + azar(v) * 3;
       if (dd < md) { md = dd; mejor = t; }
     }
     return mejor;
@@ -1970,9 +1987,10 @@
   function molinoMasCercano(m, t) {
     const v = m.vida, tx = t % v.tw, ty = t / v.tw | 0;
     let mejor = null, md = 99;
-    for (let dy = -RANGO_MOLINO; dy <= RANGO_MOLINO; dy++) for (let dx = -RANGO_MOLINO; dx <= RANGO_MOLINO; dx++) {
+    const R = rangoMolino(m);
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
       const n = (ty + dy) * v.tw + tx + dx, d = Math.abs(dx) + Math.abs(dy);
-      if (d <= RANGO_MOLINO && n >= 0 && n < v.obra.length && v.obra[n] === OBRA.molino && d < md) { md = d; mejor = n; }
+      if (d <= R && n >= 0 && n < v.obra.length && v.obra[n] === OBRA.molino && d < md) { md = d; mejor = n; }
     }
     return mejor;
   }
@@ -1980,18 +1998,65 @@
     const v = m.vida;
     if (t != null) {
       const tx = t % v.tw, ty = t / v.tw | 0;
-      for (let dy = -RANGO_MOLINO; dy <= RANGO_MOLINO; dy++) for (let dx = -RANGO_MOLINO; dx <= RANGO_MOLINO; dx++) { if (Math.abs(dx) + Math.abs(dy) > RANGO_MOLINO) continue; const n = (ty + dy) * v.tw + tx + dx; if (n >= 0 && n < v.obra.length && v.obra[n] === OBRA.molino) return true; }
+      const R = rangoMolino(m);
+      for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        if (Math.abs(dx) + Math.abs(dy) > R) continue;
+        const n = (ty + dy) * v.tw + tx + dx;
+        if (n >= 0 && n < v.obra.length && v.obra[n] === OBRA.molino) {
+          // Cada molino muele lo de unos pocos campos: lleno, ya no deja arar más a su alrededor.
+          if (pausada(m) && camposDeMolino(m, n) >= CAMPOS_POR_MOLINO) continue;
+          return true;
+        }
+      }
       return false;
     }
     return [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)].some(z => parcelas(m, z).some(x => v.obra[x] === OBRA.molino));
   }
+  function camposDeMolino(m, t) {
+    const v = m.vida, tx = t % v.tw, ty = t / v.tw | 0, R = rangoMolino(m);
+    let n = 0;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { if (Math.abs(dx) + Math.abs(dy) > R) continue; const u = (ty + dy) * v.tw + tx + dx; if (u >= 0 && u < v.obra.length && v.obra[u] === OBRA.campo) n++; }
+    return n;
+  }
+  /*
+   * EL PLAN URBANO (partidas pausadas): cada pueblo y cada ciudad crece con orden alrededor de su plaza.
+   *  · Calles en cuadrícula cada tres parcelas, alineadas con la plaza: entre ellas quedan manzanas de 2×2.
+   *  · Dentro del casco (más grande cuanto más grande es el pueblo) van las casas y los edificios, nunca en
+   *    mitad de una calle; las calles se empiedran a medida que tienen casas al lado.
+   *  · Fuera del casco está la huerta: los campos solo se aran ahí, cerca de un molino, y cada molino da
+   *    para unos diez campos; cuando hacen falta más, se levanta otro molino en el borde de la huerta.
+   * v.plan marca cada parcela: 1 calle del plan, 2 solar del casco, 0 fuera.
+   */
+  const RADIO_CASCO = [3, 5, 6, 8, 10];
+  function planUrbano(m) {
+    const v = m.vida, tw = v.tw, th = v.th, plan = new Uint8Array(tw * th), centros = [];
+    if (!pausada(m)) { v.plan = plan; v.centros = centros; return; }
+    for (const c of S().vivas(m)) {
+      const sitios = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
+      for (const r of sitios) {
+        const rx = (r % m.W) * SUB, ry = (r / m.W | 0) * SUB, cx = rx + 1.5, cy = ry + 1.5;
+        const R = RADIO_CASCO[Math.min(4, (r === c.capital ? c.nivel || 0 : Math.max(0, (c.nivel || 0) - 1)))];
+        centros.push({ civ: c.id, r, cx, cy, R });
+        for (let y = Math.max(0, Math.floor(cy - R)); y <= Math.min(th - 1, Math.ceil(cy + R)); y++) for (let x = Math.max(0, Math.floor(cx - R)); x <= Math.min(tw - 1, Math.ceil(cx + R)); x++) {
+          const t = y * tw + x;
+          if (m.dueno[region(m, t)] !== c.id) continue;
+          const calle = (((x - rx) % 3) + 3) % 3 === 0 || (((y - ry) % 3) + 3) % 3 === 0;
+          plan[t] = Math.max(plan[t], calle ? 1 : 2);
+        }
+      }
+    }
+    v.plan = plan; v.centros = centros;
+  }
+  const enCasco = (m, t) => m.vida.plan && m.vida.plan[t] > 0;
+  const calleDelPlan = (m, t) => m.vida.plan && m.vida.plan[t] === 1;
   function libre(m, a, c, rec, ter, sirve, filtro) {
-    const v = m.vida, base = centro(m, a.h);
+    const v = m.vida, base = centro(m, a.h), desbrozar = pausada(m) && sirve === CULTIVABLE;
     const regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 99;
     for (const r of regiones) for (const t of parcelas(m, r)) {
-      if (v.obra[t] || v.roca[t] || v.camino[t] || v.arbol[t] >= 2 || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
-      const d = dist(m, base, t) + azar(v) * 1.5;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || (v.arbol[t] >= 2 && !desbrozar) || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
+      // Con plan, la huerta se abre junto a otros campos (en bloques ordenados) y, si hace falta, se desbroza.
+      const d = dist(m, base, t) + azar(v) * 1.5 + (desbrozar ? (v.arbol[t] >= 2 ? 2 : 0) - [t - 1, t + 1, t - v.tw, t + v.tw].filter(n => v.obra[n] === OBRA.campo).length * 0.8 : 0);
       if (d < md) { md = d; mejor = t; }
     }
     return mejor;
@@ -2047,7 +2112,7 @@
     else if (a.o === LENADOR) { if (v.arbol[t] >= 2) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE; }
     else if (a.o === MINERO) { if (v.roca[t] > 0) { a.e = TRABAJAR; a.t = 3; } else if (a.cantera) { a.e = TRABAJAR; a.t = 4; } else a.e = LIBRE; }
     else if (a.o === GRANJERO && (a.pastor != null || a.caza != null)) { a.e = TRABAJAR; a.t = 3; }
-    else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else { a.e = LIBRE; a.siega = 0; } }
+    else if (a.o === GRANJERO) { if (a.siega && v.obra[t] === OBRA.campo && v.cultivo[t] >= 3) { a.e = TRABAJAR; a.t = 2; } else if (!a.siega && !v.obra[t] && v.arbol[t] < 2) { a.e = TRABAJAR; a.t = 3; } else if (!a.siega && !v.obra[t] && pausada(m) && !a.pastor && !a.caza) { a.e = TRABAJAR; a.t = 5; /* desbrozar el bosque para la huerta lleva más */ } else { a.e = LIBRE; a.siega = 0; } }
     else if (a.o === CONSTRUCTOR && a.edificio) {
       const an = v.andamios && v.andamios[t];
       if (an && an.civ === c.id) { a.e = TRABAJAR; a.t = 3; }
@@ -2064,6 +2129,7 @@
     else if (a.o === CONSTRUCTOR && a.obraCamino) { if (!v.camino[t] && !v.obra[t]) { a.e = TRABAJAR; a.t = 1; } else { a.e = LIBRE; a.obraCamino = 0; } }
     else if (a.o === CONSTRUCTOR) {
       const piedra = c.era >= 2 && c.piedra >= 1;
+      if (v.obra[t] === OBRA.campo && pausada(m) && v.plan && v.plan[t] === 2) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos = Math.max(0, (c.campos || 0) - 1); }
       if (!v.obra[t] && v.arbol[t] < 2 && c.madera >= (piedra ? 2 : 3)) { c.madera -= piedra ? 2 : 3; if (piedra) c.piedra -= 1; a.e = TRABAJAR; a.t = Math.max(2, Math.round(4 * (1 - M.tec(c, 'obra')))); } else a.e = LIBRE;
     } else if (a.o === GUERRERO) {
       // En tierra enemiga sin nadie que la defienda: saquea la aldea y empuja la frontera.
@@ -2123,6 +2189,7 @@
       ir(a, molinoMasCercano(m, t) ?? centro(m, a.h), v.tw, VOLVER);
       return;
     }
+    else if (a.o === GRANJERO && !v.obra[t] && pausada(m) && (enCasco(m, t) || calleDelPlan(m, t) || !molinoCerca(m, c, null, t))) { /* ahí no se ara: es casco del pueblo o no hay molino cerca */ }
     else if (a.o === GRANJERO && !v.obra[t]) { cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.campo, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos++; c.hecho = c.hecho || {}; c.hecho.campos = (c.hecho.campos || 0) + 1; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) {
       // Un tramo de camino: se quita el árbol o la roca; desde la Antigüedad se empiedra (cuesta un poco de piedra).
@@ -2192,6 +2259,9 @@
       if (v.camino[t]) return 0.35;
       const o = v.obra[t];
       if (o === OBRA.casa || o === OBRA.campo || o === OBRA.ruina) return 7;
+      // Dentro de un pueblo, los caminos van por las calles del plan y no cruzan los solares.
+      if (v.plan && v.plan[t] === 1) return 0.6;
+      if (v.plan && v.plan[t] === 2) return 4;
       return (tr === 'montana' ? 5 : tr === 'pantano' ? 2.5 : tr === 'rio' ? 3 : 1) + (v.arbol[t] >= 2 ? 1 : 0) + (v.roca[t] ? 2 : 0);
     };
     const dist = new Map([[de, 0]]), prev = new Map(), abiertos = [[0, de]];
@@ -2220,7 +2290,14 @@
   }
   // Las calles de una ciudad: una cruz alrededor de la plaza.
   function calles(m, r) {
-    const v = m.vida, cx = (r % m.W) * SUB + 2, cy = (r / m.W | 0) * SUB + 2, out = [];
+    const v = m.vida;
+    if (pausada(m)) {
+      // Con plan: la calle que rodea la plaza (el primer anillo de la cuadrícula).
+      const rx = (r % m.W) * SUB, ry = (r / m.W | 0) * SUB, out = [];
+      for (let k = 0; k <= 3; k++) { out.push(ry * v.tw + rx + k, (ry + 3) * v.tw + rx + k, (ry + k) * v.tw + rx, (ry + k) * v.tw + rx + 3); }
+      return [...new Set(out)].filter(t => t >= 0 && t < v.tw * v.th);
+    }
+    const cx = (r % m.W) * SUB + 2, cy = (r / m.W | 0) * SUB + 2, out = [];
     for (let d = -2; d <= 2; d++) { out.push(cy * v.tw + cx + d); out.push((cy + d) * v.tw + cx); }
     return [...new Set(out)].filter(t => t >= 0 && t < v.tw * v.th);
   }
@@ -2275,6 +2352,20 @@
         if (o === OBRA.casa || o === OBRA.campo || o === OBRA.ruina) continue;
         const d = m.dueno[region(m, t)], quien = d >= 0 ? (d === ru.a || d === ru.b ? d : -1) : ru.a;
         if (quien >= 0) (v.pendientes[quien] = v.pendientes[quien] || []).push(t);
+      }
+    }
+    // Las calles del plan se empiedran a medida que tienen casas o edificios al lado (de dentro afuera).
+    if (pausada(m) && v.plan) {
+      const tw = v.tw;
+      for (const ce of v.centros || []) {
+        const lista = (v.pendientes[ce.civ] = v.pendientes[ce.civ] || []), ya = new Set(lista), nuevas = [];
+        for (let y = Math.max(0, Math.floor(ce.cy - ce.R)); y <= Math.min(v.th - 1, Math.ceil(ce.cy + ce.R)); y++) for (let x = Math.max(0, Math.floor(ce.cx - ce.R)); x <= Math.min(tw - 1, Math.ceil(ce.cx + ce.R)); x++) {
+          const t = y * tw + x;
+          if (v.plan[t] !== 1 || v.camino[t] || v.obra[t] || ya.has(t) || !andable(ter[t])) continue;
+          if ([t - 1, t + 1, t - tw, t + tw].some(n => n >= 0 && n < v.obra.length && v.obra[n] && v.obra[n] !== OBRA.campo && v.obra[n] !== OBRA.ruina)) nuevas.push([Math.hypot(x - ce.cx, y - ce.cy), t]);
+        }
+        nuevas.sort((p, q) => p[0] - q[0]);
+        for (const [, t] of nuevas.slice(0, 12)) lista.push(t);
       }
     }
     for (const c of m.civs) c.rutas = v.rutas.filter(ru => ru.tipo !== 'calle' && (ru.a === c.id || ru.b === c.id) && rutaActiva(m, ru)).length;
@@ -2644,6 +2735,7 @@
       c.pozos = e[OBRA.pozo] || 0; c.graneros = e[OBRA.granero] || 0; c.fuentes = e[OBRA.fuente] || 0; c.parques = e[OBRA.parque] || 0; c.palacios = e[OBRA.palacio] || 0; c.centrales = e[OBRA.central] || 0; c.bancos = e[OBRA.banco] || 0; c.fabricas = e[OBRA.fabrica] || 0; c.estaciones = e[OBRA.estacion] || 0; c.hospitales = e[OBRA.hospital] || 0; c.aerodromos = e[OBRA.aerodromo] || 0;
       necesidades(m, c);
     }
+    planUrbano(m);
   }
 
   // ---------- Lo que cuesta una tierra nueva (sim.js) ----------
@@ -2725,5 +2817,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

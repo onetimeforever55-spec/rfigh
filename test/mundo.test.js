@@ -557,6 +557,18 @@ console.log('EL MERCADO GLOBAL');
     comprobar(/Precios del mundo/.test(X2.ordenar(m, con.id, '¿cómo está el mercado?').respuesta), '«¿cómo está el mercado?»');
   }
 }
+console.log('EL PLAN URBANO Y LOS MOLINOS');
+{
+  const m = S.crear(4, 5, { ritmo: 3 }), V2 = M.vida, v = m.vida;
+  for (let i = 0; i < 150; i++) S.turno(m);
+  comprobar(V2.rangoMolino(m) === 3 && V2.rangoMolino(S.crear(4, 5)) === 4, 'el molino tiene un alcance medio (3 parcelas) en las partidas nuevas');
+  let casasEnCalle = 0, camposSinMolino = 0, campos = 0, casas = 0;
+  const conMolino = t => { const tx = t % v.tw, ty = t / v.tw | 0; for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) if (Math.abs(dx) + Math.abs(dy) <= 3 && v.obra[(ty + dy) * v.tw + tx + dx] === V2.OBRA.molino) return true; return false; };
+  for (let t = 0; t < v.obra.length; t++) { if (v.obra[t] === V2.OBRA.casa) { casas++; if (v.plan[t] === 1) casasEnCalle++; } if (v.obra[t] === V2.OBRA.campo) { campos++; if (!conMolino(t)) camposSinMolino++; } }
+  comprobar(v.centros.length >= 5 && v.plan.some(x => x === 1) && v.plan.some(x => x === 2), 'cada pueblo tiene su plan: calles en cuadrícula y solares alrededor de la plaza');
+  comprobar(casasEnCalle <= Math.max(2, casas * 0.05), 'las casas no se levantan en mitad de las calles del plan (' + casasEnCalle + ' de ' + casas + ')');
+  comprobar(campos > 10 && camposSinMolino <= campos * 0.15, 'los campos están junto a un molino (' + (campos - camposSinMolino) + ' de ' + campos + ')');
+}
 console.log('LA CORTE: MEJORAS Y EDADES');
 {
   const m = S.crear(4, 5, { ritmo: 3 }), X2 = M.mando;
