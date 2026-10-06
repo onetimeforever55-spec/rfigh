@@ -666,6 +666,58 @@ console.log('PRIMEROS PASOS Y LA HISTORIA DE TU PUEBLO');
   comprobar(X.guia(m2) === null, 'en el modo dios no hay guía');
 }
 
+console.log('CARBÓN, PETRÓLEO Y BARCOS MODERNOS');
+{
+  const V = M.vida, m = S.crear(99, 5, { ritmo: 3 });
+  for (let k = 0; k < 250; k++) S.turno(m);
+  const cs = S.vivas(m).slice(0, 4);
+  comprobar(!m.vida.carbonVisto && !m.vida.crudo && m.vida.mena.every(x => x !== 3), 'antes de la industria no hay carbón ni petróleo en el mapa');
+  for (let k = 0; k < 120; k++) { for (const c of cs) { c.era = Math.max(c.era, k < 40 ? 6 : 7); c.madera = Math.max(c.madera, 60); c.piedra = Math.max(c.piedra, 60); c.oro = Math.max(c.oro || 0, 60); } S.turno(m); }
+  const v = m.vida, vetas = v.mena.filter(x => x === 3).length, crudo = v.crudo ? v.crudo.filter(Boolean).length : 0, pozos = [];
+  for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === V.OBRA.petroleo) pozos.push(t);
+  comprobar(vetas > 20 && crudo > 20, 'con la máquina de vapor salen vetas de carbón (' + vetas + ') y en la Era Moderna bolsas de crudo (' + crudo + ' casillas)');
+  comprobar(cs.some(c => (c.carbon || 0) > 5), 'los mineros sacan carbón (' + cs.map(c => Math.round(c.carbon || 0)).join(', ') + ')');
+  comprobar(pozos.length > 0 && pozos.every(t => v.crudo[t]), 'se levantan ' + pozos.length + ' pozos de petróleo, todos sobre crudo');
+  comprobar(cs.some(c => (c.petroleo || 0) > 10), 'los pozos dan petróleo');
+  comprobar(V.bienesDe(cs[0]).includes('carbon') && V.bienesDe(cs[0]).includes('petroleo') && m.mercado.precio.carbon > 0 && m.mercado.precio.petroleo > 0, 'el carbón y el petróleo se compran y se venden en el mercado global');
+  // Sin carbón se paran las fábricas y los trenes; con carbón, vuelven.
+  const c = cs[0], g = { fabricas: c.fabricas, estaciones: c.estaciones, centrales: c.centrales, carbon: c.carbon, petroleo: c.petroleo };
+  c.fabricas = 2; c.estaciones = 1; c.centrales = 1; c.carbon = 0; c.petroleo = 0; V.quemar(m, c);
+  const parada = c.paradas.fabrica && c.paradas.tren && c.paradas.central && !V.enMarcha(c, 'fabrica');
+  c.carbon = 50; V.quemar(m, c);
+  comprobar(parada && V.enMarcha(c, 'fabrica') && V.enMarcha(c, 'tren') && c.carbon < 50, 'sin carbón se paran las fábricas, los trenes y la luz; con carbón vuelven a andar (y lo gastan)');
+  comprobar(V.contaminacion(c) > 0, 'las fábricas encendidas ensucian el aire (' + V.contaminacion(c).toFixed(2) + ')');
+  Object.assign(c, g); c.paradas = {};
+  // La marina: en guerra, un reino con puerto y cuartel bota acorazados que bombardean la costa enemiga.
+  const a = S.vivas(m).find(x => (x.puertos || 0) > 0 && x.cuarteles > 0);
+  if (a) {
+    for (const o of S.vivas(m)) if (o !== a && !S.enGuerra(a, o)) S.declararGuerra(m, a, o, 'prueba');
+    let max = 0, tiros = 0;
+    for (let k = 0; k < 30 && a.viva; k++) { a.era = 7; a.metal = Math.max(a.metal, 30); a.petroleo = Math.max(a.petroleo || 0, 10); S.turno(m); max = Math.max(max, v.barcos.filter(b => b.tipo === 'guerra').length); tiros += v.muertos.filter(x => x[3] === 'acorazado').length; }
+    comprobar(max > 0, 'en guerra se botan acorazados (' + max + ')' + (tiros ? ' y sus cañones matan a ' + tiros + ' soldados' : ''));
+  } else comprobar(true, 'ningún reino con puerto y cuartel en esta semilla: no hay marina que probar');
+}
+
+console.log('OBREROS, HUELGAS Y REVOLUCIONES');
+{
+  const V = M.vida, X = M.mando, m = S.crear(21, 5, { ritmo: 3 });
+  for (let k = 0; k < 40; k++) S.turno(m);
+  m.modo = 'pueblo'; const c = X.gobernar(m, S.vivas(m)[0].id);
+  c.era = 6; c.fabricas = 2; c.estab = 5; c.parques = 0; c.oro = 200;
+  let k = 0; while (!c.huelga && k++ < 400) { c.ultimaHuelga = null; c.huelgasN = 0; c.estab = 5; V.huelgas(m, c); }
+  comprobar(!!c.huelga && !V.enMarcha(c, 'fabrica'), 'con el pueblo descontento, los obreros hacen huelga y las fábricas se paran');
+  comprobar(/salarios/i.test(X.consejo(m, c.id).orden), 'el consejero avisa de la huelga y propone subir los salarios');
+  const oro = c.oro;
+  X.ordenar(m, c.id, 'subid los salarios a los obreros');
+  comprobar(!c.huelga && c.oro < oro && V.enMarcha(c, 'fabrica'), 'subir los salarios cuesta oro y acaba la huelga');
+  c.huelga = { desde: m.turno, hasta: m.turno + 8 }; const est = c.estab;
+  X.ordenar(m, c.id, 'reprimid la huelga');
+  comprobar(!c.huelga && c.estab < est, 'reprimirla también la acaba, pero baja la estabilidad');
+  const reg = c.regimen; c.huelgasN = 3; c.estab = 5; c.ultimaHuelga = null; k = 0;
+  while (c.regimen === reg && k++ < 400) { c.era = 6; c.fabricas = 2; c.ultimaHuelga = null; c.huelgasN = Math.max(3, c.huelgasN); c.estab = 5; delete c.huelga; V.huelgas(m, c); }
+  comprobar(c.regimen !== reg && m.cronica.some(e => /Revolución en/.test(e.titulo)), 'tras varias huelgas, una revolución cambia el régimen (' + reg + ' → ' + c.regimen + ')');
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;

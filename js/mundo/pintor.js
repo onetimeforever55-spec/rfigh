@@ -75,12 +75,14 @@
   }
 
   // ---------- Pintar el suelo y las obras ----------
+  let subVisto = 0;
   function mundo(nuevo, enfocar) {
     m = nuevo; regionDe = null;
     if (!m.vida) V.crear(m);
     const v = m.vida;
     lienzo = document.createElement('canvas'); lienzo.width = v.tw * A; lienzo.height = v.th * A; gl = lienzo.getContext('2d');
     capa = document.createElement('canvas'); capa.width = v.tw * CA; capa.height = v.th * CA; gc = capa.getContext('2d');
+    subVisto = v.subsueloVer || 0;
     visto = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice(), camino: (v.camino || []).slice() };
     tierra = V.terrenos(m).slice();
     pend = [];
@@ -106,6 +108,8 @@
     const v = m.vida, x = (t % v.tw) * A, y = Math.floor(t / v.tw) * A, ter = tierra[t], h = (Math.imul(t, 2654435761) >>> 0);
     gl.clearRect(x, y, A, A);
     gl.drawImage(ARTE().suelo(ter, h % 4), x, y);
+    // Una bolsa de petróleo: manchas negras y brillantes en el suelo (hasta que se levanta el pozo).
+    if (v.crudo && v.crudo[t] && !visto.obra[t]) { gl.fillStyle = 'rgba(16,14,18,0.78)'; for (const [dx, dy, w, hh] of [[3, 6, 6, 3], [5, 4, 4, 7], [9, 8, 4, 3], [2, 10, 4, 2]]) gl.fillRect(x + dx * A / 16, y + dy * A / 16, w * A / 16, hh * A / 16); gl.fillStyle = 'rgba(120,110,160,0.55)'; gl.fillRect(x + 6 * A / 16, y + 5 * A / 16, A / 16, A / 16); }
     if (visto.camino && visto.camino[t]) caminoEn(t, x, y, ter);
     // Picos solo dentro de la sierra (rodeados de montaña) y repartidos al azar, no en filas.
     else if (ter === 'montana' && !visto.obra[t]) {
@@ -133,6 +137,7 @@
       else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.petroleo) gl.drawImage(ARTE().edificio('petroleo', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.aduana) gl.drawImage(ARTE().edificio('aduana', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.campamento) gl.drawImage(ARTE().edificio('campamento', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, eraT === 4 ? 4 : V.fase(eraT)), x, y);
@@ -328,6 +333,8 @@
   function sincronizar(cambios) {
     const v = m.vida, n = v.tw * v.th;
     aplicar(Infinity);
+    // Se ha descubierto carbón o petróleo: se repinta todo una vez (las vetas negras y las manchas de crudo).
+    if ((v.subsueloVer || 0) !== subVisto) { subVisto = v.subsueloVer || 0; for (let t = 0; t < n; t++) parcela(t); }
     const antes = { arbol: v.arbol.slice(), roca: v.roca.slice(), obra: v.obra.slice(), cultivo: (v.cultivo || []).slice(), camino: (v.camino || []).slice() };
     for (let k = cambios.length - 1; k >= 0; k--) { const [c, t, a] = cambios[k]; if (c <= 2 || c === 4 || c === 5) antes[c === 0 ? 'arbol' : c === 1 ? 'roca' : c === 2 ? 'obra' : c === 4 ? 'cultivo' : 'camino'][t] = a; }
     const ter = V.terrenos(m), nf = firmas(), cambiadas = new Set(), caminosTocados = [];
@@ -569,7 +576,7 @@
     for (const ru of v.rutas || []) {
       if (ru.tipo !== 'externa') continue;
       const a = civPorId.get(ru.a), b = civPorId.get(ru.b);
-      if (!((a && a.estaciones > 0 && a.era >= 6) || (b && b.estaciones > 0 && b.era >= 6))) continue;
+      if (!((a && a.estaciones > 0 && a.era >= 6 && V.enMarcha(a, 'tren')) || (b && b.estaciones > 0 && b.era >= 6 && V.enMarcha(b, 'tren')))) continue;
       for (let i = 0; i < ru.tiles.length; i++) {
         const t = ru.tiles[i]; if (!visto.camino[t]) continue;
         const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P;
@@ -695,7 +702,7 @@
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
       // Con estación de tren (Revolución Industrial en adelante), el comerciante viaja en tren por las rutas entre reinos.
       const civA = oficio === 'comerciante' && !nino ? civPorId.get(a.c) : null, rutaA = civA && a.ruta != null ? rutaPorId.get(a.ruta) : null;
-      if (civA && civA.estaciones > 0 && civA.era >= 6 && rutaA && rutaA.tipo === 'externa' && a.e === 5) {
+      if (civA && civA.estaciones > 0 && civA.era >= 6 && V.enMarcha(civA, 'tren') && rutaA && rutaA.tipo === 'externa' && a.e === 5) {
         const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
         const dx = r && r.length >= 6 ? Math.sign(r[j] - r[i]) : 0, dy = r && r.length >= 6 ? Math.sign(r[j + 1] - r[i + 1]) : 0;
         const dir = dx || (dy ? 0 : (ultimaDir.get(a.id) || 1)); if (dx) ultimaDir.set(a.id, dx);
@@ -1169,14 +1176,16 @@
       // Barcos de su época (canoa, vela, galeón, vapor), del tamaño de una casa.
       const r = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(px - 4 + x * 2, py - 6 + y * 2, w * 2, h * 2); };
       g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px - 6, py + 12 + (Math.floor(ahora / 400 + b.id) % 2), 20, 1);
-      const img = ARTE().barco(b.tipo === 'pesca' ? 'pesca' : 'mercante', c ? grupoEra(c.era) : 1, color);
+      // Desde la Revolución Industrial, los mercantes ya son vapores; en guerra, los acorazados.
+      const fb = c ? (c.era >= 6 && b.tipo !== 'pesca' ? 3 : grupoEra(c.era)) : 1;
+      const img = ARTE().barco(b.tipo === 'guerra' ? 'guerra' : b.tipo === 'pesca' ? 'pesca' : 'mercante', fb, color);
       const ida = b.r && b.r.length >= 4 ? Math.sign(b.r[Math.min(b.r.length - 2, paso * 2 + 2)] - b.r[paso * 2]) : 0;
       const izq = ida < 0 || (!ida && (b.izq || false)); if (ida) b.izq = ida < 0;
       g.save(); if (izq) { g.translate(px * 2 + 12, 0); g.scale(-1, 1); }
       g.drawImage(img, px - 4, py - 6);
       g.restore();
       // Humo de los vapores y arrastreros.
-      if (c && grupoEra(c.era) === 3) { for (let q = 0; q < 3; q++) { const f = ((ahora / 1200) + q / 3) % 1; g.fillStyle = 'rgba(80,80,80,' + (0.5 * (1 - f)).toFixed(2) + ')'; g.fillRect(px + (izq ? 6 : 4) + (b.tipo === 'pesca' ? 4 : 0) - f * 6 * (izq ? -1 : 1), py - 6 - f * 10, 2 + f * 3, 2 + f * 3); } }
+      if (c && fb === 3) { for (let q = 0; q < 3; q++) { const f = ((ahora / 1200) + q / 3) % 1; g.fillStyle = 'rgba(80,80,80,' + (0.5 * (1 - f)).toFixed(2) + ')'; g.fillRect(px + (izq ? 6 : 4) + (b.tipo === 'pesca' ? 4 : 0) - f * 6 * (izq ? -1 : 1), py - 6 - f * 10, 2 + f * 3, 2 + f * 3); } }
       if (b.tipo === 'pesca' && Math.floor(ahora / 700 + b.id) % 3 === 0) { r(8, 5, 2, 1, '#c8d4dc'); }
     }
   }
@@ -1228,12 +1237,20 @@
   }
   // Humo de las chimeneas: unas cuantas casas a la vista echan humo.
   let chimeneas = [], chimeneasHasta = 0;
+  let piquetes = [];
   function humo(ahora, x0, y0, x1, y1) {
     if (reducido) return;
     if (ahora > chimeneasHasta) {
-      chimeneasHasta = ahora + 1500; chimeneas = [];
+      chimeneasHasta = ahora + 1500; chimeneas = []; piquetes = [];
       const v = m.vida, tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(v.tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
-      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if (((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) || o === V.OBRA.campamento) chimeneas.push(t); else if (o === V.OBRA.central || o === V.OBRA.fabrica) chimeneas.push(-t - 1); if (chimeneas.length > 60) break; }
+      for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) { const t = ty * v.tw + tx, o = visto.obra[t]; if (((o === V.OBRA.casa || o === V.OBRA.ayuntamiento) && t % 5 === 0) || o === V.OBRA.campamento) chimeneas.push(t); else if (o === V.OBRA.central || o === V.OBRA.fabrica) { const dc = m.dueno[V.region(m, t)], cc = dc >= 0 ? S.civ(m, dc) : null; if (V.enMarcha(cc, o === V.OBRA.central ? 'central' : 'fabrica')) chimeneas.push(-t - 1); else if (o === V.OBRA.fabrica && cc && cc.huelga) piquetes.push(t); } if (chimeneas.length > 60) break; }
+    }
+    // Fábricas en huelga: una bandera roja que ondea sobre el tejado y un piquete en la puerta.
+    for (const t of piquetes) {
+      const bx = (t % m.vida.tw) * P, by = Math.floor(t / m.vida.tw) * P, ond = Math.floor(ahora / 300) % 2;
+      g.fillStyle = '#3a3a3a'; g.fillRect(bx + 3, by - 8, 1, 10);
+      g.fillStyle = '#d82a2a'; g.fillRect(bx + 4, by - 8, 5, 3); g.fillRect(bx + 4 + 5, by - 8 + ond, 1, 2);
+      for (const [dx, col] of [[2, '#5a4a7a'], [6, '#7a4a3a'], [10, '#4a5a7a']]) { g.fillStyle = col; g.fillRect(bx + dx, by + P - 4, 2, 3); g.fillStyle = '#e8b890'; g.fillRect(bx + dx, by + P - 6, 2, 2); if ((Math.floor(ahora / 400) + dx) % 2) { g.fillStyle = '#e8b890'; g.fillRect(bx + dx + 1, by + P - 8, 1, 2); } }
     }
     for (const tt of chimeneas) {
       // Las dos chimeneas de la central echan mucho más humo, y más oscuro.
@@ -1922,7 +1939,7 @@
     if (clave === 'casa') return ARTE().casa(CASAS[c ? grupoEra(c.era) : 0], color, 0);
     if (clave === 'templo') return ARTE().edificio('templo', color, c && c.era === 4 ? 4 : fase);
     if (clave === 'saber') return ARTE().edificio('saber', color, M.ERUDITO(c ? c.era : 0).tipo);
-    if (['banco', 'fabrica', 'estacion', 'hospital', 'aerodromo', 'central', 'aduana'].includes(clave)) return ARTE().edificio(clave, color, Math.max(2, fase));
+    if (['banco', 'fabrica', 'estacion', 'hospital', 'aerodromo', 'central', 'aduana', 'petroleo'].includes(clave)) return ARTE().edificio(clave, color, Math.max(2, fase));
     return ARTE().edificio(clave, color, fase);
   }
   function planos(ahora) {

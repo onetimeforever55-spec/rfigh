@@ -704,6 +704,9 @@
     if (ambicioso && ratio > 1.6 && r < 10) return 'la ambición de ' + nombreRey(a) + ', que ve débil a su vecino';
     const sinMadera = (a.madera || 0) < 5 && (a.arboles || 0) < casillas(m, a).length, sinMetal = a.era >= 1 && (a.metal || 0) < 2;
     if ((sinMadera && (b.arboles || 0) > (a.arboles || 0) * 2) || (sinMetal && (b.metal || 0) > 10)) return 'la codicia de los ' + (sinMadera ? 'bosques' : 'metales') + ' de ' + b.nombre;
+    // La era del combustible: quien se queda sin petróleo (o sin carbón) mira con ganas los pozos y las minas del vecino.
+    if (a.era >= 7 && (a.petroleo || 0) < 5 && (b.pozosPetroleo || 0) > 0 && ratio > 1.1 && r < 20) return 'el petróleo de ' + b.nombre + ', que ' + a.nombre + ' necesita para sus motores';
+    if (a.era >= 6 && a.paradas && (a.paradas.fabrica || a.paradas.tren) && (b.carbon || 0) > 30 && ratio > 1.2 && r < 15) return 'el carbón de ' + b.nombre + ', con las fábricas de ' + a.nombre + ' paradas';
     if (ratio > 2.5 && r < 0 && azar(m) < 0.3) return 'la debilidad de ' + b.nombre;
     return null;
   }

@@ -273,7 +273,7 @@
       else if (n === 2) { H.disco(8, 11, 4, c, true); }
       else H.disco(8, 12, 2.6, c, true);
       H.contorno();
-      if (mena) { const col = mena === 2 ? '#ffd23a' : '#d0703a'; for (const [x, y] of [[5, 9], [7, 11], [9, 10], [11, 12]]) if (H.g(x, y) && H.g(x, y) !== null) H.p(x, y, col); }
+      if (mena) { const col = mena === 3 ? '#1a1a1e' : mena === 2 ? '#ffd23a' : '#d0703a'; for (const [x, y] of mena === 3 ? [[4, 10], [5, 9], [6, 10], [7, 11], [6, 12], [8, 9], [9, 10], [10, 11], [11, 12], [8, 12], [12, 11], [10, 13]] : [[5, 9], [7, 11], [9, 10], [11, 12]]) if (H.g(x, y) && H.g(x, y) !== null) H.p(x, y, col); }
       return H.lienzo();
     });
   }
@@ -406,6 +406,7 @@
       if (nombre === 'hospital') return hospital(H, fase, col);
       if (nombre === 'aerodromo') return aerodromo(H, fase, col);
       if (nombre === 'aduana') return aduana(H, fase, col);
+      if (nombre === 'petroleo') return pozoPetroleo(H, fase, col);
       if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
       if (nombre === 'molino' && fase !== 1) return molinoDeFase(H, fase, col);
@@ -637,6 +638,16 @@
     H.r(8, 9, 1, 5, '#4a4a4a'); H.r(15, 11, 1, 3, '#4a4a4a');
     H.r(1, 0, 1, 5, '#5a5a5a'); H.r(2, 0, 3, 2, col);
     if (fase >= 3) { H.r(9, 13, 3, 2, '#c8b078'); H.r(10, 12, 2, 1, '#b8a068'); }
+    H.contorno(); return H.lienzo();
+  }
+  // El pozo de petróleo: el balancín de hierro (la cabeza de caballo) sobre su torre, el tanque de crudo y
+  // la mancha negra del suelo.
+  function pozoPetroleo(H, fase, col) {
+    H.r(1, 13, 14, 2, '#2a2420'); H.r(3, 12, 8, 1, '#3a302a');
+    H.r(4, 7, 1, 6, '#5a5e66'); H.r(8, 7, 1, 6, '#5a5e66'); H.r(5, 9, 3, 1, '#4a4e56'); H.r(6, 6, 1, 1, '#6a6e76');
+    H.r(1, 5, 11, 1, '#3a3e46'); H.r(1, 4, 2, 4, '#3a3e46'); H.r(2, 8, 1, 4, '#5a5e66');
+    H.r(10, 5, 2, 3, '#c8402a'); H.r(11, 8, 1, 4, '#5a5e66');
+    H.r(12, 8, 3, 5, '#a8acb4'); H.r(12, 8, 3, 1, '#c8ccd4'); H.p(13, 10, col);
     H.contorno(); return H.lienzo();
   }
   // El aeródromo: pista de hormigón con marcas, un hangar de chapa abovedado, un avión y la manga de viento.
@@ -1066,7 +1077,12 @@
   function barco(tipo, fase, col) {
     return guardado('barco' + tipo + fase + col, () => {
       const H = hoja(20, 16);
-      if (tipo === 'pesca') {
+      if (tipo === 'guerra') { // acorazado: casco gris de hierro, dos torretas con cañones, puente y chimenea
+        H.r(0, 10, 20, 4, '#5a626e'); H.r(0, 10, 20, 1, '#7a828e'); H.r(1, 14, 18, 1, '#3a4048'); H.r(0, 12, 20, 1, col);
+        H.r(7, 6, 6, 4, '#6a727e'); H.r(8, 4, 3, 2, '#7a828e'); H.p(9, 5, CRISTAL); H.r(11, 3, 2, 3, '#3a3a40');
+        for (const x of [2, 15]) { H.r(x, 8, 3, 2, '#4a525e'); } H.r(0, 8, 2, 1, '#2a2e34'); H.r(18, 8, 2, 1, '#2a2e34');
+        H.p(9, 2, col);
+      } else if (tipo === 'pesca') {
         if (fase === 0) { // canoa con un pescador y su remo
           H.r(3, 11, 13, 2, '#7a4a22'); H.r(4, 13, 11, 1, '#5a3418'); H.r(3, 11, 13, 1, '#9a6a3a'); H.p(2, 10, '#7a4a22'); H.p(16, 10, '#7a4a22');
           H.r(9, 8, 2, 3, col); H.r(9, 6, 2, 2, '#e8b890'); H.r(12, 7, 1, 6, '#6b4a2b'); H.r(12, 12, 2, 2, '#6b4a2b');
@@ -1106,6 +1122,8 @@
 
   // ---------- Iconos de la interfaz (12×12 píxeles, con contorno): recursos, estaciones y secciones ----------
   const ICONOS = {
+    carbon: H => { H.disco(4.5, 7.5, 3.2, '#2a2a30', true); H.disco(8, 6, 3.4, '#1e1e24', true); H.disco(7, 9, 2.6, '#34343c', true); H.p(7, 4, '#6a6a76'); H.p(4, 6, '#5a5a66'); H.p(9, 8, '#5a5a66'); },
+    petroleo: H => { H.r(3, 2, 7, 9, '#2a3a5a'); H.r(3, 2, 7, 1, '#4a5a7a'); H.r(3, 10, 7, 1, '#1a2a4a'); H.r(3, 5, 7, 1, '#c8402a'); H.r(5, 1, 3, 1, '#5a6a8a'); H.p(4, 3, '#7a8aaa'); },
     oro: H => { H.disco(6, 6, 5, '#f0c040', true); H.disco(6, 6, 3.4, '#e0a820'); H.r(5, 3, 2, 6, '#fff0a0'); H.r(5, 3, 1, 6, '#b07818'); },
     comida: H => { for (const [x0, x1] of [[3, 5], [6, 6], [9, 7]]) for (let y = 2; y < 11; y++) H.p(Math.round(x0 + (x1 - x0) * (y - 2) / 8), y, '#c89a30'); for (const [x, y] of [[3, 2], [2, 3], [4, 3], [6, 1], [5, 2], [7, 2], [9, 2], [8, 3], [10, 3], [3, 4], [6, 3], [9, 4]]) H.p(x, y, '#f0d070'); H.r(4, 8, 5, 1, '#8a5a2a'); },
     madera: H => { H.r(1, 4, 9, 5, '#8a5a2a'); H.r(1, 4, 9, 1, '#a8743a'); H.r(2, 6, 6, 1, '#6a4220'); H.disco(9.5, 6.5, 2.7, '#d8a868'); H.p(9, 6, '#b08048'); H.p(10, 7, '#b08048'); },
