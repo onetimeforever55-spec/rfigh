@@ -423,8 +423,16 @@
   // que cada era sigue llegando a su fecha; pero hay muchos más turnos para vivirla.
   const ritmo = m => m.ritmo || 1;
   const maxEraDe = m => Math.max(0, ...vivas(m).map(c => c.era));
-  const aniosTurno = m => m.libre ? 1 : ritmo(m) > 1 ? M.ERAS[maxEraDe(m)].aniosLento : M.ERAS[maxEraDe(m)].anios;
-  const pausa = m => ritmo(m) > 1 && !m.libre ? aniosTurno(m) / M.ERAS[maxEraDe(m)].anios : ritmo(m) > 1 ? 1 / ritmo(m) : 1;
+  const aniosBase = m => m.libre ? 1 : ritmo(m) > 1 ? M.ERAS[maxEraDe(m)].aniosLento : M.ERAS[maxEraDe(m)].anios;
+  // Con el ritmo pausado, el calendario no se escapa de la historia: si ya llegó la fecha de la era siguiente y
+  // nadie la ha alcanzado, el tiempo casi se detiene (un año cada cuatro turnos) hasta que algún pueblo dé el paso.
+  const aniosTurno = m => {
+    const b = aniosBase(m);
+    if (m.libre || ritmo(m) <= 1) return b;
+    const sig = M.ERAS[maxEraDe(m) + 1];
+    return sig && sig.desde != null && m.anio >= sig.desde ? Math.min(b, 0.25) : b;
+  };
+  const pausa = m => ritmo(m) > 1 && !m.libre ? aniosBase(m) / M.ERAS[maxEraDe(m)].anios : ritmo(m) > 1 ? 1 / ritmo(m) : 1;
   // ¿Se puede investigar ya? Hace falta su edificio (el molino, el templo, el cuartel…) y pagar su precio.
   const EDIFICIO = { saber: c => c.saberes > 0, plaza: () => true, molino: c => c.molinos > 0, templo: c => c.templos > 0, cuartel: c => c.cuarteles > 0, puerto: c => c.puertos > 0 };
   function faltaPara(m, c, t) {
@@ -439,6 +447,8 @@
   function ahorrando(m, c) {
     if (!M.ERAS[c.era + 1] || c.subiendo || (c.jugador && !(c.plan && c.plan.ahorrarEdad))) return false;
     const sig = M.ERAS[c.era + 1];
+    // Si aún le faltan las mejoras de la edad, no ahorra: las investiga (si no, se quedaría atascado para siempre).
+    if (m.vida && ritmo(m) > 1) { const r = mejorasDeEdad(c); if (r.hechas < r.pide) return false; }
     return c.ciencia >= sig.umbral * 0.85 && (m.libre || sig.desde == null || m.anio >= sig.desde - aniosTurno(m) * 4);
   }
   function elegirTec(m, c) {
@@ -455,6 +465,8 @@
       if ((c.comida || 0) < (c.aldeanos || 10) * 0.6) k += (e.cosecha || 0) * 2 + (e.granero || 0) * 2;
       if (c.guerras.length) k += (e.ataque || 0) * 8 + (e.defensa || 0) * 8;
       if (c.oro < 0) k += (e.oro || 0) * 8;
+      // Con el ritmo pausado, primero las mejoras que pide la edad para poder avanzar.
+      if (m.vida && ritmo(m) > 1 && t.era === c.era && mejorasDeEdad(c).hechas < mejorasDeEdad(c).pide) k += 50;
       return k + t.era * -5 + ((c.id * 7 + M.TECNOLOGIAS.indexOf(t)) % 5) * 0.01; };
     return libres.sort((a, b) => gusto(b) - gusto(a))[0].id;
   }
@@ -500,6 +512,16 @@
   function mejorasDeEdad(c) {
     const lista = M.TECNOLOGIAS.filter(t => t.era === c.era), ts = M.tecsDe(c);
     return { lista, hechas: lista.filter(t => ts.includes(t.id)).length, pide: Math.min(3, lista.length) };
+  }
+  // Lo que la IA guarda para la mejora de la edad más barata que le falta (con el ritmo pausado): sin esto se
+  // gastaría la madera y el oro en obras y nunca juntaría el precio de la técnica.
+  function reservaMejora(m, c) {
+    if (!m.vida || ritmo(m) <= 1 || c.jugador || !M.ERAS[c.era + 1]) return null;
+    const r = mejorasDeEdad(c); if (r.hechas >= r.pide) return null;
+    const ts = M.tecsDe(c), falta = r.lista.filter(t => !ts.includes(t.id));
+    if (!falta.length) return null;
+    const total = t => Object.values(t.precio || {}).reduce((a, b) => a + b, 0);
+    return falta.sort((a, b) => total(a) - total(b))[0].precio || null;
   }
   function puedeSubir(m, c) {
     const sig = M.ERAS[c.era + 1], req = M.EDADES[c.era + 1], falta = [];
@@ -852,6 +874,6 @@
     });
   }
 
-  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

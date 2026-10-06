@@ -18,9 +18,34 @@
   let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
 
   // ---------- Guardar y cargar (comodidad de este navegador) ----------
-  function guardar() { try { localStorage.setItem(CLAVE, JSON.stringify(m)); } catch (e) { /* sin guardado */ } }
+  // La partida se guarda comprimida (gzip del navegador, en base64): ocupa unas diez veces menos y cabe de sobra
+  // en el almacén del navegador aunque el mundo crezca. Sin compresión disponible, se guarda tal cual.
+  let guardando = false, guardadaAntes = null;
+  const aB64 = buf => { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); };
+  const deB64 = t => { const s = atob(t), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; };
+  function escribir(texto) {
+    try { localStorage.setItem(CLAVE, texto); return true; }
+    catch (e) { try { localStorage.removeItem(CLAVE); localStorage.setItem(CLAVE, texto); return true; } catch (e2) { return false; } }
+  }
+  function guardar() {
+    if (!m || guardando) return;
+    let json; try { json = JSON.stringify(m); } catch (e) { return; }
+    if (typeof CompressionStream !== 'function') { escribir(json); return; }
+    guardando = true;
+    new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()
+      .then(buf => { if (!escribir('gz:' + aB64(buf))) escribir(json); })
+      .catch(() => escribir(json))
+      .finally(() => { guardando = false; });
+  }
+  // Al arrancar, se descomprime la partida guardada (si la hay) antes de montar el juego.
+  function precargar() {
+    let t = null; try { t = localStorage.getItem(CLAVE); } catch (e) { /* sin guardado */ }
+    if (!t || t.slice(0, 3) !== 'gz:' || typeof DecompressionStream !== 'function') { guardadaAntes = t; return Promise.resolve(); }
+    return new Response(new Blob([deB64(t.slice(3))]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
+      .then(j => { guardadaAntes = j; }).catch(() => { guardadaAntes = null; });
+  }
   function cargar() {
-    try { const d = JSON.parse(localStorage.getItem(CLAVE) || 'null'); if (d && d.version === 1 && d.tipo && d.civs && d.W === S.W && d.H === S.H && d.vida) return d; } catch (e) { /* mundo corrupto */ }
+    try { const d = JSON.parse(guardadaAntes || 'null'); if (d && d.version === 1 && d.tipo && d.civs && d.W === S.W && d.H === S.H && d.vida) return d; } catch (e) { /* mundo corrupto */ }
     return null;
   }
   function mundoNuevo() {
@@ -1097,8 +1122,10 @@
   }
 
   function arrancar() {
-    if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(iniciar);
-    else iniciar(window.claude && window.claude.hot ? window.claude.hot.data : null);
+    precargar().then(() => {
+      if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(iniciar);
+      else iniciar(window.claude && window.claude.hot ? window.claude.hot.data : null);
+    });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
   else arrancar();

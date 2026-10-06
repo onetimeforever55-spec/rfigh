@@ -1284,8 +1284,16 @@ table.mercado td:first-child { white-space: nowrap; }
   // que cada era sigue llegando a su fecha; pero hay muchos más turnos para vivirla.
   const ritmo = m => m.ritmo || 1;
   const maxEraDe = m => Math.max(0, ...vivas(m).map(c => c.era));
-  const aniosTurno = m => m.libre ? 1 : ritmo(m) > 1 ? M.ERAS[maxEraDe(m)].aniosLento : M.ERAS[maxEraDe(m)].anios;
-  const pausa = m => ritmo(m) > 1 && !m.libre ? aniosTurno(m) / M.ERAS[maxEraDe(m)].anios : ritmo(m) > 1 ? 1 / ritmo(m) : 1;
+  const aniosBase = m => m.libre ? 1 : ritmo(m) > 1 ? M.ERAS[maxEraDe(m)].aniosLento : M.ERAS[maxEraDe(m)].anios;
+  // Con el ritmo pausado, el calendario no se escapa de la historia: si ya llegó la fecha de la era siguiente y
+  // nadie la ha alcanzado, el tiempo casi se detiene (un año cada cuatro turnos) hasta que algún pueblo dé el paso.
+  const aniosTurno = m => {
+    const b = aniosBase(m);
+    if (m.libre || ritmo(m) <= 1) return b;
+    const sig = M.ERAS[maxEraDe(m) + 1];
+    return sig && sig.desde != null && m.anio >= sig.desde ? Math.min(b, 0.25) : b;
+  };
+  const pausa = m => ritmo(m) > 1 && !m.libre ? aniosBase(m) / M.ERAS[maxEraDe(m)].anios : ritmo(m) > 1 ? 1 / ritmo(m) : 1;
   // ¿Se puede investigar ya? Hace falta su edificio (el molino, el templo, el cuartel…) y pagar su precio.
   const EDIFICIO = { saber: c => c.saberes > 0, plaza: () => true, molino: c => c.molinos > 0, templo: c => c.templos > 0, cuartel: c => c.cuarteles > 0, puerto: c => c.puertos > 0 };
   function faltaPara(m, c, t) {
@@ -1300,6 +1308,8 @@ table.mercado td:first-child { white-space: nowrap; }
   function ahorrando(m, c) {
     if (!M.ERAS[c.era + 1] || c.subiendo || (c.jugador && !(c.plan && c.plan.ahorrarEdad))) return false;
     const sig = M.ERAS[c.era + 1];
+    // Si aún le faltan las mejoras de la edad, no ahorra: las investiga (si no, se quedaría atascado para siempre).
+    if (m.vida && ritmo(m) > 1) { const r = mejorasDeEdad(c); if (r.hechas < r.pide) return false; }
     return c.ciencia >= sig.umbral * 0.85 && (m.libre || sig.desde == null || m.anio >= sig.desde - aniosTurno(m) * 4);
   }
   function elegirTec(m, c) {
@@ -1316,6 +1326,8 @@ table.mercado td:first-child { white-space: nowrap; }
       if ((c.comida || 0) < (c.aldeanos || 10) * 0.6) k += (e.cosecha || 0) * 2 + (e.granero || 0) * 2;
       if (c.guerras.length) k += (e.ataque || 0) * 8 + (e.defensa || 0) * 8;
       if (c.oro < 0) k += (e.oro || 0) * 8;
+      // Con el ritmo pausado, primero las mejoras que pide la edad para poder avanzar.
+      if (m.vida && ritmo(m) > 1 && t.era === c.era && mejorasDeEdad(c).hechas < mejorasDeEdad(c).pide) k += 50;
       return k + t.era * -5 + ((c.id * 7 + M.TECNOLOGIAS.indexOf(t)) % 5) * 0.01; };
     return libres.sort((a, b) => gusto(b) - gusto(a))[0].id;
   }
@@ -1361,6 +1373,16 @@ table.mercado td:first-child { white-space: nowrap; }
   function mejorasDeEdad(c) {
     const lista = M.TECNOLOGIAS.filter(t => t.era === c.era), ts = M.tecsDe(c);
     return { lista, hechas: lista.filter(t => ts.includes(t.id)).length, pide: Math.min(3, lista.length) };
+  }
+  // Lo que la IA guarda para la mejora de la edad más barata que le falta (con el ritmo pausado): sin esto se
+  // gastaría la madera y el oro en obras y nunca juntaría el precio de la técnica.
+  function reservaMejora(m, c) {
+    if (!m.vida || ritmo(m) <= 1 || c.jugador || !M.ERAS[c.era + 1]) return null;
+    const r = mejorasDeEdad(c); if (r.hechas >= r.pide) return null;
+    const ts = M.tecsDe(c), falta = r.lista.filter(t => !ts.includes(t.id));
+    if (!falta.length) return null;
+    const total = t => Object.values(t.precio || {}).reduce((a, b) => a + b, 0);
+    return falta.sort((a, b) => total(a) - total(b))[0].precio || null;
   }
   function puedeSubir(m, c) {
     const sig = M.ERAS[c.era + 1], req = M.EDADES[c.era + 1], falta = [];
@@ -1713,7 +1735,7 @@ table.mercado td:first-child { white-space: nowrap; }
     });
   }
 
-  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
@@ -3128,7 +3150,9 @@ table.mercado td:first-child { white-space: nowrap; }
         // Si otro constructor ya va a levantar este edificio, no se empieza otro igual.
         if (c.enCurso && c.enCurso[obra] > m.turno - 3) continue;
         const coste = COSTES[obra];
-        if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
+        // Lo que se guarda para la mejora de la edad no se gasta en obras (salvo en el molino, que da de comer).
+        const res = obra === OBRA.molino ? null : S().reservaMejora(m, c), rs = k => (res && res[k]) || 0;
+        if (c.madera - rs('madera') < coste[0] || c.piedra - rs('piedra') < coste[1] || (c.oro || 0) - rs('oro') < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
         // Ahorrando para la edad, solo se levanta lo que la edad pide (o lo que mandó el jugador).
         const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
         const necesaria = (c.necesidades || []).some(n => n.falta && OBRA[n.obra] === obra);
@@ -4773,6 +4797,14 @@ table.mercado td:first-child { white-space: nowrap; }
       necesidades(m, c);
     }
     planUrbano(m);
+    // Las fichas de edificios que ya no existen (ruinas viejas o solares reconstruidos) se olvidan al cabo de un
+    // tiempo, y cada historia guarda solo lo último: la partida guardada no crece sin fin.
+    if (v.edificios && m.turno % 25 === 0) for (const k of Object.keys(v.edificios)) {
+      const e = v.edificios[k];
+      if (e.historia && e.historia.length > 8) e.historia = e.historia.slice(-8);
+      const sigue = v.obra[+k] === e.tipo && e.ruina == null;
+      if (sigue) delete e.fin; else if (e.fin == null) e.fin = m.turno; else if (m.turno - e.fin > 200) delete v.edificios[k];
+    }
   }
 
   // ---------- Lo que cuesta una tierra nueva (sim.js) ----------
@@ -9499,9 +9531,34 @@ table.mercado td:first-child { white-space: nowrap; }
   let m = null, sel = null, corriendo = true, vel = 0, reloj = null, sample = null, ocupado = false, confirmarNuevo = false, ultimaCronista = 0;
 
   // ---------- Guardar y cargar (comodidad de este navegador) ----------
-  function guardar() { try { localStorage.setItem(CLAVE, JSON.stringify(m)); } catch (e) { /* sin guardado */ } }
+  // La partida se guarda comprimida (gzip del navegador, en base64): ocupa unas diez veces menos y cabe de sobra
+  // en el almacén del navegador aunque el mundo crezca. Sin compresión disponible, se guarda tal cual.
+  let guardando = false, guardadaAntes = null;
+  const aB64 = buf => { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); };
+  const deB64 = t => { const s = atob(t), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; };
+  function escribir(texto) {
+    try { localStorage.setItem(CLAVE, texto); return true; }
+    catch (e) { try { localStorage.removeItem(CLAVE); localStorage.setItem(CLAVE, texto); return true; } catch (e2) { return false; } }
+  }
+  function guardar() {
+    if (!m || guardando) return;
+    let json; try { json = JSON.stringify(m); } catch (e) { return; }
+    if (typeof CompressionStream !== 'function') { escribir(json); return; }
+    guardando = true;
+    new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()
+      .then(buf => { if (!escribir('gz:' + aB64(buf))) escribir(json); })
+      .catch(() => escribir(json))
+      .finally(() => { guardando = false; });
+  }
+  // Al arrancar, se descomprime la partida guardada (si la hay) antes de montar el juego.
+  function precargar() {
+    let t = null; try { t = localStorage.getItem(CLAVE); } catch (e) { /* sin guardado */ }
+    if (!t || t.slice(0, 3) !== 'gz:' || typeof DecompressionStream !== 'function') { guardadaAntes = t; return Promise.resolve(); }
+    return new Response(new Blob([deB64(t.slice(3))]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
+      .then(j => { guardadaAntes = j; }).catch(() => { guardadaAntes = null; });
+  }
   function cargar() {
-    try { const d = JSON.parse(localStorage.getItem(CLAVE) || 'null'); if (d && d.version === 1 && d.tipo && d.civs && d.W === S.W && d.H === S.H && d.vida) return d; } catch (e) { /* mundo corrupto */ }
+    try { const d = JSON.parse(guardadaAntes || 'null'); if (d && d.version === 1 && d.tipo && d.civs && d.W === S.W && d.H === S.H && d.vida) return d; } catch (e) { /* mundo corrupto */ }
     return null;
   }
   function mundoNuevo() {
@@ -10578,8 +10635,10 @@ table.mercado td:first-child { white-space: nowrap; }
   }
 
   function arrancar() {
-    if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(iniciar);
-    else iniciar(window.claude && window.claude.hot ? window.claude.hot.data : null);
+    precargar().then(() => {
+      if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(iniciar);
+      else iniciar(window.claude && window.claude.hot ? window.claude.hot.data : null);
+    });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
   else arrancar();

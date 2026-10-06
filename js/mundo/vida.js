@@ -1408,7 +1408,9 @@
         // Si otro constructor ya va a levantar este edificio, no se empieza otro igual.
         if (c.enCurso && c.enCurso[obra] > m.turno - 3) continue;
         const coste = COSTES[obra];
-        if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
+        // Lo que se guarda para la mejora de la edad no se gasta en obras (salvo en el molino, que da de comer).
+        const res = obra === OBRA.molino ? null : S().reservaMejora(m, c), rs = k => (res && res[k]) || 0;
+        if (c.madera - rs('madera') < coste[0] || c.piedra - rs('piedra') < coste[1] || (c.oro || 0) - rs('oro') < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
         // Ahorrando para la edad, solo se levanta lo que la edad pide (o lo que mandó el jugador).
         const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
         const necesaria = (c.necesidades || []).some(n => n.falta && OBRA[n.obra] === obra);
@@ -3053,6 +3055,14 @@
       necesidades(m, c);
     }
     planUrbano(m);
+    // Las fichas de edificios que ya no existen (ruinas viejas o solares reconstruidos) se olvidan al cabo de un
+    // tiempo, y cada historia guarda solo lo último: la partida guardada no crece sin fin.
+    if (v.edificios && m.turno % 25 === 0) for (const k of Object.keys(v.edificios)) {
+      const e = v.edificios[k];
+      if (e.historia && e.historia.length > 8) e.historia = e.historia.slice(-8);
+      const sigue = v.obra[+k] === e.tipo && e.ruina == null;
+      if (sigue) delete e.fin; else if (e.fin == null) e.fin = m.turno; else if (m.turno - e.fin > 200) delete v.edificios[k];
+    }
   }
 
   // ---------- Lo que cuesta una tierra nueva (sim.js) ----------

@@ -634,6 +634,20 @@ console.log('LA CORTE: MEJORAS Y EDADES');
   comprobar(!m.vida.noche && m.vida.estacion === -1 && !Object.keys(m.vida.andamios || {}).length, 'sin vida pausada, ni noches ni estaciones ni andamios');
 }
 
+console.log('LAS ERAS NO SE ATASCAN (RITMO PAUSADO)');
+{
+  const m = S.crear(11, 5, { ritmo: 3 });
+  let atasco = 0;
+  for (let k = 0; k < 450; k++) {
+    S.turno(m);
+    for (const c of S.vivas(m)) { const r = S.mejorasDeEdad(c); if (r.hechas < r.pide && S.ahorrando(m, c)) atasco++; }
+  }
+  const maxEra = Math.max(...S.vivas(m).map(c => c.era));
+  comprobar(atasco === 0, 'nadie se pone a ahorrar para la edad mientras le faltan sus mejoras');
+  comprobar(maxEra >= 4, 'en 450 turnos (una hora a 1×) algún reino llega a ' + M.ERAS[maxEra].con);
+  comprobar(m.anio <= (M.ERAS[maxEra + 1] ? M.ERAS[maxEra + 1].desde + 150 : 2100), 'el calendario no se escapa de la historia: ' + S.anioTexto(m.anio) + ' con ' + M.ERAS[maxEra].con);
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;
