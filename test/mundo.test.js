@@ -486,7 +486,7 @@ console.log('LA VIDA PAUSADA: NOCHES, ESTACIONES, OBRAS Y NECESIDADES');
   comprobar(V2.NECESIDADES.pozo.estab < 0 && V2.NECESIDADES.palacio.mal.length > 10, 'lo que falta cuesta estabilidad y ánimo (sin pozo ' + V2.NECESIDADES.pozo.estab + ')');
   // El arquitecto: se marca una parcela y los constructores la levantan.
   c.jugador = true; c.plan = c.plan || {}; c.plan.prioridad = c.plan.prioridad || {};
-  const zona = [c.capital, ...S.vecinos(c.capital)].flatMap(r => V2.parcelas(m, r));
+  const zona = S.casillas(m, c).flatMap(r => V2.parcelas(m, r)).sort((p, q) => Math.hypot(p % v.tw - V2.centro(m, c.capital) % v.tw, (p / v.tw | 0) - (V2.centro(m, c.capital) / v.tw | 0)) - Math.hypot(q % v.tw - V2.centro(m, c.capital) % v.tw, (q / v.tw | 0) - (V2.centro(m, c.capital) / v.tw | 0)));
   const t = zona.find(x => !V2.puedeColocar(m, c, x, 'pozo'));
   comprobar(t != null && V2.encargar(m, c, t, 'pozo').ok && c.plan.encargos.length === 1, 'el arquitecto marca dónde va un pozo');
   const agua = zona.find(x => ['agua', 'rio', 'bajo'].includes(V2.terrenos(m)[x]));
@@ -609,6 +609,9 @@ console.log('LA MUERTE DEPENDE DE CÓMO SE HA VIVIDO');
   comprobar(p2 > p1 * 1.8, 'quien ha pasado hambre, tiene heridas y vive sin casa corre mucho más riesgo (' + (p1 * 100).toFixed(1) + ' % frente a ' + (p2 * 100).toFixed(1) + ' %)');
   const joven = Object.assign({}, sano, { edad: 4 }), viejo = Object.assign({}, sano, { edad: 24 });
   comprobar(V2.riesgoAnual(m, viejo, c).p > V2.riesgoAnual(m, joven, c).p * 5, 'y el riesgo crece mucho con la edad');
+  const porId = new Map(v.aldeanos.map(x => [x.id, x])); let gap = 99;
+  for (const x of v.aldeanos) { const p = porId.get(x.padre); if (p) gap = Math.min(gap, V2.anos(p) - V2.anos(x)); }
+  comprobar(gap >= 15, 'un padre siempre le saca al menos unos 16 años a su hijo (el mínimo: ' + Math.round(gap) + ')');
   comprobar(Object.values(v.difuntos || {}).some(d => d.causa === 'vejez') && Object.values(v.difuntos || {}).some(d => d.causa === 'enfermedad'), 'se recuerda de qué murió cada uno (vejez, enfermedad…)');
 }
 console.log('LA CORTE: MEJORAS Y EDADES');
