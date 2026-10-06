@@ -634,5 +634,33 @@ console.log('LA CORTE: MEJORAS Y EDADES');
   comprobar(!m.vida.noche && m.vida.estacion === -1 && !Object.keys(m.vida.andamios || {}).length, 'sin vida pausada, ni noches ni estaciones ni andamios');
 }
 
+console.log('BATALLAS MÁS LARGAS');
+{
+  const V = M.vida;
+  const soldado = { o: 4, edad: 5 }, nino = { edad: 1 };
+  comprobar(V.vidaMax(soldado) >= 100 && V.vidaMax(nino) < V.vidaMax({ o: 1, edad: 5 }), 'un soldado aguanta ' + V.vidaMax(soldado) + ' puntos de vida (más que un granjero, y un niño menos)');
+  const espada = V.ARMAS.find(x => x.nombre === 'espada de hierro');
+  comprobar(Math.ceil(V.vidaMax(soldado) / espada.dano) >= 6 && V.VEHICULOS.tanque.vida >= 300, 'hacen falta ' + Math.ceil(V.vidaMax(soldado) / espada.dano) + ' tajos de espada para tumbar a un soldado; un tanque tiene ' + V.VEHICULOS.tanque.vida);
+}
+
+console.log('CONTROL FRONTERIZO');
+{
+  const V = M.vida, m = S.crear(99, 5); let t = 0;
+  while (m.anio < 1500 && t++ < 900) S.turno(m);
+  const cs = S.vivas(m).filter(c => V.pasosFronterizos(m, c).length);
+  comprobar(cs.length > 0, 'las carreteras de comercio cruzan fronteras (' + cs.length + ' reinos con paso fronterizo)');
+  comprobar(S.vivas(m).every(c => c.era >= V.ERA_OBRA[V.OBRA.aduana] || !(c.aduanas || []).length), 'antes de la Revolución Industrial no hay puestos');
+  for (let k = 0; k < 60; k++) { for (const c of cs) { c.madera = Math.max(c.madera, 40); c.piedra = Math.max(c.piedra, 40); c.oro = Math.max(c.oro || 0, 40); c.era = 7; } S.turno(m); }
+  const v = m.vida, puestos = []; for (let i = 0; i < v.obra.length; i++) if (v.obra[i] === V.OBRA.aduana) puestos.push(i);
+  const junto = puestos.every(p => v.rutas.some(ru => ru.tipo === 'externa' && ru.tiles.some(u => Math.abs(u % v.tw - p % v.tw) <= 1 && Math.abs((u / v.tw | 0) - (p / v.tw | 0)) <= 1)));
+  comprobar(puestos.length > 0 && junto, 'en la era moderna se levantan ' + puestos.length + ' puestos fronterizos, todos pegados a una carretera de comercio');
+  const reg = Object.values(v.aduanas || {});
+  comprobar(reg.some(r => r.controles > 0) && reg.some(r => r.arancel > 0), 'paran a las carretas (' + reg.reduce((s, r) => s + r.controles, 0) + ' controles) y cobran arancel al comerciante extranjero (' + reg.reduce((s, r) => s + r.arancel, 0) + ' de oro)');
+  comprobar(v.aldeanos.some(a => a.guardiaEn != null && puestos.includes(a.guardiaEn)), 'en paz, soldados montan guardia junto a la barrera');
+  comprobar(puestos.every(p => v.torres[p] > 0), 'en guerra el puesto se defiende como una torre');
+  const nombre = V.nombreEdificio(m, V.OBRA.aduana, puestos[0]);
+  comprobar(/^Puesto fronterizo de /.test(nombre), 'cada puesto tiene nombre: ' + nombre);
+}
+
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
 process.exit(fallos ? 1 : 0);

@@ -379,6 +379,8 @@ Un segundo juego con el mismo espíritu: **eres el dios de un mundo de pueblos i
   - **Aeródromo** (II Guerra Mundial): sin él no despegan los aviones.
 
   Por las calles de las villas y ciudades circulan coches de caballos en la era industrial y coches de colores en la moderna. Todos los edificios se pueden pedir por texto («construid una fábrica», «abrid un banco», «construid una estación de tren», «un hospital», «un aeródromo») o con el arquitecto, y la IA los levanta cuando le hacen falta.
+- **Control fronterizo (desde la Revolución Industrial).** Donde una carretera de comercio sale de la tierra de un reino, ese reino levanta un puesto fronterizo pegado al camino: garita, barrera a franjas y bandera (de hormigón y con sacos terreros en la era moderna). Las carretas se paran a que les revisen la carga y, si el puesto es de otro reino, pagan un arancel de oro. En paz, uno de cada tres soldados monta guardia junto a la barrera; en guerra, el puesto se defiende como una torre. Su ficha cuenta carretas revisadas, aranceles cobrados y quién está de guardia.
+- **Batallas más largas.** Todos tienen más vida: un adulto 85, un soldado 100 (hacen falta unos 7 tajos de espada para tumbarlo), y los cañones, la artillería y los tanques aguantan bastante más (el tanque, 330).
 - **Cultivos según la tierra**:
   - **trigo** en la llanura;
   - **maíz** en la selva y la sabana, que rinde más;

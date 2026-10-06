@@ -405,6 +405,7 @@
       if (nombre === 'estacion') return estacion(H, fase, col);
       if (nombre === 'hospital') return hospital(H, fase, col);
       if (nombre === 'aerodromo') return aerodromo(H, fase, col);
+      if (nombre === 'aduana') return aduana(H, fase, col);
       if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
       if (nombre === 'molino' && fase !== 1) return molinoDeFase(H, fase, col);
@@ -624,6 +625,18 @@
     H.r(6, 11, 4, 4, '#a8c8d8'); H.r(7, 11, 2, 4, '#88a8b8');
     if (fase >= 3) { H.r(11, 12, 4, 3, '#f8f8f4'); H.p(12, 12, '#e03a3a'); H.p(11, 15, '#2a2a2a'); H.p(14, 15, '#2a2a2a'); }
     H.p(1, 2, col);
+    H.contorno(); return H.lienzo();
+  }
+  // El puesto fronterizo: garita con tejadillo y ventanuco, la barrera a franjas rojas y blancas cruzando la
+  // carretera y la bandera del reino; en la era moderna, de hormigón con sacos terreros.
+  function aduana(H, fase, col) {
+    const muro = fase >= 3 ? '#b8b4ac' : '#a87a4a', tejado = fase >= 3 ? '#6a6e74' : '#7a3a2a';
+    H.r(2, 6, 6, 8, muro); H.r(1, 5, 8, 1, tejado); H.r(2, 4, 6, 1, tejado); H.r(7, 7, 1, 7, oscuro(muro, 0.2));
+    H.r(3, 7, 3, 2, CRISTAL); H.r(4, 11, 2, 3, '#4a3a2a');
+    for (let x = 8; x < 16; x++) H.p(x, 10, ((x >> 1) % 2) ? '#f4f0e8' : '#d83a32');
+    H.r(8, 9, 1, 5, '#4a4a4a'); H.r(15, 11, 1, 3, '#4a4a4a');
+    H.r(1, 0, 1, 5, '#5a5a5a'); H.r(2, 0, 3, 2, col);
+    if (fase >= 3) { H.r(9, 13, 3, 2, '#c8b078'); H.r(10, 12, 2, 1, '#b8a068'); }
     H.contorno(); return H.lienzo();
   }
   // El aeródromo: pista de hormigón con marcas, un hangar de chapa abovedado, un avión y la manga de viento.

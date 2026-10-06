@@ -133,6 +133,7 @@
       else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.aduana) gl.drawImage(ARTE().edificio('aduana', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.campamento) gl.drawImage(ARTE().edificio('campamento', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.templo) gl.drawImage(ARTE().edificio('templo', color, eraT === 4 ? 4 : V.fase(eraT)), x, y);
       else if (obra === V.OBRA.pozo || obra === V.OBRA.granero || obra === V.OBRA.fuente || obra === V.OBRA.parque || obra === V.OBRA.palacio || (obra >= V.OBRA.central && obra <= V.OBRA.aerodromo)) gl.drawImage(ARTE().edificio(['pozo', 'granero', 'fuente', 'parque', 'palacio', 'central', 'banco', 'fabrica', 'estacion', 'hospital', 'aerodromo'][obra - V.OBRA.pozo], color, V.fase(eraT)), x, y);
@@ -1914,7 +1915,7 @@
     if (clave === 'casa') return ARTE().casa(CASAS[c ? grupoEra(c.era) : 0], color, 0);
     if (clave === 'templo') return ARTE().edificio('templo', color, c && c.era === 4 ? 4 : fase);
     if (clave === 'saber') return ARTE().edificio('saber', color, M.ERUDITO(c ? c.era : 0).tipo);
-    if (['banco', 'fabrica', 'estacion', 'hospital', 'aerodromo', 'central'].includes(clave)) return ARTE().edificio(clave, color, Math.max(2, fase));
+    if (['banco', 'fabrica', 'estacion', 'hospital', 'aerodromo', 'central', 'aduana'].includes(clave)) return ARTE().edificio(clave, color, Math.max(2, fase));
     return ARTE().edificio(clave, color, fase);
   }
   function planos(ahora) {
