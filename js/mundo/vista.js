@@ -789,7 +789,7 @@
     avisarBatallas();
     if (corteDe != null) pintarCorte();
     pintarTodo();
-    if (m.turno % 5 === 0) guardar();
+    if (m.turno % 2 === 0) guardar();
   }
   // ---------- Retos: lo que cumples, el marcador y el fin de la partida ----------
   function retosDelTurno(ultimo) {
@@ -1007,8 +1007,10 @@
     }, { passive: false });
     // Safari: el pellizco sobre la página no la amplía.
     for (const g of ['gesturestart', 'gesturechange']) document.addEventListener(g, ev => ev.preventDefault(), { passive: false });
-    // El gesto o el botón de «atrás» no cierra el juego: se queda en la partida.
-    try { history.pushState({ genesis: 1 }, ''); window.addEventListener('popstate', () => { try { history.pushState({ genesis: 1 }, ''); } catch (e) { /* sin historial */ } }); } catch (e) { /* sin historial */ }
+    // El gesto o el botón de «atrás» no cierra el juego: se queda en la partida. Dentro de otra página (claude.ai)
+    // no se toca el historial: es el de la app que lo enseña.
+    let suelto = true; try { suelto = window.self === window.top; } catch (e) { suelto = false; }
+    if (suelto) try { history.pushState({ genesis: 1 }, ''); window.addEventListener('popstate', () => { try { history.pushState({ genesis: 1 }, ''); } catch (e) { /* sin historial */ } }); } catch (e) { /* sin historial */ }
     // Si se cierra o se cambia de app, se guarda antes.
     window.addEventListener('pagehide', guardar);
     document.addEventListener('visibilitychange', () => { if (document.hidden) guardar(); });
