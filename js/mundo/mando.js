@@ -626,6 +626,7 @@
       c.estab = Math.max(0, c.estab - 10); o.rel[c.id] = -100;
       for (const x of S().vivas(m)) if (x !== c && x !== o) x.rel[c.id] = (x.rel[c.id] || 0) - 40;
       an('☠ Orden de exterminio contra ' + o.nombre, o.capital);
+      S().suceso(m, 'exterminio', o.capital, c, o, '☠ ¡' + c.nombre + ' ordena exterminar a ' + o.nombre + '!');
       S().cronica(m, 'guerra', c.nombre + ' ordena exterminar a ' + o.nombre, 'Los soldados de ' + c.nombre + ' tienen orden de matar a todo el que sea de ' + o.nombre + ', con o sin armas. Las noticias corren y los demás reinos miran a ' + c.nombre + ' con horror.', c, o.capital, { importante: true });
       textos.push('Orden dada: tus soldados matarán también a los civiles de ' + o.nombre + ' que encuentren, y la gente de las tierras que conquistes no se quedará a vivir contigo. Todos los reinos os odiarán (−40 de opinión) y tu pueblo pierde estabilidad. Para pararlo: «parad el exterminio».');
       return;

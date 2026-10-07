@@ -570,7 +570,7 @@ table.mercado td:first-child { white-space: nowrap; }
           <details><summary>Minas y bosques</summary>
             <p>Las piedras y vetas sueltas se acaban. Desde la Edad del Bronce, abre una mina en la montaña, y solo en la montaña («construid una mina»): da piedra, metal, carbón y algo de oro más despacio, pero nunca se agota. Al talar se recogen semillas de árbol; los leñadores replantan solos cuando el bosque escasea, o con «plantad árboles». Las semillas también se compran en el mercado.</p></details>
           <details><summary>Capitales, independencias y exterminio</summary>
-            <p>Si cae tu capital y te queda otra ciudad, la corte huye allí, saqueada y revuelta; si no te queda ninguna, el reino cae. Las regiones que se independizan conservan la técnica de su reino. «Exterminad a la gente de Nombre» ordena a tus soldados matar también a sus civiles: todo el mundo os odiará durante mucho tiempo. «Parad el exterminio» lo cancela.</p></details>
+            <p>Si cae tu capital y te queda otra ciudad, la corte huye allí, saqueada y revuelta; si no te queda ninguna, el reino cae. Las regiones que se independizan conservan la técnica de su reino. «Exterminad a la gente de Nombre» ordena a tus soldados matar también a sus civiles: todo el mundo os odiará durante mucho tiempo. «Parad el exterminio» lo cancela. Saqueos, independencias y caídas salen en grande arriba: tócalo y verás dónde pasa.</p></details>
           <details><summary>Trincheras y uniformes</summary>
             <p>En la Segunda Guerra Mundial los soldados cavan trincheras en la frontera con los reinos rivales: zanja con sacos terreros y, delante, alambre de espino. En guerra se meten dentro: cuesta más acertarles y reciben menos daño. Desde la Revolución Industrial cada ejército viste uniforme del color de su reino. Los cañones salen con el Renacimiento, y en la Segunda Guerra Mundial los soldados lanzan granadas, que caen dentro de las trincheras. Obuses, granadas y bombas hieren a todo el que pillan, agrietan y derriban edificios, revientan caminos y dejan cráteres. Cañones y granadas se fabrican («fabricad 30 granadas», «fabricad 5 cañones») y se compran y venden en el mercado.</p></details>
           <details><summary>Comercio y mercado</summary>
@@ -1493,19 +1493,35 @@ table.mercado td:first-child { white-space: nowrap; }
     c.estab = 40;
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
     nueva.rel[c.id] = -40; c.rel[nueva.id] = -40; nueva.origen = c.id;
+    suceso(m, 'independencia', parte[0], nueva, c, '🚩 ¡Las provincias de ' + c.nombre + ' se rebelan: nace ' + nueva.nombre + '!');
     cronica(m, 'revuelta', 'Las provincias se rebelan', 'Las tierras lejanas de ' + c.nombre + ' dejan de obedecer a la capital y proclaman un ' + (nueva.regimen === 'republica' ? 'gobierno propio' : 'reino propio') + ': ' + nueva.nombre + '.', c, parte[0]);
   }
 
   function morir(m, c, quien) {
     if (!c.viva) return;
+    // Los vencedores aprenden de los vencidos: se quedan con sus sabios, sus libros y lo que sabían hacer.
+    if (quien && quien.viva) {
+      const ts = M.tecsDe(quien);
+      for (const t of M.tecsDe(c)) { const d = M.TECNOLOGIAS.find(x => x.id === t); if (d && d.era <= quien.era && !ts.includes(t)) ts.push(t); }
+      quien.ciencia += Math.max(0, c.ciencia - quien.ciencia) * 0.5;
+    }
     c.viva = false; c.muerte = m.anio;
     for (let i = 0; i < W * H; i++) if (m.dueno[i] === c.id) m.dueno[i] = quien ? quien.id : -1;
     for (const o of m.civs) o.guerras = o.guerras.filter(g => g.con !== c.id);
     c.guerras = [];
     m.alianzas = (m.alianzas || []).filter(x => x.a !== c.id && x.b !== c.id);
+    suceso(m, 'caida', c.capital, quien, c, '☠ ¡Cae ' + c.nombre + '!' + (quien ? ' ' + quien.nombre + ' se queda con todo' : ''));
     cronica(m, 'caida', 'Cae ' + c.nombre, quien ? quien.nombre + ' toma la última ciudad de ' + c.nombre + '. Sus dioses pasan a ser leyendas y su lengua, unas pocas palabras en la de los vencedores.' : c.nombre + ' se deshace sin que nadie lo conquiste: sus aldeas se vacían y sus templos se llenan de hierba.', c, c.capital, { importante: true });
   }
 
+  // Los grandes sucesos que se ven en el mapa (saqueos, independencias, caídas, exterminios): la vista los
+  // dibuja donde pasan y los anuncia en grande.
+  function suceso(m, tipo, region, civ, otro, texto) {
+    if (!m.vida) return;
+    const l = m.vida.sucesos = m.vida.sucesos || [];
+    l.push({ tipo, region, civ: civ ? civ.id : null, otro: otro ? otro.id : null, texto, turno: m.turno });
+    if (l.length > 24) l.splice(0, l.length - 24);
+  }
   // Lo que guarda un reino en sus almacenes (para el saqueo y para la herencia de los reinos que se separan).
   const ALMACEN = ['oro', 'madera', 'piedra', 'metal', 'comida', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas', 'granadas'];
   function repartirAlmacen(de, a, parte) {
@@ -1531,6 +1547,8 @@ table.mercado td:first-child { white-space: nowrap; }
   function caidaCapital(m, c, gana, cs) {
     const vieja = c.capital;
     if (gana) repartirAlmacen(c, gana, 0.5);
+    suceso(m, 'saqueo', vieja, gana, c, '💰 ¡' + (gana ? gana.nombre + ' saquea' : 'Saqueo de') + ' la capital de ' + c.nombre + '!');
+    if (m.vida && M.vida && M.vida.saquear) M.vida.saquear(m, vieja);
     const ciudades = (m.ciudades || []).filter(x => x.civ === c.id && m.dueno[x.region] === c.id);
     if (!ciudades.length) {
       for (const i of cs) m.dueno[i] = gana ? gana.id : -1;
@@ -1544,6 +1562,7 @@ table.mercado td:first-child { white-space: nowrap; }
     for (const y of ciudades) if (y !== x) y.complot = (y.complot || 0) + 35;
     // Con la corte en fuga, la ciudad menos leal aprovecha para independizarse (si no la quería ya, se lo piensa).
     const floja = ciudades.filter(y => y !== x && (y.lealtad == null || y.lealtad < 15)).sort((p, q) => (p.lealtad || 0) - (q.lealtad || 0))[0];
+    suceso(m, 'huye', x.region, c, gana, '🏃 La corte de ' + c.nombre + ' huye a ' + x.nombre);
     cronica(m, 'conquista', 'La corte de ' + c.nombre + ' huye a ' + x.nombre, (gana ? gana.nombre + ' saquea la capital y se lleva la mitad de los almacenes. ' : 'La capital se pierde. ') + 'El ' + titulo(c) + ' se refugia en ' + x.nombre + ', que pasa a ser la capital; las demás ciudades dudan de que el reino aguante.', c, x.region, { importante: true });
     if (floja && azar(m) < 0.6) rebelarCiudad(m, c, floja);
   }
@@ -1655,6 +1674,7 @@ table.mercado td:first-child { white-space: nowrap; }
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
     nueva.rel[c.id] = c.rel[nueva.id] = -50;
     m.ciudades = m.ciudades.filter(y => y !== x);
+    suceso(m, 'independencia', x.region, nueva, c, '🚩 ¡' + x.nombre + ' se independiza de ' + c.nombre + '!');
     cronica(m, 'revuelta', x.nombre + ' se independiza de ' + c.nombre, 'El alcalde ' + x.alcalde + ' proclama la independencia de ' + x.nombre + ' y de ' + (parte.length - 1) + ' comarcas de alrededor. ' + c.nombre + ' lo llama traición; ' + x.nombre + ', libertad.', nueva, x.region, { importante: true });
     // A veces la metrópoli no lo acepta.
     if (azar(m) < 0.5 && !c.jugador) declararGuerra(m, c, nueva, c.nombre + ' no acepta la independencia de ' + x.nombre + ' y manda a sus ejércitos a recuperarla.', true);
@@ -1841,7 +1861,7 @@ table.mercado td:first-child { white-space: nowrap; }
     });
   }
 
-  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
@@ -3493,7 +3513,8 @@ table.mercado td:first-child { white-space: nowrap; }
         // Ahorrando para la edad, solo se levanta lo que la edad pide (o lo que mandó el jugador).
         const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
         const necesaria = (c.necesidades || []).some(n => n.falta && OBRA[n.obra] === obra);
-        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
+        // (Los pozos de petróleo y las minas no esperan: dan lo que hace falta para todo lo demás.)
+        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && obra !== OBRA.petroleo && obra !== OBRA.mina && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
         const t = donde();
         if (t != null) { if (obra !== OBRA.molino || pausada(m)) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
       }
@@ -3659,6 +3680,15 @@ table.mercado td:first-child { white-space: nowrap; }
       if (e.asedio >= 100) capturar(m, c, o, e.obj, paso);
     }
   }
+  // El saqueo se ve en el suelo: casas tiznadas y reventadas, ceniza y escombros por las calles.
+  function saquear(m, r) {
+    const v = m.vida, ts = parcelas(m, r).concat(S().vecinos(r).filter(x => m.dueno[x] === m.dueno[r]).flatMap(x => parcelas(m, x)));
+    // Las casas quedan tiznadas y reventadas (no arrasadas: el saqueador quiere el botín, no la ciudad).
+    const casas = ts.filter(t => v.obra[t] === OBRA.casa);
+    v.danoObra = v.danoObra || {};
+    for (let k = 0; k < Math.min(4, casas.length); k++) { const t = casas[Math.floor(azar(v) * casas.length)]; v.danoObra[t] = Math.max(v.danoObra[t] || 0, 40); marcar(m, t, 'ceniza', 8, 0); }
+    for (let k = 0; k < 6; k++) { const t = ts[Math.floor(azar(v) * ts.length)]; if (t != null && !v.obra[t]) marcar(m, t, 'escombros', 10, 0); }
+  }
   function capturar(m, c, o, r, paso) {
     const v = m.vida, esCapital = o.capital === r;
     const tierras = S().casillas(m, o).filter(i => i === r || (S().distancia(i, r) <= 2 && S().distancia(i, r) < S().distancia(i, o.capital)));
@@ -3670,6 +3700,12 @@ table.mercado td:first-child { white-space: nowrap; }
     if (gc) { gc.ganadas = (gc.ganadas || 0) + 1; gc.comarcas = (gc.comarcas || 0) + tierras.length; }
     if (go) { go.perdidas = (go.perdidas || 0) + 1; go.comarcas = (go.comarcas || 0) - tierras.length; }
     if (c.plan && c.plan.objetivo === r) c.plan.objetivo = null;
+    // Tomar una ciudad (no la capital: esa la saquea la caída de la corte) también es saquearla.
+    if (!esCapital && ciudad) {
+      for (const k of ['oro', 'comida', 'metal', 'armas']) { const q = (o[k] || 0) * 0.2; if (q > 0) { o[k] -= q; c[k] = (c[k] || 0) + q; } }
+      saquear(m, r);
+      S().suceso(m, 'saqueo', r, c, o, '💰 ¡' + c.nombre + ' saquea ' + ciudad.nombre + '!');
+    }
     (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🏴 ¡' + (ciudad ? ciudad.nombre : esCapital ? 'La capital de ' + o.nombre : 'La plaza') + ' es nuestra!', region: r });
     (v.anuncios = v.anuncios || []).push({ civ: o.id, texto: '✖ Perdemos ' + (ciudad ? ciudad.nombre : esCapital ? 'la capital' : 'una plaza'), region: r });
     S().cronica(m, 'conquista', c.nombre + (esCapital ? ' toma la capital de ' : ' conquista ') + (ciudad ? ciudad.nombre : esCapital ? o.nombre : 'una plaza de ' + o.nombre), 'Tras ' + (esCapital ? 'un largo asedio' : 'el asedio') + ', el estandarte de ' + c.nombre + ' ondea en ' + (ciudad ? ciudad.nombre : 'la plaza') + '. ' + tierras.length + ' comarcas cambian de dueño.', c, r, { importante: esCapital });
@@ -3947,6 +3983,7 @@ table.mercado td:first-child { white-space: nowrap; }
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
     rec = recursos(m);
+    v.marcadas = new Set(S().vivas(m).flatMap(c => ((c.plan && c.plan.encargos) || []).map(e => e.t)));
     ejercitos(m);
     repararDanos(m);
     const ter = terrenos(m);
@@ -4842,7 +4879,8 @@ table.mercado td:first-child { white-space: nowrap; }
    */
   const esVia = (v, t) => !!(v.via && v.via[t]);
   // Casillas que no se pueden usar para construir ni sembrar: la vía del tren y las trincheras.
-  const ocupada = (v, t) => esVia(v, t) || !!(v.trinchera && v.trinchera[t]);
+  // Ocupada para las obras que el pueblo decide solo: vía, trinchera o parcela que el jugador ya marcó para otra cosa.
+  const ocupada = (v, t) => esVia(v, t) || !!(v.trinchera && v.trinchera[t]) || !!(v.marcadas && v.marcadas.has(t));
   const BOSQUE_PLANTABLE = new Set(['bosque', 'selva', 'taiga', 'sakura', 'llanura', 'colina', 'sabana', 'pantano', 'tundra', 'nieve']);
   function planificarVias(m, ter) {
     const v = m.vida, tw = v.tw;
@@ -5539,7 +5577,7 @@ table.mercado td:first-child { white-space: nowrap; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -6488,6 +6526,7 @@ table.mercado td:first-child { white-space: nowrap; }
       c.estab = Math.max(0, c.estab - 10); o.rel[c.id] = -100;
       for (const x of S().vivas(m)) if (x !== c && x !== o) x.rel[c.id] = (x.rel[c.id] || 0) - 40;
       an('☠ Orden de exterminio contra ' + o.nombre, o.capital);
+      S().suceso(m, 'exterminio', o.capital, c, o, '☠ ¡' + c.nombre + ' ordena exterminar a ' + o.nombre + '!');
       S().cronica(m, 'guerra', c.nombre + ' ordena exterminar a ' + o.nombre, 'Los soldados de ' + c.nombre + ' tienen orden de matar a todo el que sea de ' + o.nombre + ', con o sin armas. Las noticias corren y los demás reinos miran a ' + c.nombre + ' con horror.', c, o.capital, { importante: true });
       textos.push('Orden dada: tus soldados matarán también a los civiles de ' + o.nombre + ' que encuentren, y la gente de las tierras que conquistes no se quedará a vivir contigo. Todos los reinos os odiarán (−40 de opinión) y tu pueblo pierde estabilidad. Para pararlo: «parad el exterminio».');
       return;
@@ -8871,6 +8910,7 @@ table.mercado td:first-child { white-space: nowrap; }
     pintarDisparos(k);
     eventosParticulas(k, x0, y0, x1, y1);
     llamas(k, ahora, x0, y0, x1, y1);
+    sucesosMapa(ahora, x0, y0, x1, y1);
     pintarParticulas(ahora);
     if (plagasAnim.length) pintarPlagas(ahora, x0, y0, x1, y1);
     gestos(k, ahora);
@@ -10056,6 +10096,70 @@ table.mercado td:first-child { white-space: nowrap; }
   const elegirDe = l => l[(Math.random() * l.length) | 0];
   // Emite n partículas en (x, y) (píxeles del mundo). o: v (velocidad), dx/dy (empuje), g (gravedad), vida (ms),
   // cols, tam, tipo ('sangre' salpica y queda en el suelo; 'humo' sube y crece; 'chispa' brilla; 'solido' rebota).
+  /*
+   * LOS GRANDES SUCESOS EN EL MAPA, durante unos segundos donde pasan:
+   *  · saqueo: monedas de oro y sacos que saltan de la plaza, humo y un aro dorado;
+   *  · independencia: sube una bandera nueva del color del reino que nace, con confeti de su color;
+   *  · caída de un reino: su bandera se derrumba entre humo negro;
+   *  · exterminio: la tierra del pueblo perseguido late en rojo oscuro, con una calavera encima;
+   *  · la corte que huye: polvo de carros que salen deprisa.
+   */
+  const vistosSuc = new WeakSet();
+  let sucVivos = [];
+  const COLOR_SUC = { saqueo: '#ffd23a', independencia: '#8af0a0', caida: '#ff8a7a', exterminio: '#ff6a6a', huye: '#ffe08a' };
+  function sucesosMapa(ahora, x0, y0, x1, y1) {
+    const v = m.vida;
+    for (const su of v.sucesos || []) {
+      if (vistosSuc.has(su)) continue;
+      vistosSuc.add(su);
+      if (m.turno - su.turno > 1 || su.region == null) continue;
+      sucVivos.push({ su, inicio: ahora });
+      anunciar(su.region, su.texto, COLOR_SUC[su.tipo]);
+    }
+    sucVivos = sucVivos.filter(e => ahora - e.inicio < 8000);
+    const R = V.SUB * P;
+    for (const e of sucVivos) {
+      const su = e.su, t = (ahora - e.inicio) / 8000, cx = (su.region % m.W) * R + R / 2, cy = Math.floor(su.region / m.W) * R + R / 2;
+      if (cx < x0 - R * 2 || cy < y0 - R * 2 || cx > x1 + R * 2 || cy > y1 + R * 2) continue;
+      const civ = su.civ != null ? S.civ(m, su.civ) : null, otro = su.otro != null ? S.civ(m, su.otro) : null;
+      const col = (civ && civ.color) || '#ffffff', colOtro = (otro && otro.color) || '#888888';
+      // Un aro que se abre una y otra vez, del color del suceso.
+      const q = ((ahora - e.inicio) % 1600) / 1600;
+      g.strokeStyle = COLOR_SUC[su.tipo]; g.globalAlpha = (1 - q) * 0.7 * (1 - t); g.lineWidth = 1.5;
+      g.beginPath(); g.ellipse(cx, cy, 6 + q * R * 1.3, (6 + q * R * 1.3) * 0.6, 0, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+      if (su.tipo === 'saqueo') {
+        if (t < 0.7 && Math.random() < 0.5) emitir(cx + (Math.random() - 0.5) * R, cy, 3, { v: 45, ang: -Math.PI / 2, cono: 1.6, g: 140, vida: 1300, cols: ['#ffd23a', '#ffe98a', '#c89a1a'], tipo: 'solido', tam: 1.4, tamAzar: 1 });
+        if (t < 0.7 && Math.random() < 0.15) emitir(cx + (Math.random() - 0.5) * R, cy, 1, { v: 35, ang: -Math.PI / 2, cono: 1.2, g: 120, vida: 1500, cols: ['#c8a070', '#a8804a'], tipo: 'solido', tam: 3 });
+        if (Math.random() < 0.25) emitir(cx + (Math.random() - 0.5) * R * 0.8, cy - 4, 1, { v: 10, g: -10, vida: 2600, cols: [HUMO_GRIS], tipo: 'humo', tam: 4, tamAzar: 1 });
+        if (t < 0.6 && Math.random() < 0.35) emitir(cx + (Math.random() - 0.5) * R, cy + (Math.random() - 0.5) * R * 0.6, 3, { v: 14, g: -30, vida: 600, cols: ['#ffd84a', '#ff8a1e', '#ff4b1a'], tipo: 'chispa', tam: 1.4, tamAzar: 1 });
+      } else if (su.tipo === 'independencia' || su.tipo === 'caida') {
+        // La bandera: en la independencia sube y ondea; en la caída se inclina y cae.
+        const cae = su.tipo === 'caida', bandera = cae ? colOtro : col;
+        const sube = cae ? 1 : Math.min(1, t / 0.2), ang = cae ? Math.min(Math.PI / 2, Math.max(0, (t - 0.1) / 0.4) * Math.PI / 2) : 0;
+        g.save(); g.translate(cx, cy + 6); g.rotate(ang);
+        const alto = 26 * sube;
+        g.fillStyle = '#3a2a1a'; g.fillRect(-1, -alto, 2, alto);
+        const ola = Math.sin(ahora / 160) * 1.5;
+        g.fillStyle = bandera; g.beginPath(); g.moveTo(1, -alto); g.lineTo(14, -alto + 3 + ola); g.lineTo(13, -alto + 10 + ola); g.lineTo(1, -alto + 8); g.closePath(); g.fill();
+        g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(1, -alto + 6, 12, 2);
+        g.restore();
+        if (!cae && t < 0.6 && Math.random() < 0.5) emitir(cx, cy - 20, 4, { v: 50, g: 60, vida: 1400, cols: [col, '#ffffff', col], tipo: 'chispa', tam: 1.2, tamAzar: 1 });
+        if (cae && Math.random() < 0.4) emitir(cx + (Math.random() - 0.5) * R * 0.7, cy - 2, 1, { v: 12, g: -12, vida: 3000, cols: ['rgba(30,26,24,A)', HUMO_GRIS], tipo: 'humo', tam: 5, tamAzar: 1 });
+      } else if (su.tipo === 'exterminio') {
+        const pulso = 0.18 + 0.12 * Math.sin(ahora / 260);
+        g.fillStyle = 'rgba(120,0,0,' + (pulso * (1 - t)).toFixed(3) + ')';
+        for (let r = 0; r < m.W * m.H; r++) if (m.dueno[r] === su.otro) { const rx = (r % m.W) * R, ry = Math.floor(r / m.W) * R; if (rx + R >= x0 && ry + R >= y0 && rx <= x1 && ry <= y1) g.fillRect(rx, ry, R, R); }
+        // La calavera, en píxeles, flotando sobre la capital.
+        const sy = cy - 24 + Math.sin(ahora / 400) * 2, k = 2;
+        g.globalAlpha = 1 - t; g.fillStyle = '#f0e8dc';
+        g.fillRect(cx - 3 * k, sy - 3 * k, 6 * k, 5 * k); g.fillRect(cx - 2 * k, sy + 2 * k, 4 * k, 2 * k);
+        g.fillStyle = '#2a0a0a'; g.fillRect(cx - 2 * k, sy - 1 * k, 1.5 * k, 1.5 * k); g.fillRect(cx + 0.5 * k, sy - 1 * k, 1.5 * k, 1.5 * k); g.fillRect(cx - 0.5 * k, sy + 1 * k, 1 * k, 1 * k);
+        g.globalAlpha = 1;
+      } else if (su.tipo === 'huye' && t < 0.5 && Math.random() < 0.4) {
+        emitir(cx + (Math.random() - 0.5) * R, cy + 4, 2, { v: 14, g: -4, vida: 1400, cols: [POLVO], tipo: 'humo', tam: 2.5 });
+      }
+    }
+  }
   function emitir(x, y, n, o) {
     if (parts.length > 1400) return;
     for (let i = 0; i < n; i++) {
@@ -11431,9 +11535,13 @@ table.mercado td:first-child { white-space: nowrap; }
   }
   // Un aviso grande sobre el mapa durante unos segundos.
   let avisoHasta = 0;
-  function avisoFlotante(texto, ms) {
+  const avisados = new WeakSet();
+  function avisoFlotante(texto, ms, region) {
     const e = $('aviso-flotante');
-    e.textContent = texto; e.hidden = false;
+    e.textContent = texto + (region != null ? '  📍' : ''); e.hidden = false;
+    // Si el aviso tiene sitio, al tocarlo la cámara va allí.
+    e.style.pointerEvents = region != null ? 'auto' : ''; e.style.cursor = region != null ? 'pointer' : '';
+    e.onclick = region != null ? () => { P.centrarEn(region, 5); e.hidden = true; } : null;
     e.style.animation = 'none'; void e.offsetWidth; e.style.animation = '';
     avisoHasta = performance.now() + (ms || 3500);
     setTimeout(() => { if (performance.now() >= avisoHasta - 50) e.hidden = true; }, ms || 3500);
@@ -11487,6 +11595,18 @@ table.mercado td:first-child { white-space: nowrap; }
     // Avisos del turno sobre el mapa (plazas ganadas, cuadrillas que terminan) y en la línea de respuesta.
     for (const an of (m.vida.anuncios || []).splice(0)) { const c = S.civ(m, an.civ); if (c && (!m.jugador || an.civ === m.jugador || an.region != null)) P.anunciar(an.region != null ? an.region : c.capital, an.texto, /[⚔✖]/.test(an.texto) ? '#ff8a7a' : /🏴/.test(an.texto) ? '#ffd76a' : null); }
     for (const av of (m.avisosPlan || []).splice(0)) if (av.civ === m.jugador) responder(av.texto, 'bien');
+    // Los grandes sucesos del turno (saqueos, independencias, caídas, exterminios), en grande arriba: primero los
+    // que tocan a tu pueblo, y si no, el más gordo del mundo.
+    const PESO = { caida: 5, saqueo: 4, independencia: 3, exterminio: 3, huye: 1 };
+    const sucs = (m.vida.sucesos || []).filter(su => !avisados.has(su) && m.turno - su.turno <= 1);
+    for (const su of m.vida.sucesos || []) avisados.add(su);
+    if (sucs.length) {
+      const mio = su => m.jugador != null && (su.civ === m.jugador || su.otro === m.jugador);
+      const top = sucs.slice().sort((a, b) => (mio(b) ? 10 : 0) + PESO[b.tipo] - (mio(a) ? 10 : 0) - PESO[a.tipo])[0];
+      avisoFlotante(top.texto, 5000, top.region);
+      if (M.sonido && M.sonido.activo()) M.sonido.efecto(top.tipo === 'independencia' ? 'campana' : top.tipo === 'huye' ? 'cuerno' : 'peste');
+      if (top.tipo === 'saqueo' || top.tipo === 'caida') setTimeout(() => M.sonido && M.sonido.activo() && M.sonido.efecto('cuerno'), 250);
+    }
     if (m.cronica[0] !== antes) marcar(m.cronica[0]);
     if (M.sonido && M.sonido.activo()) {
       const nuevos = []; for (const e of m.cronica) { if (e === antes) break; nuevos.push(e); }

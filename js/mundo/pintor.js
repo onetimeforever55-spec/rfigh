@@ -422,6 +422,7 @@
     pintarDisparos(k);
     eventosParticulas(k, x0, y0, x1, y1);
     llamas(k, ahora, x0, y0, x1, y1);
+    sucesosMapa(ahora, x0, y0, x1, y1);
     pintarParticulas(ahora);
     if (plagasAnim.length) pintarPlagas(ahora, x0, y0, x1, y1);
     gestos(k, ahora);
@@ -1607,6 +1608,70 @@
   const elegirDe = l => l[(Math.random() * l.length) | 0];
   // Emite n partículas en (x, y) (píxeles del mundo). o: v (velocidad), dx/dy (empuje), g (gravedad), vida (ms),
   // cols, tam, tipo ('sangre' salpica y queda en el suelo; 'humo' sube y crece; 'chispa' brilla; 'solido' rebota).
+  /*
+   * LOS GRANDES SUCESOS EN EL MAPA, durante unos segundos donde pasan:
+   *  · saqueo: monedas de oro y sacos que saltan de la plaza, humo y un aro dorado;
+   *  · independencia: sube una bandera nueva del color del reino que nace, con confeti de su color;
+   *  · caída de un reino: su bandera se derrumba entre humo negro;
+   *  · exterminio: la tierra del pueblo perseguido late en rojo oscuro, con una calavera encima;
+   *  · la corte que huye: polvo de carros que salen deprisa.
+   */
+  const vistosSuc = new WeakSet();
+  let sucVivos = [];
+  const COLOR_SUC = { saqueo: '#ffd23a', independencia: '#8af0a0', caida: '#ff8a7a', exterminio: '#ff6a6a', huye: '#ffe08a' };
+  function sucesosMapa(ahora, x0, y0, x1, y1) {
+    const v = m.vida;
+    for (const su of v.sucesos || []) {
+      if (vistosSuc.has(su)) continue;
+      vistosSuc.add(su);
+      if (m.turno - su.turno > 1 || su.region == null) continue;
+      sucVivos.push({ su, inicio: ahora });
+      anunciar(su.region, su.texto, COLOR_SUC[su.tipo]);
+    }
+    sucVivos = sucVivos.filter(e => ahora - e.inicio < 8000);
+    const R = V.SUB * P;
+    for (const e of sucVivos) {
+      const su = e.su, t = (ahora - e.inicio) / 8000, cx = (su.region % m.W) * R + R / 2, cy = Math.floor(su.region / m.W) * R + R / 2;
+      if (cx < x0 - R * 2 || cy < y0 - R * 2 || cx > x1 + R * 2 || cy > y1 + R * 2) continue;
+      const civ = su.civ != null ? S.civ(m, su.civ) : null, otro = su.otro != null ? S.civ(m, su.otro) : null;
+      const col = (civ && civ.color) || '#ffffff', colOtro = (otro && otro.color) || '#888888';
+      // Un aro que se abre una y otra vez, del color del suceso.
+      const q = ((ahora - e.inicio) % 1600) / 1600;
+      g.strokeStyle = COLOR_SUC[su.tipo]; g.globalAlpha = (1 - q) * 0.7 * (1 - t); g.lineWidth = 1.5;
+      g.beginPath(); g.ellipse(cx, cy, 6 + q * R * 1.3, (6 + q * R * 1.3) * 0.6, 0, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+      if (su.tipo === 'saqueo') {
+        if (t < 0.7 && Math.random() < 0.5) emitir(cx + (Math.random() - 0.5) * R, cy, 3, { v: 45, ang: -Math.PI / 2, cono: 1.6, g: 140, vida: 1300, cols: ['#ffd23a', '#ffe98a', '#c89a1a'], tipo: 'solido', tam: 1.4, tamAzar: 1 });
+        if (t < 0.7 && Math.random() < 0.15) emitir(cx + (Math.random() - 0.5) * R, cy, 1, { v: 35, ang: -Math.PI / 2, cono: 1.2, g: 120, vida: 1500, cols: ['#c8a070', '#a8804a'], tipo: 'solido', tam: 3 });
+        if (Math.random() < 0.25) emitir(cx + (Math.random() - 0.5) * R * 0.8, cy - 4, 1, { v: 10, g: -10, vida: 2600, cols: [HUMO_GRIS], tipo: 'humo', tam: 4, tamAzar: 1 });
+        if (t < 0.6 && Math.random() < 0.35) emitir(cx + (Math.random() - 0.5) * R, cy + (Math.random() - 0.5) * R * 0.6, 3, { v: 14, g: -30, vida: 600, cols: ['#ffd84a', '#ff8a1e', '#ff4b1a'], tipo: 'chispa', tam: 1.4, tamAzar: 1 });
+      } else if (su.tipo === 'independencia' || su.tipo === 'caida') {
+        // La bandera: en la independencia sube y ondea; en la caída se inclina y cae.
+        const cae = su.tipo === 'caida', bandera = cae ? colOtro : col;
+        const sube = cae ? 1 : Math.min(1, t / 0.2), ang = cae ? Math.min(Math.PI / 2, Math.max(0, (t - 0.1) / 0.4) * Math.PI / 2) : 0;
+        g.save(); g.translate(cx, cy + 6); g.rotate(ang);
+        const alto = 26 * sube;
+        g.fillStyle = '#3a2a1a'; g.fillRect(-1, -alto, 2, alto);
+        const ola = Math.sin(ahora / 160) * 1.5;
+        g.fillStyle = bandera; g.beginPath(); g.moveTo(1, -alto); g.lineTo(14, -alto + 3 + ola); g.lineTo(13, -alto + 10 + ola); g.lineTo(1, -alto + 8); g.closePath(); g.fill();
+        g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(1, -alto + 6, 12, 2);
+        g.restore();
+        if (!cae && t < 0.6 && Math.random() < 0.5) emitir(cx, cy - 20, 4, { v: 50, g: 60, vida: 1400, cols: [col, '#ffffff', col], tipo: 'chispa', tam: 1.2, tamAzar: 1 });
+        if (cae && Math.random() < 0.4) emitir(cx + (Math.random() - 0.5) * R * 0.7, cy - 2, 1, { v: 12, g: -12, vida: 3000, cols: ['rgba(30,26,24,A)', HUMO_GRIS], tipo: 'humo', tam: 5, tamAzar: 1 });
+      } else if (su.tipo === 'exterminio') {
+        const pulso = 0.18 + 0.12 * Math.sin(ahora / 260);
+        g.fillStyle = 'rgba(120,0,0,' + (pulso * (1 - t)).toFixed(3) + ')';
+        for (let r = 0; r < m.W * m.H; r++) if (m.dueno[r] === su.otro) { const rx = (r % m.W) * R, ry = Math.floor(r / m.W) * R; if (rx + R >= x0 && ry + R >= y0 && rx <= x1 && ry <= y1) g.fillRect(rx, ry, R, R); }
+        // La calavera, en píxeles, flotando sobre la capital.
+        const sy = cy - 24 + Math.sin(ahora / 400) * 2, k = 2;
+        g.globalAlpha = 1 - t; g.fillStyle = '#f0e8dc';
+        g.fillRect(cx - 3 * k, sy - 3 * k, 6 * k, 5 * k); g.fillRect(cx - 2 * k, sy + 2 * k, 4 * k, 2 * k);
+        g.fillStyle = '#2a0a0a'; g.fillRect(cx - 2 * k, sy - 1 * k, 1.5 * k, 1.5 * k); g.fillRect(cx + 0.5 * k, sy - 1 * k, 1.5 * k, 1.5 * k); g.fillRect(cx - 0.5 * k, sy + 1 * k, 1 * k, 1 * k);
+        g.globalAlpha = 1;
+      } else if (su.tipo === 'huye' && t < 0.5 && Math.random() < 0.4) {
+        emitir(cx + (Math.random() - 0.5) * R, cy + 4, 2, { v: 14, g: -4, vida: 1400, cols: [POLVO], tipo: 'humo', tam: 2.5 });
+      }
+    }
+  }
   function emitir(x, y, n, o) {
     if (parts.length > 1400) return;
     for (let i = 0; i < n; i++) {

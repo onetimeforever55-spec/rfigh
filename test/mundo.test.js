@@ -672,7 +672,12 @@ console.log('CARBÓN, PETRÓLEO Y BARCOS MODERNOS');
   for (let k = 0; k < 250; k++) S.turno(m);
   const cs = S.vivas(m).slice(0, 4);
   comprobar(!m.vida.carbonVisto && !m.vida.crudo && m.vida.mena.every(x => x !== 3), 'antes de la industria no hay carbón ni petróleo en el mapa');
-  for (let k = 0; k < 120; k++) { for (const c of cs) { c.era = Math.max(c.era, k < 40 ? 6 : 7); c.madera = Math.max(c.madera, 60); c.piedra = Math.max(c.piedra, 60); c.oro = Math.max(c.oro || 0, 60); } S.turno(m); }
+  for (let k = 0; k < 120; k++) {
+    for (const c of cs) { c.era = Math.max(c.era, k < 40 ? 6 : 7); c.madera = Math.max(c.madera, 60); c.piedra = Math.max(c.piedra, 60); c.oro = Math.max(c.oro || 0, 60); }
+    // Que al menos un reino tenga una bolsa de crudo en su tierra (si el azar no se la ha dado).
+    if (k === 45 && m.vida.crudo && cs[0].viva && !S.casillas(m, cs[0]).some(r => V.parcelas(m, r).some(t => m.vida.crudo[t]))) for (const t of V.parcelas(m, S.vecinos(cs[0].capital).find(r => m.dueno[r] === cs[0].id) ?? cs[0].capital).slice(0, 4)) m.vida.crudo[t] = 1;
+    S.turno(m);
+  }
   const v = m.vida, vetas = v.mena.filter(x => x === 3).length, crudo = v.crudo ? v.crudo.filter(Boolean).length : 0, pozos = [];
   for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === V.OBRA.petroleo) pozos.push(t);
   comprobar(vetas > 20 && crudo > 20, 'con la máquina de vapor salen vetas de carbón (' + vetas + ') y en la Era Moderna bolsas de crudo (' + crudo + ' casillas)');
@@ -841,6 +846,7 @@ console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
   const molinos = () => { let n = 0; for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === V.OBRA.molino) n++; return n; };
   const est = c.estab, mol = molinos();
   m.dueno[c.capital] = b.id; c.oro = 100; S.turno(m);
+  comprobar((v.sucesos || []).some(x => x.tipo === 'caida') && v.sucesos.some(x => x.tipo === 'saqueo' && x.civ === b.id) && v.sucesos.some(x => x.tipo === 'huye' && x.region === otra), 'la caída, el saqueo y la huida de la corte quedan apuntados para verlos en el mapa');
   comprobar(c.viva && c.capital === otra && c.estab < est && molinos() <= mol + 1, 'con otra ciudad, la corte huye a ella (sin plaza ni molino regalados) y el reino pierde estabilidad');
   // Los reinos que se separan conservan la técnica y parte del almacén de la metrópoli.
   const d = S.vivas(m).sort((p, q) => S.casillas(m, q).length - S.casillas(m, p).length)[0], tecs = M.tecsDe(d).length;

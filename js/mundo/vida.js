@@ -1645,7 +1645,8 @@
         // Ahorrando para la edad, solo se levanta lo que la edad pide (o lo que mandó el jugador).
         const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
         const necesaria = (c.necesidades || []).some(n => n.falta && OBRA[n.obra] === obra);
-        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
+        // (Los pozos de petróleo y las minas no esperan: dan lo que hace falta para todo lo demás.)
+        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && obra !== OBRA.petroleo && obra !== OBRA.mina && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
         const t = donde();
         if (t != null) { if (obra !== OBRA.molino || pausada(m)) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
       }
@@ -1811,6 +1812,15 @@
       if (e.asedio >= 100) capturar(m, c, o, e.obj, paso);
     }
   }
+  // El saqueo se ve en el suelo: casas tiznadas y reventadas, ceniza y escombros por las calles.
+  function saquear(m, r) {
+    const v = m.vida, ts = parcelas(m, r).concat(S().vecinos(r).filter(x => m.dueno[x] === m.dueno[r]).flatMap(x => parcelas(m, x)));
+    // Las casas quedan tiznadas y reventadas (no arrasadas: el saqueador quiere el botín, no la ciudad).
+    const casas = ts.filter(t => v.obra[t] === OBRA.casa);
+    v.danoObra = v.danoObra || {};
+    for (let k = 0; k < Math.min(4, casas.length); k++) { const t = casas[Math.floor(azar(v) * casas.length)]; v.danoObra[t] = Math.max(v.danoObra[t] || 0, 40); marcar(m, t, 'ceniza', 8, 0); }
+    for (let k = 0; k < 6; k++) { const t = ts[Math.floor(azar(v) * ts.length)]; if (t != null && !v.obra[t]) marcar(m, t, 'escombros', 10, 0); }
+  }
   function capturar(m, c, o, r, paso) {
     const v = m.vida, esCapital = o.capital === r;
     const tierras = S().casillas(m, o).filter(i => i === r || (S().distancia(i, r) <= 2 && S().distancia(i, r) < S().distancia(i, o.capital)));
@@ -1822,6 +1832,12 @@
     if (gc) { gc.ganadas = (gc.ganadas || 0) + 1; gc.comarcas = (gc.comarcas || 0) + tierras.length; }
     if (go) { go.perdidas = (go.perdidas || 0) + 1; go.comarcas = (go.comarcas || 0) - tierras.length; }
     if (c.plan && c.plan.objetivo === r) c.plan.objetivo = null;
+    // Tomar una ciudad (no la capital: esa la saquea la caída de la corte) también es saquearla.
+    if (!esCapital && ciudad) {
+      for (const k of ['oro', 'comida', 'metal', 'armas']) { const q = (o[k] || 0) * 0.2; if (q > 0) { o[k] -= q; c[k] = (c[k] || 0) + q; } }
+      saquear(m, r);
+      S().suceso(m, 'saqueo', r, c, o, '💰 ¡' + c.nombre + ' saquea ' + ciudad.nombre + '!');
+    }
     (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🏴 ¡' + (ciudad ? ciudad.nombre : esCapital ? 'La capital de ' + o.nombre : 'La plaza') + ' es nuestra!', region: r });
     (v.anuncios = v.anuncios || []).push({ civ: o.id, texto: '✖ Perdemos ' + (ciudad ? ciudad.nombre : esCapital ? 'la capital' : 'una plaza'), region: r });
     S().cronica(m, 'conquista', c.nombre + (esCapital ? ' toma la capital de ' : ' conquista ') + (ciudad ? ciudad.nombre : esCapital ? o.nombre : 'una plaza de ' + o.nombre), 'Tras ' + (esCapital ? 'un largo asedio' : 'el asedio') + ', el estandarte de ' + c.nombre + ' ondea en ' + (ciudad ? ciudad.nombre : 'la plaza') + '. ' + tierras.length + ' comarcas cambian de dueño.', c, r, { importante: esCapital });
@@ -2099,6 +2115,7 @@
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
     rec = recursos(m);
+    v.marcadas = new Set(S().vivas(m).flatMap(c => ((c.plan && c.plan.encargos) || []).map(e => e.t)));
     ejercitos(m);
     repararDanos(m);
     const ter = terrenos(m);
@@ -2994,7 +3011,8 @@
    */
   const esVia = (v, t) => !!(v.via && v.via[t]);
   // Casillas que no se pueden usar para construir ni sembrar: la vía del tren y las trincheras.
-  const ocupada = (v, t) => esVia(v, t) || !!(v.trinchera && v.trinchera[t]);
+  // Ocupada para las obras que el pueblo decide solo: vía, trinchera o parcela que el jugador ya marcó para otra cosa.
+  const ocupada = (v, t) => esVia(v, t) || !!(v.trinchera && v.trinchera[t]) || !!(v.marcadas && v.marcadas.has(t));
   const BOSQUE_PLANTABLE = new Set(['bosque', 'selva', 'taiga', 'sakura', 'llanura', 'colina', 'sabana', 'pantano', 'tundra', 'nieve']);
   function planificarVias(m, ter) {
     const v = m.vida, tw = v.tw;
@@ -3691,5 +3709,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

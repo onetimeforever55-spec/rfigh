@@ -778,9 +778,13 @@
   }
   // Un aviso grande sobre el mapa durante unos segundos.
   let avisoHasta = 0;
-  function avisoFlotante(texto, ms) {
+  const avisados = new WeakSet();
+  function avisoFlotante(texto, ms, region) {
     const e = $('aviso-flotante');
-    e.textContent = texto; e.hidden = false;
+    e.textContent = texto + (region != null ? '  📍' : ''); e.hidden = false;
+    // Si el aviso tiene sitio, al tocarlo la cámara va allí.
+    e.style.pointerEvents = region != null ? 'auto' : ''; e.style.cursor = region != null ? 'pointer' : '';
+    e.onclick = region != null ? () => { P.centrarEn(region, 5); e.hidden = true; } : null;
     e.style.animation = 'none'; void e.offsetWidth; e.style.animation = '';
     avisoHasta = performance.now() + (ms || 3500);
     setTimeout(() => { if (performance.now() >= avisoHasta - 50) e.hidden = true; }, ms || 3500);
@@ -834,6 +838,18 @@
     // Avisos del turno sobre el mapa (plazas ganadas, cuadrillas que terminan) y en la línea de respuesta.
     for (const an of (m.vida.anuncios || []).splice(0)) { const c = S.civ(m, an.civ); if (c && (!m.jugador || an.civ === m.jugador || an.region != null)) P.anunciar(an.region != null ? an.region : c.capital, an.texto, /[⚔✖]/.test(an.texto) ? '#ff8a7a' : /🏴/.test(an.texto) ? '#ffd76a' : null); }
     for (const av of (m.avisosPlan || []).splice(0)) if (av.civ === m.jugador) responder(av.texto, 'bien');
+    // Los grandes sucesos del turno (saqueos, independencias, caídas, exterminios), en grande arriba: primero los
+    // que tocan a tu pueblo, y si no, el más gordo del mundo.
+    const PESO = { caida: 5, saqueo: 4, independencia: 3, exterminio: 3, huye: 1 };
+    const sucs = (m.vida.sucesos || []).filter(su => !avisados.has(su) && m.turno - su.turno <= 1);
+    for (const su of m.vida.sucesos || []) avisados.add(su);
+    if (sucs.length) {
+      const mio = su => m.jugador != null && (su.civ === m.jugador || su.otro === m.jugador);
+      const top = sucs.slice().sort((a, b) => (mio(b) ? 10 : 0) + PESO[b.tipo] - (mio(a) ? 10 : 0) - PESO[a.tipo])[0];
+      avisoFlotante(top.texto, 5000, top.region);
+      if (M.sonido && M.sonido.activo()) M.sonido.efecto(top.tipo === 'independencia' ? 'campana' : top.tipo === 'huye' ? 'cuerno' : 'peste');
+      if (top.tipo === 'saqueo' || top.tipo === 'caida') setTimeout(() => M.sonido && M.sonido.activo() && M.sonido.efecto('cuerno'), 250);
+    }
     if (m.cronica[0] !== antes) marcar(m.cronica[0]);
     if (M.sonido && M.sonido.activo()) {
       const nuevos = []; for (const e of m.cronica) { if (e === antes) break; nuevos.push(e); }

@@ -576,19 +576,35 @@
     c.estab = 40;
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
     nueva.rel[c.id] = -40; c.rel[nueva.id] = -40; nueva.origen = c.id;
+    suceso(m, 'independencia', parte[0], nueva, c, '🚩 ¡Las provincias de ' + c.nombre + ' se rebelan: nace ' + nueva.nombre + '!');
     cronica(m, 'revuelta', 'Las provincias se rebelan', 'Las tierras lejanas de ' + c.nombre + ' dejan de obedecer a la capital y proclaman un ' + (nueva.regimen === 'republica' ? 'gobierno propio' : 'reino propio') + ': ' + nueva.nombre + '.', c, parte[0]);
   }
 
   function morir(m, c, quien) {
     if (!c.viva) return;
+    // Los vencedores aprenden de los vencidos: se quedan con sus sabios, sus libros y lo que sabían hacer.
+    if (quien && quien.viva) {
+      const ts = M.tecsDe(quien);
+      for (const t of M.tecsDe(c)) { const d = M.TECNOLOGIAS.find(x => x.id === t); if (d && d.era <= quien.era && !ts.includes(t)) ts.push(t); }
+      quien.ciencia += Math.max(0, c.ciencia - quien.ciencia) * 0.5;
+    }
     c.viva = false; c.muerte = m.anio;
     for (let i = 0; i < W * H; i++) if (m.dueno[i] === c.id) m.dueno[i] = quien ? quien.id : -1;
     for (const o of m.civs) o.guerras = o.guerras.filter(g => g.con !== c.id);
     c.guerras = [];
     m.alianzas = (m.alianzas || []).filter(x => x.a !== c.id && x.b !== c.id);
+    suceso(m, 'caida', c.capital, quien, c, '☠ ¡Cae ' + c.nombre + '!' + (quien ? ' ' + quien.nombre + ' se queda con todo' : ''));
     cronica(m, 'caida', 'Cae ' + c.nombre, quien ? quien.nombre + ' toma la última ciudad de ' + c.nombre + '. Sus dioses pasan a ser leyendas y su lengua, unas pocas palabras en la de los vencedores.' : c.nombre + ' se deshace sin que nadie lo conquiste: sus aldeas se vacían y sus templos se llenan de hierba.', c, c.capital, { importante: true });
   }
 
+  // Los grandes sucesos que se ven en el mapa (saqueos, independencias, caídas, exterminios): la vista los
+  // dibuja donde pasan y los anuncia en grande.
+  function suceso(m, tipo, region, civ, otro, texto) {
+    if (!m.vida) return;
+    const l = m.vida.sucesos = m.vida.sucesos || [];
+    l.push({ tipo, region, civ: civ ? civ.id : null, otro: otro ? otro.id : null, texto, turno: m.turno });
+    if (l.length > 24) l.splice(0, l.length - 24);
+  }
   // Lo que guarda un reino en sus almacenes (para el saqueo y para la herencia de los reinos que se separan).
   const ALMACEN = ['oro', 'madera', 'piedra', 'metal', 'comida', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas', 'granadas'];
   function repartirAlmacen(de, a, parte) {
@@ -614,6 +630,8 @@
   function caidaCapital(m, c, gana, cs) {
     const vieja = c.capital;
     if (gana) repartirAlmacen(c, gana, 0.5);
+    suceso(m, 'saqueo', vieja, gana, c, '💰 ¡' + (gana ? gana.nombre + ' saquea' : 'Saqueo de') + ' la capital de ' + c.nombre + '!');
+    if (m.vida && M.vida && M.vida.saquear) M.vida.saquear(m, vieja);
     const ciudades = (m.ciudades || []).filter(x => x.civ === c.id && m.dueno[x.region] === c.id);
     if (!ciudades.length) {
       for (const i of cs) m.dueno[i] = gana ? gana.id : -1;
@@ -627,6 +645,7 @@
     for (const y of ciudades) if (y !== x) y.complot = (y.complot || 0) + 35;
     // Con la corte en fuga, la ciudad menos leal aprovecha para independizarse (si no la quería ya, se lo piensa).
     const floja = ciudades.filter(y => y !== x && (y.lealtad == null || y.lealtad < 15)).sort((p, q) => (p.lealtad || 0) - (q.lealtad || 0))[0];
+    suceso(m, 'huye', x.region, c, gana, '🏃 La corte de ' + c.nombre + ' huye a ' + x.nombre);
     cronica(m, 'conquista', 'La corte de ' + c.nombre + ' huye a ' + x.nombre, (gana ? gana.nombre + ' saquea la capital y se lleva la mitad de los almacenes. ' : 'La capital se pierde. ') + 'El ' + titulo(c) + ' se refugia en ' + x.nombre + ', que pasa a ser la capital; las demás ciudades dudan de que el reino aguante.', c, x.region, { importante: true });
     if (floja && azar(m) < 0.6) rebelarCiudad(m, c, floja);
   }
@@ -738,6 +757,7 @@
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
     nueva.rel[c.id] = c.rel[nueva.id] = -50;
     m.ciudades = m.ciudades.filter(y => y !== x);
+    suceso(m, 'independencia', x.region, nueva, c, '🚩 ¡' + x.nombre + ' se independiza de ' + c.nombre + '!');
     cronica(m, 'revuelta', x.nombre + ' se independiza de ' + c.nombre, 'El alcalde ' + x.alcalde + ' proclama la independencia de ' + x.nombre + ' y de ' + (parte.length - 1) + ' comarcas de alrededor. ' + c.nombre + ' lo llama traición; ' + x.nombre + ', libertad.', nueva, x.region, { importante: true });
     // A veces la metrópoli no lo acepta.
     if (azar(m) < 0.5 && !c.jugador) declararGuerra(m, c, nueva, c.nombre + ' no acepta la independencia de ' + x.nombre + ' y manda a sus ejércitos a recuperarla.', true);
@@ -924,6 +944,6 @@
     });
   }
 
-  M.sim = { W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
