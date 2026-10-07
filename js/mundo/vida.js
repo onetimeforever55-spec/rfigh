@@ -2463,7 +2463,11 @@
     a.paseo = 0;
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
-    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 3, 'arbol');
+    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) {
+      t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 3, 'arbol');
+      // Talado el bosque de alrededor, el leñador va más lejos (hasta 8 comarcas) antes que quedarse de brazos cruzados.
+      if (t < 0) t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 8, 'arbolLejos');
+    }
     // El leñador también planta: si no queda bosque que talar cerca, o si el bosque escasea (con semillas).
     const reforesta = c.plan && c.plan.reforestar > m.turno;
     if (a.o === LENADOR && (c.semillas || 0) >= 1 && (t < 0 || (reforesta && azar(v) < 0.75) || ((c.arboles || 0) < 30 && azar(v) < 0.3))) {

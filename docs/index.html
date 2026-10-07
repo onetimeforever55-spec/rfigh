@@ -564,7 +564,7 @@ table.mercado td:first-child { white-space: nowrap; }
           <details><summary>Comida y molinos</summary>
             <p>Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
           <details><summary>La corte y las eras</summary>
-            <p>Toca tu plaza o el botón 🏛 para abrir la corte. Ahí eliges qué investigan tus sabios. Para pasar a la era siguiente hacen falta 3 mejoras de la era actual, el saber suficiente, haber llegado a su fecha y lo que pida (un templo, un cuartel, recursos…). Cuando todo está, pulsa «Avanzar». Sobre la plaza sale ⏫ si ya puedes avanzar, o ? si los sabios esperan que elijas.</p></details>
+            <p>Toca tu plaza o el botón 🏛 para abrir la corte. Ahí eliges qué investigan tus sabios. Para pasar a la era siguiente hacen falta 3 mejoras de la era actual, el saber suficiente, haber llegado a su fecha y lo que pida (un templo, un cuartel, recursos…). Tu gobierno ahorra y pasa de era solo en cuanto se puede (si prefieres decidirlo tú: «no paséis de edad solos», y luego «Avanzar»). Sobre la plaza sale ⏫ si ya puedes avanzar, o ? si los sabios esperan que elijas.</p></details>
           <details><summary>Gente y salud</summary>
             <p>Cada aldeano tiene nombre, padres, pareja y una salud. La muerte es una probabilidad que sube con la edad y con cómo ha vivido: el hambre, las heridas, dormir sin casa o el frío la acercan; una casa, un hospital y la medicina de su época la alejan. Sin casas libres no nacen niños.</p></details>
           <details><summary>Minas y bosques</summary>
@@ -1434,7 +1434,7 @@ table.mercado td:first-child { white-space: nowrap; }
   // Lo que la IA guarda para la mejora de la edad más barata que le falta (con el ritmo pausado): sin esto se
   // gastaría la madera y el oro en obras y nunca juntaría el precio de la técnica.
   function reservaMejora(m, c) {
-    if (!m.vida || ritmo(m) <= 1 || c.jugador || !M.ERAS[c.era + 1]) return null;
+    if (!m.vida || ritmo(m) <= 1 || (c.jugador && !(c.plan && c.plan.autoEdad)) || !M.ERAS[c.era + 1]) return null;
     const r = mejorasDeEdad(c); if (r.hechas >= r.pide) return null;
     const ts = M.tecsDe(c), falta = r.lista.filter(t => !ts.includes(t.id));
     if (!falta.length) return null;
@@ -4330,7 +4330,11 @@ table.mercado td:first-child { white-space: nowrap; }
     a.paseo = 0;
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
-    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 3, 'arbol');
+    if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) {
+      t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 3, 'arbol');
+      // Talado el bosque de alrededor, el leñador va más lejos (hasta 8 comarcas) antes que quedarse de brazos cruzados.
+      if (t < 0) t = cercaDeCasa(m, a, c, rec, x => v.arbol[x] >= 2, 8, 'arbolLejos');
+    }
     // El leñador también planta: si no queda bosque que talar cerca, o si el bosque escasea (con semillas).
     const reforesta = c.plan && c.plan.reforestar > m.turno;
     if (a.o === LENADOR && (c.semillas || 0) >= 1 && (t < 0 || (reforesta && azar(v) < 0.75) || ((c.arboles || 0) < 30 && azar(v) < 0.3))) {
@@ -5934,7 +5938,9 @@ table.mercado td:first-child { white-space: nowrap; }
   const REGIMENES = [[/\bdemocracia\b/, 'democracia', 5], [/\brepublica\b/, 'republica', 2], [/\bimperio\b|\bemperador\b/, 'imperio', 2], [/\bdictadura\b|\bdictador\b/, 'dictadura', 5], [/\bteocracia\b/, 'teocracia', 1], [/\bmonarquia\b|\breino\b|\bcorona\w*\b|\brey\b/, 'reino', 1], [/\brepublica popular\b|\bcomunis\w*\b/, 'estado_obrero', 6]];
 
   const PRIO_NORMAL = () => ({ madera: 1, comida: 1, piedra: 1, casas: 1, ejercito: 1, ciencia: 1, riqueza: 1, expansion: 1 });
-  const plan = c => { c.plan = c.plan || { rumbo: null, socios: [], guerrasMias: [] }; c.plan.prioridad = c.plan.prioridad || PRIO_NORMAL(); c.plan.guerrasMias = c.plan.guerrasMias || []; return c.plan; };
+  // El gobierno de tu pueblo hace solo lo que haría cualquier reino (ahorrar y pasar de edad en cuanto se puede);
+  // si prefieres decidirlo tú: «no paséis de edad solos».
+  const plan = c => { c.plan = c.plan || { rumbo: null, socios: [], guerrasMias: [] }; c.plan.prioridad = c.plan.prioridad || PRIO_NORMAL(); c.plan.guerrasMias = c.plan.guerrasMias || []; if (c.plan.autoEdad == null) c.plan.autoEdad = true; if (c.plan.ahorrarEdad == null) c.plan.ahorrarEdad = true; return c.plan; };
 
   // El nombre de un sitio: una ciudad, una capital, o (si es tierra propia sin plaza) «la frontera».
   const nombreSitio = (m, c, r) => r === c.capital ? 'la capital' : (m.ciudades || []).some(y => y.region === r) || S().vivas(m).some(y => y.capital === r) ? nombrePlaza(m, r) : m.dueno[r] === c.id ? 'la frontera' : nombrePlaza(m, r);

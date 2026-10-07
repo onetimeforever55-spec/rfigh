@@ -517,7 +517,7 @@
   // Lo que la IA guarda para la mejora de la edad más barata que le falta (con el ritmo pausado): sin esto se
   // gastaría la madera y el oro en obras y nunca juntaría el precio de la técnica.
   function reservaMejora(m, c) {
-    if (!m.vida || ritmo(m) <= 1 || c.jugador || !M.ERAS[c.era + 1]) return null;
+    if (!m.vida || ritmo(m) <= 1 || (c.jugador && !(c.plan && c.plan.autoEdad)) || !M.ERAS[c.era + 1]) return null;
     const r = mejorasDeEdad(c); if (r.hechas >= r.pide) return null;
     const ts = M.tecsDe(c), falta = r.lista.filter(t => !ts.includes(t.id));
     if (!falta.length) return null;

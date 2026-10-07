@@ -32,7 +32,9 @@
   const REGIMENES = [[/\bdemocracia\b/, 'democracia', 5], [/\brepublica\b/, 'republica', 2], [/\bimperio\b|\bemperador\b/, 'imperio', 2], [/\bdictadura\b|\bdictador\b/, 'dictadura', 5], [/\bteocracia\b/, 'teocracia', 1], [/\bmonarquia\b|\breino\b|\bcorona\w*\b|\brey\b/, 'reino', 1], [/\brepublica popular\b|\bcomunis\w*\b/, 'estado_obrero', 6]];
 
   const PRIO_NORMAL = () => ({ madera: 1, comida: 1, piedra: 1, casas: 1, ejercito: 1, ciencia: 1, riqueza: 1, expansion: 1 });
-  const plan = c => { c.plan = c.plan || { rumbo: null, socios: [], guerrasMias: [] }; c.plan.prioridad = c.plan.prioridad || PRIO_NORMAL(); c.plan.guerrasMias = c.plan.guerrasMias || []; return c.plan; };
+  // El gobierno de tu pueblo hace solo lo que haría cualquier reino (ahorrar y pasar de edad en cuanto se puede);
+  // si prefieres decidirlo tú: «no paséis de edad solos».
+  const plan = c => { c.plan = c.plan || { rumbo: null, socios: [], guerrasMias: [] }; c.plan.prioridad = c.plan.prioridad || PRIO_NORMAL(); c.plan.guerrasMias = c.plan.guerrasMias || []; if (c.plan.autoEdad == null) c.plan.autoEdad = true; if (c.plan.ahorrarEdad == null) c.plan.ahorrarEdad = true; return c.plan; };
 
   // El nombre de un sitio: una ciudad, una capital, o (si es tierra propia sin plaza) «la frontera».
   const nombreSitio = (m, c, r) => r === c.capital ? 'la capital' : (m.ciudades || []).some(y => y.region === r) || S().vivas(m).some(y => y.capital === r) ? nombrePlaza(m, r) : m.dueno[r] === c.id ? 'la frontera' : nombrePlaza(m, r);

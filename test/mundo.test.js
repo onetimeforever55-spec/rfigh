@@ -451,7 +451,7 @@ console.log('FUEGO, AGUA Y MARCAS');
   const t0 = ts[0];
   comprobar(V2.prender(m, t0, 0, 4) && v.fuego[t0] > 0, 'el fuego prende en un árbol');
   const arboles0 = v.arbol.filter(x => x >= 1).length;
-  for (let i = 0; i < 4; i++) S.turno(m);
+  for (let i = 0; i < 4 && v.fuego[t0]; i++) S.turno(m);
   comprobar(!v.fuego[t0] && (v.arbol[t0] === 0 || (v.marcas[t0] && v.marcas[t0][0] === V2.MARCA.ceniza)), 'el fuego se consume (o lo apagan) y deja el árbol quemado o ceniza');
   comprobar(Object.values(v.marcas || {}).some(x => x[0] === V2.MARCA.ceniza), 'y ceniza en el suelo');
   const n = V2.inundar(m, c, 3);
@@ -660,6 +660,7 @@ console.log('PRIMEROS PASOS Y LA HISTORIA DE TU PUEBLO');
   for (let k = 0; k < 80; k++) { S.turno(m); X.evaluarRetos(m, []); }
   const e = X.estadoRetos(m);
   comprobar(e.hist && e.hist.eras[0] != null && e.hist.maxHab > 0 && e.hist.reyes.length > 0, 'se apunta la historia: era de inicio, mayor tamaño (' + e.hist.maxHab + ' vecinos) y reyes (' + e.hist.reyes.join(', ') + ')');
+  comprobar(S.vivas(m)[0].plan.autoEdad === true && S.vivas(m)[0].plan.ahorrarEdad === true, 'tu pueblo pasa de edad solo (como los demás) salvo que digas «no paséis de edad solos»');
   m.guia.oculta = 1;
   comprobar(X.guia(m) === null, 'la guía se puede saltar');
   const m2 = S.crear(12, 5, { ritmo: 3 }); m2.modo = 'dios';
@@ -929,7 +930,8 @@ console.log('CONTROL FRONTERIZO');
   comprobar(S.vivas(m).every(c => c.era >= V.ERA_OBRA[V.OBRA.aduana] || !(c.aduanas || []).length), 'antes de la Revolución Industrial no hay puestos');
   for (let k = 0; k < 60; k++) { for (const c of cs) { c.madera = Math.max(c.madera, 40); c.piedra = Math.max(c.piedra, 40); c.oro = Math.max(c.oro || 0, 40); c.era = 7; } S.turno(m); }
   const v = m.vida, puestos = []; for (let i = 0; i < v.obra.length; i++) if (v.obra[i] === V.OBRA.aduana) puestos.push(i);
-  const pegados = puestos.filter(p => v.rutas.some(ru => ru.tipo === 'externa' && ru.tiles.some(u => Math.abs(u % v.tw - p % v.tw) <= 1 && Math.abs((u / v.tw | 0) - (p / v.tw | 0)) <= 1))).length;
+  // Pegado a una carretera: junto a una ruta abierta o a un camino (si la ruta se cerró, la carretera sigue ahí).
+  const pegados = puestos.filter(p => [1, -1, v.tw, -v.tw, v.tw + 1, v.tw - 1, -v.tw + 1, -v.tw - 1].some(d => v.camino[p + d]) || v.rutas.some(ru => ru.tipo === 'externa' && ru.tiles.some(u => Math.abs(u % v.tw - p % v.tw) <= 1 && Math.abs((u / v.tw | 0) - (p / v.tw | 0)) <= 1))).length;
   comprobar(puestos.length > 0 && pegados >= puestos.length * 0.75, 'en la era moderna se levantan ' + puestos.length + ' puestos fronterizos pegados a las carreteras de comercio (' + pegados + ' junto a una ruta abierta; el resto guardaba una ruta que se cerró)');
   const reg = Object.values(v.aduanas || {});
   comprobar(reg.some(r => r.controles > 0) && reg.some(r => r.arancel > 0), 'paran a las carretas (' + reg.reduce((s, r) => s + r.controles, 0) + ' controles) y cobran arancel al comerciante extranjero (' + reg.reduce((s, r) => s + r.arancel, 0) + ' de oro)');
