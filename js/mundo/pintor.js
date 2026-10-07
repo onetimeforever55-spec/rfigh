@@ -487,7 +487,7 @@
     g.fillRect(px + 1, py, 1, 1); g.fillRect(px, py + 1, 3, 2); g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2);
   }
 
-  const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map();
+  const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map(), humoTiro = new Set();
   let quietos = [], gritos = [];
   // El dibujo de un aldeano (también para su caída).
   function figura(a, col, paso, alto, carga) {
@@ -721,7 +721,16 @@
       // El aldeano: un dibujo de 12×14 con contorno (arte.js), según su oficio, edad, equipo y lo que hace.
       const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
       const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
-      const img = figura(a, color[a.c] || '#cccccc', anda && t ? 1 : 0, alto, acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0);
+      // En plena batalla, el tirador que acaba de disparar no anda: se pone en posición de tiro (de pie con la
+      // honda, tensando el arco, de rodillas con el arcabuz o la espingarda, cuerpo a tierra con el fusil
+      // moderno), mira al blanco y, al soltar, sale el fogonazo y el arma retrocede.
+      const cv_ = oficio === 'guerrero' && a.tirador && !nino && a.fuego && m.turno - a.fuego.turno <= 1 && !anda ? civPorId.get(a.c) : null;
+      const pose = cv_ && cv_.guerras && cv_.guerras.length ? (cv_.era >= 7 ? 'tierra' : cv_.era >= 5 ? 'rodilla' : (a.arma || 0) >= 1 ? 'arco' : 'apunta') : null;
+      let suelta = null;
+      if (pose) for (const d of v.disparos || []) if (d[6] === a.id && k >= d[4] - 1.6 && k < d[4] - 0.7) { suelta = k >= d[4] - 1 ? (k - (d[4] - 1)) / 0.3 : -1; break; }
+      const dirTiro = pose ? (a.fuego.dx || 1) : 1;
+      const img = pose ? ARTE().tiradorEnPose({ col: color[a.c] || '#cccccc', pose, tenso: pose === 'arco' && !(suelta != null && suelta >= 0), arma: a.arma || 0, armadura: a.armadura || 0, piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4 })
+        : figura(a, color[a.c] || '#cccccc', anda && t ? 1 : 0, alto, acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0);
       // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
       const ix = px - 1.5, iy = py - 1, EA = 0.5;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
@@ -744,7 +753,21 @@
       }
       // En fiesta, la gente que no trabaja baila (da saltitos al ritmo).
       const baila = fiesta.has(a.c) && acc === 0 && !anda && Math.sin(ahora / 140 + a.id) > 0.3;
-      g.drawImage(img, ix, iy - (baila ? 1 : 0), img.width * EA, img.height * EA);
+      if (pose) {
+        // Retroceso al disparar (medio píxel hacia atrás) y el dibujo volteado si el blanco está a la izquierda.
+        const atras = suelta != null && suelta >= 0 && pose !== 'arco' ? -0.5 * dirTiro : 0;
+        g.save(); if (dirTiro < 0) { g.translate(2 * (px + 1.5), 0); g.scale(-1, 1); }
+        g.drawImage(img, ix + atras * dirTiro, iy, img.width * EA, img.height * EA);
+        g.restore();
+        if (suelta != null && suelta >= 0 && pose !== 'arco') {
+          const [bx_, by_] = ARTE().BOCA[pose], fx = dirTiro > 0 ? ix + bx_ * EA : 2 * (px + 1.5) - (ix + bx_ * EA), fy = iy + by_ * EA;
+          g.fillStyle = suelta < 0.5 ? '#fff6c0' : '#ffb03a'; g.fillRect(fx + (dirTiro > 0 ? 0 : -2), fy - 0.5, 2, 1);
+          g.fillStyle = '#ffd23a'; g.fillRect(fx + (dirTiro > 0 ? 1.5 : -2.5), fy - 1, 1, 2);
+          const clave_ = a.id + ':' + m.turno + ':' + Math.floor(k);
+          if (!humoTiro.has(clave_)) { humoTiro.add(clave_); if (humoTiro.size > 400) humoTiro.clear(); emitir(fx + dirTiro, fy, 3, { v: 8, g: -6, vida: 900, cols: ['#e8e8ec', '#c8c8d0'], tipo: 'humo', tam: 1.4 }); }
+        }
+      }
+      else g.drawImage(img, ix, iy - (baila ? 1 : 0), img.width * EA, img.height * EA);
       // Partículas del trabajo: astillas, lascas, terrones, polvo de obra, y la chispa de una idea.
       if (acc === 1 && !nino && Math.random() < 0.07) {
         const hx = px + 4.5, hy = py + 3;
@@ -783,7 +806,9 @@
       if (recibe) {
         const [gp, d] = recibe;
         // Destello: rojo al recibir, luego un parpadeo blanco; y unas gotas de sangre que saltan y caen.
-        g.globalAlpha = d < 0.45 ? 0.9 : d < 0.7 ? 0.65 : 0.35; g.drawImage(ARTE().tenido(img, d < 0.45 ? '#ff2a2a' : '#ffffff'), ix, iy, img.width * EA, img.height * EA); g.globalAlpha = 1;
+        g.globalAlpha = d < 0.45 ? 0.9 : d < 0.7 ? 0.65 : 0.35;
+        g.save(); if (pose && dirTiro < 0) { g.translate(2 * (px + 1.5), 0); g.scale(-1, 1); }
+        g.drawImage(ARTE().tenido(img, d < 0.45 ? '#ff2a2a' : '#ffffff'), ix, iy, img.width * EA, img.height * EA); g.restore(); g.globalAlpha = 1;
         const sx = Math.sign(a.x - gp[2]) || 1;
         g.fillStyle = '#b01818';
         for (let q = 0; q < 3; q++) { const vx = sx * (1.5 + q * 1.2), vy = -3 + q; g.fillRect(Math.round(px + 1 + vx * d * 3), Math.round(py + 2 + vy * d * 3 + 7 * d * d), 1, 1); }

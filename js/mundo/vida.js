@@ -851,13 +851,14 @@
     // La especialidad del reino: produce de más de lo suyo para venderlo, y algún comerciante más si tiene socios.
     // La cartera: cada bien en el que trabaja el reino sube el oficio que lo produce, según su peso.
     if (c.cartera && c.balance) {
-      const of = { madera: 0, comida: 1, piedra: 3, metal: 3, armas: 3 }, extra = [0, 0, 0, 0, 0, 0, 0];
-      for (const k of Object.keys(c.cartera)) extra[of[k]] += c.cartera[k];
+      const of = { madera: 0, comida: 1, piedra: 3, metal: 3, armas: 3, carbon: 3 }, extra = [0, 0, 0, 0, 0, 0, 0];
+      for (const k of Object.keys(c.cartera)) if (of[k] != null) extra[of[k]] += c.cartera[k];
       for (let i = 0; i < 4; i++) if (extra[i]) p[i] = p[i] * (1 + 0.8 * extra[i]) + 0.07 * extra[i];
       if ((c.rutas || 0) > 0) p[5] += 0.04;
     }
     for (let i = 0; i < p.length; i++) {
-      const w = prio(c, PRIO_OFICIO[i]);
+      // Los mineros sacan piedra, metal y carbón: pesa la mayor de las tres prioridades.
+      const w = i === 3 ? Math.max(prio(c, 'piedra'), prio(c, 'metal'), c.era >= 6 ? prio(c, 'carbon') : 0) : prio(c, PRIO_OFICIO[i]);
       // Lo que el jugador pone al máximo pesa siempre, aunque el almacén esté lleno.
       if (w >= 2 && (i !== 0 || recursos.arboles) && (i !== 3 || recursos.rocas)) p[i] = Math.max(p[i], 0.25);
       p[i] *= w === 0 ? 0.03 : w;
@@ -2137,7 +2138,9 @@
           // Flechas incendiarias (de la Edad del Hierro a la pólvora): a veces prenden lo que hay donde caen.
           const ardiente = !a.veh && c.era >= 2 && c.era < 5 && azar(v) < 0.12;
           const obus = a.veh ? 2 : c.era >= 5 ? 1 : ardiente ? 4 : 0;
-          v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, obus]);
+          v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, obus, a.id]);
+          // El tirador se queda en posición de tiro (de pie, de rodillas o cuerpo a tierra según la época) y mirando al blanco.
+          if (!a.veh) a.fuego = { turno: m.turno, paso, dx: Math.sign(blanco.x - a.x) || (a.fuego ? a.fuego.dx : 1) };
           if (ardiente) { const dx = Math.round((azar(v) - 0.5) * 2), dy = Math.round((azar(v) - 0.5) * 2); prender(m, (blanco.y + dy) * v.tw + blanco.x + dx, paso + 1, 2); }
           // El obús revienta: cráter, árboles por el suelo y, a veces, fuego.
           if (a.veh && VEHICULOS[a.veh].area) { const tb = blanco.y * v.tw + blanco.x; marcar(m, tb, 'crater', 6, paso + 1); if (v.arbol[tb] >= 1 && azar(v) < 0.5) cambiar(m, 'arbol', tb, 0, paso + 1); if (v.obra[tb] && v.obra[tb] !== OBRA.ruina && v.obra[tb] !== OBRA.centro && azar(v) < 0.3) { cambiar(m, 'obra', tb, OBRA.ruina, paso + 1); marcar(m, tb, 'escombros', 10, paso + 1); } if (azar(v) < 0.25) prender(m, tb, paso + 1, 2); }
@@ -2230,13 +2233,13 @@
     else if (a.o === MINERO) {
       // Con la Edad del Bronce, los mineros buscan vetas de metal para la armería; si no, piedra.
       const vendeMetal = pausada(m) && c.cartera && (c.cartera.metal || c.cartera.armas);
-      const faltaMetal = c.era >= 1 && ((c.metal || 0) < 8 + 4 * c.era || (vendeMetal && (c.metal || 0) < 60));
+      const faltaMetal = c.era >= 1 && ((c.metal || 0) < 8 + 4 * c.era || (vendeMetal && (c.metal || 0) < 60) || (prio(c, 'metal') > 1 && (c.metal || 0) < 150));
       a.buscaMetal = 0;
       // Si el jugador pide piedra (o un edificio que la necesita), las vetas pasan a segundo plano.
-      const quierePiedra = prio(c, 'piedra') > 1 || (c.plan && c.plan.obra && (COSTES[OBRA[c.plan.obra]] || [0, 0])[1] > c.piedra);
+      const quierePiedra = (prio(c, 'piedra') > 1 && prio(c, 'piedra') >= prio(c, 'metal')) || (c.plan && c.plan.obra && (COSTES[OBRA[c.plan.obra]] || [0, 0])[1] > c.piedra);
       // En la era industrial, el carbón: primero las vetas negras, y si no, una mina de carbón en la montaña.
       const vendeCarbon = pausada(m) && c.cartera && c.cartera.carbon;
-      const faltaCarbon = c.era >= 6 && ((c.carbon || 0) < objetivo(c, 'carbon') || (vendeCarbon && (c.carbon || 0) < 80));
+      const faltaCarbon = c.era >= 6 && ((c.carbon || 0) < objetivo(c, 'carbon') || (vendeCarbon && (c.carbon || 0) < 80) || (prio(c, 'carbon') > 1 && (c.carbon || 0) < 150));
       a.buscaCarbon = 0;
       if (faltaCarbon && azar(v) < (quierePiedra ? 0.25 : 0.55)) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] === 3, 5, 'carbon');
       if (t < 0 && faltaCarbon && pausada(m) && azar(v) < 0.5) { t = cercaDeCasa(m, a, c, rec, x => (ter[x] === 'montana' || ter[x] === 'colina') && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaCarbon = 1; } }

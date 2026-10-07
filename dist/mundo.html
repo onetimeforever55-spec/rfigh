@@ -560,7 +560,7 @@ table.mercado td:first-child { white-space: nowrap; }
           <details open><summary>Lo básico</summary>
             <p>Tu pueblo vive solo: talan, siembran, construyen, tienen hijos y envejecen. Tú decides las grandes cosas. Arrastra el mapa para moverte y pellizca o usa + y − para acercarte. Toca una tierra, una casa o un aldeano para ver su ficha.</p></details>
           <details><summary>Las órdenes</summary>
-            <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. El consejero te sugiere la orden que más falta hace: tócala para escribirla.</p></details>
+            <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. Puedes juntar varias en una frase: «buscad hierro y sacad madera», «haced 3 casas y talad 10 árboles». El consejero te sugiere la orden que más falta hace: tócala para escribirla.</p></details>
           <details><summary>Comida y molinos</summary>
             <p>Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
           <details><summary>La corte y las eras</summary>
@@ -2646,13 +2646,14 @@ table.mercado td:first-child { white-space: nowrap; }
     // La especialidad del reino: produce de más de lo suyo para venderlo, y algún comerciante más si tiene socios.
     // La cartera: cada bien en el que trabaja el reino sube el oficio que lo produce, según su peso.
     if (c.cartera && c.balance) {
-      const of = { madera: 0, comida: 1, piedra: 3, metal: 3, armas: 3 }, extra = [0, 0, 0, 0, 0, 0, 0];
-      for (const k of Object.keys(c.cartera)) extra[of[k]] += c.cartera[k];
+      const of = { madera: 0, comida: 1, piedra: 3, metal: 3, armas: 3, carbon: 3 }, extra = [0, 0, 0, 0, 0, 0, 0];
+      for (const k of Object.keys(c.cartera)) if (of[k] != null) extra[of[k]] += c.cartera[k];
       for (let i = 0; i < 4; i++) if (extra[i]) p[i] = p[i] * (1 + 0.8 * extra[i]) + 0.07 * extra[i];
       if ((c.rutas || 0) > 0) p[5] += 0.04;
     }
     for (let i = 0; i < p.length; i++) {
-      const w = prio(c, PRIO_OFICIO[i]);
+      // Los mineros sacan piedra, metal y carbón: pesa la mayor de las tres prioridades.
+      const w = i === 3 ? Math.max(prio(c, 'piedra'), prio(c, 'metal'), c.era >= 6 ? prio(c, 'carbon') : 0) : prio(c, PRIO_OFICIO[i]);
       // Lo que el jugador pone al máximo pesa siempre, aunque el almacén esté lleno.
       if (w >= 2 && (i !== 0 || recursos.arboles) && (i !== 3 || recursos.rocas)) p[i] = Math.max(p[i], 0.25);
       p[i] *= w === 0 ? 0.03 : w;
@@ -3932,7 +3933,9 @@ table.mercado td:first-child { white-space: nowrap; }
           // Flechas incendiarias (de la Edad del Hierro a la pólvora): a veces prenden lo que hay donde caen.
           const ardiente = !a.veh && c.era >= 2 && c.era < 5 && azar(v) < 0.12;
           const obus = a.veh ? 2 : c.era >= 5 ? 1 : ardiente ? 4 : 0;
-          v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, obus]);
+          v.disparos.push([a.x, a.y, blanco.x, blanco.y, paso, obus, a.id]);
+          // El tirador se queda en posición de tiro (de pie, de rodillas o cuerpo a tierra según la época) y mirando al blanco.
+          if (!a.veh) a.fuego = { turno: m.turno, paso, dx: Math.sign(blanco.x - a.x) || (a.fuego ? a.fuego.dx : 1) };
           if (ardiente) { const dx = Math.round((azar(v) - 0.5) * 2), dy = Math.round((azar(v) - 0.5) * 2); prender(m, (blanco.y + dy) * v.tw + blanco.x + dx, paso + 1, 2); }
           // El obús revienta: cráter, árboles por el suelo y, a veces, fuego.
           if (a.veh && VEHICULOS[a.veh].area) { const tb = blanco.y * v.tw + blanco.x; marcar(m, tb, 'crater', 6, paso + 1); if (v.arbol[tb] >= 1 && azar(v) < 0.5) cambiar(m, 'arbol', tb, 0, paso + 1); if (v.obra[tb] && v.obra[tb] !== OBRA.ruina && v.obra[tb] !== OBRA.centro && azar(v) < 0.3) { cambiar(m, 'obra', tb, OBRA.ruina, paso + 1); marcar(m, tb, 'escombros', 10, paso + 1); } if (azar(v) < 0.25) prender(m, tb, paso + 1, 2); }
@@ -4025,13 +4028,13 @@ table.mercado td:first-child { white-space: nowrap; }
     else if (a.o === MINERO) {
       // Con la Edad del Bronce, los mineros buscan vetas de metal para la armería; si no, piedra.
       const vendeMetal = pausada(m) && c.cartera && (c.cartera.metal || c.cartera.armas);
-      const faltaMetal = c.era >= 1 && ((c.metal || 0) < 8 + 4 * c.era || (vendeMetal && (c.metal || 0) < 60));
+      const faltaMetal = c.era >= 1 && ((c.metal || 0) < 8 + 4 * c.era || (vendeMetal && (c.metal || 0) < 60) || (prio(c, 'metal') > 1 && (c.metal || 0) < 150));
       a.buscaMetal = 0;
       // Si el jugador pide piedra (o un edificio que la necesita), las vetas pasan a segundo plano.
-      const quierePiedra = prio(c, 'piedra') > 1 || (c.plan && c.plan.obra && (COSTES[OBRA[c.plan.obra]] || [0, 0])[1] > c.piedra);
+      const quierePiedra = (prio(c, 'piedra') > 1 && prio(c, 'piedra') >= prio(c, 'metal')) || (c.plan && c.plan.obra && (COSTES[OBRA[c.plan.obra]] || [0, 0])[1] > c.piedra);
       // En la era industrial, el carbón: primero las vetas negras, y si no, una mina de carbón en la montaña.
       const vendeCarbon = pausada(m) && c.cartera && c.cartera.carbon;
-      const faltaCarbon = c.era >= 6 && ((c.carbon || 0) < objetivo(c, 'carbon') || (vendeCarbon && (c.carbon || 0) < 80));
+      const faltaCarbon = c.era >= 6 && ((c.carbon || 0) < objetivo(c, 'carbon') || (vendeCarbon && (c.carbon || 0) < 80) || (prio(c, 'carbon') > 1 && (c.carbon || 0) < 150));
       a.buscaCarbon = 0;
       if (faltaCarbon && azar(v) < (quierePiedra ? 0.25 : 0.55)) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] === 3, 5, 'carbon');
       if (t < 0 && faltaCarbon && pausada(m) && azar(v) < 0.5) { t = cercaDeCasa(m, a, c, rec, x => (ter[x] === 'montana' || ter[x] === 'colina') && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaCarbon = 1; } }
@@ -5529,14 +5532,16 @@ table.mercado td:first-child { white-space: nowrap; }
   const RECURSOS = {
     madera: /\b(tala\w*|tale\w*|talen|talad|talar|lena\w*|madera|arboles?|bosques?|troncos?)\b/,
     comida: /\b(pesc\w*|orden\w*|ganado|ovejas?|vacas?|cri(ad|en|ar)|rebanos?|pastore\w*|caz(ad|en|ar)|sembr\w*|siembr\w*|cultiv\w*|granj\w*|campos?|cosech\w*|agricult\w*|trigo|comida|alimento\w*|hambre)\b/,
-    piedra: /\b(minas?|miner\w*|piedra|canteras?|picad|picar)\b/,
+    piedra: /\b(minas?|miner\w*|piedras?|canteras?|picad|picar)\b/,
+    metal: /\b(hierro|metal\w*|vetas?|menas?|minerales?|cobre|estano|bronce para)\b/,
+    carbon: /\b(carbon\w*|hulla)\b/,
     casas: /\b(constru\w*|casas?|edific\w*|obras?|viviendas?|caminos?|carreteras?|calzadas?)\b/,
     ejercito: /\b(reclut\w*|ejercitos?|soldados?|guerreros?|militar\w*|milicias?|defensa|tropas?|armas)\b/,
     ciencia: /\b(cienc\w*|investig\w*|estudi\w*|sabios?|chaman\w*|filosof\w*|monjes?|erudit\w*|cientific\w*|sacerdot\w*|druid\w*|escuelas?|tecnolog\w*|universidad\w*|inventos?)\b/,
     riqueza: /\b(riqueza|oro|dinero|mercados?|negocios?|enriquec\w*|impuestos|comercio|comerciantes?|caravanas?|carretas?|mercaderes)\b/
   };
   const NB = k => (M.vida && M.vida.NOMBRE_BIEN && M.vida.NOMBRE_BIEN[k]) || k;
-  const NOMBRE_RECURSO = { madera: 'madera', comida: 'comida', piedra: 'piedra', casas: 'casas', ejercito: 'ejército', ciencia: 'ciencia', riqueza: 'riqueza', expansion: 'expansión' };
+  const NOMBRE_RECURSO = { metal: 'metal', carbon: 'carbón', madera: 'madera', comida: 'comida', piedra: 'piedra', casas: 'casas', ejercito: 'ejército', ciencia: 'ciencia', riqueza: 'riqueza', expansion: 'expansión' };
   const NIVEL = v => (v <= 0 ? 'nada' : v <= 0.5 ? 'baja' : v <= 1 ? 'normal' : v <= 1.5 ? 'alta' : 'máxima');
   const REGIMENES = [[/\bdemocracia\b/, 'democracia', 5], [/\brepublica\b/, 'republica', 2], [/\bimperio\b|\bemperador\b/, 'imperio', 2], [/\bdictadura\b|\bdictador\b/, 'dictadura', 5], [/\bteocracia\b/, 'teocracia', 1], [/\bmonarquia\b|\breino\b|\bcorona\w*\b|\brey\b/, 'reino', 1], [/\brepublica popular\b|\bcomunis\w*\b/, 'estado_obrero', 6]];
 
@@ -5839,7 +5844,7 @@ table.mercado td:first-child { white-space: nowrap; }
       (/\b(guard\w*|vigil\w*|proteg\w*|defend\w*|custodi\w*|atac\w*|ataq\w*|asalt\w*|tom(ad|en|ar)|sitia\w*|asedi\w*)\b/.test(n) && numero1 >= 1 && soldados.test(n));
     if (escuadron) {
       const arma = /\b(arquer\w*|tirador\w*|honder\w*|fusiler\w*|ballester\w*)\b/.test(n) ? 'arqueros' : /\btanques?\b/.test(n) ? 'tanques' : null;
-      const ataca = /\b(ataq\w*|atac\w*|asalt\w*|tom\w*|asedi\w*|sitia\w*|saque\w*)\b/.test(n) ? plazaEnemiga(m, c, n) : null;
+      const ataca = /\b(ataq\w*|atac\w*|asalt\w*|tom\w*|asedi\w*|sitia\w*|saque[aoe]\w*)\b/.test(n) ? plazaEnemiga(m, c, n) : null;
       const region = ataca != null ? ataca : regionPropia(m, c, n) != null ? regionPropia(m, c, n) : (/\b(patrull\w*|vigil\w*|guard\w*)\b/.test(n) ? regionPropia(m, c, 'frontera') : null);
       return [{ tipo: 'escuadron', n: numero1 >= 1 ? Math.round(numero1) : arma === 'tanques' ? 3 : 8, arma, region, ataca: ataca != null || undefined }];
     }
@@ -5863,7 +5868,7 @@ table.mercado td:first-child { white-space: nowrap; }
     if (/\b(insult\w*|provoc\w*|amenaz\w*|humill\w*|burl\w*|ofend\w*|desafi\w*)\b/.test(n) && o) return [{ tipo: 'insultar', con: o.id }];
     if (/\b(regal\w*|obsequi\w*|tribut\w*|soborn\w*|don\w* (oro|riqueza)|envi\w* (oro|regalos?|presentes?)|pag\w* a)\b/.test(n) && o) return [{ tipo: 'regalo', con: o.id }];
     if (/\b(quem\w*|incendi\w*|arras\w*|sabote\w*|envenen\w*|destru\w* sus|talad sus|robad)\b/.test(n) && /\b(sus|enemig\w*|de \w+|su)\b/.test(n)) return [{ tipo: 'sabotaje', con: o ? o.id : c.guerras.length ? c.guerras[0].con : null }];
-    if (/\b(saque\w*|pillad\w*|asedi\w*|sitia\w*|asalt\w*)\b/.test(n)) { const r = plazaEnemiga(m, c, n); return r != null ? [{ tipo: 'objetivo', region: r }] : [{ tipo: 'atacar' }]; }
+    if (/\b(saque[aoe]\w*|pillad\w*|asedi\w*|sitia\w*|asalt\w*)\b/.test(n)) { const r = plazaEnemiga(m, c, n); return r != null ? [{ tipo: 'objetivo', region: r }] : [{ tipo: 'atacar' }]; }
     // Cazar lobos: unos cuantos salen armados a por ellos (3 turnos).
     if (/\b(caz\w*|mat\w*|ahuyent\w*) (a )?(los )?lobos?\b/.test(n)) return [{ tipo: 'cuadrilla', n: numero1 >= 1 ? Math.round(numero1) : 4, de: -1, a: 4, hasta: { turnos: 3 } }];
     // Reparar: las ruinas propias vuelven a ser casas (y se apaga lo que arda).
@@ -6194,7 +6199,45 @@ table.mercado td:first-child { white-space: nowrap; }
   const TIPOS_EXTRA = ['huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- Del texto a las acciones ----------
+  /*
+   * ÓRDENES COMPUESTAS: «busquen hierro y saquen madera», «haced 3 casas y talad 10 árboles», «más comida,
+   * menos soldados y construid un templo». Se parte la frase por las comas y las «y» que separan verbos, se
+   * entiende cada trozo y se juntan las acciones (las prioridades se suman en una sola). Si un trozo suelto no
+   * se entiende («quiero piedra y metal» → «metal»), se le pone delante el verbo del primero. Solo se usa el
+   * resultado partido si dice más que la frase entera; si no, vale lo de siempre.
+   */
   function entender(m, civId, texto) {
+    const entera = entenderUna(m, civId, texto);
+    const trozos = String(texto || '').split(/\s*(?:[,;]|\by luego\b|\by despues\b|\by después\b|\by tambien\b|\by también\b|\bademas\b|\bademás\b|\by\b|\be\b(?=\s+[a-záéíóú]))\s*/i).map(x => x.trim()).filter(Boolean);
+    if (trozos.length < 2) return entera;
+    // Palabras sueltas que no son órdenes (nombres de reinos, «a Velmora y Karenia»): mejor no partir.
+    const verbo = (trozos[0].match(/^\S+/) || [''])[0];
+    const partes = [];
+    for (const t of trozos) {
+      let r = entenderUna(m, civId, t);
+      const vacia = !r || !r.length || r.every(x => x.tipo === 'informe');
+      if (vacia && t !== trozos[0]) r = entenderUna(m, civId, verbo + ' ' + t);
+      if (!r || !r.length || r.every(x => x.tipo === 'informe')) return entera;
+      if (r.some(x => ['milagro', 'normal'].includes(x.tipo))) return entera;
+      partes.push(r);
+    }
+    // Se juntan: las prioridades en una; lo demás, cada acción una vez.
+    const out = [], visto = new Set();
+    let pr = null;
+    for (const r of partes) for (const x of r) {
+      if (x.tipo === 'prioridad') {
+        if (!pr) { pr = { tipo: 'prioridad', cambios: {} }; out.push(pr); }
+        Object.assign(pr.cambios, x.cambios);
+        if (x.solo) pr.solo = true; if (x.hasta) pr.hasta = x.hasta;
+        continue;
+      }
+      const k = JSON.stringify(x); if (visto.has(k)) continue; visto.add(k); out.push(x);
+    }
+    // ¿Dice más que la frase entera? (más acciones, o más prioridades tocadas).
+    const peso = l => (l || []).reduce((s, x) => s + (x.tipo === 'prioridad' ? Object.keys(x.cambios).length : 1), 0);
+    return peso(out) > peso(entera) ? out : entera;
+  }
+  function entenderUna(m, civId, texto) {
     const c = S().civ(m, civId), n = norm(texto), acciones = [];
     if (!c || !c.viva || !n) return acciones;
     // Aquí no hay milagros: eres quien manda en un pueblo, no un dios.
@@ -6476,7 +6519,7 @@ table.mercado td:first-child { white-space: nowrap; }
   const T = s => s.charAt(0).toUpperCase() + s.slice(1);
   const aEra = con => (con.startsWith('el ') ? 'al ' + con.slice(3) : 'a ' + con); // «al Renacimiento», «a la Edad Media»
   // Cuánta gente hay en cada oficio según el gobernador automático, para decir qué cambia con una orden.
-  const OFICIO_DE = { ciencia: [6, 'eruditos'], madera: [0, 'leñadores'], comida: [1, 'granjeros'], casas: [2, 'constructores'], piedra: [3, 'mineros'], ejercito: [4, 'guerreros'], riqueza: [5, 'comerciantes'] };
+  const OFICIO_DE = { ciencia: [6, 'eruditos'], madera: [0, 'leñadores'], comida: [1, 'granjeros'], casas: [2, 'constructores'], piedra: [3, 'mineros'], metal: [3, 'mineros'], carbon: [3, 'mineros'], ejercito: [4, 'guerreros'], riqueza: [5, 'comerciantes'] };
   function repartoDe(m, c) {
     if (!M.vida || !m.vida) return null;
     const adultos = m.vida.aldeanos.filter(x => x.c === c.id && (x.edad || 0) >= M.vida.ADULTO && x.colono == null).length;
@@ -7637,6 +7680,63 @@ table.mercado td:first-child { white-space: nowrap; }
   // carga: lleva troncos o piedras; arma, tirador, armadura: los guerreros. pelo: 0..3.
   const PIEL = ['#f0c8a0', '#d8a878', '#b07a50', '#8a5a3a'], PELO = ['#3a2418', '#1e1a1a', '#c89a4a', '#7a3a1e'];
   const MAT = ['#a3a9b5', '#8a5a32', '#c89a3a', '#8a909c', '#cfd6e2', '#b8c0cc', '#6a7a5a'];
+  /*
+   * EL TIRADOR EN COMBATE: posturas de tiro, mirando a la derecha (el pintor lo voltea si el blanco está a la
+   * izquierda). 'apunta': de pie con el arma al hombro (honda, pólvora temprana); 'rodilla': rodilla en tierra
+   * (arcabuz, espingarda); 'tierra': cuerpo a tierra (fusil moderno); 'arco': tensando el arco (tenso = cuerda
+   * atrás, con la flecha). Devuelve el dibujo y dónde está la boca del arma, para el fogonazo.
+   */
+  const BOCA = { apunta: [15, 7], rodilla: [15, 9], tierra: [15, 10], arco: [13, 7] };
+  function tiradorEnPose(o) {
+    const clave = 'tp' + [o.col, o.pose, o.tenso ? 1 : 0, o.arma, o.armadura, o.piel, o.pelo].join(':');
+    return guardado(clave, () => {
+      const H = hoja(16, 14), piel = PIEL[o.piel || 0], pelo = PELO[o.pelo || 0], arm = o.armadura ? MAT[o.armadura] : null;
+      const ropa = arm || o.col, pierna = '#4a3a2e', fuego = (o.arma || 0) >= 5, culata = '#7a4a22', canon = '#3a3a44';
+      const casco = (x, y) => {
+        if (fuego) { H.r(x - 1, y - 1, 5, 2, o.arma >= 7 ? '#5a6a4a' : '#2a2a3a'); H.r(x - 2, y, 7, 1, o.arma >= 7 ? '#4a5a3a' : '#1a1a2a'); }
+        else if ((o.arma || 0) >= 1) { H.r(x - 1, y - 1, 5, 2, '#4a7a3a'); H.p(x - 1, y + 1, '#4a7a3a'); }
+        else { H.r(x, y - 1, 3, 1, pelo); H.p(x - 1, y, pelo); }
+      };
+      const cabeza = (x, y) => { H.r(x, y, 3, 4, piel); H.r(x + 2, y, 1, 4, oscuro(piel, 0.12)); H.p(x + 2, y + 2, '#2a1e1a'); H.r(x, y - 1, 3, 1, pelo); casco(x, y); };
+      const torso = (x, y, w, h) => { H.r(x, y, w, h, ropa); H.r(x, y, w, 1, claro(ropa, 0.15)); if (arm) H.r(x + Math.floor(w / 2), y, 1, h, o.col); H.r(x, y + h - 1, w, 1, oscuro(ropa, 0.3)); };
+      if (o.pose === 'tierra') {
+        // Tumbado boca abajo: piernas atrás, el cuerpo pegado al suelo, la cabeza alzada y el fusil al frente.
+        H.r(0, 12, 4, 1, pierna); H.p(0, 11, '#2a1e14'); H.p(1, 13, '#2a1e14');
+        torso(3, 11, 6, 2);
+        H.p(9, 12, ropa); H.p(10, 12, piel);
+        cabeza(9, 8);
+        H.r(8, 10, 3, 1, culata); H.r(11, 10, 5, 1, canon); H.p(10, 11, culata);
+      } else if (o.pose === 'rodilla') {
+        // Rodilla en tierra: una pierna doblada con la rodilla en el suelo, la otra delante; el arma al hombro.
+        H.r(3, 12, 3, 1, pierna); H.p(2, 12, '#2a1e14');
+        H.r(6, 11, 2, 1, pierna); H.r(7, 12, 1, 1, pierna); H.p(7, 13, '#2a1e14');
+        torso(4, 8, 5, 4);
+        cabeza(5, 4);
+        H.p(9, 9, ropa); H.p(10, 9, piel); H.p(8, 10, piel);
+        H.r(7, 9, 3, 1, culata); H.r(10, 9, 6, 1, canon); if (o.arma === 6) H.p(15, 8, '#dfe4ec');
+      } else if (o.pose === 'arco') {
+        // Tensando el arco: brazo delantero estirado con el arco, el de atrás tira de la cuerda (y suelta).
+        H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, 2, pierna); H.p(5, 12, '#2a1e14'); H.p(7, 12, '#2a1e14');
+        torso(4, 7, 5, 4);
+        cabeza(5, 3);
+        H.r(9, 7, 2, 1, ropa); H.p(11, 7, piel);
+        for (const [x, y] of [[11, 3], [12, 4], [12, 5], [12, 6], [12, 7], [12, 8], [12, 9], [12, 10], [11, 11]]) H.p(x, y, '#8a5a2b');
+        const cuerda = o.tenso ? 8 : 11;
+        H.p(11, 4, '#e8e0c8'); H.p(11, 10, '#e8e0c8'); for (let y = 5; y <= 9; y++) H.p(y === 7 ? cuerda : Math.round(11 + (cuerda - 11) * (1 - Math.abs(y - 7) / 3)), y, '#e8e0c8');
+        if (o.tenso) { H.r(8, 7, 6, 1, '#c8a050'); H.p(14, 7, '#cfd6e2'); H.p(8, 7, piel); }
+      } else {
+        // De pie apuntando: el arma al hombro y los dos brazos al frente.
+        H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, 2, pierna); H.p(5, 12, '#2a1e14'); H.p(7, 12, '#2a1e14');
+        torso(4, 7, 5, 4);
+        cabeza(5, 3);
+        H.p(9, 8, ropa); H.p(10, 8, piel); H.p(8, 9, piel);
+        if (fuego) { H.r(7, 7, 3, 1, culata); H.r(10, 7, 6, 1, canon); }
+        else { H.r(9, 6, 1, 3, '#7a5232'); H.p(10, 5, '#c8b07a'); H.p(10, 7, '#a3a1aa'); }
+      }
+      H.contorno(0.6);
+      return H.lienzo();
+    });
+  }
   function aldeano(o) {
     const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo, o.sabio || ''].join(':');
     return guardado(clave, () => {
@@ -7860,7 +7960,7 @@ table.mercado td:first-child { white-space: nowrap; }
     return guardado('ico' + nombre, () => { const H = hoja(12, 12); (ICONOS[nombre] || ICONOS.mas)(H); H.contorno(0.75); return H.lienzo(); });
   }
   const iconoURL = nombre => guardado('icourl' + nombre, () => icono(nombre).toDataURL());
-  M.arte = { T, icono, iconoURL, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  M.arte = { tiradorEnPose, BOCA, T, icono, iconoURL, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/pintor.js
@@ -8353,7 +8453,7 @@ table.mercado td:first-child { white-space: nowrap; }
     g.fillRect(px + 1, py, 1, 1); g.fillRect(px, py + 1, 3, 2); g.fillRect(px, py + 3, 1, 2); g.fillRect(px + 2, py + 3, 1, 2);
   }
 
-  const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map();
+  const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map(), humoTiro = new Set();
   let quietos = [], gritos = [];
   // El dibujo de un aldeano (también para su caída).
   function figura(a, col, paso, alto, carga) {
@@ -8587,7 +8687,16 @@ table.mercado td:first-child { white-space: nowrap; }
       // El aldeano: un dibujo de 12×14 con contorno (arte.js), según su oficio, edad, equipo y lo que hace.
       const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
       const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
-      const img = figura(a, color[a.c] || '#cccccc', anda && t ? 1 : 0, alto, acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0);
+      // En plena batalla, el tirador que acaba de disparar no anda: se pone en posición de tiro (de pie con la
+      // honda, tensando el arco, de rodillas con el arcabuz o la espingarda, cuerpo a tierra con el fusil
+      // moderno), mira al blanco y, al soltar, sale el fogonazo y el arma retrocede.
+      const cv_ = oficio === 'guerrero' && a.tirador && !nino && a.fuego && m.turno - a.fuego.turno <= 1 && !anda ? civPorId.get(a.c) : null;
+      const pose = cv_ && cv_.guerras && cv_.guerras.length ? (cv_.era >= 7 ? 'tierra' : cv_.era >= 5 ? 'rodilla' : (a.arma || 0) >= 1 ? 'arco' : 'apunta') : null;
+      let suelta = null;
+      if (pose) for (const d of v.disparos || []) if (d[6] === a.id && k >= d[4] - 1.6 && k < d[4] - 0.7) { suelta = k >= d[4] - 1 ? (k - (d[4] - 1)) / 0.3 : -1; break; }
+      const dirTiro = pose ? (a.fuego.dx || 1) : 1;
+      const img = pose ? ARTE().tiradorEnPose({ col: color[a.c] || '#cccccc', pose, tenso: pose === 'arco' && !(suelta != null && suelta >= 0), arma: a.arma || 0, armadura: a.armadura || 0, piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4 })
+        : figura(a, color[a.c] || '#cccccc', anda && t ? 1 : 0, alto, acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0);
       // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
       const ix = px - 1.5, iy = py - 1, EA = 0.5;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
@@ -8610,7 +8719,21 @@ table.mercado td:first-child { white-space: nowrap; }
       }
       // En fiesta, la gente que no trabaja baila (da saltitos al ritmo).
       const baila = fiesta.has(a.c) && acc === 0 && !anda && Math.sin(ahora / 140 + a.id) > 0.3;
-      g.drawImage(img, ix, iy - (baila ? 1 : 0), img.width * EA, img.height * EA);
+      if (pose) {
+        // Retroceso al disparar (medio píxel hacia atrás) y el dibujo volteado si el blanco está a la izquierda.
+        const atras = suelta != null && suelta >= 0 && pose !== 'arco' ? -0.5 * dirTiro : 0;
+        g.save(); if (dirTiro < 0) { g.translate(2 * (px + 1.5), 0); g.scale(-1, 1); }
+        g.drawImage(img, ix + atras * dirTiro, iy, img.width * EA, img.height * EA);
+        g.restore();
+        if (suelta != null && suelta >= 0 && pose !== 'arco') {
+          const [bx_, by_] = ARTE().BOCA[pose], fx = dirTiro > 0 ? ix + bx_ * EA : 2 * (px + 1.5) - (ix + bx_ * EA), fy = iy + by_ * EA;
+          g.fillStyle = suelta < 0.5 ? '#fff6c0' : '#ffb03a'; g.fillRect(fx + (dirTiro > 0 ? 0 : -2), fy - 0.5, 2, 1);
+          g.fillStyle = '#ffd23a'; g.fillRect(fx + (dirTiro > 0 ? 1.5 : -2.5), fy - 1, 1, 2);
+          const clave_ = a.id + ':' + m.turno + ':' + Math.floor(k);
+          if (!humoTiro.has(clave_)) { humoTiro.add(clave_); if (humoTiro.size > 400) humoTiro.clear(); emitir(fx + dirTiro, fy, 3, { v: 8, g: -6, vida: 900, cols: ['#e8e8ec', '#c8c8d0'], tipo: 'humo', tam: 1.4 }); }
+        }
+      }
+      else g.drawImage(img, ix, iy - (baila ? 1 : 0), img.width * EA, img.height * EA);
       // Partículas del trabajo: astillas, lascas, terrones, polvo de obra, y la chispa de una idea.
       if (acc === 1 && !nino && Math.random() < 0.07) {
         const hx = px + 4.5, hy = py + 3;
@@ -8649,7 +8772,9 @@ table.mercado td:first-child { white-space: nowrap; }
       if (recibe) {
         const [gp, d] = recibe;
         // Destello: rojo al recibir, luego un parpadeo blanco; y unas gotas de sangre que saltan y caen.
-        g.globalAlpha = d < 0.45 ? 0.9 : d < 0.7 ? 0.65 : 0.35; g.drawImage(ARTE().tenido(img, d < 0.45 ? '#ff2a2a' : '#ffffff'), ix, iy, img.width * EA, img.height * EA); g.globalAlpha = 1;
+        g.globalAlpha = d < 0.45 ? 0.9 : d < 0.7 ? 0.65 : 0.35;
+        g.save(); if (pose && dirTiro < 0) { g.translate(2 * (px + 1.5), 0); g.scale(-1, 1); }
+        g.drawImage(ARTE().tenido(img, d < 0.45 ? '#ff2a2a' : '#ffffff'), ix, iy, img.width * EA, img.height * EA); g.restore(); g.globalAlpha = 1;
         const sx = Math.sign(a.x - gp[2]) || 1;
         g.fillStyle = '#b01818';
         for (let q = 0; q < 3; q++) { const vx = sx * (1.5 + q * 1.2), vy = -3 + q; g.fillRect(Math.round(px + 1 + vx * d * 3), Math.round(py + 2 + vy * d * 3 + 7 * d * d), 1, 1); }

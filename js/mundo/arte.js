@@ -931,6 +931,63 @@
   // carga: lleva troncos o piedras; arma, tirador, armadura: los guerreros. pelo: 0..3.
   const PIEL = ['#f0c8a0', '#d8a878', '#b07a50', '#8a5a3a'], PELO = ['#3a2418', '#1e1a1a', '#c89a4a', '#7a3a1e'];
   const MAT = ['#a3a9b5', '#8a5a32', '#c89a3a', '#8a909c', '#cfd6e2', '#b8c0cc', '#6a7a5a'];
+  /*
+   * EL TIRADOR EN COMBATE: posturas de tiro, mirando a la derecha (el pintor lo voltea si el blanco está a la
+   * izquierda). 'apunta': de pie con el arma al hombro (honda, pólvora temprana); 'rodilla': rodilla en tierra
+   * (arcabuz, espingarda); 'tierra': cuerpo a tierra (fusil moderno); 'arco': tensando el arco (tenso = cuerda
+   * atrás, con la flecha). Devuelve el dibujo y dónde está la boca del arma, para el fogonazo.
+   */
+  const BOCA = { apunta: [15, 7], rodilla: [15, 9], tierra: [15, 10], arco: [13, 7] };
+  function tiradorEnPose(o) {
+    const clave = 'tp' + [o.col, o.pose, o.tenso ? 1 : 0, o.arma, o.armadura, o.piel, o.pelo].join(':');
+    return guardado(clave, () => {
+      const H = hoja(16, 14), piel = PIEL[o.piel || 0], pelo = PELO[o.pelo || 0], arm = o.armadura ? MAT[o.armadura] : null;
+      const ropa = arm || o.col, pierna = '#4a3a2e', fuego = (o.arma || 0) >= 5, culata = '#7a4a22', canon = '#3a3a44';
+      const casco = (x, y) => {
+        if (fuego) { H.r(x - 1, y - 1, 5, 2, o.arma >= 7 ? '#5a6a4a' : '#2a2a3a'); H.r(x - 2, y, 7, 1, o.arma >= 7 ? '#4a5a3a' : '#1a1a2a'); }
+        else if ((o.arma || 0) >= 1) { H.r(x - 1, y - 1, 5, 2, '#4a7a3a'); H.p(x - 1, y + 1, '#4a7a3a'); }
+        else { H.r(x, y - 1, 3, 1, pelo); H.p(x - 1, y, pelo); }
+      };
+      const cabeza = (x, y) => { H.r(x, y, 3, 4, piel); H.r(x + 2, y, 1, 4, oscuro(piel, 0.12)); H.p(x + 2, y + 2, '#2a1e1a'); H.r(x, y - 1, 3, 1, pelo); casco(x, y); };
+      const torso = (x, y, w, h) => { H.r(x, y, w, h, ropa); H.r(x, y, w, 1, claro(ropa, 0.15)); if (arm) H.r(x + Math.floor(w / 2), y, 1, h, o.col); H.r(x, y + h - 1, w, 1, oscuro(ropa, 0.3)); };
+      if (o.pose === 'tierra') {
+        // Tumbado boca abajo: piernas atrás, el cuerpo pegado al suelo, la cabeza alzada y el fusil al frente.
+        H.r(0, 12, 4, 1, pierna); H.p(0, 11, '#2a1e14'); H.p(1, 13, '#2a1e14');
+        torso(3, 11, 6, 2);
+        H.p(9, 12, ropa); H.p(10, 12, piel);
+        cabeza(9, 8);
+        H.r(8, 10, 3, 1, culata); H.r(11, 10, 5, 1, canon); H.p(10, 11, culata);
+      } else if (o.pose === 'rodilla') {
+        // Rodilla en tierra: una pierna doblada con la rodilla en el suelo, la otra delante; el arma al hombro.
+        H.r(3, 12, 3, 1, pierna); H.p(2, 12, '#2a1e14');
+        H.r(6, 11, 2, 1, pierna); H.r(7, 12, 1, 1, pierna); H.p(7, 13, '#2a1e14');
+        torso(4, 8, 5, 4);
+        cabeza(5, 4);
+        H.p(9, 9, ropa); H.p(10, 9, piel); H.p(8, 10, piel);
+        H.r(7, 9, 3, 1, culata); H.r(10, 9, 6, 1, canon); if (o.arma === 6) H.p(15, 8, '#dfe4ec');
+      } else if (o.pose === 'arco') {
+        // Tensando el arco: brazo delantero estirado con el arco, el de atrás tira de la cuerda (y suelta).
+        H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, 2, pierna); H.p(5, 12, '#2a1e14'); H.p(7, 12, '#2a1e14');
+        torso(4, 7, 5, 4);
+        cabeza(5, 3);
+        H.r(9, 7, 2, 1, ropa); H.p(11, 7, piel);
+        for (const [x, y] of [[11, 3], [12, 4], [12, 5], [12, 6], [12, 7], [12, 8], [12, 9], [12, 10], [11, 11]]) H.p(x, y, '#8a5a2b');
+        const cuerda = o.tenso ? 8 : 11;
+        H.p(11, 4, '#e8e0c8'); H.p(11, 10, '#e8e0c8'); for (let y = 5; y <= 9; y++) H.p(y === 7 ? cuerda : Math.round(11 + (cuerda - 11) * (1 - Math.abs(y - 7) / 3)), y, '#e8e0c8');
+        if (o.tenso) { H.r(8, 7, 6, 1, '#c8a050'); H.p(14, 7, '#cfd6e2'); H.p(8, 7, piel); }
+      } else {
+        // De pie apuntando: el arma al hombro y los dos brazos al frente.
+        H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, 2, pierna); H.p(5, 12, '#2a1e14'); H.p(7, 12, '#2a1e14');
+        torso(4, 7, 5, 4);
+        cabeza(5, 3);
+        H.p(9, 8, ropa); H.p(10, 8, piel); H.p(8, 9, piel);
+        if (fuego) { H.r(7, 7, 3, 1, culata); H.r(10, 7, 6, 1, canon); }
+        else { H.r(9, 6, 1, 3, '#7a5232'); H.p(10, 5, '#c8b07a'); H.p(10, 7, '#a3a1aa'); }
+      }
+      H.contorno(0.6);
+      return H.lienzo();
+    });
+  }
   function aldeano(o) {
     const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo, o.sabio || ''].join(':');
     return guardado(clave, () => {
@@ -1154,5 +1211,5 @@
     return guardado('ico' + nombre, () => { const H = hoja(12, 12); (ICONOS[nombre] || ICONOS.mas)(H); H.contorno(0.75); return H.lienzo(); });
   }
   const iconoURL = nombre => guardado('icourl' + nombre, () => icono(nombre).toDataURL());
-  M.arte = { T, icono, iconoURL, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  M.arte = { tiradorEnPose, BOCA, T, icono, iconoURL, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});

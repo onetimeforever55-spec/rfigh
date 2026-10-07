@@ -718,6 +718,28 @@ console.log('OBREROS, HUELGAS Y REVOLUCIONES');
   comprobar(c.regimen !== reg && m.cronica.some(e => /Revolución en/.test(e.titulo)), 'tras varias huelgas, una revolución cambia el régimen (' + reg + ' → ' + c.regimen + ')');
 }
 
+console.log('ÓRDENES COMPUESTAS');
+{
+  const X = M.mando, m = S.crear(11, 5, { ritmo: 3 });
+  for (let k = 0; k < 30; k++) S.turno(m);
+  const c = X.gobernar(m, S.vivas(m)[0].id), o = S.vivas(m)[1];
+  const e = t => X.entender(m, c.id, t), pr = r => (r.find(x => x.tipo === 'prioridad') || { cambios: {} }).cambios;
+  const r1 = e('busquen hierro y saquen madera');
+  comprobar(pr(r1).metal && pr(r1).madera && !r1.some(x => x.tipo === 'atacar'), '«busquen hierro y saquen madera» son dos prioridades (metal y madera), no un saqueo');
+  const r2 = e('buscad hierro, sacad madera y sembrad trigo');
+  comprobar(pr(r2).metal && pr(r2).madera && pr(r2).comida, 'tres órdenes separadas por comas, tres prioridades');
+  const r3 = e('haced 3 casas y talad 10 árboles');
+  comprobar(r3.filter(x => x.tipo === 'meta').length === 2, 'dos metas en una frase: 3 casas y 10 árboles');
+  const r4 = e('quiero piedra y metal');
+  comprobar(pr(r4).piedra && pr(r4).metal, '«quiero piedra y metal»: el verbo vale para los dos');
+  const r5 = e('subid los impuestos y haced fiestas');
+  comprobar(r5.some(x => x.tipo === 'impuestos') && r5.some(x => x.tipo === 'fiesta'), 'impuestos y fiesta a la vez');
+  comprobar(e('saquead su ciudad').some(x => x.tipo === 'atacar' || x.tipo === 'objetivo'), '«saquead» sigue siendo saquear');
+  comprobar(JSON.stringify(e('paz con ' + o.nombre)) === JSON.stringify([{ tipo: 'paz', con: o.id }]), 'una orden simple sigue igual');
+  X.ordenar(m, c.id, 'busquen hierro y saquen madera');
+  comprobar(c.plan.prioridad.metal > 1 && c.plan.prioridad.madera > 1, 'y al ordenarlo suben las dos prioridades');
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;

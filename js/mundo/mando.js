@@ -18,14 +18,16 @@
   const RECURSOS = {
     madera: /\b(tala\w*|tale\w*|talen|talad|talar|lena\w*|madera|arboles?|bosques?|troncos?)\b/,
     comida: /\b(pesc\w*|orden\w*|ganado|ovejas?|vacas?|cri(ad|en|ar)|rebanos?|pastore\w*|caz(ad|en|ar)|sembr\w*|siembr\w*|cultiv\w*|granj\w*|campos?|cosech\w*|agricult\w*|trigo|comida|alimento\w*|hambre)\b/,
-    piedra: /\b(minas?|miner\w*|piedra|canteras?|picad|picar)\b/,
+    piedra: /\b(minas?|miner\w*|piedras?|canteras?|picad|picar)\b/,
+    metal: /\b(hierro|metal\w*|vetas?|menas?|minerales?|cobre|estano|bronce para)\b/,
+    carbon: /\b(carbon\w*|hulla)\b/,
     casas: /\b(constru\w*|casas?|edific\w*|obras?|viviendas?|caminos?|carreteras?|calzadas?)\b/,
     ejercito: /\b(reclut\w*|ejercitos?|soldados?|guerreros?|militar\w*|milicias?|defensa|tropas?|armas)\b/,
     ciencia: /\b(cienc\w*|investig\w*|estudi\w*|sabios?|chaman\w*|filosof\w*|monjes?|erudit\w*|cientific\w*|sacerdot\w*|druid\w*|escuelas?|tecnolog\w*|universidad\w*|inventos?)\b/,
     riqueza: /\b(riqueza|oro|dinero|mercados?|negocios?|enriquec\w*|impuestos|comercio|comerciantes?|caravanas?|carretas?|mercaderes)\b/
   };
   const NB = k => (M.vida && M.vida.NOMBRE_BIEN && M.vida.NOMBRE_BIEN[k]) || k;
-  const NOMBRE_RECURSO = { madera: 'madera', comida: 'comida', piedra: 'piedra', casas: 'casas', ejercito: 'ejército', ciencia: 'ciencia', riqueza: 'riqueza', expansion: 'expansión' };
+  const NOMBRE_RECURSO = { metal: 'metal', carbon: 'carbón', madera: 'madera', comida: 'comida', piedra: 'piedra', casas: 'casas', ejercito: 'ejército', ciencia: 'ciencia', riqueza: 'riqueza', expansion: 'expansión' };
   const NIVEL = v => (v <= 0 ? 'nada' : v <= 0.5 ? 'baja' : v <= 1 ? 'normal' : v <= 1.5 ? 'alta' : 'máxima');
   const REGIMENES = [[/\bdemocracia\b/, 'democracia', 5], [/\brepublica\b/, 'republica', 2], [/\bimperio\b|\bemperador\b/, 'imperio', 2], [/\bdictadura\b|\bdictador\b/, 'dictadura', 5], [/\bteocracia\b/, 'teocracia', 1], [/\bmonarquia\b|\breino\b|\bcorona\w*\b|\brey\b/, 'reino', 1], [/\brepublica popular\b|\bcomunis\w*\b/, 'estado_obrero', 6]];
 
@@ -328,7 +330,7 @@
       (/\b(guard\w*|vigil\w*|proteg\w*|defend\w*|custodi\w*|atac\w*|ataq\w*|asalt\w*|tom(ad|en|ar)|sitia\w*|asedi\w*)\b/.test(n) && numero1 >= 1 && soldados.test(n));
     if (escuadron) {
       const arma = /\b(arquer\w*|tirador\w*|honder\w*|fusiler\w*|ballester\w*)\b/.test(n) ? 'arqueros' : /\btanques?\b/.test(n) ? 'tanques' : null;
-      const ataca = /\b(ataq\w*|atac\w*|asalt\w*|tom\w*|asedi\w*|sitia\w*|saque\w*)\b/.test(n) ? plazaEnemiga(m, c, n) : null;
+      const ataca = /\b(ataq\w*|atac\w*|asalt\w*|tom\w*|asedi\w*|sitia\w*|saque[aoe]\w*)\b/.test(n) ? plazaEnemiga(m, c, n) : null;
       const region = ataca != null ? ataca : regionPropia(m, c, n) != null ? regionPropia(m, c, n) : (/\b(patrull\w*|vigil\w*|guard\w*)\b/.test(n) ? regionPropia(m, c, 'frontera') : null);
       return [{ tipo: 'escuadron', n: numero1 >= 1 ? Math.round(numero1) : arma === 'tanques' ? 3 : 8, arma, region, ataca: ataca != null || undefined }];
     }
@@ -352,7 +354,7 @@
     if (/\b(insult\w*|provoc\w*|amenaz\w*|humill\w*|burl\w*|ofend\w*|desafi\w*)\b/.test(n) && o) return [{ tipo: 'insultar', con: o.id }];
     if (/\b(regal\w*|obsequi\w*|tribut\w*|soborn\w*|don\w* (oro|riqueza)|envi\w* (oro|regalos?|presentes?)|pag\w* a)\b/.test(n) && o) return [{ tipo: 'regalo', con: o.id }];
     if (/\b(quem\w*|incendi\w*|arras\w*|sabote\w*|envenen\w*|destru\w* sus|talad sus|robad)\b/.test(n) && /\b(sus|enemig\w*|de \w+|su)\b/.test(n)) return [{ tipo: 'sabotaje', con: o ? o.id : c.guerras.length ? c.guerras[0].con : null }];
-    if (/\b(saque\w*|pillad\w*|asedi\w*|sitia\w*|asalt\w*)\b/.test(n)) { const r = plazaEnemiga(m, c, n); return r != null ? [{ tipo: 'objetivo', region: r }] : [{ tipo: 'atacar' }]; }
+    if (/\b(saque[aoe]\w*|pillad\w*|asedi\w*|sitia\w*|asalt\w*)\b/.test(n)) { const r = plazaEnemiga(m, c, n); return r != null ? [{ tipo: 'objetivo', region: r }] : [{ tipo: 'atacar' }]; }
     // Cazar lobos: unos cuantos salen armados a por ellos (3 turnos).
     if (/\b(caz\w*|mat\w*|ahuyent\w*) (a )?(los )?lobos?\b/.test(n)) return [{ tipo: 'cuadrilla', n: numero1 >= 1 ? Math.round(numero1) : 4, de: -1, a: 4, hasta: { turnos: 3 } }];
     // Reparar: las ruinas propias vuelven a ser casas (y se apaga lo que arda).
@@ -683,7 +685,45 @@
   const TIPOS_EXTRA = ['huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- Del texto a las acciones ----------
+  /*
+   * ÓRDENES COMPUESTAS: «busquen hierro y saquen madera», «haced 3 casas y talad 10 árboles», «más comida,
+   * menos soldados y construid un templo». Se parte la frase por las comas y las «y» que separan verbos, se
+   * entiende cada trozo y se juntan las acciones (las prioridades se suman en una sola). Si un trozo suelto no
+   * se entiende («quiero piedra y metal» → «metal»), se le pone delante el verbo del primero. Solo se usa el
+   * resultado partido si dice más que la frase entera; si no, vale lo de siempre.
+   */
   function entender(m, civId, texto) {
+    const entera = entenderUna(m, civId, texto);
+    const trozos = String(texto || '').split(/\s*(?:[,;]|\by luego\b|\by despues\b|\by después\b|\by tambien\b|\by también\b|\bademas\b|\bademás\b|\by\b|\be\b(?=\s+[a-záéíóú]))\s*/i).map(x => x.trim()).filter(Boolean);
+    if (trozos.length < 2) return entera;
+    // Palabras sueltas que no son órdenes (nombres de reinos, «a Velmora y Karenia»): mejor no partir.
+    const verbo = (trozos[0].match(/^\S+/) || [''])[0];
+    const partes = [];
+    for (const t of trozos) {
+      let r = entenderUna(m, civId, t);
+      const vacia = !r || !r.length || r.every(x => x.tipo === 'informe');
+      if (vacia && t !== trozos[0]) r = entenderUna(m, civId, verbo + ' ' + t);
+      if (!r || !r.length || r.every(x => x.tipo === 'informe')) return entera;
+      if (r.some(x => ['milagro', 'normal'].includes(x.tipo))) return entera;
+      partes.push(r);
+    }
+    // Se juntan: las prioridades en una; lo demás, cada acción una vez.
+    const out = [], visto = new Set();
+    let pr = null;
+    for (const r of partes) for (const x of r) {
+      if (x.tipo === 'prioridad') {
+        if (!pr) { pr = { tipo: 'prioridad', cambios: {} }; out.push(pr); }
+        Object.assign(pr.cambios, x.cambios);
+        if (x.solo) pr.solo = true; if (x.hasta) pr.hasta = x.hasta;
+        continue;
+      }
+      const k = JSON.stringify(x); if (visto.has(k)) continue; visto.add(k); out.push(x);
+    }
+    // ¿Dice más que la frase entera? (más acciones, o más prioridades tocadas).
+    const peso = l => (l || []).reduce((s, x) => s + (x.tipo === 'prioridad' ? Object.keys(x.cambios).length : 1), 0);
+    return peso(out) > peso(entera) ? out : entera;
+  }
+  function entenderUna(m, civId, texto) {
     const c = S().civ(m, civId), n = norm(texto), acciones = [];
     if (!c || !c.viva || !n) return acciones;
     // Aquí no hay milagros: eres quien manda en un pueblo, no un dios.
@@ -965,7 +1005,7 @@
   const T = s => s.charAt(0).toUpperCase() + s.slice(1);
   const aEra = con => (con.startsWith('el ') ? 'al ' + con.slice(3) : 'a ' + con); // «al Renacimiento», «a la Edad Media»
   // Cuánta gente hay en cada oficio según el gobernador automático, para decir qué cambia con una orden.
-  const OFICIO_DE = { ciencia: [6, 'eruditos'], madera: [0, 'leñadores'], comida: [1, 'granjeros'], casas: [2, 'constructores'], piedra: [3, 'mineros'], ejercito: [4, 'guerreros'], riqueza: [5, 'comerciantes'] };
+  const OFICIO_DE = { ciencia: [6, 'eruditos'], madera: [0, 'leñadores'], comida: [1, 'granjeros'], casas: [2, 'constructores'], piedra: [3, 'mineros'], metal: [3, 'mineros'], carbon: [3, 'mineros'], ejercito: [4, 'guerreros'], riqueza: [5, 'comerciantes'] };
   function repartoDe(m, c) {
     if (!M.vida || !m.vida) return null;
     const adultos = m.vida.aldeanos.filter(x => x.c === c.id && (x.edad || 0) >= M.vida.ADULTO && x.colono == null).length;
