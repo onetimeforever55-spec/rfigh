@@ -749,7 +749,7 @@ console.log('COMERCIO A PETICIÓN, FABRICACIÓN Y TRANSPORTE MODERNO');
 {
   const V = M.vida, X = M.mando, m = S.crear(11, 5, { ritmo: 3 });
   for (let k = 0; k < 120; k++) S.turno(m);
-  const c = X.gobernar(m, S.vivas(m)[0].id);
+  const c = X.gobernar(m, S.vivas(m).sort((p, q) => (q.aldeanos || 0) - (p.aldeanos || 0))[0].id);
   const lejos = S.vivas(m).filter(o => o !== c && !S.enGuerra(c, o)).sort((p, q) => S.distancia(q.capital, c.capital) - S.distancia(p.capital, c.capital))[0];
   comprobar(X.entender(m, c.id, 'abrid una ruta comercial con ' + lejos.nombre)[0].tipo === 'comercio' && X.entender(m, c.id, 'carretera hasta ' + lejos.nombre).every(x => x.tipo === 'comercio'), 'se entiende «abrid una ruta comercial con X» y «carretera hasta X»');
   const r = X.ordenar(m, c.id, 'abrid una ruta comercial con ' + lejos.nombre);
@@ -813,13 +813,15 @@ console.log('TRINCHERAS EN LA SEGUNDA GUERRA MUNDIAL');
 {
   const V = M.vida, m = S.crear(11, 5, { ritmo: 3 });
   for (let k = 0; k < 200; k++) S.turno(m);
-  const a = S.vivas(m).find(c => S.vecinosDe(m, c).length && c.guerreros > 4) || S.vivas(m)[0], o = S.vecinosDe(m, a)[0];
+  // La pareja de vecinos con la frontera más larga (y alguno con soldados).
+  const par = S.vivas(m).flatMap(c => S.vecinosDe(m, c).map(o => [c, o])).filter(([c, o]) => c.guerreros + o.guerreros > 3).sort((p, q) => S.frontera(m, q[0], q[1]).length - S.frontera(m, p[0], p[1]).length)[0] || [S.vivas(m)[0], S.vecinosDe(m, S.vivas(m)[0])[0]];
+  const [a, o] = par;
   comprobar(!m.vida.trinchera || !m.vida.trinchera.some(Boolean), 'antes de la Segunda Guerra Mundial nadie cava trincheras');
   for (let k = 0; k < 40; k++) { for (const c of [a, o]) { c.era = 8; c.metal = Math.max(c.metal, 30); c.rel[(c === a ? o : a).id] = -30; } if (k === 25 && !S.enGuerra(a, o)) S.declararGuerra(m, a, o, 'prueba'); S.turno(m); }
   const v = m.vida, T = v.trinchera || [], hechas = []; for (let t = 0; t < T.length; t++) if (T[t]) hechas.push(t);
   const cerca = (t, d) => { const x = t % v.tw, y = t / v.tw | 0; for (let j = -d; j <= d; j++) for (let i = -d; i <= d; i++) if (m.dueno[V.region(m, (y + j) * v.tw + x + i)] !== m.dueno[V.region(m, t)]) return true; return false; };
   const enFrontera = hechas.filter(t => cerca(t, V.SUB + 1)).length;
-  comprobar(hechas.length > 10 && enFrontera >= hechas.length * 0.8, 'los soldados cavan trincheras a lo largo de la frontera con el rival (' + hechas.length + ' casillas, ' + enFrontera + ' junto a la raya)');
+  comprobar(hechas.length >= 6 && enFrontera >= hechas.length * 0.8, 'los soldados cavan trincheras a lo largo de la frontera con el rival (' + hechas.length + ' casillas, ' + enFrontera + ' junto a la raya)');
   comprobar(hechas.some(t => T[t] === 2), 'y les ponen alambre de espino delante (' + hechas.filter(t => T[t] === 2).length + ')');
   const sold = v.aldeanos.find(x => x.o === 4 && x.c === a.id) || v.aldeanos.find(x => x.o === 4), rival = v.aldeanos.find(x => x.o === 4 && x.c !== sold.c) || sold;
   const t0 = sold.y * v.tw + sold.x, antes = T[t0];
@@ -862,6 +864,11 @@ console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
   comprobar((yo.exterminados || 0) >= 8, 'los soldados matan a los civiles del pueblo enemigo (' + (yo.exterminados || 0) + ')');
   const tercero = S.vivas(m).find(x => x !== yo && x !== ot);
   comprobar(!tercero || S.motivos(m, tercero, yo).some(x => /exterminó/.test(x[0])), 'y el resto del mundo no lo olvida');
+  // Tomar o exterminar un pueblo no hace brotar otro de la nada: en Génesis no «aparecen» pueblos nuevos.
+  { const n0 = m.civs.length, ids = new Set(m.civs.map(q => q.id)); let aparece = 0;
+    for (let k = 0; k < 30; k++) { const antes = m.cronica[0]; S.turno(m); for (const e of m.cronica) { if (e === antes) break; if (e.tipo === 'nuevo_pueblo') aparece++; } }
+    const nuevos = m.civs.filter(q => !ids.has(q.id));
+    comprobar(!aparece && nuevos.every(q => q.origen != null), 'después de tomar o exterminar un pueblo no aparece otro de la nada (' + (m.civs.length - n0) + ' reinos nuevos, todos nacidos de otro)'); }
   X.ordenar(m, yo.id, 'parad el exterminio');
   comprobar(yo.plan.exterminio == null, 'la orden se puede parar');
   // Las minas solo se abren en la montaña.

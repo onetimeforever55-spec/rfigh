@@ -1639,8 +1639,9 @@
         // Si otro constructor ya va a levantar este edificio, no se empieza otro igual.
         if (c.enCurso && c.enCurso[obra] > m.turno - 3) continue;
         const coste = COSTES[obra];
-        // Lo que se guarda para la mejora de la edad no se gasta en obras (salvo en el molino, que da de comer).
-        const res = obra === OBRA.molino ? null : S().reservaMejora(m, c), rs = k => (res && res[k]) || 0;
+        // Lo que se guarda para la mejora de la edad no se gasta en obras (salvo en el molino, que da de comer, y en
+        // los pozos y las minas, que dan lo que hace falta para todo lo demás).
+        const res = obra === OBRA.molino || obra === OBRA.petroleo || obra === OBRA.mina ? null : S().reservaMejora(m, c), rs = k => (res && res[k]) || 0;
         if (c.madera - rs('madera') < coste[0] || c.piedra - rs('piedra') < coste[1] || (c.oro || 0) - rs('oro') < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
         // Ahorrando para la edad, solo se levanta lo que la edad pide (o lo que mandó el jugador).
         const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
@@ -2572,7 +2573,9 @@
       }
       // Los caminos pendientes se empiedran cuando las casas no corren prisa (o una de cada dos veces).
       const pend = (v.pendientes && v.pendientes[c.id]) || [];
-      if (pend.length && (!faltanCamas(c) || azar(v) < 0.4)) {
+      // La carretera que pidió el jugador («abrid una ruta comercial con X») corre más prisa.
+      const urge = pend.length && v.rutas.some(ru => ru.pedida && (ru.a === c.id || ru.b === c.id));
+      if (pend.length && (!faltanCamas(c) || azar(v) < (urge ? 0.75 : 0.4))) {
         const aqui = a.y * v.tw + a.x;
         // Se empiedra de dentro afuera: el tramo sin hacer más cercano, aunque la carretera vaya muy lejos.
         let md = 160;

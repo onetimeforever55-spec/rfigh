@@ -643,11 +643,8 @@
     m.ciudades = m.ciudades.filter(y => y !== x);
     c.estab = Math.max(0, c.estab - 25);
     for (const y of ciudades) if (y !== x) y.complot = (y.complot || 0) + 35;
-    // Con la corte en fuga, la ciudad menos leal aprovecha para independizarse (si no la quería ya, se lo piensa).
-    const floja = ciudades.filter(y => y !== x && (y.lealtad == null || y.lealtad < 15)).sort((p, q) => (p.lealtad || 0) - (q.lealtad || 0))[0];
     suceso(m, 'huye', x.region, c, gana, '🏃 La corte de ' + c.nombre + ' huye a ' + x.nombre);
     cronica(m, 'conquista', 'La corte de ' + c.nombre + ' huye a ' + x.nombre, (gana ? gana.nombre + ' saquea la capital y se lleva la mitad de los almacenes. ' : 'La capital se pierde. ') + 'El ' + titulo(c) + ' se refugia en ' + x.nombre + ', que pasa a ser la capital; las demás ciudades dudan de que el reino aguante.', c, x.region, { importante: true });
-    if (floja && azar(m) < 0.6) rebelarCiudad(m, c, floja);
   }
 
   // ---------- Las relaciones entre pueblos ----------
@@ -895,7 +892,9 @@
     // Pueblos nuevos en tierras vacías (nómadas, colonos, refugiados).
     let libres = 0;
     for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && m.tipo[i] !== 'nieve') libres++;
-    if (libres > 25 * K && lista.length < 9 && azar(m) < 0.04) nuevoPueblo(m, null);
+    // (En Génesis no aparecen pueblos de la nada: los reinos nuevos nacen de otros, por independencias y rebeliones.
+    // Lo vacío lo llenan los colonos de los reinos que ya existen.)
+    if (!m.vida && libres > 25 * K && lista.length < 9 && azar(m) < 0.04) nuevoPueblo(m, null);
     // Sequías: unos años sin lluvia, sin cosecha y sin pasto (vida.js los cumple en los campos y los rebaños).
     if (m.vida && azar(m) < 0.04) {
       const c = elegir(m, lista);

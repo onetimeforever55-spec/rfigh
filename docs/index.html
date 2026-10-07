@@ -1560,11 +1560,8 @@ table.mercado td:first-child { white-space: nowrap; }
     m.ciudades = m.ciudades.filter(y => y !== x);
     c.estab = Math.max(0, c.estab - 25);
     for (const y of ciudades) if (y !== x) y.complot = (y.complot || 0) + 35;
-    // Con la corte en fuga, la ciudad menos leal aprovecha para independizarse (si no la quería ya, se lo piensa).
-    const floja = ciudades.filter(y => y !== x && (y.lealtad == null || y.lealtad < 15)).sort((p, q) => (p.lealtad || 0) - (q.lealtad || 0))[0];
     suceso(m, 'huye', x.region, c, gana, '🏃 La corte de ' + c.nombre + ' huye a ' + x.nombre);
     cronica(m, 'conquista', 'La corte de ' + c.nombre + ' huye a ' + x.nombre, (gana ? gana.nombre + ' saquea la capital y se lleva la mitad de los almacenes. ' : 'La capital se pierde. ') + 'El ' + titulo(c) + ' se refugia en ' + x.nombre + ', que pasa a ser la capital; las demás ciudades dudan de que el reino aguante.', c, x.region, { importante: true });
-    if (floja && azar(m) < 0.6) rebelarCiudad(m, c, floja);
   }
 
   // ---------- Las relaciones entre pueblos ----------
@@ -1812,7 +1809,9 @@ table.mercado td:first-child { white-space: nowrap; }
     // Pueblos nuevos en tierras vacías (nómadas, colonos, refugiados).
     let libres = 0;
     for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.dueno[i] < 0 && m.tipo[i] !== 'nieve') libres++;
-    if (libres > 25 * K && lista.length < 9 && azar(m) < 0.04) nuevoPueblo(m, null);
+    // (En Génesis no aparecen pueblos de la nada: los reinos nuevos nacen de otros, por independencias y rebeliones.
+    // Lo vacío lo llenan los colonos de los reinos que ya existen.)
+    if (!m.vida && libres > 25 * K && lista.length < 9 && azar(m) < 0.04) nuevoPueblo(m, null);
     // Sequías: unos años sin lluvia, sin cosecha y sin pasto (vida.js los cumple en los campos y los rebaños).
     if (m.vida && azar(m) < 0.04) {
       const c = elegir(m, lista);
@@ -3507,8 +3506,9 @@ table.mercado td:first-child { white-space: nowrap; }
         // Si otro constructor ya va a levantar este edificio, no se empieza otro igual.
         if (c.enCurso && c.enCurso[obra] > m.turno - 3) continue;
         const coste = COSTES[obra];
-        // Lo que se guarda para la mejora de la edad no se gasta en obras (salvo en el molino, que da de comer).
-        const res = obra === OBRA.molino ? null : S().reservaMejora(m, c), rs = k => (res && res[k]) || 0;
+        // Lo que se guarda para la mejora de la edad no se gasta en obras (salvo en el molino, que da de comer, y en
+        // los pozos y las minas, que dan lo que hace falta para todo lo demás).
+        const res = obra === OBRA.molino || obra === OBRA.petroleo || obra === OBRA.mina ? null : S().reservaMejora(m, c), rs = k => (res && res[k]) || 0;
         if (c.madera - rs('madera') < coste[0] || c.piedra - rs('piedra') < coste[1] || (c.oro || 0) - rs('oro') < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
         // Ahorrando para la edad, solo se levanta lo que la edad pide (o lo que mandó el jugador).
         const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
@@ -4440,7 +4440,9 @@ table.mercado td:first-child { white-space: nowrap; }
       }
       // Los caminos pendientes se empiedran cuando las casas no corren prisa (o una de cada dos veces).
       const pend = (v.pendientes && v.pendientes[c.id]) || [];
-      if (pend.length && (!faltanCamas(c) || azar(v) < 0.4)) {
+      // La carretera que pidió el jugador («abrid una ruta comercial con X») corre más prisa.
+      const urge = pend.length && v.rutas.some(ru => ru.pedida && (ru.a === c.id || ru.b === c.id));
+      if (pend.length && (!faltanCamas(c) || azar(v) < (urge ? 0.75 : 0.4))) {
         const aqui = a.y * v.tw + a.x;
         // Se empiedra de dentro afuera: el tramo sin hacer más cercano, aunque la carretera vaya muy lejos.
         let md = 160;
