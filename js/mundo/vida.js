@@ -478,6 +478,12 @@
       if (c.metal == null) { c.metal = 0; c.oro = 0; }
       if (c.comida == null) c.comida = 30;
       if (v.centros[c.id] === c.capital) continue;
+      // La corte que huye a otra ciudad se instala en lo que ya hay: no brota una plaza nueva ni un molino.
+      if (c.mudada != null) {
+        for (const t of plaza(m, c.capital)) if (!v.obra[t] && !v.camino[t]) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.centro, 0); }
+        v.centros[c.id] = c.capital; c.mudada = null;
+        continue;
+      }
       for (const t of plaza(m, c.capital)) { cambiar(m, 'arbol', t, 0, 0); cambiar(m, 'roca', t, 0, 0); cambiar(m, 'obra', t, OBRA.centro, 0); }
       v.centros[c.id] = c.capital;
       // Como en WorldBox, la aldea nace con su molino: alrededor de él se siembran los primeros campos.
@@ -1392,7 +1398,7 @@
     if (esVia(v, t)) return 'por ahí pasa la vía del tren';
     if (v.trinchera && v.trinchera[t]) return 'ahí hay una trinchera';
     if (!marcado && pausada(m) && v.plan && v.plan[t] === 1) return 'ahí va una calle del plano';
-    if (o === OBRA.mina) { if (ter[t] !== 'montana' && ter[t] !== 'colina') return 'la mina va en la montaña o en una colina'; }
+    if (o === OBRA.mina) { if (ter[t] !== 'montana') return 'la mina solo se abre en la montaña'; }
     else if (o === OBRA.puerto ? !(ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
     if (c.era < (ERA_OBRA[o] || 0)) return 'aún no existe: llega con ' + NOMBRE_ERA[ERA_OBRA[o]];
     if (o === OBRA.petroleo && !(v.crudo && v.crudo[t])) return 'ahí no hay petróleo: busca las manchas negras';
@@ -1539,7 +1545,7 @@
     const v = m.vida, cap = centro(m, c.capital);
     let mejor = null, md = 1e9;
     for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) {
-      if ((ter[t] !== 'montana' && ter[t] !== 'colina') || v.obra[t] || v.roca[t] || v.arbol[t] >= 2 || v.camino[t] || ocupada(v, t) || (v.andamios && v.andamios[t])) continue;
+      if (ter[t] !== 'montana' || v.obra[t] || v.roca[t] || v.arbol[t] >= 2 || v.camino[t] || ocupada(v, t) || (v.andamios && v.andamios[t])) continue;
       if ((c.minasT || []).some(u => dist(m, u, t) < 6)) continue;
       const d = dist(m, t, cap) - (ter[t] === 'montana' ? 2 : 0); if (d < md) { md = d; mejor = t; }
     }
@@ -1587,7 +1593,7 @@
       // El control fronterizo (desde la Revolución Industrial): un puesto con barrera y guardias donde cada
       // carretera de comercio sale de su tierra.
       if (r === c.capital && c.era >= ERA_OBRA[OBRA.aduana]) { const pf = pasoSinPuesto(m, c, ter); if (pf) pide.push([OBRA.aduana, () => pf.sitio]); }
-      // La mina: en la montaña o la colina más cercana, una galería que no se agota (pero da poco a poco).
+      // La mina: en la montaña más cercana (solo ahí), una galería que no se agota (pero da poco a poco).
       if (r === c.capital && c.era >= ERA_OBRA[OBRA.mina] && (c.minas || 0) < 1 + (c.era >= 4 ? 1 : 0) && (c.aldeanos || 0) >= 12) {
         const sm = sitioMina(m, c, ter); if (sm != null) pide.push([OBRA.mina, () => sm]);
       }
@@ -2114,6 +2120,8 @@
       const muertos = new Set();
       for (const a of v.aldeanos) if (!muertos.has(a)) actuar(m, a, rec[a.c], ter, paso, guerreros, muertos);
       if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
+      exterminio(m, paso, muertos);
+      if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
       torres(m, paso, guerreros);
       if (paso === 2) aviones(m, paso, guerreros);
       if (v.fuego && paso % 2 === 0) { const gente = new Map(); for (const a of v.aldeanos) if ((a.edad || 0) >= ADULTO) { const r = region(m, a.y * v.tw + a.x); gente.set(r, (gente.get(r) || 0) + 1); } arder(m, paso, gente); }
@@ -2253,6 +2261,42 @@
     a.r.push(a.x, a.y, acc);
   }
 
+  /*
+   * EL EXTERMINIO (orden del jugador): los soldados de un reino con esa orden matan también a los civiles del
+   * pueblo enemigo que tengan a mano y van a buscar a los que vean cerca. Con la guerra terminada, se acaba.
+   */
+  function exterminio(m, paso, muertos) {
+    const v = m.vida;
+    for (const c of S().vivas(m)) {
+      const p = c.plan; if (!p || p.exterminio == null) continue;
+      const o = S().civ(m, p.exterminio);
+      if (!o || !o.viva || !S().enGuerra(c, o)) {
+        if (o && !o.viva) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '☠ No queda nadie de ' + o.nombre });
+        if (o && o.viva) o.exterminadoPor = null;
+        p.exterminio = null; continue;
+      }
+      const victimas = new Map();
+      for (const b of v.aldeanos) if (b.c === o.id && b.o !== GUERRERO && !muertos.has(b)) { const t = b.y * v.tw + b.x; (victimas.get(t) || victimas.set(t, []).get(t)).push(b); }
+      if (!victimas.size) continue;
+      for (const a of v.aldeanos) {
+        if (a.c !== c.id || a.o !== GUERRERO || muertos.has(a)) continue;
+        const alcance = a.tirador && c.era >= 5 ? 3 : 1;
+        let b = null;
+        for (let dy = -alcance; dy <= alcance && !b; dy++) for (let dx = -alcance; dx <= alcance && !b; dx++) {
+          const l = victimas.get((a.y + dy) * v.tw + a.x + dx); b = l && l.find(x => !muertos.has(x));
+        }
+        if (b) {
+          if (azar(v) < 0.8) { muertos.add(b); v.muertos.push([b.x, b.y, b.c, 'batalla', paso, b]); c.exterminados = (c.exterminados || 0) + 1; if (alcance > 1) v.disparos.push([a.x, a.y, b.x, b.y, paso, 1, a.id]); }
+        } else if ((paso === 1 || paso === 5) && a.e !== IR) {
+          // Va a por el civil más cercano que tenga a la vista.
+          let mejor = null, dm = 14;
+          for (const [t, l] of victimas) { if (!l.length) continue; const d = Math.abs(t % v.tw - a.x) + Math.abs((t / v.tw | 0) - a.y); if (d < dm) { dm = d; mejor = t; } }
+          if (mejor != null) ir(a, mejor, v.tw, IR);
+        }
+      }
+    }
+  }
+
   function ir(a, t, tw, estado) { a.tx = t % tw; a.ty = t / tw | 0; a.e = estado; a.q = 0; }
   function pasear(m, a, ter, c) {
     const v = m.vida, base = centro(m, a.h);
@@ -2338,12 +2382,12 @@
       const faltaCarbon = c.era >= 6 && ((c.carbon || 0) < objetivo(c, 'carbon') || (vendeCarbon && (c.carbon || 0) < 80) || (prio(c, 'carbon') > 1 && (c.carbon || 0) < 150));
       a.buscaCarbon = 0;
       if (faltaCarbon && azar(v) < (quierePiedra ? 0.25 : 0.55)) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] === 3, 5, 'carbon');
-      if (t < 0 && faltaCarbon && pausada(m) && azar(v) < 0.5) { t = cercaDeCasa(m, a, c, rec, x => (ter[x] === 'montana' || ter[x] === 'colina') && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaCarbon = 1; } }
+      if (t < 0 && faltaCarbon && pausada(m) && azar(v) < 0.5) { t = cercaDeCasa(m, a, c, rec, x => ter[x] === 'montana' && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaCarbon = 1; } }
       if (t < 0 && faltaMetal && azar(v) < (quierePiedra ? 0.2 : 0.8)) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && (v.mena[x] === 1 || v.mena[x] === 2), 4, 'mena');
       const faltaPiedra = c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'));
       if (!a.buscaCarbon) a.cantera = 0;
-      // Agotadas las vetas sueltas, una mina en la montaña (o la colina) sigue dando metal a quien lo necesita o lo vende.
-      if (t < 0 && faltaMetal && pausada(m) && azar(v) < (quierePiedra ? 0.3 : 0.85)) { t = cercaDeCasa(m, a, c, rec, x => (ter[x] === 'montana' || ter[x] === 'colina') && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaMetal = 1; } }
+      // Agotadas las vetas sueltas, una mina en la montaña sigue dando metal a quien lo necesita o lo vende.
+      if (t < 0 && faltaMetal && pausada(m) && azar(v) < (quierePiedra ? 0.3 : 0.85)) { t = cercaDeCasa(m, a, c, rec, x => ter[x] === 'montana' && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaMetal = 1; } }
       if (t < 0 && faltaPiedra) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3, 'roca');
       // Sin vetas ni piedras sueltas cerca (o al azar, para no depender solo de ellas), a la mina: nunca se agota.
       a.enMina = 0;
@@ -2727,7 +2771,7 @@
       c.hecho = c.hecho || {}; c.hecho.arboles = (c.hecho.arboles || 0) + 1; a.k = (v.arbol[t] === 3 ? 4 : 2) + M.tec(c, 'lena'); cambiar(m, 'arbol', t, 0, paso);
       // Al talar se recogen piñas y semillas; y si el bosque escasea, se replanta el tocón con una.
       if (azar(v) < 0.45) c.semillas = (c.semillas || 0) + 1;
-      if ((c.arboles || 0) < 40 && (c.semillas || 0) >= 1 && azar(v) < 0.6) { c.semillas -= 1; cambiar(m, 'arbol', t, 1, paso + 0.5); }
+      if ((c.arboles || 0) < 40 && (c.semillas || 0) >= 1 && azar(v) < 0.6) { c.semillas -= 1; cambiar(m, 'arbol', t, 1, Math.min(TICKS, paso + 0.5)); }
       ir(a, centro(m, a.h), v.tw, VOLVER); return;
     }
     // De la mina sale de todo, pero poco cada vez: piedra, metal (desde el Bronce), carbón (desde la industria) y algo de oro.

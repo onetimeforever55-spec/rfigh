@@ -308,14 +308,15 @@
     // de la tierra donde viven (o se dispersan si nadie la gobierna).
     for (const c of vivas(m)) {
       if (m.dueno[c.capital] === c.id) continue;
-      const cs = casillas(m, c);
-      if (!cs.length) morir(m, c, null); else c.capital = cs.sort((a, b) => fertil(m, b) - fertil(m, a))[0];
+      perderCapital(m, c, casillas(m, c));
     }
     if (m.vida && M.vida) {
       const vivos = new Set(vivas(m).map(c => c.id));
       m.vida.aldeanos = m.vida.aldeanos.filter(a => {
         if (vivos.has(a.c)) return true;
-        const d = m.dueno[a.h];
+        const d = m.dueno[a.h], muerta = civ(m, a.c);
+        // Los supervivientes de un pueblo exterminado no se quedan a vivir con su verdugo.
+        if (muerta && muerta.exterminadoPor != null && muerta.exterminadoPor === d) return false;
         if (d >= 0 && vivos.has(d)) { a.c = d; a.llego = m.turno; a.o = 1; a.e = 0; a.colono = null; a.arma = 0; a.armadura = 0; a.tirador = null; return true; }
         return false;
       });
@@ -328,7 +329,7 @@
   function vivir(m, c) {
     const cs = casillas(m, c);
     if (!cs.length) { morir(m, c, null); return; }
-    if (m.dueno[c.capital] !== c.id) c.capital = cs.sort((a, b) => fertil(m, b) - fertil(m, a))[0];
+    if (m.dueno[c.capital] !== c.id) { perderCapital(m, c, cs); if (!c.viva) return; }
     const n = cs.length, car = M.CARACTERES[c.caracter];
     const cap = capacidad(m, c, cs);
     c.cap = cap;
@@ -545,6 +546,7 @@
     if (c.jugador) cronica(m, 'avance', c.nombre + ' se prepara para ' + M.ERAS[c.era + 1].con, 'Los sabios de ' + c.nombre + ' ponen por escrito lo aprendido, los artesanos ensayan técnicas nuevas y el gobierno paga lo que haga falta: en unos años, otra época.', c);
   }
   function subirEra(m, c, regalo) {
+    if (!M.ERAS[c.era + 1]) { c.subiendo = null; return; }
     c.era++; c.subiendo = null;
     const E = M.ERAS[c.era];
     const nuevos = E.inventos.filter(x => !c.inventos.includes(x));
@@ -566,6 +568,7 @@
     const ciudad = (m.ciudades || []).find(x => parte.includes(x.region));
     if (ciudad) { parte.splice(parte.indexOf(ciudad.region), 1); parte.unshift(ciudad.region); }
     const nueva = nuevaCiv(m, parte[0], { era: c.era, ciencia: c.ciencia * 0.9, pob: c.pob * parte.length / cs.length, riqueza: c.riqueza * 0.3, estab: 55, inventos: c.inventos.slice() });
+    heredar(c, nueva, parte.length / cs.length);
     if (ciudad && !m.civs.some(x => x !== nueva && x.nombre === ciudad.nombre)) { nueva.nombre = ciudad.nombre; m.ciudades = m.ciudades.filter(x => x !== ciudad); }
     for (const i of parte) m.dueno[i] = nueva.id;
     // Con aldeanos (vida.js), la gente se va con su tierra: no hace falta repartir la población a mano.
@@ -584,6 +587,48 @@
     c.guerras = [];
     m.alianzas = (m.alianzas || []).filter(x => x.a !== c.id && x.b !== c.id);
     cronica(m, 'caida', 'Cae ' + c.nombre, quien ? quien.nombre + ' toma la última ciudad de ' + c.nombre + '. Sus dioses pasan a ser leyendas y su lengua, unas pocas palabras en la de los vencedores.' : c.nombre + ' se deshace sin que nadie lo conquiste: sus aldeas se vacían y sus templos se llenan de hierba.', c, c.capital, { importante: true });
+  }
+
+  // Lo que guarda un reino en sus almacenes (para el saqueo y para la herencia de los reinos que se separan).
+  const ALMACEN = ['oro', 'madera', 'piedra', 'metal', 'comida', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas'];
+  function repartirAlmacen(de, a, parte) {
+    for (const k of ALMACEN) { const q = (de[k] || 0) * parte; if (q > 0) { de[k] -= q; a[k] = (a[k] || 0) + q; } }
+  }
+  // Un reino que nace de otro (provincias rebeldes, una ciudad independiente) se lleva lo que sabía la metrópoli
+  // (todas sus técnicas, también las de la era en curso) y la parte del almacén que le toca por sus tierras.
+  function heredar(c, nueva, parte) {
+    nueva.tecs = M.tecsDe(c).slice();
+    if (c.metal != null) repartirAlmacen(c, nueva, Math.min(0.5, parte));
+  }
+  /*
+   * CAE LA CAPITAL. Un reino no se reinventa en mitad del campo: si le queda otra ciudad, la corte huye allí
+   * (saqueada, revuelta y con las demás ciudades pensando en irse); si no le queda ninguna, el reino cae y el
+   * conquistador se queda con sus tierras.
+   */
+  function perderCapital(m, c, cs) {
+    const dueno = civ(m, m.dueno[c.capital]), gana = dueno && dueno.viva && dueno !== c ? dueno : null;
+    if (!cs.length) morir(m, c, gana);
+    else if (m.vida) caidaCapital(m, c, gana, cs);
+    else c.capital = cs.sort((a, b) => fertil(m, b) - fertil(m, a))[0];
+  }
+  function caidaCapital(m, c, gana, cs) {
+    const vieja = c.capital;
+    if (gana) repartirAlmacen(c, gana, 0.5);
+    const ciudades = (m.ciudades || []).filter(x => x.civ === c.id && m.dueno[x.region] === c.id);
+    if (!ciudades.length) {
+      for (const i of cs) m.dueno[i] = gana ? gana.id : -1;
+      morir(m, c, gana);
+      return;
+    }
+    const x = ciudades.sort((p, q) => distancia(p.region, vieja) - distancia(q.region, vieja))[0];
+    c.capital = x.region; c.mudada = vieja;
+    m.ciudades = m.ciudades.filter(y => y !== x);
+    c.estab = Math.max(0, c.estab - 25);
+    for (const y of ciudades) if (y !== x) y.complot = (y.complot || 0) + 35;
+    // Con la corte en fuga, la ciudad menos leal aprovecha para independizarse (si no la quería ya, se lo piensa).
+    const floja = ciudades.filter(y => y !== x && (y.lealtad == null || y.lealtad < 15)).sort((p, q) => (p.lealtad || 0) - (q.lealtad || 0))[0];
+    cronica(m, 'conquista', 'La corte de ' + c.nombre + ' huye a ' + x.nombre, (gana ? gana.nombre + ' saquea la capital y se lleva la mitad de los almacenes. ' : 'La capital se pierde. ') + 'El ' + titulo(c) + ' se refugia en ' + x.nombre + ', que pasa a ser la capital; las demás ciudades dudan de que el reino aguante.', c, x.region, { importante: true });
+    if (floja && azar(m) < 0.6) rebelarCiudad(m, c, floja);
   }
 
   // ---------- Las relaciones entre pueblos ----------
@@ -607,6 +652,7 @@
     const t = (m.memoria || {})[Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id)];
     if (t != null && m.turno - t < 15) out.push(['guerra reciente', -Math.round(40 * (1 - (m.turno - t) / 15))]);
     if (enGuerra(a, b)) out.push(['están en guerra', -60]);
+    if (b.atrocidad != null && m.turno - b.atrocidad < 300) out.push(['exterminó a un pueblo', -Math.round(60 * (1 - (m.turno - b.atrocidad) / 300))]);
     return out;
   }
   const opinionObjetivo = (m, a, b) => motivos(m, a, b).reduce((k, x) => k + x[1], 0);
@@ -682,6 +728,7 @@
     if (parte.length >= cs.length) return;
     parte.splice(parte.indexOf(x.region), 1); parte.unshift(x.region);
     const nueva = nuevaCiv(m, x.region, { era: c.era, ciencia: c.ciencia * 0.9, pob: c.pob * parte.length / cs.length, riqueza: c.riqueza * 0.2, estab: 55, inventos: c.inventos.slice(), caracter: c.caracter });
+    heredar(c, nueva, parte.length / cs.length);
     if (!m.civs.some(o => o !== nueva && o.nombre === x.nombre)) nueva.nombre = x.nombre;
     nueva.rey = { nombre: x.alcalde, edad: 40, rasgo: x.rasgo === 'ambicioso' ? 'guerrero' : 'justo', desde: m.anio };
     nueva.origen = c.id;
@@ -786,7 +833,7 @@
       const gp = pierde.guerras.find(x => x.con === gana.id); if (gp) gp.comarcas = (gp.comarcas || 0) - tomadas.length;
       if (ga) ga.cansancio += 1 + (pierde === a ? tomadas.length : 0) * 0.5;
       if (gb) gb.cansancio += 1 + (pierde === b ? tomadas.length : 0) * 0.5;
-      if (tomadas.includes(pierde.capital)) {
+      if (!m.vida && tomadas.includes(pierde.capital)) {
         const quedan = casillas(m, pierde);
         if (!quedan.length || quedan.length <= 2) { for (const i of quedan) m.dueno[i] = gana.id; morir(m, pierde, gana); continue; }
         cronica(m, 'conquista', gana.nombre + ' toma la capital de ' + pierde.nombre, 'La capital de ' + pierde.nombre + ' cae tras un largo asedio. Su corte huye a otra ciudad y sigue llamándose gobierno.', gana, pierde.capital);

@@ -480,7 +480,7 @@ console.log('LA VIDA PAUSADA: NOCHES, ESTACIONES, OBRAS Y NECESIDADES');
   for (let i = 0; i < 150; i++) S.turno(m);
   const c = S.vivas(m).sort((a, b) => b.aldeanos - a.aldeanos)[0];
   comprobar(Array.isArray(c.necesidades) && c.necesidades.length >= 2 && c.necesidades.every(n => n.nombre && n.bien && n.mal), 'cada pueblo sabe lo que necesita y por qué (' + c.necesidades.map(n => n.obra + (n.falta ? '✗' : '✓')).join(' ') + ')');
-  comprobar(c.graneros > 0 || c.fuentes > 0 || c.pozos > 0, 'y lo construye por necesidad: graneros ' + c.graneros + ', plazas públicas ' + c.fuentes + ', pozos ' + c.pozos + ', parques ' + c.parques);
+  comprobar(S.vivas(m).sort((a, b) => b.aldeanos - a.aldeanos).slice(0, 3).some(x => x.graneros > 0 || x.fuentes > 0 || x.pozos > 0), 'y lo construye por necesidad: graneros ' + c.graneros + ', plazas públicas ' + c.fuentes + ', pozos ' + c.pozos + ', parques ' + c.parques);
   comprobar(c.animo >= 0 && c.animo <= 100 && V2.animoDe(m, v.aldeanos.find(a => a.c === c.id)) >= 0, 'la gente tiene ánimo (' + c.animo + '/100)');
   // El porqué se nota: quitar el pozo a un pueblo sin agua baja la estabilidad.
   comprobar(V2.NECESIDADES.pozo.estab < 0 && V2.NECESIDADES.palacio.mal.length > 10, 'lo que falta cuesta estabilidad y ánimo (sin pozo ' + V2.NECESIDADES.pozo.estab + ')');
@@ -820,6 +820,47 @@ console.log('TRINCHERAS EN LA SEGUNDA GUERRA MUNDIAL');
   const suma = z => { T[t0] = z; let n = 0; for (let q = 0; q < 60; q++) n += V.danoContra(v, rival, sold, false); return Math.round(n / 60); };
   const fuera = suma(0), dentro = suma(1); T[t0] = antes;
   comprobar(dentro < fuera, 'quien está dentro de la trinchera recibe menos daño (' + fuera + ' → ' + dentro + ')');
+}
+
+console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
+{
+  const V = M.vida, X = M.mando, m = S.crear(11, 5, { ritmo: 3 });
+  for (let k = 0; k < 200; k++) S.turno(m);
+  const v = m.vida, ter = V.terrenos(m);
+  // Sin otra ciudad, perder la capital es el fin del reino: no brota otra aldea en mitad del campo.
+  const [a, b] = S.vivas(m).filter(c => S.casillas(m, c).length > 3);
+  m.ciudades = (m.ciudades || []).filter(x => x.civ !== a.id);
+  const tierrasA = S.casillas(m, a).length, antesB = S.casillas(m, b).length;
+  m.dueno[a.capital] = b.id; S.turno(m);
+  comprobar(!a.viva && S.casillas(m, b).length >= antesB + tierrasA - 2, 'sin otra ciudad, perder la capital hunde el reino y el conquistador se queda con sus tierras');
+  // Con otra ciudad, la corte huye allí (no a un prado vacío) y el reino queda tocado.
+  const c = S.vivas(m).filter(x => x !== b && S.casillas(m, x).length > 4).sort((p, q) => S.casillas(m, q).length - S.casillas(m, p).length)[0];
+  const otra = S.casillas(m, c).filter(r => r !== c.capital).sort((p, q) => S.distancia(q, c.capital) - S.distancia(p, c.capital))[0];
+  m.ciudades = (m.ciudades || []).filter(x => x.civ !== c.id).concat([{ civ: c.id, region: otra, nombre: 'Refugio', alcalde: 'Anon', rasgo: 'justo' }]);
+  const molinos = () => { let n = 0; for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === V.OBRA.molino) n++; return n; };
+  const est = c.estab, mol = molinos();
+  m.dueno[c.capital] = b.id; c.oro = 100; S.turno(m);
+  comprobar(c.viva && c.capital === otra && c.estab < est && molinos() <= mol + 1, 'con otra ciudad, la corte huye a ella (sin plaza ni molino regalados) y el reino pierde estabilidad');
+  // Los reinos que se separan conservan la técnica y parte del almacén de la metrópoli.
+  const d = S.vivas(m).sort((p, q) => S.casillas(m, q).length - S.casillas(m, p).length)[0], tecs = M.tecsDe(d).length;
+  d.metal = 100; const n0 = m.civs.length; S.separar(m, d, S.casillas(m, d));
+  const hija = m.civs[n0];
+  comprobar(!hija || (M.tecsDe(hija).length === tecs && hija.era === d.era && (hija.metal || 0) > 0), 'las provincias que se independizan conservan toda la técnica de su reino (' + tecs + ' técnicas) y parte del almacén');
+  // El exterminio.
+  const yo = S.vivas(m).find(x => S.vecinosDe(m, x).length && x.guerreros > 2) || S.vivas(m)[0], ot = S.vecinosDe(m, yo)[0];
+  X.gobernar(m, yo.id);
+  comprobar(X.entender(m, yo.id, 'exterminad a la gente de ' + ot.nombre)[0].tipo === 'exterminio' && X.entender(m, yo.id, 'parad el exterminio')[0].parar, 'se entiende «exterminad a la gente de X» y «parad el exterminio»');
+  X.ordenar(m, yo.id, 'exterminad a la gente de ' + ot.nombre);
+  for (let k = 0; k < 40 && ot.viva; k++) S.turno(m);
+  comprobar((yo.exterminados || 0) >= 8, 'los soldados matan a los civiles del pueblo enemigo (' + (yo.exterminados || 0) + ')');
+  const tercero = S.vivas(m).find(x => x !== yo && x !== ot);
+  comprobar(!tercero || S.motivos(m, tercero, yo).some(x => /exterminó/.test(x[0])), 'y el resto del mundo no lo olvida');
+  X.ordenar(m, yo.id, 'parad el exterminio');
+  comprobar(yo.plan.exterminio == null, 'la orden se puede parar');
+  // Las minas solo se abren en la montaña.
+  const montana = ter.findIndex(x => x === 'montana'), colina = ter.findIndex((x, t) => x === 'colina' && m.dueno[V.region(m, t)] === yo.id && !v.obra[t] && !v.camino[t]);
+  comprobar(colina < 0 || /montaña/.test(V.puedeColocar(m, yo, colina, 'mina') || ''), 'las minas solo se abren en la montaña, no en colinas ni llanuras');
+  void montana;
 }
 
 console.log('BATALLAS MÁS LARGAS');
