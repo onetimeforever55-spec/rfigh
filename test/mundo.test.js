@@ -740,6 +740,36 @@ console.log('ÓRDENES COMPUESTAS');
   comprobar(c.plan.prioridad.metal > 1 && c.plan.prioridad.madera > 1, 'y al ordenarlo suben las dos prioridades');
 }
 
+console.log('COMERCIO A PETICIÓN, FABRICACIÓN Y TRANSPORTE MODERNO');
+{
+  const V = M.vida, X = M.mando, m = S.crear(11, 5, { ritmo: 3 });
+  for (let k = 0; k < 120; k++) S.turno(m);
+  const c = X.gobernar(m, S.vivas(m)[0].id);
+  const lejos = S.vivas(m).filter(o => o !== c && !S.enGuerra(c, o)).sort((p, q) => S.distancia(q.capital, c.capital) - S.distancia(p.capital, c.capital))[0];
+  comprobar(X.entender(m, c.id, 'abrid una ruta comercial con ' + lejos.nombre)[0].tipo === 'comercio' && X.entender(m, c.id, 'carretera hasta ' + lejos.nombre).every(x => x.tipo === 'comercio'), 'se entiende «abrid una ruta comercial con X» y «carretera hasta X»');
+  const r = X.ordenar(m, c.id, 'abrid una ruta comercial con ' + lejos.nombre);
+  const ru = m.vida.rutas.find(x => x.pedida && (x.a === lejos.id || x.b === lejos.id));
+  comprobar(!!ru && /carretera/.test(r.respuesta), 'la ruta se abre en el acto, aunque el reino esté lejos (' + S.distancia(lejos.capital, c.capital) + ' regiones, ' + (ru ? ru.tiles.length : 0) + ' tramos)');
+  const antes = ru ? ru.tiles.filter(t => m.vida.camino[t]).length : 0;
+  for (let k = 0; k < 60; k++) S.turno(m);
+  const despues = ru ? ru.tiles.filter(t => m.vida.camino[t]).length : 0;
+  comprobar(m.vida.rutas.includes(ru) && despues > antes + 10, 'los constructores empiedran la carretera (' + antes + ' → ' + despues + ' de ' + (ru ? ru.tiles.length : 0) + ' tramos)');
+  // Fabricar armas a petición.
+  const f = S.vivas(m).find(x => x.cuarteles > 0);
+  if (f) {
+    X.gobernar(m, f.id); f.metal = 60; const a0 = f.armas || 0;
+    X.ordenar(m, f.id, 'fabricad 10 fusiles');
+    for (let k = 0; k < 8; k++) { f.metal = Math.max(f.metal, 20); S.turno(m); }
+    comprobar((f.armas || 0) >= a0 + 8 || !f.plan.fabricar, '«fabricad 10 fusiles»: la forja convierte metal en armas (' + a0 + ' → ' + (f.armas || 0) + ')');
+  } else comprobar(true, 'nadie tiene cuartel en esta semilla: no hay forja que probar');
+  comprobar(X.entender(m, c.id, 'fabricad muebles')[0].que === 'muebles' && X.entender(m, c.id, 'forjad espadas')[0].tipo === 'fabricar', 'también «forjad espadas» y «fabricad muebles»');
+  // En la Era Moderna, los comerciantes van en camión (o en tren si hay vía).
+  for (const x of S.vivas(m)) x.era = 7;
+  let camion = false;
+  for (let k = 0; k < 30 && !camion; k++) { for (const x of S.vivas(m)) x.era = 7; S.turno(m); camion = m.vida.aldeanos.some(a => a.camion || a.enTren); }
+  comprobar(camion, 'en la Era Moderna la carga va en camión por la carretera o en tren');
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;

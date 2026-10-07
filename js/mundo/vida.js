@@ -642,6 +642,16 @@
         const q = Math.min(c.cartera && c.cartera.armas ? Math.max(1, Math.round(3 * c.cartera.armas * 1.6)) : 1, Math.floor(Math.max(0, (c.metal || 0) - 2)));
         if (q > 0) { c.metal -= q; c.armas = (c.armas || 0) + q; }
       }
+      // Lo que mandó fabricar el jugador: armas (1 de metal cada una; 2 por turno en la forja del cuartel y 4 más
+      // por cada fábrica en marcha) o muebles (2 de madera cada lote, que se vende por oro).
+      const fab = c.plan && c.plan.fabricar;
+      if (fab && fab.n > fab.hechos) {
+        const ritmo = (c.cuarteles > 0 ? 2 : 0) + (enMarcha(c, 'fabrica') ? 4 * (c.fabricas || 0) : 0);
+        const q = Math.min(ritmo, fab.n - fab.hechos, fab.que === 'armas' ? Math.floor(c.metal || 0) : Math.floor((c.madera || 0) / 2));
+        if (q > 0) { if (fab.que === 'armas') { c.metal -= q; c.armas = (c.armas || 0) + q; } else { c.madera -= q * 2; c.oro = (c.oro || 0) + q * 1.1; } fab.hechos += q; }
+        if (fab.hechos >= fab.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: (fab.que === 'armas' ? '⚒ Hechas ' : '🏭 Hechos ') + fab.n + (fab.que === 'armas' ? ' armas' : ' lotes de muebles') }); c.plan.fabricar = null; }
+        else if (!q && m.turno - fab.desde > 3 && !fab.avisado) { fab.avisado = 1; (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: fab.que === 'armas' ? '⚒ Sin metal para las armas: haced minas o compradlo' : '🏭 Sin madera para los muebles' }); }
+      }
       // El banco: el oro guardado da un pequeño interés.
       if (c.bancos > 0 && (c.oro || 0) > 0) c.oro += Math.min(2 + c.bancos, c.oro * 0.012);
       // La fábrica: forja en serie (sin cuartel) y convierte la madera que sobra en muebles que se venden por oro.
@@ -2089,7 +2099,12 @@
       if (!ru || !rutaActiva(m, ru)) a.e = LIBRE;
       else {
         acc = ACC.cargar;
-        const pasos = (v.camino[ru.tiles[a.i]] ? 2 : 1) * (ru.tipo === 'externa' && c.estaciones > 0 && enMarcha(c, 'tren') && pausada(m) ? 2 : 1);
+        // El comercio moderno: si la ruta tiene vía y el tren anda, la carga va en tren (lo más rápido); si no,
+        // en la Era Moderna va en camión por la carretera (el doble de rápido que la carreta donde está empedrada).
+        const via = ru.tipo === 'externa' && v.vias && v.vias[ru.clave], otroC = S().civ(m, ru.a === c.id ? ru.b : ru.a);
+        a.enTren = !!(via && pausada(m) && ((c.estaciones > 0 && enMarcha(c, 'tren')) || (otroC && otroC.estaciones > 0 && enMarcha(otroC, 'tren'))));
+        a.camion = !a.enTren && c.era >= 7 && pausada(m);
+        const pasos = a.enTren ? 5 : (v.camino[ru.tiles[a.i]] ? (a.camion ? 4 : 2) : 1) * (ru.tipo === 'externa' && c.estaciones > 0 && enMarcha(c, 'tren') && pausada(m) && !a.camion ? 2 : 1);
         if (a.retenido > 0) a.retenido--;
         else for (let k = 0; k < pasos; k++) {
           const sig = a.i + a.dir;
@@ -2329,7 +2344,8 @@
       const pend = (v.pendientes && v.pendientes[c.id]) || [];
       if (pend.length && (!faltanCamas(c) || azar(v) < 0.4)) {
         const aqui = a.y * v.tw + a.x;
-        let md = 40;
+        // Se empiedra de dentro afuera: el tramo sin hacer más cercano, aunque la carretera vaya muy lejos.
+        let md = 160;
         for (const x of pend) { if (rec.reservadas.has(x) || v.camino[x]) continue; const d = dist(m, aqui, x); if (d < md) { md = d; t = x; } }
         if (t >= 0) a.obraCamino = 1;
       }
@@ -2763,10 +2779,10 @@
     if (v.plan && v.plan[t] === 2) return 5;
     return (tr === 'montana' ? 9 : tr === 'rio' ? 5 : tr === 'pantano' ? 3 : o === OBRA.campo ? 3 : 1) + (v.arbol[t] >= 2 ? 0.5 : 0) + (v.roca[t] ? 1 : 0);
   }
-  function trazar(m, de, a, ter, via) {
-    const v = m.vida, tw = v.tw, th = v.th;
+  function trazar(m, de, a, ter, via, lejos) {
+    const v = m.vida, tw = v.tw, th = v.th, mg = lejos ? 40 : 14;
     const [ax, ay] = [de % tw, de / tw | 0], [bx, by] = [a % tw, a / tw | 0];
-    const x0 = Math.max(0, Math.min(ax, bx) - 14), x1 = Math.min(tw - 1, Math.max(ax, bx) + 14), y0 = Math.max(0, Math.min(ay, by) - 14), y1 = Math.min(th - 1, Math.max(ay, by) + 14);
+    const x0 = Math.max(0, Math.min(ax, bx) - mg), x1 = Math.min(tw - 1, Math.max(ax, bx) + mg), y0 = Math.max(0, Math.min(ay, by) - mg), y1 = Math.min(th - 1, Math.max(ay, by) + mg);
     const coste = via ? costeVia : t => {
       const tr = ter[t];
       if (tr === 'agua' || tr === 'bajo') return Infinity;
@@ -2784,7 +2800,7 @@
     const sacar = () => { const top = abiertos[0], fin = abiertos.pop(); if (abiertos.length) { abiertos[0] = fin; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let mn = i; if (l < abiertos.length && abiertos[l][0] < abiertos[mn][0]) mn = l; if (r < abiertos.length && abiertos[r][0] < abiertos[mn][0]) mn = r; if (mn === i) break; [abiertos[mn], abiertos[i]] = [abiertos[i], abiertos[mn]]; i = mn; } } return top; };
     abiertos.length = 0; meter(0, de);
     let vistas = 0;
-    while (abiertos.length && vistas++ < 9000) {
+    while (abiertos.length && vistas++ < (lejos ? 40000 : 9000)) {
       const [d, t] = sacar();
       if (t === a) break;
       if (d > (dist.get(t) ?? Infinity)) continue;
@@ -2816,6 +2832,26 @@
     return [...new Set(out)].filter(t => t >= 0 && t < v.tw * v.th);
   }
   const rutaActiva = (m, ru) => { const a = S().civ(m, ru.a), b = S().civ(m, ru.b); return a && a.viva && b && b.viva && (a === b || !S().enGuerra(a, b)); };
+  /*
+   * ABRIR UNA RUTA A PETICIÓN («abrid una ruta comercial con X»): se traza en el acto la carretera entre las dos
+   * capitales, por lejos que estén, y los constructores de los dos reinos empiezan a empedrarla. Si no hay
+   * camino por tierra (un mar en medio), se dice: entonces el comercio va en barco, de puerto a puerto.
+   */
+  function abrirRuta(m, c, o) {
+    const v = m.vida, ter = terrenos(m);
+    const [a, b] = c.id < o.id ? [c, o] : [o, c], clave = 'e:' + a.capital + ':' + b.capital;
+    const hay = v.rutas.find(ru => ru.clave === clave);
+    if (hay) { hay.pedida = 1; return { ok: true, ya: true, n: hay.tiles.length, empedrado: hay.tiles.filter(t => v.camino[t]).length }; }
+    const tiles = trazar(m, centro(m, a.capital), centro(m, b.capital), ter, false, true);
+    if (!tiles || tiles.length < 3) {
+      const puertos = [c, o].every(x => (x.puertos || 0) > 0);
+      return { ok: false, mar: true, puertos };
+    }
+    const ru = { id: v.sig++, clave, tipo: 'externa', a: a.id, b: b.id, ra: a.capital, rb: b.capital, tiles, pedida: 1 };
+    v.rutas.push(ru);
+    S().cronica(m, 'comercio', 'Carretera entre ' + a.nombre + ' y ' + b.nombre, 'Se abre una ruta de comercio entre ' + a.nombre + ' y ' + b.nombre + ' (' + tiles.length + ' leguas de camino). Los constructores de los dos reinos empiezan a empedrarla y los comerciantes ya cargan las carretas.', c);
+    return { ok: true, n: tiles.length, empedrado: tiles.filter(t => v.camino[t]).length };
+  }
   function planificarRutas(m, ter) {
     const v = m.vida;
     // Fuera las rutas cuyos extremos ya no valen (ciudad conquistada, capital movida, pueblo muerto).
@@ -2864,7 +2900,9 @@
         if (v.camino[t] || ter[t] === 'agua' || ter[t] === 'bajo') continue;
         const o = v.obra[t];
         if (o === OBRA.casa || o === OBRA.campo || o === OBRA.ruina) continue;
-        const d = m.dueno[region(m, t)], quien = d >= 0 ? (d === ru.a || d === ru.b ? d : -1) : ru.a;
+        // Lo empiedra el dueño de la tierra; en tierra de nadie o de un tercer reino en paz, el que la pidió (o el primero).
+        const d = m.dueno[region(m, t)], tercero = d >= 0 && d !== ru.a && d !== ru.b, ca = S().civ(m, ru.a), cd = tercero ? S().civ(m, d) : null;
+        const quien = d >= 0 && !tercero ? d : tercero ? (cd && ca && !S().enGuerra(ca, cd) ? ru.a : -1) : ru.a;
         if (quien >= 0) (v.pendientes[quien] = v.pendientes[quien] || []).push(t);
       }
     }
@@ -3396,5 +3434,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

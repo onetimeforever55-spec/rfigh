@@ -734,6 +734,21 @@
       // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
       const ix = px - 1.5, iy = py - 1, EA = 0.5;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
+      // El comerciante que va en tren no se ve por la carretera: su carga viaja en los vagones.
+      if (oficio === 'comerciante' && !nino && a.enTren && a.e === 5) continue;
+      if (oficio === 'comerciante' && !nino && a.camion && a.e === 5) {
+        // El camión de la Era Moderna: cabina del color del reino, caja de carga y ruedas; con humo del tubo.
+        const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
+        const dirX = r && r.length >= 6 ? Math.sign(r[j] - r[i]) : 0, dirY = r && r.length >= 6 ? Math.sign(r[j + 1] - r[i + 1]) : 0;
+        const d = dirX || (dirY ? 0 : 1), cx = px - 3, cy = py;
+        const col = color[a.c] || '#ccc';
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(cx, cy + 5, 9, 1);
+        g.fillStyle = '#d8d0b8'; g.fillRect(d >= 0 ? cx : cx + 3, cy, 6, 4); g.fillStyle = '#b8b0a0'; g.fillRect(d >= 0 ? cx : cx + 3, cy + 3, 6, 1);
+        g.fillStyle = col; g.fillRect(d >= 0 ? cx + 6 : cx, cy + 1, 3, 3); g.fillStyle = '#a8d0e8'; g.fillRect(d >= 0 ? cx + 7 : cx, cy + 1, 1.5, 1.2);
+        g.fillStyle = '#1e1e22'; for (const wx of [1, 4, 7]) g.fillRect(cx + wx, cy + 4, 1.4, 1.4);
+        if (Math.random() < 0.08) emitir(d >= 0 ? cx - 0.5 : cx + 9.5, cy + 3, 1, { v: 4, g: -6, vida: 700, cols: ['#8a8a90', '#a8a8b0'], tipo: 'humo', tam: 1 });
+        continue;
+      }
       if (oficio === 'comerciante' && !nino) {
         // La carreta va detrás del comerciante, según hacia dónde camina.
         const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
