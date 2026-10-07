@@ -134,7 +134,7 @@
   // la gente y las camas, el nivel del asentamiento y lo que se investiga.
   const recursoAntes = {};
   // Iconos de píxeles (arte.js) en lugar de emojis, para que la interfaz sea del mismo mundo que el mapa.
-  const ICO_PX = { '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
+  const ICO_PX = { '💣': 'granadas', '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
   const px = (n, cls) => M.arte && M.arte.iconoURL ? '<img class="px' + (cls ? ' ' + cls : '') + '" alt="" src="' + M.arte.iconoURL(n) + '">' : '';
   function pintarRecursos() {
     const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null), el = $('recursos');
@@ -162,7 +162,8 @@
       ((c.armas || 0) >= 1 ? chip('⚔', r(c.armas || 0), 'Armas en el almacén: las usa el ejército y se pueden vender («vended armas»). «Fabricad 20 fusiles» pone a la forja a hacer más.', '') : '') +
       ((c.semillas || 0) >= 1 ? chip('🌰', r(c.semillas || 0), 'Semillas de árbol: los leñadores las recogen al talar y replantan cuando escasea el bosque. Se compran y se venden en el mercado.', '') : '') +
       ((c.muebles || 0) >= 1 ? chip('🪑', r(c.muebles || 0), 'Muebles de la fábrica: la gente compra parte cada turno y el resto se exporta («vended muebles»).', '') : '') +
-      ((c.vehiculos || 0) >= 1 ? chip('🛡', r(c.vehiculos || 0), 'Vehículos de guerra en el almacén (cañones, artillería o tanques): los soldados los usan o se venden («vended tanques»).', '') : '') +
+      ((c.granadas || 0) >= 1 ? chip('💣', r(c.granadas || 0), 'Granadas: los soldados las lanzan a trincheras y grupos enemigos. «Fabricad 30 granadas» las hace el cuartel o la fábrica; también se venden («vended granadas»).', '') : '') +
+      ((c.vehiculos || 0) >= 1 ? chip('🛡', r(c.vehiculos || 0), 'Cañones, artillería o tanques en el almacén: los soldados los usan o se venden («vended cañones», «fabricad 5 cañones»).', '') : '') +
       (c.era >= 7 ? chip('🛢', r(c.petroleo || 0), 'Petróleo: lo gastan los tanques, los aviones y las centrales sin carbón. Sale de los pozos levantados sobre las manchas negras.' + ((c.pozosPetroleo || 0) ? ' Tenéis ' + c.pozosPetroleo + (c.pozosPetroleo === 1 ? ' pozo.' : ' pozos.') : ' No tenéis pozos.'), '', sig(delta('petroleo', c.petroleo || 0))) : '') +
       (c.era >= 1 && (c.armas || 0) >= 1 ? chip('⚔', r(c.armas || 0), 'Armas forjadas o compradas, listas para tus guerreros' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.armas.toFixed(2) : ''), '') : '') +
       chip('👥', (c.aldeanos || 0) + '<small class="tenue">/' + (c.camas || 0) + '</small>', 'Aldeanos / camas', (c.aldeanos || 0) >= (c.camas || 0) ? 'mal' : '') +
@@ -337,7 +338,7 @@
   }
   function salirArquitecto() { document.body.classList.remove('arqui-abierto'); arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
   // ---------- La pestaña Mercado: precios del mundo, a qué se dedica el reino, sus socios y sus tratos ----------
-  const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡', semillas: '🌰' })[k] });
+  const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡', semillas: '🌰', granadas: '💣' })[k] });
   function curva(h, col) {
     if (!h || h.length < 2) return '';
     const max = Math.max(...h), min = Math.min(...h), w = 64, al = 18, sp = Math.max(0.0001, max - min);

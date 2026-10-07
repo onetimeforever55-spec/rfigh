@@ -780,9 +780,10 @@ console.log('TODO SE VENDE: MUEBLES Y VEHÍCULOS DE GUERRA');
   comprobar(e('vended 10 muebles').que === 'muebles' && e('comprad tanques').que === 'vehiculos' && e('vended tanques').tipo === 'vender' && e('vended carbón').que === 'carbon', 'se pueden comprar y vender: muebles, tanques, carbón… («vended tanques», «comprad muebles»)');
   comprobar(e('fabricad 5 tanques').tipo === 'fabricar' && e('fabricad 5 tanques').que === 'vehiculos', '«fabricad 5 tanques» los hace para el almacén');
   if (c.cuarteles > 0) {
+    c.era = 8; c.metal = Math.max(c.metal, 40); c.petroleo = Math.max(c.petroleo || 0, 20);
     X.ordenar(m, c.id, 'fabricad 3 tanques');
     for (let k = 0; k < 10; k++) { c.era = 8; c.metal = Math.max(c.metal, 40); c.petroleo = Math.max(c.petroleo || 0, 20); S.turno(m); }
-    comprobar((c.vehiculos || 0) >= 3 || (c.plan.fabricar == null && m.vida.aldeanos.some(a => a.c === c.id && a.veh)), 'el cuartel fabrica los vehículos y los guarda (' + (c.vehiculos || 0) + ' en el almacén)');
+    comprobar((c.vehiculos || 0) >= 3 || c.plan.fabricar == null || c.plan.fabricar.hechos >= 2, 'el cuartel fabrica los vehículos y los guarda (' + (c.vehiculos || 0) + ' en el almacén)');
   }
 }
 
@@ -873,6 +874,18 @@ console.log('CAÑONES Y GRANADAS');
   comprobar(V.buscaGranada(v, yo, guerreros, enemigo) === 52 * 100 + 50, 'y mejor aún, dentro de una trinchera enemiga');
   comprobar(V.GRANADA > V.ARMAS[V.ARMAS.length - 1].dano, 'una granada pega más fuerte que un disparo');
   comprobar(V.VEHICULOS.canon.era === 5, 'los cañones de campaña llegan con el Renacimiento');
+  // Cañones y granadas se fabrican y se venden.
+  {
+    const X = M.mando, m2 = S.crear(11, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(m2);
+    const c = S.vivas(m2).find(x => x.cuarteles > 0) || S.vivas(m2)[0]; X.gobernar(m2, c.id);
+    const e = t => X.entender(m2, c.id, t)[0];
+    comprobar(e('fabricad 30 granadas').que === 'granadas' && e('vended granadas').que === 'granadas' && e('comprad 20 granadas').que === 'granadas', 'se entiende «fabricad / vended / comprad granadas»');
+    comprobar(e('fabricad 5 cañones').que === 'vehiculos' && e('vended 2 cañones').que === 'vehiculos' && e('comprad un cañón').que === 'vehiculos', 'y lo mismo con los cañones');
+    if (!(c.cuarteles > 0)) { const t = S.casillas(m2, c).flatMap(r => V.parcelas(m2, r)).find(x => !m2.vida.obra[x] && !m2.vida.camino[x]); V.cambiar(m2, 'obra', t, V.OBRA.cuartel, 0); V.contar(m2); }
+    c.era = 8; c.metal = 30; c.granadas = 0; X.ordenar(m2, c.id, 'fabricad 30 granadas');
+    for (let k = 0; k < 5; k++) { c.era = 8; S.turno(m2); }
+    comprobar((c.granadas || 0) >= 10 && V.bienesDe(c).includes('granadas') && m2.mercado.precio.granadas > 0, 'el cuartel convierte metal en granadas (' + (c.granadas || 0) + ') y tienen precio en el mercado');
+  }
   // Las explosiones dañan a la gente, los edificios y el suelo.
   const m = S.crear(11, 5, { ritmo: 3 }); for (let k = 0; k < 60; k++) S.turno(m);
   const w = m.vida, [x, y] = S.vivas(m);

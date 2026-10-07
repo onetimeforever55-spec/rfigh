@@ -572,7 +572,7 @@ table.mercado td:first-child { white-space: nowrap; }
           <details><summary>Capitales, independencias y exterminio</summary>
             <p>Si cae tu capital y te queda otra ciudad, la corte huye allí, saqueada y revuelta; si no te queda ninguna, el reino cae. Las regiones que se independizan conservan la técnica de su reino. «Exterminad a la gente de Nombre» ordena a tus soldados matar también a sus civiles: todo el mundo os odiará durante mucho tiempo. «Parad el exterminio» lo cancela.</p></details>
           <details><summary>Trincheras y uniformes</summary>
-            <p>En la Segunda Guerra Mundial los soldados cavan trincheras en la frontera con los reinos rivales: zanja con sacos terreros y, delante, alambre de espino. En guerra se meten dentro: cuesta más acertarles y reciben menos daño. Desde la Revolución Industrial cada ejército viste uniforme del color de su reino. Los cañones salen con el Renacimiento, y en la Segunda Guerra Mundial los soldados lanzan granadas, que caen dentro de las trincheras. Obuses, granadas y bombas hieren a todo el que pillan, agrietan y derriban edificios, revientan caminos y dejan cráteres.</p></details>
+            <p>En la Segunda Guerra Mundial los soldados cavan trincheras en la frontera con los reinos rivales: zanja con sacos terreros y, delante, alambre de espino. En guerra se meten dentro: cuesta más acertarles y reciben menos daño. Desde la Revolución Industrial cada ejército viste uniforme del color de su reino. Los cañones salen con el Renacimiento, y en la Segunda Guerra Mundial los soldados lanzan granadas, que caen dentro de las trincheras. Obuses, granadas y bombas hieren a todo el que pillan, agrietan y derriban edificios, revientan caminos y dejan cráteres. Cañones y granadas se fabrican («fabricad 30 granadas», «fabricad 5 cañones») y se compran y venden en el mercado.</p></details>
           <details><summary>Comercio y mercado</summary>
             <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Para comerciar con un reino concreto, escribe «abrid una ruta comercial con Nombre»: se traza la carretera y tus constructores la empiedran. En la Era Moderna la carga va en camión o en tren si hay vía. «Fabricad 20 fusiles» pone a la forja a hacer armas, «fabricad muebles» a la fábrica y «fabricad 5 tanques» al cuartel. Todo se puede vender y comprar: «vended tanques», «comprad carbón». Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero.</p></details>
           <details><summary>Industria: carbón, petróleo y obreros</summary>
@@ -1507,7 +1507,7 @@ table.mercado td:first-child { white-space: nowrap; }
   }
 
   // Lo que guarda un reino en sus almacenes (para el saqueo y para la herencia de los reinos que se separan).
-  const ALMACEN = ['oro', 'madera', 'piedra', 'metal', 'comida', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas'];
+  const ALMACEN = ['oro', 'madera', 'piedra', 'metal', 'comida', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas', 'granadas'];
   function repartirAlmacen(de, a, parte) {
     for (const k of ALMACEN) { const q = (de[k] || 0) * parte; if (q > 0) { de[k] -= q; a[k] = (a[k] || 0) + q; } }
   }
@@ -2367,11 +2367,11 @@ table.mercado td:first-child { white-space: nowrap; }
    */
   // Todo lo que se produce o se fabrica se puede vender: las materias primas, las armas que hace la forja,
   // los muebles de la fábrica y los vehículos de guerra (cañones, artillería, tanques) que salen del cuartel.
-  const BIENES = ['comida', 'madera', 'piedra', 'metal', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas'];
-  const PRECIO_BASE = { comida: 0.5, madera: 0.6, piedra: 0.9, metal: 2.5, armas: 6, carbon: 1.4, petroleo: 3.2, muebles: 2.4, vehiculos: 30, semillas: 0.35 };
-  const NOMBRE_BIEN = { comida: 'comida', madera: 'madera', piedra: 'piedra', metal: 'metal', armas: 'armas', carbon: 'carbón', petroleo: 'petróleo', muebles: 'muebles', vehiculos: 'vehículos de guerra', semillas: 'semillas de árbol' };
+  const BIENES = ['comida', 'madera', 'piedra', 'metal', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas', 'granadas'];
+  const PRECIO_BASE = { comida: 0.5, madera: 0.6, piedra: 0.9, metal: 2.5, armas: 6, carbon: 1.4, petroleo: 3.2, muebles: 2.4, vehiculos: 30, semillas: 0.35, granadas: 1.6 };
+  const NOMBRE_BIEN = { comida: 'comida', madera: 'madera', piedra: 'piedra', metal: 'metal', armas: 'armas', carbon: 'carbón', petroleo: 'petróleo', muebles: 'muebles', vehiculos: 'cañones y tanques', semillas: 'semillas de árbol', granadas: 'granadas' };
   // Los bienes que un reino conoce: las armas desde el Bronce, el carbón desde la industria, el petróleo en la Era Moderna.
-  const bienesDe = c => BIENES.filter(k => (k !== 'armas' || c.era >= 1) && (k !== 'carbon' || c.era >= 6) && (k !== 'petroleo' || c.era >= 7) && (k !== 'muebles' || c.era >= 6) && (k !== 'vehiculos' || c.era >= 5));
+  const bienesDe = c => BIENES.filter(k => (k !== 'armas' || c.era >= 1) && (k !== 'carbon' || c.era >= 6) && (k !== 'petroleo' || c.era >= 7) && (k !== 'muebles' || c.era >= 6) && (k !== 'vehiculos' || c.era >= 5) && (k !== 'granadas' || c.era >= 8));
   const tanquesDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.veh === 'tanque').length;
   // Lo que un reino quiere tener de cada cosa.
   function objetivo(c, k) {
@@ -2387,6 +2387,8 @@ table.mercado td:first-child { white-space: nowrap; }
     if (k === 'semillas') return 6 + Math.max(0, 20 - Math.round((c.arboles || 0) / 6));
     if (k === 'muebles') return c.era >= 6 ? Math.round((c.casas || 0) * 0.2) : 0;
     if (k === 'vehiculos') return c.era >= 5 && c.cuarteles > 0 ? (c.guerras && c.guerras.length ? 4 : 1) : 0;
+    // Las granadas: unas cuantas por soldado, muchas más en guerra.
+    if (k === 'granadas') return c.era >= 8 ? Math.round((c.guerreros || 0) * (c.guerras && c.guerras.length ? 3 : 1)) + 6 : 0;
     if (k === 'petroleo') return c.era >= 7 ? 6 + (c.aerodromos || 0) * 8 + (c.era >= 8 ? 10 + (c.guerras && c.guerras.length ? 12 : 0) : 0) : 0;
     return 0;
   }
@@ -2419,7 +2421,8 @@ table.mercado td:first-child { white-space: nowrap; }
       petroleo: c.era >= 7 && (c.pozosPetroleo || 0) > 0 ? 0.7 + 0.35 * c.pozosPetroleo : 0,
       semillas: recursos && recursos.arboles ? 0.15 + Math.min(0.6, recursos.arboles / 90) : 0,
       muebles: c.era >= 6 && (c.fabricas || 0) > 0 ? 0.5 + 0.3 * c.fabricas : 0,
-      vehiculos: c.era >= 5 && c.cuarteles > 0 ? 0.3 + Math.min(0.8, (c.metal || 0) / 60) : 0
+      vehiculos: c.era >= 5 && c.cuarteles > 0 ? 0.3 + Math.min(0.8, (c.metal || 0) / 60) : 0,
+      granadas: c.era >= 8 && (c.cuarteles > 0 || c.fabricas > 0) ? 0.35 + Math.min(0.7, (c.metal || 0) / 50) : 0
     };
   }
   /*
@@ -2515,11 +2518,11 @@ table.mercado td:first-child { white-space: nowrap; }
       const fab = c.plan && c.plan.fabricar;
       if (fab && fab.n > fab.hechos && fab.que !== 'vehiculos') {
         const ritmo = (c.cuarteles > 0 ? 2 : 0) + (enMarcha(c, 'fabrica') ? 4 * (c.fabricas || 0) : 0);
-        const q = Math.min(ritmo, fab.n - fab.hechos, fab.que === 'armas' ? Math.floor(c.metal || 0) : Math.floor((c.madera || 0) / 2));
+        const q = Math.min(fab.que === 'granadas' ? ritmo * 3 : ritmo, fab.n - fab.hechos, fab.que === 'armas' ? Math.floor(c.metal || 0) : fab.que === 'granadas' ? Math.floor(c.metal || 0) * 3 : Math.floor((c.madera || 0) / 2));
         if (fab.que === 'vehiculos') { /* los hace el cuartel, más abajo */ }
-        else if (q > 0) { if (fab.que === 'armas') { c.metal -= q; c.armas = (c.armas || 0) + q; } else { c.madera -= q * 2; c.muebles = (c.muebles || 0) + q; } fab.hechos += q; }
-        if (fab.hechos >= fab.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: (fab.que === 'armas' ? '⚒ Hechas ' : '🏭 Hechos ') + fab.n + (fab.que === 'armas' ? ' armas' : ' lotes de muebles') }); c.plan.fabricar = null; }
-        else if (!q && m.turno - fab.desde > 3 && !fab.avisado) { fab.avisado = 1; (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: fab.que === 'armas' ? '⚒ Sin metal para las armas: haced minas o compradlo' : '🏭 Sin madera para los muebles' }); }
+        else if (q > 0) { if (fab.que === 'armas') { c.metal -= q; c.armas = (c.armas || 0) + q; } else if (fab.que === 'granadas') { c.metal -= Math.ceil(q / 3); c.granadas = (c.granadas || 0) + q; } else { c.madera -= q * 2; c.muebles = (c.muebles || 0) + q; } fab.hechos += q; }
+        if (fab.hechos >= fab.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: (fab.que === 'muebles' ? '🏭 Hechos ' : '⚒ Hechas ') + fab.n + (fab.que === 'armas' ? ' armas' : fab.que === 'granadas' ? ' granadas' : ' lotes de muebles') }); c.plan.fabricar = null; }
+        else if (!q && m.turno - fab.desde > 3 && !fab.avisado) { fab.avisado = 1; (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: fab.que !== 'muebles' ? '⚒ Sin metal para ' + (fab.que === 'granadas' ? 'las granadas' : 'las armas') + ': haced minas o compradlo' : '🏭 Sin madera para los muebles' }); }
       }
       // El banco: el oro guardado da un pequeño interés.
       if (c.bancos > 0 && (c.oro || 0) > 0) c.oro += Math.min(2 + c.bancos, c.oro * 0.012);
@@ -2539,6 +2542,13 @@ table.mercado td:first-child { white-space: nowrap; }
       if (c.era >= 5 && c.cuarteles > 0 && ((c.cartera && c.cartera.vehiculos) || (c.plan && c.plan.fabricar && c.plan.fabricar.que === 'vehiculos')) && m.turno % 2 === 0) {
         const t = c.era >= 8 ? 'tanque' : c.era >= 7 ? 'artilleria' : 'canon', cm = VEHICULOS[t].metal, cp = t === 'tanque' ? 3 : 0;
         if ((c.metal || 0) >= cm + 4 && (c.petroleo || 0) >= cp) { c.metal -= cm; c.petroleo = (c.petroleo || 0) - cp; c.vehiculos = (c.vehiculos || 0) + 1; const f = c.plan && c.plan.fabricar; if (f && f.que === 'vehiculos') { f.hechos++; if (f.hechos >= f.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚙ Hechos ' + f.n + ' vehículos de guerra' }); c.plan.fabricar = null; } } }
+      }
+      // Las granadas (Segunda Guerra Mundial): la forja del cuartel y las fábricas hacen 3 con cada pieza de metal,
+      // hasta tener las que pide el ejército (o más, si el reino vive de venderlas).
+      if (c.era >= 8 && !(c.plan && c.plan.fabricar) && (c.cuarteles > 0 || (c.fabricas > 0 && enMarcha(c, 'fabrica')))) {
+        const quiere = objetivo(c, 'granadas') * (c.cartera && c.cartera.granadas ? 2.5 : 1) - (c.granadas || 0);
+        const lotes = Math.min(Math.ceil(Math.max(0, quiere) / 3), (c.cuarteles > 0 ? 2 : 0) + (enMarcha(c, 'fabrica') ? 2 * (c.fabricas || 0) : 0), Math.floor(Math.max(0, (c.metal || 0) - 14 - reserva)));
+        if (lotes > 0) { c.metal -= lotes; c.granadas = (c.granadas || 0) + lotes * 3; }
       }
       // Los pedidos y las ventas que nadie atiende en 40 turnos se olvidan.
       if (c.plan) for (const l of ['pedidos', 'ventas']) if (c.plan[l]) c.plan[l] = c.plan[l].filter(x => m.turno - (x.desde || 0) < 40);
@@ -4059,10 +4069,10 @@ table.mercado td:first-child { white-space: nowrap; }
           }
         }
         acc = ACC.luchar;
-      } else if (c.era >= 8 && !a.veh && (a.granadaT == null || m.turno - a.granadaT >= 3) && azar(v) < 0.3 && (blancoG = buscaGranada(v, a, guerreros, enemigo)) != null) {
+      } else if (c.era >= 8 && !a.veh && (c.granadas || 0) >= 1 && (a.granadaT == null || m.turno - a.granadaT >= 3) && azar(v) < 0.3 && (blancoG = buscaGranada(v, a, guerreros, enemigo)) != null) {
         // La granada (Segunda Guerra Mundial): se lanza por encima de los sacos terreros y revienta en una casilla
         // y las de al lado. La trinchera no protege de ella.
-        a.granadaT = m.turno;
+        a.granadaT = m.turno; c.granadas -= 1;
         const bx = blancoG % v.tw, by = blancoG / v.tw | 0;
         v.disparos.push([a.x, a.y, bx, by, paso, 5, a.id]);
         a.fuego = { turno: m.turno, paso, dx: Math.sign(bx - a.x) || (a.fuego ? a.fuego.dx : 1) };
@@ -6197,6 +6207,7 @@ table.mercado td:first-child { white-space: nowrap; }
     const verboFab = /\b(fabric\w*|forj\w*|produc\w*|manufactur\w*|hac\w*|hag\w*|elabor\w*)\b/.test(n) && !/\b(compr\w*|vend\w*|export\w*|import\w*)\b/.test(n);
     if (verboFab && /\b(armas?|armamento|fusiles?|rifles?|espingardas?|mosquetes?|arcabuces?|escopetas?|carabinas?|pistolas?|ametralladoras?|espadas?|lanzas?|hachas de guerra|municion\w*|balas)\b/.test(n) && !/\b(tanques?|blindados?|canon\w*|artilleri\w*|aviones?)\b/.test(n))
       return [{ tipo: 'fabricar', que: 'armas', n: numero1 >= 1 ? Math.round(numero1) : 20 }];
+    if (verboFab && /\b(granadas?|bombas de mano)\b/.test(n)) return [{ tipo: 'fabricar', que: 'granadas', n: numero1 >= 1 ? Math.round(numero1) : 30 }];
     if (verboFab && /\b(muebles?|mobiliario|sillas|mesas|bienes|manufacturas?|productos)\b/.test(n)) return [{ tipo: 'fabricar', que: 'muebles', n: numero1 >= 1 ? Math.round(numero1) : 20 }];
     // «Fabricad 5 tanques», «haced 3 cañones»: el cuartel los hace para el almacén (se usan o se venden).
     if (verboFab && numero1 >= 1 && /\b(tanques?|blindados?|canon\w*|artilleri\w*|vehiculos?)\b/.test(n)) return [{ tipo: 'fabricar', que: 'vehiculos', n: Math.round(numero1) }];
@@ -6254,8 +6265,8 @@ table.mercado td:first-child { white-space: nowrap; }
     if (tec && quiereTec) return [{ tipo: 'investigar', id: tec.id }];
     if (/\b(que investig\w*|que (podemos )?investigar|que estudi\w*|tecnolog\w*|tecnica|arbol)\b/.test(n) && /\b(que|cual|cuales|lista|ver|como va|como van)\b/.test(n)) return [{ tipo: 'consulta_tec' }];
     // El tesoro.
-    const cosa = n.match(/\b(madera|lena|comida|trigo|grano|alimentos?|piedras?|metal|hierro|armas?|espadas|lanzas|fusiles|armamento|carbon|hulla|petroleo|crudo|gasolina|combustible|muebles?|mobiliario|tanques?|blindados?|vehiculos?|canones|artilleria|semillas?|retonos?|plantones?)\b/);
-    const BIEN = { semilla: 'semillas', retono: 'semillas', retonos: 'semillas', planton: 'semillas', plantones: 'semillas', mueble: 'muebles', mobiliario: 'muebles', tanque: 'vehiculos', tanques: 'vehiculos', blindado: 'vehiculos', blindados: 'vehiculos', vehiculo: 'vehiculos', canones: 'vehiculos', artilleria: 'vehiculos', hulla: 'carbon', crudo: 'petroleo', gasolina: 'petroleo', combustible: 'carbon', lena: 'madera', trigo: 'comida', grano: 'comida', alimento: 'comida', alimentos: 'comida', piedras: 'piedra', hierro: 'metal', arma: 'armas', espadas: 'armas', lanzas: 'armas', fusiles: 'armas', armamento: 'armas' };
+    const cosa = n.match(/\b(madera|lena|comida|trigo|grano|alimentos?|piedras?|metal|hierro|armas?|espadas|lanzas|fusiles|armamento|carbon|hulla|petroleo|crudo|gasolina|combustible|muebles?|mobiliario|tanques?|blindados?|vehiculos?|canones|canon|obuses|artilleria|granadas?|semillas?|retonos?|plantones?)\b/);
+    const BIEN = { semilla: 'semillas', retono: 'semillas', retonos: 'semillas', planton: 'semillas', plantones: 'semillas', mueble: 'muebles', mobiliario: 'muebles', tanque: 'vehiculos', tanques: 'vehiculos', blindado: 'vehiculos', blindados: 'vehiculos', vehiculo: 'vehiculos', canones: 'vehiculos', canon: 'vehiculos', obuses: 'vehiculos', artilleria: 'vehiculos', granada: 'granadas', hulla: 'carbon', crudo: 'petroleo', gasolina: 'petroleo', combustible: 'carbon', lena: 'madera', trigo: 'comida', grano: 'comida', alimento: 'comida', alimentos: 'comida', piedras: 'piedra', hierro: 'metal', arma: 'armas', espadas: 'armas', lanzas: 'armas', fusiles: 'armas', armamento: 'armas' };
     // Las ofertas de los mercaderes: «acepto el trato», «rechazad la oferta».
     if (/\b(trato|oferta|propuesta del mercader)\b/.test(n) && /\b(acept\w*|cerr\w*|hecho|vale|de acuerdo|si|rechaz\w*|no|nada)\b/.test(n) && !/\bpaz\b/.test(n)) return [{ tipo: 'oferta', si: !/\b(rechaz\w*|no|nada)\b/.test(n) }];
     // El mercado: «¿cómo está el mercado?», «precios», «especializaos en madera», «producid armas para vender».
@@ -6271,7 +6282,7 @@ table.mercado td:first-child { white-space: nowrap; }
     if (/\b(cuanto oro|cuanto dinero|tesoro|arcas|presupuesto|cuentas|ingresos|gastos)\b/.test(n) && !/\b(sub\w*|baj\w*)\b/.test(n)) return [{ tipo: 'consulta_oro' }];
     return null;
   }
-  const PRECIO = { madera: 0.6, comida: 0.5, piedra: 0.9, metal: 2.5, armas: 6, carbon: 1.4, petroleo: 3.2, muebles: 2.4, vehiculos: 30, semillas: 0.35 };
+  const PRECIO = { madera: 0.6, comida: 0.5, piedra: 0.9, metal: 2.5, armas: 6, carbon: 1.4, petroleo: 3.2, muebles: 2.4, vehiculos: 30, semillas: 0.35, granadas: 1.6 };
   // Con quién comercia de verdad un pueblo: los del otro lado de sus rutas entre reinos.
   const sociosDe = (m, c) => [...new Set(((m.vida && m.vida.rutas) || []).filter(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)).map(ru => (ru.a === c.id ? ru.b : ru.a)))].map(id => S().civ(m, id)).filter(o => o && o.viva && !S().enGuerra(c, o));
   function aplicarEconomia(m, c, a, textos) {
@@ -6519,6 +6530,14 @@ table.mercado td:first-child { white-space: nowrap; }
         p.fabricar = { que: 'vehiculos', n: Math.max(1, Math.min(60, a.n || 3)), hechos: 0, desde: m.turno };
         an('⚙ Fabricando ' + p.fabricar.n + ' vehículos de guerra');
         textos.push('El cuartel fabricará ' + p.fabricar.n + ' ' + t + ', uno cada dos turnos, y los guardará en el almacén: vuestros soldados los usarán, o los podéis vender («vended tanques»).');
+        return;
+      }
+      if (a.que === 'granadas') {
+        if (c.era < 8) { textos.push('Las granadas de mano llegan con la Segunda Guerra Mundial.'); return; }
+        if (!(c.cuarteles > 0) && !(c.fabricas > 0)) { textos.push('Hace falta un cuartel o una fábrica para hacer granadas.'); return; }
+        p.fabricar = { que: 'granadas', n: Math.max(1, Math.min(600, a.n || 30)), hechos: 0, desde: m.turno };
+        an('⚒ Fabricando ' + p.fabricar.n + ' granadas');
+        textos.push((c.cuarteles > 0 && c.fabricas > 0 ? 'El cuartel y las fábricas harán ' : c.fabricas > 0 ? 'Las fábricas harán ' : 'El cuartel hará ') + p.fabricar.n + ' granadas (3 por cada pieza de metal; tenéis ' + Math.floor(c.metal || 0) + '). Los soldados las lanzan a las trincheras y a los grupos enemigos, y también se venden («vended granadas»).');
         return;
       }
       if (a.que === 'armas') {
@@ -7014,7 +7033,7 @@ table.mercado td:first-child { white-space: nowrap; }
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
-    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"saber"|"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"|"pozo"|"granero"|"fuente"|"parque"|"palacio"|"central"|"banco"|"fabrica"|"estacion"|"hospital"|"aerodromo"|"petroleo"|"mina"} (mina = galería, solo en la montaña, que da piedra, metal, carbón y algo de oro sin agotarse; petroleo = pozo de petróleo, en la Era Moderna y sobre una bolsa de crudo; banco desde el Renacimiento; fábrica y estación de tren desde la Revolución Industrial; hospital desde la Era Moderna; aeródromo en la II Guerra Mundial; fuente = plaza pública; central = central eléctrica, solo en la Era Moderna y en ciudades; templo = iglesia o catedral según la era; saber = la casa de los eruditos: cabaña del chamán, academia, monasterio, universidad o laboratorio); {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante, 6 erudito (chamán, filósofo, monje, científico); -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal"|"armas"|"carbon"|"petroleo"|"muebles"|"vehiculos"|"semillas","n":numero|null} (solo con reinos con los que hay ruta de comercio: el comerciante lo trae o lo lleva); {"tipo":"especialidad","que":"madera"|"comida"|"piedra"|"metal"|"armas"|"carbon"|"petroleo"|"muebles"|"vehiculos"|null} (a qué se dedica el pueblo para vender); {"tipo":"consulta_mercado"}; {"tipo":"oferta","si":bool} (aceptar o rechazar el trato que ofrece un mercader); {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"edad"} (pasar a la edad siguiente, como en Age of Empires: cuesta recursos y pide edificios); {"tipo":"consulta_edad"} (qué falta para la próxima edad); {"tipo":"edad_auto","si":bool}; {"tipo":"ahorrar_edad","si":bool}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"exterminio","con":id,"parar":bool} (los soldados matan también a los civiles de ese pueblo; parar:true lo cancela); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"reforestar"} (los leñadores plantan árboles con las semillas); {"tipo":"fabricar","que":"armas"|"muebles"|"vehiculos","n":numero} (fabricar armas de la época en la forja o la fábrica, o muebles con la madera en la fábrica); {"tipo":"huelga","ceder":true|false} (huelga obrera: subir salarios o reprimirla); {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
+    '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"saber"|"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"|"pozo"|"granero"|"fuente"|"parque"|"palacio"|"central"|"banco"|"fabrica"|"estacion"|"hospital"|"aerodromo"|"petroleo"|"mina"} (mina = galería, solo en la montaña, que da piedra, metal, carbón y algo de oro sin agotarse; petroleo = pozo de petróleo, en la Era Moderna y sobre una bolsa de crudo; banco desde el Renacimiento; fábrica y estación de tren desde la Revolución Industrial; hospital desde la Era Moderna; aeródromo en la II Guerra Mundial; fuente = plaza pública; central = central eléctrica, solo en la Era Moderna y en ciudades; templo = iglesia o catedral según la era; saber = la casa de los eruditos: cabaña del chamán, academia, monasterio, universidad o laboratorio); {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante, 6 erudito (chamán, filósofo, monje, científico); -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal"|"armas"|"carbon"|"petroleo"|"muebles"|"vehiculos"|"semillas"|"granadas","n":numero|null} (solo con reinos con los que hay ruta de comercio: el comerciante lo trae o lo lleva); {"tipo":"especialidad","que":"madera"|"comida"|"piedra"|"metal"|"armas"|"carbon"|"petroleo"|"muebles"|"vehiculos"|null} (a qué se dedica el pueblo para vender); {"tipo":"consulta_mercado"}; {"tipo":"oferta","si":bool} (aceptar o rechazar el trato que ofrece un mercader); {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"edad"} (pasar a la edad siguiente, como en Age of Empires: cuesta recursos y pide edificios); {"tipo":"consulta_edad"} (qué falta para la próxima edad); {"tipo":"edad_auto","si":bool}; {"tipo":"ahorrar_edad","si":bool}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"exterminio","con":id,"parar":bool} (los soldados matan también a los civiles de ese pueblo; parar:true lo cancela); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"reforestar"} (los leñadores plantan árboles con las semillas); {"tipo":"fabricar","que":"armas"|"muebles"|"vehiculos"|"granadas","n":numero} (fabricar armas de la época en la forja o la fábrica, o muebles con la madera en la fábrica); {"tipo":"huelga","ceder":true|false} (huelga obrera: subir salarios o reprimirla); {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
   function paraIA(m, civId, texto) {
@@ -7062,7 +7081,7 @@ table.mercado td:first-child { white-space: nowrap; }
         if (a.tipo === 'impuestos') x.sube = a.sube !== false;
         if (a.tipo === 'fiesta' && a.descanso) x.descanso = true;
         if (a.tipo === 'huelga') x.ceder = a.ceder !== false;
-        if (a.tipo === 'fabricar') { x.que = ['muebles', 'vehiculos'].includes(a.que) ? a.que : 'armas'; x.n = Math.max(1, Math.min(500, Math.round(Number(a.n) || 20))); }
+        if (a.tipo === 'fabricar') { x.que = ['muebles', 'vehiculos', 'granadas'].includes(a.que) ? a.que : 'armas'; x.n = Math.max(1, Math.min(500, Math.round(Number(a.n) || 20))); }
         if (['rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje'].includes(a.tipo) && x.con == null) continue;
         out.push(x);
       }
@@ -8391,6 +8410,7 @@ table.mercado td:first-child { white-space: nowrap; }
 
   // ---------- Iconos de la interfaz (12×12 píxeles, con contorno): recursos, estaciones y secciones ----------
   const ICONOS = {
+    granadas: H => { H.r(3, 4, 6, 7, '#3e4a2a'); H.r(4, 3, 4, 9, '#3e4a2a'); H.r(4, 5, 4, 1, '#56643a'); H.r(4, 8, 4, 1, '#56643a'); H.r(5, 1, 2, 2, '#8a8a90'); H.r(7, 1, 3, 1, '#8a8a90'); H.p(9, 2, '#c8c8d0'); H.p(4, 4, '#6a7a48'); },
     semillas: H => { H.r(3, 3, 6, 7, '#c8a86a'); H.r(3, 3, 6, 1, '#e0c890'); H.r(4, 2, 4, 1, '#a8885a'); H.p(5, 1, '#6a4a2a'); for (const [x, y] of [[4, 6], [6, 5], [7, 7], [5, 8]]) H.p(x, y, '#7a5a2a'); H.p(8, 1, '#4a9a3a'); H.p(9, 0, '#5ab04a'); H.p(7, 0, '#5ab04a'); },
     muebles: H => { H.r(2, 2, 2, 9, '#8a5a2a'); H.r(2, 6, 7, 2, '#a8743a'); H.r(7, 8, 2, 3, '#8a5a2a'); H.r(2, 6, 7, 1, '#c89a5a'); H.r(2, 2, 2, 1, '#c89a5a'); },
     vehiculos: H => { H.r(1, 6, 10, 3, '#5a6a4a'); H.r(3, 4, 5, 2, '#6a7a5a'); H.r(8, 4, 4, 1, '#3a3a40'); H.r(1, 9, 10, 2, '#2a2a2e'); for (const x of [2, 5, 8]) H.p(x, 10, '#8a8a90'); },
@@ -10767,7 +10787,7 @@ table.mercado td:first-child { white-space: nowrap; }
   // la gente y las camas, el nivel del asentamiento y lo que se investiga.
   const recursoAntes = {};
   // Iconos de píxeles (arte.js) en lugar de emojis, para que la interfaz sea del mismo mundo que el mapa.
-  const ICO_PX = { '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
+  const ICO_PX = { '💣': 'granadas', '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
   const px = (n, cls) => M.arte && M.arte.iconoURL ? '<img class="px' + (cls ? ' ' + cls : '') + '" alt="" src="' + M.arte.iconoURL(n) + '">' : '';
   function pintarRecursos() {
     const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null), el = $('recursos');
@@ -10795,7 +10815,8 @@ table.mercado td:first-child { white-space: nowrap; }
       ((c.armas || 0) >= 1 ? chip('⚔', r(c.armas || 0), 'Armas en el almacén: las usa el ejército y se pueden vender («vended armas»). «Fabricad 20 fusiles» pone a la forja a hacer más.', '') : '') +
       ((c.semillas || 0) >= 1 ? chip('🌰', r(c.semillas || 0), 'Semillas de árbol: los leñadores las recogen al talar y replantan cuando escasea el bosque. Se compran y se venden en el mercado.', '') : '') +
       ((c.muebles || 0) >= 1 ? chip('🪑', r(c.muebles || 0), 'Muebles de la fábrica: la gente compra parte cada turno y el resto se exporta («vended muebles»).', '') : '') +
-      ((c.vehiculos || 0) >= 1 ? chip('🛡', r(c.vehiculos || 0), 'Vehículos de guerra en el almacén (cañones, artillería o tanques): los soldados los usan o se venden («vended tanques»).', '') : '') +
+      ((c.granadas || 0) >= 1 ? chip('💣', r(c.granadas || 0), 'Granadas: los soldados las lanzan a trincheras y grupos enemigos. «Fabricad 30 granadas» las hace el cuartel o la fábrica; también se venden («vended granadas»).', '') : '') +
+      ((c.vehiculos || 0) >= 1 ? chip('🛡', r(c.vehiculos || 0), 'Cañones, artillería o tanques en el almacén: los soldados los usan o se venden («vended cañones», «fabricad 5 cañones»).', '') : '') +
       (c.era >= 7 ? chip('🛢', r(c.petroleo || 0), 'Petróleo: lo gastan los tanques, los aviones y las centrales sin carbón. Sale de los pozos levantados sobre las manchas negras.' + ((c.pozosPetroleo || 0) ? ' Tenéis ' + c.pozosPetroleo + (c.pozosPetroleo === 1 ? ' pozo.' : ' pozos.') : ' No tenéis pozos.'), '', sig(delta('petroleo', c.petroleo || 0))) : '') +
       (c.era >= 1 && (c.armas || 0) >= 1 ? chip('⚔', r(c.armas || 0), 'Armas forjadas o compradas, listas para tus guerreros' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.armas.toFixed(2) : ''), '') : '') +
       chip('👥', (c.aldeanos || 0) + '<small class="tenue">/' + (c.camas || 0) + '</small>', 'Aldeanos / camas', (c.aldeanos || 0) >= (c.camas || 0) ? 'mal' : '') +
@@ -10970,7 +10991,7 @@ table.mercado td:first-child { white-space: nowrap; }
   }
   function salirArquitecto() { document.body.classList.remove('arqui-abierto'); arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
   // ---------- La pestaña Mercado: precios del mundo, a qué se dedica el reino, sus socios y sus tratos ----------
-  const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡', semillas: '🌰' })[k] });
+  const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡', semillas: '🌰', granadas: '💣' })[k] });
   function curva(h, col) {
     if (!h || h.length < 2) return '';
     const max = Math.max(...h), min = Math.min(...h), w = 64, al = 18, sp = Math.max(0.0001, max - min);

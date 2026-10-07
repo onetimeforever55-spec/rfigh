@@ -590,7 +590,7 @@
   }
 
   // Lo que guarda un reino en sus almacenes (para el saqueo y para la herencia de los reinos que se separan).
-  const ALMACEN = ['oro', 'madera', 'piedra', 'metal', 'comida', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas'];
+  const ALMACEN = ['oro', 'madera', 'piedra', 'metal', 'comida', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas', 'granadas'];
   function repartirAlmacen(de, a, parte) {
     for (const k of ALMACEN) { const q = (de[k] || 0) * parte; if (q > 0) { de[k] -= q; a[k] = (a[k] || 0) + q; } }
   }

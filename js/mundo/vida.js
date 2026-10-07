@@ -519,11 +519,11 @@
    */
   // Todo lo que se produce o se fabrica se puede vender: las materias primas, las armas que hace la forja,
   // los muebles de la fábrica y los vehículos de guerra (cañones, artillería, tanques) que salen del cuartel.
-  const BIENES = ['comida', 'madera', 'piedra', 'metal', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas'];
-  const PRECIO_BASE = { comida: 0.5, madera: 0.6, piedra: 0.9, metal: 2.5, armas: 6, carbon: 1.4, petroleo: 3.2, muebles: 2.4, vehiculos: 30, semillas: 0.35 };
-  const NOMBRE_BIEN = { comida: 'comida', madera: 'madera', piedra: 'piedra', metal: 'metal', armas: 'armas', carbon: 'carbón', petroleo: 'petróleo', muebles: 'muebles', vehiculos: 'vehículos de guerra', semillas: 'semillas de árbol' };
+  const BIENES = ['comida', 'madera', 'piedra', 'metal', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'semillas', 'granadas'];
+  const PRECIO_BASE = { comida: 0.5, madera: 0.6, piedra: 0.9, metal: 2.5, armas: 6, carbon: 1.4, petroleo: 3.2, muebles: 2.4, vehiculos: 30, semillas: 0.35, granadas: 1.6 };
+  const NOMBRE_BIEN = { comida: 'comida', madera: 'madera', piedra: 'piedra', metal: 'metal', armas: 'armas', carbon: 'carbón', petroleo: 'petróleo', muebles: 'muebles', vehiculos: 'cañones y tanques', semillas: 'semillas de árbol', granadas: 'granadas' };
   // Los bienes que un reino conoce: las armas desde el Bronce, el carbón desde la industria, el petróleo en la Era Moderna.
-  const bienesDe = c => BIENES.filter(k => (k !== 'armas' || c.era >= 1) && (k !== 'carbon' || c.era >= 6) && (k !== 'petroleo' || c.era >= 7) && (k !== 'muebles' || c.era >= 6) && (k !== 'vehiculos' || c.era >= 5));
+  const bienesDe = c => BIENES.filter(k => (k !== 'armas' || c.era >= 1) && (k !== 'carbon' || c.era >= 6) && (k !== 'petroleo' || c.era >= 7) && (k !== 'muebles' || c.era >= 6) && (k !== 'vehiculos' || c.era >= 5) && (k !== 'granadas' || c.era >= 8));
   const tanquesDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.veh === 'tanque').length;
   // Lo que un reino quiere tener de cada cosa.
   function objetivo(c, k) {
@@ -539,6 +539,8 @@
     if (k === 'semillas') return 6 + Math.max(0, 20 - Math.round((c.arboles || 0) / 6));
     if (k === 'muebles') return c.era >= 6 ? Math.round((c.casas || 0) * 0.2) : 0;
     if (k === 'vehiculos') return c.era >= 5 && c.cuarteles > 0 ? (c.guerras && c.guerras.length ? 4 : 1) : 0;
+    // Las granadas: unas cuantas por soldado, muchas más en guerra.
+    if (k === 'granadas') return c.era >= 8 ? Math.round((c.guerreros || 0) * (c.guerras && c.guerras.length ? 3 : 1)) + 6 : 0;
     if (k === 'petroleo') return c.era >= 7 ? 6 + (c.aerodromos || 0) * 8 + (c.era >= 8 ? 10 + (c.guerras && c.guerras.length ? 12 : 0) : 0) : 0;
     return 0;
   }
@@ -571,7 +573,8 @@
       petroleo: c.era >= 7 && (c.pozosPetroleo || 0) > 0 ? 0.7 + 0.35 * c.pozosPetroleo : 0,
       semillas: recursos && recursos.arboles ? 0.15 + Math.min(0.6, recursos.arboles / 90) : 0,
       muebles: c.era >= 6 && (c.fabricas || 0) > 0 ? 0.5 + 0.3 * c.fabricas : 0,
-      vehiculos: c.era >= 5 && c.cuarteles > 0 ? 0.3 + Math.min(0.8, (c.metal || 0) / 60) : 0
+      vehiculos: c.era >= 5 && c.cuarteles > 0 ? 0.3 + Math.min(0.8, (c.metal || 0) / 60) : 0,
+      granadas: c.era >= 8 && (c.cuarteles > 0 || c.fabricas > 0) ? 0.35 + Math.min(0.7, (c.metal || 0) / 50) : 0
     };
   }
   /*
@@ -667,11 +670,11 @@
       const fab = c.plan && c.plan.fabricar;
       if (fab && fab.n > fab.hechos && fab.que !== 'vehiculos') {
         const ritmo = (c.cuarteles > 0 ? 2 : 0) + (enMarcha(c, 'fabrica') ? 4 * (c.fabricas || 0) : 0);
-        const q = Math.min(ritmo, fab.n - fab.hechos, fab.que === 'armas' ? Math.floor(c.metal || 0) : Math.floor((c.madera || 0) / 2));
+        const q = Math.min(fab.que === 'granadas' ? ritmo * 3 : ritmo, fab.n - fab.hechos, fab.que === 'armas' ? Math.floor(c.metal || 0) : fab.que === 'granadas' ? Math.floor(c.metal || 0) * 3 : Math.floor((c.madera || 0) / 2));
         if (fab.que === 'vehiculos') { /* los hace el cuartel, más abajo */ }
-        else if (q > 0) { if (fab.que === 'armas') { c.metal -= q; c.armas = (c.armas || 0) + q; } else { c.madera -= q * 2; c.muebles = (c.muebles || 0) + q; } fab.hechos += q; }
-        if (fab.hechos >= fab.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: (fab.que === 'armas' ? '⚒ Hechas ' : '🏭 Hechos ') + fab.n + (fab.que === 'armas' ? ' armas' : ' lotes de muebles') }); c.plan.fabricar = null; }
-        else if (!q && m.turno - fab.desde > 3 && !fab.avisado) { fab.avisado = 1; (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: fab.que === 'armas' ? '⚒ Sin metal para las armas: haced minas o compradlo' : '🏭 Sin madera para los muebles' }); }
+        else if (q > 0) { if (fab.que === 'armas') { c.metal -= q; c.armas = (c.armas || 0) + q; } else if (fab.que === 'granadas') { c.metal -= Math.ceil(q / 3); c.granadas = (c.granadas || 0) + q; } else { c.madera -= q * 2; c.muebles = (c.muebles || 0) + q; } fab.hechos += q; }
+        if (fab.hechos >= fab.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: (fab.que === 'muebles' ? '🏭 Hechos ' : '⚒ Hechas ') + fab.n + (fab.que === 'armas' ? ' armas' : fab.que === 'granadas' ? ' granadas' : ' lotes de muebles') }); c.plan.fabricar = null; }
+        else if (!q && m.turno - fab.desde > 3 && !fab.avisado) { fab.avisado = 1; (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: fab.que !== 'muebles' ? '⚒ Sin metal para ' + (fab.que === 'granadas' ? 'las granadas' : 'las armas') + ': haced minas o compradlo' : '🏭 Sin madera para los muebles' }); }
       }
       // El banco: el oro guardado da un pequeño interés.
       if (c.bancos > 0 && (c.oro || 0) > 0) c.oro += Math.min(2 + c.bancos, c.oro * 0.012);
@@ -691,6 +694,13 @@
       if (c.era >= 5 && c.cuarteles > 0 && ((c.cartera && c.cartera.vehiculos) || (c.plan && c.plan.fabricar && c.plan.fabricar.que === 'vehiculos')) && m.turno % 2 === 0) {
         const t = c.era >= 8 ? 'tanque' : c.era >= 7 ? 'artilleria' : 'canon', cm = VEHICULOS[t].metal, cp = t === 'tanque' ? 3 : 0;
         if ((c.metal || 0) >= cm + 4 && (c.petroleo || 0) >= cp) { c.metal -= cm; c.petroleo = (c.petroleo || 0) - cp; c.vehiculos = (c.vehiculos || 0) + 1; const f = c.plan && c.plan.fabricar; if (f && f.que === 'vehiculos') { f.hechos++; if (f.hechos >= f.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚙ Hechos ' + f.n + ' vehículos de guerra' }); c.plan.fabricar = null; } } }
+      }
+      // Las granadas (Segunda Guerra Mundial): la forja del cuartel y las fábricas hacen 3 con cada pieza de metal,
+      // hasta tener las que pide el ejército (o más, si el reino vive de venderlas).
+      if (c.era >= 8 && !(c.plan && c.plan.fabricar) && (c.cuarteles > 0 || (c.fabricas > 0 && enMarcha(c, 'fabrica')))) {
+        const quiere = objetivo(c, 'granadas') * (c.cartera && c.cartera.granadas ? 2.5 : 1) - (c.granadas || 0);
+        const lotes = Math.min(Math.ceil(Math.max(0, quiere) / 3), (c.cuarteles > 0 ? 2 : 0) + (enMarcha(c, 'fabrica') ? 2 * (c.fabricas || 0) : 0), Math.floor(Math.max(0, (c.metal || 0) - 14 - reserva)));
+        if (lotes > 0) { c.metal -= lotes; c.granadas = (c.granadas || 0) + lotes * 3; }
       }
       // Los pedidos y las ventas que nadie atiende en 40 turnos se olvidan.
       if (c.plan) for (const l of ['pedidos', 'ventas']) if (c.plan[l]) c.plan[l] = c.plan[l].filter(x => m.turno - (x.desde || 0) < 40);
@@ -2211,10 +2221,10 @@
           }
         }
         acc = ACC.luchar;
-      } else if (c.era >= 8 && !a.veh && (a.granadaT == null || m.turno - a.granadaT >= 3) && azar(v) < 0.3 && (blancoG = buscaGranada(v, a, guerreros, enemigo)) != null) {
+      } else if (c.era >= 8 && !a.veh && (c.granadas || 0) >= 1 && (a.granadaT == null || m.turno - a.granadaT >= 3) && azar(v) < 0.3 && (blancoG = buscaGranada(v, a, guerreros, enemigo)) != null) {
         // La granada (Segunda Guerra Mundial): se lanza por encima de los sacos terreros y revienta en una casilla
         // y las de al lado. La trinchera no protege de ella.
-        a.granadaT = m.turno;
+        a.granadaT = m.turno; c.granadas -= 1;
         const bx = blancoG % v.tw, by = blancoG / v.tw | 0;
         v.disparos.push([a.x, a.y, bx, by, paso, 5, a.id]);
         a.fuego = { turno: m.turno, paso, dx: Math.sign(bx - a.x) || (a.fuego ? a.fuego.dx : 1) };
