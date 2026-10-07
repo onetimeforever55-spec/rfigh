@@ -134,7 +134,7 @@
   // la gente y las camas, el nivel del asentamiento y lo que se investiga.
   const recursoAntes = {};
   // Iconos de píxeles (arte.js) en lugar de emojis, para que la interfaz sea del mismo mundo que el mapa.
-  const ICO_PX = { '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
+  const ICO_PX = { '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
   const px = (n, cls) => M.arte && M.arte.iconoURL ? '<img class="px' + (cls ? ' ' + cls : '') + '" alt="" src="' + M.arte.iconoURL(n) + '">' : '';
   function pintarRecursos() {
     const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null), el = $('recursos');
@@ -160,6 +160,7 @@
       (c.era >= 1 ? chip('⛓', r(c.metal || 0), 'Metal (armas, armaduras, vehículos)' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.metal.toFixed(2) : ''), '', sig(dMe)) : '') +
       (c.era >= 6 ? chip('⚫', r(c.carbon || 0), 'Carbón: lo queman las fábricas, los trenes y las centrales. Sale de las vetas negras y de las minas de la montaña.' + (c.paradas && Object.keys(c.paradas).length ? ' ¡Falta! Hay cosas paradas.' : ''), c.paradas && (c.paradas.fabrica || c.paradas.tren) ? 'mal' : '', sig(delta('carbon', c.carbon || 0))) : '') +
       ((c.armas || 0) >= 1 ? chip('⚔', r(c.armas || 0), 'Armas en el almacén: las usa el ejército y se pueden vender («vended armas»). «Fabricad 20 fusiles» pone a la forja a hacer más.', '') : '') +
+      ((c.semillas || 0) >= 1 ? chip('🌰', r(c.semillas || 0), 'Semillas de árbol: los leñadores las recogen al talar y replantan cuando escasea el bosque. Se compran y se venden en el mercado.', '') : '') +
       ((c.muebles || 0) >= 1 ? chip('🪑', r(c.muebles || 0), 'Muebles de la fábrica: la gente compra parte cada turno y el resto se exporta («vended muebles»).', '') : '') +
       ((c.vehiculos || 0) >= 1 ? chip('🛡', r(c.vehiculos || 0), 'Vehículos de guerra en el almacén (cañones, artillería o tanques): los soldados los usan o se venden («vended tanques»).', '') : '') +
       (c.era >= 7 ? chip('🛢', r(c.petroleo || 0), 'Petróleo: lo gastan los tanques, los aviones y las centrales sin carbón. Sale de los pozos levantados sobre las manchas negras.' + ((c.pozosPetroleo || 0) ? ' Tenéis ' + c.pozosPetroleo + (c.pozosPetroleo === 1 ? ' pozo.' : ' pozos.') : ' No tenéis pozos.'), '', sig(delta('petroleo', c.petroleo || 0))) : '') +
@@ -304,7 +305,7 @@
   }
   // ---------- El modo arquitecto: eliges un edificio (o calle) y tocas el mapa donde quieres que vaya ----------
   let arquiClave = null;
-  const ARQUI = [['casa', '🏠', 'Casa'], ['camino', '🧱', 'Calle'], ['pozo', '🪣', 'Pozo'], ['granero', '🌾', 'Granero'], ['fuente', '⛲', 'Plaza pública'], ['parque', '🌳', 'Parque'], ['templo', '⛪', 'Templo'], ['saber', '📜', 'Saber'], ['palacio', '🏰', 'Palacio'], ['central', '⚡', 'Central eléctrica'], ['banco', '🏦', 'Banco'], ['fabrica', '🏭', 'Fábrica'], ['estacion', '🚂', 'Estación de tren'], ['hospital', '🏥', 'Hospital'], ['aerodromo', '✈', 'Aeródromo'], ['petroleo', '🛢', 'Pozo de petróleo'], ['molino', '⚙', 'Molino'], ['torre', '🗼', 'Torre'], ['puerto', '⚓', 'Puerto'], ['cuartel', '⚔', 'Cuartel'], ['arqueria', '🏹', 'Arquería'], ['castillo', '🏯', 'Castillo']];
+  const ARQUI = [['casa', '🏠', 'Casa'], ['camino', '🧱', 'Calle'], ['pozo', '🪣', 'Pozo'], ['granero', '🌾', 'Granero'], ['fuente', '⛲', 'Plaza pública'], ['parque', '🌳', 'Parque'], ['templo', '⛪', 'Templo'], ['saber', '📜', 'Saber'], ['palacio', '🏰', 'Palacio'], ['central', '⚡', 'Central eléctrica'], ['banco', '🏦', 'Banco'], ['fabrica', '🏭', 'Fábrica'], ['estacion', '🚂', 'Estación de tren'], ['hospital', '🏥', 'Hospital'], ['aerodromo', '✈', 'Aeródromo'], ['petroleo', '🛢', 'Pozo de petróleo'], ['mina', '⛏', 'Mina'], ['molino', '⚙', 'Molino'], ['torre', '🗼', 'Torre'], ['puerto', '⚓', 'Puerto'], ['cuartel', '⚔', 'Cuartel'], ['arqueria', '🏹', 'Arquería'], ['castillo', '🏯', 'Castillo']];
   function abrirArquitecto() {
     const c = tuPueblo();
     if (!c) return;
@@ -336,7 +337,7 @@
   }
   function salirArquitecto() { document.body.classList.remove('arqui-abierto'); arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
   // ---------- La pestaña Mercado: precios del mundo, a qué se dedica el reino, sus socios y sus tratos ----------
-  const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡' })[k] });
+  const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡', semillas: '🌰' })[k] });
   function curva(h, col) {
     if (!h || h.length < 2) return '';
     const max = Math.max(...h), min = Math.min(...h), w = 64, al = 18, sp = Math.max(0.0001, max - min);
@@ -390,7 +391,7 @@
     const quedan = V.ESTACION_TURNOS - (m.turno % V.ESTACION_TURNOS);
     const animo = c.animo == null ? 70 : c.animo, cara = animo >= 75 ? '😊' : animo >= 50 ? '🙂' : animo >= 30 ? '😟' : '😠';
     const obras = Object.entries(m.vida.andamios || {}).filter(([, a]) => a.civ === c.id);
-    const NOMBRE_OBRA = o => ({ [V.OBRA.casa]: 'casa', [V.OBRA.pozo]: 'pozo', [V.OBRA.granero]: 'granero', [V.OBRA.fuente]: 'plaza pública', [V.OBRA.parque]: 'parque', [V.OBRA.palacio]: 'palacio', [V.OBRA.central]: 'central eléctrica', [V.OBRA.banco]: 'banco', [V.OBRA.fabrica]: 'fábrica', [V.OBRA.estacion]: 'estación de tren', [V.OBRA.hospital]: 'hospital', [V.OBRA.aerodromo]: 'aeródromo', [V.OBRA.templo]: c.era === 4 ? 'iglesia' : c.era >= 5 && c.era <= 6 ? 'catedral' : 'templo', [V.OBRA.saber]: M.CASA_SABER(c.era), [V.OBRA.torre]: 'torre', [V.OBRA.molino]: 'molino', [V.OBRA.puerto]: 'puerto', [V.OBRA.cuartel]: 'cuartel', [V.OBRA.arqueria]: 'arquería', [V.OBRA.castillo]: 'castillo', [V.OBRA.aduana]: 'puesto fronterizo', [V.OBRA.petroleo]: 'pozo de petróleo' }[o] || 'obra');
+    const NOMBRE_OBRA = o => ({ [V.OBRA.casa]: 'casa', [V.OBRA.pozo]: 'pozo', [V.OBRA.granero]: 'granero', [V.OBRA.fuente]: 'plaza pública', [V.OBRA.parque]: 'parque', [V.OBRA.palacio]: 'palacio', [V.OBRA.central]: 'central eléctrica', [V.OBRA.banco]: 'banco', [V.OBRA.fabrica]: 'fábrica', [V.OBRA.estacion]: 'estación de tren', [V.OBRA.hospital]: 'hospital', [V.OBRA.aerodromo]: 'aeródromo', [V.OBRA.templo]: c.era === 4 ? 'iglesia' : c.era >= 5 && c.era <= 6 ? 'catedral' : 'templo', [V.OBRA.saber]: M.CASA_SABER(c.era), [V.OBRA.torre]: 'torre', [V.OBRA.molino]: 'molino', [V.OBRA.puerto]: 'puerto', [V.OBRA.cuartel]: 'cuartel', [V.OBRA.arqueria]: 'arquería', [V.OBRA.castillo]: 'castillo', [V.OBRA.aduana]: 'puesto fronterizo', [V.OBRA.petroleo]: 'pozo de petróleo', [V.OBRA.mina]: 'mina' }[o] || 'obra');
     const vistas = new Set();
     const lista = nec.filter(n => { const k = n.obra + (n.capital ? 'c' : n.region); if (vistas.has(k)) return false; vistas.add(k); return true; }).map(n => {
       const donde = n.capital ? '' : ' <span class="tenue">(en ' + esc(((m.ciudades || []).find(x => x.region === n.region) || { nombre: 'otra ciudad' }).nombre) + ')</span>';
@@ -496,7 +497,7 @@
   // La ficha de un aldeano: es un agente con su vida propia.
   const OFICIO1 = { lenador: 'leñador', granjero: 'granjero', constructor: 'constructor', minero: 'minero', guerrero: 'guerrero', comerciante: 'comerciante' };
   // ---------- La ficha de un edificio (y la de una ciudad, si es su ayuntamiento o su campamento) ----------
-  const NOMBRE_TIPO = o => { const O = M.vida.OBRA; return ({ [O.casa]: 'casa', [O.molino]: 'molino', [O.templo]: 'templo', [O.saber]: 'casa del saber', [O.torre]: 'torre', [O.cuartel]: 'cuartel', [O.arqueria]: 'arquería', [O.castillo]: 'castillo', [O.puerto]: 'puerto', [O.pozo]: 'pozo', [O.granero]: 'granero', [O.fuente]: 'plaza pública', [O.parque]: 'parque', [O.palacio]: 'palacio', [O.central]: 'central eléctrica', [O.banco]: 'banco', [O.fabrica]: 'fábrica', [O.estacion]: 'estación de tren', [O.hospital]: 'hospital', [O.aerodromo]: 'aeródromo', [O.campamento]: 'campamento', [O.aduana]: 'puesto fronterizo', [O.petroleo]: 'pozo de petróleo', [O.ayuntamiento]: 'ayuntamiento', [O.centro]: 'plaza mayor', [O.ruina]: 'ruinas' })[o] || 'edificio'; };
+  const NOMBRE_TIPO = o => { const O = M.vida.OBRA; return ({ [O.casa]: 'casa', [O.molino]: 'molino', [O.templo]: 'templo', [O.saber]: 'casa del saber', [O.torre]: 'torre', [O.cuartel]: 'cuartel', [O.arqueria]: 'arquería', [O.castillo]: 'castillo', [O.puerto]: 'puerto', [O.pozo]: 'pozo', [O.granero]: 'granero', [O.fuente]: 'plaza pública', [O.parque]: 'parque', [O.palacio]: 'palacio', [O.central]: 'central eléctrica', [O.banco]: 'banco', [O.fabrica]: 'fábrica', [O.estacion]: 'estación de tren', [O.hospital]: 'hospital', [O.aerodromo]: 'aeródromo', [O.campamento]: 'campamento', [O.aduana]: 'puesto fronterizo', [O.petroleo]: 'pozo de petróleo', [O.mina]: 'mina', [O.ayuntamiento]: 'ayuntamiento', [O.centro]: 'plaza mayor', [O.ruina]: 'ruinas' })[o] || 'edificio'; };
   const hace = anio => { const d = Math.max(0, Math.round(m.anio - anio)); return d === 0 ? 'este año' : d === 1 ? 'hace 1 año' : 'hace ' + d.toLocaleString('es-ES') + ' años'; };
   const anioTxt = a => S.anioTexto(a).replace(/(\d)\.$/, '$1');
   function fichaEdificio(f) {
@@ -511,6 +512,7 @@
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(titulo) + '</h3><p class="subt">' + esc(NOMBRE_TIPO(an ? an.o : o)) + (c ? ' de ' + esc(c.nombre) : '') + ' · en ' + esc(M.vida.lugarDe ? M.vida.lugarDe(m, t) : '') + '</p><dl>' +
       (an ? fila('Obras', '<span class="barra"><span style="width:' + Math.round(100 * (1 - Math.max(0, an.falta) / an.total)) + '%"></span></span> ' + Math.round(100 * (1 - Math.max(0, an.falta) / an.total)) + ' %') + (obreros.length ? fila('Trabajan', esc(obreros.map(a => a.nombre + ' ' + (a.familia || '')).join(', '))) : '') : '') +
       (rec ? fila('Construido', esc(anioTxt(rec.anio)) + ' <span class="tenue">(' + hace(rec.anio) + ')</span>') + (rec.por && rec.por.length ? fila('Lo levantó', esc(rec.por.join(', '))) : '') + fila('Estilo', 'de ' + esc(M.ERAS[rec.era].con) + (c && M.vida.fase(rec.era) < M.vida.fase(c.era) ? ' <span class="tenue">(antiguo: lo reformarán)</span>' : '')) : (!an ? fila('Construido', '<span class="tenue">antes de que nadie lo apuntara</span>') : '')) +
+      (o === M.vida.OBRA.mina ? fila('Da', 'piedra, metal (desde el Bronce), carbón (desde la industria) y algo de oro; más despacio que las vetas sueltas, pero nunca se agota') + fila('Mineros dentro', v.aldeanos.filter(x => x.enMina && x.tx === t % v.tw && x.ty === (t / v.tw | 0)).length) : '') +
       (o === M.vida.OBRA.petroleo ? fila('Da', '1,2 de petróleo por turno, sin que nadie lo cargue') + fila('Petróleo de ' + esc(c ? c.nombre : '—'), c ? Math.round(c.petroleo || 0) + ' en el almacén' : '—') : '') +
       ([M.vida.OBRA.fabrica, M.vida.OBRA.estacion, M.vida.OBRA.central].includes(o) && c && c.era >= 6 ? (() => { const k = o === M.vida.OBRA.fabrica ? 'fabrica' : o === M.vida.OBRA.estacion ? 'tren' : 'central'; return fila('Combustible', (M.vida.enMarcha(c, k) ? '⛽ en marcha' : '<b class="rojo">⛔ parada: no hay ' + (k === 'central' ? 'carbón ni petróleo' : 'carbón') + '</b>') + ' <span class="tenue">· gasta ' + String(M.vida.GASTO[k]).replace('.', ',') + ' de carbón por turno</span>'); })() : '') +
       (o === M.vida.OBRA.aduana ? (() => {

@@ -137,6 +137,7 @@
       else if (obra === V.OBRA.cuartel) gl.drawImage(ARTE().edificio('cuartel', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.mina) gl.drawImage(ARTE().edificio('mina', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.petroleo) gl.drawImage(ARTE().edificio('petroleo', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.aduana) gl.drawImage(ARTE().edificio('aduana', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.campamento) gl.drawImage(ARTE().edificio('campamento', color, V.fase(eraT)), x, y);
@@ -2023,7 +2024,7 @@
     if (clave === 'casa') return ARTE().casa(CASAS[c ? grupoEra(c.era) : 0], color, 0);
     if (clave === 'templo') return ARTE().edificio('templo', color, c && c.era === 4 ? 4 : fase);
     if (clave === 'saber') return ARTE().edificio('saber', color, M.ERUDITO(c ? c.era : 0).tipo);
-    if (['banco', 'fabrica', 'estacion', 'hospital', 'aerodromo', 'central', 'aduana', 'petroleo'].includes(clave)) return ARTE().edificio(clave, color, Math.max(2, fase));
+    if (['banco', 'fabrica', 'estacion', 'hospital', 'aerodromo', 'central', 'aduana', 'petroleo', 'mina'].includes(clave)) return ARTE().edificio(clave, color, Math.max(2, fase));
     return ARTE().edificio(clave, color, fase);
   }
   function planos(ahora) {

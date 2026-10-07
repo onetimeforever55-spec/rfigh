@@ -786,6 +786,23 @@ console.log('TODO SE VENDE: MUEBLES Y VEHÍCULOS DE GUERRA');
   }
 }
 
+console.log('MINAS Y SEMILLAS DE ÁRBOL');
+{
+  const V = M.vida, X = M.mando, m = S.crear(11, 5, { ritmo: 3 });
+  for (let k = 0; k < 250; k++) S.turno(m);
+  const c = X.gobernar(m, S.vivas(m)[0].id);
+  comprobar(X.entender(m, c.id, 'construid una mina').some(x => x.obra === 'mina') && X.entender(m, c.id, 'plantad árboles')[0].tipo === 'reforestar' && X.entender(m, c.id, 'comprad semillas')[0].que === 'semillas', 'se entienden «construid una mina», «plantad árboles» y «comprad semillas»');
+  const minas0 = m.vida.obra.filter(x => x === V.OBRA.mina).length;
+  for (let k = 0; k < 80; k++) S.turno(m);
+  const v = m.vida, minas = []; for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === V.OBRA.mina) minas.push(t);
+  const ter = V.terrenos(m);
+  comprobar(minas.length > 0 && minas.every(t => ter[t] === 'montana' || ter[t] === 'colina'), 'los pueblos abren minas en la montaña o la colina (' + minas0 + ' → ' + minas.length + ')');
+  comprobar(v.aldeanos.some(a => a.enMina) || S.vivas(m).some(x => x.minas > 0), 'los mineros trabajan dentro de la mina');
+  const plantados = S.vivas(m).reduce((s, x) => s + ((x.hecho || {}).plantados || 0), 0), semillas = S.vivas(m).reduce((s, x) => s + (x.semillas || 0), 0);
+  comprobar(semillas > 0 && plantados > 0, 'al talar se recogen semillas (' + Math.round(semillas) + ') y los leñadores replantan (' + plantados + ' retoños)');
+  comprobar(V.BIENES.includes('semillas') && m.mercado.precio.semillas > 0, 'las semillas de árbol se compran y se venden en el mercado');
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;

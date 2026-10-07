@@ -407,6 +407,7 @@
       if (nombre === 'aerodromo') return aerodromo(H, fase, col);
       if (nombre === 'aduana') return aduana(H, fase, col);
       if (nombre === 'petroleo') return pozoPetroleo(H, fase, col);
+      if (nombre === 'mina') return mina(H, fase, col);
       if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
       if (nombre === 'molino' && fase !== 1) return molinoDeFase(H, fase, col);
@@ -638,6 +639,20 @@
     H.r(8, 9, 1, 5, '#4a4a4a'); H.r(15, 11, 1, 3, '#4a4a4a');
     H.r(1, 0, 1, 5, '#5a5a5a'); H.r(2, 0, 3, 2, col);
     if (fase >= 3) { H.r(9, 13, 3, 2, '#c8b078'); H.r(10, 12, 2, 1, '#b8a068'); }
+    H.contorno(); return H.lienzo();
+  }
+  // La mina: la boca de la galería en la ladera, con su marco de vigas (o de hierro en la era industrial),
+  // los raíles de las vagonetas, una vagoneta con mineral y el montón de escombro.
+  function mina(H, fase, col) {
+    H.r(0, 4, 16, 12, '#8a8478'); H.r(0, 4, 16, 1, '#a8a294'); for (let k = 0; k < 9; k++) H.p((k * 7) % 16, 5 + (k * 5) % 9, '#6a6458');
+    H.r(4, 6, 8, 8, '#1a1612'); H.r(5, 7, 6, 7, '#0e0c0a');
+    const viga = fase >= 2 ? '#5a5e66' : '#6a4a2a';
+    H.r(3, 6, 1, 9, viga); H.r(12, 6, 1, 9, viga); H.r(3, 5, 10, 1, viga); H.p(8, 4, col); H.r(8, 2, 1, 2, '#3a3a3a'); H.r(9, 2, 2, 1, col);
+    H.r(5, 14, 6, 1, '#7a7e86'); H.r(5, 15, 6, 1, '#5a3c22');
+    H.r(9, 11, 4, 3, '#4a4e56'); H.r(9, 11, 4, 1, '#6a6e76'); H.p(10, 10, '#d0703a'); H.p(11, 10, fase >= 2 ? '#1a1a1e' : '#a3a1aa'); H.p(12, 10, '#ffd23a');
+    H.p(9, 14, '#1e1e22'); H.p(12, 14, '#1e1e22');
+    H.r(13, 12, 3, 3, '#7a7468'); H.p(14, 11, '#8a8478');
+    if (fase >= 1) { H.p(2, 7, '#ffe08a'); H.p(2, 8, '#c8a050'); }
     H.contorno(); return H.lienzo();
   }
   // El pozo de petróleo: el balancín de hierro (la cabeza de caballo) sobre su torre, el tanque de crudo y
@@ -1196,6 +1211,7 @@
 
   // ---------- Iconos de la interfaz (12×12 píxeles, con contorno): recursos, estaciones y secciones ----------
   const ICONOS = {
+    semillas: H => { H.r(3, 3, 6, 7, '#c8a86a'); H.r(3, 3, 6, 1, '#e0c890'); H.r(4, 2, 4, 1, '#a8885a'); H.p(5, 1, '#6a4a2a'); for (const [x, y] of [[4, 6], [6, 5], [7, 7], [5, 8]]) H.p(x, y, '#7a5a2a'); H.p(8, 1, '#4a9a3a'); H.p(9, 0, '#5ab04a'); H.p(7, 0, '#5ab04a'); },
     muebles: H => { H.r(2, 2, 2, 9, '#8a5a2a'); H.r(2, 6, 7, 2, '#a8743a'); H.r(7, 8, 2, 3, '#8a5a2a'); H.r(2, 6, 7, 1, '#c89a5a'); H.r(2, 2, 2, 1, '#c89a5a'); },
     vehiculos: H => { H.r(1, 6, 10, 3, '#5a6a4a'); H.r(3, 4, 5, 2, '#6a7a5a'); H.r(8, 4, 4, 1, '#3a3a40'); H.r(1, 9, 10, 2, '#2a2a2e'); for (const x of [2, 5, 8]) H.p(x, 10, '#8a8a90'); },
     carbon: H => { H.disco(4.5, 7.5, 3.2, '#2a2a30', true); H.disco(8, 6, 3.4, '#1e1e24', true); H.disco(7, 9, 2.6, '#34343c', true); H.p(7, 4, '#6a6a76'); H.p(4, 6, '#5a5a66'); H.p(9, 8, '#5a5a66'); },
