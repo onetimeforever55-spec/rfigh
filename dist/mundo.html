@@ -1105,7 +1105,13 @@ table.mercado td:first-child { white-space: nowrap; }
     }
   }
 
-  const civ = (m, id) => m.civs.find(c => c.id === id);
+  // Buscar un pueblo por su número se hace miles de veces por turno: un índice (que se rehace si cambia la lista).
+  const indiceCivs = new WeakMap();
+  const civ = (m, id) => {
+    let e = indiceCivs.get(m.civs);
+    if (!e || e.n !== m.civs.length) { e = { n: m.civs.length, mapa: new Map(m.civs.map(c => [c.id, c])) }; indiceCivs.set(m.civs, e); }
+    return e.mapa.get(id);
+  };
   const vivas = m => m.civs.filter(c => c.viva);
   const casillas = (m, c) => { const out = []; for (let i = 0; i < W * H; i++) if (m.dueno[i] === c.id) out.push(i); return out; };
   function capacidad(m, c, cs) {
@@ -1205,9 +1211,12 @@ table.mercado td:first-child { white-space: nowrap; }
   }
 
   // ---------- Un turno del mundo ----------
-  function turno(m) {
+  function turno(m) { const gen = turnoPorPartes(m); while (!gen.next().done); return m; }
+  // El mismo turno, por partes: cede el control entre trozo y trozo (para repartirlo entre fotogramas).
+  function* turnoPorPartes(m) {
     m.turno++;
-    if (m.vida && M.vida) M.vida.turno(m);
+    if (m.vida && M.vida && M.vida.turnoPorPasos) yield* M.vida.turnoPorPasos(m); else if (m.vida && M.vida) M.vida.turno(m);
+    yield;
     const lista = vivas(m);
     for (const c of lista) vivir(m, c);
     diplomacia(m);
@@ -1860,7 +1869,7 @@ table.mercado td:first-child { white-space: nowrap; }
     });
   }
 
-  M.sim = { suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
@@ -3942,7 +3951,10 @@ table.mercado td:first-child { white-space: nowrap; }
   // Con el ritmo pausado, nacer y envejecer van más despacio por turno al principio (cada turno son pocos años).
   const bio = m => !m.ritmo || m.ritmo <= 1 ? 1 : Math.max(0.3, Math.min(1, S().pausa(m) * 2.5));
   // ---------- Un turno de vida ----------
-  function turno(m) {
+  // El turno se calcula por partes (un generador que cede entre paso y paso): la vista lo reparte entre varios
+  // fotogramas y la imagen no se congela al cambiar de turno. turno(m) lo hace todo de una vez.
+  function turno(m) { const gen = turnoPorPasos(m); while (!gen.next().done); }
+  function* turnoPorPasos(m) {
     if (!m.vida) crear(m);
     const v = m.vida;
     memo = new Map();
@@ -3992,6 +4004,7 @@ table.mercado td:first-child { white-space: nowrap; }
     for (const b of v.animales) b.r = [b.x, b.y];
     for (const b of v.barcos) b.r = [b.x, b.y];
     v.robadas = {}; v.mordidos = {};
+    yield;
     for (let paso = 1; paso <= TICKS; paso++) {
       for (const b of v.animales) pastar(m, b, ter);
       if (v.animales.some(b => b.muerta)) v.animales = v.animales.filter(b => !b.muerta);
@@ -4009,15 +4022,18 @@ table.mercado td:first-child { white-space: nowrap; }
       if (paso === 2) aviones(m, paso, guerreros);
       if (v.fuego && paso % 2 === 0) { const gente = new Map(); for (const a of v.aldeanos) if ((a.edad || 0) >= ADULTO) { const r = region(m, a.y * v.tw + a.x); gente.set(r, (gente.get(r) || 0) + 1); } arder(m, paso, gente); }
       asedios(m, paso);
+      yield;
     }
     // Donde cae alguien en batalla queda sangre unos turnos.
     for (const [x, y, , tipo, paso] of v.muertos) if (['batalla', 'flecha', 'obus', 'bomba', 'torre'].includes(tipo)) marcar(m, y * v.tw + x, 'sangre', 3, paso || 0.1);
     naturaleza(m, ter);
     contar(m);
+    yield;
     ciudades(m);
     abandonos(m);
     planificarRutas(m, terrenos(m));
     if (pausada(m)) planificarVias(m, terrenos(m));
+    yield;
     fauna(m, ter);
     comer(m);
     if (pausada(m)) { subsuelo(m, ter); mercado(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length, carbones: x.carbones.length }))); }
@@ -5583,7 +5599,7 @@ table.mercado td:first-child { white-space: nowrap; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -8849,6 +8865,10 @@ table.mercado td:first-child { white-space: nowrap; }
   }
   function turno(mundoActual, ms) {
     if (mundoActual !== m || !listo) { mundo(mundoActual); }
+    // El recorrido del turno anterior de cada aldeano: cada uno va con su propio desfase (ver aldeanos()).
+    for (const a of m.vida.aldeanos) { const r0 = rVisto.get(a); if (r0 && r0 !== a.r) rAntes.set(a, r0); rVisto.set(a, a.r); }
+    // Lo que se dibuja es el recorrido de este turno, aunque el siguiente ya se esté calculando por partes.
+    for (const b of (m.vida.animales || []).concat(m.vida.barcos || [])) rVisto.set(b, b.r);
     sincronizar(m.vida.cambios || []);
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
     vistos = new Set();
@@ -9013,13 +9033,20 @@ table.mercado td:first-child { white-space: nowrap; }
     }
   }
   // Las estaciones: el otoño dora el campo, el invierno lo blanquea y nieva en todo el reino.
+  let estVista = { e: null, antes: null, desde: 0 };
   function estaciones(ahora, x0, y0, x1, y1) {
     const e = m.vida.estacion;
     if (e == null || e < 0) return;
-    const cols = ['rgba(150,230,120,0.05)', null, 'rgba(230,140,40,0.11)', 'rgba(235,242,255,0.22)'];
-    if (cols[e]) { g.fillStyle = cols[e]; g.fillRect(x0, y0, x1 - x0, y1 - y0); }
-    if (e !== 3 || reducido) return;
-    const n = Math.min(260, Math.round((x1 - x0) * (y1 - y0) / 900));
+    // La estación cambia poco a poco (unos segundos de fundido), no de golpe al empezar el turno.
+    if (e !== estVista.e) { estVista = { e, antes: estVista.e, desde: ahora }; }
+    const fun = estVista.antes == null ? 1 : Math.min(1, (ahora - estVista.desde) / 6000);
+    const cols = [[150, 230, 120, 0.05], null, [230, 140, 40, 0.11], [235, 242, 255, 0.22]];
+    const capa = (c, a) => { if (c && a > 0.003) { g.fillStyle = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (c[3] * a).toFixed(3) + ')'; g.fillRect(x0, y0, x1 - x0, y1 - y0); } };
+    if (fun < 1 && estVista.antes != null) capa(cols[estVista.antes], 1 - fun);
+    capa(cols[e], fun);
+    const nieva = e === 3 ? fun : estVista.antes === 3 ? 1 - fun : 0;
+    if (nieva <= 0.02 || reducido) return;
+    const n = Math.min(260, Math.round((x1 - x0) * (y1 - y0) / 900 * nieva));
     g.fillStyle = 'rgba(255,255,255,0.85)';
     for (let i = 0; i < n; i++) {
       const wx = x0 + ((azarV(i * 17) * (x1 - x0) + Math.sin(ahora / 800 + i) * 4) % (x1 - x0)), wy = y0 + ((azarV(i * 31) * (y1 - y0) + ahora / 45 * (0.5 + azarV(i + 3))) % (y1 - y0));
@@ -9182,6 +9209,12 @@ table.mercado td:first-child { white-space: nowrap; }
       }
     }
   }
+  // Cada aldeano lleva su propio compás: va entre medio paso y casi un paso por detrás del reloj del turno (lo que
+  // le falta lo saca de su recorrido del turno anterior). Así no llegan todos a la vez a cada casilla ni cambian
+  // todos de tarea en el mismo instante al empezar el turno: el pueblo se mueve como gente, no a golpe de tambor.
+  // (Los soldados van al compás exacto, para que los golpes y los disparos casen con quien los recibe.)
+  const rVisto = new WeakMap(), rAntes = new WeakMap();
+  const desfase = a => (a.o === 4 ? 0 : 0.15 + ((a.id * 0.6180339) % 1) * 0.8);
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     civPorId.clear(); for (const c of m.civs) civPorId.set(c.id, c);
     rutaPorId.clear(); for (const ru of m.vida.rutas || []) rutaPorId.set(ru.id, ru);
@@ -9193,7 +9226,9 @@ table.mercado td:first-child { white-space: nowrap; }
     for (const c of S.vivas(m)) { if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 1) fiesta.add(c.id); if ((c.comida || 0) < (c.aldeanos || 0) * 0.15) hambre.add(c.id); }
     const todos = caidos.length ? v.aldeanos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : v.aldeanos;
     for (const a of todos) {
-      const r = a.r;
+      let r = rVisto.get(a) || a.r, kk = k - desfase(a);
+      if (kk < 0) { const r0 = rAntes.get(a); if (r0 && r0.length >= 6 && r && r0[r0.length - 3] === r[0] && r0[r0.length - 2] === r[1]) { r = r0; kk += V.TICKS; } else kk = 0; }
+      const paso = Math.min(V.TICKS - 1, Math.floor(kk)), f = Math.min(1, kk - paso);
       let px, py, acc;
       if (r && r.length >= 6) {
         const i = paso * 3, j = Math.min(r.length - 3, i + 3);
@@ -9800,8 +9835,9 @@ table.mercado td:first-child { white-space: nowrap; }
   function barcos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     for (const b of v.barcos || []) {
+      const br = rVisto.get(b) || b.r;
       let px = b.x * P, py = b.y * P;
-      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P; }
+      if (br && br.length >= 4) { const i = paso * 2, j = Math.min(br.length - 2, i + 2); px = (br[i] + (br[j] - br[i]) * f) * P; py = (br[i + 1] + (br[j + 1] - br[i + 1]) * f) * P; }
       if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;
       px = Math.round(px + 4); py = Math.round(py + 4 + Math.sin(ahora / 500 + b.id) * 0.8);
       const c = S.civ(m, b.c), color = c ? c.color : '#ccc';
@@ -9811,7 +9847,7 @@ table.mercado td:first-child { white-space: nowrap; }
       // Desde la Revolución Industrial, los mercantes ya son vapores; en guerra, los acorazados.
       const fb = c ? (c.era >= 6 && b.tipo !== 'pesca' ? 3 : grupoEra(c.era)) : 1;
       const img = ARTE().barco(b.tipo === 'guerra' ? 'guerra' : b.tipo === 'pesca' ? 'pesca' : 'mercante', fb, color);
-      const ida = b.r && b.r.length >= 4 ? Math.sign(b.r[Math.min(b.r.length - 2, paso * 2 + 2)] - b.r[paso * 2]) : 0;
+      const ida = br && br.length >= 4 ? Math.sign(br[Math.min(br.length - 2, paso * 2 + 2)] - br[paso * 2]) : 0;
       const izq = ida < 0 || (!ida && (b.izq || false)); if (ida) b.izq = ida < 0;
       g.save(); if (izq) { g.translate(px * 2 + 12, 0); g.scale(-1, 1); }
       g.drawImage(img, px - 4, py - 6);
@@ -9970,8 +10006,9 @@ table.mercado td:first-child { white-space: nowrap; }
     const ig = golpesDelTurno(v);
     const todos = caidos.length ? (v.animales || []).concat(caidos.filter(x => x.animal && k < x.paso && !(v.animales || []).includes(x.a)).map(x => x.a)) : (v.animales || []);
     for (const b of todos) {
+      const br = rVisto.get(b) || b.r;
       let px = b.x * P + 6, py = b.y * P + 8;
-      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 6; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 8; }
+      if (br && br.length >= 4) { const i = paso * 2, j = Math.min(br.length - 2, i + 2); px = (br[i] + (br[j] - br[i]) * f) * P + 6; py = (br[i + 1] + (br[j + 1] - br[i + 1]) * f) * P + 8; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       // También los animales: retroceden y se ponen rojos al recibir un mordisco o una lanzada; el lobo embiste.
       const recibe = golpeActivo(ig.golpes.get(b.id), k), pega = golpeActivo(ig.ataques.get(b.id), k);
@@ -10793,6 +10830,7 @@ table.mercado td:first-child { white-space: nowrap; }
     catch (e) { try { localStorage.removeItem(CLAVE); localStorage.setItem(CLAVE, texto); return true; } catch (e2) { return false; } }
   }
   function guardar() {
+    acabarTurno();
     if (!m || guardando) return;
     let json; try { json = JSON.stringify(m); } catch (e) { return; }
     if (typeof CompressionStream !== 'function') { escribir(json); return; }
@@ -11570,14 +11608,33 @@ table.mercado td:first-child { white-space: nowrap; }
     const texto = m.libre ? 'Año ' + anio : S.anioTexto(anio);
     if ($('anio').textContent !== texto) $('anio').textContent = texto;
   }
+  // El turno se calcula a trozos (unos milisegundos cada vez, entre fotograma y fotograma): la imagen no se
+  // congela al cambiar de turno, y la gente que aún termina su último paso sigue andando mientras tanto.
+  let calculo = null;
   function paso() {
-    anioAntes = m.anio; inicioTurno = performance.now();
+    if (calculo) return;
     const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [], sigAntes = m.vida ? m.vida.sig : 0;
-    S.turno(m);
+    calculo = { gen: S.turnoPorPartes ? S.turnoPorPartes(m) : null, antes, yo, guerrasAntes, sigAntes, anio: m.anio, mundo: m };
+    if (!calculo.gen) { S.turno(m); terminarCalculo(); return; }
+    seguirCalculo();
+  }
+  function seguirCalculo() {
+    const c = calculo;
+    if (!c) return;
+    if (c.mundo !== m) { calculo = null; return; }
+    const t0 = performance.now();
+    while (performance.now() - t0 < 7) if (c.gen.next().done) { terminarCalculo(); return; }
+    setTimeout(seguirCalculo, 4);
+  }
+  function terminarCalculo() {
+    const c = calculo; calculo = null;
+    anioAntes = c.anio; inicioTurno = performance.now();
     P.turno(m, VELOCIDADES[vel][0]);
     // Los paneles, los retos y el guardado van después, en otro fotograma (menos tirón al cambiar de turno).
-    setTimeout(() => despuesDelTurno(antes, yo, guerrasAntes, sigAntes), 40);
+    setTimeout(() => despuesDelTurno(c.antes, c.yo, c.guerrasAntes, c.sigAntes), 40);
   }
+  // Antes de tocar el mundo (una orden, un poder, guardar), el turno a medias se termina de una vez.
+  function acabarTurno() { const c = calculo; if (c && c.mundo === m) { while (!c.gen.next().done); terminarCalculo(); } else calculo = null; }
   // Las batallas: el botón ⚔ lleva a la mayor (y, pulsando otra vez, a la siguiente); si lucha tu pueblo, se avisa.
   let batallaVista = 0, ultimaBatallaAvisada = -99;
   const regionDeBatalla = b => Math.floor(b.ty / M.vida.SUB) * m.W + Math.floor(b.tx / M.vida.SUB);
@@ -11962,6 +12019,8 @@ table.mercado td:first-child { white-space: nowrap; }
   }
 
   function arrancar() {
+    // Cualquier toque que pueda cambiar el mundo (botones, órdenes, el mapa) llega con el turno ya terminado.
+    for (const ev of ['click', 'change', 'submit']) document.addEventListener(ev, () => { if (calculo) acabarTurno(); }, true);
     precargar().then(() => {
       if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(iniciar);
       else iniciar(window.claude && window.claude.hot ? window.claude.hot.data : null);

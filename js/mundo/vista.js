@@ -28,6 +28,7 @@
     catch (e) { try { localStorage.removeItem(CLAVE); localStorage.setItem(CLAVE, texto); return true; } catch (e2) { return false; } }
   }
   function guardar() {
+    acabarTurno();
     if (!m || guardando) return;
     let json; try { json = JSON.stringify(m); } catch (e) { return; }
     if (typeof CompressionStream !== 'function') { escribir(json); return; }
@@ -805,14 +806,33 @@
     const texto = m.libre ? 'Año ' + anio : S.anioTexto(anio);
     if ($('anio').textContent !== texto) $('anio').textContent = texto;
   }
+  // El turno se calcula a trozos (unos milisegundos cada vez, entre fotograma y fotograma): la imagen no se
+  // congela al cambiar de turno, y la gente que aún termina su último paso sigue andando mientras tanto.
+  let calculo = null;
   function paso() {
-    anioAntes = m.anio; inicioTurno = performance.now();
+    if (calculo) return;
     const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [], sigAntes = m.vida ? m.vida.sig : 0;
-    S.turno(m);
+    calculo = { gen: S.turnoPorPartes ? S.turnoPorPartes(m) : null, antes, yo, guerrasAntes, sigAntes, anio: m.anio, mundo: m };
+    if (!calculo.gen) { S.turno(m); terminarCalculo(); return; }
+    seguirCalculo();
+  }
+  function seguirCalculo() {
+    const c = calculo;
+    if (!c) return;
+    if (c.mundo !== m) { calculo = null; return; }
+    const t0 = performance.now();
+    while (performance.now() - t0 < 7) if (c.gen.next().done) { terminarCalculo(); return; }
+    setTimeout(seguirCalculo, 4);
+  }
+  function terminarCalculo() {
+    const c = calculo; calculo = null;
+    anioAntes = c.anio; inicioTurno = performance.now();
     P.turno(m, VELOCIDADES[vel][0]);
     // Los paneles, los retos y el guardado van después, en otro fotograma (menos tirón al cambiar de turno).
-    setTimeout(() => despuesDelTurno(antes, yo, guerrasAntes, sigAntes), 40);
+    setTimeout(() => despuesDelTurno(c.antes, c.yo, c.guerrasAntes, c.sigAntes), 40);
   }
+  // Antes de tocar el mundo (una orden, un poder, guardar), el turno a medias se termina de una vez.
+  function acabarTurno() { const c = calculo; if (c && c.mundo === m) { while (!c.gen.next().done); terminarCalculo(); } else calculo = null; }
   // Las batallas: el botón ⚔ lleva a la mayor (y, pulsando otra vez, a la siguiente); si lucha tu pueblo, se avisa.
   let batallaVista = 0, ultimaBatallaAvisada = -99;
   const regionDeBatalla = b => Math.floor(b.ty / M.vida.SUB) * m.W + Math.floor(b.tx / M.vida.SUB);
@@ -1197,6 +1217,8 @@
   }
 
   function arrancar() {
+    // Cualquier toque que pueda cambiar el mundo (botones, órdenes, el mapa) llega con el turno ya terminado.
+    for (const ev of ['click', 'change', 'submit']) document.addEventListener(ev, () => { if (calculo) acabarTurno(); }, true);
     precargar().then(() => {
       if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(iniciar);
       else iniciar(window.claude && window.claude.hot ? window.claude.hot.data : null);

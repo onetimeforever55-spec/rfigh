@@ -2075,7 +2075,10 @@
   // Con el ritmo pausado, nacer y envejecer van más despacio por turno al principio (cada turno son pocos años).
   const bio = m => !m.ritmo || m.ritmo <= 1 ? 1 : Math.max(0.3, Math.min(1, S().pausa(m) * 2.5));
   // ---------- Un turno de vida ----------
-  function turno(m) {
+  // El turno se calcula por partes (un generador que cede entre paso y paso): la vista lo reparte entre varios
+  // fotogramas y la imagen no se congela al cambiar de turno. turno(m) lo hace todo de una vez.
+  function turno(m) { const gen = turnoPorPasos(m); while (!gen.next().done); }
+  function* turnoPorPasos(m) {
     if (!m.vida) crear(m);
     const v = m.vida;
     memo = new Map();
@@ -2125,6 +2128,7 @@
     for (const b of v.animales) b.r = [b.x, b.y];
     for (const b of v.barcos) b.r = [b.x, b.y];
     v.robadas = {}; v.mordidos = {};
+    yield;
     for (let paso = 1; paso <= TICKS; paso++) {
       for (const b of v.animales) pastar(m, b, ter);
       if (v.animales.some(b => b.muerta)) v.animales = v.animales.filter(b => !b.muerta);
@@ -2142,15 +2146,18 @@
       if (paso === 2) aviones(m, paso, guerreros);
       if (v.fuego && paso % 2 === 0) { const gente = new Map(); for (const a of v.aldeanos) if ((a.edad || 0) >= ADULTO) { const r = region(m, a.y * v.tw + a.x); gente.set(r, (gente.get(r) || 0) + 1); } arder(m, paso, gente); }
       asedios(m, paso);
+      yield;
     }
     // Donde cae alguien en batalla queda sangre unos turnos.
     for (const [x, y, , tipo, paso] of v.muertos) if (['batalla', 'flecha', 'obus', 'bomba', 'torre'].includes(tipo)) marcar(m, y * v.tw + x, 'sangre', 3, paso || 0.1);
     naturaleza(m, ter);
     contar(m);
+    yield;
     ciudades(m);
     abandonos(m);
     planificarRutas(m, terrenos(m));
     if (pausada(m)) planificarVias(m, terrenos(m));
+    yield;
     fauna(m, ter);
     comer(m);
     if (pausada(m)) { subsuelo(m, ter); mercado(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length, carbones: x.carbones.length }))); }
@@ -3716,5 +3723,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

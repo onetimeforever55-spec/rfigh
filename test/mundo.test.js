@@ -17,6 +17,15 @@ console.log('EL MUNDO');
   comprobar(a === b, 'la misma semilla da la misma historia (el azar vive en el mundo)');
 }
 
+console.log('EL TURNO POR PARTES');
+{
+  const a = S.crear(21, 5, { ritmo: 3 }), b = S.crear(21, 5, { ritmo: 3 });
+  let trozos = 0;
+  for (let k = 0; k < 40; k++) { S.turno(a); const g = S.turnoPorPartes(b); while (!g.next().done) trozos++; }
+  comprobar(trozos / 40 >= 10, 'cada turno se puede calcular en ' + Math.round(trozos / 40) + ' trozos (la vista los reparte entre fotogramas)');
+  comprobar(JSON.stringify(a) === JSON.stringify(b), 'y por partes sale exactamente el mismo mundo que de una vez');
+}
+
 console.log('LA HISTORIA SIGUE EL CALENDARIO REAL');
 {
   const renac = [], bronce = [];

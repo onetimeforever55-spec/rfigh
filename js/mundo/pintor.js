@@ -353,6 +353,10 @@
   }
   function turno(mundoActual, ms) {
     if (mundoActual !== m || !listo) { mundo(mundoActual); }
+    // El recorrido del turno anterior de cada aldeano: cada uno va con su propio desfase (ver aldeanos()).
+    for (const a of m.vida.aldeanos) { const r0 = rVisto.get(a); if (r0 && r0 !== a.r) rAntes.set(a, r0); rVisto.set(a, a.r); }
+    // Lo que se dibuja es el recorrido de este turno, aunque el siguiente ya se esté calculando por partes.
+    for (const b of (m.vida.animales || []).concat(m.vida.barcos || [])) rVisto.set(b, b.r);
     sincronizar(m.vida.cambios || []);
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
     vistos = new Set();
@@ -517,13 +521,20 @@
     }
   }
   // Las estaciones: el otoño dora el campo, el invierno lo blanquea y nieva en todo el reino.
+  let estVista = { e: null, antes: null, desde: 0 };
   function estaciones(ahora, x0, y0, x1, y1) {
     const e = m.vida.estacion;
     if (e == null || e < 0) return;
-    const cols = ['rgba(150,230,120,0.05)', null, 'rgba(230,140,40,0.11)', 'rgba(235,242,255,0.22)'];
-    if (cols[e]) { g.fillStyle = cols[e]; g.fillRect(x0, y0, x1 - x0, y1 - y0); }
-    if (e !== 3 || reducido) return;
-    const n = Math.min(260, Math.round((x1 - x0) * (y1 - y0) / 900));
+    // La estación cambia poco a poco (unos segundos de fundido), no de golpe al empezar el turno.
+    if (e !== estVista.e) { estVista = { e, antes: estVista.e, desde: ahora }; }
+    const fun = estVista.antes == null ? 1 : Math.min(1, (ahora - estVista.desde) / 6000);
+    const cols = [[150, 230, 120, 0.05], null, [230, 140, 40, 0.11], [235, 242, 255, 0.22]];
+    const capa = (c, a) => { if (c && a > 0.003) { g.fillStyle = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (c[3] * a).toFixed(3) + ')'; g.fillRect(x0, y0, x1 - x0, y1 - y0); } };
+    if (fun < 1 && estVista.antes != null) capa(cols[estVista.antes], 1 - fun);
+    capa(cols[e], fun);
+    const nieva = e === 3 ? fun : estVista.antes === 3 ? 1 - fun : 0;
+    if (nieva <= 0.02 || reducido) return;
+    const n = Math.min(260, Math.round((x1 - x0) * (y1 - y0) / 900 * nieva));
     g.fillStyle = 'rgba(255,255,255,0.85)';
     for (let i = 0; i < n; i++) {
       const wx = x0 + ((azarV(i * 17) * (x1 - x0) + Math.sin(ahora / 800 + i) * 4) % (x1 - x0)), wy = y0 + ((azarV(i * 31) * (y1 - y0) + ahora / 45 * (0.5 + azarV(i + 3))) % (y1 - y0));
@@ -686,6 +697,12 @@
       }
     }
   }
+  // Cada aldeano lleva su propio compás: va entre medio paso y casi un paso por detrás del reloj del turno (lo que
+  // le falta lo saca de su recorrido del turno anterior). Así no llegan todos a la vez a cada casilla ni cambian
+  // todos de tarea en el mismo instante al empezar el turno: el pueblo se mueve como gente, no a golpe de tambor.
+  // (Los soldados van al compás exacto, para que los golpes y los disparos casen con quien los recibe.)
+  const rVisto = new WeakMap(), rAntes = new WeakMap();
+  const desfase = a => (a.o === 4 ? 0 : 0.15 + ((a.id * 0.6180339) % 1) * 0.8);
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     civPorId.clear(); for (const c of m.civs) civPorId.set(c.id, c);
     rutaPorId.clear(); for (const ru of m.vida.rutas || []) rutaPorId.set(ru.id, ru);
@@ -697,7 +714,9 @@
     for (const c of S.vivas(m)) { if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 1) fiesta.add(c.id); if ((c.comida || 0) < (c.aldeanos || 0) * 0.15) hambre.add(c.id); }
     const todos = caidos.length ? v.aldeanos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : v.aldeanos;
     for (const a of todos) {
-      const r = a.r;
+      let r = rVisto.get(a) || a.r, kk = k - desfase(a);
+      if (kk < 0) { const r0 = rAntes.get(a); if (r0 && r0.length >= 6 && r && r0[r0.length - 3] === r[0] && r0[r0.length - 2] === r[1]) { r = r0; kk += V.TICKS; } else kk = 0; }
+      const paso = Math.min(V.TICKS - 1, Math.floor(kk)), f = Math.min(1, kk - paso);
       let px, py, acc;
       if (r && r.length >= 6) {
         const i = paso * 3, j = Math.min(r.length - 3, i + 3);
@@ -1304,8 +1323,9 @@
   function barcos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     for (const b of v.barcos || []) {
+      const br = rVisto.get(b) || b.r;
       let px = b.x * P, py = b.y * P;
-      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P; }
+      if (br && br.length >= 4) { const i = paso * 2, j = Math.min(br.length - 2, i + 2); px = (br[i] + (br[j] - br[i]) * f) * P; py = (br[i + 1] + (br[j + 1] - br[i + 1]) * f) * P; }
       if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;
       px = Math.round(px + 4); py = Math.round(py + 4 + Math.sin(ahora / 500 + b.id) * 0.8);
       const c = S.civ(m, b.c), color = c ? c.color : '#ccc';
@@ -1315,7 +1335,7 @@
       // Desde la Revolución Industrial, los mercantes ya son vapores; en guerra, los acorazados.
       const fb = c ? (c.era >= 6 && b.tipo !== 'pesca' ? 3 : grupoEra(c.era)) : 1;
       const img = ARTE().barco(b.tipo === 'guerra' ? 'guerra' : b.tipo === 'pesca' ? 'pesca' : 'mercante', fb, color);
-      const ida = b.r && b.r.length >= 4 ? Math.sign(b.r[Math.min(b.r.length - 2, paso * 2 + 2)] - b.r[paso * 2]) : 0;
+      const ida = br && br.length >= 4 ? Math.sign(br[Math.min(br.length - 2, paso * 2 + 2)] - br[paso * 2]) : 0;
       const izq = ida < 0 || (!ida && (b.izq || false)); if (ida) b.izq = ida < 0;
       g.save(); if (izq) { g.translate(px * 2 + 12, 0); g.scale(-1, 1); }
       g.drawImage(img, px - 4, py - 6);
@@ -1474,8 +1494,9 @@
     const ig = golpesDelTurno(v);
     const todos = caidos.length ? (v.animales || []).concat(caidos.filter(x => x.animal && k < x.paso && !(v.animales || []).includes(x.a)).map(x => x.a)) : (v.animales || []);
     for (const b of todos) {
+      const br = rVisto.get(b) || b.r;
       let px = b.x * P + 6, py = b.y * P + 8;
-      if (b.r && b.r.length >= 4) { const i = paso * 2, j = Math.min(b.r.length - 2, i + 2); px = (b.r[i] + (b.r[j] - b.r[i]) * f) * P + 6; py = (b.r[i + 1] + (b.r[j + 1] - b.r[i + 1]) * f) * P + 8; }
+      if (br && br.length >= 4) { const i = paso * 2, j = Math.min(br.length - 2, i + 2); px = (br[i] + (br[j] - br[i]) * f) * P + 6; py = (br[i + 1] + (br[j + 1] - br[i + 1]) * f) * P + 8; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       // También los animales: retroceden y se ponen rojos al recibir un mordisco o una lanzada; el lobo embiste.
       const recibe = golpeActivo(ig.golpes.get(b.id), k), pega = golpeActivo(ig.ataques.get(b.id), k);

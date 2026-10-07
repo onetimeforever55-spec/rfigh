@@ -188,7 +188,13 @@
     }
   }
 
-  const civ = (m, id) => m.civs.find(c => c.id === id);
+  // Buscar un pueblo por su número se hace miles de veces por turno: un índice (que se rehace si cambia la lista).
+  const indiceCivs = new WeakMap();
+  const civ = (m, id) => {
+    let e = indiceCivs.get(m.civs);
+    if (!e || e.n !== m.civs.length) { e = { n: m.civs.length, mapa: new Map(m.civs.map(c => [c.id, c])) }; indiceCivs.set(m.civs, e); }
+    return e.mapa.get(id);
+  };
   const vivas = m => m.civs.filter(c => c.viva);
   const casillas = (m, c) => { const out = []; for (let i = 0; i < W * H; i++) if (m.dueno[i] === c.id) out.push(i); return out; };
   function capacidad(m, c, cs) {
@@ -288,9 +294,12 @@
   }
 
   // ---------- Un turno del mundo ----------
-  function turno(m) {
+  function turno(m) { const gen = turnoPorPartes(m); while (!gen.next().done); return m; }
+  // El mismo turno, por partes: cede el control entre trozo y trozo (para repartirlo entre fotogramas).
+  function* turnoPorPartes(m) {
     m.turno++;
-    if (m.vida && M.vida) M.vida.turno(m);
+    if (m.vida && M.vida && M.vida.turnoPorPasos) yield* M.vida.turnoPorPasos(m); else if (m.vida && M.vida) M.vida.turno(m);
+    yield;
     const lista = vivas(m);
     for (const c of lista) vivir(m, c);
     diplomacia(m);
@@ -943,6 +952,6 @@
     });
   }
 
-  M.sim = { suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
