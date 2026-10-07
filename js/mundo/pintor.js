@@ -1340,6 +1340,12 @@
       g.save(); if (izq) { g.translate(px * 2 + 12, 0); g.scale(-1, 1); }
       g.drawImage(img, px - 4, py - 6);
       g.restore();
+      // El mercante lleva su carga a la vista en cubierta: fardos del color de lo que transporta.
+      if (b.tipo === 'mercante' && b.carga) {
+        const COL = { comida: '#e8d08a', madera: '#8a5a2c', piedra: '#a8a49a', metal: '#b8c4d0', armas: '#6a6a74', carbon: '#2a2a2e', petroleo: '#3a3020', muebles: '#c8925a', vehiculos: '#5a6a4a', semillas: '#c8a86a', granadas: '#3e4a2a' };
+        const cc = COL[b.carga.que] || '#c8a070', n = Math.min(4, 2 + Math.floor(b.carga.n / 15));
+        for (let q = 0; q < n; q++) { const cx = px + (izq ? 9 - q * 4 : -1 + q * 4), cy = py + 2 - (q % 2); g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(cx - 0.5, cy - 0.5, 4, 4); g.fillStyle = cc; g.fillRect(cx, cy, 3, 3); g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(cx, cy, 3, 0.7); }
+      }
       // Humo de los vapores y arrastreros.
       if (c && fb === 3) { for (let q = 0; q < 3; q++) { const f = ((ahora / 1200) + q / 3) % 1; g.fillStyle = 'rgba(80,80,80,' + (0.5 * (1 - f)).toFixed(2) + ')'; g.fillRect(px + (izq ? 6 : 4) + (b.tipo === 'pesca' ? 4 : 0) - f * 6 * (izq ? -1 : 1), py - 6 - f * 10, 2 + f * 3, 2 + f * 3); } }
       if (b.tipo === 'pesca' && Math.floor(ahora / 700 + b.id) % 3 === 0) { r(8, 5, 2, 1, '#c8d4dc'); }

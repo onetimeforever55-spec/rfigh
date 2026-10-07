@@ -574,7 +574,7 @@ table.mercado td:first-child { white-space: nowrap; }
           <details><summary>Trincheras y uniformes</summary>
             <p>En la Segunda Guerra Mundial los soldados cavan trincheras en la frontera con los reinos rivales: zanja con sacos terreros y, delante, alambre de espino. En guerra se meten dentro: cuesta más acertarles y reciben menos daño. Desde la Revolución Industrial cada ejército viste uniforme del color de su reino. Los cañones salen con el Renacimiento, y en la Segunda Guerra Mundial los soldados lanzan granadas, que caen dentro de las trincheras. Obuses, granadas y bombas hieren a todo el que pillan, agrietan y derriban edificios, revientan caminos y dejan cráteres. Cañones y granadas se fabrican («fabricad 30 granadas», «fabricad 5 cañones») y se compran y venden en el mercado.</p></details>
           <details><summary>Comercio y mercado</summary>
-            <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Para comerciar con un reino concreto, escribe «abrid una ruta comercial con Nombre»: se traza la carretera y tus constructores la empiedran. En la Era Moderna la carga va en camión o en tren si hay vía. «Fabricad 20 fusiles» pone a la forja a hacer armas, «fabricad muebles» a la fábrica y «fabricad 5 tanques» al cuartel. Todo se puede vender y comprar: «vended tanques», «comprad carbón». Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero.</p></details>
+            <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Para comerciar con un reino concreto, escribe «abrid una ruta comercial con Nombre»: se traza la carretera y tus constructores la empiedran. En la Era Moderna la carga va en camión o en tren si hay vía. Los barcos mercantes también compran y venden de puerto a puerto, y cargan mucho más. «Fabricad 20 fusiles» pone a la forja a hacer armas, «fabricad muebles» a la fábrica y «fabricad 5 tanques» al cuartel. Todo se puede vender y comprar: «vended tanques», «comprad carbón». Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero.</p></details>
           <details><summary>Industria: carbón, petróleo y obreros</summary>
             <p>Con la Revolución Industrial aparecen vetas de carbón (rocas con manchas negras) en montañas y colinas, y en la Era Moderna bolsas de petróleo (manchas negras en el suelo). Los mineros sacan el carbón; sobre el petróleo se levanta un pozo («construid un pozo de petróleo»). Las fábricas, los trenes y las centrales queman carbón; los tanques, los aviones y los acorazados gastan petróleo. Sin combustible se paran. Los dos se compran y se venden en el mercado («comprad carbón»).</p>
             <p>El humo de las fábricas ensucia el aire y la gente enferma más; los parques lo limpian. Si la gente está descontenta, los obreros hacen huelga y las fábricas se paran: puedes «subir los salarios» (cuesta oro) o «reprimir la huelga» (baja la estabilidad). Tras varias huelgas puede estallar una revolución que cambie el gobierno.</p></details>
@@ -2679,9 +2679,11 @@ table.mercado td:first-child { white-space: nowrap; }
   }
   // Un comerciante sale de casa: carga lo que al otro reino le hace falta y a su pueblo le sobra.
   const capacidad = c => Math.round((6 + 3 * c.era) * (1 + M.tec(c, 'comercio')) * (c.estaciones > 0 && enMarcha(c, 'tren') ? 2 : 1));
-  function cargar(m, a, c, o) {
+  // «bodega»: cuánto más carga que una carreta (un mercante lleva el triple; un vapor, cinco veces).
+  const bodegaDe = c => (c.era >= 6 ? 5 : 3);
+  function cargar(m, a, c, o, bodega) {
     const mk = m.mercado; if (!mk || !c.balance || !o.balance) return;
-    const cap = capacidad(c);
+    const cap = Math.round(capacidad(c) * (bodega || 1));
     let mejor = null, mv = 0;
     for (const k of BIENES) {
       // Lo que el jugador puso a la venta se coloca aunque al otro no le haga mucha falta (más barato).
@@ -2694,7 +2696,7 @@ table.mercado td:first-child { white-space: nowrap; }
     if (mejor) { a.carga = { que: mejor[0], n: mejor[1], de: c.id }; c[mejor[0]] -= mejor[1]; c.balance.sobra[mejor[0]] -= mejor[1]; }
   }
   // Llega a destino: vende la carga (lo que el otro pueda pagar) y, con oro de su pueblo, compra lo que falta en casa.
-  function venderComprar(m, a, c, o) {
+  function venderComprar(m, a, c, o, bodega, via) {
     const mk = m.mercado, v = m.vida; if (!mk) return;
     const tratos = [];
     if (a.carga && a.carga.de === c.id) {
@@ -2713,7 +2715,7 @@ table.mercado td:first-child { white-space: nowrap; }
     }
     // La vuelta: lo que más prisa le corre a su pueblo y al otro le sobra, si hay oro para pagarlo.
     if (!a.carga && c.balance && o.balance) {
-      const cap = capacidad(c);
+      const cap = Math.round(capacidad(c) * (bodega || 1));
       let mejor = null, mv = 0;
       for (const k of BIENES) {
         const precio = mk.precio[k] * (1 + 0.3 * Math.min(1.6, c.balance.urg[k]));
@@ -2731,8 +2733,8 @@ table.mercado td:first-child { white-space: nowrap; }
         tratos.push({ t: m.turno, vende: o.id, compra: c.id, que: k, n: q, oro });
       }
     }
-    const ru = v.rutas.find(x => x.id === a.ruta);
-    for (const x of tratos) { x.ruta = ru ? ru.tipo : null; apuntarTrato(m, x); }
+    const ru = via ? null : v.rutas.find(x => x.id === a.ruta);
+    for (const x of tratos) { x.ruta = via || (ru ? ru.tipo : null); apuntarTrato(m, x); }
   }
   // De vuelta en casa: se descarga lo comprado fuera.
   function descargar(m, a, c) {
@@ -3558,6 +3560,8 @@ table.mercado td:first-child { white-space: nowrap; }
     const v = m.vida;
     puertosDelTurno = [];
     for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === OBRA.puerto) puertosDelTurno.push(t);
+    // Un barco que se queda sin puerto (quemado, conquistado) devuelve su carga a su pueblo antes de desaparecer.
+    for (const b of v.barcos || []) if (b.carga && !(v.obra[b.puerto] === OBRA.puerto && m.dueno[region(m, b.puerto)] === b.c)) { const c = S().civ(m, b.c); if (c && c.viva) descargar(m, b, c); }
     v.barcos = (v.barcos || []).filter(b => v.obra[b.puerto] === OBRA.puerto && m.dueno[region(m, b.puerto)] === b.c);
     for (const t of puertosDelTurno) {
       const c = S().civ(m, m.dueno[region(m, t)]);
@@ -3656,13 +3660,17 @@ table.mercado td:first-child { white-space: nowrap; }
         const ruta = travesias[clave];
         if (!ruta || ruta.length < 3) { b.r.push(b.x, b.y); return; }
         b.ruta = ruta; b.i = 0; b.vuelta = 0; b.destino = destino;
+        // Como los comerciantes de tierra (y los trenes): zarpa con lo que le sobra a su pueblo y al otro le falta.
+        const o = S().civ(m, m.dueno[region(m, destino)]);
+        if (o && !b.carga) cargar(m, b, c, o, bodegaDe(c));
       }
       b.i += b.vuelta ? -2 : 2;
       if (!b.vuelta && b.i >= b.ruta.length - 1) {
         b.i = b.ruta.length - 1; b.vuelta = 1;
         const o = S().civ(m, m.dueno[region(m, b.destino)]);
-        if (o && !S().enGuerra(c, o)) { c.riqueza += 5 + c.era; o.riqueza += 4 + o.era; c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1); }
-      } else if (b.vuelta && b.i <= 0) { b.i = 0; b.ruta = null; }
+        // En el puerto de destino vende la carga y compra lo que hace falta en casa, igual que una carreta.
+        if (o && !S().enGuerra(c, o)) { venderComprar(m, b, c, o, bodegaDe(c), 'mar'); c.riqueza += 2 + c.era * 0.5; o.riqueza += 2 + o.era * 0.5; c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1); }
+      } else if (b.vuelta && b.i <= 0) { b.i = 0; b.ruta = null; descargar(m, b, c); }
       const t = b.ruta ? b.ruta[Math.max(0, Math.min(b.ruta.length - 1, b.i))] : aguaJunto(m, b.puerto, ter);
       if (t != null) { b.x = t % v.tw; b.y = t / v.tw | 0; }
     }
@@ -9852,6 +9860,12 @@ table.mercado td:first-child { white-space: nowrap; }
       g.save(); if (izq) { g.translate(px * 2 + 12, 0); g.scale(-1, 1); }
       g.drawImage(img, px - 4, py - 6);
       g.restore();
+      // El mercante lleva su carga a la vista en cubierta: fardos del color de lo que transporta.
+      if (b.tipo === 'mercante' && b.carga) {
+        const COL = { comida: '#e8d08a', madera: '#8a5a2c', piedra: '#a8a49a', metal: '#b8c4d0', armas: '#6a6a74', carbon: '#2a2a2e', petroleo: '#3a3020', muebles: '#c8925a', vehiculos: '#5a6a4a', semillas: '#c8a86a', granadas: '#3e4a2a' };
+        const cc = COL[b.carga.que] || '#c8a070', n = Math.min(4, 2 + Math.floor(b.carga.n / 15));
+        for (let q = 0; q < n; q++) { const cx = px + (izq ? 9 - q * 4 : -1 + q * 4), cy = py + 2 - (q % 2); g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(cx - 0.5, cy - 0.5, 4, 4); g.fillStyle = cc; g.fillRect(cx, cy, 3, 3); g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(cx, cy, 3, 0.7); }
+      }
       // Humo de los vapores y arrastreros.
       if (c && fb === 3) { for (let q = 0; q < 3; q++) { const f = ((ahora / 1200) + q / 3) % 1; g.fillStyle = 'rgba(80,80,80,' + (0.5 * (1 - f)).toFixed(2) + ')'; g.fillRect(px + (izq ? 6 : 4) + (b.tipo === 'pesca' ? 4 : 0) - f * 6 * (izq ? -1 : 1), py - 6 - f * 10, 2 + f * 3, 2 + f * 3); } }
       if (b.tipo === 'pesca' && Math.floor(ahora / 700 + b.id) % 3 === 0) { r(8, 5, 2, 1, '#c8d4dc'); }
@@ -11184,7 +11198,7 @@ table.mercado td:first-child { white-space: nowrap; }
         return '<li><b>' + esc(o.nombre) + '</b> <span class="tenue">· le sobra ' + ofrece + ' · le falta ' + necesita + '</span> ' + compra + '</li>';
       }).join('') + '</ul>' : '<p class="tenue arbol-ayuda">Sin rutas con otros reinos: todo lo que necesite lo tiene que producir. Con buenas relaciones (o «comerciad con X») se abre una ruta y llegan las carretas.</p>') +
       '<div class="tec-era">Últimos tratos</div>' +
-      (tratos.length ? '<ul class="edad-req">' + tratos.map(x => '<li>' + (x.compra === c.id ? '🛒 Compra ' : '💰 Vende ') + x.n + ' ' + ICONO_BIEN[x.que] + ' ' + x.que + (x.compra === c.id ? ' a ' + nombre(x.vende) : ' a ' + nombre(x.compra)) + ' por <b>' + Math.round(x.oro) + '</b> 🪙 <span class="tenue">(' + (m.turno - x.t === 0 ? 'ahora' : 'hace ' + (m.turno - x.t) + ' turnos') + ')</span></li>').join('') + '</ul>' : '<p class="tenue arbol-ayuda">Ninguno todavía.</p>') +
+      (tratos.length ? '<ul class="edad-req">' + tratos.map(x => '<li>' + (x.ruta === 'mar' ? '⛵ ' : '') + (x.compra === c.id ? '🛒 Compra ' : '💰 Vende ') + x.n + ' ' + ICONO_BIEN[x.que] + ' ' + x.que + (x.compra === c.id ? ' a ' + nombre(x.vende) : ' a ' + nombre(x.compra)) + ' por <b>' + Math.round(x.oro) + '</b> 🪙 <span class="tenue">(' + (m.turno - x.t === 0 ? 'ahora' : 'hace ' + (m.turno - x.t) + ' turnos') + ')</span></li>').join('') + '</ul>' : '<p class="tenue arbol-ayuda">Ninguno todavía.</p>') +
       '</div>';
   }
   // La pestaña Ciudad: lo que el pueblo necesita y por qué, el ánimo de la gente, la estación y las obras en marcha.

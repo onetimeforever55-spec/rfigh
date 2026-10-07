@@ -382,7 +382,7 @@
         return '<li><b>' + esc(o.nombre) + '</b> <span class="tenue">· le sobra ' + ofrece + ' · le falta ' + necesita + '</span> ' + compra + '</li>';
       }).join('') + '</ul>' : '<p class="tenue arbol-ayuda">Sin rutas con otros reinos: todo lo que necesite lo tiene que producir. Con buenas relaciones (o «comerciad con X») se abre una ruta y llegan las carretas.</p>') +
       '<div class="tec-era">Últimos tratos</div>' +
-      (tratos.length ? '<ul class="edad-req">' + tratos.map(x => '<li>' + (x.compra === c.id ? '🛒 Compra ' : '💰 Vende ') + x.n + ' ' + ICONO_BIEN[x.que] + ' ' + x.que + (x.compra === c.id ? ' a ' + nombre(x.vende) : ' a ' + nombre(x.compra)) + ' por <b>' + Math.round(x.oro) + '</b> 🪙 <span class="tenue">(' + (m.turno - x.t === 0 ? 'ahora' : 'hace ' + (m.turno - x.t) + ' turnos') + ')</span></li>').join('') + '</ul>' : '<p class="tenue arbol-ayuda">Ninguno todavía.</p>') +
+      (tratos.length ? '<ul class="edad-req">' + tratos.map(x => '<li>' + (x.ruta === 'mar' ? '⛵ ' : '') + (x.compra === c.id ? '🛒 Compra ' : '💰 Vende ') + x.n + ' ' + ICONO_BIEN[x.que] + ' ' + x.que + (x.compra === c.id ? ' a ' + nombre(x.vende) : ' a ' + nombre(x.compra)) + ' por <b>' + Math.round(x.oro) + '</b> 🪙 <span class="tenue">(' + (m.turno - x.t === 0 ? 'ahora' : 'hace ' + (m.turno - x.t) + ' turnos') + ')</span></li>').join('') + '</ul>' : '<p class="tenue arbol-ayuda">Ninguno todavía.</p>') +
       '</div>';
   }
   // La pestaña Ciudad: lo que el pueblo necesita y por qué, el ánimo de la gente, la estación y las obras en marcha.

@@ -921,6 +921,13 @@ console.log('CAÑONES Y GRANADAS');
   comprobar(w.obra[casa] === V.OBRA.ruina && !w.camino[casa + 1] && !w.arbol[casa + w.tw], 'y a fuerza de explosiones la casa cae en ruinas, el camino revienta y los árboles caen');
 }
 
+console.log('COMERCIO POR MAR');
+{
+  const m = S.crear(99, 5, { ritmo: 3 }); for (let k = 0; k < 350; k++) S.turno(m);
+  const mar = (m.mercado.tratos || []).filter(x => x.ruta === 'mar');
+  comprobar(mar.length > 0 && mar.every(x => x.n > 0 && x.oro > 0), 'los barcos mercantes compran y venden de puerto a puerto (' + mar.length + ' tratos por mar: ' + mar.slice(-2).map(x => x.n + ' de ' + x.que).join(', ') + ')');
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;

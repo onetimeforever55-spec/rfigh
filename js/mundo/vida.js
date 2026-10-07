@@ -803,9 +803,11 @@
   }
   // Un comerciante sale de casa: carga lo que al otro reino le hace falta y a su pueblo le sobra.
   const capacidad = c => Math.round((6 + 3 * c.era) * (1 + M.tec(c, 'comercio')) * (c.estaciones > 0 && enMarcha(c, 'tren') ? 2 : 1));
-  function cargar(m, a, c, o) {
+  // «bodega»: cuánto más carga que una carreta (un mercante lleva el triple; un vapor, cinco veces).
+  const bodegaDe = c => (c.era >= 6 ? 5 : 3);
+  function cargar(m, a, c, o, bodega) {
     const mk = m.mercado; if (!mk || !c.balance || !o.balance) return;
-    const cap = capacidad(c);
+    const cap = Math.round(capacidad(c) * (bodega || 1));
     let mejor = null, mv = 0;
     for (const k of BIENES) {
       // Lo que el jugador puso a la venta se coloca aunque al otro no le haga mucha falta (más barato).
@@ -818,7 +820,7 @@
     if (mejor) { a.carga = { que: mejor[0], n: mejor[1], de: c.id }; c[mejor[0]] -= mejor[1]; c.balance.sobra[mejor[0]] -= mejor[1]; }
   }
   // Llega a destino: vende la carga (lo que el otro pueda pagar) y, con oro de su pueblo, compra lo que falta en casa.
-  function venderComprar(m, a, c, o) {
+  function venderComprar(m, a, c, o, bodega, via) {
     const mk = m.mercado, v = m.vida; if (!mk) return;
     const tratos = [];
     if (a.carga && a.carga.de === c.id) {
@@ -837,7 +839,7 @@
     }
     // La vuelta: lo que más prisa le corre a su pueblo y al otro le sobra, si hay oro para pagarlo.
     if (!a.carga && c.balance && o.balance) {
-      const cap = capacidad(c);
+      const cap = Math.round(capacidad(c) * (bodega || 1));
       let mejor = null, mv = 0;
       for (const k of BIENES) {
         const precio = mk.precio[k] * (1 + 0.3 * Math.min(1.6, c.balance.urg[k]));
@@ -855,8 +857,8 @@
         tratos.push({ t: m.turno, vende: o.id, compra: c.id, que: k, n: q, oro });
       }
     }
-    const ru = v.rutas.find(x => x.id === a.ruta);
-    for (const x of tratos) { x.ruta = ru ? ru.tipo : null; apuntarTrato(m, x); }
+    const ru = via ? null : v.rutas.find(x => x.id === a.ruta);
+    for (const x of tratos) { x.ruta = via || (ru ? ru.tipo : null); apuntarTrato(m, x); }
   }
   // De vuelta en casa: se descarga lo comprado fuera.
   function descargar(m, a, c) {
@@ -1682,6 +1684,8 @@
     const v = m.vida;
     puertosDelTurno = [];
     for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === OBRA.puerto) puertosDelTurno.push(t);
+    // Un barco que se queda sin puerto (quemado, conquistado) devuelve su carga a su pueblo antes de desaparecer.
+    for (const b of v.barcos || []) if (b.carga && !(v.obra[b.puerto] === OBRA.puerto && m.dueno[region(m, b.puerto)] === b.c)) { const c = S().civ(m, b.c); if (c && c.viva) descargar(m, b, c); }
     v.barcos = (v.barcos || []).filter(b => v.obra[b.puerto] === OBRA.puerto && m.dueno[region(m, b.puerto)] === b.c);
     for (const t of puertosDelTurno) {
       const c = S().civ(m, m.dueno[region(m, t)]);
@@ -1780,13 +1784,17 @@
         const ruta = travesias[clave];
         if (!ruta || ruta.length < 3) { b.r.push(b.x, b.y); return; }
         b.ruta = ruta; b.i = 0; b.vuelta = 0; b.destino = destino;
+        // Como los comerciantes de tierra (y los trenes): zarpa con lo que le sobra a su pueblo y al otro le falta.
+        const o = S().civ(m, m.dueno[region(m, destino)]);
+        if (o && !b.carga) cargar(m, b, c, o, bodegaDe(c));
       }
       b.i += b.vuelta ? -2 : 2;
       if (!b.vuelta && b.i >= b.ruta.length - 1) {
         b.i = b.ruta.length - 1; b.vuelta = 1;
         const o = S().civ(m, m.dueno[region(m, b.destino)]);
-        if (o && !S().enGuerra(c, o)) { c.riqueza += 5 + c.era; o.riqueza += 4 + o.era; c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1); }
-      } else if (b.vuelta && b.i <= 0) { b.i = 0; b.ruta = null; }
+        // En el puerto de destino vende la carga y compra lo que hace falta en casa, igual que una carreta.
+        if (o && !S().enGuerra(c, o)) { venderComprar(m, b, c, o, bodegaDe(c), 'mar'); c.riqueza += 2 + c.era * 0.5; o.riqueza += 2 + o.era * 0.5; c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1); }
+      } else if (b.vuelta && b.i <= 0) { b.i = 0; b.ruta = null; descargar(m, b, c); }
       const t = b.ruta ? b.ruta[Math.max(0, Math.min(b.ruta.length - 1, b.i))] : aguaJunto(m, b.puerto, ter);
       if (t != null) { b.x = t % v.tw; b.y = t / v.tw | 0; }
     }
