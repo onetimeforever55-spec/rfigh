@@ -989,12 +989,12 @@
     });
   }
   function aldeano(o) {
-    const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo, o.sabio || ''].join(':');
+    const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.corre ? 1 : 0, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo, o.sabio || ''].join(':');
     return guardado(clave, () => {
       const H = hoja(12, 14), piel = PIEL[o.piel || 0], pelo = o.edad === 'viejo' ? '#e8e8ec' : PELO[o.pelo || 0];
       if (o.edad === 'nino') {
         // Niño: más bajito y cabezón.
-        H.p(5, 12, '#3a2a1e'); H.p(7 - (o.paso ? 1 : 0), 12, '#3a2a1e');
+        const pn = o.paso || 0; H.p(pn === 1 ? 4 : 5, 12, '#3a2a1e'); H.p(pn === 3 ? 8 : pn === 1 ? 7 : 6 + (pn === 0 ? 1 : 0), 12, '#3a2a1e');
         H.r(5, 9, 3, 3, o.col); H.p(7, 10, oscuro(o.col, 0.2));
         H.r(5, 6, 3, 3, piel); H.p(7, 7, '#2a1e1a'); H.r(5, 5, 3, 1, pelo); H.p(4, 6, pelo);
         H.contorno(0.6);
@@ -1002,16 +1002,30 @@
       }
       const guerrero = o.oficio === 'guerrero', arm = guerrero && o.armadura ? MAT[o.armadura] : null;
       // Piernas (al andar, una adelantada) y zapatos.
-      const pierna = '#4a3a2e';
-      H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, o.paso ? 1 : 2, pierna);
-      H.p(5, 12, '#2a1e14'); if (!o.paso) H.p(7, 12, '#2a1e14');
+      // Piernas: quieto, o un ciclo de cuatro tiempos al andar (zancada, cruce, zancada con la otra, cruce);
+      // al correr, la zancada es más larga y la rodilla sube. La pierna de delante va un poco más oscura.
+      const pierna = '#4a3a2e', lejana = '#3a2e24', zapato = '#2a1e14', pn = o.paso || 0, larga = o.corre ? 1 : 0;
+      const pie = (x, y, col) => { H.p(x, y - 1, col); H.p(x, y, zapato); };
+      if (pn === 0) { H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, 2, pierna); H.p(5, 12, zapato); H.p(7, 12, zapato); }
+      else if (pn === 1 || pn === 3) {
+        // Zancada: una pierna atrás y la otra delante (se alternan cuál va cerca).
+        const atras = pn === 1 ? lejana : pierna, delante = pn === 1 ? pierna : lejana;
+        H.p(5, 11, atras); H.p(7, 11, delante); pie(4 - larga, 12, atras); pie(8 + larga, 12, delante);
+      } else {
+        // Cruce: las piernas pasan una junto a otra; la que va en el aire, con la rodilla doblada.
+        const apoyo = pn === 2 ? pierna : lejana, aire = pn === 2 ? lejana : pierna;
+        H.r(6, 11, 1, 2, apoyo); H.p(6, 12, zapato); H.p(7, 11, aire); H.p(7 + larga, 12 - larga, aire);
+      }
       // Cuerpo con la ropa del color del pueblo (o la armadura con un tabardo del color del pueblo), cinturón.
       const ropa = arm || o.col;
       H.r(4, 7, 5, 4, ropa); H.r(4, 7, 1, 4, claro(ropa, 0.15)); H.r(8, 7, 1, 4, oscuro(ropa, 0.2));
       if (arm) H.r(6, 7, 1, 4, o.col);
       H.r(4, 10, 5, 1, oscuro(ropa, 0.35));
-      // Brazos.
-      H.p(3, 8, ropa); H.p(3, 9, piel); H.p(9, 8, ropa); H.p(9, 9, piel);
+      // Brazos: balancean al andar (el de atrás siempre; el de delante solo si no lleva nada en la mano).
+      const mano = !!(o.carga || ['lenador', 'minero', 'granjero', 'constructor'].includes(o.oficio) || guerrero);
+      const vaivenAtras = pn === 1 ? -1 : pn === 3 ? 1 : 0, vaivenDelante = mano ? 0 : -vaivenAtras;
+      H.p(3, 8, ropa); H.p(3 + (vaivenAtras > 0 ? 0 : vaivenAtras), 9 + (vaivenAtras > 0 ? 1 : 0), piel);
+      H.p(9, 8, ropa); H.p(9 + (vaivenDelante < 0 ? 1 : 0), 9 + (vaivenDelante > 0 ? 1 : 0), piel);
       // Cabeza, ojo y pelo.
       H.r(5, 3, 3, 4, piel); H.r(7, 3, 1, 4, oscuro(piel, 0.12)); H.p(7, 5, '#2a1e1a');
       H.r(5, 2, 3, 1, pelo); H.p(4, 3, pelo); H.p(5, 3, pelo);

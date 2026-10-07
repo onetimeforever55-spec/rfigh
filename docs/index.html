@@ -7838,12 +7838,12 @@ table.mercado td:first-child { white-space: nowrap; }
     });
   }
   function aldeano(o) {
-    const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo, o.sabio || ''].join(':');
+    const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.corre ? 1 : 0, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo, o.sabio || ''].join(':');
     return guardado(clave, () => {
       const H = hoja(12, 14), piel = PIEL[o.piel || 0], pelo = o.edad === 'viejo' ? '#e8e8ec' : PELO[o.pelo || 0];
       if (o.edad === 'nino') {
         // Niño: más bajito y cabezón.
-        H.p(5, 12, '#3a2a1e'); H.p(7 - (o.paso ? 1 : 0), 12, '#3a2a1e');
+        const pn = o.paso || 0; H.p(pn === 1 ? 4 : 5, 12, '#3a2a1e'); H.p(pn === 3 ? 8 : pn === 1 ? 7 : 6 + (pn === 0 ? 1 : 0), 12, '#3a2a1e');
         H.r(5, 9, 3, 3, o.col); H.p(7, 10, oscuro(o.col, 0.2));
         H.r(5, 6, 3, 3, piel); H.p(7, 7, '#2a1e1a'); H.r(5, 5, 3, 1, pelo); H.p(4, 6, pelo);
         H.contorno(0.6);
@@ -7851,16 +7851,30 @@ table.mercado td:first-child { white-space: nowrap; }
       }
       const guerrero = o.oficio === 'guerrero', arm = guerrero && o.armadura ? MAT[o.armadura] : null;
       // Piernas (al andar, una adelantada) y zapatos.
-      const pierna = '#4a3a2e';
-      H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, o.paso ? 1 : 2, pierna);
-      H.p(5, 12, '#2a1e14'); if (!o.paso) H.p(7, 12, '#2a1e14');
+      // Piernas: quieto, o un ciclo de cuatro tiempos al andar (zancada, cruce, zancada con la otra, cruce);
+      // al correr, la zancada es más larga y la rodilla sube. La pierna de delante va un poco más oscura.
+      const pierna = '#4a3a2e', lejana = '#3a2e24', zapato = '#2a1e14', pn = o.paso || 0, larga = o.corre ? 1 : 0;
+      const pie = (x, y, col) => { H.p(x, y - 1, col); H.p(x, y, zapato); };
+      if (pn === 0) { H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, 2, pierna); H.p(5, 12, zapato); H.p(7, 12, zapato); }
+      else if (pn === 1 || pn === 3) {
+        // Zancada: una pierna atrás y la otra delante (se alternan cuál va cerca).
+        const atras = pn === 1 ? lejana : pierna, delante = pn === 1 ? pierna : lejana;
+        H.p(5, 11, atras); H.p(7, 11, delante); pie(4 - larga, 12, atras); pie(8 + larga, 12, delante);
+      } else {
+        // Cruce: las piernas pasan una junto a otra; la que va en el aire, con la rodilla doblada.
+        const apoyo = pn === 2 ? pierna : lejana, aire = pn === 2 ? lejana : pierna;
+        H.r(6, 11, 1, 2, apoyo); H.p(6, 12, zapato); H.p(7, 11, aire); H.p(7 + larga, 12 - larga, aire);
+      }
       // Cuerpo con la ropa del color del pueblo (o la armadura con un tabardo del color del pueblo), cinturón.
       const ropa = arm || o.col;
       H.r(4, 7, 5, 4, ropa); H.r(4, 7, 1, 4, claro(ropa, 0.15)); H.r(8, 7, 1, 4, oscuro(ropa, 0.2));
       if (arm) H.r(6, 7, 1, 4, o.col);
       H.r(4, 10, 5, 1, oscuro(ropa, 0.35));
-      // Brazos.
-      H.p(3, 8, ropa); H.p(3, 9, piel); H.p(9, 8, ropa); H.p(9, 9, piel);
+      // Brazos: balancean al andar (el de atrás siempre; el de delante solo si no lleva nada en la mano).
+      const mano = !!(o.carga || ['lenador', 'minero', 'granjero', 'constructor'].includes(o.oficio) || guerrero);
+      const vaivenAtras = pn === 1 ? -1 : pn === 3 ? 1 : 0, vaivenDelante = mano ? 0 : -vaivenAtras;
+      H.p(3, 8, ropa); H.p(3 + (vaivenAtras > 0 ? 0 : vaivenAtras), 9 + (vaivenAtras > 0 ? 1 : 0), piel);
+      H.p(9, 8, ropa); H.p(9 + (vaivenDelante < 0 ? 1 : 0), 9 + (vaivenDelante > 0 ? 1 : 0), piel);
       // Cabeza, ojo y pelo.
       H.r(5, 3, 3, 4, piel); H.r(7, 3, 1, 4, oscuro(piel, 0.12)); H.p(7, 5, '#2a1e1a');
       H.r(5, 2, 3, 1, pelo); H.p(4, 3, pelo); H.p(5, 3, pelo);
@@ -8558,11 +8572,11 @@ table.mercado td:first-child { white-space: nowrap; }
   const ultimoOficio = new Map(), cambioVisto = new Map(), ultimaDir = new Map(), humoTiro = new Set();
   let quietos = [], gritos = [];
   // El dibujo de un aldeano (también para su caída).
-  function figura(a, col, paso, alto, carga) {
+  function figura(a, col, paso, alto, carga, corre) {
     const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
     return ARTE().aldeano({
       col, oficio: nino ? 'nino' : oficio, edad: nino ? 'nino' : (a.edad || 0) >= V.VIEJO ? 'viejo' : 'adulto',
-      paso: paso || 0, alto: alto || 0, carga: carga || 0,
+      paso: paso || 0, corre: !!corre, alto: alto || 0, carga: carga || 0,
       arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
       piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4,
       sabio: oficio === 'erudito' ? M.ERUDITO((S.civ(m, a.c) || { era: 0 }).era).tipo : undefined
@@ -8747,9 +8761,11 @@ table.mercado td:first-child { white-space: nowrap; }
       if (px < x0 - 8 || py < y0 - 8 || px > x1 + 8 || py > y1 + 8) continue;
       // Recibe un golpe: sale despedido un par de píxeles lejos de quien le pega. Pega: embiste hacia el otro.
       const recibe = golpeActivo(ig.golpes.get(a.id), k), pega = golpeActivo(ig.ataques.get(a.id), k);
-      if (recibe) { const [gp, d] = recibe, emp = Math.round(2.5 * (1 - d)); px += Math.sign(a.x - gp[2]) * emp; py += Math.sign(a.y - gp[3]) * emp - (d < 0.5 ? 1 : 0); }
-      if (pega) { const [at, d] = pega, emb = Math.round(2.5 * Math.sin(Math.PI * d)); px += Math.sign(at[2]) * emb; py += Math.sign(at[3]) * emb; }
-      px = Math.round(px); py = Math.round(py);
+      // Retroceso al recibir (sale despedido y vuelve frenando) y embestida al pegar: curvas suaves, no saltos.
+      if (recibe) { const [gp, d] = recibe, emp = 2.5 * (1 - d) * (1 - d); px += Math.sign(a.x - gp[2]) * emp; py += Math.sign(a.y - gp[3]) * emp - Math.sin(Math.PI * Math.min(1, d * 2)); }
+      if (pega) { const [at, d] = pega, emb = 2.2 * Math.sin(Math.PI * Math.min(1, d * 1.25)); px += Math.sign(at[2]) * emb; py += Math.sign(at[3]) * emb; }
+      // A medio píxel (un píxel del dibujo): el movimiento es continuo y no va a saltos de casilla.
+      px = Math.round(px * 2) / 2; py = Math.round(py * 2) / 2;
       dibujados.set(a.id, [px, py]);
       if (elegido === a.id) { const f2 = Math.floor(performance.now() / 300) % 2; g.fillStyle = '#ffd23a'; g.fillRect(px, py - 6 - f2, 3, 1); g.fillRect(px + 1, py - 5 - f2, 1, 1); g.strokeStyle = 'rgba(255,210,58,0.8)'; g.lineWidth = 0.6; g.strokeRect(px - 2.5, py - 2, 8, 8.5); }
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
@@ -8788,7 +8804,22 @@ table.mercado td:first-child { white-space: nowrap; }
       }
       // El aldeano: un dibujo de 12×14 con contorno (arte.js), según su oficio, edad, equipo y lo que hace.
       const oficio = V.OFICIOS[a.o], nino = (a.edad || 0) < V.ADULTO;
-      const alto = acc === 1 || acc === 2 ? (t ? -1 : 1) : 0;
+      // El ciclo de andar va con lo que avanza (cuatro tiempos por casilla, más deprisa si corre por el camino),
+      // el trabajo sube y baja la herramienta en tres tiempos, y el golpe cuerpo a cuerpo es alzar, bajar y golpear.
+      let fase = 0, corre = false, sube = 0;
+      if (anda && r) {
+        const i0 = paso * 3, j0 = Math.min(r.length - 3, i0 + 3), tramo = Math.abs(r[j0] - r[i0]) + Math.abs(r[j0 + 1] - r[i0 + 1]);
+        corre = oficio === 'guerrero' && (tramo >= 2 || (acc === 2 && !a.tirador));
+        fase = 1 + (Math.floor((paso + f) * 4 * Math.max(1, tramo)) + (a.id & 3)) % 4;
+        if (fase === 2 || fase === 4) sube = corre ? 1 : 0.5;
+      }
+      const alto = pega && oficio === 'guerrero' && !a.tirador ? (pega[1] < 0.35 ? -1 : pega[1] < 0.6 ? 0 : 1)
+        : acc === 1 || acc === 2 ? [-1, 0, 1, 0][Math.floor(ahora / 210 + a.id) % 4] : 0;
+      // Mira hacia donde va (o hacia quien golpea).
+      let mira = ultimaDir.get(a.id) || 1;
+      if (r && r.length >= 6) { const i0 = paso * 3, j0 = Math.min(r.length - 3, i0 + 3), dx0 = r[j0] - r[i0]; if (dx0) mira = Math.sign(dx0); }
+      if (pega && pega[0][2]) mira = Math.sign(pega[0][2]);
+      ultimaDir.set(a.id, mira);
       // En plena batalla, el tirador que acaba de disparar no anda: se pone en posición de tiro (de pie con la
       // honda, tensando el arco, de rodillas con el arcabuz o la espingarda, cuerpo a tierra con el fusil
       // moderno), mira al blanco y, al soltar, sale el fogonazo y el arma retrocede.
@@ -8798,7 +8829,7 @@ table.mercado td:first-child { white-space: nowrap; }
       if (pose) for (const d of v.disparos || []) if (d[6] === a.id && k >= d[4] - 1.6 && k < d[4] - 0.7) { suelta = k >= d[4] - 1 ? (k - (d[4] - 1)) / 0.3 : -1; break; }
       const dirTiro = pose ? (a.fuego.dx || 1) : 1;
       const img = pose ? ARTE().tiradorEnPose({ col: color[a.c] || '#cccccc', pose, tenso: pose === 'arco' && !(suelta != null && suelta >= 0), arma: a.arma || 0, armadura: a.armadura || 0, piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4 })
-        : figura(a, color[a.c] || '#cccccc', anda && t ? 1 : 0, alto, acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0);
+        : figura(a, color[a.c] || '#cccccc', fase, alto, acc === 3 ? (oficio === 'minero' ? 2 : oficio === 'granjero' ? 3 : 1) : 0, corre);
       // A media escala: el dibujo tiene detalle al acercarse, pero una persona mide un tercio de una casa.
       const ix = px - 1.5, iy = py - 1, EA = 0.5;
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(px - 1, py + 5, 5, 1);
@@ -8838,19 +8869,30 @@ table.mercado td:first-child { white-space: nowrap; }
       const baila = fiesta.has(a.c) && acc === 0 && !anda && Math.sin(ahora / 140 + a.id) > 0.3;
       if (pose) {
         // Retroceso al disparar (medio píxel hacia atrás) y el dibujo volteado si el blanco está a la izquierda.
-        const atras = suelta != null && suelta >= 0 && pose !== 'arco' ? -0.5 * dirTiro : 0;
+        // El retroceso: un golpe hacia atrás al disparar que vuelve suave.
+        const atras = suelta != null && suelta >= 0 && pose !== 'arco' ? -0.5 * (1 - suelta) * dirTiro : 0;
         g.save(); if (dirTiro < 0) { g.translate(2 * (px + 1.5), 0); g.scale(-1, 1); }
         g.drawImage(img, ix + atras * dirTiro, iy, img.width * EA, img.height * EA);
         g.restore();
         if (suelta != null && suelta >= 0 && pose !== 'arco') {
           const [bx_, by_] = ARTE().BOCA[pose], fx = dirTiro > 0 ? ix + bx_ * EA : 2 * (px + 1.5) - (ix + bx_ * EA), fy = iy + by_ * EA;
-          g.fillStyle = suelta < 0.5 ? '#fff6c0' : '#ffb03a'; g.fillRect(fx + (dirTiro > 0 ? 0 : -2), fy - 0.5, 2, 1);
-          g.fillStyle = '#ffd23a'; g.fillRect(fx + (dirTiro > 0 ? 1.5 : -2.5), fy - 1, 1, 2);
+          // Fogonazo en estrella que se apaga deprisa: naranja, amarillo y el centro blanco.
+          const fl = 1 - suelta, ox = dirTiro > 0 ? 0 : -1;
+          g.globalAlpha = Math.max(0, fl);
+          g.fillStyle = '#ff9a3a'; g.fillRect(fx + ox * 3, fy - 1, 3, 2);
+          g.fillStyle = '#ffd23a'; g.fillRect(fx + ox * 2.5 + (dirTiro > 0 ? 0.5 : 0), fy - 1.5, 2, 3); g.fillRect(fx + (dirTiro > 0 ? 2.5 : -3.5), fy - 0.5, 1, 1);
+          g.fillStyle = '#fff6c0'; g.fillRect(fx + (dirTiro > 0 ? 0.5 : -1.5), fy - 0.5, 1, 1);
+          g.globalAlpha = 1;
           const clave_ = a.id + ':' + m.turno + ':' + Math.floor(k);
           if (!humoTiro.has(clave_)) { humoTiro.add(clave_); if (humoTiro.size > 400) humoTiro.clear(); emitir(fx + dirTiro, fy, 3, { v: 8, g: -6, vida: 900, cols: ['#e8e8ec', '#c8c8d0'], tipo: 'humo', tam: 1.4 }); }
         }
       }
-      else g.drawImage(img, ix, iy - (baila ? 1 : 0), img.width * EA, img.height * EA);
+      else {
+        // Volteado si va hacia la izquierda; el balanceo del paso sube el cuerpo medio píxel.
+        g.save(); if (mira < 0) { g.translate(2 * (px + 1.5), 0); g.scale(-1, 1); }
+        g.drawImage(img, ix, iy - (baila ? 1 : 0) - sube, img.width * EA, img.height * EA);
+        g.restore();
+      }
       // Partículas del trabajo: astillas, lascas, terrones, polvo de obra, y la chispa de una idea.
       if (acc === 1 && !nino && Math.random() < 0.07) {
         const hx = px + 4.5, hy = py + 3;
@@ -8890,7 +8932,7 @@ table.mercado td:first-child { white-space: nowrap; }
         const [gp, d] = recibe;
         // Destello: rojo al recibir, luego un parpadeo blanco; y unas gotas de sangre que saltan y caen.
         g.globalAlpha = d < 0.45 ? 0.9 : d < 0.7 ? 0.65 : 0.35;
-        g.save(); if (pose && dirTiro < 0) { g.translate(2 * (px + 1.5), 0); g.scale(-1, 1); }
+        g.save(); if ((pose ? dirTiro : mira) < 0) { g.translate(2 * (px + 1.5), 0); g.scale(-1, 1); }
         g.drawImage(ARTE().tenido(img, d < 0.45 ? '#ff2a2a' : '#ffffff'), ix, iy, img.width * EA, img.height * EA); g.restore(); g.globalAlpha = 1;
         const sx = Math.sign(a.x - gp[2]) || 1;
         g.fillStyle = '#b01818';
@@ -9468,7 +9510,7 @@ table.mercado td:first-child { white-space: nowrap; }
       // También los animales: retroceden y se ponen rojos al recibir un mordisco o una lanzada; el lobo embiste.
       const recibe = golpeActivo(ig.golpes.get(b.id), k), pega = golpeActivo(ig.ataques.get(b.id), k);
       if (recibe) { const [gp, d] = recibe, emp = Math.round(2.5 * (1 - d)); px += Math.sign(b.x - gp[2]) * emp; py -= d < 0.5 ? 1 : 0; }
-      if (pega) { const [at, d] = pega, emb = Math.round(2.5 * Math.sin(Math.PI * d)); px += Math.sign(at[2]) * emb; py += Math.sign(at[3]) * emb; }
+      if (pega) { const [at, d] = pega, emb = 2.2 * Math.sin(Math.PI * Math.min(1, d * 1.25)); px += Math.sign(at[2]) * emb; py += Math.sign(at[3]) * emb; }
       px = Math.round(px); py = Math.round(py);
       if (recibe && b.tipo !== 'pez') { const d = recibe[1]; g.globalAlpha = d < 0.45 ? 0.9 : 0.5; g.fillStyle = d < 0.45 ? '#ff2a2a' : '#ffffff'; g.fillRect(px - 1, py - 1, 6, 4); g.globalAlpha = 1; g.fillStyle = '#b01818'; g.fillRect(Math.round(px + 2 + 3 * d), Math.round(py - 2 + 6 * d * d), 1, 1); }
       const pata = Math.floor(ahora / 220 + b.id) % 2;
