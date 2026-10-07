@@ -868,7 +868,7 @@
     }
     for (let i = 0; i < p.length; i++) {
       // Los mineros sacan piedra, metal y carbón: pesa la mayor de las tres prioridades.
-      const w = i === 3 ? Math.max(prio(c, 'piedra'), prio(c, 'metal'), c.era >= 6 ? prio(c, 'carbon') : 0) : prio(c, PRIO_OFICIO[i]);
+      const pr_ = (c.plan && c.plan.prioridad) || {}, w = i === 3 ? Math.max(prio(c, 'piedra'), pr_.metal != null ? pr_.metal : 0, c.era >= 6 && pr_.carbon != null ? pr_.carbon : 0) : prio(c, PRIO_OFICIO[i]);
       // Lo que el jugador pone al máximo pesa siempre, aunque el almacén esté lleno.
       if (w >= 2 && (i !== 0 || recursos.arboles) && (i !== 3 || recursos.rocas)) p[i] = Math.max(p[i], 0.25);
       p[i] *= w === 0 ? 0.03 : w;

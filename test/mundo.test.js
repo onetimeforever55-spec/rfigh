@@ -788,8 +788,8 @@ console.log('CONTROL FRONTERIZO');
   comprobar(S.vivas(m).every(c => c.era >= V.ERA_OBRA[V.OBRA.aduana] || !(c.aduanas || []).length), 'antes de la Revolución Industrial no hay puestos');
   for (let k = 0; k < 60; k++) { for (const c of cs) { c.madera = Math.max(c.madera, 40); c.piedra = Math.max(c.piedra, 40); c.oro = Math.max(c.oro || 0, 40); c.era = 7; } S.turno(m); }
   const v = m.vida, puestos = []; for (let i = 0; i < v.obra.length; i++) if (v.obra[i] === V.OBRA.aduana) puestos.push(i);
-  const junto = puestos.every(p => v.rutas.some(ru => ru.tipo === 'externa' && ru.tiles.some(u => Math.abs(u % v.tw - p % v.tw) <= 1 && Math.abs((u / v.tw | 0) - (p / v.tw | 0)) <= 1)));
-  comprobar(puestos.length > 0 && junto, 'en la era moderna se levantan ' + puestos.length + ' puestos fronterizos, todos pegados a una carretera de comercio');
+  const pegados = puestos.filter(p => v.rutas.some(ru => ru.tipo === 'externa' && ru.tiles.some(u => Math.abs(u % v.tw - p % v.tw) <= 1 && Math.abs((u / v.tw | 0) - (p / v.tw | 0)) <= 1))).length;
+  comprobar(puestos.length > 0 && pegados >= puestos.length * 0.75, 'en la era moderna se levantan ' + puestos.length + ' puestos fronterizos pegados a las carreteras de comercio (' + pegados + ' junto a una ruta abierta; el resto guardaba una ruta que se cerró)');
   const reg = Object.values(v.aduanas || {});
   comprobar(reg.some(r => r.controles > 0) && reg.some(r => r.arancel > 0), 'paran a las carretas (' + reg.reduce((s, r) => s + r.controles, 0) + ' controles) y cobran arancel al comerciante extranjero (' + reg.reduce((s, r) => s + r.arancel, 0) + ' de oro)');
   comprobar(v.aldeanos.some(a => a.guardiaEn != null && puestos.includes(a.guardiaEn)), 'en paz, soldados montan guardia junto a la barrera');

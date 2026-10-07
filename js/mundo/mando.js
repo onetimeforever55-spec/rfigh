@@ -878,7 +878,7 @@
       else if (a.tipo === 'normal') { p.prioridad = PRIO_NORMAL(); p.rumbo = null; p.expandir = true; p.objetivo = null; p.defender = null; p.cupos = {}; p.cuadrillas = []; p.temporales = []; if (m.vida) for (const x of m.vida.aldeanos) if (x.c === c.id && x.fijo) { const vuelve = x.fijo.vuelve; delete x.fijo; M.vida.mover(x, vuelve); } if (M.vida && m.vida) M.vida.reasignar(m, c, null, true); (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: 'Todo vuelve a la normalidad' }); textos.push('Todas las prioridades vuelven a normal: tu pueblo se gobierna solo, como los demás.'); }
       else if (a.tipo === 'prioridad') {
         const pr = p.prioridad, tocados = Object.keys(a.cambios), antesReparto = repartoDe(m, c), previas = Object.assign({}, pr);
-        if (a.solo) for (const k of Object.keys(pr)) if (!tocados.includes(k) && k !== 'expansion') pr[k] = Math.min(pr[k], 0.5);
+        if (a.solo) for (const k of new Set([...Object.keys(pr), 'madera', 'comida', 'piedra', 'casas', 'ejercito', 'riqueza', 'ciencia'])) if (!tocados.includes(k) && k !== 'expansion') pr[k] = Math.min(pr[k] != null ? pr[k] : 1, 0.5);
         for (const k of tocados) { const ch = a.cambios[k]; pr[k] = Math.max(0, Math.min(2, ch.a != null ? ch.a : (pr[k] != null ? pr[k] : 1) + ch.mas)); }
         // Con plazo («durante 2 minutos»), al vencer vuelve cada prioridad a como estaba.
         const hp = plazoAbsoluto(m, c, a.hasta);
