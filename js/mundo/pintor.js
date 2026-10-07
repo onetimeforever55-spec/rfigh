@@ -1658,7 +1658,13 @@
       if (k >= llega && !(d.impacto)) {
         d.impacto = 1; void clave;
         if (!enVistaPx(bx, by)) continue;
-        if (tipo === 2 || tipo === 3) {
+        if (tipo === 5) {
+          // La granada revienta: fogonazo pequeño, tierra que salta y un poco de humo.
+          emitir(bx, by, 8, { v: 40, g: 20, vida: 260, cols: ['#ffd84a', '#ff8a1e', '#fff6c0'], tipo: 'chispa', tam: 1.2, tamAzar: 1 });
+          emitir(bx, by, 8, { v: 40, g: 120, vida: 1000, cols: ['#4a3a2a', '#6a5a46', '#2a221a'], tipo: 'solido', tam: 1, tamAzar: 1, dy: -30 });
+          emitir(bx, by - 2, 5, { v: 12, g: -8, vida: 1800, cols: [HUMO_GRIS], tipo: 'humo', tam: 3, tamAzar: 1 });
+        } else if (tipo === 2 || tipo === 3) {
+
           // Explosión: bola de fuego, tierra y cascotes que vuelan, y una columna de humo negro.
           emitir(bx, by, 16, { v: 50, g: 20, vida: 380, cols: ['#ffd84a', '#ff8a1e', '#ff4b1a', '#fff6c0'], tipo: 'chispa', tam: 1.6, tamAzar: 1 });
           emitir(bx, by, 14, { v: 55, g: 120, vida: 1400, cols: ['#4a3a2a', '#6a5a46', '#2a221a', '#7a746c'], tipo: 'solido', tam: 1.2, tamAzar: 1, dy: -40 });
@@ -1836,6 +1842,14 @@
         for (let d = 1; d <= 5; d++) { const [sx, sy] = posF(Math.max(0, f - d * 0.04)); g.fillStyle = 'rgba(120,110,100,' + (0.35 - d * 0.06).toFixed(2) + ')'; g.fillRect(Math.round(sx), Math.round(sy) - 1, 1, 1); }
         g.fillStyle = '#6b4a2b'; g.fillRect(Math.round(fx) - 1, Math.round(fy), 3, 1);
         g.fillStyle = Math.floor(performance.now() / 70) % 2 ? '#ffd84a' : '#ff6a1a'; g.fillRect(Math.round(fx) + 1, Math.round(fy) - 1, 2, 2);
+        continue;
+      }
+      if (bala === 5) {
+        // Granada: vuela en arco dando vueltas y revienta al caer.
+        const arcoG = Math.min(18, Math.hypot(bx - ax, by - ay) * 0.5), q = Math.min(1, f / 0.8);
+        const gx = ax + (bx - ax) * q, gy = ay - 4 + (by - ay + 4) * q - Math.sin(q * Math.PI) * arcoG;
+        if (f < 0.8) { const gira = Math.floor(f * 10) % 2; g.fillStyle = '#3e4a2a'; g.fillRect(Math.round(gx), Math.round(gy), gira ? 2 : 1, gira ? 1 : 2); g.fillStyle = '#5c6a3a'; g.fillRect(Math.round(gx), Math.round(gy), 1, 1); }
+        else { const e = (f - 0.8) / 0.2, rr = 1.5 + e * 5; g.fillStyle = 'rgba(255,' + Math.round(230 - e * 110) + ',80,' + (1 - e * 0.6).toFixed(2) + ')'; g.beginPath(); g.arc(bx, by, rr, 0, Math.PI * 2); g.fill(); }
         continue;
       }
       if (bala === 2) {

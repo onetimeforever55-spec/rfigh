@@ -1171,7 +1171,7 @@
       if (c.cuarteles > 0 && c.era >= 5) {
         // Si el jugador mandó fabricarlos, uno de cada tres.
         const pide = c.plan && c.plan.vehiculos;
-        const quiereV = c.era >= 8 && (a.id % 6 === 1 || (pide === 'tanque' && a.id % 3 === 0)) ? 'tanque' : (a.id % 7 === 3 || (pide === 'artilleria' && a.id % 3 === 2)) ? (c.era >= 7 ? 'artilleria' : 'canon') : null;
+        const quiereV = c.era >= 8 && (a.id % 6 === 1 || (pide === 'tanque' && a.id % 3 === 0)) ? 'tanque' : (a.id % 5 === 3 || (pide === 'artilleria' && a.id % 3 === 2)) ? (c.era >= 7 ? 'artilleria' : 'canon') : null;
         const crudo = quiereV === 'tanque' && pausada(m) ? 3 : 0;
         // Primero se usan los vehículos del almacén (fabricados o comprados); si no hay, se hace uno con metal.
         if (quiereV && a.veh !== quiereV && (c.vehiculos || 0) >= 1) { c.vehiculos -= 1; a.veh = quiereV; a.tirador = true; a.pv = a.pv0 = VEHICULOS[quiereV].vida; }
@@ -2208,7 +2208,7 @@
     // Los guerreros luchan: cuerpo a cuerpo con el enemigo de al lado; los tiradores disparan desde lejos.
     if (a.o === GUERRERO && c.guerras.length) {
       const enemigo = b => b !== a && !muertos.has(b) && c.guerras.some(g => g.con === b.c);
-      let rival = null;
+      let rival = null, blancoG = null;
       for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const lista = guerreros.get((a.y + dy) * v.tw + a.x + dx);
         rival = lista && lista.find(enemigo);
@@ -2223,6 +2223,21 @@
           }
         }
         acc = ACC.luchar;
+      } else if (c.era >= 8 && !a.veh && (a.granadaT == null || m.turno - a.granadaT >= 3) && azar(v) < 0.3 && (blancoG = buscaGranada(v, a, guerreros, enemigo)) != null) {
+        // La granada (Segunda Guerra Mundial): se lanza por encima de los sacos terreros y revienta en una casilla
+        // y las de al lado. La trinchera no protege de ella.
+        a.granadaT = m.turno;
+        const bx = blancoG % v.tw, by = blancoG / v.tw | 0;
+        v.disparos.push([a.x, a.y, bx, by, paso, 5, a.id]);
+        a.fuego = { turno: m.turno, paso, dx: Math.sign(bx - a.x) || (a.fuego ? a.fuego.dx : 1) };
+        marcar(m, blancoG, 'crater', 3, Math.min(TICKS, paso + 1));
+        for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) for (const b of guerreros.get((by + dy) * v.tw + bx + dx) || []) {
+          if (!enemigo(b)) continue;
+          const dano = Math.round(GRANADA * (dx || dy ? 0.5 : 1) * (0.8 + azar(v) * 0.4) * (b.veh ? 0.15 : 1));
+          if (golpear(v, null, b, dano, paso + 0.5, bx, by)) { muertos.add(b); v.muertos.push([b.x, b.y, b.c, 'obus', paso + 0.5, b]); apuntarBaja(m, c.id, b); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
+        }
+        acc = ACC.luchar;
+        if (a.e === IR) { a.x = a.r[a.r.length - 3]; a.y = a.r[a.r.length - 2]; }
       } else if (a.tirador && c.era >= 1 && !(a.veh && VEHICULOS[a.veh].area && (paso + a.id) % 2)) {
         const alcance = a.veh ? VEHICULOS[a.veh].alcance : c.era >= 5 ? 4 : 3;
         let blanco = null;
@@ -2295,6 +2310,24 @@
         }
       }
     }
+  }
+
+  // La granada: el daño en la casilla donde cae (la mitad en las de al lado).
+  const GRANADA = 60;
+  // Dónde lanzarla: a 2–4 casillas, mejor a una trinchera enemiga o adonde haya más enemigos juntos.
+  function buscaGranada(v, a, guerreros, enemigo) {
+    let mejor = null, nota = 0;
+    for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+      const d = Math.abs(dx) + Math.abs(dy);
+      if (d < 2 || d > 4) continue;
+      const t = (a.y + dy) * v.tw + a.x + dx, l = guerreros.get(t);
+      if (!l) continue;
+      const n = l.filter(enemigo).length;
+      if (!n) continue;
+      const pt = n + (v.trinchera && v.trinchera[t] ? 2 : 0);
+      if (pt > nota) { nota = pt; mejor = t; }
+    }
+    return mejor;
   }
 
   function ir(a, t, tw, estado) { a.tx = t % tw; a.ty = t / tw | 0; a.e = estado; a.q = 0; }
@@ -3609,5 +3642,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planTrincheras, MAX_TRINCHERA, danoContra, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

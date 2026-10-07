@@ -863,6 +863,18 @@ console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
   void montana;
 }
 
+console.log('CAÑONES Y GRANADAS');
+{
+  const V = M.vida, v = { tw: 100, trinchera: new Array(10000).fill(0) };
+  const yo = { x: 50, y: 50, c: 1 }, enemigo = b => b.c === 2, guerreros = new Map();
+  guerreros.set(50 * 100 + 53, [{ c: 2 }, { c: 2 }]); guerreros.set(52 * 100 + 50, [{ c: 2 }]); guerreros.set(50 * 100 + 51, [{ c: 2 }]);
+  comprobar(V.buscaGranada(v, yo, guerreros, enemigo) === 50 * 100 + 53, 'la granada va adonde hay más enemigos juntos (a 2–4 casillas, no al de al lado)');
+  v.trinchera[52 * 100 + 50] = 1;
+  comprobar(V.buscaGranada(v, yo, guerreros, enemigo) === 52 * 100 + 50, 'y mejor aún, dentro de una trinchera enemiga');
+  comprobar(V.GRANADA > V.ARMAS[V.ARMAS.length - 1].dano, 'una granada pega más fuerte que un disparo');
+  comprobar(V.VEHICULOS.canon.era === 5, 'los cañones de campaña llegan con el Renacimiento');
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;
