@@ -873,6 +873,16 @@ console.log('CAÑONES Y GRANADAS');
   comprobar(V.buscaGranada(v, yo, guerreros, enemigo) === 52 * 100 + 50, 'y mejor aún, dentro de una trinchera enemiga');
   comprobar(V.GRANADA > V.ARMAS[V.ARMAS.length - 1].dano, 'una granada pega más fuerte que un disparo');
   comprobar(V.VEHICULOS.canon.era === 5, 'los cañones de campaña llegan con el Renacimiento');
+  // Las explosiones dañan a la gente, los edificios y el suelo.
+  const m = S.crear(11, 5, { ritmo: 3 }); for (let k = 0; k < 60; k++) S.turno(m);
+  const w = m.vida, [x, y] = S.vivas(m);
+  let casa = -1; for (let t = 0; t < w.obra.length; t++) if (w.obra[t] === V.OBRA.casa && m.dueno[V.region(m, t)] === y.id) { casa = t; break; }
+  const civiles = w.aldeanos.filter(q => q.c === y.id && q.o !== 4).slice(0, 2); civiles.forEach(q => { q.x = casa % w.tw; q.y = casa / w.tw | 0; q.pv = null; });
+  w.camino[casa + 1] = 1; w.obra[casa + 1] = 0; w.arbol[casa + w.tw] = 3;
+  V.estallido(m, x, casa, 1, 45, 3, null, 'obus', null);
+  comprobar(w.obra[casa] === V.OBRA.casa && w.danoObra[casa] > 0 && civiles.every(q => q.pv < V.vidaMax(q)) && w.marcas[casa], 'un obús hiere a la gente que pilla (también civiles), daña la casa y deja un cráter');
+  for (let q = 0; q < 4; q++) V.estallido(m, x, casa, 1, 45, 3, null, 'obus', null);
+  comprobar(w.obra[casa] === V.OBRA.ruina && !w.camino[casa + 1] && !w.arbol[casa + w.tw], 'y a fuerza de explosiones la casa cae en ruinas, el camino revienta y los árboles caen');
 }
 
 console.log('BATALLAS MÁS LARGAS');

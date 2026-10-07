@@ -1724,9 +1724,8 @@
     const objetivos = v.aldeanos.filter(a => a.o === GUERRERO && enemigo(S().civ(m, a.c)) && Math.abs(a.x - b.x) + Math.abs(a.y - b.y) <= 7);
     if (objetivos.length) {
       const a = objetivos[Math.floor(azar(v) * objetivos.length)];
-      v.disparos.push([b.x, b.y, a.x, a.y, paso, 1]);
-      const d = Math.max(1, Math.round(48 * (0.8 + azar(v) * 0.4) * (1 - (ARMADURAS[a.armadura || 0] || ARMADURAS[0]).reduce * 0.3)));
-      if (azar(v) < 0.55 && golpear(v, null, a, d, paso + 0.5, b.x, b.y)) { v.aldeanos = v.aldeanos.filter(x => x !== a); v.muertos.push([a.x, a.y, a.c, 'acorazado', paso + 0.5, a]); apuntarBaja(m, c.id, a); }
+      v.disparos.push([b.x, b.y, a.x, a.y, paso, 2]);
+      if (azar(v) < 0.7) estallido(m, c, a.y * tw + a.x, 1, 48, paso, null, 'acorazado', null);
       // La artillería y los tanques de la costa le devuelven el fuego.
       if (objetivos.some(x => x.veh) && azar(v) < 0.25) b.pv -= 20;
       return;
@@ -1736,9 +1735,9 @@
       for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) {
         const t = (b.y + dy) * tw + b.x + dx; if (t < 0 || t >= v.obra.length || Math.abs(dx) + Math.abs(dy) > 6) continue;
         const o = v.obra[t]; if (!o || o === OBRA.ruina || o === OBRA.campo || !enemigo(S().civ(m, m.dueno[region(m, t)]))) continue;
-        v.disparos.push([b.x, b.y, t % tw, t / tw | 0, paso, 1]);
-        if (v.torres && v.torres[t] != null) { v.torres[t] -= 6; if (v.torres[t] <= 0) { cambiar(m, 'obra', t, OBRA.ruina, paso); delete v.torres[t]; } else b.pv -= 4; }
-        else if (azar(v) < 0.2) { cambiar(m, 'obra', t, OBRA.ruina, paso); marcar(m, t, 'escombros', 10, paso); }
+        v.disparos.push([b.x, b.y, t % tw, t / tw | 0, paso, 2]);
+        if (v.torres && v.torres[t] != null && v.torres[t] > 0) b.pv -= 4;
+        estallido(m, c, t, 1, 48, paso, null, 'acorazado', null);
         return;
       }
     }
@@ -1968,19 +1967,7 @@
           v.disparos.push([bx, by - 5, bx, by, cae - 1 + k * 0.15, 3]);
           // La bomba arrasa lo que hay: cráter, casas en ruinas, árboles arrancados y fuego.
           const tb = by * v.tw + bx;
-          if (tb >= 0 && tb < v.obra.length) {
-            marcar(m, tb, 'crater', 14, cae);
-            if (v.arbol[tb] >= 1) cambiar(m, 'arbol', tb, 0, cae);
-            if (v.obra[tb] && v.obra[tb] !== OBRA.ruina && v.obra[tb] !== OBRA.centro) { cambiar(m, 'obra', tb, OBRA.ruina, cae); marcar(m, tb, 'escombros', 12, cae); if (v.torres && v.torres[tb] != null) delete v.torres[tb]; }
-            if (azar(v) < 0.55) for (const d of [0, 1, -1, v.tw]) prender(m, tb + d, Math.min(TICKS, Math.ceil(cae)), 3);
-          }
-          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) for (const o of guerreros.get((by + dy) * v.tw + bx + dx) || []) {
-            if (!c.guerras.some(g => g.con === o.c) || !v.aldeanos.includes(o) || azar(v) > 0.55) continue;
-            const arm = o.veh ? VEHICULOS[o.veh].blindaje || 0 : (ARMADURAS[o.armadura || 0] || ARMADURAS[0]).reduce;
-            if (golpear(v, null, o, Math.round(55 * (0.8 + azar(v) * 0.4) * (1 - arm * 0.4)), cae, bx, by)) {
-              v.aldeanos = v.aldeanos.filter(x => x !== o); v.muertos.push([o.x, o.y, o.c, 'bomba', cae, o]); apuntarBaja(m, c.id, o); c.victorias = (c.victorias || 0) + 1;
-            }
-          }
+          if (tb >= 0 && tb < v.obra.length) estallido(m, c, tb, 1.5, 70, cae, null, 'bomba', null);
         }
       }
     }
@@ -2103,6 +2090,7 @@
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
     rec = recursos(m);
     ejercitos(m);
+    repararDanos(m);
     const ter = terrenos(m);
     for (const a of v.aldeanos) a.r = [a.x, a.y, a.e === TRABAJAR ? ACC.trabajar : a.k ? ACC.cargar : ACC.andar];
     barcos(m, ter);
@@ -2230,12 +2218,7 @@
         const bx = blancoG % v.tw, by = blancoG / v.tw | 0;
         v.disparos.push([a.x, a.y, bx, by, paso, 5, a.id]);
         a.fuego = { turno: m.turno, paso, dx: Math.sign(bx - a.x) || (a.fuego ? a.fuego.dx : 1) };
-        marcar(m, blancoG, 'crater', 3, Math.min(TICKS, paso + 1));
-        for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) for (const b of guerreros.get((by + dy) * v.tw + bx + dx) || []) {
-          if (!enemigo(b)) continue;
-          const dano = Math.round(GRANADA * (dx || dy ? 0.5 : 1) * (0.8 + azar(v) * 0.4) * (b.veh ? 0.15 : 1));
-          if (golpear(v, null, b, dano, paso + 0.5, bx, by)) { muertos.add(b); v.muertos.push([b.x, b.y, b.c, 'obus', paso + 0.5, b]); apuntarBaja(m, c.id, b); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
-        }
+        estallido(m, c, blancoG, 1, GRANADA, paso, muertos, 'obus', a);
         acc = ACC.luchar;
         if (a.e === IR) { a.x = a.r[a.r.length - 3]; a.y = a.r[a.r.length - 2]; }
       } else if (a.tirador && c.era >= 1 && !(a.veh && VEHICULOS[a.veh].area && (paso + a.id) % 2)) {
@@ -2256,13 +2239,8 @@
           if (!a.veh) a.fuego = { turno: m.turno, paso, dx: Math.sign(blanco.x - a.x) || (a.fuego ? a.fuego.dx : 1) };
           if (ardiente) { const dx = Math.round((azar(v) - 0.5) * 2), dy = Math.round((azar(v) - 0.5) * 2); prender(m, (blanco.y + dy) * v.tw + blanco.x + dx, paso + 1, 2); }
           // El obús revienta: cráter, árboles por el suelo y, a veces, fuego.
-          if (a.veh && VEHICULOS[a.veh].area) { const tb = blanco.y * v.tw + blanco.x; marcar(m, tb, 'crater', 6, paso + 1); if (v.arbol[tb] >= 1 && azar(v) < 0.5) cambiar(m, 'arbol', tb, 0, paso + 1); if (v.obra[tb] && v.obra[tb] !== OBRA.ruina && v.obra[tb] !== OBRA.centro && azar(v) < 0.3) { cambiar(m, 'obra', tb, OBRA.ruina, paso + 1); marcar(m, tb, 'escombros', 10, paso + 1); } if (azar(v) < 0.25) prender(m, tb, paso + 1, 2); }
-          // El obús revienta en una zona: hiere a los enemigos de alrededor del blanco.
-          if (a.veh && VEHICULOS[a.veh].area) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            const otros = guerreros.get((blanco.y + dy) * v.tw + blanco.x + dx);
-            for (const b of otros || []) if (enemigo(b) && azar(v) < 0.6 && golpear(v, null, b, Math.round(danoContra(v, a, b, true) * 0.5), paso + 0.5, blanco.x, blanco.y)) { muertos.add(b); v.muertos.push([b.x, b.y, b.c, 'obus', paso + 0.5, b]); apuntarBaja(m, c.id, b); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
-          }
-          if (azar(v) < (a.veh ? 0.65 : 0.5) + (tieneR(a, 'sabio') ? 0.05 : 0)) {
+          if (a.veh && VEHICULOS[a.veh].area) estallido(m, c, blanco.y * v.tw + blanco.x, a.veh === 'artilleria' ? 1.5 : 1, Math.round(VEHICULOS[a.veh].dano * 0.6), paso, muertos, 'obus', a);
+          if (!muertos.has(blanco) && azar(v) < (a.veh ? 0.65 : 0.5) + (tieneR(a, 'sabio') ? 0.05 : 0)) {
             // La flecha llega al final del paso: el golpe se ve un poco después de soltarla.
             if (golpear(v, null, blanco, danoContra(v, a, blanco, true), paso + 0.5, a.x, a.y)) { muertos.add(blanco); v.muertos.push([blanco.x, blanco.y, blanco.c, 'flecha', paso + 0.5, blanco]); apuntarBaja(m, c.id, blanco); c.victorias = (c.victorias || 0) + 1; a.bajas = (a.bajas || 0) + 1; }
           }
@@ -2309,6 +2287,67 @@
           if (mejor != null) ir(a, mejor, v.tw, IR);
         }
       }
+    }
+  }
+
+  /*
+   * LAS EXPLOSIONES (obuses, granadas, bombas, cañonazos de los barcos): todo lo que hay alrededor sufre.
+   * La gente (soldados o no, de cualquier otro pueblo) se lleva metralla; los edificios acumulan daño hasta caer
+   * en ruinas; el suelo queda con cráter, el camino reventado, la trinchera hundida, los árboles por el suelo y
+   * los campos arrasados; a veces prende fuego. «radio» 1 = la casilla y sus cuatro vecinas; 1.5 = el 3×3.
+   */
+  const RESISTE = { [OBRA.casa]: 60, [OBRA.campo]: 25, [OBRA.torre]: 160, [OBRA.castillo]: 240, [OBRA.palacio]: 180, [OBRA.templo]: 140, [OBRA.cuartel]: 130, [OBRA.ayuntamiento]: 150 };
+  function estallido(m, c, t0, radio, fuerza, paso, muertos, tipo, atacante) {
+    const v = m.vida, tw = v.tw, x0 = t0 % tw, y0 = t0 / tw | 0, R = Math.ceil(radio), cae = Math.min(TICKS, paso);
+    const casillas = new Map();
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const d = radio >= 1.5 ? Math.max(Math.abs(dx), Math.abs(dy)) : Math.abs(dx) + Math.abs(dy);
+      if (d > R || x0 + dx < 0 || x0 + dx >= tw || y0 + dy < 0 || y0 + dy >= v.th) continue;
+      casillas.set((y0 + dy) * tw + x0 + dx, d ? 0.5 : 1);
+    }
+    // La gente: metralla para todos los que no son del pueblo que dispara.
+    let bajas = 0;
+    for (const b of v.aldeanos) {
+      const f = casillas.get(b.y * tw + b.x);
+      if (!f || b.c === c.id || (muertos && muertos.has(b)) || b.muerta) continue;
+      const arm = b.veh ? VEHICULOS[b.veh].blindaje || 0 : (ARMADURAS[b.armadura || 0] || ARMADURAS[0]).reduce * 0.4;
+      const dano = Math.max(1, Math.round(fuerza * f * (0.8 + azar(v) * 0.4) * (1 - arm)));
+      if (golpear(v, null, b, dano, paso + 0.5, x0, y0)) {
+        b.muerta = 1; if (muertos) muertos.add(b);
+        v.muertos.push([b.x, b.y, b.c, tipo, paso + 0.5, b]); apuntarBaja(m, c.id, b); bajas++;
+        if (b.o === GUERRERO) c.victorias = (c.victorias || 0) + 1;
+        if (atacante) atacante.bajas = (atacante.bajas || 0) + 1;
+      }
+    }
+    if (!muertos && bajas) v.aldeanos = v.aldeanos.filter(b => !b.muerta);
+    // Lo construido y el suelo.
+    v.danoObra = v.danoObra || {};
+    for (const [t, f] of casillas) {
+      const golpe = fuerza * f * (0.6 + azar(v) * 0.8), o = v.obra[t];
+      if (f === 1 || azar(v) < 0.4) marcar(m, t, 'crater', Math.max(3, Math.round(fuerza / 8 * f)), cae);
+      if (v.arbol[t] >= 1 && azar(v) < 0.5 * f + fuerza / 300) cambiar(m, 'arbol', t, 0, cae);
+      if (v.camino[t] && !o && azar(v) < fuerza * f / 160) cambiar(m, 'camino', t, 0, cae);
+      if (v.trinchera && v.trinchera[t] && azar(v) < fuerza * f / 120) { v.trinchera[t]--; v.trincheraVer = (v.trincheraVer || 0) + 1; }
+      if (o && o !== OBRA.ruina && o !== OBRA.centro) {
+        if (o === OBRA.campo) { if (azar(v) < golpe / RESISTE[OBRA.campo]) cambiar(m, 'obra', t, 0, cae); }
+        else if (v.torres && v.torres[t] != null) { v.torres[t] -= golpe / 6; if (v.torres[t] <= 0) { cambiar(m, 'obra', t, OBRA.ruina, cae); delete v.torres[t]; marcar(m, t, 'escombros', 12, cae); } }
+        else {
+          v.danoObra[t] = (v.danoObra[t] || 0) + golpe;
+          if (v.danoObra[t] >= (RESISTE[o] || 100)) { cambiar(m, 'obra', t, OBRA.ruina, cae); marcar(m, t, 'escombros', 12, cae); delete v.danoObra[t]; }
+        }
+      }
+      if (azar(v) < fuerza * f / 260) prender(m, t, cae, 2);
+    }
+    return bajas;
+  }
+  // Los edificios dañados se arreglan poco a poco en paz (los constructores tapan los boquetes).
+  function repararDanos(m) {
+    const v = m.vida, d = v.danoObra; if (!d) return;
+    for (const k of Object.keys(d)) {
+      const t = +k, c = S().civ(m, m.dueno[region(m, t)]);
+      if (!v.obra[t] || v.obra[t] === OBRA.ruina) { delete d[k]; continue; }
+      d[k] -= c && !c.guerras.length ? 6 : 1.5;
+      if (d[k] <= 0) delete d[k];
     }
   }
 
@@ -3642,5 +3681,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

@@ -413,6 +413,7 @@
     barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
+    danados(ahora, x0, y0, x1, y1);
     if (civPorId.size) { vias(x0, y0, x1, y1, ahora); trincheras(x0, y0, x1, y1); if (!reducido) trafico(ahora, x0, y0, x1, y1); }
     andamios(ahora, x0, y0, x1, y1);
     progresos(x0, y0, x1, y1);
@@ -1247,6 +1248,21 @@
   }
   // ---------- Edificios que se mueven: aspas de molino y banderas de torre ----------
   let especiales = [], especialesHasta = 0;
+  // Los edificios tocados por obuses, granadas o bombas: tizne, grietas, un boquete y humo que sube.
+  function danados(ahora, x0, y0, x1, y1) {
+    const v = m.vida, d = v.danoObra; if (!d) return;
+    for (const k in d) {
+      const t = +k, x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P;
+      if (x + P < x0 || y + P < y0 || x > x1 || y > y1 || !v.obra[t] || v.obra[t] === V.OBRA.ruina) continue;
+      const res = V.RESISTE[v.obra[t]] || 100, q = Math.min(1, d[k] / res), h = n => hash(t * 7 + n);
+      g.fillStyle = 'rgba(30,24,20,' + (0.18 + q * 0.3).toFixed(2) + ')';
+      for (let n = 0; n < 2 + Math.round(q * 4); n++) g.fillRect(x + 2 + h(n) * 10, y + 2 + h(n + 5) * 10, 3 + h(n + 9) * 3, 2 + h(n + 13) * 2);
+      g.fillStyle = 'rgba(20,16,14,0.85)';
+      for (let n = 0; n < 1 + Math.round(q * 3); n++) { let cx = x + 3 + h(n + 20) * 10, cy = y + 3 + h(n + 30) * 6; for (let s2 = 0; s2 < 4; s2++) { g.fillRect(Math.round(cx), Math.round(cy), 1, 1); cx += h(n * 4 + s2) > 0.5 ? 1 : -1; cy += 1; } }
+      if (q > 0.45) { g.fillStyle = '#1a1412'; g.fillRect(x + 5 + h(40) * 5, y + 4 + h(41) * 5, 3, 2); }
+      if (q > 0.3) { const f = ((ahora / 1400) + h(50)) % 1; g.fillStyle = 'rgba(70,64,60,' + (0.45 * (1 - f)).toFixed(2) + ')'; g.fillRect(x + 6 + f * 3, y + 2 - f * 12, 3 + f * 3, 3 + f * 2); }
+    }
+  }
   function edificiosVivos(ahora, x0, y0, x1, y1) {
     const v = m.vida;
     if (ahora > especialesHasta) {
