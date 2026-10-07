@@ -803,6 +803,25 @@ console.log('MINAS Y SEMILLAS DE ÁRBOL');
   comprobar(V.BIENES.includes('semillas') && m.mercado.precio.semillas > 0, 'las semillas de árbol se compran y se venden en el mercado');
 }
 
+console.log('TRINCHERAS EN LA SEGUNDA GUERRA MUNDIAL');
+{
+  const V = M.vida, m = S.crear(11, 5, { ritmo: 3 });
+  for (let k = 0; k < 200; k++) S.turno(m);
+  const a = S.vivas(m).find(c => S.vecinosDe(m, c).length && c.guerreros > 4) || S.vivas(m)[0], o = S.vecinosDe(m, a)[0];
+  comprobar(!m.vida.trinchera || !m.vida.trinchera.some(Boolean), 'antes de la Segunda Guerra Mundial nadie cava trincheras');
+  for (let k = 0; k < 40; k++) { for (const c of [a, o]) { c.era = 8; c.metal = Math.max(c.metal, 30); c.rel[(c === a ? o : a).id] = -30; } if (k === 25 && !S.enGuerra(a, o)) S.declararGuerra(m, a, o, 'prueba'); S.turno(m); }
+  const v = m.vida, T = v.trinchera || [], hechas = []; for (let t = 0; t < T.length; t++) if (T[t]) hechas.push(t);
+  const cerca = (t, d) => { const x = t % v.tw, y = t / v.tw | 0; for (let j = -d; j <= d; j++) for (let i = -d; i <= d; i++) if (m.dueno[V.region(m, (y + j) * v.tw + x + i)] !== m.dueno[V.region(m, t)]) return true; return false; };
+  const enFrontera = hechas.filter(t => cerca(t, V.SUB + 1)).length;
+  comprobar(hechas.length > 10 && enFrontera >= hechas.length * 0.8, 'los soldados cavan trincheras a lo largo de la frontera con el rival (' + hechas.length + ' casillas, ' + enFrontera + ' junto a la raya)');
+  comprobar(hechas.some(t => T[t] === 2), 'y les ponen alambre de espino delante (' + hechas.filter(t => T[t] === 2).length + ')');
+  const sold = v.aldeanos.find(x => x.o === 4 && x.c === a.id) || v.aldeanos.find(x => x.o === 4), rival = v.aldeanos.find(x => x.o === 4 && x.c !== sold.c) || sold;
+  const t0 = sold.y * v.tw + sold.x, antes = T[t0];
+  const suma = z => { T[t0] = z; let n = 0; for (let q = 0; q < 60; q++) n += V.danoContra(v, rival, sold, false); return Math.round(n / 60); };
+  const fuera = suma(0), dentro = suma(1); T[t0] = antes;
+  comprobar(dentro < fuera, 'quien está dentro de la trinchera recibe menos daño (' + fuera + ' → ' + dentro + ')');
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;

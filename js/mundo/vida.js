@@ -99,10 +99,12 @@
     const bo = v.bonos || {}, bAt = bo[at.c] || {}, bVic = bo[vic.c] || {};
     const reduce = Math.min(0.85, arm.reduce * (1 + (bVic.defensa || 0)));
     const d = (1 + (bAt.ataque || 0)) * arma.dano * (0.8 + azar(v) * 0.4) * (tieneR(at, 'fuerte') ? 1.2 : 1) * (tieneR(at, 'torpe') ? 0.85 : 1) * (tieneR(at, 'valiente') ? 1.1 : 1);
-    return Math.max(1, Math.round(d * (1 - reduce * (1 - (arma.perfora || 0)))));
+    // Dentro de una trinchera, los sacos terreros paran buena parte del golpe.
+    const zanja = v.trinchera && v.trinchera[vic.y * v.tw + vic.x] ? 0.6 : 1;
+    return Math.max(1, Math.round(d * zanja * (1 - reduce * (1 - (arma.perfora || 0)))));
   }
   // ¿Acierta? Los rápidos aciertan más, los torpes menos, y un escudo para algunos golpes.
-  const acierta = (v, at, vic) => azar(v) < 0.62 + (tieneR(at, 'rapido') || tieneR(at, 'rápido') ? 0.1 : 0) - (tieneR(at, 'torpe') ? 0.1 : 0) - ((vic.o === GUERRERO && ARMAS[vic.arma || 0].bloqueo) || 0);
+  const acierta = (v, at, vic) => azar(v) < 0.62 + (tieneR(at, 'rapido') || tieneR(at, 'rápido') ? 0.1 : 0) - (tieneR(at, 'torpe') ? 0.1 : 0) - ((vic.o === GUERRERO && ARMAS[vic.arma || 0].bloqueo) || 0) - (v.trinchera && v.trinchera[vic.y * v.tw + vic.x] ? 0.2 : 0);
   // Un golpe: resta vida, se anota para que el pintor lo enseñe (destello rojo, retroceso, sangre) y dice si mata.
   function golpear(v, atacante, victima, dano, paso, ax, ay) {
     if (victima.pv == null) victima.pv = vidaMax(victima);
@@ -649,8 +651,9 @@
       for (const k of BIENES) c.ganado[k] = (c.ganado[k] || 0) * 0.93;
       if (c.especialidad == null || !c.cartera || m.turno % 6 === c.id % 6 || (c.plan && c.plan.especialidad && c.plan.especialidad !== c.especialidad)) evaluarCartera(m, c, recursosDe && recursosDe[c.id], media, cuantos);
       // La forja: quien se dedica a las armas (o tiene metal de sobra y cuartel) convierte metal en armas.
+      const reserva = reservaAcorazado(v, c);
       if (c.era >= 1 && c.cuarteles > 0 && ((c.cartera && c.cartera.armas) || c.balance.sobra.metal > 8)) {
-        const q = Math.min(c.cartera && c.cartera.armas ? Math.max(1, Math.round(3 * c.cartera.armas * 1.6)) : 1, Math.floor(Math.max(0, (c.metal || 0) - 2)));
+        const q = Math.min(c.cartera && c.cartera.armas ? Math.max(1, Math.round(3 * c.cartera.armas * 1.6)) : 1, Math.floor(Math.max(0, (c.metal || 0) - 2 - reserva)));
         if (q > 0) { c.metal -= q; c.armas = (c.armas || 0) + q; }
       }
       // Lo que mandó fabricar el jugador: armas (1 de metal cada una; 2 por turno en la forja del cuartel y 4 más
@@ -668,7 +671,7 @@
       if (c.bancos > 0 && (c.oro || 0) > 0) c.oro += Math.min(2 + c.bancos, c.oro * 0.012);
       // La fábrica: forja en serie (sin cuartel) y convierte la madera que sobra en muebles que se venden por oro.
       if (c.fabricas > 0 && enMarcha(c, 'fabrica')) {
-        const q = Math.min(2 * c.fabricas, Math.floor(Math.max(0, (c.metal || 0) - 4)));
+        const q = Math.min(2 * c.fabricas, Math.floor(Math.max(0, (c.metal || 0) - 4 - reserva)));
         if (q > 0 && (c.cartera && (c.cartera.armas || c.cartera.metal) || c.guerras.length)) { c.metal -= q; c.armas = (c.armas || 0) + q; }
         const mad = Math.min(4 * c.fabricas, Math.floor(Math.max(0, (c.madera || 0) - objetivo(c, 'madera') * 1.2) / 2));
         if (mad > 0) { c.madera -= mad * 2; c.muebles = (c.muebles || 0) + mad; }
@@ -1145,6 +1148,8 @@
   }
 
   // La armería: los guerreros reciben el arma de su era si hay metal (y armadura si sobra); los demás, un garrote.
+  // En guerra, un reino con puerto y cuartel sin acorazado guarda el hierro del barco antes de forjar o equipar.
+  const reservaAcorazado = (v, c) => c.era >= 6 && c.guerras.length && (c.puertos || 0) > 0 && c.cuarteles > 0 && !(v.barcos || []).some(b => b.c === c.id && b.tipo === 'guerra') ? 8 : 0;
   function equipar(m) {
     const v = m.vida;
     for (const a of v.aldeanos) {
@@ -1164,17 +1169,17 @@
         const crudo = quiereV === 'tanque' && pausada(m) ? 3 : 0;
         // Primero se usan los vehículos del almacén (fabricados o comprados); si no hay, se hace uno con metal.
         if (quiereV && a.veh !== quiereV && (c.vehiculos || 0) >= 1) { c.vehiculos -= 1; a.veh = quiereV; a.tirador = true; a.pv = a.pv0 = VEHICULOS[quiereV].vida; }
-        else if (quiereV && a.veh !== quiereV && (c.metal || 0) >= VEHICULOS[quiereV].metal && (c.petroleo || 0) >= crudo) { c.metal -= VEHICULOS[quiereV].metal; c.petroleo = (c.petroleo || 0) - crudo; a.veh = quiereV; a.tirador = true; a.pv = a.pv0 = VEHICULOS[quiereV].vida; }
+        else if (quiereV && a.veh !== quiereV && (c.metal || 0) >= VEHICULOS[quiereV].metal + reservaAcorazado(v, c) && (c.petroleo || 0) >= crudo) { c.metal -= VEHICULOS[quiereV].metal; c.petroleo = (c.petroleo || 0) - crudo; a.veh = quiereV; a.tirador = true; a.pv = a.pv0 = VEHICULOS[quiereV].vida; }
       }
       if (a.veh) { a.tirador = true; continue; }
       const quiere = c.cuarteles > 0 || c.era <= 1 ? c.era : Math.min(c.era, 1);
       // Primero las armas forjadas (propias o compradas); si no hay, se forjan con metal.
-      if ((a.arma || 0) < quiere && (c.era === 0 || (c.armas || 0) >= 1 || (c.metal || 0) >= 1)) { if (c.era > 0) { if ((c.armas || 0) >= 1) c.armas -= 1; else c.metal -= 1; } a.arma = quiere; }
+      if ((a.arma || 0) < quiere && (c.era === 0 || (c.armas || 0) >= 1 || (c.metal || 0) >= 1 + reservaAcorazado(v, c))) { if (c.era > 0) { if ((c.armas || 0) >= 1) c.armas -= 1; else c.metal -= 1; } a.arma = quiere; }
       // La armadura de su era: el cuero sale del ganado; el bronce, el hierro y el acero, de la armería.
       const arm = armaduraDeEra(c.era);
       if ((a.armadura || 0) !== arm) {
         if (arm === 1) { if (v.animales.some(b => b.c === c.id)) a.armadura = 1; }
-        else if ((c.metal || 0) >= 2) { c.metal -= 1; a.armadura = arm; }
+        else if ((c.metal || 0) >= 2 + reservaAcorazado(v, c)) { c.metal -= 1; a.armadura = arm; }
       }
     }
   }
@@ -1217,6 +1222,8 @@
           e = { con: enemigo.id, obj, reunion: nuestro != null ? nuestro : c.capital, fase: 'reunion', desde: m.turno, asedio: 0 };
           break;
         }
+        // Sin frente con el enemigo, la orden «defended X» aún reúne al ejército en casa.
+        if (!e && p.defender != null && m.dueno[p.defender] === c.id && c.guerras.length) e = { con: c.guerras[0].con, obj: p.defender, reunion: p.defender, fase: 'marcha', desde: m.turno, asedio: 0, defiende: p.defender };
         if (e) v.ejercitos[c.id] = e; else { delete v.ejercitos[c.id]; continue; }
       }
       // Si un ejército enemigo ataca una de nuestras regiones, vamos a defenderla: ahí se encuentran los dos.
@@ -1370,7 +1377,8 @@
    * (v.pendientes). Los constructores los hacen por orden, en cuanto haya con qué pagarlos.
    */
   const EDIFICABLES = ['casa', 'pozo', 'granero', 'fuente', 'parque', 'palacio', 'central', 'banco', 'fabrica', 'estacion', 'hospital', 'aerodromo', 'templo', 'saber', 'molino', 'torre', 'puerto', 'cuartel', 'arqueria', 'castillo', 'petroleo', 'mina'];
-  function puedeColocar(m, c, t, clave) {
+  // «marcado»: el encargo ya lo dejó el jugador; su plano manda sobre las calles que el pueblo planee después.
+  function puedeColocar(m, c, t, clave, marcado) {
     const v = m.vida, ter = terrenos(m);
     if (!c || !c.viva) return 'no tienes pueblo';
     if (t < 0 || t >= v.tw * v.th) return 'fuera del mapa';
@@ -1382,7 +1390,8 @@
     if (v.andamios && v.andamios[t]) return 'ya hay una obra';
     if (v.camino[t]) return 'es una calle';
     if (esVia(v, t)) return 'por ahí pasa la vía del tren';
-    if (pausada(m) && v.plan && v.plan[t] === 1) return 'ahí va una calle del plano';
+    if (v.trinchera && v.trinchera[t]) return 'ahí hay una trinchera';
+    if (!marcado && pausada(m) && v.plan && v.plan[t] === 1) return 'ahí va una calle del plano';
     if (o === OBRA.mina) { if (ter[t] !== 'montana' && ter[t] !== 'colina') return 'la mina va en la montaña o en una colina'; }
     else if (o === OBRA.puerto ? !(ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
     if (c.era < (ERA_OBRA[o] || 0)) return 'aún no existe: llega con ' + NOMBRE_ERA[ERA_OBRA[o]];
@@ -1500,11 +1509,37 @@
     }
     return null;
   }
+  /*
+   * LAS TRINCHERAS (Segunda Guerra Mundial): los soldados cavan una zanja con sacos terreros a lo largo de la
+   * frontera con los vecinos en guerra o mal avenidos, y le ponen alambre de espino delante. Quien está dentro
+   * es más difícil de alcanzar y recibe menos daño; en guerra, los soldados sin otra orden ocupan las trincheras.
+   * v.trinchera[t]: 1 cavada, 2 con alambre.
+   */
+  const MAX_TRINCHERA = 70;
+  function planTrincheras(m, c, ter) {
+    const v = m.vida, tw = v.tw;
+    if (c.era < 8) { c.trincheraPlan = []; return; }
+    if (c.trincheraPlan && m.turno - (c.trincheraTurno || -99) < 10) return;
+    c.trincheraTurno = m.turno;
+    const rivales = S().vecinosDe(m, c).filter(o => o && o.viva && (S().enGuerra(c, o) || (c.rel[o.id] || 0) < 15));
+    const cap = centro(m, c.capital), out = [];
+    for (const o of rivales) for (const r of S().frontera(m, o, c)) for (const t of parcelas(m, r)) {
+      const tx = t % tw;
+      if (ter[t] === 'agua' || ter[t] === 'bajo' || ter[t] === 'montana' || (v.obra[t] && v.obra[t] !== OBRA.campo) || v.camino[t] || esVia(v, t)) continue;
+      // Pegada a la raya: una casilla vecina es ya del rival.
+      if (![t - 1, t + 1, t - tw, t + tw].some(n => n >= 0 && n < v.obra.length && Math.abs(n % tw - tx) <= 1 && m.dueno[region(m, n)] === o.id)) continue;
+      out.push(t);
+    }
+    // Primero los tramos frente a quien está en guerra, y los más cercanos a la capital.
+    const guerra = t => rivales.some(o => S().enGuerra(c, o) && [t - 1, t + 1, t - tw, t + tw].some(n => m.dueno[region(m, n)] === o.id)) ? 0 : 1;
+    c.trincheraPlan = [...new Set(out)].sort((p, q) => guerra(p) - guerra(q) || dist(m, p, cap) - dist(m, q, cap)).slice(0, MAX_TRINCHERA);
+  }
+  const enTrinchera = (v, a) => !!(v.trinchera && v.trinchera[a.y * v.tw + a.x]);
   function sitioMina(m, c, ter) {
     const v = m.vida, cap = centro(m, c.capital);
     let mejor = null, md = 1e9;
     for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) {
-      if ((ter[t] !== 'montana' && ter[t] !== 'colina') || v.obra[t] || v.roca[t] || v.arbol[t] >= 2 || v.camino[t] || esVia(v, t) || (v.andamios && v.andamios[t])) continue;
+      if ((ter[t] !== 'montana' && ter[t] !== 'colina') || v.obra[t] || v.roca[t] || v.arbol[t] >= 2 || v.camino[t] || ocupada(v, t) || (v.andamios && v.andamios[t])) continue;
       if ((c.minasT || []).some(u => dist(m, u, t) < 6)) continue;
       const d = dist(m, t, cap) - (ter[t] === 'montana' ? 2 : 0); if (d < md) { md = d; mejor = t; }
     }
@@ -1531,12 +1566,12 @@
       const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)];
       const tiles = zona.flatMap(z => parcelas(m, z));
       const tiene = o => tiles.some(t => v.obra[t] === o || (v.andamios && v.andamios[t] && v.andamios[t].o === o));
-      const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !esVia(v, t) && !calleDelPlan(m, t) && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+      const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !ocupada(v, t) && !calleDelPlan(m, t) && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       // El sitio de un molino nuevo: tierra de cultivo fuera del casco, lejos de los otros molinos, lo más cerca posible del pueblo.
-      const sitioMolino = () => tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !esVia(v, t) && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && !tiles.some(u => v.obra[u] === OBRA.molino && dist(m, u, t) < rangoMolino(m) * 2 - 1)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
+      const sitioMolino = () => tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !ocupada(v, t) && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && !tiles.some(u => v.obra[u] === OBRA.molino && dist(m, u, t) < rangoMolino(m) * 2 - 1)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       const pide = [];
       if (!tiene(OBRA.molino)) pide.push([OBRA.molino, () => (pausada(m) ? sitioMolino() : null) || libreEn(tiles, t => CULTIVABLE.has(ter[t]))]);
-      else if (pausada(m) && c.campos < metaCampos(c) && !(c.enCurso && c.enCurso[OBRA.molino] > m.turno - 8) && tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !esVia(v, t) && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && molinoCerca(m, c, null, t)).length < 3) {
+      else if (pausada(m) && c.campos < metaCampos(c) && !(c.enCurso && c.enCurso[OBRA.molino] > m.turno - 8) && tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !ocupada(v, t) && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && molinoCerca(m, c, null, t)).length < 3) {
         // Los molinos que hay ya no dan para más campos: otro en el borde de la huerta.
         pide.unshift([OBRA.molino, sitioMolino]);
       }
@@ -1642,8 +1677,9 @@
       // La marina de guerra (desde la Revolución Industrial): en guerra, cada puerto con cuartel bota un
       // acorazado. Cuesta metal (y petróleo en la Era Moderna) y bombardea la costa del enemigo.
       const crudo = c.era >= 7 && pausada(m) ? 2 : 0;
-      if (c.era >= 6 && c.guerras.length && c.cuarteles > 0 && !v.barcos.some(b => b.puerto === t && b.tipo === 'guerra') && (c.metal || 0) >= 8 && (c.petroleo || 0) >= crudo) {
-        c.metal -= 8; c.petroleo = (c.petroleo || 0) - crudo;
+      if (c.era >= 6 && c.guerras.length && c.cuarteles > 0 && !v.barcos.some(b => b.puerto === t && b.tipo === 'guerra') && (c.metal || 0) + (c.armas || 0) >= 8 && (c.petroleo || 0) >= crudo) {
+        // El hierro sale del almacén de metal y, si no llega, de las armas ya forjadas.
+        const deMetal = Math.min(8, Math.max(0, c.metal || 0)); c.metal -= deMetal; c.armas -= 8 - deMetal; c.petroleo = (c.petroleo || 0) - crudo;
         v.barcos.push({ id: v.sig++, tipo: 'guerra', c: c.id, puerto: t, x: agua % v.tw, y: agua / v.tw | 0, ruta: null, i: 0, vuelta: 0, r: [], pv: 120 });
         (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚓ Botado un acorazado' });
       }
@@ -2382,7 +2418,7 @@
       if (encargos && encargos.length) {
         for (let i = 0; i < encargos.length; i++) {
           const e = encargos[i];
-          const no = puedeColocar(m, c, e.t, e.clave);
+          const no = puedeColocar(m, c, e.t, e.clave, true);
           // Si lo que falta es tamaño o época, el encargo espera; si la parcela ya no vale, se olvida.
           if (no) { if (!/hace falta ser|llega con/.test(no)) encargos.splice(i--, 1); continue; }
           if (rec.reservadas.has(e.t)) continue;
@@ -2444,6 +2480,17 @@
       if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
       if (a.x === t % v.tw && a.y === (t / v.tw | 0)) { a.e = ESPERAR; a.t = 2; return; }
     }
+    else if (a.o === GUERRERO && c.era >= 8 && (c.trincheraPlan || []).length && (a.id % 2 === 0 || c.guerras.length)) {
+      // En la Segunda Guerra Mundial: cavar la trinchera (y ponerle alambre); en guerra, ocuparla y esperar.
+      v.trinchera = v.trinchera || new Array(v.tw * v.th).fill(0);
+      const aqui = a.y * v.tw + a.x, plan = c.trincheraPlan;
+      const pendiente = plan.filter(x => (v.trinchera[x] || 0) < 2 && !rec.reservadas.has(x)).sort((p, q) => dist(m, p, aqui) - dist(m, q, aqui))[0];
+      const ocupar = c.guerras.length ? plan.filter(x => v.trinchera[x] && !rec.reservadas.has(x)).sort((p, q) => dist(m, p, aqui) - dist(m, q, aqui))[0] : null;
+      if (ocupar != null && (a.id % 3 !== 0 || pendiente == null)) {
+        if (aqui === ocupar) { a.e = ESPERAR; a.t = 3; return; }
+        t = ocupar; a.cavar = 0;
+      } else if (pendiente != null) { t = pendiente; a.cavar = 1; }
+    }
     else if (a.o === GUERRERO && !c.guerras.length && (c.aduanas || []).length && a.id % 3 === 0) {
       // En paz, uno de cada tres soldados hace la guardia en un puesto fronterizo: de pie junto a la barrera.
       const pf = c.aduanas[(a.id / 3 | 0) % c.aduanas.length], lado = (a.id / 3 | 0) % 2 ? 1 : -1;
@@ -2477,7 +2524,7 @@
     for (const r of regiones) for (const t of parcelas(m, r)) {
       const plano = pausada(m) && v.plan && v.centros && v.centros.length;
       const huertaVieja = plano && v.obra[t] === OBRA.campo && v.plan[t] === 2;
-      if ((v.obra[t] && !huertaVieja) || v.roca[t] || v.camino[t] || esVia(v, t) || v.arbol[t] >= 2 || !CONSTRUIBLE.has(ter[t]) || rec.reservadas.has(t)) continue;
+      if ((v.obra[t] && !huertaVieja) || v.roca[t] || v.camino[t] || ocupada(v, t) || v.arbol[t] >= 2 || !CONSTRUIBLE.has(ter[t]) || rec.reservadas.has(t)) continue;
       if (plano && v.plan[t] !== 2) continue; // solo en los solares del casco
       const x = t % v.tw;
       let junto = false;
@@ -2576,7 +2623,7 @@
     const regiones = [a.h, ...S().vecinos(a.h).filter(r => m.dueno[r] === c.id)];
     let mejor = -1, md = 99;
     for (const r of regiones) for (const t of parcelas(m, r)) {
-      if (v.obra[t] || v.roca[t] || v.camino[t] || esVia(v, t) || (v.arbol[t] >= 2 && !desbrozar) || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || ocupada(v, t) || (v.arbol[t] >= 2 && !desbrozar) || !sirve.has(ter[t]) || rec.reservadas.has(t) || (filtro && !filtro(t))) continue;
       // Con plan, la huerta se abre junto a otros campos (en bloques ordenados) y, si hace falta, se desbroza.
       const d = dist(m, base, t) + azar(v) * 1.5 + (desbrozar ? (v.arbol[t] >= 2 ? 2 : 0) - [t - 1, t + 1, t - v.tw, t + v.tw].filter(n => v.obra[n] === OBRA.campo).length * 0.8 : 0);
       if (d < md) { md = d; mejor = t; }
@@ -2654,7 +2701,8 @@
       const piedra = c.era >= 2 && c.piedra >= 1;
       if (v.obra[t] === OBRA.campo && pausada(m) && v.plan && v.plan[t] === 2) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos = Math.max(0, (c.campos || 0) - 1); }
       if (!v.obra[t] && v.arbol[t] < 2 && c.madera >= (piedra ? 2 : 3)) { c.madera -= piedra ? 2 : 3; if (piedra) c.piedra -= 1; a.e = TRABAJAR; a.t = Math.max(2, Math.round(4 * (1 - M.tec(c, 'obra')))); } else a.e = LIBRE;
-    } else if (a.o === GUERRERO) {
+    } else if (a.o === GUERRERO && a.cavar && m.dueno[region(m, t)] === c.id) { a.e = TRABAJAR; a.t = 3; }
+    else if (a.o === GUERRERO) {
       // En tierra enemiga sin nadie que la defienda: saquea la aldea y empuja la frontera.
       const r = region(m, t), o = S().civ(m, m.dueno[r]);
       if (o && c.guerras.some(g => g.con === o.id)) { a.e = TRABAJAR; a.t = 2; } else a.e = LIBRE;
@@ -2787,6 +2835,13 @@
       }
       a.comercio = 0;
     }
+    else if (a.o === GUERRERO && a.cavar) {
+      // Una jornada de pala: primero la zanja con sacos terreros; luego, si hay metal, el alambre de espino.
+      a.cavar = 0;
+      v.trinchera = v.trinchera || new Array(v.tw * v.th).fill(0);
+      if (!v.trinchera[t] && !v.obra[t]) { v.trinchera[t] = 1; if (v.arbol[t]) cambiar(m, 'arbol', t, 0, paso); v.trincheraVer = (v.trincheraVer || 0) + 1; }
+      else if (v.trinchera[t] === 1 && (c.metal || 0) >= 1) { c.metal -= 1; v.trinchera[t] = 2; v.trincheraVer = (v.trincheraVer || 0) + 1; }
+    }
     else if (a.o === GUERRERO) {
       const o = S().civ(m, m.dueno[region(m, t)]);
       if (o && c.guerras.some(g => g.con === o.id)) {
@@ -2812,6 +2867,8 @@
    * Nadie construye encima: si un edificio la corta, se vuelve a trazar.
    */
   const esVia = (v, t) => !!(v.via && v.via[t]);
+  // Casillas que no se pueden usar para construir ni sembrar: la vía del tren y las trincheras.
+  const ocupada = (v, t) => esVia(v, t) || !!(v.trinchera && v.trinchera[t]);
   const BOSQUE_PLANTABLE = new Set(['bosque', 'selva', 'taiga', 'sakura', 'llanura', 'colina', 'sabana', 'pantano', 'tundra', 'nieve']);
   function planificarVias(m, ter) {
     const v = m.vida, tw = v.tw;
@@ -3179,7 +3236,7 @@
         else if (ob === OBRA.ruina && azar(v) < 0.04) cambiar(m, 'obra', t, 0, F);
       } else if (ob === OBRA.ruina && azar(v) < 0.02) cambiar(m, 'obra', t, 0, F);
       if (v.camino[t] && dueno < 0 && azar(v) < 0.01) cambiar(m, 'camino', t, 0, F);
-      if (v.obra[t] || v.roca[t] || v.camino[t] || esVia(v, t) || tierra === 'rio' || tierra === 'arena' || tierra === 'agua' || tierra === 'bajo') continue;
+      if (v.obra[t] || v.roca[t] || v.camino[t] || esVia(v, t) || (v.trinchera && v.trinchera[t]) || tierra === 'rio' || tierra === 'arena' || tierra === 'agua' || tierra === 'bajo') continue;
       const a = v.arbol[t];
       if (a === 1 || a === 2) { if (azar(v) < 0.4) cambiar(m, 'arbol', t, a + 1, F); continue; }
       if (a) continue;
@@ -3416,6 +3473,7 @@
       }
       c.pozos = e[OBRA.pozo] || 0; c.graneros = e[OBRA.granero] || 0; c.fuentes = e[OBRA.fuente] || 0; c.parques = e[OBRA.parque] || 0; c.palacios = e[OBRA.palacio] || 0; c.centrales = e[OBRA.central] || 0; c.bancos = e[OBRA.banco] || 0; c.fabricas = e[OBRA.fabrica] || 0; c.estaciones = e[OBRA.estacion] || 0; c.hospitales = e[OBRA.hospital] || 0; c.aduanas = aduanas[c.id] || []; c.pozosPetroleo = e[OBRA.petroleo] || 0; c.minasT = minasT[c.id] || []; c.minas = c.minasT.length; c.aerodromos = e[OBRA.aerodromo] || 0;
       necesidades(m, c);
+      if (c.viva) planTrincheras(m, c, terrenos(m));
     }
     planUrbano(m);
     // Las fichas de edificios que ya no existen (ruinas viejas o solares reconstruidos) se olvidan al cabo de un
@@ -3507,5 +3565,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, planTrincheras, MAX_TRINCHERA, danoContra, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

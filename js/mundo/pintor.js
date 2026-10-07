@@ -413,7 +413,7 @@
     barcos(k, ahora, x0, y0, x1, y1);
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
-    if (civPorId.size) { vias(x0, y0, x1, y1, ahora); if (!reducido) trafico(ahora, x0, y0, x1, y1); }
+    if (civPorId.size) { vias(x0, y0, x1, y1, ahora); trincheras(x0, y0, x1, y1); if (!reducido) trafico(ahora, x0, y0, x1, y1); }
     andamios(ahora, x0, y0, x1, y1);
     progresos(x0, y0, x1, y1);
     humo(ahora, x0, y0, x1, y1);
@@ -550,6 +550,36 @@
     }
   }
   const civPorId = new Map(), rutaPorId = new Map();
+  // Las trincheras de la Segunda Guerra Mundial: una zanja de tierra oscura que sigue la frontera, con sacos
+  // terreros en los bordes y, delante (hacia el rival), postes y alambre de espino.
+  function trincheras(x0, y0, x1, y1) {
+    const v = m.vida, T = v.trinchera; if (!T) return;
+    const tw = v.tw, tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
+    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+      const t = ty * tw + tx; if (!T[t]) continue;
+      const x = tx * P, y = ty * P, d = m.dueno[V.region(m, t)];
+      const conecta = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => { const n = t + dx + dy * tw; return tx + dx >= 0 && tx + dx < tw && T[n]; });
+      const tramo = (dx, dy) => { // de la mitad de la casilla hacia ese lado
+        g.fillStyle = '#3a2a1c'; g.fillRect(x + (dx > 0 ? 6 : dx < 0 ? 0 : 5), y + (dy > 0 ? 6 : dy < 0 ? 0 : 5), dx ? 10 : 6, dy ? 10 : 6);
+      };
+      g.fillStyle = '#3a2a1c'; g.fillRect(x + 5, y + 5, 6, 6);
+      for (const [dx, dy] of conecta) tramo(dx, dy);
+      g.fillStyle = '#2a1e14'; g.fillRect(x + 6, y + 6, 4, 4);
+      // Sacos terreros alrededor de la zanja.
+      g.fillStyle = '#c8b078';
+      for (let q = 0; q < 16; q += 3) { if (!conecta.some(([dx, dy]) => dy === -1)) g.fillRect(x + q, y + 3, 2, 1.5); if (!conecta.some(([dx, dy]) => dy === 1)) g.fillRect(x + q, y + 11.5, 2, 1.5); }
+      for (let q = 0; q < 16; q += 3) { if (!conecta.some(([dx]) => dx === -1)) g.fillRect(x + 3, y + q, 1.5, 2); if (!conecta.some(([dx]) => dx === 1)) g.fillRect(x + 11.5, y + q, 1.5, 2); }
+      // El alambre de espino, del lado del rival.
+      if (T[t] === 2) {
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const n = t + dx + dy * tw; if (n < 0 || n >= T.length || m.dueno[V.region(m, n)] === d) continue;
+          g.fillStyle = '#5a4a3a'; g.strokeStyle = '#9aa0a8'; g.lineWidth = 0.6;
+          if (dx) { const xx = x + (dx > 0 ? 15 : 0.5); g.fillRect(xx - 0.5, y + 2, 1, 3); g.fillRect(xx - 0.5, y + 11, 1, 3); g.beginPath(); for (let q = 0; q <= 16; q += 2) g.lineTo(xx + (q % 4 ? 1 : -1), y + q); g.stroke(); }
+          else { const yy = y + (dy > 0 ? 15 : 0.5); g.fillRect(x + 2, yy - 2, 1, 3); g.fillRect(x + 12, yy - 2, 1, 3); g.beginPath(); for (let q = 0; q <= 16; q += 2) g.lineTo(x + q, yy + (q % 4 ? 1 : -1)); g.stroke(); }
+        }
+      }
+    }
+  }
   // Las vías: su propia línea de estación a estación (no van sobre los caminos, solo los cruzan), con
   // traviesas de madera y dos raíles; en los cruces con una calle, un paso a nivel. Por cada línea va y viene
   // un tren (de vapor en la era industrial, diésel en la moderna) mientras haya carbón y paz.
@@ -786,6 +816,9 @@
       }
       // En fiesta, la gente que no trabaja baila (da saltitos al ritmo).
       const baila = fiesta.has(a.c) && acc === 0 && !anda && Math.sin(ahora / 140 + a.id) > 0.3;
+      // Dentro de la trinchera solo asoma de cintura para arriba.
+      const enZanja = oficio === 'guerrero' && !anda && v.trinchera && v.trinchera[Math.floor(py / P) * v.tw + Math.floor(px / P)];
+      if (enZanja) { g.save(); g.beginPath(); g.rect(px - 8, py - 12, 18, 17); g.clip(); g.translate(0, 1.5); }
       if (pose) {
         // Retroceso al disparar (medio píxel hacia atrás) y el dibujo volteado si el blanco está a la izquierda.
         // El retroceso: un golpe hacia atrás al disparar que vuelve suave.
@@ -812,6 +845,7 @@
         g.drawImage(img, ix, iy - (baila ? 1 : 0) - sube, img.width * EA, img.height * EA);
         g.restore();
       }
+      if (enZanja) g.restore();
       // Partículas del trabajo: astillas, lascas, terrones, polvo de obra, y la chispa de una idea.
       if (acc === 1 && !nino && Math.random() < 0.07) {
         const hx = px + 4.5, hy = py + 3;

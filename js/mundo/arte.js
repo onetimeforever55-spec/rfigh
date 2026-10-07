@@ -957,14 +957,16 @@
     const clave = 'tp' + [o.col, o.pose, o.tenso ? 1 : 0, o.arma, o.armadura, o.piel, o.pelo].join(':');
     return guardado(clave, () => {
       const H = hoja(16, 14), piel = PIEL[o.piel || 0], pelo = PELO[o.pelo || 0], arm = o.armadura ? MAT[o.armadura] : null;
-      const ropa = arm || o.col, pierna = '#4a3a2e', fuego = (o.arma || 0) >= 5, culata = '#7a4a22', canon = '#3a3a44';
+      const unif = (o.arma || 0) >= 6 ? ((o.arma || 0) >= 7 ? mezcla(o.col, '#4a4a3a', 0.4) : o.col) : null;
+      const ropa = unif || arm || o.col, pierna = unif ? oscuro(unif, 0.3) : '#4a3a2e', fuego = (o.arma || 0) >= 5, culata = '#7a4a22', canon = '#3a3a44';
       const casco = (x, y) => {
-        if (fuego) { H.r(x - 1, y - 1, 5, 2, o.arma >= 7 ? '#5a6a4a' : '#2a2a3a'); H.r(x - 2, y, 7, 1, o.arma >= 7 ? '#4a5a3a' : '#1a1a2a'); }
+        if (unif) { const c_ = o.arma >= 7 ? oscuro(unif, 0.25) : oscuro(unif, 0.55); H.r(x - 1, y - 1, 5, 2, c_); H.r(x - 2, y, 7, 1, oscuro(c_, 0.2)); }
+        else if (fuego) { H.r(x - 1, y - 1, 5, 2, o.arma >= 7 ? '#5a6a4a' : '#2a2a3a'); H.r(x - 2, y, 7, 1, o.arma >= 7 ? '#4a5a3a' : '#1a1a2a'); }
         else if ((o.arma || 0) >= 1) { H.r(x - 1, y - 1, 5, 2, '#4a7a3a'); H.p(x - 1, y + 1, '#4a7a3a'); }
         else { H.r(x, y - 1, 3, 1, pelo); H.p(x - 1, y, pelo); }
       };
       const cabeza = (x, y) => { H.r(x, y, 3, 4, piel); H.r(x + 2, y, 1, 4, oscuro(piel, 0.12)); H.p(x + 2, y + 2, '#2a1e1a'); H.r(x, y - 1, 3, 1, pelo); casco(x, y); };
-      const torso = (x, y, w, h) => { H.r(x, y, w, h, ropa); H.r(x, y, w, 1, claro(ropa, 0.15)); if (arm) H.r(x + Math.floor(w / 2), y, 1, h, o.col); H.r(x, y + h - 1, w, 1, oscuro(ropa, 0.3)); };
+      const torso = (x, y, w, h) => { H.r(x, y, w, h, ropa); H.r(x, y, w, 1, claro(ropa, 0.15)); if (arm && !unif) H.r(x + Math.floor(w / 2), y, 1, h, o.col); H.r(x, y + h - 1, w, 1, oscuro(ropa, 0.3)); };
       if (o.pose === 'tierra') {
         // Tumbado boca abajo: piernas atrás, el cuerpo pegado al suelo, la cabeza alzada y el fusil al frente.
         H.r(0, 12, 4, 1, pierna); H.p(0, 11, '#2a1e14'); H.p(1, 13, '#2a1e14');
@@ -1016,10 +1018,13 @@
         return H.lienzo();
       }
       const guerrero = o.oficio === 'guerrero', arm = guerrero && o.armadura ? MAT[o.armadura] : null;
+      // Desde la Revolución Industrial el soldado viste uniforme del color de su reino: vistoso con la espingarda,
+      // apagado (de campaña) en la era moderna y la Segunda Guerra Mundial.
+      const unif = guerrero && (o.arma || 0) >= 6 ? ((o.arma || 0) >= 7 ? mezcla(o.col, '#4a4a3a', 0.4) : o.col) : null;
       // Piernas (al andar, una adelantada) y zapatos.
       // Piernas: quieto, o un ciclo de cuatro tiempos al andar (zancada, cruce, zancada con la otra, cruce);
       // al correr, la zancada es más larga y la rodilla sube. La pierna de delante va un poco más oscura.
-      const pierna = '#4a3a2e', lejana = '#3a2e24', zapato = '#2a1e14', pn = o.paso || 0, larga = o.corre ? 1 : 0;
+      const pierna = unif ? oscuro(unif, 0.3) : '#4a3a2e', lejana = unif ? oscuro(unif, 0.45) : '#3a2e24', zapato = '#2a1e14', pn = o.paso || 0, larga = o.corre ? 1 : 0;
       const pie = (x, y, col) => { H.p(x, y - 1, col); H.p(x, y, zapato); };
       if (pn === 0) { H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, 2, pierna); H.p(5, 12, zapato); H.p(7, 12, zapato); }
       else if (pn === 1 || pn === 3) {
@@ -1032,10 +1037,13 @@
         H.r(6, 11, 1, 2, apoyo); H.p(6, 12, zapato); H.p(7, 11, aire); H.p(7 + larga, 12 - larga, aire);
       }
       // Cuerpo con la ropa del color del pueblo (o la armadura con un tabardo del color del pueblo), cinturón.
-      const ropa = arm || o.col;
+      const ropa = unif || arm || o.col;
       H.r(4, 7, 5, 4, ropa); H.r(4, 7, 1, 4, claro(ropa, 0.15)); H.r(8, 7, 1, 4, oscuro(ropa, 0.2));
-      if (arm) H.r(6, 7, 1, 4, o.col);
+      if (arm && !unif) H.r(6, 7, 1, 4, o.col);
       H.r(4, 10, 5, 1, oscuro(ropa, 0.35));
+      // Correajes: bandolera blanca y botones dorados con la espingarda; cinturón y tirantes de cuero en la era moderna.
+      if (unif && (o.arma || 0) === 6) { H.p(4, 7, '#f0ece0'); H.p(5, 8, '#f0ece0'); H.p(6, 9, '#f0ece0'); H.r(4, 10, 5, 1, '#f0ece0'); H.p(7, 7, '#c8a050'); H.p(7, 8, '#c8a050'); }
+      else if (unif) { H.r(4, 10, 5, 1, '#3a2a1a'); H.p(5, 7, '#3a2a1a'); H.p(5, 8, '#3a2a1a'); H.p(6, 10, '#c8a050'); }
       // Brazos: balancean al andar (el de atrás siempre; el de delante solo si no lleva nada en la mano).
       const mano = !!(o.carga || ['lenador', 'minero', 'granjero', 'constructor'].includes(o.oficio) || guerrero);
       const vaivenAtras = pn === 1 ? -1 : pn === 3 ? 1 : 0, vaivenDelante = mano ? 0 : -vaivenAtras;
@@ -1049,6 +1057,7 @@
       else if (o.oficio === 'minero') { H.r(4, 1, 5, 2, '#c8a03a'); H.p(7, 2, '#fff4a0'); }
       else if (o.oficio === 'comerciante') { H.r(4, 1, 5, 2, '#7a3a1a'); H.r(3, 2, 7, 1, '#5a2a12'); }
       else if (o.oficio === 'constructor') { H.r(4, 1, 5, 2, '#e8a030'); }
+      else if (unif) { const casco = (o.arma || 0) >= 7 ? oscuro(unif, 0.25) : oscuro(unif, 0.55); if ((o.arma || 0) >= 7) { H.r(4, 1, 5, 2, casco); H.r(3, 2, 7, 1, oscuro(casco, 0.2)); H.p(5, 1, claro(casco, 0.15)); } else { H.r(5, 0, 3, 3, casco); H.r(4, 2, 5, 1, oscuro(casco, 0.3)); H.p(6, 0, '#e8d8a0'); } }
       else if (guerrero && o.arma >= 2 && !(o.tirador && o.arma >= 5)) { H.r(4, 1, 5, 2, o.arma >= 4 ? '#cfd6e2' : '#8a909c'); H.p(6, 3, o.arma >= 4 ? '#cfd6e2' : '#8a909c'); H.p(6, 0, o.col); }
       else if (guerrero && o.tirador && o.arma >= 1 && o.arma < 5) { H.r(4, 1, 5, 2, '#4a7a3a'); H.p(4, 3, '#4a7a3a'); }
       else if (guerrero && o.arma >= 5) { H.r(4, 1, 5, 2, o.arma >= 7 ? '#5a6a4a' : '#2a2a3a'); H.r(3, 2, 7, 1, o.arma >= 7 ? '#4a5a3a' : '#1a1a2a'); }
