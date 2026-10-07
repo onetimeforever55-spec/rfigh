@@ -770,6 +770,22 @@ console.log('COMERCIO A PETICIÓN, FABRICACIÓN Y TRANSPORTE MODERNO');
   comprobar(camion, 'en la Era Moderna la carga va en camión por la carretera o en tren');
 }
 
+console.log('TODO SE VENDE: MUEBLES Y VEHÍCULOS DE GUERRA');
+{
+  const V = M.vida, X = M.mando, m = S.crear(11, 5, { ritmo: 3 });
+  for (let k = 0; k < 200; k++) S.turno(m);
+  const c = X.gobernar(m, (S.vivas(m).find(x => x.cuarteles > 0) || S.vivas(m)[0]).id);
+  const e = t => X.entender(m, c.id, t)[0];
+  comprobar(V.BIENES.includes('muebles') && V.BIENES.includes('vehiculos') && m.mercado.precio.muebles > 0 && m.mercado.precio.vehiculos > 0, 'los muebles y los vehículos de guerra tienen precio en el mercado global');
+  comprobar(e('vended 10 muebles').que === 'muebles' && e('comprad tanques').que === 'vehiculos' && e('vended tanques').tipo === 'vender' && e('vended carbón').que === 'carbon', 'se pueden comprar y vender: muebles, tanques, carbón… («vended tanques», «comprad muebles»)');
+  comprobar(e('fabricad 5 tanques').tipo === 'fabricar' && e('fabricad 5 tanques').que === 'vehiculos', '«fabricad 5 tanques» los hace para el almacén');
+  if (c.cuarteles > 0) {
+    X.ordenar(m, c.id, 'fabricad 3 tanques');
+    for (let k = 0; k < 10; k++) { c.era = 8; c.metal = Math.max(c.metal, 40); c.petroleo = Math.max(c.petroleo || 0, 20); S.turno(m); }
+    comprobar((c.vehiculos || 0) >= 3 || (c.plan.fabricar == null && m.vida.aldeanos.some(a => a.c === c.id && a.veh)), 'el cuartel fabrica los vehículos y los guarda (' + (c.vehiculos || 0) + ' en el almacén)');
+  }
+}
+
 console.log('BATALLAS MÁS LARGAS');
 {
   const V = M.vida;

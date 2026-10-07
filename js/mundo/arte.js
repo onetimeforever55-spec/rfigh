@@ -1182,6 +1182,8 @@
 
   // ---------- Iconos de la interfaz (12×12 píxeles, con contorno): recursos, estaciones y secciones ----------
   const ICONOS = {
+    muebles: H => { H.r(2, 2, 2, 9, '#8a5a2a'); H.r(2, 6, 7, 2, '#a8743a'); H.r(7, 8, 2, 3, '#8a5a2a'); H.r(2, 6, 7, 1, '#c89a5a'); H.r(2, 2, 2, 1, '#c89a5a'); },
+    vehiculos: H => { H.r(1, 6, 10, 3, '#5a6a4a'); H.r(3, 4, 5, 2, '#6a7a5a'); H.r(8, 4, 4, 1, '#3a3a40'); H.r(1, 9, 10, 2, '#2a2a2e'); for (const x of [2, 5, 8]) H.p(x, 10, '#8a8a90'); },
     carbon: H => { H.disco(4.5, 7.5, 3.2, '#2a2a30', true); H.disco(8, 6, 3.4, '#1e1e24', true); H.disco(7, 9, 2.6, '#34343c', true); H.p(7, 4, '#6a6a76'); H.p(4, 6, '#5a5a66'); H.p(9, 8, '#5a5a66'); },
     petroleo: H => { H.r(3, 2, 7, 9, '#2a3a5a'); H.r(3, 2, 7, 1, '#4a5a7a'); H.r(3, 10, 7, 1, '#1a2a4a'); H.r(3, 5, 7, 1, '#c8402a'); H.r(5, 1, 3, 1, '#5a6a8a'); H.p(4, 3, '#7a8aaa'); },
     oro: H => { H.disco(6, 6, 5, '#f0c040', true); H.disco(6, 6, 3.4, '#e0a820'); H.r(5, 3, 2, 6, '#fff0a0'); H.r(5, 3, 1, 6, '#b07818'); },

@@ -508,11 +508,13 @@
    *    urgente) y vuelven con lo que falta en casa, pagado con oro. Quien tiene socios puede esperar al
    *    comerciante en vez de producirlo todo; quien no, tiene que hacerlo él.
    */
-  const BIENES = ['comida', 'madera', 'piedra', 'metal', 'armas', 'carbon', 'petroleo'];
-  const PRECIO_BASE = { comida: 0.5, madera: 0.6, piedra: 0.9, metal: 2.5, armas: 6, carbon: 1.4, petroleo: 3.2 };
-  const NOMBRE_BIEN = { comida: 'comida', madera: 'madera', piedra: 'piedra', metal: 'metal', armas: 'armas', carbon: 'carbón', petroleo: 'petróleo' };
+  // Todo lo que se produce o se fabrica se puede vender: las materias primas, las armas que hace la forja,
+  // los muebles de la fábrica y los vehículos de guerra (cañones, artillería, tanques) que salen del cuartel.
+  const BIENES = ['comida', 'madera', 'piedra', 'metal', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos'];
+  const PRECIO_BASE = { comida: 0.5, madera: 0.6, piedra: 0.9, metal: 2.5, armas: 6, carbon: 1.4, petroleo: 3.2, muebles: 2.4, vehiculos: 30 };
+  const NOMBRE_BIEN = { comida: 'comida', madera: 'madera', piedra: 'piedra', metal: 'metal', armas: 'armas', carbon: 'carbón', petroleo: 'petróleo', muebles: 'muebles', vehiculos: 'vehículos de guerra' };
   // Los bienes que un reino conoce: las armas desde el Bronce, el carbón desde la industria, el petróleo en la Era Moderna.
-  const bienesDe = c => BIENES.filter(k => (k !== 'armas' || c.era >= 1) && (k !== 'carbon' || c.era >= 6) && (k !== 'petroleo' || c.era >= 7));
+  const bienesDe = c => BIENES.filter(k => (k !== 'armas' || c.era >= 1) && (k !== 'carbon' || c.era >= 6) && (k !== 'petroleo' || c.era >= 7) && (k !== 'muebles' || c.era >= 6) && (k !== 'vehiculos' || c.era >= 5));
   const tanquesDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.veh === 'tanque').length;
   // Lo que un reino quiere tener de cada cosa.
   function objetivo(c, k) {
@@ -523,6 +525,9 @@
     if (k === 'metal') return c.era >= 1 ? 6 + Math.round((c.guerreros || 0) * 0.6) + 2 * c.era : 0;
     if (k === 'armas') return c.era >= 1 ? Math.max(0, (c.guerreros || 0) - (c.armados || 0)) + (c.guerras && c.guerras.length ? 6 : 0) : 0;
     if (k === 'carbon') return c.era >= 6 ? 4 + Math.round(((c.fabricas || 0) * GASTO.fabrica + (c.estaciones || 0) * GASTO.tren + (c.centrales || 0) * GASTO.central) * 15) : 0;
+    // Los muebles los quieren las casas de las ciudades industriales; los vehículos, los cuarteles (sobre todo en guerra).
+    if (k === 'muebles') return c.era >= 6 ? Math.round((c.casas || 0) * 0.2) : 0;
+    if (k === 'vehiculos') return c.era >= 5 && c.cuarteles > 0 ? (c.guerras && c.guerras.length ? 4 : 1) : 0;
     if (k === 'petroleo') return c.era >= 7 ? 6 + (c.aerodromos || 0) * 8 + (c.era >= 8 ? 10 + (c.guerras && c.guerras.length ? 12 : 0) : 0) : 0;
     return 0;
   }
@@ -552,7 +557,9 @@
       metal: c.era >= 1 && recursos && recursos.rocas ? 0.3 + Math.min(1, recursos.rocas / 30) : 0,
       armas: c.era >= 1 && c.cuarteles > 0 ? 0.5 + Math.min(0.8, (c.metal || 0) / 40) : 0,
       carbon: c.era >= 6 && recursos && recursos.carbones ? 0.4 + Math.min(1.2, recursos.carbones / 12) : 0,
-      petroleo: c.era >= 7 && (c.pozosPetroleo || 0) > 0 ? 0.7 + 0.35 * c.pozosPetroleo : 0
+      petroleo: c.era >= 7 && (c.pozosPetroleo || 0) > 0 ? 0.7 + 0.35 * c.pozosPetroleo : 0,
+      muebles: c.era >= 6 && (c.fabricas || 0) > 0 ? 0.5 + 0.3 * c.fabricas : 0,
+      vehiculos: c.era >= 5 && c.cuarteles > 0 ? 0.3 + Math.min(0.8, (c.metal || 0) / 60) : 0
     };
   }
   /*
@@ -645,10 +652,11 @@
       // Lo que mandó fabricar el jugador: armas (1 de metal cada una; 2 por turno en la forja del cuartel y 4 más
       // por cada fábrica en marcha) o muebles (2 de madera cada lote, que se vende por oro).
       const fab = c.plan && c.plan.fabricar;
-      if (fab && fab.n > fab.hechos) {
+      if (fab && fab.n > fab.hechos && fab.que !== 'vehiculos') {
         const ritmo = (c.cuarteles > 0 ? 2 : 0) + (enMarcha(c, 'fabrica') ? 4 * (c.fabricas || 0) : 0);
         const q = Math.min(ritmo, fab.n - fab.hechos, fab.que === 'armas' ? Math.floor(c.metal || 0) : Math.floor((c.madera || 0) / 2));
-        if (q > 0) { if (fab.que === 'armas') { c.metal -= q; c.armas = (c.armas || 0) + q; } else { c.madera -= q * 2; c.oro = (c.oro || 0) + q * 1.1; } fab.hechos += q; }
+        if (fab.que === 'vehiculos') { /* los hace el cuartel, más abajo */ }
+        else if (q > 0) { if (fab.que === 'armas') { c.metal -= q; c.armas = (c.armas || 0) + q; } else { c.madera -= q * 2; c.muebles = (c.muebles || 0) + q; } fab.hechos += q; }
         if (fab.hechos >= fab.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: (fab.que === 'armas' ? '⚒ Hechas ' : '🏭 Hechos ') + fab.n + (fab.que === 'armas' ? ' armas' : ' lotes de muebles') }); c.plan.fabricar = null; }
         else if (!q && m.turno - fab.desde > 3 && !fab.avisado) { fab.avisado = 1; (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: fab.que === 'armas' ? '⚒ Sin metal para las armas: haced minas o compradlo' : '🏭 Sin madera para los muebles' }); }
       }
@@ -659,7 +667,17 @@
         const q = Math.min(2 * c.fabricas, Math.floor(Math.max(0, (c.metal || 0) - 4)));
         if (q > 0 && (c.cartera && (c.cartera.armas || c.cartera.metal) || c.guerras.length)) { c.metal -= q; c.armas = (c.armas || 0) + q; }
         const mad = Math.min(4 * c.fabricas, Math.floor(Math.max(0, (c.madera || 0) - objetivo(c, 'madera') * 1.2) / 2));
-        if (mad > 0) { c.madera -= mad * 2; c.oro = (c.oro || 0) + mad * 0.9; c.ganado = c.ganado || {}; c.ganado.madera = (c.ganado.madera || 0) + mad * 0.9; }
+        if (mad > 0) { c.madera -= mad * 2; c.muebles = (c.muebles || 0) + mad; }
+      }
+      // El mercado interior: la gente compra cada turno parte de los muebles del almacén (lo demás se exporta).
+      if ((c.muebles || 0) > 0) {
+        const q = Math.min(c.muebles, Math.max(1, Math.round((c.casas || 0) * 0.05)), Math.max(0, c.muebles - (c.plan && (c.plan.ventas || []).some(x => x.que === 'muebles') ? 1e9 : 0)));
+        if (q > 0) { const oro = q * (m.mercado ? m.mercado.precio.muebles || PRECIO_BASE.muebles : PRECIO_BASE.muebles) * 0.6; c.muebles -= q; c.oro = (c.oro || 0) + oro; c.ganado = c.ganado || {}; c.ganado.muebles = (c.ganado.muebles || 0) + oro; }
+      }
+      // El cuartel fabrica vehículos de guerra para el almacén si se dedica a ello (o se lo mandan): uno cada dos turnos.
+      if (c.era >= 5 && c.cuarteles > 0 && ((c.cartera && c.cartera.vehiculos) || (c.plan && c.plan.fabricar && c.plan.fabricar.que === 'vehiculos')) && m.turno % 2 === 0) {
+        const t = c.era >= 8 ? 'tanque' : c.era >= 7 ? 'artilleria' : 'canon', cm = VEHICULOS[t].metal, cp = t === 'tanque' ? 3 : 0;
+        if ((c.metal || 0) >= cm + 4 && (c.petroleo || 0) >= cp) { c.metal -= cm; c.petroleo = (c.petroleo || 0) - cp; c.vehiculos = (c.vehiculos || 0) + 1; const f = c.plan && c.plan.fabricar; if (f && f.que === 'vehiculos') { f.hechos++; if (f.hechos >= f.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚙ Hechos ' + f.n + ' vehículos de guerra' }); c.plan.fabricar = null; } } }
       }
       // Los pedidos y las ventas que nadie atiende en 40 turnos se olvidan.
       if (c.plan) for (const l of ['pedidos', 'ventas']) if (c.plan[l]) c.plan[l] = c.plan[l].filter(x => m.turno - (x.desde || 0) < 40);
@@ -769,7 +787,7 @@
     for (const k of BIENES) {
       // Lo que el jugador puso a la venta se coloca aunque al otro no le haga mucha falta (más barato).
       const enVenta = c.plan && (c.plan.ventas || []).some(x => x.que === k), quiere = o.balance.falta[k] || (enVenta && (o[k] || 0) < objetivo(o, k) * 2 ? Math.max(4, objetivo(o, k)) : 0);
-      const q = Math.min(c.balance.sobra[k], quiere, Math.floor(c[k] || 0), k === 'armas' ? Math.ceil(cap / 3) : cap);
+      const q = Math.min(c.balance.sobra[k], quiere, Math.floor(c[k] || 0), k === 'vehiculos' ? 2 : k === 'armas' ? Math.ceil(cap / 3) : cap);
       if (q < 1) continue;
       const val = q * mk.precio[k] * (1 + o.balance.urg[k]);
       if (val > mv) { mv = val; mejor = [k, Math.floor(q)]; }
@@ -800,7 +818,7 @@
       let mejor = null, mv = 0;
       for (const k of BIENES) {
         const precio = mk.precio[k] * (1 + 0.3 * Math.min(1.6, c.balance.urg[k]));
-        const q = Math.min(o.balance.sobra[k], Math.floor(o[k] || 0), c.balance.falta[k], Math.floor(Math.max(0, (c.oro || 0) * 0.6) / precio), k === 'armas' ? Math.ceil(cap / 3) : cap);
+        const q = Math.min(o.balance.sobra[k], Math.floor(o[k] || 0), c.balance.falta[k], Math.floor(Math.max(0, (c.oro || 0) * 0.6) / precio), k === 'vehiculos' ? 2 : k === 'armas' ? Math.ceil(cap / 3) : cap);
         if (q < 1 || c.balance.urg[k] < 0.25) continue;
         const val = c.balance.urg[k] * q;
         if (val > mv) { mv = val; mejor = [k, Math.floor(q), precio]; }
@@ -1140,7 +1158,9 @@
         const pide = c.plan && c.plan.vehiculos;
         const quiereV = c.era >= 8 && (a.id % 6 === 1 || (pide === 'tanque' && a.id % 3 === 0)) ? 'tanque' : (a.id % 7 === 3 || (pide === 'artilleria' && a.id % 3 === 2)) ? (c.era >= 7 ? 'artilleria' : 'canon') : null;
         const crudo = quiereV === 'tanque' && pausada(m) ? 3 : 0;
-        if (quiereV && a.veh !== quiereV && (c.metal || 0) >= VEHICULOS[quiereV].metal && (c.petroleo || 0) >= crudo) { c.metal -= VEHICULOS[quiereV].metal; c.petroleo = (c.petroleo || 0) - crudo; a.veh = quiereV; a.tirador = true; a.pv = a.pv0 = VEHICULOS[quiereV].vida; }
+        // Primero se usan los vehículos del almacén (fabricados o comprados); si no hay, se hace uno con metal.
+        if (quiereV && a.veh !== quiereV && (c.vehiculos || 0) >= 1) { c.vehiculos -= 1; a.veh = quiereV; a.tirador = true; a.pv = a.pv0 = VEHICULOS[quiereV].vida; }
+        else if (quiereV && a.veh !== quiereV && (c.metal || 0) >= VEHICULOS[quiereV].metal && (c.petroleo || 0) >= crudo) { c.metal -= VEHICULOS[quiereV].metal; c.petroleo = (c.petroleo || 0) - crudo; a.veh = quiereV; a.tirador = true; a.pv = a.pv0 = VEHICULOS[quiereV].vida; }
       }
       if (a.veh) { a.tirador = true; continue; }
       const quiere = c.cuarteles > 0 || c.era <= 1 ? c.era : Math.min(c.era, 1);
