@@ -1175,7 +1175,16 @@
   function barco(tipo, fase, col) {
     return guardado('barco' + tipo + fase + col, () => {
       const H = hoja(20, 16);
-      if (tipo === 'guerra') { // acorazado: casco gris de hierro, dos torretas con cañones, puente y chimenea
+      if (tipo === 'guerra' && fase === 'galera') { // galera de guerra: casco oscuro, espolón, escudos, remos y vela del reino
+        H.r(1, 10, 17, 3, '#4a3020'); H.r(1, 10, 17, 1, '#6a4a2a'); H.r(2, 13, 15, 1, '#2a1a10'); H.r(18, 11, 2, 1, '#8a7a5a'); H.p(0, 9, '#4a3020');
+        for (let x = 3; x < 17; x += 3) { H.r(x, 9, 2, 2, col); H.p(x, 9, '#e8d8a0'); H.p(x, 13, '#8a6a42'); H.p(x - 1, 14, '#8a6a42'); }
+        H.r(9, 1, 1, 8, '#2a1a10'); H.r(5, 2, 9, 6, col); H.r(5, 2, 9, 1, '#1a1a1a'); H.r(5, 7, 9, 1, '#1a1a1a'); H.r(8, 4, 3, 2, '#e8d8a0');
+      } else if (tipo === 'guerra' && fase === 'galeon') { // galeón de guerra: tres palos, troneras con cañones y banderas del reino
+        H.r(1, 10, 18, 4, '#3a2416'); H.r(1, 10, 18, 1, '#6a4422'); H.r(14, 6, 5, 4, '#3a2416'); H.r(1, 7, 4, 3, '#3a2416'); H.r(1, 12, 18, 1, col);
+        for (let x = 3; x < 17; x += 3) { H.p(x, 11, '#0a0a0a'); H.p(x + 1, 11, '#5a5a62'); }
+        for (const [x, h] of [[5, 7], [9, 9], [13, 7]]) { H.r(x, 10 - h, 1, h, '#2a1a10'); H.r(x - 2, 11 - h, 5, h - 4, '#e8e0cc'); H.r(x - 2, 11 - h, 5, 1, '#1a1a1a'); }
+        H.r(9, 0, 3, 1, col); H.r(13, 2, 2, 1, col); H.r(5, 2, 2, 1, col);
+      } else if (tipo === 'guerra') { // acorazado: casco gris de hierro, dos torretas con cañones, puente y chimenea
         H.r(0, 10, 20, 4, '#5a626e'); H.r(0, 10, 20, 1, '#7a828e'); H.r(1, 14, 18, 1, '#3a4048'); H.r(0, 12, 20, 1, col);
         H.r(7, 6, 6, 4, '#6a727e'); H.r(8, 4, 3, 2, '#7a828e'); H.p(9, 5, CRISTAL); H.r(11, 3, 2, 3, '#3a3a40');
         for (const x of [2, 15]) { H.r(x, 8, 3, 2, '#4a525e'); } H.r(0, 8, 2, 1, '#2a2e34'); H.r(18, 8, 2, 1, '#2a2e34');

@@ -883,7 +883,7 @@ console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
   const hija = m.civs[n0];
   comprobar(!hija || (M.tecsDe(hija).length === tecs && hija.era === d.era && (hija.metal || 0) > 0), 'las provincias que se independizan conservan toda la técnica de su reino (' + tecs + ' técnicas) y parte del almacén');
   // El exterminio.
-  const yo = S.vivas(m).find(x => S.vecinosDe(m, x).length && x.guerreros > 2) || S.vivas(m)[0], ot = S.vecinosDe(m, yo)[0];
+  const yo = S.vivas(m).find(x => S.vecinosDe(m, x).length && x.guerreros > 2) || S.vivas(m).find(x => S.vecinosDe(m, x).length) || S.vivas(m)[0], ot = S.vecinosDe(m, yo)[0] || S.vivas(m).find(x => x !== yo);
   X.gobernar(m, yo.id);
   comprobar(X.entender(m, yo.id, 'exterminad a la gente de ' + ot.nombre)[0].tipo === 'exterminio' && X.entender(m, yo.id, 'parad el exterminio')[0].parar, 'se entiende «exterminad a la gente de X» y «parad el exterminio»');
   X.ordenar(m, yo.id, 'exterminad a la gente de ' + ot.nombre);
@@ -956,6 +956,31 @@ console.log('PUERTOS DESDE EL PRINCIPIO Y LOS ALIMENTOS');
   comprobar(Math.abs(suma - c.comida) < 0.01 && Object.keys(al).filter(k => al[k] > 0.5).length >= 2, 'la comida se desglosa en grano, pescado, carne, leche y frutos, y suma lo que hay en el granero (' + V.ALIMENTOS.map(k => k + ' ' + Math.round(al[k] || 0)).join(', ') + ')');
   const d = { comida: 10, alimentos: {} }; V.alimento(d, 'pescado', 5);
   comprobar(d.comida === 15 && d.alimentos.pescado === 5, 'el pescado de las barcas alimenta igual que el grano');
+}
+
+console.log('LA GUERRA EN EL MAR');
+{
+  const V = M.vida;
+  comprobar(V.claseNaval(1) === 'galera' && V.claseNaval(5) === 'galeon' && V.claseNaval(7) === 'acorazado' && V.NAVAL.galera.disparo === 4 && V.NAVAL.galeon.disparo === 2, 'la marina va por épocas: galeras con flechas de fuego, galeones con cañones y acorazados');
+  const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 160; k++) S.turno(m);
+  const cs = S.vivas(m); let par = null;
+  for (const a of cs) for (const b of cs) if (!par && a.id < b.id && !S.vecinosDe(m, a).includes(b) && V.porMar(m, a, b)) par = [a, b];
+  comprobar(!!par, 'dos reinos sin frontera por tierra pueden llegar uno a otro por mar');
+  if (par) {
+    const [a, b] = par, ev = { guerra: 0, tiros: 0, hundidos: 0, embarcan: 0, desembarcos: 0 };
+    a.jugador = true;
+    for (let k = 0; k < 60; k++) {
+      for (const c of [a, b]) { c.madera = Math.max(c.madera, 60); c.era = Math.max(c.era, 2); }
+      if (!S.enGuerra(a, b) && a.viva && b.viva) S.declararGuerra(m, a, b, 'prueba');
+      S.turno(m); const v = m.vida;
+      ev.guerra = Math.max(ev.guerra, v.barcos.filter(x => x.tipo === 'guerra').length);
+      ev.tiros += v.disparos.filter(d => d[6] != null && d[5] === 4).length;
+      ev.hundidos += (v.naufragios || []).length;
+      for (const an of (v.anuncios || []).splice(0)) { if (/embarcan/.test(an.texto)) ev.embarcan++; if (/Desembarco/.test(an.texto)) ev.desembarcos++; }
+    }
+    comprobar(ev.guerra > 0 && ev.tiros > 0 && ev.hundidos > 0, 'en guerra se botan galeras que se tiran flechas de fuego hasta hundirse (' + ev.guerra + ' a la vez, ' + ev.tiros + ' andanadas, ' + ev.hundidos + ' hundidos)');
+    comprobar(ev.embarcan > 0, 'y el ejército embarca en un transporte para cruzar el mar (' + ev.embarcan + ' veces, ' + ev.desembarcos + ' desembarcos)');
+  }
 }
 
 console.log('BATALLAS MÁS LARGAS');

@@ -697,11 +697,13 @@
         if (a.jugador || b.jugador || enGuerra(a, b)) continue;
         // Los complots: las guerras y las alianzas se traman antes de pasar (y se ven venir).
         if (r > 25 && aliadosDe(m, a).length < 2 && aliadosDe(m, b).length < 2 && azar(m) < 0.15) tramar(m, 'alianza', a, b);
-        if (!juntos) continue;
+        // Sin frontera por tierra, también se puede ir a la guerra por mar (si hay puertos y una ruta entre ellos).
+        const porMar = !juntos && m.vida && M.vida && M.vida.porMar && M.vida.porMar(m, a, b);
+        if (!juntos && !porMar) continue;
         const fa = fuerza(m, a), fb = fuerza(m, b);
         const [agresor, victima, fAg, fVi] = fa >= fb ? [a, b, fa, fb] : [b, a, fb, fa];
         const ganas = M.CARACTERES[agresor.caracter].agresion * rasgo(agresor, 'agresion') * (fAg / fVi) * (r < -30 ? 1.6 : 1) * (agresor.estab > 30 ? 1 : 0.4);
-        if (!agresor.jugador && agresor.guerras.length < 2 && (r < -40 || (ganas > 2.2 && r < 10)) && azar(m) < 0.08) { const motivo = casusBelli(m, agresor, victima, r, fAg / fVi); if (motivo) tramar(m, 'guerra', agresor, victima, motivo); }
+        if (!agresor.jugador && agresor.guerras.length < 2 && (r < -40 || (ganas > 2.2 && r < 10)) && azar(m) < (porMar ? 0.04 : 0.08)) { const motivo = casusBelli(m, agresor, victima, r, fAg / fVi); if (motivo) tramar(m, 'guerra', agresor, victima, motivo); }
       }
     }
     avanzarComplots(m);

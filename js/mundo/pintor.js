@@ -361,6 +361,7 @@
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
     vistos = new Set();
     recogerMuertos(duracion);
+    for (const n of m.vida.naufragios || []) naufragios.push({ n, inicio: performance.now() + (n[2] / V.TICKS) * duracion, color: (S.civ(m, n[5]) || {}).color || '#ccc', era: (S.civ(m, n[5]) || { era: 0 }).era });
     buscarBatallas();
     for (const p_ of m.vida.plagas || []) if (p_.turno === m.turno && !plagasVistas.has(p_)) { plagasVistas.add(p_); plagasAnim.push({ regiones: p_.regiones, inicio: performance.now() }); }
     // El territorio se repinta en el fotograma siguiente: así el cálculo del turno no se junta en un solo tirón.
@@ -415,6 +416,7 @@
     banderas(ahora);
     agua(ahora, x0, y0, x1, y1);
     barcos(k, ahora, x0, y0, x1, y1);
+    pintarNaufragios(ahora);
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
     danados(ahora, x0, y0, x1, y1);
@@ -714,6 +716,7 @@
     for (const c of S.vivas(m)) { if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 1) fiesta.add(c.id); if ((c.comida || 0) < (c.aldeanos || 0) * 0.15) hambre.add(c.id); }
     const todos = caidos.length ? v.aldeanos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : v.aldeanos;
     for (const a of todos) {
+      if (a.aBordo != null) continue; // va en un transporte: se le ve en cubierta
       let r = rVisto.get(a) || a.r, kk = k - desfase(a);
       if (kk < 0) { const r0 = rAntes.get(a); if (r0 && r0.length >= 6 && r && r0[r0.length - 3] === r[0] && r0[r0.length - 2] === r[1]) { r = r0; kk += V.TICKS; } else kk = 0; }
       const paso = Math.min(V.TICKS - 1, Math.floor(kk)), f = Math.min(1, kk - paso);
@@ -1320,9 +1323,27 @@
     }
   }
   // Los barcos, interpolando su travesía del turno.
+  // Los naufragios: el barco escora, se hunde entre burbujas y astillas, y deja unos restos flotando.
+  let naufragios = [];
+  function pintarNaufragios(ahora) {
+    naufragios = naufragios.filter(x => ahora - x.inicio < 4500);
+    for (const x of naufragios) {
+      const t = (ahora - x.inicio) / 4500; if (t < 0) continue;
+      const [nx, ny, , tipo, clase] = x.n, px = nx * P + 4, py = ny * P + 4;
+      if (!x.salpico) { x.salpico = 1; emitir(px + 10, py + 8, 14, { v: 30, g: 60, vida: 1200, cols: ['#e8f4ff', '#a8d0f0', '#ffffff'], tipo: 'solido', tam: 1, tamAzar: 1, dy: -25 }); emitir(px + 10, py + 6, 8, { v: 20, g: 50, vida: 1600, cols: ['#6a4a2a', '#4a3020', '#8a6a42'], tipo: 'solido', tam: 1.2, tamAzar: 1, dy: -18 }); }
+      const img = tipo === 'guerra' ? ARTE().barco('guerra', clase || 'acorazado', x.color) : ARTE().barco(tipo === 'pesca' ? 'pesca' : 'mercante', x.era >= 6 ? 3 : grupoEra(x.era), x.color);
+      const baja = Math.min(1, t * 1.4);
+      g.save(); g.beginPath(); g.rect(px - 8, py - 12, 40, 26); g.clip();
+      g.translate(px + 10, py + 10 + baja * 14); g.rotate(baja * 0.5); g.globalAlpha = 1 - Math.max(0, t - 0.6) * 2.5;
+      g.drawImage(img, -10, -16); g.restore(); g.globalAlpha = 1;
+      if (Math.random() < 0.4 * (1 - t)) emitir(px + 6 + Math.random() * 10, py + 12, 1, { v: 6, g: -20, vida: 700, cols: ['rgba(230,245,255,A)'], tipo: 'humo', tam: 1.5 });
+      if (t > 0.6) { g.fillStyle = 'rgba(90,60,30,' + (1 - t).toFixed(2) + ')'; g.fillRect(px + 4, py + 12, 3, 1); g.fillRect(px + 12, py + 13, 4, 1); }
+    }
+  }
   function barcos(k, ahora, x0, y0, x1, y1) {
     const v = m.vida, paso = Math.min(V.TICKS - 1, Math.floor(k)), f = Math.min(1, k - paso);
     for (const b of v.barcos || []) {
+      if (b.hundido) continue; // lo dibuja el naufragio
       const br = rVisto.get(b) || b.r;
       let px = b.x * P, py = b.y * P;
       if (br && br.length >= 4) { const i = paso * 2, j = Math.min(br.length - 2, i + 2); px = (br[i] + (br[j] - br[i]) * f) * P; py = (br[i + 1] + (br[j + 1] - br[i + 1]) * f) * P; }
@@ -1334,12 +1355,18 @@
       g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(px - 6, py + 12 + (Math.floor(ahora / 400 + b.id) % 2), 20, 1);
       // Desde la Revolución Industrial, los mercantes ya son vapores; en guerra, los acorazados.
       const fb = c ? (c.era >= 6 && b.tipo !== 'pesca' ? 3 : grupoEra(c.era)) : 1;
-      const img = ARTE().barco(b.tipo === 'guerra' ? 'guerra' : b.tipo === 'pesca' ? 'pesca' : 'mercante', fb, color);
+      const img = b.tipo === 'guerra' ? ARTE().barco('guerra', b.clase || 'acorazado', color) : ARTE().barco(b.tipo === 'pesca' ? 'pesca' : 'mercante', fb, color);
       const ida = br && br.length >= 4 ? Math.sign(br[Math.min(br.length - 2, paso * 2 + 2)] - br[paso * 2]) : 0;
       const izq = ida < 0 || (!ida && (b.izq || false)); if (ida) b.izq = ida < 0;
       g.save(); if (izq) { g.translate(px * 2 + 12, 0); g.scale(-1, 1); }
       g.drawImage(img, px - 4, py - 6);
       g.restore();
+      // El transporte lleva a los soldados en cubierta: cabezas con el casco del color de su reino.
+      if (b.tipo === 'transporte') { const n = Math.min(6, v.aldeanos.filter(a => a.aBordo === b.id).length); for (let q = 0; q < n; q++) { const cx = px + (izq ? 10 - q * 2.5 : -1 + q * 2.5), cy = py + 1 - (q % 2); g.fillStyle = '#f0c8a0'; g.fillRect(cx, cy + 1, 2, 2); g.fillStyle = color; g.fillRect(cx, cy, 2, 1.2); } }
+      // Ardiendo (flechas incendiarias) o tocado: llamas y humo negro; con poca vida, una columna de humo.
+      const pvMax = b.tipo === 'guerra' ? (V.NAVAL[b.clase || 'acorazado'] || { pv: 120 }).pv : 40;
+      if (b.ardiendo > 0 && Math.random() < 0.6) { emitir(px + 4 + Math.random() * 12, py + 2 + Math.random() * 4, 2, { v: 10, g: -30, vida: 500, cols: ['#ffd84a', '#ff8a1e', '#ff4b1a'], tipo: 'chispa', tam: 1.4, tamAzar: 1 }); }
+      if ((b.ardiendo > 0 || (b.pv != null && b.pv < pvMax * 0.5)) && Math.random() < 0.3) emitir(px + 8, py - 2, 1, { v: 8, g: -10, vida: 2200, cols: ['rgba(30,26,24,A)', 'rgba(70,64,60,A)'], tipo: 'humo', tam: 4, tamAzar: 1 });
       // El mercante lleva su carga a la vista en cubierta: fardos del color de lo que transporta.
       if (b.tipo === 'mercante' && b.carga) {
         const COL = { comida: '#e8d08a', madera: '#8a5a2c', piedra: '#a8a49a', metal: '#b8c4d0', armas: '#6a6a74', carbon: '#2a2a2e', petroleo: '#3a3020', muebles: '#c8925a', vehiculos: '#5a6a4a', semillas: '#c8a86a', granadas: '#3e4a2a' };

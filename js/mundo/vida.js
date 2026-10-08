@@ -1045,7 +1045,8 @@
       if (objetivo < 2 && !soloQuitar) objetivo = Math.max(objetivo, lista.length ? 2 : 3);
       if (objetivo < lista.length) {
         const tipo = c.guerras.length ? 'batalla' : 'vejez';
-        for (const a of lista.slice().sort((x, y) => (y.edad || 0) - (x.edad || 0)).slice(0, lista.length - Math.max(1, objetivo))) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, tipo, 0]); }
+        // (Los que van embarcados, los últimos: las bajas de la guerra caen antes entre los de tierra.)
+        for (const a of lista.slice().sort((x, y) => ((x.aBordo != null) - (y.aBordo != null)) || (y.edad || 0) - (x.edad || 0)).slice(0, lista.length - Math.max(1, objetivo))) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, tipo, 0]); }
       } else if (objetivo > lista.length) {
         // Los que llegan también necesitan cama (salvo un pueblo que casi no tiene a nadie).
         objetivo = Math.max(Math.min(objetivo, (c.camas || 6) + 5), Math.min(objetivo, 6));
@@ -1121,7 +1122,7 @@
   //  · CUPOS: «quiero 10 leñadores» fija cuántos hay de un oficio (c.plan.cupos), el resto se reparte solo.
   function reasignar(m, c, recursos, ya) {
     const v = m.vida;
-    const todos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.colono == null);
+    const todos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.colono == null && a.aBordo == null);
     const cupos = (c.plan && c.plan.cupos) || {};
     const conCupo = i => cupos[i] != null;
     const tiene = [0, 0, 0, 0, 0, 0, 0];
@@ -1219,10 +1220,18 @@
       const dueObj = p.objetivo != null ? S().civ(m, m.dueno[p.objetivo]) : null;
       const mandado = dueObj && dueObj.viva && dueObj.id !== c.id && S().enGuerra(c, dueObj) ? dueObj : null;
       if (p.objetivo != null && !mandado && !(dueObj && dueObj.id !== c.id && !S().enGuerra(c, dueObj))) p.objetivo = null;
-      const valido = e && o && o.viva && S().enGuerra(c, o) && m.dueno[e.obj] === o.id && (!mandado || e.obj === p.objetivo);
-      if (!valido && mandado) {
+      // Una travesía sin barco (lo hundieron) o sin nadie a bordo se da por perdida: el ejército vuelve a planear.
+      if (e && e.fase === 'travesia' && !v.barcos.some(b => b.tipo === 'transporte' && b.c === c.id && b.estado === 'zarpa' && !b.hundido) && !suyos.some(a => a.aBordo != null)) { e.fase = 'perdida'; e.mar = null; }
+      const valido = e && o && o.viva && S().enGuerra(c, o) && (m.dueno[e.obj] === o.id || e.fase === 'travesia') && e.fase !== 'perdida' && (!mandado || e.obj === p.objetivo || e.fase === 'travesia');
+      // Soldados ya desembarcados en tierra enemiga: siguen la guerra desde la playa (no vuelven a casa a embarcar).
+      const enTierra = suyos.filter(a => a.aBordo == null).map(a => region(m, a.y * v.tw + a.x));
+      const cabeza = !valido && !mandado && e && e.desembarco != null ? (() => { const o2 = S().civ(m, e.con); if (!o2 || !o2.viva || !S().enGuerra(c, o2)) return null; const cerca = S().casillas(m, o2).filter(r => enTierra.some(q => S().distancia(q, r) <= 4)).sort((p2, q2) => S().distancia(p2, o2.capital) - S().distancia(q2, o2.capital))[0]; return cerca != null ? { o2, r: cerca } : null; })() : null;
+      if (cabeza) { e = { con: cabeza.o2.id, obj: cabeza.r, reunion: e.desembarco, fase: 'marcha', desde: m.turno, asedio: 0, desembarco: e.desembarco }; v.ejercitos[c.id] = e; }
+      else if (!valido && mandado) {
         const nuestro = S().frontera(m, mandado, c).sort((x, y) => S().distancia(x, p.objetivo) - S().distancia(y, p.objetivo))[0];
-        e = { con: mandado.id, obj: p.objetivo, reunion: nuestro != null ? nuestro : c.capital, fase: 'reunion', desde: m.turno, asedio: 0 };
+        // Sin frontera con ellos (otra isla, otro continente): se va por mar.
+        const mar = nuestro == null ? planNaval(m, c, mandado, p.objetivo) : null;
+        e = { con: mandado.id, obj: mar ? mar.obj : p.objetivo, reunion: mar ? region(m, mar.puerto) : nuestro != null ? nuestro : c.capital, fase: 'reunion', desde: m.turno, asedio: 0, mar };
         v.ejercitos[c.id] = e;
       } else if (!valido) {
         e = null;
@@ -1240,6 +1249,12 @@
           e = { con: enemigo.id, obj, reunion: nuestro != null ? nuestro : c.capital, fase: 'reunion', desde: m.turno, asedio: 0 };
           break;
         }
+        // Sin frontera por tierra con ningún enemigo: la guerra va por mar (embarcar, cruzar y desembarcar).
+        if (!e && p.defender == null) for (const g of c.guerras) {
+          const enemigo = S().civ(m, g.con); if (!enemigo || !enemigo.viva) continue;
+          const mar = planNaval(m, c, enemigo, null);
+          if (mar) { e = { con: enemigo.id, obj: mar.obj, reunion: region(m, mar.puerto), fase: 'reunion', desde: m.turno, asedio: 0, mar }; break; }
+        }
         // Sin frente con el enemigo, la orden «defended X» aún reúne al ejército en casa.
         if (!e && p.defender != null && m.dueno[p.defender] === c.id && c.guerras.length) e = { con: c.guerras[0].con, obj: p.defender, reunion: p.defender, fase: 'marcha', desde: m.turno, asedio: 0, defiende: p.defender };
         if (e) v.ejercitos[c.id] = e; else { delete v.ejercitos[c.id]; continue; }
@@ -1252,7 +1267,18 @@
       if (p.defender != null) { if (m.dueno[p.defender] === c.id) { e.defiende = p.defender; e.fase = 'marcha'; } else p.defender = null; }
       if (e.defiende != null && m.dueno[e.defiende] !== c.id) e.defiende = null;
       e.capitan = suyos.length ? Math.min(...suyos.map(a => a.id)) : null;
-      if (e.fase === 'reunion') {
+      if (e.fase === 'reunion' && e.mar) {
+        // Por mar: el transporte espera en el puerto; cuando el ejército está reunido (o al cabo de unos turnos), embarca.
+        let tr = v.barcos.find(b => b.tipo === 'transporte' && b.c === c.id && !b.hundido && b.estado === 'espera');
+        if (!tr) { tr = { id: v.sig++, tipo: 'transporte', c: c.id, puerto: e.mar.puerto, x: e.mar.de % v.tw, y: e.mar.de / v.tw | 0, ruta: e.mar.ruta, i: 0, vuelta: 0, r: [], pv: PV_BARCO.transporte, estado: 'espera', tierra: e.mar.tierra }; v.barcos.push(tr); }
+        const base = centro(m, e.reunion);
+        const cerca = suyos.filter(a => dist(m, a.y * v.tw + a.x, base) <= 7);
+        if (cerca.length && (cerca.length >= Math.max(suyos.length * 0.7, Math.min(4, suyos.length)) || m.turno - e.desde >= 7)) {
+          for (const a of cerca.slice(0, 24)) { a.aBordo = tr.id; a.x = tr.x; a.y = tr.y; a.e = ESPERAR; a.t = 2; }
+          tr.estado = 'zarpa'; tr.ruta = e.mar.ruta; tr.i = 0; e.fase = 'travesia';
+          if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⛵ ' + Math.min(24, cerca.length) + ' soldados embarcan hacia ' + S().civ(m, e.con).nombre, region: e.reunion });
+        }
+      } else if (e.fase === 'reunion') {
         const base = centro(m, e.reunion);
         const juntos = suyos.filter(a => dist(m, a.y * v.tw + a.x, base) <= 5).length;
         if (juntos >= suyos.length * 0.5 || m.turno - e.desde >= 2) { e.fase = 'marcha'; for (const a of suyos) if (a.e === ESPERAR || a.paseo) a.e = LIBRE; }
@@ -1698,23 +1724,127 @@
         if (v.barcos.some(b => b.puerto === t && b.tipo === tipo)) continue;
         v.barcos.push({ id: v.sig++, tipo, c: c.id, puerto: t, x: agua % v.tw, y: agua / v.tw | 0, ruta: null, i: 0, vuelta: 0, r: [] });
       }
-      // La marina de guerra (desde la Revolución Industrial): en guerra, cada puerto con cuartel bota un
-      // acorazado. Cuesta metal (y petróleo en la Era Moderna) y bombardea la costa del enemigo.
-      const crudo = c.era >= 7 && pausada(m) ? 2 : 0;
-      if (c.era >= 6 && c.guerras.length && c.cuarteles > 0 && !v.barcos.some(b => b.puerto === t && b.tipo === 'guerra') && (c.metal || 0) + (c.armas || 0) >= 8 && (c.petroleo || 0) >= crudo) {
+      // La marina de guerra: en guerra, cada puerto bota un barco de guerra de su época (galera, galeón o
+      // acorazado). Cuesta madera y, desde el galeón, metal (el acorazado, también petróleo en la Era Moderna).
+      const cl = claseNaval(c.era), nv = NAVAL[cl], crudo = cl === 'acorazado' && pausada(m) ? 2 : 0;
+      if (c.era >= 1 && c.guerras.length && !v.barcos.some(b => b.puerto === t && b.tipo === 'guerra') && (c.madera || 0) >= nv.madera + 4 && (c.metal || 0) + (c.armas || 0) >= nv.metal && (c.petroleo || 0) >= crudo) {
         // El hierro sale del almacén de metal y, si no llega, de las armas ya forjadas.
-        const deMetal = Math.min(8, Math.max(0, c.metal || 0)); c.metal -= deMetal; c.armas -= 8 - deMetal; c.petroleo = (c.petroleo || 0) - crudo;
-        v.barcos.push({ id: v.sig++, tipo: 'guerra', c: c.id, puerto: t, x: agua % v.tw, y: agua / v.tw | 0, ruta: null, i: 0, vuelta: 0, r: [], pv: 120 });
-        (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚓ Botado un acorazado' });
+        const deMetal = Math.min(nv.metal, Math.max(0, c.metal || 0)); c.metal -= deMetal; c.armas = (c.armas || 0) - (nv.metal - deMetal); c.madera -= nv.madera; c.petroleo = (c.petroleo || 0) - crudo;
+        v.barcos.push({ id: v.sig++, tipo: 'guerra', clase: cl, c: c.id, puerto: t, x: agua % v.tw, y: agua / v.tw | 0, ruta: null, i: 0, vuelta: 0, r: [], pv: nv.pv });
+        (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚓ ' + (cl === 'galera' ? 'Botada una ' : 'Botado un ') + nv.nombre });
       }
     }
-    // En paz, los acorazados vuelven a puerto y se desarman.
-    v.barcos = v.barcos.filter(b => b.tipo !== 'guerra' || ((S().civ(m, b.c) || { guerras: [] }).guerras.length && (b.pv == null || b.pv > 0)));
+    // Los hundidos se van al fondo; en paz, los barcos de guerra vuelven a puerto y se desarman; los transportes
+    // sin ejército que llevar, también. El fuego se apaga al cabo de unos turnos.
+    v.barcos = v.barcos.filter(b => !b.hundido && (b.pv == null || b.pv > 0) && (b.tipo !== 'guerra' || (S().civ(m, b.c) || { guerras: [] }).guerras.length) && (b.tipo !== 'transporte' || b.estado === 'vuelve' || (v.ejercitos[b.c] && v.ejercitos[b.c].mar) || v.aldeanos.some(a => a.aBordo === b.id)));
+    for (const b of v.barcos) if (b.ardiendo > 0) b.ardiendo--;
   }
   // El acorazado: navega hacia el puerto enemigo más cercano y, cuando tiene a tiro soldados o edificios de la
   // costa enemiga, dispara sus cañones (los soldados enemigos con artillería y las torres le responden).
+  /*
+   * LA MARINA DE GUERRA, por épocas: galeras con flechas incendiarias (de la Edad del Bronce a la Edad Media),
+   * galeones con cañones (del Renacimiento a la Revolución Industrial) y acorazados (Era Moderna en adelante).
+   * Pelean entre ellas: la flecha incendiaria prende el casco y el barco se va quemando; el cañonazo lo revienta.
+   * Sin vida, el barco se hunde (con quien lleve dentro).
+   */
+  const NAVAL = {
+    galera: { nombre: 'galera de guerra', desde: 1, pv: 60, alcance: 4, dano: 12, disparo: 4, madera: 15, metal: 0 },
+    galeon: { nombre: 'galeón', desde: 5, pv: 110, alcance: 6, dano: 26, disparo: 2, madera: 18, metal: 6 },
+    acorazado: { nombre: 'acorazado', desde: 7, pv: 170, alcance: 8, dano: 44, disparo: 2, madera: 0, metal: 8 }
+  };
+  const claseNaval = era => (era >= 7 ? 'acorazado' : era >= 5 ? 'galeon' : 'galera');
+  const PV_BARCO = { pesca: 30, mercante: 40, transporte: 60 };
+  const vidaBarco = b => (b.pv != null ? b.pv : (b.pv = b.tipo === 'guerra' ? NAVAL[b.clase || 'acorazado'].pv : PV_BARCO[b.tipo] || 40));
+  function hundir(m, b, paso) {
+    const v = m.vida;
+    if (b.hundido) return;
+    b.hundido = 1; b.pv = 0;
+    (v.naufragios = v.naufragios || []).push([b.x, b.y, Math.min(TICKS, paso), b.tipo, b.clase || null, b.c, b.id]);
+    // Los que iban a bordo se ahogan.
+    const ahogados = v.aldeanos.filter(a => a.aBordo === b.id);
+    for (const a of ahogados) { a.aBordo = null; v.muertos.push([b.x, b.y, a.c, 'ahogado', Math.min(TICKS, paso), a]); }
+    if (ahogados.length) v.aldeanos = v.aldeanos.filter(a => !ahogados.includes(a));
+    const c = S().civ(m, b.c);
+    if (c && c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🌊 ' + (b.tipo === 'guerra' ? ((b.clase || 'acorazado') === 'galera' ? 'Hundida una ' : 'Hundido un ') + NAVAL[b.clase || 'acorazado'].nombre : b.tipo === 'transporte' ? 'Hundido un transporte' + (ahogados.length ? ' con ' + ahogados.length + ' soldados' : '') : 'Hundido un barco') });
+  }
+  // Un paso hacia un punto del mar (el vecino navegable que más acerca).
+  function acercarPorMar(m, b, x, y, ter) {
+    const v = m.vida; let mejor = null, md = Math.abs(b.x - x) + Math.abs(b.y - y);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = b.x + dx, ny = b.y + dy, n = ny * v.tw + nx; if (nx < 0 || nx >= v.tw || n < 0 || n >= ter.length || !navegable(ter, n)) continue; const d = Math.abs(nx - x) + Math.abs(ny - y); if (d < md) { md = d; mejor = [nx, ny]; } }
+    if (mejor) { b.x = mejor[0]; b.y = mejor[1]; b.ruta = null; return true; }
+    return false;
+  }
+  // ¿Se puede ir por mar de los puertos de a a los de b? (para las guerras y el comercio entre islas)
+  function porMar(m, a, b) {
+    if (!m.vida || !(a.puertos > 0) || !(b.puertos > 0)) return false;
+    const ter = terrenos(m), de = puertosDelTurno.filter(t => m.dueno[region(m, t)] === a.id), a2 = puertosDelTurno.filter(t => m.dueno[region(m, t)] === b.id);
+    if (travesias.mundo !== m) travesias = { mundo: m };
+    for (const p of de.slice(0, 2)) for (const q of a2.slice(0, 2)) {
+      const x = aguaJunto(m, p, ter), y = aguaJunto(m, q, ter); if (x == null || y == null) continue;
+      const clave = x + '>' + y; if (!(clave in travesias)) travesias[clave] = rutaPorMar(m, x, y, ter);
+      if (travesias[clave]) return true;
+    }
+    return false;
+  }
+  // El desembarco: desde un puerto propio, por mar, hasta la costa enemiga más cercana a su corazón.
+  function planNaval(m, c, o, preferida) {
+    const v = m.vida, ter = terrenos(m);
+    const puertos = puertosDelTurno.filter(t => m.dueno[region(m, t)] === c.id);
+    if (!puertos.length) return null;
+    if (travesias.mundo !== m) travesias = { mundo: m };
+    const regiones = S().casillas(m, o).sort((p, q) => S().distancia(p, preferida != null ? preferida : o.capital) - S().distancia(q, preferida != null ? preferida : o.capital)).slice(0, 8);
+    for (const r of regiones) {
+      const costa = parcelas(m, r).find(t => andable(ter[t]) && !navegable(ter, t) && aguaJunto(m, t, ter) != null);
+      if (costa == null) continue;
+      const a = aguaJunto(m, costa, ter);
+      for (const p of puertos.slice(0, 3)) {
+        const de = aguaJunto(m, p, ter); if (de == null) continue;
+        const clave = de + '>' + a; if (!(clave in travesias)) travesias[clave] = rutaPorMar(m, de, a, ter);
+        const ruta = travesias[clave];
+        if (ruta && ruta.length > 1) return { obj: preferida != null && m.dueno[preferida] === o.id ? preferida : r, puerto: p, de, a, tierra: costa, ruta };
+      }
+    }
+    return null;
+  }
+  // El transporte: espera en el puerto a que embarque el ejército, cruza el mar y lo deja en la costa enemiga.
+  function navegarTransporte(m, b, c, ter, paso) {
+    const v = m.vida, e = v.ejercitos[c.id];
+    if (b.estado === 'zarpa' && b.ruta) {
+      b.i = Math.min(b.ruta.length - 1, b.i + 2); const t = b.ruta[b.i]; b.x = t % v.tw; b.y = t / v.tw | 0;
+      if (b.i >= b.ruta.length - 1) {
+        // Desembarco: los soldados saltan a la playa (y a las casillas de tierra de alrededor).
+        const tierra = b.tierra, abordo = v.aldeanos.filter(a => a.aBordo === b.id);
+        const sitios = [tierra, tierra + 1, tierra - 1, tierra + v.tw, tierra - v.tw].filter(x => x >= 0 && x < ter.length && andable(ter[x]) && !navegable(ter, x));
+        abordo.forEach((a, i) => { const x = sitios[i % sitios.length] != null ? sitios[i % sitios.length] : tierra; a.aBordo = null; a.x = x % v.tw; a.y = x / v.tw | 0; a.e = LIBRE; });
+        if (e && e.mar) { e.fase = 'marcha'; e.desembarco = region(m, tierra); e.mar = null; }
+        if (c.jugador && abordo.length) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚓ ¡Desembarco! ' + abordo.length + ' soldados en la costa enemiga', region: region(m, tierra) });
+        b.estado = 'vuelve'; b.ruta = b.ruta.slice().reverse(); b.i = 0;
+      }
+    } else if (b.estado === 'vuelve' && b.ruta) {
+      b.i = Math.min(b.ruta.length - 1, b.i + 2); const t = b.ruta[b.i]; b.x = t % v.tw; b.y = t / v.tw | 0;
+      if (b.i >= b.ruta.length - 1) { b.hundido = 0; b.pv = 0; } // de vuelta en casa: se amarra (y desaparece)
+    }
+  }
   function navegarGuerra(m, b, c, ter, paso) {
     const v = m.vida, tw = v.tw, enemigo = o => o && c.guerras.some(g => g.con === o.id);
+    const nv = NAVAL[b.clase || 'acorazado'];
+    // Ardiendo: cada paso se quema un poco más (y si no queda casco, se hunde).
+    if (b.ardiendo > 0) { b.pv = vidaBarco(b) - 2; if (b.pv <= 0) { hundir(m, b, paso); return; } }
+    // Primero, los barcos enemigos: va a por el más cercano y, a tiro, dispara (flechas de fuego o cañonazos).
+    let presa = null, dp = 15;
+    for (const s2 of v.barcos) { if (s2 === b || s2.hundido || !enemigo(S().civ(m, s2.c))) continue; const d = Math.abs(s2.x - b.x) + Math.abs(s2.y - b.y); if (d < dp || (d === dp && presa && presa.tipo !== 'guerra' && s2.tipo === 'guerra')) { dp = d; presa = s2; } }
+    if (presa) {
+      if (dp > nv.alcance - 1) acercarPorMar(m, b, presa.x, presa.y, ter);
+      if (dp <= nv.alcance && paso % 2 === 0) {
+        v.disparos.push([b.x, b.y, presa.x, presa.y, paso, nv.disparo, b.id]);
+        if (azar(v) < 0.65) {
+          presa.pv = vidaBarco(presa) - Math.round(nv.dano * (0.8 + azar(v) * 0.4));
+          if (nv.disparo === 4) presa.ardiendo = Math.max(presa.ardiendo || 0, 3);
+          if (presa.pv <= 0) hundir(m, presa, paso + 0.5);
+        }
+      }
+      return;
+    }
     if (!b.ruta || b.i >= b.ruta.length - 1) {
       // Va al puerto enemigo más cercano al que se pueda llegar por mar (los de otros mares no cuentan).
       const de = b.y * tw + b.x;
@@ -1742,10 +1872,11 @@
     const objetivos = v.aldeanos.filter(a => a.o === GUERRERO && enemigo(S().civ(m, a.c)) && Math.abs(a.x - b.x) + Math.abs(a.y - b.y) <= 7);
     if (objetivos.length) {
       const a = objetivos[Math.floor(azar(v) * objetivos.length)];
-      v.disparos.push([b.x, b.y, a.x, a.y, paso, 2]);
-      if (azar(v) < 0.7) estallido(m, c, a.y * tw + a.x, 1, 48, paso, null, 'acorazado', null);
+      v.disparos.push([b.x, b.y, a.x, a.y, paso, nv.disparo, b.id]);
+      if (nv.disparo === 4) { if (azar(v) < 0.5 && golpear(v, null, a, Math.round(nv.dano * (0.8 + azar(v) * 0.4)), paso + 0.5, b.x, b.y)) { v.aldeanos = v.aldeanos.filter(x => x !== a); v.muertos.push([a.x, a.y, a.c, 'flecha', paso + 0.5, a]); apuntarBaja(m, c.id, a); } }
+      else if (azar(v) < 0.7) estallido(m, c, a.y * tw + a.x, 1, nv.dano, paso, null, 'acorazado', null);
       // La artillería y los tanques de la costa le devuelven el fuego.
-      if (objetivos.some(x => x.veh) && azar(v) < 0.25) b.pv -= 20;
+      if (objetivos.some(x => x.veh) && azar(v) < 0.25) { b.pv = vidaBarco(b) - 20; if (b.pv <= 0) { hundir(m, b, paso); return; } }
       return;
     }
     // Sin soldados a tiro: bombardea edificios de la costa enemiga (los deja en ruinas de vez en cuando).
@@ -1753,9 +1884,10 @@
       for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) {
         const t = (b.y + dy) * tw + b.x + dx; if (t < 0 || t >= v.obra.length || Math.abs(dx) + Math.abs(dy) > 6) continue;
         const o = v.obra[t]; if (!o || o === OBRA.ruina || o === OBRA.campo || !enemigo(S().civ(m, m.dueno[region(m, t)]))) continue;
-        v.disparos.push([b.x, b.y, t % tw, t / tw | 0, paso, 2]);
-        if (v.torres && v.torres[t] != null && v.torres[t] > 0) b.pv -= 4;
-        estallido(m, c, t, 1, 48, paso, null, 'acorazado', null);
+        v.disparos.push([b.x, b.y, t % tw, t / tw | 0, paso, nv.disparo, b.id]);
+        if (v.torres && v.torres[t] != null && v.torres[t] > 0) { b.pv = vidaBarco(b) - 4; if (b.pv <= 0) { hundir(m, b, paso); return; } }
+        if (nv.disparo === 4) { if (azar(v) < 0.4) prender(m, t, paso, 2); }
+        else estallido(m, c, t, 1, nv.dano, paso, null, 'acorazado', null);
         return;
       }
     }
@@ -1763,7 +1895,10 @@
   function navegar(m, b, ter, paso) {
     const v = m.vida, c = S().civ(m, b.c);
     if (!c) return;
+    if (b.hundido) { b.r.push(b.x, b.y); return; }
+    if (b.tipo !== 'guerra' && b.ardiendo > 0) { b.pv = vidaBarco(b) - 2; if (b.pv <= 0) { hundir(m, b, paso || 1); b.r.push(b.x, b.y); return; } }
     if (b.tipo === 'guerra') { navegarGuerra(m, b, c, ter, paso || 1); b.r.push(b.x, b.y); return; }
+    if (b.tipo === 'transporte') { navegarTransporte(m, b, c, ter, paso || 1); b.r.push(b.x, b.y); return; }
     if (b.tipo === 'pesca') {
       // Faena cerca de su puerto: cada tanto vuelve con pescado.
       const base = aguaJunto(m, b.puerto, ter);
@@ -2094,7 +2229,7 @@
     memo = new Map();
     // Vencen las cuadrillas, cupos y prioridades con plazo que mandó el jugador.
     if (M.mando && M.mando.vencer) M.mando.vencer(m);
-    v.cambios = []; v.muertos = []; v.disparos = []; v.aviones = [];
+    v.cambios = []; v.muertos = []; v.disparos = []; v.aviones = []; v.naufragios = [];
     ambiente(m); v.golpes = []; v.ataques = [];
     // Los heridos se curan entre turnos; el pintor necesita la vida con la que empieza cada uno.
     for (const a of v.aldeanos) if (a.heridas) a.heridas = Math.max(0, a.heridas - (S().civ(m, a.c) && S().civ(m, a.c).hospitales > 0 ? 0.08 : 0.03));
@@ -2146,7 +2281,7 @@
       for (const b of v.barcos) navegar(m, b, ter, paso);
       // Dónde está cada guerrero, para que se encuentren en la frontera.
       const guerreros = new Map();
-      for (const a of v.aldeanos) if (a.o === GUERRERO) { const t = a.y * v.tw + a.x; (guerreros.get(t) || guerreros.set(t, []).get(t)).push(a); }
+      for (const a of v.aldeanos) if (a.o === GUERRERO && a.aBordo == null) { const t = a.y * v.tw + a.x; (guerreros.get(t) || guerreros.set(t, []).get(t)).push(a); }
       const muertos = new Set();
       for (const a of v.aldeanos) if (!muertos.has(a)) actuar(m, a, rec[a.c], ter, paso, guerreros, muertos);
       if (muertos.size) v.aldeanos = v.aldeanos.filter(a => !muertos.has(a));
@@ -2191,6 +2326,12 @@
     const v = m.vida, c = S().civ(m, a.c);
     let acc = a.k ? ACC.cargar : ACC.andar;
     if (!rec || !c) return;
+    // Embarcado en un transporte: va donde va el barco (y no pelea hasta desembarcar).
+    if (a.aBordo != null) {
+      const b = v.barcos.find(x => x.id === a.aBordo);
+      if (b && !b.hundido) { a.x = b.x; a.y = b.y; a.e = ESPERAR; a.t = 2; a.r.push(a.x, a.y, ACC.andar); return; }
+      a.aBordo = null; a.e = LIBRE;
+    }
     if (a.e === LIBRE) elegirTarea(m, a, c, rec, ter);
     // Un guerrero que ve a un enemigo cerca carga contra él (los tiradores se quedan a distancia y disparan).
     if (a.o === GUERRERO && c.guerras.length && !a.tirador && a.e !== TRABAJAR) {
@@ -3752,5 +3893,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
