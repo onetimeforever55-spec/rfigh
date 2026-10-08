@@ -2877,7 +2877,8 @@
     }
     else if (a.o === GUERRERO && a.fijo && a.fijo.guardia != null) {
       // Un escuadrón con misión: monta guardia en su plaza (o marcha sobre la plaza enemiga que le mandaron).
-      const base = centro(m, a.fijo.guardia), dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 3) - 1;
+      // (Las tropas del jugador, al punto exacto que tocó y en formación.)
+      const base = a.fijo.punto != null ? a.fijo.punto : centro(m, a.fijo.guardia), dx = a.fijo.dx != null ? a.fijo.dx : (a.id % 3) - 1, dy = a.fijo.dy != null ? a.fijo.dy : (Math.floor(a.id / 3) % 3) - 1;
       t = base + dx + dy * v.tw;
       if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
       if (a.x === t % v.tw && a.y === (t / v.tw | 0)) { a.e = ESPERAR; a.t = 2; return; }

@@ -282,9 +282,13 @@
     const candidatas = [];
     for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.tipo[i] !== 'nieve' && fertil(m, i) >= 3) candidatas.push(i);
     candidatas.sort((a, b) => fertil(m, b) - fertil(m, a) + (azar(m) - 0.5));
+    // Lejos unos de otros; con muchos pueblos (hasta 10), se acepta que nazcan algo más cerca.
     const elegidas = [];
-    for (const i of candidatas) {
-      if (elegidas.every(j => distancia(i, j) >= 12)) elegidas.push(i);
+    for (const sep of [12, 10, 8, 6]) {
+      for (const i of candidatas) {
+        if (elegidas.length >= (numPueblos || 5)) break;
+        if (!elegidas.includes(i) && elegidas.every(j => distancia(i, j) >= sep)) elegidas.push(i);
+      }
       if (elegidas.length >= (numPueblos || 5)) break;
     }
     for (const cap of elegidas) {

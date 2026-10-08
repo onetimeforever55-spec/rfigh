@@ -795,6 +795,38 @@
   }
   const TIPOS_EXTRA = ['anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
+  // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
+  /*
+   * Los soldados elegidos van al punto tocado (en formación) y se quedan allí: pelean solos con lo que se les
+   * acerque y, si el punto es de un enemigo, van a por él (y el resto del ejército también apunta a esa plaza).
+   * Si el punto es de un reino con el que hay paz, se le declara la guerra. «Liberar» los devuelve a lo automático.
+   */
+  function aplicarTropas(m, c, a) {
+    const v = m.vida, p = plan(c);
+    if (!v) return '';
+    const ids = new Set(a.ids || []);
+    const suyos = v.aldeanos.filter(x => ids.has(x.id) && x.c === c.id && x.o === 4);
+    if (!suyos.length) return 'No hay soldados tuyos en la selección.';
+    if (a.tipo === 'tropas_libres') {
+      for (const x of suyos) if (x.fijo && x.fijo.rts) delete x.fijo;
+      (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚔ ' + suyos.length + ' soldados vuelven a lo automático' });
+      return suyos.length + ' soldados vuelven a moverse solos con el ejército.';
+    }
+    const t = a.t; if (t == null || t < 0 || t >= v.tw * v.th) return 'Ese sitio está fuera del mapa.';
+    const r = M.vida.region(m, t), d = S().civ(m, m.dueno[r]);
+    let texto = '';
+    if (d && d.id !== c.id) {
+      if (!S().enGuerra(c, d)) { S().declararGuerra(m, c, d, 'Por orden de su gobierno, ' + c.nombre + ' manda sus tropas contra ' + d.nombre + '.'); p.guerrasMias = [...new Set([...(p.guerrasMias || []), d.id])]; texto = '¡Guerra contra ' + d.nombre + '! '; }
+      // El resto del ejército también va a por esa plaza.
+      p.objetivo = r; p.defender = null;
+      if (v.ejercitos) delete v.ejercitos[c.id];
+    }
+    const ancho = Math.ceil(Math.sqrt(suyos.length));
+    suyos.forEach((x, k) => { x.fijo = { rts: 1, g: 'rts', vuelve: 4, guardia: r, punto: t, dx: (k % ancho) - (ancho >> 1), dy: Math.floor(k / ancho) - (ancho >> 1) }; x.e = 0; });
+    (v.anuncios = v.anuncios || []).push({ civ: c.id, region: r, texto: (d && d.id !== c.id ? '⚔ ¡Al ataque! ' : '🚩 ') + suyos.length + ' soldados ' + (d && d.id !== c.id ? 'contra ' + d.nombre : 'en marcha') });
+    return texto + suyos.length + ' soldados van ' + (d && d.id !== c.id ? 'a atacar a ' + d.nombre : d && d.id === c.id ? 'a defender ese sitio' : 'a ese sitio') + '.';
+  }
+
   // ---------- Del texto a las acciones ----------
   /*
    * ÓRDENES COMPUESTAS: «busquen hierro y saquen madera», «haced 3 casas y talad 10 árboles», «más comida,
@@ -804,6 +836,9 @@
    * resultado partido si dice más que la frase entera; si no, vale lo de siempre.
    */
   function entender(m, civId, texto) {
+    // Las órdenes del modo tropas (las manda la vista al tocar el mapa): «#tropas 12,15,18 4096» o «#tropas-libres 12,15».
+    const tr = String(texto || '').trim().match(/^#tropas(-libres)? ([\d,]+)(?: (\d+))?$/);
+    if (tr) return [{ tipo: tr[1] ? 'tropas_libres' : 'tropas', ids: tr[2].split(',').map(Number).filter(n => n >= 0).slice(0, 400), t: tr[3] != null ? +tr[3] : null }];
     const entera = entenderUna(m, civId, texto);
     const trozos = String(texto || '').split(/\s*(?:[,;]|\by luego\b|\by despues\b|\by después\b|\by tambien\b|\by también\b|\bademas\b|\bademás\b|\by\b|\be\b(?=\s+[a-záéíóú]))\s*/i).map(x => x.trim()).filter(Boolean);
     if (trozos.length < 2) return entera;
@@ -948,6 +983,7 @@
     const p = plan(c);
     for (const a of acciones || []) {
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
+      if (a.tipo === 'tropas' || a.tipo === 'tropas_libres') { textos.push(aplicarTropas(m, c, a)); continue; }
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
       else if (['comercio_libre', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'consulta_mercado', 'especialidad', 'oferta'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);

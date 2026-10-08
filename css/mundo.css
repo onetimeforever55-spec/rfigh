@@ -537,3 +537,9 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
   .g-voluntad { width: min(720px, calc(100% - 80px)); }
   body:not(.sin-panel) .g-voluntad { width: min(720px, calc(100% - 432px - 64px)); }
 }
+
+/* El modo tropas: una barra arriba con cuántos soldados hay elegidos y qué hacer con ellos. */
+.tropas-barra { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: 10px; width: min(640px, calc(100% - 24px)); background: rgba(10, 22, 14, 0.92); border: 1px solid rgba(109, 255, 122, 0.45); border-radius: 10px; padding: 8px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+.tropas-barra .tropas-texto { flex: 1 1 220px; font-size: 13px; color: #d8ffdc; }
+.tropas-barra button { font-size: 12px; }
+body.limpio .tropas-barra { display: none; }

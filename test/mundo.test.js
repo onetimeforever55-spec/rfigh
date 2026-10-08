@@ -1012,6 +1012,22 @@ console.log('COMERCIO A TU MANDO, MEJORAS A PLAZOS, ANEXIONES Y BOSQUES');
   else comprobar(yo.plan.anexar === debil.id && S.enGuerra(yo, debil), '«anexionad X» declara la guerra y el ejército irá plaza por plaza');
 }
 
+console.log('MODO TROPAS Y MUNDOS DE 10 REINOS');
+{
+  const V = M.vida, X = M.mando;
+  comprobar([1, 2, 3].every(sd => S.vivas(S.crear(sd, 10, { ritmo: 3 })).length === 10), 'se puede crear un mundo con 10 reinos (para jugar online hasta 10)');
+  const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(m);
+  const yo = S.vivas(m).find(c => S.vecinosDe(m, c).length); X.gobernar(m, yo.id);
+  X.ordenar(m, yo.id, 'quiero 8 soldados'); S.turno(m);
+  const sold = m.vida.aldeanos.filter(a => a.c === yo.id && a.o === 4), ene = S.vecinosDe(m, yo)[0], t = V.centro(m, ene.capital), tw = m.vida.tw;
+  const r = X.ordenar(m, yo.id, '#tropas ' + sold.map(a => a.id).join(',') + ' ' + t);
+  const lejos = () => { const d = sold.filter(a => m.vida.aldeanos.includes(a)).map(a => Math.abs(a.x - t % tw) + Math.abs(a.y - (t / tw | 0))); return d.length ? d.reduce((p, q) => p + q, 0) / d.length : 0; };
+  const d0 = lejos(); for (let k = 0; k < 10; k++) S.turno(m);
+  comprobar(sold.length >= 3 && S.enGuerra(yo, ene) && /atacar/.test(r.respuesta) && lejos() < d0 * 0.6, 'en el modo tropas, los soldados elegidos van al sitio tocado y, si es de otro reino, le declaran la guerra y atacan (' + Math.round(d0) + ' → ' + Math.round(lejos()) + ' casillas)');
+  X.ordenar(m, yo.id, '#tropas-libres ' + sold.map(a => a.id).join(','));
+  comprobar(sold.filter(a => m.vida.aldeanos.includes(a)).every(a => !(a.fijo && a.fijo.rts)), 'y «Automático» los devuelve al ejército');
+}
+
 console.log('PUERTOS DESDE EL PRINCIPIO Y LOS ALIMENTOS');
 {
   const V = M.vida;

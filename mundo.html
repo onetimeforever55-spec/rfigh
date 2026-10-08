@@ -48,6 +48,7 @@
         <div class="inicio-caja">
           <h2 class="inicio-titulo" id="inicio-titulo">¿Cómo quieres jugar?</h2>
           <p class="inicio-texto" id="inicio-texto">Puedes gobernar un solo pueblo con tus órdenes mientras los demás viven a su aire, o ser el dios de todos.</p>
+          <label class="inicio-libre">Reinos en el mundo: <select id="num-reinos"><option value="5">5</option><option value="8">8</option><option value="10">10 (para jugar online hasta 10)</option></select></label>
           <label class="inicio-libre"><input type="checkbox" id="mundo-libre"> Mundo libre: sin calendario histórico, los años pasan de uno en uno (como en WorldBox)</label>
           <div class="inicio-botones">
             <button type="button" class="obrar" id="modo-pueblo">Gobernar un pueblo</button>
@@ -101,7 +102,7 @@
             <p>Con la Revolución Industrial aparecen vetas de carbón (rocas con manchas negras) en montañas y colinas, y en la Era Moderna bolsas de petróleo (manchas negras en el suelo). Los mineros sacan el carbón; sobre el petróleo se levanta un pozo («construid un pozo de petróleo»). Las fábricas, los trenes y las centrales queman carbón; los tanques, los aviones y los acorazados gastan petróleo. Sin combustible se paran. Los dos se compran y se venden en el mercado («comprad carbón»).</p>
             <p>El humo de las fábricas ensucia el aire y la gente enferma más; los parques lo limpian. Si la gente está descontenta, los obreros hacen huelga y las fábricas se paran: puedes «subir los salarios» (cuesta oro) o «reprimir la huelga» (baja la estabilidad). Tras varias huelgas puede estallar una revolución que cambie el gobierno.</p></details>
           <details><summary>La guerra</summary>
-            <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Desde la Revolución Industrial, cada puerto con cuartel bota acorazados en guerra, que bombardean la costa enemiga. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan. «Anexionad X» lleva a tu ejército plaza por plaza hasta que el reino desaparezca; si está perdido (o eres mucho más fuerte), se rinde y es tuyo entero, y esas tierras no se rebelan enseguida. Los soldados rodean el mar y los lagos en vez de meterse a ahogarse. Desde la Era Moderna hay tanques y, con un aeródromo, aviones que despegan a bombardear.</p></details>
+            <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Desde la Revolución Industrial, cada puerto con cuartel bota acorazados en guerra, que bombardean la costa enemiga. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan. «Anexionad X» lleva a tu ejército plaza por plaza hasta que el reino desaparezca; si está perdido (o eres mucho más fuerte), se rinde y es tuyo entero, y esas tierras no se rebelan enseguida. Los soldados rodean el mar y los lagos en vez de meterse a ahogarse. Desde la Era Moderna hay tanques y, con un aeródromo, aviones que despegan a bombardear. Con el botón ⚔ (modo tropas) eliges a tus soldados arrastrando sobre el mapa y tocas dónde quieres que vayan: si es tierra enemiga, atacan. «Automático» los devuelve al ejército; con dos dedos mueves la cámara.</p></details>
           <details><summary>Jugar online</summary>
             <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba tienes el código, quién juega y un chat. Hace falta internet.</p></details>
           <details><summary>La guerra en el mar</summary>
@@ -125,12 +126,14 @@
         </div>
       </div>
       <div class="aviso-flotante" id="aviso-flotante" hidden></div>
+      <div class="tropas-barra hud" id="tropas-barra" role="toolbar" aria-label="Modo tropas" hidden></div>
       <div class="arquitecto hud" id="arquitecto" role="toolbar" aria-label="Modo arquitecto" hidden></div>
       <div class="corte hud" id="corte" role="dialog" aria-label="La corte: mejoras y edades" hidden></div>
       <div class="camara" role="group" aria-label="Cámara">
         <button type="button" class="mando cam batalla-btn" id="ir-batalla" aria-label="Ir a la batalla" title="Ir a la batalla más grande" hidden>⚔</button>
         <button type="button" class="mando cam" id="ir-mio" aria-label="Ir a tu pueblo" title="Ir a tu pueblo" hidden>⌂</button>
         <button type="button" class="mando cam" id="corte-btn" aria-label="La corte: mejoras y edades" title="La corte: mejoras de la edad y pasar a la siguiente" hidden>🏛</button>
+        <button type="button" class="mando cam" id="tropas-btn" aria-label="Modo tropas" title="Modo tropas: arrastra para elegir soldados y toca el mapa para mandarlos" aria-pressed="false" hidden>⚔</button>
         <button type="button" class="mando cam" id="fundar-btn" aria-label="Fundar un pueblo nuevo" title="Fundar pueblo: toca una tierra libre y tus colonos irán allí (en barco si está al otro lado del mar)" hidden>🏕</button>
         <button type="button" class="mando cam" id="arquitecto-btn" aria-label="Modo arquitecto" title="Modo arquitecto: toca el mapa para decir dónde va cada edificio o calle" aria-pressed="false" hidden>🏗</button>
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>

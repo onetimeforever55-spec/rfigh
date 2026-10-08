@@ -558,6 +558,12 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
   .g-voluntad { width: min(720px, calc(100% - 80px)); }
   body:not(.sin-panel) .g-voluntad { width: min(720px, calc(100% - 432px - 64px)); }
 }
+
+/* El modo tropas: una barra arriba con cuántos soldados hay elegidos y qué hacer con ellos. */
+.tropas-barra { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: 10px; width: min(640px, calc(100% - 24px)); background: rgba(10, 22, 14, 0.92); border: 1px solid rgba(109, 255, 122, 0.45); border-radius: 10px; padding: 8px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+.tropas-barra .tropas-texto { flex: 1 1 220px; font-size: 13px; color: #d8ffdc; }
+.tropas-barra button { font-size: 12px; }
+body.limpio .tropas-barra { display: none; }
 </style>
 </head>
 <body>
@@ -586,6 +592,7 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
         <div class="inicio-caja">
           <h2 class="inicio-titulo" id="inicio-titulo">¿Cómo quieres jugar?</h2>
           <p class="inicio-texto" id="inicio-texto">Puedes gobernar un solo pueblo con tus órdenes mientras los demás viven a su aire, o ser el dios de todos.</p>
+          <label class="inicio-libre">Reinos en el mundo: <select id="num-reinos"><option value="5">5</option><option value="8">8</option><option value="10">10 (para jugar online hasta 10)</option></select></label>
           <label class="inicio-libre"><input type="checkbox" id="mundo-libre"> Mundo libre: sin calendario histórico, los años pasan de uno en uno (como en WorldBox)</label>
           <div class="inicio-botones">
             <button type="button" class="obrar" id="modo-pueblo">Gobernar un pueblo</button>
@@ -639,7 +646,7 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
             <p>Con la Revolución Industrial aparecen vetas de carbón (rocas con manchas negras) en montañas y colinas, y en la Era Moderna bolsas de petróleo (manchas negras en el suelo). Los mineros sacan el carbón; sobre el petróleo se levanta un pozo («construid un pozo de petróleo»). Las fábricas, los trenes y las centrales queman carbón; los tanques, los aviones y los acorazados gastan petróleo. Sin combustible se paran. Los dos se compran y se venden en el mercado («comprad carbón»).</p>
             <p>El humo de las fábricas ensucia el aire y la gente enferma más; los parques lo limpian. Si la gente está descontenta, los obreros hacen huelga y las fábricas se paran: puedes «subir los salarios» (cuesta oro) o «reprimir la huelga» (baja la estabilidad). Tras varias huelgas puede estallar una revolución que cambie el gobierno.</p></details>
           <details><summary>La guerra</summary>
-            <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Desde la Revolución Industrial, cada puerto con cuartel bota acorazados en guerra, que bombardean la costa enemiga. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan. «Anexionad X» lleva a tu ejército plaza por plaza hasta que el reino desaparezca; si está perdido (o eres mucho más fuerte), se rinde y es tuyo entero, y esas tierras no se rebelan enseguida. Los soldados rodean el mar y los lagos en vez de meterse a ahogarse. Desde la Era Moderna hay tanques y, con un aeródromo, aviones que despegan a bombardear.</p></details>
+            <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Desde la Revolución Industrial, cada puerto con cuartel bota acorazados en guerra, que bombardean la costa enemiga. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan. «Anexionad X» lleva a tu ejército plaza por plaza hasta que el reino desaparezca; si está perdido (o eres mucho más fuerte), se rinde y es tuyo entero, y esas tierras no se rebelan enseguida. Los soldados rodean el mar y los lagos en vez de meterse a ahogarse. Desde la Era Moderna hay tanques y, con un aeródromo, aviones que despegan a bombardear. Con el botón ⚔ (modo tropas) eliges a tus soldados arrastrando sobre el mapa y tocas dónde quieres que vayan: si es tierra enemiga, atacan. «Automático» los devuelve al ejército; con dos dedos mueves la cámara.</p></details>
           <details><summary>Jugar online</summary>
             <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba tienes el código, quién juega y un chat. Hace falta internet.</p></details>
           <details><summary>La guerra en el mar</summary>
@@ -663,12 +670,14 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
         </div>
       </div>
       <div class="aviso-flotante" id="aviso-flotante" hidden></div>
+      <div class="tropas-barra hud" id="tropas-barra" role="toolbar" aria-label="Modo tropas" hidden></div>
       <div class="arquitecto hud" id="arquitecto" role="toolbar" aria-label="Modo arquitecto" hidden></div>
       <div class="corte hud" id="corte" role="dialog" aria-label="La corte: mejoras y edades" hidden></div>
       <div class="camara" role="group" aria-label="Cámara">
         <button type="button" class="mando cam batalla-btn" id="ir-batalla" aria-label="Ir a la batalla" title="Ir a la batalla más grande" hidden>⚔</button>
         <button type="button" class="mando cam" id="ir-mio" aria-label="Ir a tu pueblo" title="Ir a tu pueblo" hidden>⌂</button>
         <button type="button" class="mando cam" id="corte-btn" aria-label="La corte: mejoras y edades" title="La corte: mejoras de la edad y pasar a la siguiente" hidden>🏛</button>
+        <button type="button" class="mando cam" id="tropas-btn" aria-label="Modo tropas" title="Modo tropas: arrastra para elegir soldados y toca el mapa para mandarlos" aria-pressed="false" hidden>⚔</button>
         <button type="button" class="mando cam" id="fundar-btn" aria-label="Fundar un pueblo nuevo" title="Fundar pueblo: toca una tierra libre y tus colonos irán allí (en barco si está al otro lado del mar)" hidden>🏕</button>
         <button type="button" class="mando cam" id="arquitecto-btn" aria-label="Modo arquitecto" title="Modo arquitecto: toca el mapa para decir dónde va cada edificio o calle" aria-pressed="false" hidden>🏗</button>
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
@@ -1275,9 +1284,13 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
     const candidatas = [];
     for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.tipo[i] !== 'nieve' && fertil(m, i) >= 3) candidatas.push(i);
     candidatas.sort((a, b) => fertil(m, b) - fertil(m, a) + (azar(m) - 0.5));
+    // Lejos unos de otros; con muchos pueblos (hasta 10), se acepta que nazcan algo más cerca.
     const elegidas = [];
-    for (const i of candidatas) {
-      if (elegidas.every(j => distancia(i, j) >= 12)) elegidas.push(i);
+    for (const sep of [12, 10, 8, 6]) {
+      for (const i of candidatas) {
+        if (elegidas.length >= (numPueblos || 5)) break;
+        if (!elegidas.includes(i) && elegidas.every(j => distancia(i, j) >= sep)) elegidas.push(i);
+      }
       if (elegidas.length >= (numPueblos || 5)) break;
     }
     for (const cap of elegidas) {
@@ -4895,7 +4908,8 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
     }
     else if (a.o === GUERRERO && a.fijo && a.fijo.guardia != null) {
       // Un escuadrón con misión: monta guardia en su plaza (o marcha sobre la plaza enemiga que le mandaron).
-      const base = centro(m, a.fijo.guardia), dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 3) - 1;
+      // (Las tropas del jugador, al punto exacto que tocó y en formación.)
+      const base = a.fijo.punto != null ? a.fijo.punto : centro(m, a.fijo.guardia), dx = a.fijo.dx != null ? a.fijo.dx : (a.id % 3) - 1, dy = a.fijo.dy != null ? a.fijo.dy : (Math.floor(a.id / 3) % 3) - 1;
       t = base + dx + dy * v.tw;
       if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
       if (a.x === t % v.tw && a.y === (t / v.tw | 0)) { a.e = ESPERAR; a.t = 2; return; }
@@ -7296,6 +7310,38 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
   }
   const TIPOS_EXTRA = ['anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
+  // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
+  /*
+   * Los soldados elegidos van al punto tocado (en formación) y se quedan allí: pelean solos con lo que se les
+   * acerque y, si el punto es de un enemigo, van a por él (y el resto del ejército también apunta a esa plaza).
+   * Si el punto es de un reino con el que hay paz, se le declara la guerra. «Liberar» los devuelve a lo automático.
+   */
+  function aplicarTropas(m, c, a) {
+    const v = m.vida, p = plan(c);
+    if (!v) return '';
+    const ids = new Set(a.ids || []);
+    const suyos = v.aldeanos.filter(x => ids.has(x.id) && x.c === c.id && x.o === 4);
+    if (!suyos.length) return 'No hay soldados tuyos en la selección.';
+    if (a.tipo === 'tropas_libres') {
+      for (const x of suyos) if (x.fijo && x.fijo.rts) delete x.fijo;
+      (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚔ ' + suyos.length + ' soldados vuelven a lo automático' });
+      return suyos.length + ' soldados vuelven a moverse solos con el ejército.';
+    }
+    const t = a.t; if (t == null || t < 0 || t >= v.tw * v.th) return 'Ese sitio está fuera del mapa.';
+    const r = M.vida.region(m, t), d = S().civ(m, m.dueno[r]);
+    let texto = '';
+    if (d && d.id !== c.id) {
+      if (!S().enGuerra(c, d)) { S().declararGuerra(m, c, d, 'Por orden de su gobierno, ' + c.nombre + ' manda sus tropas contra ' + d.nombre + '.'); p.guerrasMias = [...new Set([...(p.guerrasMias || []), d.id])]; texto = '¡Guerra contra ' + d.nombre + '! '; }
+      // El resto del ejército también va a por esa plaza.
+      p.objetivo = r; p.defender = null;
+      if (v.ejercitos) delete v.ejercitos[c.id];
+    }
+    const ancho = Math.ceil(Math.sqrt(suyos.length));
+    suyos.forEach((x, k) => { x.fijo = { rts: 1, g: 'rts', vuelve: 4, guardia: r, punto: t, dx: (k % ancho) - (ancho >> 1), dy: Math.floor(k / ancho) - (ancho >> 1) }; x.e = 0; });
+    (v.anuncios = v.anuncios || []).push({ civ: c.id, region: r, texto: (d && d.id !== c.id ? '⚔ ¡Al ataque! ' : '🚩 ') + suyos.length + ' soldados ' + (d && d.id !== c.id ? 'contra ' + d.nombre : 'en marcha') });
+    return texto + suyos.length + ' soldados van ' + (d && d.id !== c.id ? 'a atacar a ' + d.nombre : d && d.id === c.id ? 'a defender ese sitio' : 'a ese sitio') + '.';
+  }
+
   // ---------- Del texto a las acciones ----------
   /*
    * ÓRDENES COMPUESTAS: «busquen hierro y saquen madera», «haced 3 casas y talad 10 árboles», «más comida,
@@ -7305,6 +7351,9 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
    * resultado partido si dice más que la frase entera; si no, vale lo de siempre.
    */
   function entender(m, civId, texto) {
+    // Las órdenes del modo tropas (las manda la vista al tocar el mapa): «#tropas 12,15,18 4096» o «#tropas-libres 12,15».
+    const tr = String(texto || '').trim().match(/^#tropas(-libres)? ([\d,]+)(?: (\d+))?$/);
+    if (tr) return [{ tipo: tr[1] ? 'tropas_libres' : 'tropas', ids: tr[2].split(',').map(Number).filter(n => n >= 0).slice(0, 400), t: tr[3] != null ? +tr[3] : null }];
     const entera = entenderUna(m, civId, texto);
     const trozos = String(texto || '').split(/\s*(?:[,;]|\by luego\b|\by despues\b|\by después\b|\by tambien\b|\by también\b|\bademas\b|\bademás\b|\by\b|\be\b(?=\s+[a-záéíóú]))\s*/i).map(x => x.trim()).filter(Boolean);
     if (trozos.length < 2) return entera;
@@ -7449,6 +7498,7 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
     const p = plan(c);
     for (const a of acciones || []) {
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
+      if (a.tipo === 'tropas' || a.tipo === 'tropas_libres') { textos.push(aplicarTropas(m, c, a)); continue; }
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
       else if (['comercio_libre', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'consulta_mercado', 'especialidad', 'oferta'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);
@@ -9187,6 +9237,11 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
   let efectos = [], tumbas = [], cartel = null;
   const punteros = new Map();
   let arrastre = null;
+  // EL MODO TROPAS (como en Age of Empires): { civ, sel: Set de ids, alCambiar(sel), alOrdenar(t) }; null para salir.
+  // Arrastrar con un dedo (o con el botón izquierdo) dibuja un recuadro que elige a tus soldados; tocar el mapa
+  // los manda allí. Con dos dedos (o con el botón derecho) se mueve la cámara.
+  let tropas = null, caja = null;
+  function modoTropas(o) { tropas = o ? Object.assign({ sel: new Set() }, o) : null; caja = null; }
 
   function iniciar(canvas, opciones) {
     cv = canvas; g = cv.getContext('2d');
@@ -9610,6 +9665,17 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
     avisoCorte(ahora, z, ox, oy, dpr);
     pintarAnuncios(z, ox, oy, dpr, performance.now());
     pintarCartel(ahora, dpr);
+    if (tropas) pintarTropas(ahora, z, ox, oy, dpr);
+  }
+  // El recuadro de selección y la bandera del sitio al que van las tropas.
+  let destino = null;
+  function marcarDestino(t) { destino = { t, desde: performance.now() }; }
+  function pintarTropas(ahora, z, ox, oy, dpr) {
+    if (caja) { const rect = cv.getBoundingClientRect(); const x = (Math.min(caja.x0, caja.x1) - rect.left) * dpr, y = (Math.min(caja.y0, caja.y1) - rect.top) * dpr, w = Math.abs(caja.x1 - caja.x0) * dpr, h = Math.abs(caja.y1 - caja.y0) * dpr; g.fillStyle = 'rgba(109,255,122,0.12)'; g.fillRect(x, y, w, h); g.strokeStyle = '#6dff7a'; g.lineWidth = 1.5 * dpr; g.strokeRect(x, y, w, h); }
+    if (destino && ahora - destino.desde < 1600) {
+      const v = m.vida, x = ((destino.t % v.tw) * P + P / 2) * z + ox, y = (Math.floor(destino.t / v.tw) * P + P / 2) * z + oy, f = (ahora - destino.desde) / 1600;
+      g.strokeStyle = 'rgba(109,255,122,' + (1 - f).toFixed(2) + ')'; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(x, y, (6 + 14 * f) * dpr, 0, Math.PI * 2); g.stroke();
+    }
   }
 
   function banderas(ahora) {
@@ -9897,6 +9963,8 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
       // A medio píxel (un píxel del dibujo): el movimiento es continuo y no va a saltos de casilla.
       px = Math.round(px * 2) / 2; py = Math.round(py * 2) / 2;
       dibujados.set(a.id, [px, py]);
+      // Modo tropas: un aro verde bajo cada soldado elegido.
+      if (tropas && tropas.sel.has(a.id)) { g.strokeStyle = '#6dff7a'; g.lineWidth = 1; g.beginPath(); g.ellipse(px + 1.5, py + 5.5, 4.5, 2, 0, 0, Math.PI * 2); g.stroke(); }
       if (elegido === a.id) { const f2 = Math.floor(performance.now() / 300) % 2; g.fillStyle = '#ffd23a'; g.fillRect(px, py - 6 - f2, 3, 1); g.fillRect(px + 1, py - 5 - f2, 1, 1); g.strokeStyle = 'rgba(255,210,58,0.8)'; g.lineWidth = 0.6; g.strokeRect(px - 2.5, py - 2, 8, 8.5); }
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
       const t = Math.floor(ahora / 150 + a.id) % 2;
@@ -11304,7 +11372,10 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
       punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       if (punteros.size === 1) arrastre = { x: ev.clientX, y: ev.clientY, cx: cam.x, cy: cam.y, movido: 0 };
       else arrastre = null;
+      caja = tropas && punteros.size === 1 && (ev.pointerType !== 'mouse' || ev.button === 0) ? { x0: ev.clientX, y0: ev.clientY, x1: ev.clientX, y1: ev.clientY } : null;
+      if (punteros.size > 1) caja = null;
     });
+    cv.addEventListener('contextmenu', ev => { if (tropas) ev.preventDefault(); });
     cv.addEventListener('pointermove', ev => {
       if (arqui) { const rect = cv.getBoundingClientRect(), { w, h } = vista(); arqui.wx = cam.x + (ev.clientX - rect.left - w / 2) / cam.z; arqui.wy = cam.y + (ev.clientY - rect.top - h / 2) / cam.z; }
       if (!punteros.has(ev.pointerId)) return;
@@ -11315,16 +11386,40 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
         const [c, d] = [...punteros.values()];
         const d1 = Math.hypot(c.x - d.x, c.y - d.y), rect = cv.getBoundingClientRect();
         if (d0 > 0) zoom(d1 / d0, (c.x + d.x) / 2 - rect.left, (c.y + d.y) / 2 - rect.top);
+        // (En el modo tropas, con dos dedos también se mueve la cámara.)
+        if (tropas) { cam.x -= ((c.x + d.x) - (a.x + b.x)) / 2 / cam.z; cam.y -= ((c.y + d.y) - (a.y + b.y)) / 2 / cam.z; limitar(); }
         return;
       }
       punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       if (!arrastre) return;
       arrastre.movido = Math.max(arrastre.movido, Math.hypot(ev.clientX - arrastre.x, ev.clientY - arrastre.y));
+      if (caja) { caja.x1 = ev.clientX; caja.y1 = ev.clientY; return; }
       cam.x = arrastre.cx - (ev.clientX - arrastre.x) / cam.z; cam.y = arrastre.cy - (ev.clientY - arrastre.y) / cam.z;
       limitar();
     });
     const soltar = ev => {
       const eraClic = arrastre && arrastre.movido < 6 && punteros.size === 1;
+      // Modo tropas: un recuadro elige soldados; un toque elige uno o los manda a ese sitio.
+      if (tropas && m && ev.type === 'pointerup' && punteros.size === 1 && (caja || eraClic)) {
+        punteros.delete(ev.pointerId); arrastre = null;
+        const rect = cv.getBoundingClientRect(), { w, h } = vista();
+        const aMundo = (sx, sy) => [cam.x + (sx - rect.left - w / 2) / cam.z, cam.y + (sy - rect.top - h / 2) / cam.z];
+        const mios = id => { const a = m.vida.aldeanos.find(x => x.id === id); return a && a.c === tropas.civ && a.o === 4; };
+        if (caja && !eraClic) {
+          const [ax, ay] = aMundo(Math.min(caja.x0, caja.x1), Math.min(caja.y0, caja.y1)), [bx, by] = aMundo(Math.max(caja.x0, caja.x1), Math.max(caja.y0, caja.y1));
+          tropas.sel = new Set(); for (const [id, [x, y]] of dibujados) if (x >= ax - 2 && x <= bx + 2 && y >= ay - 4 && y <= by + 2 && mios(id)) tropas.sel.add(id);
+        } else {
+          const [wx, wy] = aMundo(ev.clientX, ev.clientY);
+          let cerca = null, dmin = Math.max(5, 9 / cam.z);
+          for (const [id, [x, y]] of dibujados) { const d = Math.hypot(x + 1.5 - wx, y + 2.5 - wy); if (d < dmin && mios(id)) { dmin = d; cerca = id; } }
+          if (cerca != null) { if (tropas.sel.has(cerca)) tropas.sel.delete(cerca); else tropas.sel.add(cerca); }
+          else if (tropas.sel.size) { const tx = Math.floor(wx / P), ty = Math.floor(wy / P); if (tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th) { tropas.alOrdenar && tropas.alOrdenar(ty * m.vida.tw + tx); marcarDestino(ty * m.vida.tw + tx); } }
+        }
+        caja = null;
+        if (tropas.alCambiar) tropas.alCambiar(tropas.sel);
+        return;
+      }
+      caja = null;
       punteros.delete(ev.pointerId);
       if (eraClic && ev.type === 'pointerup' && alClicar && m) {
         const rect = cv.getBoundingClientRect(), { w, h } = vista();
@@ -11401,7 +11496,7 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/sonido.js
@@ -11534,11 +11629,13 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
     try { const d = JSON.parse(guardadaAntes || 'null'); if (d && d.version === 1 && d.tipo && d.civs && d.W === S.W && d.H === S.H && d.vida) return d; } catch (e) { /* mundo corrupto */ }
     return null;
   }
+  // Cuántos reinos tiene un mundo nuevo (5, 8 o 10): se elige en la pantalla de inicio y se recuerda.
+  function reinosElegidos() { let n = 5; try { n = +(localStorage.getItem('genesis.reinos') || 5); } catch (e) { /* sin preferencia */ } return [5, 8, 10].includes(n) ? n : 5; }
   function mundoNuevo() {
     let libre = false;
     try { libre = localStorage.getItem('genesis.libre') === '1'; } catch (e) { /* sin preferencia */ }
     // Las partidas nuevas van a ritmo pausado: de tribu a ciudad en unos diez minutos a 1×, no en dos.
-    m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, 5, { libre, ritmo: 3 });
+    m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, reinosElegidos(), { libre, ritmo: 3 });
     sel = null; ultimaCronista = 0;
     P.mundo(m); P.seleccionar(null);
   }
@@ -11550,6 +11647,7 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
     $('inicio-titulo').textContent = titulo || '¿Cómo quieres jugar?';
     $('inicio-texto').textContent = texto || 'Puedes gobernar un solo pueblo con tus órdenes mientras los demás viven a su aire, o ser el dios de todos.';
     $('mundo-libre').checked = !!m.libre;
+    $('num-reinos').value = String(reinosElegidos());
     $('inicio').hidden = false;
     corriendo = false; programar();
   }
@@ -11561,6 +11659,10 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
     // El mundo libre se puede activar en cualquier momento: desde ahora, los años pasan de uno en uno.
     const libre = $('mundo-libre').checked;
     try { localStorage.setItem('genesis.libre', libre ? '1' : '0'); } catch (e) { /* sin guardado */ }
+    // Si se pidió otro número de reinos y el mundo acaba de empezar, se crea uno nuevo con esos reinos.
+    const nReinos = +$('num-reinos').value || 5;
+    try { localStorage.setItem('genesis.reinos', String(nReinos)); } catch (e) { /* sin guardado */ }
+    if (m.turno < 3 && m.civs.length !== nReinos && red.modo !== 'invitado') { mundoNuevo(); }
     if (libre && !m.libre) { m.libre = true; if (m.anio < 1) m.anio = 1; }
     else if (!libre && m.libre) { m.libre = false; if (m.turno < 3) m.anio = -4000; } // un mundo recién creado vuelve al calendario histórico desde el principio
     m.modo = modo;
@@ -11588,6 +11690,8 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
     $('ir-mio').hidden = !c;
     $('arquitecto-btn').hidden = !c || !M.vida.pausada(m);
     $('fundar-btn').hidden = !c || !M.vida.pausada(m);
+    $('tropas-btn').hidden = !c;
+    if (!c && tropasActivas) salirTropas();
     $('corte-btn').hidden = !c;
     if ((!c || !M.vida.pausada(m)) && arquiClave) salirArquitecto();
     pintarEjemplos();
@@ -11816,6 +11920,7 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
   function abrirArquitecto() {
     const c = tuPueblo();
     if (!c) return;
+    if (tropasActivas) salirTropas();
     const V = M.vida, el = $('arquitecto');
     const nombre = k => k === 'templo' ? (c.era === 4 ? 'Iglesia' : c.era >= 5 && c.era <= 6 ? 'Catedral' : 'Templo') : k === 'saber' ? M.CASA_SABER(c.era).replace(/^./, x => x.toUpperCase()) : ARQUI.find(x => x[0] === k)[2];
     const coste = k => { if (k === 'camino') return 'gratis'; if (k === 'colonia') return '3 colonos'; const q = V.COSTES[V.OBRA[k]] || [0, 0, 0]; return [q[0] ? q[0] + '🪵' : '', q[1] ? q[1] + '🪨' : '', q[2] ? q[2] + '🪙' : ''].filter(Boolean).join(' ') || 'gratis'; };
@@ -11843,6 +11948,40 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
       if (ayuda) ayuda.textContent = r.ok ? (r.quitado ? 'Quitado.' : 'Encargado: ' + ((c.plan.encargos || []).length) + ' obra' + ((c.plan.encargos || []).length === 1 ? '' : 's') + ' en cola. Toca otra vez para quitarlo.') : 'No: ' + r.razon + '.';
     } });
   }
+  // ---------- El modo tropas: eliges soldados en el mapa y los mandas a un sitio (como en Age of Empires) ----------
+  let tropasActivas = false;
+  function pintarBarraTropas(sel) {
+    const el = $('tropas-barra'), c = tuPueblo();
+    if (!el || !c) return;
+    const n = sel ? sel.size : P.tropasElegidas().length, total = m.vida.aldeanos.filter(a => a.c === c.id && a.o === 4).length;
+    el.innerHTML = '<span class="tropas-texto">⚔ <b>' + n + '</b> de ' + total + ' soldados elegidos · ' + (n ? 'toca el mapa para mandarlos (si es tierra enemiga, atacan)' : 'arrastra sobre el mapa para elegir soldados') + '</span>' +
+      '<button type="button" class="mando" data-t="todos">Todos</button><button type="button" class="mando" data-t="ninguno">Ninguno</button>' +
+      '<button type="button" class="mando" data-t="auto"' + (n ? '' : ' disabled') + ' title="Que vuelvan a moverse solos con el ejército">Automático</button><button type="button" class="mando sutil" data-t="salir">Salir</button>';
+    el.hidden = false;
+    const cab = document.querySelector('.g-cab');
+    el.style.top = movil() ? '' : Math.round((cab ? cab.getBoundingClientRect().bottom : 0) + 8) + 'px';
+    el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      const t = b.dataset.t, c2 = tuPueblo(); if (!c2) return;
+      if (t === 'todos') P.elegirTropas(m.vida.aldeanos.filter(a => a.c === c2.id && a.o === 4).map(a => a.id));
+      else if (t === 'ninguno') P.elegirTropas([]);
+      else if (t === 'auto') { acabarTurno(); const r = X.ordenar(m, c2.id, '#tropas-libres ' + P.tropasElegidas().join(',')); if (r && r.respuesta) avisoFlotante(r.respuesta, 3000); P.elegirTropas([]); }
+      else if (t === 'salir') salirTropas();
+    }));
+  }
+  function abrirTropas() {
+    const c = tuPueblo(); if (!c) return;
+    if (arquiClave || !$('arquitecto').hidden) salirArquitecto();
+    tropasActivas = true; $('tropas-btn').setAttribute('aria-pressed', 'true'); document.body.classList.add('tropas-abierto');
+    P.modoTropas({ civ: c.id, alCambiar: sel => pintarBarraTropas(sel), alOrdenar: t => {
+      const c2 = tuPueblo(), ids = P.tropasElegidas(); if (!c2 || !ids.length) return;
+      acabarTurno();
+      const r = X.ordenar(m, c2.id, '#tropas ' + ids.join(',') + ' ' + t);
+      if (r && r.respuesta) avisoFlotante(r.respuesta, 3500);
+      pintarTodo();
+    } });
+    pintarBarraTropas(new Set());
+  }
+  function salirTropas() { tropasActivas = false; P.modoTropas(null); const el = $('tropas-barra'); if (el) el.hidden = true; $('tropas-btn').setAttribute('aria-pressed', 'false'); document.body.classList.remove('tropas-abierto'); }
   function salirArquitecto() { document.body.classList.remove('arqui-abierto'); arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
   // ---------- La pestaña Mercado: precios del mundo, a qué se dedica el reino, sus socios y sus tratos ----------
   const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡', semillas: '🌰', granadas: '💣' })[k] });
@@ -12959,6 +13098,7 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
     document.addEventListener('click', ev => { if (document.body.classList.contains('menu-abierto') && !ev.target.closest('#mas-menu')) { document.body.classList.remove('menu-abierto'); $('mas-menu').setAttribute('aria-expanded', 'false'); } });
     setInterval(navActiva, 1500);
     $('ver-ideas').addEventListener('click', () => { const e = $('ejemplos'); e.hidden = !e.hidden; $('ver-ideas').setAttribute('aria-expanded', e.hidden ? 'false' : 'true'); });
+    $('tropas-btn').addEventListener('click', () => { if (tropasActivas) salirTropas(); else abrirTropas(); });
     $('fundar-btn').addEventListener('click', () => { if (arquiClave === 'colonia') salirArquitecto(); else { arquiClave = 'colonia'; ponerArquitecto(); abrirArquitecto(); } });
     $('arquitecto-btn').addEventListener('click', () => { if (arquiClave || !$('arquitecto').hidden) salirArquitecto(); else abrirArquitecto(); });
     $('ir-batalla').addEventListener('click', irABatalla);

@@ -39,6 +39,11 @@
   let efectos = [], tumbas = [], cartel = null;
   const punteros = new Map();
   let arrastre = null;
+  // EL MODO TROPAS (como en Age of Empires): { civ, sel: Set de ids, alCambiar(sel), alOrdenar(t) }; null para salir.
+  // Arrastrar con un dedo (o con el botón izquierdo) dibuja un recuadro que elige a tus soldados; tocar el mapa
+  // los manda allí. Con dos dedos (o con el botón derecho) se mueve la cámara.
+  let tropas = null, caja = null;
+  function modoTropas(o) { tropas = o ? Object.assign({ sel: new Set() }, o) : null; caja = null; }
 
   function iniciar(canvas, opciones) {
     cv = canvas; g = cv.getContext('2d');
@@ -462,6 +467,17 @@
     avisoCorte(ahora, z, ox, oy, dpr);
     pintarAnuncios(z, ox, oy, dpr, performance.now());
     pintarCartel(ahora, dpr);
+    if (tropas) pintarTropas(ahora, z, ox, oy, dpr);
+  }
+  // El recuadro de selección y la bandera del sitio al que van las tropas.
+  let destino = null;
+  function marcarDestino(t) { destino = { t, desde: performance.now() }; }
+  function pintarTropas(ahora, z, ox, oy, dpr) {
+    if (caja) { const rect = cv.getBoundingClientRect(); const x = (Math.min(caja.x0, caja.x1) - rect.left) * dpr, y = (Math.min(caja.y0, caja.y1) - rect.top) * dpr, w = Math.abs(caja.x1 - caja.x0) * dpr, h = Math.abs(caja.y1 - caja.y0) * dpr; g.fillStyle = 'rgba(109,255,122,0.12)'; g.fillRect(x, y, w, h); g.strokeStyle = '#6dff7a'; g.lineWidth = 1.5 * dpr; g.strokeRect(x, y, w, h); }
+    if (destino && ahora - destino.desde < 1600) {
+      const v = m.vida, x = ((destino.t % v.tw) * P + P / 2) * z + ox, y = (Math.floor(destino.t / v.tw) * P + P / 2) * z + oy, f = (ahora - destino.desde) / 1600;
+      g.strokeStyle = 'rgba(109,255,122,' + (1 - f).toFixed(2) + ')'; g.lineWidth = 2 * dpr; g.beginPath(); g.arc(x, y, (6 + 14 * f) * dpr, 0, Math.PI * 2); g.stroke();
+    }
   }
 
   function banderas(ahora) {
@@ -749,6 +765,8 @@
       // A medio píxel (un píxel del dibujo): el movimiento es continuo y no va a saltos de casilla.
       px = Math.round(px * 2) / 2; py = Math.round(py * 2) / 2;
       dibujados.set(a.id, [px, py]);
+      // Modo tropas: un aro verde bajo cada soldado elegido.
+      if (tropas && tropas.sel.has(a.id)) { g.strokeStyle = '#6dff7a'; g.lineWidth = 1; g.beginPath(); g.ellipse(px + 1.5, py + 5.5, 4.5, 2, 0, 0, Math.PI * 2); g.stroke(); }
       if (elegido === a.id) { const f2 = Math.floor(performance.now() / 300) % 2; g.fillStyle = '#ffd23a'; g.fillRect(px, py - 6 - f2, 3, 1); g.fillRect(px + 1, py - 5 - f2, 1, 1); g.strokeStyle = 'rgba(255,210,58,0.8)'; g.lineWidth = 0.6; g.strokeRect(px - 2.5, py - 2, 8, 8.5); }
       const anda = r && r.length >= 6 && (r[paso * 3] !== r[Math.min(r.length - 3, paso * 3 + 3)] || r[paso * 3 + 1] !== r[Math.min(r.length - 3, paso * 3 + 3) + 1]);
       const t = Math.floor(ahora / 150 + a.id) % 2;
@@ -2156,7 +2174,10 @@
       punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       if (punteros.size === 1) arrastre = { x: ev.clientX, y: ev.clientY, cx: cam.x, cy: cam.y, movido: 0 };
       else arrastre = null;
+      caja = tropas && punteros.size === 1 && (ev.pointerType !== 'mouse' || ev.button === 0) ? { x0: ev.clientX, y0: ev.clientY, x1: ev.clientX, y1: ev.clientY } : null;
+      if (punteros.size > 1) caja = null;
     });
+    cv.addEventListener('contextmenu', ev => { if (tropas) ev.preventDefault(); });
     cv.addEventListener('pointermove', ev => {
       if (arqui) { const rect = cv.getBoundingClientRect(), { w, h } = vista(); arqui.wx = cam.x + (ev.clientX - rect.left - w / 2) / cam.z; arqui.wy = cam.y + (ev.clientY - rect.top - h / 2) / cam.z; }
       if (!punteros.has(ev.pointerId)) return;
@@ -2167,16 +2188,40 @@
         const [c, d] = [...punteros.values()];
         const d1 = Math.hypot(c.x - d.x, c.y - d.y), rect = cv.getBoundingClientRect();
         if (d0 > 0) zoom(d1 / d0, (c.x + d.x) / 2 - rect.left, (c.y + d.y) / 2 - rect.top);
+        // (En el modo tropas, con dos dedos también se mueve la cámara.)
+        if (tropas) { cam.x -= ((c.x + d.x) - (a.x + b.x)) / 2 / cam.z; cam.y -= ((c.y + d.y) - (a.y + b.y)) / 2 / cam.z; limitar(); }
         return;
       }
       punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       if (!arrastre) return;
       arrastre.movido = Math.max(arrastre.movido, Math.hypot(ev.clientX - arrastre.x, ev.clientY - arrastre.y));
+      if (caja) { caja.x1 = ev.clientX; caja.y1 = ev.clientY; return; }
       cam.x = arrastre.cx - (ev.clientX - arrastre.x) / cam.z; cam.y = arrastre.cy - (ev.clientY - arrastre.y) / cam.z;
       limitar();
     });
     const soltar = ev => {
       const eraClic = arrastre && arrastre.movido < 6 && punteros.size === 1;
+      // Modo tropas: un recuadro elige soldados; un toque elige uno o los manda a ese sitio.
+      if (tropas && m && ev.type === 'pointerup' && punteros.size === 1 && (caja || eraClic)) {
+        punteros.delete(ev.pointerId); arrastre = null;
+        const rect = cv.getBoundingClientRect(), { w, h } = vista();
+        const aMundo = (sx, sy) => [cam.x + (sx - rect.left - w / 2) / cam.z, cam.y + (sy - rect.top - h / 2) / cam.z];
+        const mios = id => { const a = m.vida.aldeanos.find(x => x.id === id); return a && a.c === tropas.civ && a.o === 4; };
+        if (caja && !eraClic) {
+          const [ax, ay] = aMundo(Math.min(caja.x0, caja.x1), Math.min(caja.y0, caja.y1)), [bx, by] = aMundo(Math.max(caja.x0, caja.x1), Math.max(caja.y0, caja.y1));
+          tropas.sel = new Set(); for (const [id, [x, y]] of dibujados) if (x >= ax - 2 && x <= bx + 2 && y >= ay - 4 && y <= by + 2 && mios(id)) tropas.sel.add(id);
+        } else {
+          const [wx, wy] = aMundo(ev.clientX, ev.clientY);
+          let cerca = null, dmin = Math.max(5, 9 / cam.z);
+          for (const [id, [x, y]] of dibujados) { const d = Math.hypot(x + 1.5 - wx, y + 2.5 - wy); if (d < dmin && mios(id)) { dmin = d; cerca = id; } }
+          if (cerca != null) { if (tropas.sel.has(cerca)) tropas.sel.delete(cerca); else tropas.sel.add(cerca); }
+          else if (tropas.sel.size) { const tx = Math.floor(wx / P), ty = Math.floor(wy / P); if (tx >= 0 && ty >= 0 && tx < m.vida.tw && ty < m.vida.th) { tropas.alOrdenar && tropas.alOrdenar(ty * m.vida.tw + tx); marcarDestino(ty * m.vida.tw + tx); } }
+        }
+        caja = null;
+        if (tropas.alCambiar) tropas.alCambiar(tropas.sel);
+        return;
+      }
+      caja = null;
       punteros.delete(ev.pointerId);
       if (eraClic && ev.type === 'pointerup' && alClicar && m) {
         const rect = cv.getBoundingClientRect(), { w, h } = vista();
@@ -2253,5 +2298,5 @@
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});

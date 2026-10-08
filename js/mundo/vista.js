@@ -49,11 +49,13 @@
     try { const d = JSON.parse(guardadaAntes || 'null'); if (d && d.version === 1 && d.tipo && d.civs && d.W === S.W && d.H === S.H && d.vida) return d; } catch (e) { /* mundo corrupto */ }
     return null;
   }
+  // Cuántos reinos tiene un mundo nuevo (5, 8 o 10): se elige en la pantalla de inicio y se recuerda.
+  function reinosElegidos() { let n = 5; try { n = +(localStorage.getItem('genesis.reinos') || 5); } catch (e) { /* sin preferencia */ } return [5, 8, 10].includes(n) ? n : 5; }
   function mundoNuevo() {
     let libre = false;
     try { libre = localStorage.getItem('genesis.libre') === '1'; } catch (e) { /* sin preferencia */ }
     // Las partidas nuevas van a ritmo pausado: de tribu a ciudad en unos diez minutos a 1×, no en dos.
-    m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, 5, { libre, ritmo: 3 });
+    m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, reinosElegidos(), { libre, ritmo: 3 });
     sel = null; ultimaCronista = 0;
     P.mundo(m); P.seleccionar(null);
   }
@@ -65,6 +67,7 @@
     $('inicio-titulo').textContent = titulo || '¿Cómo quieres jugar?';
     $('inicio-texto').textContent = texto || 'Puedes gobernar un solo pueblo con tus órdenes mientras los demás viven a su aire, o ser el dios de todos.';
     $('mundo-libre').checked = !!m.libre;
+    $('num-reinos').value = String(reinosElegidos());
     $('inicio').hidden = false;
     corriendo = false; programar();
   }
@@ -76,6 +79,10 @@
     // El mundo libre se puede activar en cualquier momento: desde ahora, los años pasan de uno en uno.
     const libre = $('mundo-libre').checked;
     try { localStorage.setItem('genesis.libre', libre ? '1' : '0'); } catch (e) { /* sin guardado */ }
+    // Si se pidió otro número de reinos y el mundo acaba de empezar, se crea uno nuevo con esos reinos.
+    const nReinos = +$('num-reinos').value || 5;
+    try { localStorage.setItem('genesis.reinos', String(nReinos)); } catch (e) { /* sin guardado */ }
+    if (m.turno < 3 && m.civs.length !== nReinos && red.modo !== 'invitado') { mundoNuevo(); }
     if (libre && !m.libre) { m.libre = true; if (m.anio < 1) m.anio = 1; }
     else if (!libre && m.libre) { m.libre = false; if (m.turno < 3) m.anio = -4000; } // un mundo recién creado vuelve al calendario histórico desde el principio
     m.modo = modo;
@@ -103,6 +110,8 @@
     $('ir-mio').hidden = !c;
     $('arquitecto-btn').hidden = !c || !M.vida.pausada(m);
     $('fundar-btn').hidden = !c || !M.vida.pausada(m);
+    $('tropas-btn').hidden = !c;
+    if (!c && tropasActivas) salirTropas();
     $('corte-btn').hidden = !c;
     if ((!c || !M.vida.pausada(m)) && arquiClave) salirArquitecto();
     pintarEjemplos();
@@ -331,6 +340,7 @@
   function abrirArquitecto() {
     const c = tuPueblo();
     if (!c) return;
+    if (tropasActivas) salirTropas();
     const V = M.vida, el = $('arquitecto');
     const nombre = k => k === 'templo' ? (c.era === 4 ? 'Iglesia' : c.era >= 5 && c.era <= 6 ? 'Catedral' : 'Templo') : k === 'saber' ? M.CASA_SABER(c.era).replace(/^./, x => x.toUpperCase()) : ARQUI.find(x => x[0] === k)[2];
     const coste = k => { if (k === 'camino') return 'gratis'; if (k === 'colonia') return '3 colonos'; const q = V.COSTES[V.OBRA[k]] || [0, 0, 0]; return [q[0] ? q[0] + '🪵' : '', q[1] ? q[1] + '🪨' : '', q[2] ? q[2] + '🪙' : ''].filter(Boolean).join(' ') || 'gratis'; };
@@ -358,6 +368,40 @@
       if (ayuda) ayuda.textContent = r.ok ? (r.quitado ? 'Quitado.' : 'Encargado: ' + ((c.plan.encargos || []).length) + ' obra' + ((c.plan.encargos || []).length === 1 ? '' : 's') + ' en cola. Toca otra vez para quitarlo.') : 'No: ' + r.razon + '.';
     } });
   }
+  // ---------- El modo tropas: eliges soldados en el mapa y los mandas a un sitio (como en Age of Empires) ----------
+  let tropasActivas = false;
+  function pintarBarraTropas(sel) {
+    const el = $('tropas-barra'), c = tuPueblo();
+    if (!el || !c) return;
+    const n = sel ? sel.size : P.tropasElegidas().length, total = m.vida.aldeanos.filter(a => a.c === c.id && a.o === 4).length;
+    el.innerHTML = '<span class="tropas-texto">⚔ <b>' + n + '</b> de ' + total + ' soldados elegidos · ' + (n ? 'toca el mapa para mandarlos (si es tierra enemiga, atacan)' : 'arrastra sobre el mapa para elegir soldados') + '</span>' +
+      '<button type="button" class="mando" data-t="todos">Todos</button><button type="button" class="mando" data-t="ninguno">Ninguno</button>' +
+      '<button type="button" class="mando" data-t="auto"' + (n ? '' : ' disabled') + ' title="Que vuelvan a moverse solos con el ejército">Automático</button><button type="button" class="mando sutil" data-t="salir">Salir</button>';
+    el.hidden = false;
+    const cab = document.querySelector('.g-cab');
+    el.style.top = movil() ? '' : Math.round((cab ? cab.getBoundingClientRect().bottom : 0) + 8) + 'px';
+    el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      const t = b.dataset.t, c2 = tuPueblo(); if (!c2) return;
+      if (t === 'todos') P.elegirTropas(m.vida.aldeanos.filter(a => a.c === c2.id && a.o === 4).map(a => a.id));
+      else if (t === 'ninguno') P.elegirTropas([]);
+      else if (t === 'auto') { acabarTurno(); const r = X.ordenar(m, c2.id, '#tropas-libres ' + P.tropasElegidas().join(',')); if (r && r.respuesta) avisoFlotante(r.respuesta, 3000); P.elegirTropas([]); }
+      else if (t === 'salir') salirTropas();
+    }));
+  }
+  function abrirTropas() {
+    const c = tuPueblo(); if (!c) return;
+    if (arquiClave || !$('arquitecto').hidden) salirArquitecto();
+    tropasActivas = true; $('tropas-btn').setAttribute('aria-pressed', 'true'); document.body.classList.add('tropas-abierto');
+    P.modoTropas({ civ: c.id, alCambiar: sel => pintarBarraTropas(sel), alOrdenar: t => {
+      const c2 = tuPueblo(), ids = P.tropasElegidas(); if (!c2 || !ids.length) return;
+      acabarTurno();
+      const r = X.ordenar(m, c2.id, '#tropas ' + ids.join(',') + ' ' + t);
+      if (r && r.respuesta) avisoFlotante(r.respuesta, 3500);
+      pintarTodo();
+    } });
+    pintarBarraTropas(new Set());
+  }
+  function salirTropas() { tropasActivas = false; P.modoTropas(null); const el = $('tropas-barra'); if (el) el.hidden = true; $('tropas-btn').setAttribute('aria-pressed', 'false'); document.body.classList.remove('tropas-abierto'); }
   function salirArquitecto() { document.body.classList.remove('arqui-abierto'); arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
   // ---------- La pestaña Mercado: precios del mundo, a qué se dedica el reino, sus socios y sus tratos ----------
   const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡', semillas: '🌰', granadas: '💣' })[k] });
@@ -1474,6 +1518,7 @@
     document.addEventListener('click', ev => { if (document.body.classList.contains('menu-abierto') && !ev.target.closest('#mas-menu')) { document.body.classList.remove('menu-abierto'); $('mas-menu').setAttribute('aria-expanded', 'false'); } });
     setInterval(navActiva, 1500);
     $('ver-ideas').addEventListener('click', () => { const e = $('ejemplos'); e.hidden = !e.hidden; $('ver-ideas').setAttribute('aria-expanded', e.hidden ? 'false' : 'true'); });
+    $('tropas-btn').addEventListener('click', () => { if (tropasActivas) salirTropas(); else abrirTropas(); });
     $('fundar-btn').addEventListener('click', () => { if (arquiClave === 'colonia') salirArquitecto(); else { arquiClave = 'colonia'; ponerArquitecto(); abrirArquitecto(); } });
     $('arquitecto-btn').addEventListener('click', () => { if (arquiClave || !$('arquitecto').hidden) salirArquitecto(); else abrirArquitecto(); });
     $('ir-batalla').addEventListener('click', irABatalla);
