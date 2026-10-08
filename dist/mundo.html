@@ -530,6 +530,17 @@ table.mercado td:first-child { white-space: nowrap; }
 .online-chat { flex: 1; min-width: 120px; }
 .online-chat input { width: 100%; font-size: 14px; padding: 4px 8px; }
 @media (max-width: 899px) { .online-barra { top: calc(max(6px, env(safe-area-inset-top)) + 96px); font-size: 12px; } .online-jugadores { max-width: 160px; } }
+
+/* El desglose de la comida (al tocar el trigo de la barra). */
+.rec.comida { cursor: pointer; }
+.desglose { position: fixed; z-index: 30; width: 280px; max-width: calc(100% - 16px); background: rgba(13, 19, 34, 0.96); border: 1px solid var(--oro); padding: 10px 12px; font-size: 13px; box-shadow: 0 0 0 2px var(--px-negro, #000), 4px 4px 0 rgba(0,0,0,0.4); }
+.desglose[hidden] { display: none; }
+.desglose-tit { font-family: var(--f-pixel, monospace); color: var(--oro); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.desglose-fila { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 2px 8px; margin: 4px 0; }
+.desglose-fila .desglose-barra { grid-column: 2 / 4; height: 4px; background: rgba(255,255,255,0.08); }
+.desglose-fila .desglose-barra i { display: block; height: 100%; background: var(--oro); }
+.desglose-fila img.px, .desglose-tit img.px { width: 16px; height: 16px; image-rendering: pixelated; }
+.desglose-pie { margin-top: 6px; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -594,7 +605,7 @@ table.mercado td:first-child { white-space: nowrap; }
           <details><summary>Las órdenes</summary>
             <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. Puedes juntar varias en una frase: «buscad hierro y sacad madera», «haced 3 casas y talad 10 árboles». El consejero te sugiere la orden que más falta hace: tócala para escribirla.</p></details>
           <details><summary>Comida y molinos</summary>
-            <p>Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
+            <p>Toca el trigo de la barra para ver de dónde sale la comida: grano, pescado (barcas), carne (caza), leche (rebaños) y frutos. El puerto, con su barca y su mercante, se puede hacer desde el principio. Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
           <details><summary>La corte y las eras</summary>
             <p>Toca tu plaza o el botón 🏛 para abrir la corte. Ahí eliges qué investigan tus sabios. Para pasar a la era siguiente hacen falta 3 mejoras de la era actual, el saber suficiente, haber llegado a su fecha y lo que pida (un templo, un cuartel, recursos…). Tu gobierno ahorra y pasa de era solo en cuanto se puede (si prefieres decidirlo tú: «no paséis de edad solos», y luego «Avanzar»). Sobre la plaza sale ⏫ si ya puedes avanzar, o ? si los sabios esperan que elijas.</p></details>
           <details><summary>Gente y salud</summary>
@@ -3177,9 +3188,9 @@ table.mercado td:first-child { white-space: nowrap; }
   // Madera, piedra y oro de cada edificio; y el nivel de asentamiento que hace falta (aldea, pueblo, villa).
   const COSTES = { [OBRA.casa]: [2, 0, 0], [OBRA.saber]: [6, 2, 0], [OBRA.torre]: [6, 4, 4], [OBRA.templo]: [8, 6, 10], [OBRA.molino]: [3, 0, 0], [OBRA.puerto]: [10, 0, 8], [OBRA.cuartel]: [10, 6, 12], [OBRA.arqueria]: [10, 2, 8], [OBRA.castillo]: [16, 24, 30], [OBRA.pozo]: [2, 4, 0], [OBRA.granero]: [8, 2, 0], [OBRA.fuente]: [2, 8, 4], [OBRA.parque]: [4, 2, 6], [OBRA.palacio]: [20, 30, 40], [OBRA.central]: [10, 30, 45], [OBRA.banco]: [6, 14, 20], [OBRA.fabrica]: [14, 20, 25], [OBRA.estacion]: [16, 14, 20], [OBRA.hospital]: [10, 16, 20], [OBRA.aerodromo]: [12, 24, 30], [OBRA.aduana]: [6, 10, 8], [OBRA.petroleo]: [8, 10, 12], [OBRA.mina]: [8, 2, 2] };
   const TRABAJO = { [OBRA.casa]: 2, [OBRA.saber]: 4, [OBRA.torre]: 4, [OBRA.templo]: 6, [OBRA.molino]: 3, [OBRA.puerto]: 4, [OBRA.cuartel]: 5, [OBRA.arqueria]: 4, [OBRA.castillo]: 12, [OBRA.pozo]: 2, [OBRA.granero]: 3, [OBRA.fuente]: 4, [OBRA.parque]: 3, [OBRA.palacio]: 14, [OBRA.central]: 10, [OBRA.banco]: 6, [OBRA.fabrica]: 8, [OBRA.estacion]: 7, [OBRA.hospital]: 6, [OBRA.aerodromo]: 8, [OBRA.ayuntamiento]: 6, [OBRA.aduana]: 4, [OBRA.petroleo]: 5, [OBRA.mina]: 5 };
-  const NIVEL_OBRA = { [OBRA.saber]: 1, [OBRA.torre]: 1, [OBRA.puerto]: 1, [OBRA.templo]: 2, [OBRA.cuartel]: 2, [OBRA.arqueria]: 2, [OBRA.castillo]: 3, [OBRA.molino]: 0, [OBRA.pozo]: 0, [OBRA.granero]: 1, [OBRA.fuente]: 2, [OBRA.parque]: 3, [OBRA.palacio]: 4, [OBRA.central]: 4, [OBRA.banco]: 3, [OBRA.fabrica]: 3, [OBRA.estacion]: 3, [OBRA.hospital]: 3, [OBRA.aerodromo]: 4, [OBRA.aduana]: 2, [OBRA.petroleo]: 1, [OBRA.mina]: 0 };
+  const NIVEL_OBRA = { [OBRA.saber]: 1, [OBRA.torre]: 1, [OBRA.puerto]: 0, [OBRA.templo]: 2, [OBRA.cuartel]: 2, [OBRA.arqueria]: 2, [OBRA.castillo]: 3, [OBRA.molino]: 0, [OBRA.pozo]: 0, [OBRA.granero]: 1, [OBRA.fuente]: 2, [OBRA.parque]: 3, [OBRA.palacio]: 4, [OBRA.central]: 4, [OBRA.banco]: 3, [OBRA.fabrica]: 3, [OBRA.estacion]: 3, [OBRA.hospital]: 3, [OBRA.aerodromo]: 4, [OBRA.aduana]: 2, [OBRA.petroleo]: 1, [OBRA.mina]: 0 };
   // Desde qué edad existe cada edificio: no hay parques en el Neolítico ni centrales eléctricas en una aldea.
-  const ERA_OBRA = { [OBRA.torre]: 1, [OBRA.templo]: 1, [OBRA.puerto]: 1, [OBRA.cuartel]: 1, [OBRA.arqueria]: 1, [OBRA.castillo]: 2, [OBRA.fuente]: 1, [OBRA.palacio]: 1, [OBRA.parque]: 3, [OBRA.central]: 7, [OBRA.banco]: 5, [OBRA.fabrica]: 6, [OBRA.estacion]: 6, [OBRA.hospital]: 7, [OBRA.aerodromo]: 8, [OBRA.aduana]: 6, [OBRA.petroleo]: 7, [OBRA.mina]: 1 };
+  const ERA_OBRA = { [OBRA.torre]: 1, [OBRA.templo]: 1, [OBRA.puerto]: 0, [OBRA.cuartel]: 1, [OBRA.arqueria]: 1, [OBRA.castillo]: 2, [OBRA.fuente]: 1, [OBRA.palacio]: 1, [OBRA.parque]: 3, [OBRA.central]: 7, [OBRA.banco]: 5, [OBRA.fabrica]: 6, [OBRA.estacion]: 6, [OBRA.hospital]: 7, [OBRA.aerodromo]: 8, [OBRA.aduana]: 6, [OBRA.petroleo]: 7, [OBRA.mina]: 1 };
   const NOMBRE_ERA = ['el Neolítico', 'la Edad del Bronce', 'la Edad del Hierro', 'la Antigüedad clásica', 'la Edad Media', 'el Renacimiento', 'la Revolución Industrial', 'la Era Moderna', 'la II Guerra Mundial'];
   /*
    * EL ALUMBRADO de las calles, según la época y lo que haya (no se construye: llega con el progreso):
@@ -3524,7 +3535,7 @@ table.mercado td:first-child { white-space: nowrap; }
         const sitio = sitioPetroleo(m, c, ter);
         if (sitio != null) pide.unshift([OBRA.petroleo, () => sitio]);
       }
-      if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
+      if (!tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
       // Lo que la gente necesita de verdad (agua, sitio para el grano, una plaza, un parque, un palacio), según el pueblo.
       if (pausada(m)) for (const n of (c.necesidades || [])) if (n.falta && n.region === r && !tiene(OBRA[n.obra]) && !pide.some(x => x[0] === OBRA[n.obra])) {
         const o = OBRA[n.obra];
@@ -3574,7 +3585,7 @@ table.mercado td:first-child { white-space: nowrap; }
   function navegable(ter, t) { return ter[t] === 'agua' || ter[t] === 'bajo'; }
   function rutaPorMar(m, de, a, ter) {
     const v = m.vida, prev = new Map([[de, -1]]), cola = [de];
-    for (let i = 0; i < cola.length && cola.length < 14000; i++) {
+    for (let i = 0; i < cola.length; i++) {
       const t = cola[i];
       if (t === a) break;
       const x = t % v.tw;
@@ -3602,7 +3613,9 @@ table.mercado td:first-child { white-space: nowrap; }
       if (!c) continue;
       const agua = aguaJunto(m, t, ter);
       if (agua == null) continue;
-      for (const tipo of c.era >= 3 ? ['pesca', 'mercante'] : ['pesca']) {
+      // Desde el principio, cada puerto tiene su barca de pesca y su mercante (canoas en el Neolítico): para un
+      // pueblo isleño el mar es el único camino para comerciar y crecer.
+      for (const tipo of ['pesca', 'mercante']) {
         if (v.barcos.some(b => b.puerto === t && b.tipo === tipo)) continue;
         v.barcos.push({ id: v.sig++, tipo, c: c.id, puerto: t, x: agua % v.tw, y: agua / v.tw | 0, ruta: null, i: 0, vuelta: 0, r: [] });
       }
@@ -3680,7 +3693,7 @@ table.mercado td:first-child { white-space: nowrap; }
         const n = (b.y + dy) * v.tw + b.x + dx;
         if (b.x + dx >= 0 && b.x + dx < v.tw && n >= 0 && n < ter.length && navegable(ter, n) && dist(m, n, base) <= 7) { b.x += dx; b.y += dy; break; }
       }
-      if (azar(v) < 0.15) c.comida = (c.comida || 0) + 1;
+      if (azar(v) < 0.15) alimento(c, 'pescado', 1);
     } else {
       if (!b.ruta) {
         if (azar(v) < 0.7) { b.r.push(b.x, b.y); return; }
@@ -4091,6 +4104,7 @@ table.mercado td:first-child { white-space: nowrap; }
     }
     // La leña de cada día: cocinar, calentarse y, desde la Edad del Hierro, las forjas; en la era industrial, el carbón vegetal.
     for (const c of S().vivas(m)) c.madera = Math.max(0, c.madera - Math.sqrt(Math.max(0, c.pob)) * 0.18 * (1 + c.era * 0.3) * (v.estacion === 3 ? 2 : 1));
+    for (const c of S().vivas(m)) desglose(c);
   }
   const mapa = (o, f) => { const r = {}; for (const k of Object.keys(o)) r[k] = f(o[k]); return r; };
 
@@ -4743,7 +4757,7 @@ table.mercado td:first-child { white-space: nowrap; }
       // Descarga en la aldea: aquí entra la madera y la piedra en la economía del pueblo.
       const h = c.hecho = c.hecho || {};
       if (a.o === LENADOR) { c.madera += a.k; h.madera = (h.madera || 0) + a.k; }
-      else if (a.kt === 3) { c.comida = (c.comida || 0) + a.k; h.comida = (h.comida || 0) + a.k; a.kt = 0; } // el trigo llega al molino (o a casa)
+      else if (a.kt === 3) { alimento(c, 'grano', a.k); h.comida = (h.comida || 0) + a.k; a.kt = 0; } // el trigo llega al molino (o a casa)
       else if (a.o === MINERO) { if (a.kt === 1) { c.metal = (c.metal || 0) + a.k; h.metal = (h.metal || 0) + a.k; } else if (a.kt === 2) { c.oro = (c.oro || 0) + a.k; c.riqueza += 6 * a.k; h.oro = (h.oro || 0) + a.k; } else if (a.kt === 4) { c.carbon = (c.carbon || 0) + a.k; h.carbon = (h.carbon || 0) + a.k; } else { c.piedra += a.k; c.riqueza += a.k * 0.3; h.piedra = (h.piedra || 0) + a.k; } a.kt = 0; }
       a.k = 0; a.e = ESPERAR; a.t = 1;
       return;
@@ -4826,9 +4840,9 @@ table.mercado td:first-child { white-space: nowrap; }
           // Tres lanzadas (o tiros); si no cae, huye herido y otro día será.
           let muere = false;
           for (let q = 0; q < 3 && !muere; q++) if (azar(v) < 0.6) muere = golpear(v, a, b, Math.round((12 + c.era * 3) * (0.8 + azar(v) * 0.4) * (tieneR(a, 'fuerte') ? 1.2 : 1)), paso, a.x, a.y);
-          if (muere) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + 4 * (1 + M.tec(c, 'caza')); }
+          if (muere) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); alimento(c, 'carne', 4 * (1 + M.tec(c, 'caza'))); }
         }
-        else { c.comida = (c.comida || 0) + (seca ? 0.6 : 1.2) * (1 + M.tec(c, 'caza')); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
+        else { alimento(c, 'carne', (seca ? 0.6 : 1.2) * (1 + M.tec(c, 'caza'))); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
       }
       return;
     }
@@ -4838,8 +4852,8 @@ table.mercado td:first-child { white-space: nowrap; }
       a.pastor = null;
       if (b && dist(m, t, b.y * v.tw + b.x) <= 4) {
         const rebano = v.animales.filter(x => x.c === c.id && x.tipo === b.tipo).length;
-        if ((c.comida || 0) < hab * 0.2 && rebano > 3) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 9 : 5); }
-        else c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 1.5 : 0.8) * (c.efectos.some(e => e.sequia) ? 0.4 : 1);
+        if ((c.comida || 0) < hab * 0.2 && rebano > 3) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); alimento(c, 'carne', b.tipo === 'vaca' ? 9 : 5); }
+        else alimento(c, 'leche', (b.tipo === 'vaca' ? 1.5 : 0.8) * (c.efectos.some(e => e.sequia) ? 0.4 : 1));
       }
       return;
     }
@@ -5133,6 +5147,23 @@ table.mercado td:first-child { white-space: nowrap; }
    * COMER: cada aldeano se come su ración del granero (los niños, media). Si el granero se vacía, la gente
    * pasa hambre; quien lleva tres turnos sin comer, muere. Al final, la población del reino son sus aldeanos.
    */
+  // La comida tiene su origen: grano (campos y molinos), pescado (barcas), carne (caza y sacrificio), leche y
+  // queso (rebaños) y frutos del bosque. Todo alimenta igual (va a c.comida); el desglose solo cuenta de dónde sale.
+  const ALIMENTOS = ['grano', 'pescado', 'carne', 'leche', 'frutos'];
+  function alimento(c, k, q) {
+    if (!(q > 0)) return;
+    c.comida = (c.comida || 0) + q;
+    const al = c.alimentos = c.alimentos || {};
+    al[k] = (al[k] || 0) + q;
+  }
+  // Lo que se come sale de todo a partes iguales; lo que entra sin origen (comercio, poderes) cuenta como grano.
+  function desglose(c) {
+    const al = c.alimentos = c.alimentos || {}, total = Math.max(0, c.comida || 0);
+    let suma = 0; for (const k of ALIMENTOS) suma += al[k] || 0;
+    if (suma > total && suma > 0) { const f = total / suma; for (const k of ALIMENTOS) al[k] = (al[k] || 0) * f; }
+    else if (suma < total) al.grano = (al.grano || 0) + (total - suma);
+    return al;
+  }
   function comer(m) {
     const v = m.vida, porCiv = {};
     for (const a of v.aldeanos) (porCiv[a.c] = porCiv[a.c] || []).push(a);
@@ -5145,7 +5176,8 @@ table.mercado td:first-child { white-space: nowrap; }
       const seca = c.efectos.some(e => e.sequia), fertil = Math.min(1.5, S().fertil(m, c.capital) / 2) * (seca ? 0.3 : 1);
       let recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * fertil * (v.estacion === 3 ? 0.45 : v.estacion === 2 ? 1.3 : 1);
 
-      c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
+      if (c.comida == null) c.comida = 30;
+      alimento(c, 'frutos', recogen); c.comida -= racion;
       if (c.comida < 0) {
         c.comida = 0;
         for (const a of lista) { a.hambre = (a.hambre || 0) + 1; a.desnutricion = Math.min(12, (a.desnutricion || 0) + 1); }
@@ -5641,7 +5673,7 @@ table.mercado td:first-child { white-space: nowrap; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -8517,6 +8549,10 @@ table.mercado td:first-child { white-space: nowrap; }
 
   // ---------- Iconos de la interfaz (12×12 píxeles, con contorno): recursos, estaciones y secciones ----------
   const ICONOS = {
+    pescado: H => { H.r(2, 5, 7, 3, '#7aa8c8'); H.r(3, 4, 5, 1, '#9ac4e0'); H.r(3, 8, 5, 1, '#5a88a8'); H.r(9, 4, 2, 1, '#5a88a8'); H.r(9, 8, 2, 1, '#5a88a8'); H.p(10, 5, '#5a88a8'); H.p(10, 7, '#5a88a8'); H.p(3, 5, '#1a1a1a'); H.r(5, 6, 3, 1, '#c8e0f0'); },
+    carne: H => { H.r(3, 3, 6, 6, '#c84a3a'); H.r(4, 2, 4, 1, '#c84a3a'); H.r(4, 9, 3, 1, '#a83a2a'); H.r(4, 4, 3, 2, '#e87a6a'); H.r(8, 8, 2, 1, '#f0e8dc'); H.r(9, 9, 2, 2, '#f0e8dc'); H.p(11, 10, '#f0e8dc'); },
+    leche: H => { H.r(4, 3, 4, 1, '#c8c8d0'); H.r(3, 4, 6, 7, '#f4f4f8'); H.r(3, 4, 1, 7, '#d8d8e0'); H.r(4, 6, 4, 2, '#7aa8e0'); H.r(5, 1, 2, 2, '#d8d8e0'); },
+    frutos: H => { H.r(3, 5, 4, 4, '#d83a3a'); H.p(4, 6, '#f08a7a'); H.r(7, 4, 3, 3, '#8a3ac8'); H.r(6, 8, 3, 3, '#e8a83a'); H.p(5, 4, '#4a8a3a'); H.p(6, 3, '#4a8a3a'); },
     granadas: H => { H.r(3, 4, 6, 7, '#3e4a2a'); H.r(4, 3, 4, 9, '#3e4a2a'); H.r(4, 5, 4, 1, '#56643a'); H.r(4, 8, 4, 1, '#56643a'); H.r(5, 1, 2, 2, '#8a8a90'); H.r(7, 1, 3, 1, '#8a8a90'); H.p(9, 2, '#c8c8d0'); H.p(4, 4, '#6a7a48'); },
     semillas: H => { H.r(3, 3, 6, 7, '#c8a86a'); H.r(3, 3, 6, 1, '#e0c890'); H.r(4, 2, 4, 1, '#a8885a'); H.p(5, 1, '#6a4a2a'); for (const [x, y] of [[4, 6], [6, 5], [7, 7], [5, 8]]) H.p(x, y, '#7a5a2a'); H.p(8, 1, '#4a9a3a'); H.p(9, 0, '#5ab04a'); H.p(7, 0, '#5ab04a'); },
     muebles: H => { H.r(2, 2, 2, 9, '#8a5a2a'); H.r(2, 6, 7, 2, '#a8743a'); H.r(7, 8, 2, 3, '#8a5a2a'); H.r(2, 6, 7, 1, '#c89a5a'); H.r(2, 2, 2, 1, '#c89a5a'); },
@@ -10990,8 +11026,24 @@ table.mercado td:first-child { white-space: nowrap; }
   // la gente y las camas, el nivel del asentamiento y lo que se investiga.
   const recursoAntes = {};
   // Iconos de píxeles (arte.js) en lugar de emojis, para que la interfaz sea del mismo mundo que el mapa.
-  const ICO_PX = { '💣': 'granadas', '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
+  const ICO_PX = { '🐟': 'pescado', '🍖': 'carne', '🥛': 'leche', '🍎': 'frutos', '💣': 'granadas', '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
   const px = (n, cls) => M.arte && M.arte.iconoURL ? '<img class="px' + (cls ? ' ' + cls : '') + '" alt="" src="' + M.arte.iconoURL(n) + '">' : '';
+  // Al tocar la comida, de qué está hecha: grano, pescado, carne, leche y queso, frutos del bosque.
+  const NOMBRE_ALIMENTO = { grano: ['🌾', 'Grano y cosecha', 'campos y molinos'], pescado: ['🐟', 'Pescado', 'barcas de pesca'], carne: ['🍖', 'Carne', 'caza y reses sacrificadas'], leche: ['🥛', 'Leche y queso', 'rebaños'], frutos: ['🍎', 'Frutos del bosque', 'recolección'] };
+  function desgloseComida(ancla) {
+    const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null); if (!c) return;
+    let caja = $('desglose-comida');
+    if (caja && !caja.hidden) { caja.hidden = true; return; }
+    if (!caja) { caja = document.createElement('div'); caja.id = 'desglose-comida'; caja.className = 'desglose'; document.body.appendChild(caja); caja.addEventListener('click', () => { caja.hidden = true; }); }
+    const al = M.vida.desglose ? M.vida.desglose(c) : {}, total = Math.max(1e-9, c.comida || 0);
+    caja.innerHTML = '<div class="desglose-tit">' + px('comida') + ' Comida de ' + esc(c.nombre) + ': ' + Math.round(c.comida || 0) + '</div>' + (M.vida.ALIMENTOS || []).map(k => {
+      const q = al[k] || 0, [ico, nom, de] = NOMBRE_ALIMENTO[k], pc = Math.round(100 * q / total);
+      return '<div class="desglose-fila' + (q < 0.5 ? ' tenue' : '') + '">' + px(ICO_PX[ico]) + '<span class="desglose-nom">' + nom + ' <small class="tenue">(' + de + ')</small></span><b>' + Math.round(q) + '</b><span class="desglose-barra"><i style="width:' + pc + '%"></i></span></div>';
+    }).join('') + '<div class="desglose-pie tenue">Todo alimenta igual; en el mercado se vende y se compra como comida.</div>';
+    const r0 = ancla.getBoundingClientRect();
+    caja.style.left = Math.max(8, Math.min(window.innerWidth - 290, r0.left)) + 'px'; caja.style.top = (r0.bottom + 6) + 'px';
+    caja.hidden = false;
+  }
   function pintarRecursos() {
     const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null), el = $('recursos');
     if (!c || !c.viva) { el.hidden = true; return; }
@@ -11010,7 +11062,7 @@ table.mercado td:first-child { white-space: nowrap; }
     el.innerHTML =
       (est >= 0 ? chip(ESTA[est][0], ESTA[est][1] + (hora ? ' <small class="tenue">' + hora + '</small>' : ''), ESTA[est][1] + ': ' + ESTA[est][2] + '. Cada estación dura 12 turnos; de cada 6 turnos, uno es de noche y la gente duerme en casa.', 'estacion') : '') +
       chip('🪙', r(oro), 'Oro del tesoro: impuestos ' + (c.ingresos || 0).toFixed(1) + ' − sueldos y mantenimiento ' + (c.gastos || 0).toFixed(1) + (c.mecenazgo ? ' − ' + c.mecenazgo.toFixed(1) + ' para los sabios' : '') + ' por turno', oro < 0 ? 'mal' : 'oro', sig(neto, true)) +
-      chip('🌾', r(c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe)', (c.comida || 0) < (c.aldeanos || 0) * 0.3 ? 'mal' : '', sig(dC)) +
+      chip('🌾', r(c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe). Tócala para ver de dónde sale: grano, pescado, carne, leche y frutos', 'comida' + ((c.comida || 0) < (c.aldeanos || 0) * 0.3 ? ' mal' : ''), sig(dC)) +
       chip('🪵', r(c.madera || 0), 'Madera', '', sig(dM)) +
       chip('🪨', r(c.piedra || 0), 'Piedra', '', sig(dP)) +
       (c.era >= 1 ? chip('⛓', r(c.metal || 0), 'Metal (armas, armaduras, vehículos)' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.metal.toFixed(2) : ''), '', sig(dMe)) : '') +
@@ -12300,7 +12352,7 @@ table.mercado td:first-child { white-space: nowrap; }
     $('arquitecto-btn').addEventListener('click', () => { if (arquiClave || !$('arquitecto').hidden) salirArquitecto(); else abrirArquitecto(); });
     $('ir-batalla').addEventListener('click', irABatalla);
     $('corte-btn').addEventListener('click', () => { const c = tuPueblo(); if (corteDe != null) cerrarCorte(); else if (c) abrirCorte(c.id); });
-    $('recursos').addEventListener('click', ev => { const ch = ev.target.closest('.rec.tec, .rec.oro'); const c = tuPueblo(); if (ch && c && (ch.classList.contains('tec') || /Avanzar|avanzar|edad/i.test(ch.title))) abrirCorte(c.id); });
+    $('recursos').addEventListener('click', ev => { const cm = ev.target.closest('.rec.comida'); if (cm) { desgloseComida(cm); return; } const ch = ev.target.closest('.rec.tec, .rec.oro'); const c = tuPueblo(); if (ch && c && (ch.classList.contains('tec') || /Avanzar|avanzar|edad/i.test(ch.title))) abrirCorte(c.id); });
     $('ir-mio').addEventListener('click', () => { const c = tuPueblo(); if (c) P.centrarEn(c.capital, 3); });
     $('marcador').addEventListener('click', () => { panelAbierto(true); abrirHoja('retos'); });
     $('fin-seguir').addEventListener('click', () => { $('fin').hidden = true; if (!tuPueblo()) pedirModo('Elige otro pueblo', 'Tu pueblo ya no existe. Gobierna otro o sigue mirando como dios.'); else { corriendo = true; programar(); } });

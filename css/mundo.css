@@ -509,3 +509,14 @@ table.mercado td:first-child { white-space: nowrap; }
 .online-chat { flex: 1; min-width: 120px; }
 .online-chat input { width: 100%; font-size: 14px; padding: 4px 8px; }
 @media (max-width: 899px) { .online-barra { top: calc(max(6px, env(safe-area-inset-top)) + 96px); font-size: 12px; } .online-jugadores { max-width: 160px; } }
+
+/* El desglose de la comida (al tocar el trigo de la barra). */
+.rec.comida { cursor: pointer; }
+.desglose { position: fixed; z-index: 30; width: 280px; max-width: calc(100% - 16px); background: rgba(13, 19, 34, 0.96); border: 1px solid var(--oro); padding: 10px 12px; font-size: 13px; box-shadow: 0 0 0 2px var(--px-negro, #000), 4px 4px 0 rgba(0,0,0,0.4); }
+.desglose[hidden] { display: none; }
+.desglose-tit { font-family: var(--f-pixel, monospace); color: var(--oro); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.desglose-fila { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 2px 8px; margin: 4px 0; }
+.desglose-fila .desglose-barra { grid-column: 2 / 4; height: 4px; background: rgba(255,255,255,0.08); }
+.desglose-fila .desglose-barra i { display: block; height: 100%; background: var(--oro); }
+.desglose-fila img.px, .desglose-tit img.px { width: 16px; height: 16px; image-rendering: pixelated; }
+.desglose-pie { margin-top: 6px; font-size: 11px; }

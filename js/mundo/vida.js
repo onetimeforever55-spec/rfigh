@@ -1267,9 +1267,9 @@
   // Madera, piedra y oro de cada edificio; y el nivel de asentamiento que hace falta (aldea, pueblo, villa).
   const COSTES = { [OBRA.casa]: [2, 0, 0], [OBRA.saber]: [6, 2, 0], [OBRA.torre]: [6, 4, 4], [OBRA.templo]: [8, 6, 10], [OBRA.molino]: [3, 0, 0], [OBRA.puerto]: [10, 0, 8], [OBRA.cuartel]: [10, 6, 12], [OBRA.arqueria]: [10, 2, 8], [OBRA.castillo]: [16, 24, 30], [OBRA.pozo]: [2, 4, 0], [OBRA.granero]: [8, 2, 0], [OBRA.fuente]: [2, 8, 4], [OBRA.parque]: [4, 2, 6], [OBRA.palacio]: [20, 30, 40], [OBRA.central]: [10, 30, 45], [OBRA.banco]: [6, 14, 20], [OBRA.fabrica]: [14, 20, 25], [OBRA.estacion]: [16, 14, 20], [OBRA.hospital]: [10, 16, 20], [OBRA.aerodromo]: [12, 24, 30], [OBRA.aduana]: [6, 10, 8], [OBRA.petroleo]: [8, 10, 12], [OBRA.mina]: [8, 2, 2] };
   const TRABAJO = { [OBRA.casa]: 2, [OBRA.saber]: 4, [OBRA.torre]: 4, [OBRA.templo]: 6, [OBRA.molino]: 3, [OBRA.puerto]: 4, [OBRA.cuartel]: 5, [OBRA.arqueria]: 4, [OBRA.castillo]: 12, [OBRA.pozo]: 2, [OBRA.granero]: 3, [OBRA.fuente]: 4, [OBRA.parque]: 3, [OBRA.palacio]: 14, [OBRA.central]: 10, [OBRA.banco]: 6, [OBRA.fabrica]: 8, [OBRA.estacion]: 7, [OBRA.hospital]: 6, [OBRA.aerodromo]: 8, [OBRA.ayuntamiento]: 6, [OBRA.aduana]: 4, [OBRA.petroleo]: 5, [OBRA.mina]: 5 };
-  const NIVEL_OBRA = { [OBRA.saber]: 1, [OBRA.torre]: 1, [OBRA.puerto]: 1, [OBRA.templo]: 2, [OBRA.cuartel]: 2, [OBRA.arqueria]: 2, [OBRA.castillo]: 3, [OBRA.molino]: 0, [OBRA.pozo]: 0, [OBRA.granero]: 1, [OBRA.fuente]: 2, [OBRA.parque]: 3, [OBRA.palacio]: 4, [OBRA.central]: 4, [OBRA.banco]: 3, [OBRA.fabrica]: 3, [OBRA.estacion]: 3, [OBRA.hospital]: 3, [OBRA.aerodromo]: 4, [OBRA.aduana]: 2, [OBRA.petroleo]: 1, [OBRA.mina]: 0 };
+  const NIVEL_OBRA = { [OBRA.saber]: 1, [OBRA.torre]: 1, [OBRA.puerto]: 0, [OBRA.templo]: 2, [OBRA.cuartel]: 2, [OBRA.arqueria]: 2, [OBRA.castillo]: 3, [OBRA.molino]: 0, [OBRA.pozo]: 0, [OBRA.granero]: 1, [OBRA.fuente]: 2, [OBRA.parque]: 3, [OBRA.palacio]: 4, [OBRA.central]: 4, [OBRA.banco]: 3, [OBRA.fabrica]: 3, [OBRA.estacion]: 3, [OBRA.hospital]: 3, [OBRA.aerodromo]: 4, [OBRA.aduana]: 2, [OBRA.petroleo]: 1, [OBRA.mina]: 0 };
   // Desde qué edad existe cada edificio: no hay parques en el Neolítico ni centrales eléctricas en una aldea.
-  const ERA_OBRA = { [OBRA.torre]: 1, [OBRA.templo]: 1, [OBRA.puerto]: 1, [OBRA.cuartel]: 1, [OBRA.arqueria]: 1, [OBRA.castillo]: 2, [OBRA.fuente]: 1, [OBRA.palacio]: 1, [OBRA.parque]: 3, [OBRA.central]: 7, [OBRA.banco]: 5, [OBRA.fabrica]: 6, [OBRA.estacion]: 6, [OBRA.hospital]: 7, [OBRA.aerodromo]: 8, [OBRA.aduana]: 6, [OBRA.petroleo]: 7, [OBRA.mina]: 1 };
+  const ERA_OBRA = { [OBRA.torre]: 1, [OBRA.templo]: 1, [OBRA.puerto]: 0, [OBRA.cuartel]: 1, [OBRA.arqueria]: 1, [OBRA.castillo]: 2, [OBRA.fuente]: 1, [OBRA.palacio]: 1, [OBRA.parque]: 3, [OBRA.central]: 7, [OBRA.banco]: 5, [OBRA.fabrica]: 6, [OBRA.estacion]: 6, [OBRA.hospital]: 7, [OBRA.aerodromo]: 8, [OBRA.aduana]: 6, [OBRA.petroleo]: 7, [OBRA.mina]: 1 };
   const NOMBRE_ERA = ['el Neolítico', 'la Edad del Bronce', 'la Edad del Hierro', 'la Antigüedad clásica', 'la Edad Media', 'el Renacimiento', 'la Revolución Industrial', 'la Era Moderna', 'la II Guerra Mundial'];
   /*
    * EL ALUMBRADO de las calles, según la época y lo que haya (no se construye: llega con el progreso):
@@ -1614,7 +1614,7 @@
         const sitio = sitioPetroleo(m, c, ter);
         if (sitio != null) pide.unshift([OBRA.petroleo, () => sitio]);
       }
-      if (c.era >= 1 && !tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
+      if (!tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
       // Lo que la gente necesita de verdad (agua, sitio para el grano, una plaza, un parque, un palacio), según el pueblo.
       if (pausada(m)) for (const n of (c.necesidades || [])) if (n.falta && n.region === r && !tiene(OBRA[n.obra]) && !pide.some(x => x[0] === OBRA[n.obra])) {
         const o = OBRA[n.obra];
@@ -1664,7 +1664,7 @@
   function navegable(ter, t) { return ter[t] === 'agua' || ter[t] === 'bajo'; }
   function rutaPorMar(m, de, a, ter) {
     const v = m.vida, prev = new Map([[de, -1]]), cola = [de];
-    for (let i = 0; i < cola.length && cola.length < 14000; i++) {
+    for (let i = 0; i < cola.length; i++) {
       const t = cola[i];
       if (t === a) break;
       const x = t % v.tw;
@@ -1692,7 +1692,9 @@
       if (!c) continue;
       const agua = aguaJunto(m, t, ter);
       if (agua == null) continue;
-      for (const tipo of c.era >= 3 ? ['pesca', 'mercante'] : ['pesca']) {
+      // Desde el principio, cada puerto tiene su barca de pesca y su mercante (canoas en el Neolítico): para un
+      // pueblo isleño el mar es el único camino para comerciar y crecer.
+      for (const tipo of ['pesca', 'mercante']) {
         if (v.barcos.some(b => b.puerto === t && b.tipo === tipo)) continue;
         v.barcos.push({ id: v.sig++, tipo, c: c.id, puerto: t, x: agua % v.tw, y: agua / v.tw | 0, ruta: null, i: 0, vuelta: 0, r: [] });
       }
@@ -1770,7 +1772,7 @@
         const n = (b.y + dy) * v.tw + b.x + dx;
         if (b.x + dx >= 0 && b.x + dx < v.tw && n >= 0 && n < ter.length && navegable(ter, n) && dist(m, n, base) <= 7) { b.x += dx; b.y += dy; break; }
       }
-      if (azar(v) < 0.15) c.comida = (c.comida || 0) + 1;
+      if (azar(v) < 0.15) alimento(c, 'pescado', 1);
     } else {
       if (!b.ruta) {
         if (azar(v) < 0.7) { b.r.push(b.x, b.y); return; }
@@ -2181,6 +2183,7 @@
     }
     // La leña de cada día: cocinar, calentarse y, desde la Edad del Hierro, las forjas; en la era industrial, el carbón vegetal.
     for (const c of S().vivas(m)) c.madera = Math.max(0, c.madera - Math.sqrt(Math.max(0, c.pob)) * 0.18 * (1 + c.era * 0.3) * (v.estacion === 3 ? 2 : 1));
+    for (const c of S().vivas(m)) desglose(c);
   }
   const mapa = (o, f) => { const r = {}; for (const k of Object.keys(o)) r[k] = f(o[k]); return r; };
 
@@ -2833,7 +2836,7 @@
       // Descarga en la aldea: aquí entra la madera y la piedra en la economía del pueblo.
       const h = c.hecho = c.hecho || {};
       if (a.o === LENADOR) { c.madera += a.k; h.madera = (h.madera || 0) + a.k; }
-      else if (a.kt === 3) { c.comida = (c.comida || 0) + a.k; h.comida = (h.comida || 0) + a.k; a.kt = 0; } // el trigo llega al molino (o a casa)
+      else if (a.kt === 3) { alimento(c, 'grano', a.k); h.comida = (h.comida || 0) + a.k; a.kt = 0; } // el trigo llega al molino (o a casa)
       else if (a.o === MINERO) { if (a.kt === 1) { c.metal = (c.metal || 0) + a.k; h.metal = (h.metal || 0) + a.k; } else if (a.kt === 2) { c.oro = (c.oro || 0) + a.k; c.riqueza += 6 * a.k; h.oro = (h.oro || 0) + a.k; } else if (a.kt === 4) { c.carbon = (c.carbon || 0) + a.k; h.carbon = (h.carbon || 0) + a.k; } else { c.piedra += a.k; c.riqueza += a.k * 0.3; h.piedra = (h.piedra || 0) + a.k; } a.kt = 0; }
       a.k = 0; a.e = ESPERAR; a.t = 1;
       return;
@@ -2916,9 +2919,9 @@
           // Tres lanzadas (o tiros); si no cae, huye herido y otro día será.
           let muere = false;
           for (let q = 0; q < 3 && !muere; q++) if (azar(v) < 0.6) muere = golpear(v, a, b, Math.round((12 + c.era * 3) * (0.8 + azar(v) * 0.4) * (tieneR(a, 'fuerte') ? 1.2 : 1)), paso, a.x, a.y);
-          if (muere) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + 4 * (1 + M.tec(c, 'caza')); }
+          if (muere) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); alimento(c, 'carne', 4 * (1 + M.tec(c, 'caza'))); }
         }
-        else { c.comida = (c.comida || 0) + (seca ? 0.6 : 1.2) * (1 + M.tec(c, 'caza')); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
+        else { alimento(c, 'carne', (seca ? 0.6 : 1.2) * (1 + M.tec(c, 'caza'))); if (azar(v) < 0.15) v.animales = v.animales.filter(x => x !== b); }
       }
       return;
     }
@@ -2928,8 +2931,8 @@
       a.pastor = null;
       if (b && dist(m, t, b.y * v.tw + b.x) <= 4) {
         const rebano = v.animales.filter(x => x.c === c.id && x.tipo === b.tipo).length;
-        if ((c.comida || 0) < hab * 0.2 && rebano > 3) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 9 : 5); }
-        else c.comida = (c.comida || 0) + (b.tipo === 'vaca' ? 1.5 : 0.8) * (c.efectos.some(e => e.sequia) ? 0.4 : 1);
+        if ((c.comida || 0) < hab * 0.2 && rebano > 3) { v.animales = v.animales.filter(x => x !== b); v.muertos.push([b.x, b.y, null, 'animal', paso, b]); alimento(c, 'carne', b.tipo === 'vaca' ? 9 : 5); }
+        else alimento(c, 'leche', (b.tipo === 'vaca' ? 1.5 : 0.8) * (c.efectos.some(e => e.sequia) ? 0.4 : 1));
       }
       return;
     }
@@ -3223,6 +3226,23 @@
    * COMER: cada aldeano se come su ración del granero (los niños, media). Si el granero se vacía, la gente
    * pasa hambre; quien lleva tres turnos sin comer, muere. Al final, la población del reino son sus aldeanos.
    */
+  // La comida tiene su origen: grano (campos y molinos), pescado (barcas), carne (caza y sacrificio), leche y
+  // queso (rebaños) y frutos del bosque. Todo alimenta igual (va a c.comida); el desglose solo cuenta de dónde sale.
+  const ALIMENTOS = ['grano', 'pescado', 'carne', 'leche', 'frutos'];
+  function alimento(c, k, q) {
+    if (!(q > 0)) return;
+    c.comida = (c.comida || 0) + q;
+    const al = c.alimentos = c.alimentos || {};
+    al[k] = (al[k] || 0) + q;
+  }
+  // Lo que se come sale de todo a partes iguales; lo que entra sin origen (comercio, poderes) cuenta como grano.
+  function desglose(c) {
+    const al = c.alimentos = c.alimentos || {}, total = Math.max(0, c.comida || 0);
+    let suma = 0; for (const k of ALIMENTOS) suma += al[k] || 0;
+    if (suma > total && suma > 0) { const f = total / suma; for (const k of ALIMENTOS) al[k] = (al[k] || 0) * f; }
+    else if (suma < total) al.grano = (al.grano || 0) + (total - suma);
+    return al;
+  }
   function comer(m) {
     const v = m.vida, porCiv = {};
     for (const a of v.aldeanos) (porCiv[a.c] = porCiv[a.c] || []).push(a);
@@ -3235,7 +3255,8 @@
       const seca = c.efectos.some(e => e.sequia), fertil = Math.min(1.5, S().fertil(m, c.capital) / 2) * (seca ? 0.3 : 1);
       let recogen = lista.filter(a => !esNino(a) && a.o !== GUERRERO).length * 0.1 * fertil * (v.estacion === 3 ? 0.45 : v.estacion === 2 ? 1.3 : 1);
 
-      c.comida = (c.comida == null ? 30 : c.comida) + recogen - racion;
+      if (c.comida == null) c.comida = 30;
+      alimento(c, 'frutos', recogen); c.comida -= racion;
       if (c.comida < 0) {
         c.comida = 0;
         for (const a of lista) { a.hambre = (a.hambre || 0) + 1; a.desnutricion = Math.min(12, (a.desnutricion || 0) + 1); }
@@ -3731,5 +3752,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

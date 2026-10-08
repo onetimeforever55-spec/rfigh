@@ -138,8 +138,24 @@
   // la gente y las camas, el nivel del asentamiento y lo que se investiga.
   const recursoAntes = {};
   // Iconos de píxeles (arte.js) en lugar de emojis, para que la interfaz sea del mismo mundo que el mapa.
-  const ICO_PX = { '💣': 'granadas', '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
+  const ICO_PX = { '🐟': 'pescado', '🍖': 'carne', '🥛': 'leche', '🍎': 'frutos', '💣': 'granadas', '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
   const px = (n, cls) => M.arte && M.arte.iconoURL ? '<img class="px' + (cls ? ' ' + cls : '') + '" alt="" src="' + M.arte.iconoURL(n) + '">' : '';
+  // Al tocar la comida, de qué está hecha: grano, pescado, carne, leche y queso, frutos del bosque.
+  const NOMBRE_ALIMENTO = { grano: ['🌾', 'Grano y cosecha', 'campos y molinos'], pescado: ['🐟', 'Pescado', 'barcas de pesca'], carne: ['🍖', 'Carne', 'caza y reses sacrificadas'], leche: ['🥛', 'Leche y queso', 'rebaños'], frutos: ['🍎', 'Frutos del bosque', 'recolección'] };
+  function desgloseComida(ancla) {
+    const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null); if (!c) return;
+    let caja = $('desglose-comida');
+    if (caja && !caja.hidden) { caja.hidden = true; return; }
+    if (!caja) { caja = document.createElement('div'); caja.id = 'desglose-comida'; caja.className = 'desglose'; document.body.appendChild(caja); caja.addEventListener('click', () => { caja.hidden = true; }); }
+    const al = M.vida.desglose ? M.vida.desglose(c) : {}, total = Math.max(1e-9, c.comida || 0);
+    caja.innerHTML = '<div class="desglose-tit">' + px('comida') + ' Comida de ' + esc(c.nombre) + ': ' + Math.round(c.comida || 0) + '</div>' + (M.vida.ALIMENTOS || []).map(k => {
+      const q = al[k] || 0, [ico, nom, de] = NOMBRE_ALIMENTO[k], pc = Math.round(100 * q / total);
+      return '<div class="desglose-fila' + (q < 0.5 ? ' tenue' : '') + '">' + px(ICO_PX[ico]) + '<span class="desglose-nom">' + nom + ' <small class="tenue">(' + de + ')</small></span><b>' + Math.round(q) + '</b><span class="desglose-barra"><i style="width:' + pc + '%"></i></span></div>';
+    }).join('') + '<div class="desglose-pie tenue">Todo alimenta igual; en el mercado se vende y se compra como comida.</div>';
+    const r0 = ancla.getBoundingClientRect();
+    caja.style.left = Math.max(8, Math.min(window.innerWidth - 290, r0.left)) + 'px'; caja.style.top = (r0.bottom + 6) + 'px';
+    caja.hidden = false;
+  }
   function pintarRecursos() {
     const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null), el = $('recursos');
     if (!c || !c.viva) { el.hidden = true; return; }
@@ -158,7 +174,7 @@
     el.innerHTML =
       (est >= 0 ? chip(ESTA[est][0], ESTA[est][1] + (hora ? ' <small class="tenue">' + hora + '</small>' : ''), ESTA[est][1] + ': ' + ESTA[est][2] + '. Cada estación dura 12 turnos; de cada 6 turnos, uno es de noche y la gente duerme en casa.', 'estacion') : '') +
       chip('🪙', r(oro), 'Oro del tesoro: impuestos ' + (c.ingresos || 0).toFixed(1) + ' − sueldos y mantenimiento ' + (c.gastos || 0).toFixed(1) + (c.mecenazgo ? ' − ' + c.mecenazgo.toFixed(1) + ' para los sabios' : '') + ' por turno', oro < 0 ? 'mal' : 'oro', sig(neto, true)) +
-      chip('🌾', r(c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe)', (c.comida || 0) < (c.aldeanos || 0) * 0.3 ? 'mal' : '', sig(dC)) +
+      chip('🌾', r(c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe). Tócala para ver de dónde sale: grano, pescado, carne, leche y frutos', 'comida' + ((c.comida || 0) < (c.aldeanos || 0) * 0.3 ? ' mal' : ''), sig(dC)) +
       chip('🪵', r(c.madera || 0), 'Madera', '', sig(dM)) +
       chip('🪨', r(c.piedra || 0), 'Piedra', '', sig(dP)) +
       (c.era >= 1 ? chip('⛓', r(c.metal || 0), 'Metal (armas, armaduras, vehículos)' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.metal.toFixed(2) : ''), '', sig(dMe)) : '') +
@@ -1448,7 +1464,7 @@
     $('arquitecto-btn').addEventListener('click', () => { if (arquiClave || !$('arquitecto').hidden) salirArquitecto(); else abrirArquitecto(); });
     $('ir-batalla').addEventListener('click', irABatalla);
     $('corte-btn').addEventListener('click', () => { const c = tuPueblo(); if (corteDe != null) cerrarCorte(); else if (c) abrirCorte(c.id); });
-    $('recursos').addEventListener('click', ev => { const ch = ev.target.closest('.rec.tec, .rec.oro'); const c = tuPueblo(); if (ch && c && (ch.classList.contains('tec') || /Avanzar|avanzar|edad/i.test(ch.title))) abrirCorte(c.id); });
+    $('recursos').addEventListener('click', ev => { const cm = ev.target.closest('.rec.comida'); if (cm) { desgloseComida(cm); return; } const ch = ev.target.closest('.rec.tec, .rec.oro'); const c = tuPueblo(); if (ch && c && (ch.classList.contains('tec') || /Avanzar|avanzar|edad/i.test(ch.title))) abrirCorte(c.id); });
     $('ir-mio').addEventListener('click', () => { const c = tuPueblo(); if (c) P.centrarEn(c.capital, 3); });
     $('marcador').addEventListener('click', () => { panelAbierto(true); abrirHoja('retos'); });
     $('fin-seguir').addEventListener('click', () => { $('fin').hidden = true; if (!tuPueblo()) pedirModo('Elige otro pueblo', 'Tu pueblo ya no existe. Gobierna otro o sigue mirando como dios.'); else { corriendo = true; programar(); } });

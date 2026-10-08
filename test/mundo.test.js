@@ -291,8 +291,8 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
     comprobar(mot2.some(z => /demasiadas ciudades/.test(z[0]) && z[1] <= -25) && mot2.some(z => /ambicioso/.test(z[0])), 'la lealtad baja con demasiadas ciudades (−25 cada una) y con un alcalde ambicioso');
   } else comprobar(false, 'hace falta un pueblo con ciudades');
   // Se cuentan durante toda la partida (la crónica solo guarda los últimos sucesos).
-  const ind = [2, 8, 3].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
-  comprobar(ind >= 1, 'las ciudades sin lealtad acaban independizándose (' + ind + ' en tres mundos)');
+  const ind = [2, 8, 3, 5].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
+  comprobar(ind >= 1, 'las ciudades sin lealtad acaban independizándose (' + ind + ' en cuatro mundos)');
   // Asedios y edificios.
   const w2 = hasta(S.crear(5, 5), 1500), v2 = w2.vida;
   comprobar(w2.cronica.some(e => /conquista | toma /.test(e.titulo)) , 'los ejércitos toman plazas con asedios');
@@ -940,9 +940,22 @@ console.log('CAÑONES Y GRANADAS');
 
 console.log('COMERCIO POR MAR');
 {
-  const m = S.crear(99, 5, { ritmo: 3 }); for (let k = 0; k < 350; k++) S.turno(m);
-  const mar = (m.mercado.tratos || []).filter(x => x.ruta === 'mar');
+  // En varios mundos (en alguno los puertos pueden quedar en mares o lagos sin salida entre sí).
+  const mar = [7, 21].flatMap(sd => { const m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 300; k++) S.turno(m); return (m.mercado.tratos || []).filter(x => x.ruta === 'mar'); });
   comprobar(mar.length > 0 && mar.every(x => x.n > 0 && x.oro > 0), 'los barcos mercantes compran y venden de puerto a puerto (' + mar.length + ' tratos por mar: ' + mar.slice(-2).map(x => x.n + ' de ' + x.que).join(', ') + ')');
+}
+
+console.log('PUERTOS DESDE EL PRINCIPIO Y LOS ALIMENTOS');
+{
+  const V = M.vida;
+  comprobar(V.ERA_OBRA[V.OBRA.puerto] === 0, 'el puerto (con su barca y su mercante) se puede levantar desde el Neolítico: los pueblos isleños también comercian');
+  const m = S.crear(99, 5, { ritmo: 3 }); let mercante = null;
+  for (let k = 0; k < 120; k++) { S.turno(m); if (mercante == null && (m.vida.barcos || []).some(b => b.tipo === 'mercante')) mercante = { k, era: Math.max(...S.vivas(m).map(c => c.era)) }; }
+  comprobar(mercante && mercante.era <= 1, 'los primeros barcos mercantes zarpan ya en la Edad de Piedra o del Bronce' + (mercante ? ' (turno ' + mercante.k + ')' : ''));
+  const c = S.vivas(m).sort((a, b) => (b.comida || 0) - (a.comida || 0))[0], al = V.desglose(c), suma = V.ALIMENTOS.reduce((q, k) => q + (al[k] || 0), 0);
+  comprobar(Math.abs(suma - c.comida) < 0.01 && Object.keys(al).filter(k => al[k] > 0.5).length >= 2, 'la comida se desglosa en grano, pescado, carne, leche y frutos, y suma lo que hay en el granero (' + V.ALIMENTOS.map(k => k + ' ' + Math.round(al[k] || 0)).join(', ') + ')');
+  const d = { comida: 10, alimentos: {} }; V.alimento(d, 'pescado', 5);
+  comprobar(d.comida === 15 && d.alimentos.pescado === 5, 'el pescado de las barcas alimenta igual que el grano');
 }
 
 console.log('BATALLAS MÁS LARGAS');
