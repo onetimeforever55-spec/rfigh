@@ -1437,7 +1437,7 @@
     if (v.trinchera && v.trinchera[t]) return 'ahí hay una trinchera';
     if (!marcado && pausada(m) && v.plan && v.plan[t] === 1) return 'ahí va una calle del plano';
     if (o === OBRA.mina) { if (ter[t] !== 'montana') return 'la mina solo se abre en la montaña'; }
-    else if (o === OBRA.puerto ? !(ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
+    else if (o === OBRA.puerto ? !((ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) && !navegable(ter, t) && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
     if (c.era < (ERA_OBRA[o] || 0)) return 'aún no existe: llega con ' + NOMBRE_ERA[ERA_OBRA[o]];
     if (o === OBRA.petroleo && !(v.crudo && v.crudo[t])) return 'ahí no hay petróleo: busca las manchas negras';
     if ((c.nivel || 0) < (NIVEL_OBRA[o] || 0)) return 'hace falta ser ' + ['un campamento', 'una aldea', 'un pueblo', 'una villa', 'una ciudad'][NIVEL_OBRA[o]];
@@ -1640,7 +1640,8 @@
         const sitio = sitioPetroleo(m, c, ter);
         if (sitio != null) pide.unshift([OBRA.petroleo, () => sitio]);
       }
-      if (!tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
+      // El puerto, en el mar abierto (en un lago no lleva a ninguna parte): uno por reino, y otro en cada ciudad de costa.
+      if (!tiene(OBRA.puerto) && (r === c.capital ? !(c.puertos > 0) : true)) { const sp = r === c.capital ? sitioPuerto(m, c, ter) : libreEn(tiles, t => (ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) && !navegable(ter, t) && enMarAbierto(m, t, ter)); if (sp != null) pide.push([OBRA.puerto, () => sp]); }
       // Lo que la gente necesita de verdad (agua, sitio para el grano, una plaza, un parque, un palacio), según el pueblo.
       if (pausada(m)) for (const n of (c.necesidades || [])) if (n.falta && n.region === r && !tiene(OBRA[n.obra]) && !pide.some(x => x[0] === OBRA[n.obra])) {
         const o = OBRA[n.obra];
@@ -1704,7 +1705,34 @@
     while (prev.get(out[out.length - 1]) !== -1) out.push(prev.get(out[out.length - 1]));
     return out.reverse();
   }
-  const aguaJunto = (m, t, ter) => [1, -1, m.vida.tw, -m.vida.tw].map(d => t + d).find(n => n >= 0 && n < ter.length && navegable(ter, n));
+  // Los mares: las masas de agua navegable conectadas (un lago no lleva a ninguna parte; el mar abierto, sí).
+  // Se calculan una vez y se rehacen de vez en cuando (las inundaciones y los diques cambian poco el mapa).
+  let mares = { mundo: null, turno: -99, comp: null, tam: null };
+  function maresDe(m, ter) {
+    if (mares.mundo === m && m.turno - mares.turno < 50) return mares;
+    const n = ter.length, tw = m.vida.tw, comp = new Int32Array(n).fill(-1), tam = [];
+    for (let t0 = 0; t0 < n; t0++) {
+      if (comp[t0] >= 0 || !navegable(ter, t0)) continue;
+      const id = tam.length, cola = [t0]; comp[t0] = id;
+      for (let i = 0; i < cola.length; i++) { const t = cola[i], x = t % tw; for (const u of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) if (u >= 0 && u < n && comp[u] < 0 && navegable(ter, u)) { comp[u] = id; cola.push(u); } }
+      tam.push(cola.length);
+    }
+    mares = { mundo: m, turno: m.turno, comp, tam };
+    return mares;
+  }
+  const MAR_ABIERTO = 250; // casillas de agua para que cuente como mar (y no como lago)
+  // El agua junto a una casilla: si hay varias, la del mar más grande.
+  const aguaJunto = (m, t, ter) => { const mr = maresDe(m, ter); let mejor, tm = -1; for (const d of [1, -1, m.vida.tw, -m.vida.tw]) { const u = t + d; if (u >= 0 && u < ter.length && navegable(ter, u)) { const z = mr.tam[mr.comp[u]] || 0; if (z > tm) { tm = z; mejor = u; } } } return mejor; };
+  const enMarAbierto = (m, t, ter) => { const mr = maresDe(m, ter), u = aguaJunto(m, t, ter); return u != null && (mr.tam[mr.comp[u]] || 0) >= MAR_ABIERTO; };
+  // Dónde va el puerto: en la costa del mar abierto de su tierra, lo más cerca posible de la capital.
+  function sitioPuerto(m, c, ter) {
+    const v = m.vida, cap = centro(m, c.capital); let mejor = null, md = 1e9;
+    for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) {
+      if (v.obra[t] || v.roca[t] || v.camino[t] || ocupada(v, t) || !(ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) || navegable(ter, t) || !enMarAbierto(m, t, ter)) continue;
+      const d = dist(m, t, cap); if (d < md) { md = d; mejor = t; }
+    }
+    return mejor;
+  }
   let puertosDelTurno = [], travesias = {};
   function barcos(m, ter) {
     const v = m.vida;
@@ -1910,14 +1938,16 @@
       if (azar(v) < 0.15) alimento(c, 'pescado', 1);
     } else {
       if (!b.ruta) {
-        if (azar(v) < 0.7) { b.r.push(b.x, b.y); return; }
-        const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); return o && o.id !== c.id && !S().enGuerra(c, o); });
+        if (azar(v) < 0.45) { b.r.push(b.x, b.y); return; }
+        // Solo a los puertos a los que se puede llegar por mar (mismo mar), de reinos en paz.
+        const de = aguaJunto(m, b.puerto, ter), mr = maresDe(m, ter);
+        const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); if (!o || o.id === c.id || S().enGuerra(c, o)) return false; const a = aguaJunto(m, t, ter); return de != null && a != null && mr.comp[a] === mr.comp[de]; });
         if (!otros.length) { b.r.push(b.x, b.y); return; }
         const destino = otros[Math.floor(azar(v) * otros.length)];
-        const de = aguaJunto(m, b.puerto, ter), a = aguaJunto(m, destino, ter);
+        const a = aguaJunto(m, destino, ter);
         // Las travesías se recuerdan (el mar no cambia): solo se calcula la primera vez.
         const clave = de + '>' + a;
-        if (!(clave in travesias) || travesias.mundo !== m) { if (travesias.mundo !== m) travesias = { mundo: m }; travesias[clave] = de != null && a != null ? rutaPorMar(m, de, a, ter) : null; }
+        if (!(clave in travesias) || travesias.mundo !== m) { if (travesias.mundo !== m) travesias = { mundo: m }; travesias[clave] = rutaPorMar(m, de, a, ter); }
         const ruta = travesias[clave];
         if (!ruta || ruta.length < 3) { b.r.push(b.x, b.y); return; }
         b.ruta = ruta; b.i = 0; b.vuelta = 0; b.destino = destino;
@@ -3893,5 +3923,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

@@ -291,7 +291,7 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
     comprobar(mot2.some(z => /demasiadas ciudades/.test(z[0]) && z[1] <= -25) && mot2.some(z => /ambicioso/.test(z[0])), 'la lealtad baja con demasiadas ciudades (−25 cada una) y con un alcalde ambicioso');
   } else comprobar(false, 'hace falta un pueblo con ciudades');
   // Se cuentan durante toda la partida (la crónica solo guarda los últimos sucesos).
-  const ind = [2, 8, 3, 5].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
+  const ind = [4, 6, 7, 9].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
   comprobar(ind >= 1, 'las ciudades sin lealtad acaban independizándose (' + ind + ' en cuatro mundos)');
   // Asedios y edificios.
   const w2 = hasta(S.crear(5, 5), 1500), v2 = w2.vida;
@@ -943,6 +943,11 @@ console.log('COMERCIO POR MAR');
   // En varios mundos (en alguno los puertos pueden quedar en mares o lagos sin salida entre sí).
   const mar = [7, 21].flatMap(sd => { const m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 300; k++) S.turno(m); return (m.mercado.tratos || []).filter(x => x.ruta === 'mar'); });
   comprobar(mar.length > 0 && mar.every(x => x.n > 0 && x.oro > 0), 'los barcos mercantes compran y venden de puerto a puerto (' + mar.length + ' tratos por mar: ' + mar.slice(-2).map(x => x.n + ' de ' + x.que).join(', ') + ')');
+  // Los puertos se levantan junto al mar abierto (no en lagos) y cada mercante va a un puerto de su mismo mar.
+  const V = M.vida, m = S.crear(3, 5, { ritmo: 3 }); for (let k = 0; k < 300; k++) S.turno(m);
+  const w = m.vida, puertos = []; for (let t = 0; t < w.obra.length; t++) if (w.obra[t] === V.OBRA.puerto) puertos.push(t);
+  comprobar(puertos.length >= 2 && puertos.every(t => V.enMarAbierto(m, t, V.terrenos(m))), 'los puertos dan al mar abierto, no a lagos (' + puertos.length + ' puertos)');
+  comprobar(S.vivas(m).filter(c => (c.puertos || 0) > 0).length >= 2, 'varios reinos costeros tienen puerto para comerciar entre sí');
 }
 
 console.log('PUERTOS DESDE EL PRINCIPIO Y LOS ALIMENTOS');

@@ -541,6 +541,23 @@ table.mercado td:first-child { white-space: nowrap; }
 .desglose-fila .desglose-barra i { display: block; height: 100%; background: var(--oro); }
 .desglose-fila img.px, .desglose-tit img.px { width: 16px; height: 16px; image-rendering: pixelated; }
 .desglose-pie { margin-top: 6px; font-size: 11px; }
+
+/* Ocultar la ventana de órdenes (y volver a abrirla), y el modo limpio: solo el mundo y los botones de cámara. */
+.g-voluntad { position: absolute; }
+.voluntad-cab { padding-right: 40px; }
+.cerrar-ordenes { position: absolute; top: 6px; right: 8px; width: 30px; height: 26px; padding: 0; background: rgba(0,0,0,0.35); border: 1px solid rgba(240, 192, 90, 0.55); color: var(--oro); font-size: 14px; line-height: 1; cursor: pointer; z-index: 1; }
+body.sin-ordenes .g-voluntad { display: none; }
+.abrir-ordenes { position: absolute; z-index: 5; left: 8px; bottom: max(8px, env(safe-area-inset-bottom)); }
+.abrir-ordenes[hidden] { display: none; }
+body.limpio .g-cab, body.limpio .g-voluntad, body.limpio .panel, body.limpio .online-barra, body.limpio .g-nav, body.limpio .abrir-ordenes, body.limpio .aviso-flotante { display: none !important; }
+body.limpio #limpio { outline: 2px solid var(--oro); }
+@media (max-width: 899px) { .abrir-ordenes { bottom: calc(var(--abajo) + 8px); left: 8px; } body:not(.ordenes-abiertas) .g-voluntad { padding-right: 44px; } }
+
+/* Que la ventana de órdenes no tape la columna de botones de cámara (a la derecha). */
+@media (min-width: 900px) {
+  .g-voluntad { width: min(720px, calc(100% - 80px)); }
+  body:not(.sin-panel) .g-voluntad { width: min(720px, calc(100% - 432px - 64px)); }
+}
 </style>
 </head>
 <body>
@@ -603,7 +620,7 @@ table.mercado td:first-child { white-space: nowrap; }
           <details open><summary>Lo básico</summary>
             <p>Tu pueblo vive solo: talan, siembran, construyen, tienen hijos y envejecen. Tú decides las grandes cosas. Arrastra el mapa para moverte y pellizca o usa + y − para acercarte. Toca una tierra, una casa o un aldeano para ver su ficha.</p></details>
           <details><summary>Las órdenes</summary>
-            <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. Puedes juntar varias en una frase: «buscad hierro y sacad madera», «haced 3 casas y talad 10 árboles». El consejero te sugiere la orden que más falta hace: tócala para escribirla.</p></details>
+            <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. Puedes juntar varias en una frase: «buscad hierro y sacad madera», «haced 3 casas y talad 10 árboles». El consejero te sugiere la orden que más falta hace: tócala para escribirla. La ventana de órdenes se cierra con ▾ (arriba a la derecha) y se vuelve a abrir con «✍ Órdenes». El botón 👁, junto a la cámara, quita toda la interfaz para ver solo el mundo (vuelve a tocarlo para recuperarla).</p></details>
           <details><summary>Comida y molinos</summary>
             <p>Toca el trigo de la barra para ver de dónde sale la comida: grano, pescado (barcas), carne (caza), leche (rebaños) y frutos. El puerto, con su barca y su mercante, se puede hacer desde el principio. Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
           <details><summary>La corte y las eras</summary>
@@ -617,7 +634,7 @@ table.mercado td:first-child { white-space: nowrap; }
           <details><summary>Trincheras y uniformes</summary>
             <p>En la Segunda Guerra Mundial los soldados cavan trincheras en la frontera con los reinos rivales: zanja con sacos terreros y, delante, alambre de espino. En guerra se meten dentro: cuesta más acertarles y reciben menos daño. Desde la Revolución Industrial cada ejército viste uniforme del color de su reino. Los cañones salen con el Renacimiento, y en la Segunda Guerra Mundial los soldados lanzan granadas, que caen dentro de las trincheras. Obuses, granadas y bombas hieren a todo el que pillan, agrietan y derriban edificios, revientan caminos y dejan cráteres. Cañones y granadas se fabrican («fabricad 30 granadas», «fabricad 5 cañones») y se compran y venden en el mercado.</p></details>
           <details><summary>Comercio y mercado</summary>
-            <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Para comerciar con un reino concreto, escribe «abrid una ruta comercial con Nombre»: se traza la carretera y tus constructores la empiedran. En la Era Moderna la carga va en camión o en tren si hay vía. Los barcos mercantes también compran y venden de puerto a puerto, y cargan mucho más. «Fabricad 20 fusiles» pone a la forja a hacer armas, «fabricad muebles» a la fábrica y «fabricad 5 tanques» al cuartel. Todo se puede vender y comprar: «vended tanques», «comprad carbón». Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero.</p></details>
+            <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Para comerciar con un reino concreto, escribe «abrid una ruta comercial con Nombre»: se traza la carretera y tus constructores la empiedran. En la Era Moderna la carga va en camión o en tren si hay vía. Los barcos mercantes también compran y venden de puerto a puerto, y cargan mucho más. «Fabricad 20 fusiles» pone a la forja a hacer armas, «fabricad muebles» a la fábrica y «fabricad 5 tanques» al cuartel. Todo se puede vender y comprar: «vended tanques», «comprad carbón». Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero. Por mar, los mercantes van de puerto a puerto: los puertos se levantan en la costa de mar abierto (no en lagos), y cada mercante solo zarpa hacia puertos de reinos en paz que estén en su mismo mar.</p></details>
           <details><summary>Industria: carbón, petróleo y obreros</summary>
             <p>Con la Revolución Industrial aparecen vetas de carbón (rocas con manchas negras) en montañas y colinas, y en la Era Moderna bolsas de petróleo (manchas negras en el suelo). Los mineros sacan el carbón; sobre el petróleo se levanta un pozo («construid un pozo de petróleo»). Las fábricas, los trenes y las centrales queman carbón; los tanques, los aviones y los acorazados gastan petróleo. Sin combustible se paran. Los dos se compran y se venden en el mercado («comprad carbón»).</p>
             <p>El humo de las fábricas ensucia el aire y la gente enferma más; los parques lo limpian. Si la gente está descontenta, los obreros hacen huelga y las fábricas se paran: puedes «subir los salarios» (cuesta oro) o «reprimir la huelga» (baja la estabilidad). Tras varias huelgas puede estallar una revolución que cambie el gobierno.</p></details>
@@ -656,6 +673,7 @@ table.mercado td:first-child { white-space: nowrap; }
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
         <button type="button" class="mando cam" id="zoom-menos" aria-label="Alejar">−</button>
         <button type="button" class="mando cam" id="ver-todo" aria-label="Ver todo el mundo" title="Ver todo el mundo">⤢</button>
+        <button type="button" class="mando cam" id="limpio" aria-label="Ocultar la interfaz" title="Ocultar toda la interfaz para ver el mundo (y volver a mostrarla)" aria-pressed="false">👁</button>
       </div>
     </div>
   </section>
@@ -665,6 +683,7 @@ table.mercado td:first-child { white-space: nowrap; }
       <label for="orden" class="etiqueta" id="etiqueta-orden">Tu voluntad</label>
       <button type="button" class="ejemplo" id="ver-ideas" aria-expanded="false">Ideas</button>
     </div>
+    <button type="button" class="cerrar-ordenes" id="cerrar-ordenes" title="Ocultar la ventana de órdenes" aria-label="Ocultar la ventana de órdenes">▾</button>
     <div class="linea">
       <input id="orden" name="orden" type="text" maxlength="200" enterkeyhint="send" placeholder="Peste sobre el más grande, que descubran la pólvora…">
       <button type="submit" class="obrar" id="boton-orden">Obrar</button>
@@ -676,6 +695,7 @@ table.mercado td:first-child { white-space: nowrap; }
     <p class="respuesta" id="respuesta" aria-live="polite">El tiempo corre. Escribe cuando quieras intervenir.</p>
   </form>
 
+  <button type="button" class="mando abrir-ordenes hud" id="abrir-ordenes" title="Mostrar la ventana de órdenes" hidden>✍ Órdenes</button>
   <!-- En el móvil: barra de abajo para ir del mapa a las órdenes, tu pueblo, la crónica y los retos. -->
   <nav class="g-nav solo-movil" id="nav" aria-label="Secciones">
     <button type="button" class="nav-b activa" data-v="mapa"><i>🗺</i><span>Mapa</span></button>
@@ -3362,7 +3382,7 @@ table.mercado td:first-child { white-space: nowrap; }
     if (v.trinchera && v.trinchera[t]) return 'ahí hay una trinchera';
     if (!marcado && pausada(m) && v.plan && v.plan[t] === 1) return 'ahí va una calle del plano';
     if (o === OBRA.mina) { if (ter[t] !== 'montana') return 'la mina solo se abre en la montaña'; }
-    else if (o === OBRA.puerto ? !(ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
+    else if (o === OBRA.puerto ? !((ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) && !navegable(ter, t) && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
     if (c.era < (ERA_OBRA[o] || 0)) return 'aún no existe: llega con ' + NOMBRE_ERA[ERA_OBRA[o]];
     if (o === OBRA.petroleo && !(v.crudo && v.crudo[t])) return 'ahí no hay petróleo: busca las manchas negras';
     if ((c.nivel || 0) < (NIVEL_OBRA[o] || 0)) return 'hace falta ser ' + ['un campamento', 'una aldea', 'un pueblo', 'una villa', 'una ciudad'][NIVEL_OBRA[o]];
@@ -3565,7 +3585,8 @@ table.mercado td:first-child { white-space: nowrap; }
         const sitio = sitioPetroleo(m, c, ter);
         if (sitio != null) pide.unshift([OBRA.petroleo, () => sitio]);
       }
-      if (!tiene(OBRA.puerto)) pide.push([OBRA.puerto, () => libreEn(tiles, t => ter[t] === 'arena' && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo'))]);
+      // El puerto, en el mar abierto (en un lago no lleva a ninguna parte): uno por reino, y otro en cada ciudad de costa.
+      if (!tiene(OBRA.puerto) && (r === c.capital ? !(c.puertos > 0) : true)) { const sp = r === c.capital ? sitioPuerto(m, c, ter) : libreEn(tiles, t => (ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) && !navegable(ter, t) && enMarAbierto(m, t, ter)); if (sp != null) pide.push([OBRA.puerto, () => sp]); }
       // Lo que la gente necesita de verdad (agua, sitio para el grano, una plaza, un parque, un palacio), según el pueblo.
       if (pausada(m)) for (const n of (c.necesidades || [])) if (n.falta && n.region === r && !tiene(OBRA[n.obra]) && !pide.some(x => x[0] === OBRA[n.obra])) {
         const o = OBRA[n.obra];
@@ -3629,7 +3650,34 @@ table.mercado td:first-child { white-space: nowrap; }
     while (prev.get(out[out.length - 1]) !== -1) out.push(prev.get(out[out.length - 1]));
     return out.reverse();
   }
-  const aguaJunto = (m, t, ter) => [1, -1, m.vida.tw, -m.vida.tw].map(d => t + d).find(n => n >= 0 && n < ter.length && navegable(ter, n));
+  // Los mares: las masas de agua navegable conectadas (un lago no lleva a ninguna parte; el mar abierto, sí).
+  // Se calculan una vez y se rehacen de vez en cuando (las inundaciones y los diques cambian poco el mapa).
+  let mares = { mundo: null, turno: -99, comp: null, tam: null };
+  function maresDe(m, ter) {
+    if (mares.mundo === m && m.turno - mares.turno < 50) return mares;
+    const n = ter.length, tw = m.vida.tw, comp = new Int32Array(n).fill(-1), tam = [];
+    for (let t0 = 0; t0 < n; t0++) {
+      if (comp[t0] >= 0 || !navegable(ter, t0)) continue;
+      const id = tam.length, cola = [t0]; comp[t0] = id;
+      for (let i = 0; i < cola.length; i++) { const t = cola[i], x = t % tw; for (const u of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) if (u >= 0 && u < n && comp[u] < 0 && navegable(ter, u)) { comp[u] = id; cola.push(u); } }
+      tam.push(cola.length);
+    }
+    mares = { mundo: m, turno: m.turno, comp, tam };
+    return mares;
+  }
+  const MAR_ABIERTO = 250; // casillas de agua para que cuente como mar (y no como lago)
+  // El agua junto a una casilla: si hay varias, la del mar más grande.
+  const aguaJunto = (m, t, ter) => { const mr = maresDe(m, ter); let mejor, tm = -1; for (const d of [1, -1, m.vida.tw, -m.vida.tw]) { const u = t + d; if (u >= 0 && u < ter.length && navegable(ter, u)) { const z = mr.tam[mr.comp[u]] || 0; if (z > tm) { tm = z; mejor = u; } } } return mejor; };
+  const enMarAbierto = (m, t, ter) => { const mr = maresDe(m, ter), u = aguaJunto(m, t, ter); return u != null && (mr.tam[mr.comp[u]] || 0) >= MAR_ABIERTO; };
+  // Dónde va el puerto: en la costa del mar abierto de su tierra, lo más cerca posible de la capital.
+  function sitioPuerto(m, c, ter) {
+    const v = m.vida, cap = centro(m, c.capital); let mejor = null, md = 1e9;
+    for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) {
+      if (v.obra[t] || v.roca[t] || v.camino[t] || ocupada(v, t) || !(ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) || navegable(ter, t) || !enMarAbierto(m, t, ter)) continue;
+      const d = dist(m, t, cap); if (d < md) { md = d; mejor = t; }
+    }
+    return mejor;
+  }
   let puertosDelTurno = [], travesias = {};
   function barcos(m, ter) {
     const v = m.vida;
@@ -3835,14 +3883,16 @@ table.mercado td:first-child { white-space: nowrap; }
       if (azar(v) < 0.15) alimento(c, 'pescado', 1);
     } else {
       if (!b.ruta) {
-        if (azar(v) < 0.7) { b.r.push(b.x, b.y); return; }
-        const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); return o && o.id !== c.id && !S().enGuerra(c, o); });
+        if (azar(v) < 0.45) { b.r.push(b.x, b.y); return; }
+        // Solo a los puertos a los que se puede llegar por mar (mismo mar), de reinos en paz.
+        const de = aguaJunto(m, b.puerto, ter), mr = maresDe(m, ter);
+        const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); if (!o || o.id === c.id || S().enGuerra(c, o)) return false; const a = aguaJunto(m, t, ter); return de != null && a != null && mr.comp[a] === mr.comp[de]; });
         if (!otros.length) { b.r.push(b.x, b.y); return; }
         const destino = otros[Math.floor(azar(v) * otros.length)];
-        const de = aguaJunto(m, b.puerto, ter), a = aguaJunto(m, destino, ter);
+        const a = aguaJunto(m, destino, ter);
         // Las travesías se recuerdan (el mar no cambia): solo se calcula la primera vez.
         const clave = de + '>' + a;
-        if (!(clave in travesias) || travesias.mundo !== m) { if (travesias.mundo !== m) travesias = { mundo: m }; travesias[clave] = de != null && a != null ? rutaPorMar(m, de, a, ter) : null; }
+        if (!(clave in travesias) || travesias.mundo !== m) { if (travesias.mundo !== m) travesias = { mundo: m }; travesias[clave] = rutaPorMar(m, de, a, ter); }
         const ruta = travesias[clave];
         if (!ruta || ruta.length < 3) { b.r.push(b.x, b.y); return; }
         b.ruta = ruta; b.i = 0; b.vuelta = 0; b.destino = destino;
@@ -5818,7 +5868,7 @@ table.mercado td:first-child { white-space: nowrap; }
     actualizarPoblacion(m);
   }
 
-  M.vida = { NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/dios.js
@@ -12501,6 +12551,17 @@ table.mercado td:first-child { white-space: nowrap; }
     $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
     $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
+    // La ventana de órdenes se oculta con ▾ y vuelve con «✍ Órdenes» (en el móvil, con la pestaña Órdenes de abajo).
+    // El 👁 deja solo el mundo: sin cabecera, sin paneles; otro toque y vuelve todo.
+    const verOrdenes = on => {
+      document.body.classList.toggle('sin-ordenes', !on); $('abrir-ordenes').hidden = on;
+      if (window.innerWidth < 900) { document.body.classList.toggle('ordenes-abiertas', on); return; }
+      try { localStorage.setItem('genesis.ordenes', on ? '1' : '0'); } catch (e) { /* sin guardado */ }
+    };
+    $('cerrar-ordenes').addEventListener('click', () => verOrdenes(false));
+    $('abrir-ordenes').addEventListener('click', () => { verOrdenes(true); $('orden').focus(); });
+    try { if (localStorage.getItem('genesis.ordenes') === '0' && window.innerWidth >= 900) verOrdenes(false); } catch (e) { /* sin preferencia */ }
+    $('limpio').addEventListener('click', () => { const on = document.body.classList.toggle('limpio'); $('limpio').setAttribute('aria-pressed', on ? 'true' : 'false'); $('limpio').textContent = on ? '👁‍🗨' : '👁'; });
     // El panel lateral (abajo en el móvil): pestañas, abrir y cerrar. En pantallas pequeñas empieza cerrado.
     const panelAbierto = abierto => { document.body.classList.toggle('sin-panel', !abierto); $('ver-panel').setAttribute('aria-expanded', abierto ? 'true' : 'false'); };
     panelAbierto(window.innerWidth >= 900);
@@ -12522,7 +12583,7 @@ table.mercado td:first-child { white-space: nowrap; }
       const v = b.dataset.v, bd = document.body, abierto = !bd.classList.contains('sin-panel');
       bd.classList.remove('menu-abierto');
       if (v === 'mapa') { panelAbierto(false); bd.classList.remove('ordenes-abiertas'); }
-      else if (v === 'ordenes') { panelAbierto(false); bd.classList.toggle('ordenes-abiertas'); }
+      else if (v === 'ordenes') { panelAbierto(false); bd.classList.remove('sin-ordenes'); $('abrir-ordenes').hidden = true; bd.classList.toggle('ordenes-abiertas'); }
       else { bd.classList.remove('ordenes-abiertas'); if (abierto && b.classList.contains('activa')) panelAbierto(false); else { abrirHoja(v); panelAbierto(true); } }
       navActiva();
     });

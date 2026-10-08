@@ -1432,6 +1432,17 @@
     $('zoom-menos').addEventListener('click', () => P.zoom(1 / 1.5));
     $('ver-todo').addEventListener('click', () => P.verTodo());
     $('cronista').addEventListener('click', cronista);
+    // La ventana de órdenes se oculta con ▾ y vuelve con «✍ Órdenes» (en el móvil, con la pestaña Órdenes de abajo).
+    // El 👁 deja solo el mundo: sin cabecera, sin paneles; otro toque y vuelve todo.
+    const verOrdenes = on => {
+      document.body.classList.toggle('sin-ordenes', !on); $('abrir-ordenes').hidden = on;
+      if (window.innerWidth < 900) { document.body.classList.toggle('ordenes-abiertas', on); return; }
+      try { localStorage.setItem('genesis.ordenes', on ? '1' : '0'); } catch (e) { /* sin guardado */ }
+    };
+    $('cerrar-ordenes').addEventListener('click', () => verOrdenes(false));
+    $('abrir-ordenes').addEventListener('click', () => { verOrdenes(true); $('orden').focus(); });
+    try { if (localStorage.getItem('genesis.ordenes') === '0' && window.innerWidth >= 900) verOrdenes(false); } catch (e) { /* sin preferencia */ }
+    $('limpio').addEventListener('click', () => { const on = document.body.classList.toggle('limpio'); $('limpio').setAttribute('aria-pressed', on ? 'true' : 'false'); $('limpio').textContent = on ? '👁‍🗨' : '👁'; });
     // El panel lateral (abajo en el móvil): pestañas, abrir y cerrar. En pantallas pequeñas empieza cerrado.
     const panelAbierto = abierto => { document.body.classList.toggle('sin-panel', !abierto); $('ver-panel').setAttribute('aria-expanded', abierto ? 'true' : 'false'); };
     panelAbierto(window.innerWidth >= 900);
@@ -1453,7 +1464,7 @@
       const v = b.dataset.v, bd = document.body, abierto = !bd.classList.contains('sin-panel');
       bd.classList.remove('menu-abierto');
       if (v === 'mapa') { panelAbierto(false); bd.classList.remove('ordenes-abiertas'); }
-      else if (v === 'ordenes') { panelAbierto(false); bd.classList.toggle('ordenes-abiertas'); }
+      else if (v === 'ordenes') { panelAbierto(false); bd.classList.remove('sin-ordenes'); $('abrir-ordenes').hidden = true; bd.classList.toggle('ordenes-abiertas'); }
       else { bd.classList.remove('ordenes-abiertas'); if (abierto && b.classList.contains('activa')) panelAbierto(false); else { abrirHoja(v); panelAbierto(true); } }
       navActiva();
     });

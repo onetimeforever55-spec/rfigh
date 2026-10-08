@@ -520,3 +520,20 @@ table.mercado td:first-child { white-space: nowrap; }
 .desglose-fila .desglose-barra i { display: block; height: 100%; background: var(--oro); }
 .desglose-fila img.px, .desglose-tit img.px { width: 16px; height: 16px; image-rendering: pixelated; }
 .desglose-pie { margin-top: 6px; font-size: 11px; }
+
+/* Ocultar la ventana de órdenes (y volver a abrirla), y el modo limpio: solo el mundo y los botones de cámara. */
+.g-voluntad { position: absolute; }
+.voluntad-cab { padding-right: 40px; }
+.cerrar-ordenes { position: absolute; top: 6px; right: 8px; width: 30px; height: 26px; padding: 0; background: rgba(0,0,0,0.35); border: 1px solid rgba(240, 192, 90, 0.55); color: var(--oro); font-size: 14px; line-height: 1; cursor: pointer; z-index: 1; }
+body.sin-ordenes .g-voluntad { display: none; }
+.abrir-ordenes { position: absolute; z-index: 5; left: 8px; bottom: max(8px, env(safe-area-inset-bottom)); }
+.abrir-ordenes[hidden] { display: none; }
+body.limpio .g-cab, body.limpio .g-voluntad, body.limpio .panel, body.limpio .online-barra, body.limpio .g-nav, body.limpio .abrir-ordenes, body.limpio .aviso-flotante { display: none !important; }
+body.limpio #limpio { outline: 2px solid var(--oro); }
+@media (max-width: 899px) { .abrir-ordenes { bottom: calc(var(--abajo) + 8px); left: 8px; } body:not(.ordenes-abiertas) .g-voluntad { padding-right: 44px; } }
+
+/* Que la ventana de órdenes no tape la columna de botones de cámara (a la derecha). */
+@media (min-width: 900px) {
+  .g-voluntad { width: min(720px, calc(100% - 80px)); }
+  body:not(.sin-panel) .g-voluntad { width: min(720px, calc(100% - 432px - 64px)); }
+}

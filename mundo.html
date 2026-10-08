@@ -82,7 +82,7 @@
           <details open><summary>Lo básico</summary>
             <p>Tu pueblo vive solo: talan, siembran, construyen, tienen hijos y envejecen. Tú decides las grandes cosas. Arrastra el mapa para moverte y pellizca o usa + y − para acercarte. Toca una tierra, una casa o un aldeano para ver su ficha.</p></details>
           <details><summary>Las órdenes</summary>
-            <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. Puedes juntar varias en una frase: «buscad hierro y sacad madera», «haced 3 casas y talad 10 árboles». El consejero te sugiere la orden que más falta hace: tócala para escribirla.</p></details>
+            <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. Puedes juntar varias en una frase: «buscad hierro y sacad madera», «haced 3 casas y talad 10 árboles». El consejero te sugiere la orden que más falta hace: tócala para escribirla. La ventana de órdenes se cierra con ▾ (arriba a la derecha) y se vuelve a abrir con «✍ Órdenes». El botón 👁, junto a la cámara, quita toda la interfaz para ver solo el mundo (vuelve a tocarlo para recuperarla).</p></details>
           <details><summary>Comida y molinos</summary>
             <p>Toca el trigo de la barra para ver de dónde sale la comida: grano, pescado (barcas), carne (caza), leche (rebaños) y frutos. El puerto, con su barca y su mercante, se puede hacer desde el principio. Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
           <details><summary>La corte y las eras</summary>
@@ -96,7 +96,7 @@
           <details><summary>Trincheras y uniformes</summary>
             <p>En la Segunda Guerra Mundial los soldados cavan trincheras en la frontera con los reinos rivales: zanja con sacos terreros y, delante, alambre de espino. En guerra se meten dentro: cuesta más acertarles y reciben menos daño. Desde la Revolución Industrial cada ejército viste uniforme del color de su reino. Los cañones salen con el Renacimiento, y en la Segunda Guerra Mundial los soldados lanzan granadas, que caen dentro de las trincheras. Obuses, granadas y bombas hieren a todo el que pillan, agrietan y derriban edificios, revientan caminos y dejan cráteres. Cañones y granadas se fabrican («fabricad 30 granadas», «fabricad 5 cañones») y se compran y venden en el mercado.</p></details>
           <details><summary>Comercio y mercado</summary>
-            <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Para comerciar con un reino concreto, escribe «abrid una ruta comercial con Nombre»: se traza la carretera y tus constructores la empiedran. En la Era Moderna la carga va en camión o en tren si hay vía. Los barcos mercantes también compran y venden de puerto a puerto, y cargan mucho más. «Fabricad 20 fusiles» pone a la forja a hacer armas, «fabricad muebles» a la fábrica y «fabricad 5 tanques» al cuartel. Todo se puede vender y comprar: «vended tanques», «comprad carbón». Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero.</p></details>
+            <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Para comerciar con un reino concreto, escribe «abrid una ruta comercial con Nombre»: se traza la carretera y tus constructores la empiedran. En la Era Moderna la carga va en camión o en tren si hay vía. Los barcos mercantes también compran y venden de puerto a puerto, y cargan mucho más. «Fabricad 20 fusiles» pone a la forja a hacer armas, «fabricad muebles» a la fábrica y «fabricad 5 tanques» al cuartel. Todo se puede vender y comprar: «vended tanques», «comprad carbón». Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero. Por mar, los mercantes van de puerto a puerto: los puertos se levantan en la costa de mar abierto (no en lagos), y cada mercante solo zarpa hacia puertos de reinos en paz que estén en su mismo mar.</p></details>
           <details><summary>Industria: carbón, petróleo y obreros</summary>
             <p>Con la Revolución Industrial aparecen vetas de carbón (rocas con manchas negras) en montañas y colinas, y en la Era Moderna bolsas de petróleo (manchas negras en el suelo). Los mineros sacan el carbón; sobre el petróleo se levanta un pozo («construid un pozo de petróleo»). Las fábricas, los trenes y las centrales queman carbón; los tanques, los aviones y los acorazados gastan petróleo. Sin combustible se paran. Los dos se compran y se venden en el mercado («comprad carbón»).</p>
             <p>El humo de las fábricas ensucia el aire y la gente enferma más; los parques lo limpian. Si la gente está descontenta, los obreros hacen huelga y las fábricas se paran: puedes «subir los salarios» (cuesta oro) o «reprimir la huelga» (baja la estabilidad). Tras varias huelgas puede estallar una revolución que cambie el gobierno.</p></details>
@@ -135,6 +135,7 @@
         <button type="button" class="mando cam" id="zoom-mas" aria-label="Acercar">+</button>
         <button type="button" class="mando cam" id="zoom-menos" aria-label="Alejar">−</button>
         <button type="button" class="mando cam" id="ver-todo" aria-label="Ver todo el mundo" title="Ver todo el mundo">⤢</button>
+        <button type="button" class="mando cam" id="limpio" aria-label="Ocultar la interfaz" title="Ocultar toda la interfaz para ver el mundo (y volver a mostrarla)" aria-pressed="false">👁</button>
       </div>
     </div>
   </section>
@@ -144,6 +145,7 @@
       <label for="orden" class="etiqueta" id="etiqueta-orden">Tu voluntad</label>
       <button type="button" class="ejemplo" id="ver-ideas" aria-expanded="false">Ideas</button>
     </div>
+    <button type="button" class="cerrar-ordenes" id="cerrar-ordenes" title="Ocultar la ventana de órdenes" aria-label="Ocultar la ventana de órdenes">▾</button>
     <div class="linea">
       <input id="orden" name="orden" type="text" maxlength="200" enterkeyhint="send" placeholder="Peste sobre el más grande, que descubran la pólvora…">
       <button type="submit" class="obrar" id="boton-orden">Obrar</button>
@@ -155,6 +157,7 @@
     <p class="respuesta" id="respuesta" aria-live="polite">El tiempo corre. Escribe cuando quieras intervenir.</p>
   </form>
 
+  <button type="button" class="mando abrir-ordenes hud" id="abrir-ordenes" title="Mostrar la ventana de órdenes" hidden>✍ Órdenes</button>
   <!-- En el móvil: barra de abajo para ir del mapa a las órdenes, tu pueblo, la crónica y los retos. -->
   <nav class="g-nav solo-movil" id="nav" aria-label="Secciones">
     <button type="button" class="nav-b activa" data-v="mapa"><i>🗺</i><span>Mapa</span></button>
