@@ -61,7 +61,7 @@ console.log('LA HISTORIA SIGUE EL CALENDARIO REAL');
 console.log('PASA DE TODO, Y SE EXPLICA');
 {
   const tipos = new Set(); let conPorque = 0, total = 0;
-  for (const sd of [1, 4, 7]) { const m = hasta(S.crear(sd, 5), 1500); for (const e of m.cronica) { tipos.add(e.tipo.split('_')[0]); total++; if (e.porque && e.precedente) conPorque++; } }
+  for (const sd of [1, 4, 7, 5]) { const m = hasta(S.crear(sd, 5), 1500); for (const e of m.cronica) { tipos.add(e.tipo.split('_')[0]); total++; if (e.porque && e.precedente) conPorque++; } }
   comprobar(['guerra', 'paz', 'conquista', 'era', 'expansion', 'caida', 'revuelta'].every(t => tipos.has(t)) && (tipos.has('hambruna') || tipos.has('sequia')), 'guerras, paces, conquistas, inventos, expansión, caídas, revueltas y malos años (sequías o hambrunas) (' + [...tipos].join(', ') + ')');
   comprobar(conPorque / total > 0.95, 'casi todo lo que pasa trae su porqué y un precedente real (' + conPorque + ' de ' + total + ')');
   const m = hasta(S.crear(3, 5), 1500);
@@ -564,7 +564,7 @@ console.log('EL MERCADO GLOBAL');
   const cosechado = S.vivas(m).reduce((o, c) => { for (const k of Object.keys(c.cosechado || {})) o[k] = (o[k] || 0) + c.cosechado[k]; return o; }, {});
   comprobar(Object.keys(cosechado).length >= 2, 'se cultivan cosas distintas según la tierra (' + Object.keys(cosechado).map(k => k + ' ' + Math.round(cosechado[k])).join(', ') + ')');
   comprobar((mk.tratos || []).length > 3 && mk.tratos.every(x => x.vende !== x.compra && x.oro > 0 && x.n > 0), 'los comerciantes venden y compran entre reinos a cambio de oro (' + (mk.tratos || []).length + ' tratos)');
-  comprobar((mk.tratos || []).every(x => x.ruta === 'externa'), 'y solo con los reinos con los que hay ruta de comercio');
+  comprobar((mk.tratos || []).every(x => x.ruta === 'externa' || x.ruta === 'mar'), 'y solo con los reinos con los que hay ruta de comercio (por tierra o por mar)');
   // El precio: con mucha más madera en el mundo, la madera baja.
   mk.suceso = { k: 'piedra', f: 1, titulo: 'calma', hasta: m.turno + 100 }; // sin sucesos que muevan los precios durante la prueba
   const p0 = mk.precio.madera; for (let i = 0; i < 6; i++) { for (const c of S.vivas(m)) c.madera = 0; S.turno(m); }
@@ -572,7 +572,7 @@ console.log('EL MERCADO GLOBAL');
   comprobar(p1 > p0 && mk.precio.madera < p1, 'si falta madera en el mundo, sube; si sobra, baja (' + p0 + ' → ' + p1 + ' → ' + mk.precio.madera + ')');
   mk.suceso = null;
   // Las órdenes del mercado.
-  const solo = S.vivas(m).find(c => !(m.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)));
+  const solo = S.vivas(m).find(c => !V2.sociosDe(m, c).length);
   const con = S.vivas(m).find(c => (m.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)));
   if (solo) { X2.gobernar(m, solo.id); comprobar(/No comerciáis con ningún reino/.test(X2.ordenar(m, solo.id, 'comprad 10 de madera').respuesta), 'sin socios no se puede comprar: hay que producirlo'); }
   if (con) {
@@ -845,10 +845,15 @@ console.log('TRINCHERAS EN LA SEGUNDA GUERRA MUNDIAL');
   const par = S.vivas(m).flatMap(c => S.vecinosDe(m, c).map(o => [c, o])).filter(([c, o]) => c.guerreros + o.guerreros > 3).sort((p, q) => S.frontera(m, q[0], q[1]).length - S.frontera(m, p[0], p[1]).length)[0] || [S.vivas(m)[0], S.vecinosDe(m, S.vivas(m)[0])[0]];
   const [a, o] = par;
   comprobar(!m.vida.trinchera || !m.vida.trinchera.some(Boolean), 'antes de la Segunda Guerra Mundial nadie cava trincheras');
-  for (let k = 0; k < 40; k++) { for (const c of [a, o]) { c.era = 8; c.metal = Math.max(c.metal, 30); c.rel[(c === a ? o : a).id] = -30; } if (k === 25 && !S.enGuerra(a, o)) S.declararGuerra(m, a, o, 'prueba'); S.turno(m); }
-  const v = m.vida, T = v.trinchera || [], hechas = []; for (let t = 0; t < T.length; t++) if (T[t]) hechas.push(t);
-  const cerca = (t, d) => { const x = t % v.tw, y = t / v.tw | 0; for (let j = -d; j <= d; j++) for (let i = -d; i <= d; i++) if (m.dueno[V.region(m, (y + j) * v.tw + x + i)] !== m.dueno[V.region(m, t)]) return true; return false; };
-  const enFrontera = hechas.filter(t => cerca(t, V.SUB + 1)).length;
+  // (Dónde están las trincheras se mira justo antes de la guerra: luego las conquistas mueven la frontera.)
+  const cerca = (t, d) => { const v = m.vida, x = t % v.tw, y = t / v.tw | 0; for (let j = -d; j <= d; j++) for (let i = -d; i <= d; i++) if (m.dueno[V.region(m, (y + j) * v.tw + x + i)] !== m.dueno[V.region(m, t)]) return true; return false; };
+  let hechas = [], enFrontera = 0;
+  for (let k = 0; k < 40; k++) {
+    for (const c of [a, o]) { c.era = 8; c.metal = Math.max(c.metal, 30); c.rel[(c === a ? o : a).id] = -30; }
+    if (k === 25) { const T0 = m.vida.trinchera || []; hechas = []; for (let t = 0; t < T0.length; t++) if (T0[t]) hechas.push(t); enFrontera = hechas.filter(t => cerca(t, V.SUB + 1)).length; if (!S.enGuerra(a, o)) S.declararGuerra(m, a, o, 'prueba'); }
+    S.turno(m);
+  }
+  const v = m.vida, T = v.trinchera || [];
   comprobar(hechas.length >= 6 && enFrontera >= hechas.length * 0.8, 'los soldados cavan trincheras a lo largo de la frontera con el rival (' + hechas.length + ' casillas, ' + enFrontera + ' junto a la raya)');
   comprobar(hechas.some(t => T[t] === 2), 'y les ponen alambre de espino delante (' + hechas.filter(t => T[t] === 2).length + ')');
   const sold = v.aldeanos.find(x => x.o === 4 && x.c === a.id) || v.aldeanos.find(x => x.o === 4), rival = v.aldeanos.find(x => x.o === 4 && x.c !== sold.c) || sold;

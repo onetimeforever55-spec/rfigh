@@ -1086,7 +1086,8 @@
           a.anosVistos = anos;
           const dy = Math.max(0, anos - antes);
           if (!dy || quitar.has(a) || quedan <= 2) continue;
-          const p = 1 - Math.pow(1 - riesgoAnual(m, a, c).p, dy);
+          // (Los colonos de viaje van en grupo y bien provistos: no los mata dormir al raso.)
+          const p = 1 - Math.pow(1 - riesgoAnual(m, a, c).p * (a.colono != null ? 0.25 : 1), dy);
           if (azar(v) < p) { quitar.add(a); quedan--; a.causa = anos >= 55 ? 'vejez' : esNino(a) ? 'enfermedad de niño' : 'enfermedad'; v.muertos.push([a.x, a.y, a.c, anos >= 55 ? 'vejez' : 'enfermedad', 0]); recordarMuerte(m, a, c); }
         }
       } else {
@@ -1678,7 +1679,8 @@
         if (sitio != null) pide.unshift([OBRA.petroleo, () => sitio]);
       }
       // El puerto, en el mar abierto (en un lago no lleva a ninguna parte): uno por reino, y otro en cada ciudad de costa.
-      if (!tiene(OBRA.puerto) && (r === c.capital ? !(c.puertos > 0) : true)) { const sp = r === c.capital ? sitioPuerto(m, c, ter) : libreEn(tiles, t => (ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) && !navegable(ter, t) && enMarAbierto(m, t, ter)); if (sp != null) pide.push([OBRA.puerto, () => sp]); }
+      // El primero va justo detrás del molino: da pescado y abre el comercio y las rutas por mar (y no espera al ahorro).
+      if (!tiene(OBRA.puerto) && (r === c.capital ? !(c.puertos > 0) : true)) { const sp = r === c.capital ? sitioPuerto(m, c, ter) : libreEn(tiles, t => (ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) && !navegable(ter, t) && enMarAbierto(m, t, ter)); if (sp != null) pide.splice(r === c.capital ? Math.min(1, pide.length) : pide.length, 0, [OBRA.puerto, () => sp]); }
       // Lo que la gente necesita de verdad (agua, sitio para el grano, una plaza, un parque, un palacio), según el pueblo.
       if (pausada(m)) for (const n of (c.necesidades || [])) if (n.falta && n.region === r && !tiene(OBRA[n.obra]) && !pide.some(x => x[0] === OBRA[n.obra])) {
         const o = OBRA[n.obra];
@@ -1707,13 +1709,13 @@
         const coste = COSTES[obra];
         // Lo que se guarda para la mejora de la edad no se gasta en obras (salvo en el molino, que da de comer, y en
         // los pozos y las minas, que dan lo que hace falta para todo lo demás).
-        const res = obra === OBRA.molino || obra === OBRA.petroleo || obra === OBRA.mina ? null : S().reservaMejora(m, c), rs = k => (res && res[k]) || 0;
+        const res = obra === OBRA.molino || obra === OBRA.petroleo || obra === OBRA.mina || obra === OBRA.puerto ? null : S().reservaMejora(m, c), rs = k => (res && res[k]) || 0;
         if (c.madera - rs('madera') < coste[0] || c.piedra - rs('piedra') < coste[1] || (c.oro || 0) - rs('oro') < (coste[2] || 0) || (c.nivel || 0) < (NIVEL_OBRA[obra] || 0)) continue;
         // Ahorrando para la edad, solo se levanta lo que la edad pide (o lo que mandó el jugador).
         const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
         const necesaria = (c.necesidades || []).some(n => n.falta && OBRA[n.obra] === obra);
         // (Los pozos de petróleo y las minas no esperan: dan lo que hace falta para todo lo demás.)
-        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && obra !== OBRA.petroleo && obra !== OBRA.mina && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
+        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && obra !== OBRA.petroleo && obra !== OBRA.mina && obra !== OBRA.puerto && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
         const t = donde();
         if (t != null) { if (obra !== OBRA.molino || pausada(m)) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
       }
@@ -1855,16 +1857,22 @@
   // El desembarco: desde un puerto propio, por mar, hasta la costa enemiga más cercana a su corazón.
   function planNaval(m, c, o, preferida) {
     const v = m.vida, ter = terrenos(m);
-    const puertos = puertosDelTurno.filter(t => m.dueno[region(m, t)] === c.id);
+    const puertos = puertosDelTurno.filter(t => m.dueno[region(m, t)] === c.id && v.obra[t] === OBRA.puerto);
     if (!puertos.length) return null;
     if (travesias.mundo !== m) travesias = { mundo: m };
-    const regiones = S().casillas(m, o).sort((p, q) => S().distancia(p, preferida != null ? preferida : o.capital) - S().distancia(q, preferida != null ? preferida : o.capital)).slice(0, 8);
+    const mr = maresDe(m, ter);
+    const nuestros = puertos.slice(0, 3).map(p => [p, aguaJunto(m, p, ter)]).filter(([, w]) => w != null);
+    // Las tierras del enemigo, de la más cercana a su corazón a la más lejana; solo las que dan al mismo mar que
+    // alguno de nuestros puertos (así no se intenta desembarcar en la orilla de un lago).
+    const regiones = S().casillas(m, o).sort((p, q) => S().distancia(p, preferida != null ? preferida : o.capital) - S().distancia(q, preferida != null ? preferida : o.capital));
+    let intentos = 0;
     for (const r of regiones) {
-      const costa = parcelas(m, r).find(t => andable(ter[t]) && !navegable(ter, t) && aguaJunto(m, t, ter) != null);
+      const costa = parcelas(m, r).find(t => andable(ter[t]) && !navegable(ter, t) && aguaJunto(m, t, ter) != null && nuestros.some(([, w]) => mr.comp[w] === mr.comp[aguaJunto(m, t, ter)]));
       if (costa == null) continue;
+      if (++intentos > 4) break;
       const a = aguaJunto(m, costa, ter);
-      for (const p of puertos.slice(0, 3)) {
-        const de = aguaJunto(m, p, ter); if (de == null) continue;
+      for (const [p, de] of nuestros) {
+        if (mr.comp[de] !== mr.comp[a]) continue;
         const clave = de + '>' + a; if (!(clave in travesias)) travesias[clave] = rutaPorMar(m, de, a, ter);
         const ruta = travesias[clave];
         if (ruta && ruta.length > 1) return { obj: preferida != null && m.dueno[preferida] === o.id ? preferida : r, puerto: p, de, a, tierra: costa, ruta };
@@ -1872,6 +1880,7 @@
     }
     return null;
   }
+
   // El transporte: espera en el puerto a que embarque el ejército, cruza el mar y lo deja en la costa enemiga.
   function navegarTransporte(m, b, c, ter, paso) {
     const v = m.vida, e = v.ejercitos[c.id];
@@ -2826,14 +2835,18 @@
       const pend = (v.pendientes && v.pendientes[c.id]) || [];
       // La carretera que pidió el jugador («abrid una ruta comercial con X») corre más prisa.
       const urge = pend.length && v.rutas.some(ru => ru.pedida && (ru.a === c.id || ru.b === c.id));
-      if (pend.length && (!faltanCamas(c) || azar(v) < (urge ? 0.75 : 0.4))) {
+      // (Con caminos pendientes, la mitad de las veces se mira antes si hace falta un edificio: si no, un reino con
+      // un solo constructor se pasa la vida empedrando y nunca levanta su puerto o su templo.)
+      let yaMirado = false;
+      if (pend.length && !urge && azar(v) < 0.5) { yaMirado = true; const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
+      if (t < 0 && pend.length && (!faltanCamas(c) || azar(v) < (urge ? 0.75 : 0.4))) {
         const aqui = a.y * v.tw + a.x;
         // Se empiedra de dentro afuera: el tramo sin hacer más cercano, aunque la carretera vaya muy lejos.
         let md = 160;
         for (const x of pend) { if (rec.reservadas.has(x) || v.camino[x]) continue; const d = dist(m, aqui, x); if (d < md) { md = d; t = x; } }
         if (t >= 0) a.obraCamino = 1;
       }
-      if (t < 0 && (azar(v) < 0.6 || !molinoCerca(m, c, a.h))) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
+      if (t < 0 && !yaMirado && (azar(v) < 0.6 || !molinoCerca(m, c, a.h))) { const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
       const reserva = c.plan && c.plan.obra ? (COSTES[OBRA[c.plan.obra]] || [0])[0] : 0; // la madera del encargo del jugador no se gasta en casas
       if (t < 0 && faltanCamas(c) && c.madera >= 2 + reserva && memo.get('casa:' + a.h) !== -1) { t = casaNueva(m, a, c, rec, ter); if (t < 0) memo.set('casa:' + a.h, -1); }
     }
@@ -3033,12 +3046,14 @@
   // EL CAMINO POR TIERRA: para los viajes largos de soldados y colonos, un mapa de distancias desde el destino
   // que rodea el mar, los lagos y los bajíos (los ríos se vadean; el agua, solo por un puente). Así no se
   // meten en el agua a ahogarse: dan la vuelta por tierra. Se guardan unos pocos por turno.
-  let campos = { mundo: null, turno: -1, mapa: new Map() };
-  function campoHacia(m, t0, ter) {
-    const v = m.vida;
-    if (campos.mundo !== m || campos.turno !== m.turno) campos = { mundo: m, turno: m.turno, mapa: new Map() };
+  // (Se calcula hacia el centro de la comarca del destino y vale para 20 turnos: así lo comparten todos los que van
+  // al mismo sitio, y cada navegador lo rehace en los mismos turnos.)
+  let campos = { mundo: null, vez: -1, mapa: new Map() };
+  function campoHacia(m, destino, ter) {
+    const v = m.vida, t0 = centro(m, region(m, destino)), vez = Math.floor(m.turno / 20);
+    if (campos.mundo !== m || campos.vez !== vez) campos = { mundo: m, vez, mapa: new Map() };
     if (campos.mapa.has(t0)) return campos.mapa.get(t0);
-    if (campos.mapa.size >= 32) return null;
+    if (campos.mapa.size >= 48) return null;
     const n = v.tw * v.th, d = new Int32Array(n).fill(-1), cola = new Int32Array(n);
     let ini = 0, fin = 0; d[t0] = 0; cola[fin++] = t0;
     while (ini < fin) {
@@ -3053,14 +3068,15 @@
   }
   function andar(m, a, c, ter) {
     const v = m.vida;
-    if (++a.q > (a.colono != null ? 400 : 40)) return false;
+    // (Colonos y constructores que van a una obra lejana, como un puerto, aguantan un viaje más largo.)
+    if (++a.q > (a.colono != null ? 400 : a.edificio ? 160 : 40)) return false;
     // Nadando se avanza a medio paso.
     if (enAgua(m, ter, a.y * v.tw + a.x) && !a.porCamino) { a.brazada = !a.brazada; if (a.brazada) return true; }
     const opciones = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     const lejos = Math.abs(a.tx - a.x) + Math.abs(a.ty - a.y);
     // Soldados y colonos que van lejos siguen el camino por tierra (si lo hay desde donde están).
-    const campo = (a.o === GUERRERO || a.colono != null) && lejos > 5 ? campoHacia(m, a.ty * v.tw + a.tx, ter) : null;
-    const porTierra = campo && campo[a.y * v.tw + a.x] > 0;
+    const campo = (a.o === GUERRERO || a.colono != null || a.edificio) && lejos > 5 ? campoHacia(m, a.ty * v.tw + a.tx, ter) : null;
+    const porTierra = campo && campo[a.y * v.tw + a.x] > 3;
     const ahora = porTierra ? campo[a.y * v.tw + a.x] : lejos;
     let mejor = null, mv = 1e9;
     for (const [dx, dy] of opciones) {
@@ -3070,8 +3086,8 @@
       let d;
       if (porTierra) { if (campo[n] < 0) continue; d = campo[n] + azar(v) * 0.5; }
       else {
-        // Un soldado no se mete en el mar abierto (salvo por un puente).
-        if (a.o === GUERRERO && ter[n] === 'agua' && !v.camino[n]) continue;
+        // Un soldado no se mete en el mar ni en los bajíos (salvo por un puente).
+        if (a.o === GUERRERO && (ter[n] === 'agua' || ter[n] === 'bajo') && !v.camino[n]) continue;
         // El agua solo se elige si no hay otro camino: cuesta más, y el mar abierto mucho más.
         const coste = enAgua(m, ter, n) ? (ter[n] === 'agua' ? 4 : 2) : 0;
         d = Math.abs(a.tx - x) + Math.abs(a.ty - y) + coste + azar(v) * 0.9;
@@ -3889,7 +3905,8 @@
       // Por mar hace falta un barco: cuesta algo de madera.
       if (via.mar && (c.madera || 0) < 8) continue;
       const deTierra = via.mar ? masa[region(m, via.mar.puerto)] : masa[r];
-      const elegidos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.o !== GUERRERO && !a.k && a.e !== VIAJAR && a.aBordo == null && masa[region(m, a.y * v.tw + a.x)] === deTierra).slice(0, 3);
+      // Salen los adultos más jóvenes (los que aguantan el viaje y tendrán hijos en la tierra nueva).
+      const elegidos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && (a.edad || 0) < VIEJO && a.o !== GUERRERO && !a.k && a.e !== VIAJAR && a.aBordo == null && masa[region(m, a.y * v.tw + a.x)] === deTierra).sort((x, y) => (x.edad || 0) - (y.edad || 0)).slice(0, 3);
       if (elegidos.length < 2) continue;
       c.ultimaColonia = m.turno;
       if (pedido) c.plan.colonos = null;
@@ -3988,7 +4005,8 @@
   function fundar(m, a, c) {
     const v = m.vida, r = a.colono;
     const yaFundada = (m.ciudades || []).find(x => x.region === r && x.civ === c.id);
-    if (!yaFundada && m.dueno[r] >= 0) { for (const b of v.aldeanos) if (b.colono === r && b.c === c.id) b.colono = null; return; }
+    // Si mientras iban la tierra pasó a otro reino, vuelven; si pasó a ser suya (su reino creció hasta allí), fundan igual.
+    if (!yaFundada && m.dueno[r] >= 0 && m.dueno[r] !== c.id) { for (const b of v.aldeanos) if (b.colono === r && b.c === c.id) b.colono = null; if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, region: r, texto: '🏕 ' + ((S().civ(m, m.dueno[r]) || {}).nombre || 'Otro reino') + ' se quedó esa tierra antes de que llegaran tus colonos' }); return; }
     if (!yaFundada) {
       m.dueno[r] = c.id;
       for (const w of S().vecinos(r)) if (S().esTierra(m, w) && m.dueno[w] < 0 && azar(v) < 0.5) m.dueno[w] = c.id;

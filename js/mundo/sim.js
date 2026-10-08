@@ -182,7 +182,9 @@
       c.estab -= 8;
       cronica(m, 'sucesion', 'Guerra de sucesión en ' + c.nombre, 'Muere ' + (cargo === 'rey' ? 'el rey ' : 'el ' + cargo + ' ') + viejo + ' y tres pretendientes reclaman el poder. Gana ' + nombreRey(c) + ', ' + M.RASGOS[c.rey.rasgo].nombre + ', pero el reino queda partido en bandos.', c, null, { importante: true });
       const cs = casillas(m, c);
-      if (cs.length >= 14 * K && azar(m) < 0.3) separar(m, c, cs);
+      // Las provincias solo se separan si el reino ya estaba revuelto (y aun así no siempre).
+      // (Con el ritmo rápido de siglos por turno, las crisis rompen reinos como siempre.)
+      if (cs.length >= 14 * K && azar(m) < (ritmo(m) <= 1 ? 0.3 : c.estab < 35 ? 0.25 : 0.06)) separar(m, c, cs, 'tras la guerra de sucesión');
     } else if (detalle && (c.jugador || (vivas(m).slice().sort((p, q) => q.pob - p.pob).indexOf(c) < 3 && azar(m) < 0.35))) {
       cronica(m, 'sucesion', nombreRey(c) + ' gobierna ' + c.nombre, 'Muere ' + viejo + ' a los ' + Math.round(c.rey.edad) + ' años, más o menos. Le sucede ' + nombreRey(c) + ', de quien dicen que es ' + M.RASGOS[c.rey.rasgo].nombre + '.', c);
     }
@@ -605,7 +607,7 @@
   // Las tierras de un reino anexionado no se rebelan enseguida: el reino vencido deja de existir (no «renace»).
   const ANEXION = 150;
   const anexadaHacePoco = (m, r) => m.anexado && m.anexado[r] != null && m.turno - m.anexado[r] < ANEXION;
-  function separar(m, c, cs) {
+  function separar(m, c, cs, porque) {
     const lejos = cs.filter(i => i !== c.capital && !anexadaHacePoco(m, i)).sort((a, b) => distancia(b, c.capital) - distancia(a, c.capital));
     const parte = lejos.slice(0, Math.max(2, Math.floor(cs.length * 0.4)));
     if (parte.length < 2) return;
@@ -622,7 +624,8 @@
     nueva.regimen = regimenPorEra(m, nueva, parte.length);
     nueva.rel[c.id] = -40; c.rel[nueva.id] = -40; nueva.origen = c.id;
     suceso(m, 'independencia', parte[0], nueva, c, '🚩 ¡Las provincias de ' + c.nombre + ' se rebelan: nace ' + nueva.nombre + '!');
-    cronica(m, 'revuelta', 'Las provincias se rebelan', 'Las tierras lejanas de ' + c.nombre + ' dejan de obedecer a la capital y proclaman un ' + (nueva.regimen === 'republica' ? 'gobierno propio' : 'reino propio') + ': ' + nueva.nombre + '.', c, parte[0]);
+    if (c.jugador && m.vida) (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, region: parte[0], texto: '🚩 Tus provincias lejanas se rebelan' + (porque ? ' ' + porque : '') + ' y nace ' + nueva.nombre + '. Más estabilidad (fiestas, templos, un palacio) lo evita.' });
+    cronica(m, 'revuelta', 'Las provincias se rebelan', (porque ? T(porque) + ', l' : 'L') + 'as tierras lejanas de ' + c.nombre + ' dejan de obedecer a la capital y proclaman un ' + (nueva.regimen === 'republica' ? 'gobierno propio' : 'reino propio') + ': ' + nueva.nombre + '.', c, parte[0]);
   }
 
   function morir(m, c, quien) {
@@ -782,10 +785,29 @@
       x.lealtad = x.motivos.reduce((k, y) => k + y[1], 0);
       if (x.lealtad < 0) {
         if (x.complot == null) { x.complot = 0; cronica(m, 'complot', x.alcalde + ' conspira en ' + x.nombre, 'El alcalde de ' + x.nombre + ' reúne a los notables de la ciudad: ya no quieren obedecer a ' + c.nombre + '. ' + (x.motivos.filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0] || ['', 0])[0].replace(/^./, l => l.toUpperCase()) + '.', c, x.region); }
+        const antes = x.complot;
         x.complot += 10 + Math.min(20, -x.lealtad / 3);
+        // Al jugador se le avisa a tiempo, con el motivo y lo que puede hacer.
+        if (c.jugador && m.vida && ((antes === 0 && x.complot > 0) || (antes < 60 && x.complot >= 60))) {
+          const peor = x.motivos.filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0];
+          (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, region: x.region, texto: (x.complot >= 60 ? '⚠ ¡' + x.nombre + ' está a punto de independizarse! ' : '⚠ ' + x.nombre + ' conspira: ') + (peor ? peor[0] : 'no quiere obedecer') + '. ' + consejoLealtad(peor && peor[0]) });
+        }
         if (x.complot >= 100) rebelarCiudad(m, c, x);
       } else if (x.lealtad >= 10) x.complot = null;
     }
+  }
+  // Lo que el jugador puede hacer para calmar una ciudad, según su peor motivo.
+  function consejoLealtad(motivo) {
+    const k = String(motivo || '');
+    if (/demasiadas ciudades/.test(k)) return 'Tienes más ciudades de las que tu era aguanta: avanza de era o deja ir alguna.';
+    if (/lejos/.test(k)) return 'Está lejos de la capital: un palacio, fiestas o más estabilidad ayudan.';
+    if (/impuestos/.test(k)) return 'Baja los impuestos («bajad los impuestos»).';
+    if (/hambre/.test(k)) return 'Que haya comida («más comida»).';
+    if (/arcas/.test(k)) return 'Las arcas están vacías: guarda oro o comercia.';
+    if (/palacio/.test(k)) return 'Construye un palacio.';
+    if (/alcalde/.test(k)) return 'Su alcalde es ambicioso: más estabilidad (fiestas, templos) lo calma.';
+    if (/guerra/.test(k)) return 'La gente está cansada de la guerra: haz la paz.';
+    return 'Sube la estabilidad: fiestas («haced una fiesta»), templos o paz.';
   }
   // La ciudad se independiza con las tierras que tiene alrededor (las que están más cerca de ella que de la capital).
   function rebelarCiudad(m, c, x) {
@@ -806,7 +828,7 @@
     nueva.rel[c.id] = c.rel[nueva.id] = -50;
     m.ciudades = m.ciudades.filter(y => y !== x);
     suceso(m, 'independencia', x.region, nueva, c, '🚩 ¡' + x.nombre + ' se independiza de ' + c.nombre + '!');
-    cronica(m, 'revuelta', x.nombre + ' se independiza de ' + c.nombre, 'El alcalde ' + x.alcalde + ' proclama la independencia de ' + x.nombre + ' y de ' + (parte.length - 1) + ' comarcas de alrededor. ' + c.nombre + ' lo llama traición; ' + x.nombre + ', libertad.', nueva, x.region, { importante: true });
+    cronica(m, 'revuelta', x.nombre + ' se independiza de ' + c.nombre, 'El alcalde ' + x.alcalde + ' proclama la independencia de ' + x.nombre + ' y de ' + (parte.length - 1) + ' comarcas de alrededor' + ((x.motivos || []).filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0] ? ' (' + x.motivos.filter(y => y[1] < 0).sort((p, q) => p[1] - q[1])[0][0] + ')' : '') + '. ' + c.nombre + ' lo llama traición; ' + x.nombre + ', libertad.', nueva, x.region, { importante: true });
     // A veces la metrópoli no lo acepta.
     if (azar(m) < 0.5 && !c.jugador) declararGuerra(m, c, nueva, c.nombre + ' no acepta la independencia de ' + x.nombre + ' y manda a sus ejércitos a recuperarla.', true);
   }

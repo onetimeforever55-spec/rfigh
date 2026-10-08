@@ -55,8 +55,18 @@
     requestAnimationFrame(fotograma);
   }
 
+  // EL MODO LIGERO: si el aparato no llega a unos 30 fotogramas por segundo, se pinta a menos resolución y se
+  // quitan los adornos (huellas, humo, gestos, polvo, pájaros, nubes, tráfico); si luego va sobrado, vuelven.
+  let ligero = false, mediaFotograma = 16, ultimoFotograma = 0, cambioLigero = 0;
+  function medirRitmo(ahora) {
+    const d = ultimoFotograma ? Math.min(250, ahora - ultimoFotograma) : 16; ultimoFotograma = ahora;
+    mediaFotograma = mediaFotograma * 0.95 + d * 0.05;
+    if (ahora - cambioLigero < 4000) return;
+    if (!ligero && mediaFotograma > 36) { ligero = true; cambioLigero = ahora; medir(); }
+    else if (ligero && mediaFotograma < 18) { ligero = false; cambioLigero = ahora; medir(); }
+  }
   function medir() {
-    const caja = cv.parentElement, dpr = Math.min(2, window.devicePixelRatio || 1);
+    const caja = cv.parentElement, dpr = ligero ? 1 : Math.min(2, window.devicePixelRatio || 1);
     const w = Math.max(200, caja.clientWidth), h = Math.max(200, caja.clientHeight);
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     cv.style.width = w + 'px'; cv.style.height = h + 'px';
@@ -395,6 +405,7 @@
   function fotograma(ahora) {
     requestAnimationFrame(fotograma);
     if (!m || !listo) return;
+    medirRitmo(ahora);
     const k = progreso();
     if (pend.length) aplicar(Math.floor(k));
     const { w, h, dpr } = vista();
@@ -412,7 +423,7 @@
     g.drawImage(lienzo, x0 / E, y0 / E, (x1 - x0) / E, (y1 - y0) / E, x0, y0, x1 - x0, y1 - y0);
     const ec = P / CA;
     g.drawImage(capa, x0 / ec, y0 / ec, (x1 - x0) / ec, (y1 - y0) / ec, x0, y0, x1 - x0, y1 - y0);
-    huellas(k, ahora, x0, y0, x1, y1);
+    if (!ligero) huellas(k, ahora, x0, y0, x1, y1);
     banderas(ahora);
     agua(ahora, x0, y0, x1, y1);
     barcos(k, ahora, x0, y0, x1, y1);
@@ -420,10 +431,10 @@
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
     danados(ahora, x0, y0, x1, y1);
-    if (civPorId.size) { vias(x0, y0, x1, y1, ahora); trincheras(x0, y0, x1, y1); if (!reducido) trafico(ahora, x0, y0, x1, y1); }
+    if (civPorId.size) { vias(x0, y0, x1, y1, ahora); trincheras(x0, y0, x1, y1); if (!reducido && !ligero) trafico(ahora, x0, y0, x1, y1); }
     andamios(ahora, x0, y0, x1, y1);
     progresos(x0, y0, x1, y1);
-    humo(ahora, x0, y0, x1, y1);
+    if (!ligero) humo(ahora, x0, y0, x1, y1);
     aldeanos(k, ahora, x0, y0, x1, y1);
     pintarDisparos(k);
     eventosParticulas(k, x0, y0, x1, y1);
@@ -431,21 +442,19 @@
     sucesosMapa(ahora, x0, y0, x1, y1);
     pintarParticulas(ahora);
     if (plagasAnim.length) pintarPlagas(ahora, x0, y0, x1, y1);
-    gestos(k, ahora);
-    pintarPolvo(ahora);
+    if (!ligero) { gestos(k, ahora); pintarPolvo(ahora); }
     pintarTumbas(ahora);
     pintarEfectos(ahora, x0, y0, x1, y1);
     asedios(ahora);
     nieve(ahora, x0, y0, x1, y1);
     estaciones(ahora, x0, y0, x1, y1);
-    pajaros(ahora, x0, y0, x1, y1);
-    nubes(ahora, x0, y0, x1, y1);
+    if (!ligero) { pajaros(ahora, x0, y0, x1, y1); nubes(ahora, x0, y0, x1, y1); }
     pintarAviones(k);
     marcarPulso(ahora);
     planos(ahora);
     noche(ahora, x0, y0, x1, y1, z, ox, oy);
     farolas(ahora, x0, y0, x1, y1);
-    sueno(ahora, x0, y0, x1, y1);
+    if (!ligero) sueno(ahora, x0, y0, x1, y1);
     resplandor(k, ahora, x0, y0, x1, y1);
     g.setTransform(1, 0, 0, 1, 0, 0);
     nombres(z, ox, oy, dpr);
