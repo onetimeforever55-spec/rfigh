@@ -1178,7 +1178,9 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
       // Las provincias solo se separan si el reino ya estaba revuelto (y aun así no siempre).
       // (Con el ritmo rápido de siglos por turno, las crisis rompen reinos como siempre.)
       if (cs.length >= 14 * K && azar(m) < (ritmo(m) <= 1 ? 0.3 : c.estab < 35 ? 0.25 : 0.06)) separar(m, c, cs, 'tras la guerra de sucesión');
-    } else if (detalle && (c.jugador || (vivas(m).slice().sort((p, q) => q.pob - p.pob).indexOf(c) < 3 && azar(m) < 0.35))) {
+    // (Con las partidas pausadas cambian de jefe cada pocos turnos: al jugador se le cuenta de vez en cuando, no siempre.)
+    } else if (detalle && ((c.jugador && (ritmo(m) <= 1 || m.turno - (c.sucesionContada || -99) >= 25)) || (!c.jugador && vivas(m).slice().sort((p, q) => q.pob - p.pob).indexOf(c) < 3 && azar(m) < 0.35))) {
+      if (c.jugador) c.sucesionContada = m.turno;
       cronica(m, 'sucesion', nombreRey(c) + ' gobierna ' + c.nombre, 'Muere ' + viejo + ' a los ' + Math.round(c.rey.edad) + ' años, más o menos. Le sucede ' + nombreRey(c) + ', de quien dicen que es ' + M.RASGOS[c.rey.rasgo].nombre + '.', c);
     }
   }
