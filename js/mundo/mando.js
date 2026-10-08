@@ -1245,6 +1245,8 @@
   }
 
   // ---------- Elegir pueblo ----------
+  // En línea: otro jugador toma un pueblo (sin quitárselo a los demás jugadores).
+  function unirse(m, civId) { const c = S().civ(m, civId); if (c && c.viva) { c.jugador = true; plan(c); } return c; }
   function gobernar(m, civId) {
     for (const c of m.civs) { c.jugador = false; }
     const c = civId != null ? S().civ(m, civId) : null;
@@ -1325,5 +1327,5 @@
     return { civ: c, lista, puntos: r.puntos, extra, total: r.puntos + extra, hechos: lista.filter(x => x.hecho).length, fin: finPartida(m), puesto, hist: r.hist || null, conquistas: r.conquistas || 0 };
   }
 
-  M.mando = { GUIA, guia, vencer, queda, textoPlazo, cuentaOficios, OFICIOS_N, entender, aplicar, ordenar, informe, consejo, gobernar, RETOS, evaluarRetos, estadoRetos, finPartida, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
+  M.mando = { unirse, GUIA, guia, vencer, queda, textoPlazo, cuentaOficios, OFICIOS_N, entender, aplicar, ordenar, informe, consejo, gobernar, RETOS, evaluarRetos, estadoRetos, finPartida, SISTEMA, paraIA, aplicarIA, limpiar, NOMBRE_RECURSO, NIVEL };
 })(globalThis.RF = globalThis.RF || {});

@@ -496,3 +496,16 @@ table.mercado td:first-child { white-space: nowrap; }
 /* Enlaces dentro de las fichas (padres, hijos, la casa donde vive). */
 .enlace { background: none; border: 0; padding: 0; margin: 0; color: var(--oro); font: inherit; text-decoration: underline dotted; cursor: pointer; }
 .enlace:hover { color: #ffe08a; }
+
+/* En línea: el diálogo para crear o unirse y la barra con el código, los jugadores y el chat. */
+.online-campo { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; font-size: 14px; color: var(--tenue, #a8b0c4); }
+.online-campo input, .online-unirse input, .online-chat input { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--oro); color: inherit; padding: 8px 10px; font: inherit; font-size: 16px; border-radius: 4px; }
+.online-unirse { display: flex; gap: 8px; margin-top: 12px; }
+.online-unirse input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: 3px; font-family: var(--f-pixel, monospace); }
+.online-barra { position: absolute; z-index: 5; left: 50%; transform: translateX(-50%); top: calc(max(6px, env(safe-area-inset-top)) + 120px); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: min(640px, calc(100% - 24px)); background: rgba(13, 19, 34, 0.9); border: 1px solid var(--oro); padding: 6px 10px; font-size: 13px; box-shadow: 0 0 0 2px var(--px-negro, #000), 4px 4px 0 rgba(0,0,0,0.4); }
+.online-barra[hidden] { display: none; }
+.online-codigo { font-family: var(--f-pixel, monospace); color: var(--oro); letter-spacing: 2px; }
+.online-jugadores { color: #d8deea; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+.online-chat { flex: 1; min-width: 120px; }
+.online-chat input { width: 100%; font-size: 14px; padding: 4px 8px; }
+@media (max-width: 899px) { .online-barra { top: calc(max(6px, env(safe-area-inset-top)) + 96px); font-size: 12px; } .online-jugadores { max-width: 160px; } }

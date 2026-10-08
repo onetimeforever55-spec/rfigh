@@ -52,10 +52,29 @@
           <div class="inicio-botones">
             <button type="button" class="obrar" id="modo-pueblo">Gobernar un pueblo</button>
             <button type="button" class="mando" id="modo-dios">Ser un dios</button>
+            <button type="button" class="mando" id="modo-online">🌐 Jugar online</button>
           </div>
           <p class="clave">Arrastra para moverte; rueda, pellizca o usa + y − para acercarte. Toca una tierra para elegir a su pueblo, o un aldeano para ver quién es.</p>
           <p class="clave"><button type="button" class="enlace" id="ayuda-inicio">¿Primera vez? Cómo se juega</button></p>
         </div>
+      </div>
+      <div class="inicio" id="online" hidden>
+        <div class="inicio-caja">
+          <h2 class="inicio-titulo">Jugar online</h2>
+          <p class="inicio-texto">Juega con amigos en el mismo mundo: cada uno gobierna su pueblo. Uno crea la partida y comparte el código; los demás lo escriben aquí. Hace falta internet.</p>
+          <label class="online-campo">Tu nombre <input id="online-nombre" maxlength="16" placeholder="Tu nombre" autocomplete="nickname"></label>
+          <div class="inicio-botones"><button type="button" class="obrar" id="online-crear">Crear partida</button></div>
+          <div class="online-unirse"><input id="online-codigo" maxlength="8" placeholder="CÓDIGO" autocapitalize="characters" autocomplete="off"><button type="button" class="mando" id="online-entrar">Unirse</button></div>
+          <p class="clave" id="online-estado"></p>
+          <p class="clave"><button type="button" class="enlace" id="online-cerrar">Cerrar</button></p>
+        </div>
+      </div>
+      <div class="online-barra" id="online-barra" hidden>
+        <span class="online-codigo" id="online-codigo-ver"></span>
+        <span class="online-jugadores" id="online-jugadores"></span>
+        <form id="online-chat" class="online-chat"><input id="online-msg" maxlength="140" placeholder="Mensaje…" autocomplete="off"></form>
+        <button type="button" class="enlace" id="online-invitar">Invitar</button>
+        <button type="button" class="enlace" id="online-salir">Salir</button>
       </div>
       <div class="inicio ayuda" id="ayuda" hidden>
         <div class="inicio-caja ayuda-caja" role="dialog" aria-labelledby="ayuda-titulo">
@@ -83,6 +102,8 @@
             <p>El humo de las fábricas ensucia el aire y la gente enferma más; los parques lo limpian. Si la gente está descontenta, los obreros hacen huelga y las fábricas se paran: puedes «subir los salarios» (cuesta oro) o «reprimir la huelga» (baja la estabilidad). Tras varias huelgas puede estallar una revolución que cambie el gobierno.</p></details>
           <details><summary>La guerra</summary>
             <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Desde la Revolución Industrial, cada puerto con cuartel bota acorazados en guerra, que bombardean la costa enemiga. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan.</p></details>
+          <details><summary>Jugar online</summary>
+            <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba tienes el código, quién juega y un chat. Hace falta internet.</p></details>
           <details><summary>Retos y final</summary>
             <p>En la pestaña Retos tienes metas con puntos: llegar a 30 aldeanos, fundar una ciudad, llegar al Renacimiento… La partida termina en 1945 (en el mundo libre, en el año 400) con tu puntuación y la historia de tu pueblo. Puedes seguir jugando después.</p></details>
           <details><summary>Ser un dios</summary>

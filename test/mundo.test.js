@@ -26,6 +26,23 @@ console.log('EL TURNO POR PARTES');
   comprobar(JSON.stringify(a) === JSON.stringify(b), 'y por partes sale exactamente el mismo mundo que de una vez');
 }
 
+console.log('EN LÍNEA: EL MISMO MUNDO EN DOS NAVEGADORES');
+{
+  // Lo que hace el online: el invitado recibe el mundo (JSON) y los dos calculan los mismos turnos con las mismas órdenes.
+  const X = M.mando, A = S.crear(11, 5, { ritmo: 3 }); A.modo = 'pueblo';
+  for (let k = 0; k < 120; k++) S.turno(A);
+  const B = JSON.parse(JSON.stringify(A)), ids = S.vivas(A).slice(0, 2).map(c => c.id);
+  for (const w of [A, B]) for (const id of ids) X.unirse(w, id);
+  const can = x => JSON.stringify(x, (k, v) => v && typeof v === 'object' && !Array.isArray(v) ? Object.keys(v).sort().reduce((o, kk) => (v[kk] == null ? o : (o[kk] = v[kk], o)), {}) : v);
+  let igual = true;
+  for (let k = 0; k < 40 && igual; k++) {
+    if (k === 3) for (const w of [A, B]) { X.ordenar(w, ids[0], 'haced 3 casas y talad 10 árboles'); X.ordenar(w, ids[1], 'construid un templo'); M.vida.ajustar(w); }
+    S.turno(A); const g = S.turnoPorPartes(B); while (!g.next().done);
+    igual = can(A) === can(B);
+  }
+  comprobar(igual && ids.every(id => S.civ(A, id).jugador && S.civ(B, id).jugador), 'dos copias del mundo con las mismas órdenes siguen idénticas turno a turno (dos jugadores a la vez)');
+}
+
 console.log('LA HISTORIA SIGUE EL CALENDARIO REAL');
 {
   const renac = [], bronce = [];

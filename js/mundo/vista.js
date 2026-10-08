@@ -29,7 +29,7 @@
   }
   function guardar() {
     acabarTurno();
-    if (!m || guardando) return;
+    if (!m || guardando || red.modo === 'invitado') return;
     let json; try { json = JSON.stringify(m); } catch (e) { return; }
     if (typeof CompressionStream !== 'function') { escribir(json); return; }
     guardando = true;
@@ -69,6 +69,9 @@
     corriendo = false; programar();
   }
   function elegirModo(modo, civId) {
+    // En línea, quien se une pide un pueblo al anfitrión (si está libre, es suyo).
+    if (red.modo === 'invitado') { $('inicio').hidden = true; enviarAnfitrion({ t: 'elijo', civ: civId != null ? civId : sel }); onlineEstado('Pidiendo ese pueblo…'); return; }
+    if (red.modo === 'anfitrion' && modo !== 'pueblo') { $('inicio').hidden = true; responder('En una partida online solo se juega gobernando un pueblo.', 'duda'); return; }
     $('inicio').hidden = true;
     // El mundo libre se puede activar en cualquier momento: desde ahora, los años pasan de uno en uno.
     const libre = $('mundo-libre').checked;
@@ -597,7 +600,7 @@
     f.querySelector('#seguir').addEventListener('click', () => { P.seguir(siguiendo ? null : a.id); pintarFicha(); });
     f.querySelectorAll('.ver-aldeano').forEach(b => b.addEventListener('click', () => { aldeanoSel = +b.dataset.id; P.elegirAldeano(aldeanoSel); pintarFicha(); }));
     f.querySelectorAll('.ver-edificio').forEach(b => b.addEventListener('click', () => { aldeanoSel = null; P.elegirAldeano(null); edificioSel = +b.dataset.t; pintarFicha(); }));
-    f.querySelectorAll('.oficio-a').forEach(b => b.addEventListener('click', () => { const k = +b.dataset.k; a.fijo = { g: 'mano', vuelve: a.o }; M.vida.mover(a, k); pintarFicha(); }));
+    f.querySelectorAll('.oficio-a').forEach(b => b.addEventListener('click', () => { const k = +b.dataset.k; if (enLinea()) { encolar({ tipo: 'oficio', civ: a.c, id: a.id, k }); responder('📡 Cambio de oficio enviado: se cumple al empezar el próximo turno.', 'bien'); } else { a.fijo = { g: 'mano', vuelve: a.o }; M.vida.mover(a, k); } pintarFicha(); }));
     const libre = f.querySelector('.oficio-libre');
     if (libre) libre.addEventListener('click', () => { delete a.fijo; a.e = 0; pintarFicha(); });
     f.querySelector('#volver-pueblo').addEventListener('click', () => { aldeanoSel = null; P.elegirAldeano(null); P.seguir(null); elegir(a.c, true); });
@@ -798,7 +801,7 @@
   function relojSuave() {
     requestAnimationFrame(relojSuave);
     // Para depurar desde la consola: genesis.mundo() devuelve el mundo vivo.
-    window.genesis = { mundo: () => m, aldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); }, edificio: t => { aldeanoSel = null; edificioSel = t; pintarFicha(); } };
+    window.genesis = Object.assign(window.genesis || {}, { mundo: () => m, aldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); }, edificio: t => { aldeanoSel = null; edificioSel = t; pintarFicha(); } });
     if (!m || anioAntes == null) return;
     if (performance.now() - (relojSuave.ult || 0) > 500) { relojSuave.ult = performance.now(); pintarCuadrillas(); }
     const f = corriendo ? Math.min(1, (performance.now() - inicioTurno) / VELOCIDADES[vel][0]) : 1;
@@ -810,7 +813,13 @@
   // congela al cambiar de turno, y la gente que aún termina su último paso sigue andando mientras tanto.
   let calculo = null;
   function paso() {
-    if (calculo) return;
+    if (calculo || red.modo === 'invitado') return;
+    // En línea, el anfitrión lleva el reloj: manda a todos las órdenes del turno y lo calcula como los demás.
+    if (red.modo === 'anfitrion') { const msg = { t: 'turno', n: m.turno + 1, acc: red.cola.splice(0), ms: VELOCIDADES[vel][0], vel, suma: sumaMundo(m) }; difundir(msg); empezarTurno(msg); return; }
+    empezarTurno(null);
+  }
+  function empezarTurno(msg) {
+    if (msg) { if (m.vida) m.vida.msTurno = msg.ms; aplicarAcciones(msg.acc); }
     const antes = m.cronica[0], yo = tuPueblo(), guerrasAntes = yo ? yo.guerras.map(g => g.con) : [], sigAntes = m.vida ? m.vida.sig : 0;
     calculo = { gen: S.turnoPorPartes ? S.turnoPorPartes(m) : null, antes, yo, guerrasAntes, sigAntes, anio: m.anio, mundo: m };
     if (!calculo.gen) { S.turno(m); terminarCalculo(); return; }
@@ -830,6 +839,7 @@
     P.turno(m, VELOCIDADES[vel][0]);
     // Los paneles, los retos y el guardado van después, en otro fotograma (menos tirón al cambiar de turno).
     setTimeout(() => despuesDelTurno(c.antes, c.yo, c.guerrasAntes, c.sigAntes), 40);
+    if (red.modo === 'invitado' && red.pendientes.length) setTimeout(() => turnoRecibido(red.pendientes.shift()), 0);
   }
   // Antes de tocar el mundo (una orden, un poder, guardar), el turno a medias se termina de una vez.
   function acabarTurno() { const c = calculo; if (c && c.mundo === m) { while (!c.gen.next().done); terminarCalculo(); } else calculo = null; }
@@ -943,9 +953,252 @@
     if (oferta) responder(oferta.titulo + '. Escribe «acepto la paz con ' + oferta.titulo.replace(/ te ofrece la paz$/, '') + '» si la quieres.', 'duda');
   }
 
+  // ---------- EN LÍNEA: varios jugadores en el mismo mundo ----------
+  /*
+   * Sin servidor propio: los navegadores se conectan directamente (WebRTC; PeerJS solo les ayuda a encontrarse).
+   * El anfitrión lleva el reloj: en cada turno manda a todos las órdenes de ese turno, y cada navegador calcula el
+   * mismo turno con las mismas órdenes (la simulación es reproducible), así que no hace falta mandar el mundo
+   * entero cada vez. Quien entra recibe el mundo una vez, comprimido. Si un mundo se separa del del anfitrión (la
+   * suma de control no cuadra), el anfitrión le vuelve a mandar el suyo.
+   */
+  const red = { modo: null, peer: null, conns: new Map(), conn: null, codigo: null, nombre: '', jugadores: [], cola: [], pendientes: [], esperandoMundo: false, miCiv: null };
+  const enLinea = () => !!red.modo;
+  const PREFIJO = 'genesis-rfigh-';
+  const ordenarLocal = X.ordenar, encargarLocal = M.vida.encargar;
+  // En línea, las órdenes y los encargos no se cumplen en el acto: van al turno siguiente, para todos a la vez.
+  X.ordenar = function (mm, civ, texto) {
+    if (enLinea() && mm === m) { encolar({ tipo: 'orden', civ, texto }); return { ok: true, acciones: [], respuesta: '📡 Orden enviada: se cumple al empezar el próximo turno.' }; }
+    return ordenarLocal.apply(this, arguments);
+  };
+  M.vida.encargar = function (mm, c, t, clave) {
+    if (enLinea() && mm === m) { encolar({ tipo: 'encargo', civ: c.id, t, clave }); return { ok: true, enviado: true }; }
+    return encargarLocal.apply(this, arguments);
+  };
+  function encolar(x) { if (red.modo === 'anfitrion') red.cola.push(x); else if (red.modo === 'invitado') enviarAnfitrion({ t: 'accion', x }); }
+  function aplicarAcciones(lista) {
+    let ordenes = 0;
+    for (const x of lista || []) {
+      const c = S.civ(m, x.civ); if (!c) continue;
+      if (x.tipo === 'orden') {
+        const r = ordenarLocal(m, x.civ, x.texto); ordenes++;
+        if (x.civ === m.jugador) responder(r.ok ? (r.respuesta || 'Hecho.') : (r.respuesta || 'Tu gente no entiende la orden.'), r.ok ? 'bien' : 'duda');
+      } else if (x.tipo === 'encargo') encargarLocal(m, c, x.t, x.clave);
+      else if (x.tipo === 'oficio') { const a = m.vida.aldeanos.find(q => q.id === x.id); if (a && a.c === x.civ) { a.fijo = { g: 'mano', vuelve: a.o }; M.vida.mover(a, x.k); } }
+      else if (x.tipo === 'unirse') X.unirse(m, x.civ);
+      else if (x.tipo === 'salir') c.jugador = false;
+    }
+    if (ordenes) M.vida.ajustar(m);
+  }
+  // La suma de control: lo que de verdad cuenta en la simulación (no la cámara, ni la guía, ni los retos).
+  function sumaMundo(mm) {
+    let s = (mm.turno * 7 + Math.round(mm.anio)) | 0;
+    for (const c of mm.civs) s = (s * 31 + (c.viva ? 1 : 2) + c.era * 3 + Math.round(c.pob || 0) + Math.round(c.madera || 0) * 5 + Math.round(c.oro || 0) * 11) | 0;
+    const v = mm.vida;
+    if (v) { s = (s * 31 + v.aldeanos.length) | 0; for (const a of v.aldeanos) s = (s * 31 + a.x * 131 + a.y * 7 + a.o) | 0; }
+    for (let i = 0; i < mm.dueno.length; i++) s = (s * 31 + mm.dueno[i]) | 0;
+    return s;
+  }
+  // El transporte: PeerJS (de cdnjs) en internet; con ?red=local, un canal entre pestañas del mismo navegador (para probar).
+  const redLocal = /[?&]red=local\b/.test(location.search);
+  function cargarPeer() {
+    if (redLocal || window.Peer) return Promise.resolve();
+    return new Promise((ok, mal) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'; sc.onload = ok; sc.onerror = () => mal(new Error('sin conexión')); document.head.appendChild(sc); });
+  }
+  function conexionLocal(canal, yo, otro) {
+    const fns = [], cierres = [];
+    const c = { id: otro, enviar: d => canal.postMessage({ de: yo, para: otro, d }), al: f => fns.push(f), alCerrar: f => cierres.push(f), cerrar: () => { canal.postMessage({ de: yo, para: otro, fin: 1 }); }, _llega: d => fns.forEach(f => f(d)), _fin: () => cierres.forEach(f => f()) };
+    return c;
+  }
+  function envolver(pc) { const c = { id: pc.peer, enviar: d => { try { pc.send(d); } catch (e) { /* conexión caída */ } }, al: f => pc.on('data', f), alCerrar: f => { pc.on('close', f); pc.on('error', f); }, cerrar: () => pc.close() }; return c; }
+  function abrirAnfitrion(codigo, alConectar) {
+    if (redLocal) {
+      const canal = new BroadcastChannel(PREFIJO + codigo), conns = {};
+      canal.onmessage = ev => { const x = ev.data; if (x.para !== 'anfitrion') return; if (x.abrir) { const c = conns[x.de] = conexionLocal(canal, 'anfitrion', x.de); canal.postMessage({ de: 'anfitrion', para: x.de, listo: 1 }); alConectar(c); return; } const c = conns[x.de]; if (!c) return; if (x.fin) { c._fin(); delete conns[x.de]; } else c._llega(x.d); };
+      red.peer = { destroy: () => canal.close() };
+      return Promise.resolve();
+    }
+    return new Promise((ok, mal) => {
+      const peer = new window.Peer(PREFIJO + codigo); red.peer = peer;
+      peer.on('open', () => ok()); peer.on('error', e => mal(e));
+      peer.on('connection', pc => pc.on('open', () => alConectar(envolver(pc))));
+    });
+  }
+  function conectarA(codigo) {
+    if (redLocal) {
+      return new Promise((ok, mal) => {
+        const canal = new BroadcastChannel(PREFIJO + codigo), yo = 'j' + Math.random().toString(36).slice(2, 8);
+        const c = conexionLocal(canal, yo, 'anfitrion');
+        const t = setTimeout(() => mal(new Error('no hay nadie con ese código')), 4000);
+        canal.onmessage = ev => { const x = ev.data; if (x.para !== yo) return; if (x.listo) { clearTimeout(t); ok(c); } else if (x.fin) c._fin(); else c._llega(x.d); };
+        red.peer = { destroy: () => canal.close() };
+        canal.postMessage({ de: yo, para: 'anfitrion', abrir: 1 });
+      });
+    }
+    return new Promise((ok, mal) => {
+      const peer = new window.Peer(); red.peer = peer;
+      const t = setTimeout(() => mal(new Error('no hay nadie con ese código')), 15000);
+      peer.on('error', e => { clearTimeout(t); mal(e); });
+      peer.on('open', () => { const pc = peer.connect(PREFIJO + codigo, { reliable: true }); pc.on('open', () => { clearTimeout(t); ok(envolver(pc)); }); pc.on('error', e => { clearTimeout(t); mal(e); }); });
+    });
+  }
+  const comprimir = txt => typeof CompressionStream === 'function' ? new Response(new Blob([txt]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer().then(b => ({ gz: new Uint8Array(b) })) : Promise.resolve({ txt });
+  const descomprimir = d => d.gz ? new Response(new Blob([d.gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text() : Promise.resolve(d.txt);
+  function difundir(msg) { for (const c of red.conns.values()) c.enviar(msg); }
+  function enviarAnfitrion(msg) { if (red.conn) red.conn.enviar(msg); }
+  function nombreDe(civ) { const c = civ != null ? S.civ(m, civ) : null; return c ? c.nombre : '—'; }
+  function onlineEstado(t) { const e = $('online-estado'); if (e) e.textContent = t || ''; }
+  function pintarOnline() {
+    const b = $('online-barra'); if (!b) return;
+    b.hidden = !enLinea();
+    if (!enLinea()) return;
+    $('online-codigo-ver').textContent = '🌐 ' + red.codigo;
+    $('online-jugadores').textContent = red.jugadores.map(j => j.nombre + (j.civ != null ? ' (' + nombreDe(j.civ) + ')' : '')).join(' · ');
+    for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = red.modo === 'invitado' || (id !== 'play' && id !== 'vel' && red.modo === 'anfitrion'); }
+    $('online-invitar').hidden = red.modo !== 'anfitrion';
+  }
+  const nuevoCodigo = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+  // El anfitrión: abre la partida con un código y espera a los demás.
+  async function crearOnline() {
+    red.nombre = ($('online-nombre').value || 'Anfitrión').trim().slice(0, 16);
+    if (!modoPueblo()) elegirModo('pueblo', sel != null && S.civ(m, sel) && S.civ(m, sel).viva ? sel : null);
+    onlineEstado('Abriendo la partida…');
+    try {
+      await cargarPeer();
+      const codigo = nuevoCodigo();
+      await abrirAnfitrion(codigo, nuevoInvitado);
+      red.modo = 'anfitrion'; red.codigo = codigo; red.miCiv = m.jugador;
+      red.jugadores = [{ id: 'anfitrion', nombre: red.nombre, civ: m.jugador }];
+      onlineEstado('Partida abierta. Comparte este código: ' + codigo);
+      $('online').hidden = true; corriendo = true; programar(); pintarOnline();
+      avisoFlotante('🌐 Partida online abierta. Código: ' + codigo, 8000);
+    } catch (e) { onlineEstado('No se pudo abrir la partida (' + (e && e.message || 'sin conexión') + '). Hace falta internet.'); }
+  }
+  function nuevoInvitado(conn) {
+    red.conns.set(conn.id, conn);
+    conn.al(d => mensajeAnfitrion(conn, d));
+    conn.alCerrar(() => {
+      if (!red.conns.has(conn.id)) return;
+      red.conns.delete(conn.id);
+      const j = red.jugadores.find(x => x.id === conn.id);
+      red.jugadores = red.jugadores.filter(x => x.id !== conn.id);
+      if (j && j.civ != null) red.cola.push({ tipo: 'salir', civ: j.civ });
+      if (j) avisoFlotante('🌐 ' + j.nombre + ' ha salido' + (j.civ != null ? ': ' + nombreDe(j.civ) + ' vuelve a gobernarse solo' : ''), 4000);
+      difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline();
+    });
+  }
+  async function mandarMundo(conn) {
+    acabarTurno();
+    const d = await comprimir(JSON.stringify(m));
+    conn.enviar(Object.assign({ t: 'mundo', turno: m.turno, jugadores: red.jugadores, vel, corriendo }, d));
+  }
+  function mensajeAnfitrion(conn, d) {
+    if (!d || typeof d !== 'object') return;
+    const j = red.jugadores.find(x => x.id === conn.id);
+    if (d.t === 'hola') { if (!j) red.jugadores.push({ id: conn.id, nombre: String(d.nombre || 'Jugador').slice(0, 16), civ: null }); mandarMundo(conn); difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline(); avisoFlotante('🌐 Entra ' + String(d.nombre || 'un jugador').slice(0, 16), 3500); }
+    else if (d.t === 'pideMundo') mandarMundo(conn);
+    else if (d.t === 'elijo') {
+      // Sin elegir, le toca un pueblo libre al azar (de los que no gobierna nadie).
+      const libres = S.vivas(m).filter(x => !red.jugadores.some(y => y.civ === x.id));
+      const c = d.civ != null ? S.civ(m, d.civ) : libres[Math.floor(Math.random() * libres.length)] || null;
+      const ocupado = !c || !c.viva || red.jugadores.some(x => x.civ === c.id && x.id !== conn.id);
+      if (ocupado || !j) { conn.enviar({ t: 'ocupado' }); return; }
+      if (j.civ != null && j.civ !== c.id) red.cola.push({ tipo: 'salir', civ: j.civ });
+      j.civ = c.id; red.cola.push({ tipo: 'unirse', civ: c.id });
+      conn.enviar({ t: 'eres', civ: c.id }); difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline();
+    }
+    else if (d.t === 'accion' && d.x && j && d.x.civ === j.civ) red.cola.push(d.x);
+    else if (d.t === 'chat' && j) { const msg = { t: 'chat', de: j.nombre, texto: String(d.texto || '').slice(0, 140) }; difundir(msg); chat(msg); }
+  }
+  // Quien se une: entra con el código, recibe el mundo y elige pueblo.
+  async function unirseOnline() {
+    const codigo = ($('online-codigo').value || '').trim().toUpperCase();
+    if (codigo.length < 4) { onlineEstado('Escribe el código que te ha dado el anfitrión.'); return; }
+    red.nombre = ($('online-nombre').value || 'Jugador').trim().slice(0, 16);
+    onlineEstado('Buscando la partida ' + codigo + '…');
+    try {
+      await cargarPeer();
+      const conn = await conectarA(codigo);
+      acabarTurno();
+      red.modo = 'invitado'; red.codigo = codigo; red.conn = conn; red.esperandoMundo = true; red.pendientes = [];
+      corriendo = true; programar();
+      conn.al(d => mensajeInvitado(d));
+      conn.alCerrar(() => { if (red.modo !== 'invitado') return; salirOnline(true); avisoFlotante('🌐 El anfitrión cerró la partida: sigues en este mundo tú solo.', 6000); });
+      conn.enviar({ t: 'hola', nombre: red.nombre });
+      onlineEstado('Conectado. Recibiendo el mundo…');
+    } catch (e) { red.modo = null; onlineEstado('No se encontró la partida (' + (e && e.message || 'error') + '). Revisa el código.'); }
+  }
+  async function mensajeInvitado(d) {
+    if (!d || typeof d !== 'object') return;
+    if (d.t === 'mundo') {
+      const txt = await descomprimir(d);
+      const nuevo = JSON.parse(txt);
+      calculo = null; m = nuevo; vel = d.vel || 0; corriendo = true;
+      m.jugador = red.miCiv; m.modo = 'pueblo'; m.guia = { oculta: 1 };
+      P.mundo(m); if (red.miCiv != null) { sel = red.miCiv; P.seleccionar(sel); }
+      red.jugadores = d.jugadores || [];
+      red.esperandoMundo = false;
+      red.pendientes = red.pendientes.filter(x => x.n > m.turno).sort((a, b) => a.n - b.n);
+      pintarModo(); pintarTodo(); pintarOnline();
+      $('online').hidden = true;
+      if (red.miCiv == null) pedirModo('Elige tu pueblo', 'Toca en el mapa la tierra del pueblo que quieres gobernar y pulsa «Gobernar un pueblo». Los pueblos de los otros jugadores ya tienen dueño.');
+      if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift());
+    }
+    else if (d.t === 'turno') turnoRecibido(d);
+    else if (d.t === 'eres') {
+      red.miCiv = d.civ; m.jugador = d.civ; m.modo = 'pueblo'; sel = d.civ; P.seleccionar(sel);
+      if (!m.retos || m.retos.civ !== d.civ) m.retos = { civ: d.civ, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno };
+      const c = S.civ(m, d.civ); if (c) P.centrarEn(c.capital, 3);
+      responder('Gobiernas ' + nombreDe(d.civ) + ' en una partida online. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien');
+      pintarModo(); pintarTodo(); pintarOnline();
+    }
+    else if (d.t === 'ocupado') pedirModo('Ese pueblo ya tiene dueño', 'Toca otra tierra en el mapa y pulsa «Gobernar un pueblo».');
+    else if (d.t === 'jugadores') { red.jugadores = d.lista || []; pintarOnline(); }
+    else if (d.t === 'estado') { corriendo = !!d.corriendo; vel = d.vel || 0; pintarCabecera(); if (!d.corriendo) avisoFlotante('⏸ El anfitrión ha pausado la partida', 2500); }
+    else if (d.t === 'chat') chat(d);
+  }
+  function turnoRecibido(msg) {
+    if (red.modo !== 'invitado') return;
+    if (red.esperandoMundo || calculo) { red.pendientes.push(msg); return; }
+    if (msg.n <= m.turno) return;
+    if (msg.n !== m.turno + 1 || msg.suma !== sumaMundo(m)) { red.esperandoMundo = true; red.pendientes = []; enviarAnfitrion({ t: 'pideMundo' }); return; }
+    vel = msg.vel || 0;
+    empezarTurno(msg);
+  }
+  function chat(d) { avisoFlotante('💬 ' + d.de + ': ' + d.texto, 5000); }
+  function salirOnline(silencioso) {
+    const era = red.modo;
+    if (era === 'anfitrion') { for (const c of red.conns.values()) c.cerrar(); }
+    else if (era === 'invitado' && red.conn) red.conn.cerrar();
+    try { if (red.peer) red.peer.destroy(); } catch (e) { /* ya cerrado */ }
+    Object.assign(red, { modo: null, peer: null, conns: new Map(), conn: null, codigo: null, jugadores: [], cola: [], pendientes: [], esperandoMundo: false });
+    for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = false; }
+    pintarOnline(); programar();
+    if (!silencioso) responder('Has salido de la partida online. Sigues en este mundo tú solo.', 'bien');
+  }
+  function atarOnline() {
+    const n = $('online-nombre'); try { n.value = localStorage.getItem('genesis.nombre') || ''; } catch (e) { /* sin preferencia */ }
+    n.addEventListener('change', () => { try { localStorage.setItem('genesis.nombre', n.value.trim()); } catch (e) { /* sin guardado */ } });
+    $('modo-online').addEventListener('click', () => { $('inicio').hidden = true; $('online').hidden = false; onlineEstado(enLinea() ? 'Ya estás en una partida (código ' + red.codigo + ').' : ''); });
+    $('online-cerrar').addEventListener('click', () => { $('online').hidden = true; });
+    $('online-crear').addEventListener('click', () => { if (!enLinea()) crearOnline(); });
+    $('online-entrar').addEventListener('click', () => { if (!enLinea()) unirseOnline(); });
+    $('online-salir').addEventListener('click', () => salirOnline(false));
+    // Invitar: un enlace al juego que ya trae el código (se comparte o se copia).
+    $('online-invitar').addEventListener('click', async () => {
+      const url = location.href.split('#')[0] + '#unirse=' + red.codigo, texto = '¡Juega conmigo a Génesis! Código: ' + red.codigo;
+      try { if (navigator.share) { await navigator.share({ title: 'Génesis', text: texto, url }); return; } } catch (e) { /* cancelado */ }
+      try { await navigator.clipboard.writeText(texto + ' ' + url); avisoFlotante('🔗 Enlace copiado: pégalo a tus amigos', 3500); } catch (e) { avisoFlotante('Código: ' + red.codigo, 5000); }
+    });
+    $('online-chat').addEventListener('submit', ev => { ev.preventDefault(); const t = $('online-msg').value.trim(); if (!t) return; $('online-msg').value = ''; if (red.modo === 'anfitrion') { const msg = { t: 'chat', de: red.nombre, texto: t.slice(0, 140) }; difundir(msg); chat(msg); } else enviarAnfitrion({ t: 'chat', texto: t }); });
+    // Abrir el juego con #unirse=CODIGO (un enlace que comparte el anfitrión) rellena el código.
+    const h = location.hash.match(/unirse=([A-Z0-9]{4,8})/i); if (h) { $('online-codigo').value = h[1].toUpperCase(); $('online').hidden = false; }
+    window.genesis = Object.assign(window.genesis || {}, { red: () => ({ modo: red.modo, codigo: red.codigo, jugadores: red.jugadores, miCiv: red.miCiv, turno: m.turno, suma: sumaMundo(m) }) });
+  }
+
   function programar() {
     clearInterval(reloj);
     if (corriendo) reloj = setInterval(paso, VELOCIDADES[vel][0]);
+    if (red.modo === 'anfitrion') difundir({ t: 'estado', corriendo, vel });
     pintarCabecera();
   }
 
@@ -1057,7 +1310,7 @@
     ocupado = false;
   }
   function despuesDeOrden(r) {
-    M.vida.ajustar(m); P.refrescar();
+    if (!enLinea()) { M.vida.ajustar(m); P.refrescar(); }
     // Lo que tu orden pone en marcha, sobre tu pueblo en el mapa.
     for (const an of (m.vida.anuncios || []).splice(0)) { const c = S.civ(m, an.civ); if (c) P.anunciar(an.region != null ? an.region : c.capital, an.texto, /[⚔✖]/.test(an.texto) ? '#ff8a7a' : /🏴/.test(an.texto) ? '#ffd76a' : null); }
     const guerra = r.acciones.find(a => a.tipo === 'guerra' && a.con != null);
@@ -1147,6 +1400,7 @@
     $('voluntad').addEventListener('submit', ev => { ev.preventDefault(); const t = $('orden').value.trim(); if (!t) return; $('orden').value = ''; obrar(t); });
     $('modo-pueblo').addEventListener('click', () => elegirModo('pueblo', sel != null && S.civ(m, sel) && S.civ(m, sel).viva ? sel : null));
     $('modo-dios').addEventListener('click', () => elegirModo('dios'));
+    atarOnline();
     $('cambiar-modo').addEventListener('click', () => pedirModo());
     // La ayuda: se abre desde el menú o desde la pantalla de inicio, y se cierra con «Entendido» o tocando fuera.
     const ayuda = abrir => { $('ayuda').hidden = !abrir; };
