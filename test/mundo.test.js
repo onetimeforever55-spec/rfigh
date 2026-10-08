@@ -950,6 +950,31 @@ console.log('COMERCIO POR MAR');
   comprobar(S.vivas(m).filter(c => (c.puertos || 0) > 0).length >= 2, 'varios reinos costeros tienen puerto para comerciar entre sí');
 }
 
+console.log('FUNDAR PUEBLOS (TAMBIÉN AL OTRO LADO DEL MAR)');
+{
+  const V = M.vida, maxAntes = S.maxCiudades;
+  S.maxCiudades = () => 20; // aquí solo importa cómo se llega, no cuántas ciudades caben
+  // Un mundo con algún reino que tenga puerto y tierra libre al otro lado del mar.
+  let m = null, masa = null, cm = null, k = 0;
+  const sitios = (c, mar) => { const ok = []; for (let q = 0; q < m.W * m.H; q++) if ((masa[q] !== masa[c.capital]) === mar && !V.razonColonia(m, c, q)) ok.push(q); return ok.sort((a, b) => S.distancia(a, c.capital) - S.distancia(b, c.capital)); };
+  for (const sd of [12, 4, 11, 7]) { m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 160; k++) S.turno(m); masa = V.masaDe(m); cm = S.vivas(m).find(c => sitios(c, true).length); if (cm) break; }
+  const otro = S.vivas(m)[1], c0 = S.vivas(m)[0];
+  comprobar(/es de /.test(V.razonColonia(m, c0, otro.capital) || '') && /agua/.test(V.razonColonia(m, c0, m.tipo.findIndex((t, i) => !S.esTierra(m, i))) || ''), 'el botón Fundar pueblo explica por qué no se puede (tierra de otro reino, agua…)');
+  // Por mar: van al puerto, embarcan, cruzan y desembarcan.
+  if (cm) {
+    const rm = sitios(cm, true)[0], res = V.encargar(m, cm, V.centro(m, rm), 'colonia'), fases = new Set();
+    cm.madera = Math.max(cm.madera || 0, 20);
+    k = 0; while (k++ < 80 && !(m.ciudades || []).some(x => x.region === rm)) { S.turno(m); const x = m.vida.expediciones && m.vida.expediciones[cm.id]; if (x) fases.add(x.fase); if (m.vida.barcos.some(b => b.colonia && b.c === cm.id && b.estado === 'zarpa')) fases.add('navega'); }
+    comprobar(res.ok && res.via.mar && fases.has('navega') && (m.ciudades || []).some(x => x.region === rm && x.civ === cm.id && masa[x.region] !== masa[cm.capital]), 'al otro lado del mar, los colonos embarcan en su puerto, cruzan y fundan un pueblo en otra isla (' + k + ' turnos)');
+  } else comprobar(false, 'hace falta un reino con puerto y tierra libre al otro lado del mar');
+  // Por tierra: el jugador toca un sitio y los colonos van andando y acampan.
+  const ct = S.vivas(m).find(c => sitios(c, false).length), rt = sitios(ct, false)[0];
+  const rest = V.encargar(m, ct, V.centro(m, rt), 'colonia');
+  k = 0; while (k++ < 40 && !(m.ciudades || []).some(x => x.region === rt)) S.turno(m);
+  comprobar(rest.ok && rest.via.tierra != null && (m.ciudades || []).some(x => x.region === rt && x.civ === ct.id), 'con «Fundar pueblo» los colonos van andando al sitio elegido y fundan allí (' + k + ' turnos)');
+  S.maxCiudades = maxAntes;
+}
+
 console.log('PUERTOS DESDE EL PRINCIPIO Y LOS ALIMENTOS');
 {
   const V = M.vida;
@@ -967,9 +992,14 @@ console.log('LA GUERRA EN EL MAR');
 {
   const V = M.vida;
   comprobar(V.claseNaval(1) === 'galera' && V.claseNaval(5) === 'galeon' && V.claseNaval(7) === 'acorazado' && V.NAVAL.galera.disparo === 4 && V.NAVAL.galeon.disparo === 2, 'la marina va por épocas: galeras con flechas de fuego, galeones con cañones y acorazados');
-  const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 160; k++) S.turno(m);
-  const cs = S.vivas(m); let par = null;
-  for (const a of cs) for (const b of cs) if (!par && a.id < b.id && !S.vecinosDe(m, a).includes(b) && V.porMar(m, a, b)) par = [a, b];
+  // En varios mundos: hace falta un par de reinos que solo se toquen por mar.
+  let m = null, par = null;
+  for (const sd of [12, 7, 4]) {
+    m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 160; k++) S.turno(m);
+    const cs = S.vivas(m);
+    for (const a of cs) for (const b of cs) if (!par && a.id < b.id && !S.vecinosDe(m, a).includes(b) && V.porMar(m, a, b)) par = [a, b];
+    if (par) break;
+  }
   comprobar(!!par, 'dos reinos sin frontera por tierra pueden llegar uno a otro por mar');
   if (par) {
     const [a, b] = par, ev = { guerra: 0, tiros: 0, hundidos: 0, embarcan: 0, desembarcos: 0 };

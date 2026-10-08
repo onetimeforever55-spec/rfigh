@@ -1361,8 +1361,8 @@
       g.save(); if (izq) { g.translate(px * 2 + 12, 0); g.scale(-1, 1); }
       g.drawImage(img, px - 4, py - 6);
       g.restore();
-      // El transporte lleva a los soldados en cubierta: cabezas con el casco del color de su reino.
-      if (b.tipo === 'transporte') { const n = Math.min(6, v.aldeanos.filter(a => a.aBordo === b.id).length); for (let q = 0; q < n; q++) { const cx = px + (izq ? 10 - q * 2.5 : -1 + q * 2.5), cy = py + 1 - (q % 2); g.fillStyle = '#f0c8a0'; g.fillRect(cx, cy + 1, 2, 2); g.fillStyle = color; g.fillRect(cx, cy, 2, 1.2); } }
+      // El transporte lleva a los soldados en cubierta (cabezas con el casco del color de su reino); el de colonos, gente con sombrero.
+      if (b.tipo === 'transporte') { const n = Math.min(6, v.aldeanos.filter(a => a.aBordo === b.id).length); for (let q = 0; q < n; q++) { const cx = px + (izq ? 10 - q * 2.5 : -1 + q * 2.5), cy = py + 1 - (q % 2); g.fillStyle = '#f0c8a0'; g.fillRect(cx, cy + 1, 2, 2); g.fillStyle = b.colonia ? (q % 2 ? '#8a5a2b' : '#c9a066') : color; g.fillRect(cx, cy, 2, 1.2); } }
       // Ardiendo (flechas incendiarias) o tocado: llamas y humo negro; con poca vida, una columna de humo.
       const pvMax = b.tipo === 'guerra' ? (V.NAVAL[b.clase || 'acorazado'] || { pv: 120 }).pv : 40;
       if (b.ardiendo > 0 && Math.random() < 0.6) { emitir(px + 4 + Math.random() * 12, py + 2 + Math.random() * 4, 2, { v: 10, g: -30, vida: 500, cols: ['#ffd84a', '#ff8a1e', '#ff4b1a'], tipo: 'chispa', tam: 1.4, tamAzar: 1 }); }
@@ -2204,6 +2204,7 @@
   function arquitecto(o) { arqui = o ? Object.assign({ wx: -1, wy: -1 }, o) : null; }
   function dibujoDe(clave, c) {
     const color = c ? c.color : '#cccccc', fase = c ? V.fase(c.era) : 0;
+    if (clave === 'colonia') return ARTE().edificio('campamento', color, fase);
     if (clave === 'casa') return ARTE().casa(CASAS[c ? grupoEra(c.era) : 0], color, 0);
     if (clave === 'templo') return ARTE().edificio('templo', color, c && c.era === 4 ? 4 : fase);
     if (clave === 'saber') return ARTE().edificio('saber', color, M.ERUDITO(c ? c.era : 0).tipo);
@@ -2221,6 +2222,8 @@
       g.globalAlpha = parpadeo; g.drawImage(dibujoDe(e.clave, c), x, y, P, P); g.globalAlpha = 1;
       g.strokeStyle = '#ffd76a'; g.strokeRect(x + 0.5, y + 0.5, P - 1, P - 1);
     }
+    // El sitio elegido para fundar un pueblo: el campamento en transparente, con su marco.
+    if (c.plan && typeof c.plan.colonos === 'number') { const t = V.centro(m, c.plan.colonos), x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P; g.globalAlpha = parpadeo; g.drawImage(dibujoDe('colonia', c), x, y, P, P); g.globalAlpha = 1; g.strokeStyle = '#ffd76a'; g.strokeRect(x + 0.5, y + 0.5, P - 1, P - 1); }
     if (arqui) for (const t of (v.pendientes && v.pendientes[c.id]) || []) { const x = (t % v.tw) * P, y = Math.floor(t / v.tw) * P; g.fillStyle = 'rgba(190,190,184,' + (parpadeo * 0.8).toFixed(2) + ')'; g.fillRect(x + 1, y + 1, P - 2, P - 2); }
     g.restore();
     if (!arqui || arqui.wx < 0) return;

@@ -1221,7 +1221,7 @@
       const mandado = dueObj && dueObj.viva && dueObj.id !== c.id && S().enGuerra(c, dueObj) ? dueObj : null;
       if (p.objetivo != null && !mandado && !(dueObj && dueObj.id !== c.id && !S().enGuerra(c, dueObj))) p.objetivo = null;
       // Una travesía sin barco (lo hundieron) o sin nadie a bordo se da por perdida: el ejército vuelve a planear.
-      if (e && e.fase === 'travesia' && !v.barcos.some(b => b.tipo === 'transporte' && b.c === c.id && b.estado === 'zarpa' && !b.hundido) && !suyos.some(a => a.aBordo != null)) { e.fase = 'perdida'; e.mar = null; }
+      if (e && e.fase === 'travesia' && !v.barcos.some(b => b.tipo === 'transporte' && !b.colonia && b.c === c.id && b.estado === 'zarpa' && !b.hundido) && !suyos.some(a => a.aBordo != null)) { e.fase = 'perdida'; e.mar = null; }
       const valido = e && o && o.viva && S().enGuerra(c, o) && (m.dueno[e.obj] === o.id || e.fase === 'travesia') && e.fase !== 'perdida' && (!mandado || e.obj === p.objetivo || e.fase === 'travesia');
       // Soldados ya desembarcados en tierra enemiga: siguen la guerra desde la playa (no vuelven a casa a embarcar).
       const enTierra = suyos.filter(a => a.aBordo == null).map(a => region(m, a.y * v.tw + a.x));
@@ -1269,7 +1269,7 @@
       e.capitan = suyos.length ? Math.min(...suyos.map(a => a.id)) : null;
       if (e.fase === 'reunion' && e.mar) {
         // Por mar: el transporte espera en el puerto; cuando el ejército está reunido (o al cabo de unos turnos), embarca.
-        let tr = v.barcos.find(b => b.tipo === 'transporte' && b.c === c.id && !b.hundido && b.estado === 'espera');
+        let tr = v.barcos.find(b => b.tipo === 'transporte' && !b.colonia && b.c === c.id && !b.hundido && b.estado === 'espera');
         if (!tr) { tr = { id: v.sig++, tipo: 'transporte', c: c.id, puerto: e.mar.puerto, x: e.mar.de % v.tw, y: e.mar.de / v.tw | 0, ruta: e.mar.ruta, i: 0, vuelta: 0, r: [], pv: PV_BARCO.transporte, estado: 'espera', tierra: e.mar.tierra }; v.barcos.push(tr); }
         const base = centro(m, e.reunion);
         const cerca = suyos.filter(a => dist(m, a.y * v.tw + a.x, base) <= 7);
@@ -1426,6 +1426,7 @@
     const v = m.vida, ter = terrenos(m);
     if (!c || !c.viva) return 'no tienes pueblo';
     if (t < 0 || t >= v.tw * v.th) return 'fuera del mapa';
+    if (clave === 'colonia') return razonColonia(m, c, region(m, t));
     if (m.dueno[region(m, t)] !== c.id) return 'esa tierra no es tuya';
     if (clave === 'camino') return v.camino[t] ? 'ya hay calle' : v.obra[t] && v.obra[t] !== OBRA.campo ? 'hay un edificio' : andable(ter[t]) || ter[t] === 'rio' ? null : 'ahí no se puede';
     const o = OBRA[clave];
@@ -1447,6 +1448,13 @@
   function encargar(m, c, t, clave) {
     const v = m.vida, p = c.plan = c.plan || {};
     p.encargos = p.encargos || [];
+    // «Fundar pueblo»: el sitio exacto donde irán los colonos (otra vez en el mismo sitio, se anula).
+    if (clave === 'colonia') {
+      const r = region(m, t);
+      if (p.colonos === r) { p.colonos = null; return { ok: true, quitado: true }; }
+      const no = puedeColocar(m, c, t, clave); if (no) return { ok: false, razon: no };
+      p.colonos = r; return { ok: true, colonia: true, via: viaColonia(m, c, r, false) };
+    }
     const i = p.encargos.findIndex(e => e.t === t);
     if (i >= 0) { p.encargos.splice(i, 1); return { ok: true, quitado: true }; }
     if (clave === 'camino') {
@@ -1709,7 +1717,8 @@
   // Se calculan una vez y se rehacen de vez en cuando (las inundaciones y los diques cambian poco el mapa).
   let mares = { mundo: null, turno: -99, comp: null, tam: null };
   function maresDe(m, ter) {
-    if (mares.mundo === m && m.turno - mares.turno < 50) return mares;
+    // Se rehace cada 50 turnos (en los mismos turnos para todos: así los jugadores en línea calculan igual).
+    if (mares.mundo === m && mares.vez === Math.floor(m.turno / 50)) return mares;
     const n = ter.length, tw = m.vida.tw, comp = new Int32Array(n).fill(-1), tam = [];
     for (let t0 = 0; t0 < n; t0++) {
       if (comp[t0] >= 0 || !navegable(ter, t0)) continue;
@@ -1717,7 +1726,7 @@
       for (let i = 0; i < cola.length; i++) { const t = cola[i], x = t % tw; for (const u of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) if (u >= 0 && u < n && comp[u] < 0 && navegable(ter, u)) { comp[u] = id; cola.push(u); } }
       tam.push(cola.length);
     }
-    mares = { mundo: m, turno: m.turno, comp, tam };
+    mares = { mundo: m, vez: Math.floor(m.turno / 50), comp, tam };
     return mares;
   }
   const MAR_ABIERTO = 250; // casillas de agua para que cuente como mar (y no como lago)
@@ -1764,7 +1773,7 @@
     }
     // Los hundidos se van al fondo; en paz, los barcos de guerra vuelven a puerto y se desarman; los transportes
     // sin ejército que llevar, también. El fuego se apaga al cabo de unos turnos.
-    v.barcos = v.barcos.filter(b => !b.hundido && (b.pv == null || b.pv > 0) && (b.tipo !== 'guerra' || (S().civ(m, b.c) || { guerras: [] }).guerras.length) && (b.tipo !== 'transporte' || b.estado === 'vuelve' || (v.ejercitos[b.c] && v.ejercitos[b.c].mar) || v.aldeanos.some(a => a.aBordo === b.id)));
+    v.barcos = v.barcos.filter(b => !b.hundido && (b.pv == null || b.pv > 0) && (b.tipo !== 'guerra' || (S().civ(m, b.c) || { guerras: [] }).guerras.length) && (b.tipo !== 'transporte' || b.estado === 'vuelve' || (b.colonia ? v.expediciones && v.expediciones[b.c] && v.expediciones[b.c].barco === b.id : v.ejercitos[b.c] && v.ejercitos[b.c].mar) || v.aldeanos.some(a => a.aBordo === b.id)));
     for (const b of v.barcos) if (b.ardiendo > 0) b.ardiendo--;
   }
   // El acorazado: navega hacia el puerto enemigo más cercano y, cuando tiene a tiro soldados o edificios de la
@@ -1793,7 +1802,7 @@
     for (const a of ahogados) { a.aBordo = null; v.muertos.push([b.x, b.y, a.c, 'ahogado', Math.min(TICKS, paso), a]); }
     if (ahogados.length) v.aldeanos = v.aldeanos.filter(a => !ahogados.includes(a));
     const c = S().civ(m, b.c);
-    if (c && c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🌊 ' + (b.tipo === 'guerra' ? ((b.clase || 'acorazado') === 'galera' ? 'Hundida una ' : 'Hundido un ') + NAVAL[b.clase || 'acorazado'].nombre : b.tipo === 'transporte' ? 'Hundido un transporte' + (ahogados.length ? ' con ' + ahogados.length + ' soldados' : '') : 'Hundido un barco') });
+    if (c && c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🌊 ' + (b.tipo === 'guerra' ? ((b.clase || 'acorazado') === 'galera' ? 'Hundida una ' : 'Hundido un ') + NAVAL[b.clase || 'acorazado'].nombre : b.tipo === 'transporte' ? (b.colonia ? 'Hundido el barco de los colonos' + (ahogados.length ? ': se ahogan ' + ahogados.length : '') : 'Hundido un transporte' + (ahogados.length ? ' con ' + ahogados.length + ' soldados' : '')) : 'Hundido un barco') });
   }
   // Un paso hacia un punto del mar (el vecino navegable que más acerca).
   function acercarPorMar(m, b, x, y, ter) {
@@ -1844,8 +1853,15 @@
         const tierra = b.tierra, abordo = v.aldeanos.filter(a => a.aBordo === b.id);
         const sitios = [tierra, tierra + 1, tierra - 1, tierra + v.tw, tierra - v.tw].filter(x => x >= 0 && x < ter.length && andable(ter[x]) && !navegable(ter, x));
         abordo.forEach((a, i) => { const x = sitios[i % sitios.length] != null ? sitios[i % sitios.length] : tierra; a.aBordo = null; a.x = x % v.tw; a.y = x / v.tw | 0; a.e = LIBRE; });
-        if (e && e.mar) { e.fase = 'marcha'; e.desembarco = region(m, tierra); e.mar = null; }
-        if (c.jugador && abordo.length) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚓ ¡Desembarco! ' + abordo.length + ' soldados en la costa enemiga', region: region(m, tierra) });
+        if (b.colonia) {
+          // Los colonos pisan su tierra nueva y siguen andando hasta donde acamparán.
+          for (const a of abordo) a.porMar = 0;
+          if (v.expediciones) delete v.expediciones[c.id];
+          if (c.jugador && abordo.length) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚓ ' + abordo.length + ' colonos desembarcan en tierras nuevas', region: region(m, tierra) });
+        } else {
+          if (e && e.mar) { e.fase = 'marcha'; e.desembarco = region(m, tierra); e.mar = null; }
+          if (c.jugador && abordo.length) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚓ ¡Desembarco! ' + abordo.length + ' soldados en la costa enemiga', region: region(m, tierra) });
+        }
         b.estado = 'vuelve'; b.ruta = b.ruta.slice().reverse(); b.i = 0;
       }
     } else if (b.estado === 'vuelve' && b.ruta) {
@@ -2648,7 +2664,11 @@
     const v = m.vida;
     if (a.dormir) { if (a.x === a.casa % v.tw && a.y === (a.casa / v.tw | 0)) { a.e = ESPERAR; a.t = 99; a.enCasa = 1; } else ir(a, a.casa, v.tw, IR); return; }
     if (esNino(a)) { pasear(m, a, ter, c); return; }
-    if (a.colono != null) { ir(a, centro(m, a.colono), v.tw, IR); a.viajeColono = 1; return; }
+    if (a.colono != null) {
+      // Los que cruzan el mar van primero al puerto, a esperar el barco.
+      if (a.porMar) { const x = v.expediciones && v.expediciones[a.c]; if (x && x.r === a.colono) { ir(a, x.puerto, v.tw, IR); a.paseo = 2; return; } a.porMar = 0; }
+      ir(a, centro(m, a.colono), v.tw, IR); a.viajeColono = 1; return;
+    }
     a.paseo = 0;
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
@@ -3734,35 +3754,148 @@
    * salen andando hacia una tierra libre y fértil y fundan allí una aldea nueva, con su ayuntamiento y su molino.
    */
   function colonos(m) {
-    const v = m.vida, ter = terrenos(m);
+    const v = m.vida, ter = terrenos(m), masa = masaDe(m);
+    expediciones(m);
     for (const c of S().vivas(m)) {
       const enCamino = v.aldeanos.filter(a => a.c === c.id && a.colono != null);
-      if (enCamino.length) continue;
+      if (v.expediciones && v.expediciones[c.id]) continue;
+      if (enCamino.length) {
+        // Si otro reino se queda antes la tierra a la que iban (y no es una ciudad suya que crece), vuelven a casa.
+        const r0 = enCamino[0].colono;
+        if (m.dueno[r0] >= 0 && m.dueno[r0] !== c.id && !(m.ciudades || []).some(x => x.region === r0 && x.civ === c.id)) {
+          for (const a of enCamino) if (a.colono === r0) { a.colono = null; a.porMar = 0; }
+          if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, region: r0, texto: '🏕 ' + ((S().civ(m, m.dueno[r0]) || {}).nombre || 'Otro reino') + ' se quedó esa tierra antes de que llegaran tus colonos' });
+        }
+        continue;
+      }
       const suyas = (m.ciudades || []).filter(x => x.civ === c.id).length;
       const lleno = (c.sinCama || 0) > 0 || (c.cap && c.pob > c.cap * 0.5);
-      // El jugador puede mandar colonos aunque el pueblo no esté lleno (y hacia donde diga).
+      // El jugador puede mandar colonos aunque el pueblo no esté lleno (y hacia donde diga, o al sitio exacto
+      // que haya tocado en el mapa con «Fundar pueblo»).
       const pedido = c.plan && c.plan.colonos;
+      const sitio = typeof pedido === 'number' ? pedido : null;
+      if (sitio != null) {
+        const no = razonColonia(m, c, sitio);
+        if (no) { c.plan.colonos = null; if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, region: sitio, texto: '🏕 No se puede fundar allí: ' + no }); continue; }
+      }
       if ((!lleno && !pedido) || suyas >= S().maxCiudades(c) || m.turno - (c.ultimaColonia || -99) < (pedido ? 1 : 4)) continue;
-      const cs = S().casillas(m, c);
+      const propias = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
+      const conPuerto = (c.puertos || 0) > 0;
       const destino = [];
-      for (let r = 0; r < m.W * m.H; r++) {
+      if (sitio != null) destino.push([sitio, 0]);
+      else for (let r = 0; r < m.W * m.H; r++) {
         if (m.dueno[r] >= 0 || !S().esTierra(m, r) || S().fertil(m, r) < 2 || m.tipo[r] === 'nieve') continue;
-        const d = Math.min(...[c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)].map(p => S().distancia(p, r)));
-        if (d < 4 || d > 12) continue;
         if (S().vecinos(r).some(w => m.dueno[w] >= 0 && m.dueno[w] !== c.id)) continue;
         if (!ter[centro(m, r)] || !andable(ter[centro(m, r)])) continue;
+        // Andando solo se llega a la misma tierra (continente o isla); al otro lado del mar, en barco desde un puerto.
+        const andando = propias.some(p => masa[p] === masa[r]);
+        const d = Math.min(...propias.map(p => S().distancia(p, r)));
+        if (andando ? d < 4 || d > 12 : !conPuerto || d < 3 || d > 26 || !S().vecinos(r).some(w => m.tipo[w] === 'costa' || m.tipo[w] === 'mar')) continue;
         const rx = r % m.W - c.capital % m.W, ry = Math.floor(r / m.W) - Math.floor(c.capital / m.W);
         const fuera = pedido === 'norte' ? ry >= 0 : pedido === 'sur' ? ry <= 0 : pedido === 'este' ? rx <= 0 : pedido === 'oeste' ? rx >= 0 : pedido === 'costa' ? !S().vecinos(r).some(w => m.tipo[w] === 'costa' || m.tipo[w] === 'mar') : false;
-        destino.push([r, d - S().fertil(m, r) * 0.8 + azar(v) * 2 + (fuera ? 30 : 0)]);
+        destino.push([r, (andando ? d : 4 + d * 0.6) - S().fertil(m, r) * 0.8 + azar(v) * 2 + (fuera ? 30 : 0)]);
       }
       if (!destino.length) continue;
-      const r = destino.sort((p, q) => p[1] - q[1])[0][0];
-      const elegidos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.o !== GUERRERO && !a.k && a.e !== VIAJAR).slice(0, 3);
+      destino.sort((p, q) => p[1] - q[1]);
+      let r = null, via = null;
+      for (const [q] of destino.slice(0, 4)) { const w = viaColonia(m, c, q, true); if (w) { r = q; via = w; break; } }
+      if (via == null) { if (sitio != null) c.plan.colonos = null; continue; }
+      // Por mar hace falta un barco: cuesta algo de madera.
+      if (via.mar && (c.madera || 0) < 8) continue;
+      const deTierra = via.mar ? masa[region(m, via.mar.puerto)] : masa[r];
+      const elegidos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && a.o !== GUERRERO && !a.k && a.e !== VIAJAR && a.aBordo == null && masa[region(m, a.y * v.tw + a.x)] === deTierra).slice(0, 3);
       if (elegidos.length < 2) continue;
       c.ultimaColonia = m.turno;
       if (pedido) c.plan.colonos = null;
-      for (const a of elegidos) { a.colono = r; a.e = LIBRE; a.paseo = 0; a.edificio = 0; a.obraCamino = 0; }
-      void cs;
+      for (const a of elegidos) { a.colono = r; a.e = LIBRE; a.paseo = 0; a.edificio = 0; a.obraCamino = 0; if (via.mar) a.porMar = 1; }
+      if (via.mar) {
+        c.madera -= 8;
+        (v.expediciones = v.expediciones || {})[c.id] = Object.assign({ r, fase: 'reunion', desde: m.turno }, via.mar);
+        if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, region: region(m, via.mar.puerto), texto: '⛵ ' + elegidos.length + ' colonos van al puerto para cruzar el mar' });
+      } else if (c.jugador && sitio != null) (v.anuncios = v.anuncios || []).push({ civ: c.id, region: r, texto: '🏕 ' + elegidos.length + ' colonos salen a fundar un pueblo' });
+    }
+  }
+  // Las masas de tierra (continentes e islas), por región: a una tierra de otra masa solo se llega en barco.
+  let masas = { mundo: null, vez: -1, id: null };
+  function masaDe(m) {
+    const vez = Math.floor(m.turno / 50);
+    if (masas.mundo === m && masas.vez === vez) return masas.id;
+    const n = m.W * m.H, id = new Int32Array(n).fill(-1); let k = 0;
+    for (let i = 0; i < n; i++) {
+      if (id[i] >= 0 || !S().esTierra(m, i)) continue;
+      const cola = [i]; id[i] = k;
+      for (let j = 0; j < cola.length; j++) for (const w of S().vecinos(cola[j])) if (id[w] < 0 && S().esTierra(m, w)) { id[w] = k; cola.push(w); }
+      k++;
+    }
+    masas = { mundo: m, vez, id };
+    return id;
+  }
+  const puertosDe = (m, c) => { const v = m.vida, out = []; for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === OBRA.puerto && m.dueno[region(m, t)] === c.id) out.push(t); return out; };
+  // Cómo se llega a fundar en la región r: { tierra } andando, { mar } en barco (con la ruta si conRuta), o null.
+  function viaColonia(m, c, r, conRuta) {
+    const masa = masaDe(m), ter = terrenos(m);
+    const propias = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
+    const origen = propias.find(p => masa[p] === masa[r]);
+    if (origen != null) return { tierra: origen };
+    const costa = parcelas(m, r).find(t => andable(ter[t]) && !navegable(ter, t) && aguaJunto(m, t, ter) != null);
+    if (costa == null) return null;
+    const mr = maresDe(m, ter), a = aguaJunto(m, costa, ter);
+    const puertos = puertosDe(m, c).map(t => [t, aguaJunto(m, t, ter)]).filter(([, w]) => w != null && mr.comp[w] === mr.comp[a]).sort((p, q) => dist(m, p[0], costa) - dist(m, q[0], costa));
+    if (!puertos.length) return null;
+    if (!conRuta) return { mar: true };
+    if (travesias.mundo !== m) travesias = { mundo: m };
+    for (const [p, de] of puertos.slice(0, 2)) {
+      const clave = de + '>' + a; if (!(clave in travesias)) travesias[clave] = rutaPorMar(m, de, a, ter);
+      const ruta = travesias[clave];
+      if (ruta && ruta.length > 1) return { mar: { puerto: p, de, a, tierra: costa, ruta } };
+    }
+    return null;
+  }
+  // Por qué no se puede fundar un pueblo en la región r (o null si se puede): lo usa el botón «Fundar pueblo».
+  function razonColonia(m, c, r) {
+    const ter = terrenos(m);
+    if (!c || !c.viva) return 'no tienes pueblo';
+    if (r < 0 || r >= m.W * m.H || !S().esTierra(m, r)) return 'eso es agua';
+    if (m.dueno[r] === c.id) return 'esa tierra ya es tuya';
+    if (m.dueno[r] >= 0) return 'esa tierra es de ' + ((S().civ(m, m.dueno[r]) || {}).nombre || 'otro reino');
+    if (m.tipo[r] === 'nieve') return 'hace demasiado frío para vivir';
+    if (S().fertil(m, r) < 1) return 'tierra yerma: no daría de comer';
+    if (!ter[centro(m, r)] || !andable(ter[centro(m, r)])) return 'ahí no se puede acampar';
+    if (S().vecinos(r).some(w => m.dueno[w] >= 0 && m.dueno[w] !== c.id)) return 'demasiado cerca de otro reino';
+    const propias = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
+    const lejos = Math.min(...propias.map(p => S().distancia(p, r)));
+    if (lejos < 3) return 'demasiado cerca de tus pueblos';
+    const andando = propias.some(p => masaDe(m)[p] === masaDe(m)[r]);
+    if (lejos > (andando ? 14 : 28)) return 'demasiado lejos ' + (andando ? 'para ir andando' : 'para cruzar el mar') + ' (' + lejos + ' tierras; como mucho ' + (andando ? 14 : 28) + ')';
+    const suyas = (m.ciudades || []).filter(x => x.civ === c.id).length;
+    if (suyas >= S().maxCiudades(c)) return 'ya tienes ' + suyas + ' ciudades (en esta era, como mucho ' + S().maxCiudades(c) + ')';
+    const via = viaColonia(m, c, r, false);
+    if (!via) return (c.puertos || 0) > 0 ? 'no se llega: ningún puerto tuyo da a ese mar' : 'está al otro lado del mar: hace falta un puerto';
+    return null;
+  }
+  // Los colonos que cruzan el mar: se reúnen en el puerto, embarcan en un barco, cruzan y desembarcan en la costa;
+  // de ahí siguen andando hasta su tierra nueva. Si hunden el barco, se ahogan.
+  function expediciones(m) {
+    const v = m.vida;
+    if (!v.expediciones) return;
+    for (const id of Object.keys(v.expediciones)) {
+      const x = v.expediciones[id], c = S().civ(m, +id);
+      const gente = v.aldeanos.filter(a => a.c === +id && a.colono === x.r);
+      const barco = v.barcos.find(b => b.id === x.barco && !b.hundido);
+      const cancelar = () => { for (const a of gente) { a.colono = null; a.porMar = 0; if (a.aBordo != null) { a.aBordo = null; a.e = LIBRE; } } if (barco) barco.pv = 0; delete v.expediciones[id]; };
+      if (!c || !c.viva || !gente.length || (m.dueno[x.r] >= 0 && x.fase === 'reunion') || v.obra[x.puerto] !== OBRA.puerto || m.dueno[region(m, x.puerto)] !== +id) { cancelar(); continue; }
+      if (x.fase === 'travesia') { if (!barco) { for (const a of gente) if (a.aBordo == null) { a.colono = null; a.porMar = 0; } delete v.expediciones[id]; } continue; }
+      // En el puerto espera el barco; los que ya han llegado suben a bordo.
+      let b = barco;
+      if (!b) { b = { id: v.sig++, tipo: 'transporte', colonia: 1, c: +id, puerto: x.puerto, x: x.de % v.tw, y: x.de / v.tw | 0, ruta: x.ruta, i: 0, vuelta: 0, r: [], pv: PV_BARCO.transporte, estado: 'espera', tierra: x.tierra }; v.barcos.push(b); x.barco = b.id; }
+      for (const a of gente) if (a.aBordo == null && dist(m, a.y * v.tw + a.x, x.puerto) <= 3) { a.aBordo = b.id; a.x = b.x; a.y = b.y; a.e = ESPERAR; a.t = 2; }
+      const aBordo = gente.filter(a => a.aBordo === b.id).length;
+      if (aBordo && (aBordo === gente.length || m.turno - x.desde >= 8)) {
+        // Los rezagados se quedan en casa.
+        for (const a of gente) if (a.aBordo == null) { a.colono = null; a.porMar = 0; }
+        b.estado = 'zarpa'; b.ruta = x.ruta; b.i = 0; x.fase = 'travesia';
+        if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, region: region(m, x.puerto), texto: '⛵ Zarpa un barco con ' + aBordo + ' colonos' });
+      } else if (!aBordo && m.turno - x.desde > 20) cancelar();
     }
   }
   // Un colono llega a su destino: si la tierra sigue libre, funda la aldea; si no, vuelve a casa.
@@ -3923,5 +4056,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
