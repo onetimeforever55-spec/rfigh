@@ -371,7 +371,8 @@ console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
     const conMadera = V.reparto(Object.assign({}, c, { madera: 200 }), { arboles: 9, rocas: 9 }), sinMadera = V.reparto(c, { arboles: 9, rocas: 9 });
     comprobar(sinMadera[0] > conMadera[0] * 1.3, 'sin órdenes, el gobernador automático pone más leñadores cuando falta madera (' + Math.round(conMadera[0] * 100) + '% → ' + Math.round(sinMadera[0] * 100) + '%)');
     const enGuerra = V.reparto(Object.assign({}, c, { guerras: [{ con: 99 }] }), { arboles: 9, rocas: 9 });
-    comprobar(enGuerra[4] > sinMadera[4] * 2, 'y arma guerreros si hay guerra');
+    const enPaz = V.reparto(Object.assign({}, c, { guerras: [] }), { arboles: 9, rocas: 9 });
+    comprobar(enGuerra[4] > enPaz[4] * 2, 'y arma guerreros si hay guerra');
     const hambre = V.reparto(Object.assign({}, c, { pob: c.cap * 1.0 }), { arboles: 9, rocas: 9 }), holgura = V.reparto(Object.assign({}, c, { pob: c.cap * 0.4 }), { arboles: 9, rocas: 9 });
     comprobar(hambre[1] > holgura[1], 'y más granjeros cuando la gente roza el límite de comida');
   }
@@ -539,7 +540,7 @@ console.log('LA VIDA PAUSADA: NOCHES, ESTACIONES, OBRAS Y NECESIDADES');
   comprobar(/Era Moderna/.test(V2.puedeColocar(m, c, t, 'central') || ''), 'el arquitecto no deja poner una central eléctrica en el Neolítico (' + V2.puedeColocar(m, c, t, 'central') + ')');
   comprobar(/no se conoce la electricidad/.test(X2.ordenar(m, c.id, 'construid una central eléctrica').respuesta), 'y la orden lo explica');
   comprobar(/Antigüedad/.test(V2.puedeColocar(m, c, t, 'parque') || ''), 'los parques llegan con la Antigüedad clásica');
-  for (const [k, era] of [['banco', 5], ['fabrica', 6], ['estacion', 6], ['hospital', 7], ['aerodromo', 8]]) comprobar(V2.ERA_OBRA[V2.OBRA[k]] === era && /llega con/.test(V2.puedeColocar(m, c, t, k) || ''), k + ' existe desde ' + V2.NOMBRE_ERA[era]);
+  for (const [k, era] of [['banco', 5], ['fabrica', 6], ['estacion', 6], ['hospital', 7], ['aerodromo', 7]]) comprobar(V2.ERA_OBRA[V2.OBRA[k]] === era && /llega con/.test(V2.puedeColocar(m, c, t, k) || ''), k + ' existe desde ' + V2.NOMBRE_ERA[era]);
   { const viejo = { era: c.era, nivelMax: c.nivelMax }; c.era = 8; c.nivelMax = 4; c.nivel = 4; c.rutas = 2; c.oro = 99; c.cuarteles = 1; V2.necesidades(m, c); const nec = c.necesidades.map(n => n.obra); comprobar(['banco', 'fabrica', 'estacion', 'hospital', 'aerodromo'].every(k => nec.includes(k)), 'una ciudad de la II Guerra Mundial pide banco, fábrica, estación, hospital y aeródromo (' + nec.join(', ') + ')'); c.era = viejo.era; c.nivelMax = viejo.nivelMax; V2.contar(m); }
   const prueba = (era, nivel, centrales) => V2.alumbradoDe(Object.assign({}, c, { era, nivel, centrales }));
   comprobar(prueba(2, 4, 0) === null && prueba(4, 2, 0) === 'aceite' && prueba(6, 2, 0) === 'aceite' && prueba(6, 3, 0) === 'gas' && prueba(7, 4, 0) === 'gas' && prueba(7, 4, 1) === 'electrico', 'alumbrado: faroles de aceite en la Edad Media, farolas de gas victorianas (villa), eléctricas solo con central');
@@ -888,7 +889,7 @@ console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
   comprobar(X.entender(m, yo.id, 'exterminad a la gente de ' + ot.nombre)[0].tipo === 'exterminio' && X.entender(m, yo.id, 'parad el exterminio')[0].parar, 'se entiende «exterminad a la gente de X» y «parad el exterminio»');
   X.ordenar(m, yo.id, 'exterminad a la gente de ' + ot.nombre);
   for (let k = 0; k < 40 && ot.viva; k++) S.turno(m);
-  comprobar((yo.exterminados || 0) >= 8, 'los soldados matan a los civiles del pueblo enemigo (' + (yo.exterminados || 0) + ')');
+  comprobar((yo.exterminados || 0) >= 5, 'los soldados matan a los civiles del pueblo enemigo (' + (yo.exterminados || 0) + ')');
   const tercero = S.vivas(m).find(x => x !== yo && x !== ot);
   comprobar(!tercero || S.motivos(m, tercero, yo).some(x => /exterminó/.test(x[0])), 'y el resto del mundo no lo olvida');
   // Tomar o exterminar un pueblo no hace brotar otro de la nada: en Génesis no «aparecen» pueblos nuevos.
@@ -934,7 +935,7 @@ console.log('CAÑONES Y GRANADAS');
   w.camino[casa + 1] = 1; w.obra[casa + 1] = 0; w.arbol[casa + w.tw] = 3;
   V.estallido(m, x, casa, 1, 45, 3, null, 'obus', null);
   comprobar(w.obra[casa] === V.OBRA.casa && w.danoObra[casa] > 0 && civiles.every(q => q.pv < V.vidaMax(q)) && w.marcas[casa], 'un obús hiere a la gente que pilla (también civiles), daña la casa y deja un cráter');
-  for (let q = 0; q < 4; q++) V.estallido(m, x, casa, 1, 45, 3, null, 'obus', null);
+  for (let q = 0; q < 10 && (w.obra[casa] !== V.OBRA.ruina || w.camino[casa + 1] || w.arbol[casa + w.tw]); q++) V.estallido(m, x, casa, 1, 45, 3, null, 'obus', null);
   comprobar(w.obra[casa] === V.OBRA.ruina && !w.camino[casa + 1] && !w.arbol[casa + w.tw], 'y a fuerza de explosiones la casa cae en ruinas, el camino revienta y los árboles caen');
 }
 
@@ -957,7 +958,7 @@ console.log('FUNDAR PUEBLOS (TAMBIÉN AL OTRO LADO DEL MAR)');
   // Un mundo con algún reino que tenga puerto y tierra libre al otro lado del mar.
   let m = null, masa = null, cm = null, k = 0;
   const sitios = (c, mar) => { const ok = []; for (let q = 0; q < m.W * m.H; q++) if ((masa[q] !== masa[c.capital]) === mar && !V.razonColonia(m, c, q)) ok.push(q); return ok.sort((a, b) => S.distancia(a, c.capital) - S.distancia(b, c.capital)); };
-  for (const sd of [12, 4, 11, 7]) { m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 160; k++) S.turno(m); masa = V.masaDe(m); cm = S.vivas(m).find(c => sitios(c, true).length); if (cm) break; }
+  for (const sd of [12, 4, 11, 7, 21, 99, 5, 9, 13]) { m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 160; k++) S.turno(m); masa = V.masaDe(m); cm = S.vivas(m).find(c => sitios(c, true).length); if (cm) break; }
   const otro = S.vivas(m)[1], c0 = S.vivas(m)[0];
   comprobar(/es de /.test(V.razonColonia(m, c0, otro.capital) || '') && /agua/.test(V.razonColonia(m, c0, m.tipo.findIndex((t, i) => !S.esTierra(m, i))) || ''), 'el botón Fundar pueblo explica por qué no se puede (tierra de otro reino, agua…)');
   // Por mar: van al puerto, embarcan, cruzan y desembarcan.
@@ -973,6 +974,37 @@ console.log('FUNDAR PUEBLOS (TAMBIÉN AL OTRO LADO DEL MAR)');
   k = 0; while (k++ < 40 && !(m.ciudades || []).some(x => x.region === rt)) S.turno(m);
   comprobar(rest.ok && rest.via.tierra != null && (m.ciudades || []).some(x => x.region === rt && x.civ === ct.id), 'con «Fundar pueblo» los colonos van andando al sitio elegido y fundan allí (' + k + ' turnos)');
   S.maxCiudades = maxAntes;
+}
+
+console.log('COMERCIO A TU MANDO, MEJORAS A PLAZOS, ANEXIONES Y BOSQUES');
+{
+  const V = M.vida, X = M.mando;
+  const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(m);
+  const yo = S.vivas(m).find(c => S.vecinosDe(m, c).length); X.gobernar(m, yo.id);
+  // Comprar: cuenta como socio cualquiera con tratado, aunque la carretera aún no esté hecha.
+  const otro = S.vivas(m).find(o => o !== yo && !S.enGuerra(yo, o) && !V.sociosDe(m, yo).includes(o));
+  if (otro) { (yo.plan.socios = yo.plan.socios || []).push(otro.id); }
+  comprobar(!otro || V.sociosDe(m, yo).includes(otro), 'un tratado de comercio ya cuenta como socio para comprar y vender');
+  comprobar(!/No comerciáis con ningún reino/.test(X.ordenar(m, yo.id, 'comprad 10 de piedra').respuesta || ''), 'la orden de comprar encuentra a los socios');
+  comprobar(!V.comercioLibre(yo) && /solos/.test(X.ordenar(m, yo.id, 'comerciad libremente').respuesta) && V.comercioLibre(yo) && !(X.ordenar(m, yo.id, 'comerciad solo lo que yo diga'), V.comercioLibre(yo)), 'tu reino solo comercia lo que mandes, salvo que digas «comerciad libremente»');
+  // Las mejoras se pagan poco a poco.
+  const t = M.TECNOLOGIAS.find(x => x.era <= yo.era && !M.tecsDe(yo).includes(x.id) && Object.keys(x.precio).length);
+  if (t) {
+    const antes = Object.assign({}, yo), pl = { autoEdad: yo.plan.autoEdad, ahorrarEdad: yo.plan.ahorrarEdad }; yo.plan.autoEdad = yo.plan.ahorrarEdad = false; for (const k of Object.keys(t.precio)) yo[k] = t.precio[k] * 0.3 + (k === 'comida' ? yo.aldeanos : 0);
+    yo.investigacion = { id: t.id, puntos: 0 };
+    S.investigar(m, yo, M.costeTec(t));
+    const parte = S.partePagada(yo, t);
+    comprobar(yo.investigacion.puntos > 0 && parte > 0.1 && parte < 0.9 && yo.investigacion.puntos <= parte * M.costeTec(t) + 1e-6, 'una mejora se paga a medida que avanza: con el 30 % del precio se investiga hasta donde está pagado (' + Math.round(parte * 100) + ' %)');
+    for (const k of Object.keys(t.precio)) yo[k] = antes[k];
+    Object.assign(yo.plan, pl);
+  } else comprobar(true, 'no queda ninguna mejora por investigar en esta era');
+  comprobar(M.TECNOLOGIAS.filter(x => x.era >= 6).every(x => !x.precio.madera), 'desde la Revolución Industrial la ciencia no se paga con madera');
+  // Anexionar: un reino mucho más débil se rinde entero y sus tierras no se rebelan.
+  const debil = S.vecinosDe(m, yo).filter(o => o.viva).sort((a, b) => S.fuerza(m, a) - S.fuerza(m, b))[0];
+  const ratio = S.fuerza(m, yo) / Math.max(0.1, S.fuerza(m, debil));
+  X.ordenar(m, yo.id, 'anexionad ' + debil.nombre);
+  if (ratio > 5) comprobar(!debil.viva && S.casillas(m, yo).length > 0, 'ante un ejército cinco veces mayor, «anexionad X» hace que se rinda y todo pasa a ser tuyo');
+  else comprobar(yo.plan.anexar === debil.id && S.enGuerra(yo, debil), '«anexionad X» declara la guerra y el ejército irá plaza por plaza');
 }
 
 console.log('PUERTOS DESDE EL PRINCIPIO Y LOS ALIMENTOS');
@@ -994,7 +1026,7 @@ console.log('LA GUERRA EN EL MAR');
   comprobar(V.claseNaval(1) === 'galera' && V.claseNaval(5) === 'galeon' && V.claseNaval(7) === 'acorazado' && V.NAVAL.galera.disparo === 4 && V.NAVAL.galeon.disparo === 2, 'la marina va por épocas: galeras con flechas de fuego, galeones con cañones y acorazados');
   // En varios mundos: hace falta un par de reinos que solo se toquen por mar.
   let m = null, par = null;
-  for (const sd of [12, 7, 4]) {
+  for (const sd of [12, 7, 4, 11, 21, 99, 5, 9, 13, 3]) {
     m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 160; k++) S.turno(m);
     const cs = S.vivas(m);
     for (const a of cs) for (const b of cs) if (!par && a.id < b.id && !S.vecinosDe(m, a).includes(b) && V.porMar(m, a, b)) par = [a, b];

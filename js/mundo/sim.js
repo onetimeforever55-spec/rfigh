@@ -443,15 +443,35 @@
     return sig && sig.desde != null && m.anio >= sig.desde ? Math.min(b, 0.25) : b;
   };
   const pausa = m => ritmo(m) > 1 && !m.libre ? aniosBase(m) / M.ERAS[maxEraDe(m)].anios : ritmo(m) > 1 ? 1 / ritmo(m) : 1;
-  // ¿Se puede investigar ya? Hace falta su edificio (el molino, el templo, el cuartel…) y pagar su precio.
+  // ¿Se puede investigar ya? Hace falta su edificio (el molino, el templo, el cuartel…). El precio no hace falta
+  // tenerlo de golpe: se va pagando poco a poco mientras se investiga (ver «investigar»).
   const EDIFICIO = { saber: c => c.saberes > 0, plaza: () => true, molino: c => c.molinos > 0, templo: c => c.templos > 0, cuartel: c => c.cuarteles > 0, puerto: c => c.puertos > 0 };
   function faltaPara(m, c, t) {
     const falta = [];
     if (m.vida && !EDIFICIO[t.lugar || 'plaza'](c)) falta.push('un ' + (t.lugar || 'plaza'));
-    if (m.vida) for (const k of Object.keys(t.precio || {})) if ((c[k] || 0) < t.precio[k]) falta.push((t.precio[k] - Math.floor(c[k] || 0)) + ' de ' + k);
     return falta;
   }
-  function pagar(c, precio) { for (const k of Object.keys(precio || {})) c[k] = (c[k] || 0) - precio[k]; }
+  // Lo pagado de cada mejora se guarda aunque se cambie de investigación: no se pierde.
+  const pagadoDe = (c, id) => ((c.pagosTec = c.pagosTec || {})[id] = c.pagosTec[id] || {});
+  // Lo que aún queda por pagar de una mejora, recurso a recurso.
+  function porPagar(c, t) { const pg = (c.pagosTec || {})[t.id] || {}, out = {}; for (const k of Object.keys(t.precio || {})) { const q = t.precio[k] - (pg[k] || 0); if (q > 0.01) out[k] = Math.ceil(q); } return out; }
+  // Qué parte del precio está pagada (de 0 a 1): la investigación no puede ir por delante de lo pagado.
+  function partePagada(c, t) { const pg = (c.pagosTec || {})[t.id] || {}; let f = 1; for (const k of Object.keys(t.precio || {})) if (t.precio[k] > 0) f = Math.min(f, (pg[k] || 0) / t.precio[k]); return f; }
+  // Se paga lo que hace falta para avanzar hasta la parte «hasta» (de 0 a 1), con lo que haya en el almacén
+  // (sin dejar al pueblo sin comida).
+  function pagarHasta(c, t, hasta) {
+    const pg = pagadoDe(c, t.id);
+    // Cerca de la edad siguiente se guarda lo que pide el paso de edad (salvo que el jugador no quiera).
+    const sig = M.ERAS[c.era + 1], req = M.EDADES[c.era + 1];
+    const guarda = req && sig && c.ciencia >= sig.umbral * 0.5 && !(c.jugador && !(c.plan && (c.plan.autoEdad || c.plan.ahorrarEdad)));
+    for (const k of Object.keys(t.precio || {})) {
+      const quiere = t.precio[k] * Math.min(1, hasta) - (pg[k] || 0);
+      if (quiere <= 0) continue;
+      const reserva = Math.max(k === 'comida' ? (c.aldeanos || 0) * 0.8 : 0, guarda ? req[k] || 0 : 0);
+      const da = Math.max(0, Math.min(quiere, (c[k] || 0) - reserva));
+      c[k] = (c[k] || 0) - da; pg[k] = (pg[k] || 0) + da;
+    }
+  }
   // ¿Está ahorrando para subir de edad? (Ya tiene el saber y la fecha: solo le falta pagar.) La IA no gasta
   // entonces en mejoras; el jugador, si lo pide («ahorrad para la edad»).
   function ahorrando(m, c) {
@@ -477,6 +497,8 @@
       if (c.oro < 0) k += (e.oro || 0) * 8;
       // Con el ritmo pausado, primero las mejoras que pide la edad para poder avanzar.
       if (m.vida && ritmo(m) > 1 && t.era === c.era && mejorasDeEdad(c).hechas < mejorasDeEdad(c).pide) k += 50;
+      // Mejor lo que se puede ir pagando ya (con lo que hay en el almacén) que lo que dejaría a los sabios parados.
+      if (m.vida) { const d = porPagar(c, t); for (const r of Object.keys(d)) if ((c[r] || 0) < d[r] * 0.25) k -= 40; }
       return k + t.era * -5 + ((c.id * 7 + M.TECNOLOGIAS.indexOf(t)) % 5) * 0.01; };
     return libres.sort((a, b) => gusto(b) - gusto(a))[0].id;
   }
@@ -486,16 +508,26 @@
     let resto = puntos + (inv.banco || 0); inv.banco = 0;
     for (let vueltas = 0; resto > 1e-9 && vueltas < 6; vueltas++) {
       if (!inv.id || ts.includes(inv.id)) {
-        inv.id = elegirTec(m, c); inv.puntos = 0;
+        inv.id = elegirTec(m, c); inv.puntos = (c.puntosTec && inv.id && c.puntosTec[inv.id]) || 0;
         if (!inv.id) { inv.banco = Math.min(resto, 4000); return; }
-        // Se paga al empezar (en el edificio donde se investiga).
-        pagar(c, M.TECNOLOGIAS.find(x => x.id === inv.id).precio);
       }
       const t = M.TECNOLOGIAS.find(x => x.id === inv.id), coste = M.costeTec(t);
-      const pon = Math.min(resto, coste - inv.puntos);
+      // Se paga a medida que se avanza: cada punto de saber pide su parte del precio. Sin recursos, se espera
+      // (el saber de los sabios se guarda para cuando lleguen).
+      if (m.vida) pagarHasta(c, t, (inv.puntos + resto) / coste);
+      const tope = m.vida ? partePagada(c, t) * coste : coste;
+      const pon = Math.max(0, Math.min(resto, coste - inv.puntos, tope - inv.puntos));
+      if (pon <= 1e-9) {
+        inv.banco = Math.min(resto, 4000); inv.esperaPago = (inv.esperaPago || 0) + 1;
+        // Parados mucho tiempo por falta de recursos: se cambia a otra mejora (lo pagado se guarda), salvo que la
+        // haya elegido el jugador.
+        if (inv.esperaPago >= 6 && !(c.plan && c.plan.investigar === inv.id)) { (c.puntosTec = c.puntosTec || {})[inv.id] = inv.puntos; inv.id = null; inv.puntos = 0; inv.esperaPago = 0; }
+        return;
+      }
+      inv.esperaPago = 0;
       inv.puntos += pon; resto -= pon;
       if (inv.puntos >= coste - 1e-9) {
-        ts.push(t.id); c.inventos.push(t.invento); inv.id = null; inv.puntos = 0;
+        ts.push(t.id); c.inventos.push(t.invento); inv.id = null; inv.puntos = 0; if (c.pagosTec) delete c.pagosTec[t.id]; if (c.puntosTec) delete c.puntosTec[t.id];
         if (c.plan && c.plan.investigar === t.id) c.plan.investigar = null;
         (m.avances = m.avances || []).push({ civ: c.id, tec: t.id, turno: m.turno });
         if (m.avances.length > 40) m.avances = m.avances.slice(-40);
@@ -531,7 +563,8 @@
     const ts = M.tecsDe(c), falta = r.lista.filter(t => !ts.includes(t.id));
     if (!falta.length) return null;
     const total = t => Object.values(t.precio || {}).reduce((a, b) => a + b, 0);
-    return falta.sort((a, b) => total(a) - total(b))[0].precio || null;
+    const t = falta.sort((a, b) => total(a) - total(b))[0];
+    return t.precio ? porPagar(c, t) : null;
   }
   function puedeSubir(m, c) {
     const sig = M.ERAS[c.era + 1], req = M.EDADES[c.era + 1], falta = [];
@@ -569,8 +602,11 @@
   const T = s => s.charAt(0).toUpperCase() + s.slice(1);
   const miles = p => (p >= 1000 ? (Math.round(p / 100) / 10).toLocaleString('es-ES') + ' millones' : Math.round(p).toLocaleString('es-ES') + ' mil') + ' personas';
 
+  // Las tierras de un reino anexionado no se rebelan enseguida: el reino vencido deja de existir (no «renace»).
+  const ANEXION = 150;
+  const anexadaHacePoco = (m, r) => m.anexado && m.anexado[r] != null && m.turno - m.anexado[r] < ANEXION;
   function separar(m, c, cs) {
-    const lejos = cs.filter(i => i !== c.capital).sort((a, b) => distancia(b, c.capital) - distancia(a, c.capital));
+    const lejos = cs.filter(i => i !== c.capital && !anexadaHacePoco(m, i)).sort((a, b) => distancia(b, c.capital) - distancia(a, c.capital));
     const parte = lejos.slice(0, Math.max(2, Math.floor(cs.length * 0.4)));
     if (parte.length < 2) return;
     // Si en las tierras rebeldes hay una ciudad, se convierte en la capital del reino nuevo y le da nombre.
@@ -598,7 +634,10 @@
       quien.ciencia += Math.max(0, c.ciencia - quien.ciencia) * 0.5;
     }
     c.viva = false; c.muerte = m.anio;
-    for (let i = 0; i < W * H; i++) if (m.dueno[i] === c.id) m.dueno[i] = quien ? quien.id : -1;
+    // Anexión: el vencedor se queda con todo (tierras, ciudades y gente), y esas tierras le son fieles un tiempo.
+    m.anexado = m.anexado || {};
+    for (let i = 0; i < W * H; i++) if (m.dueno[i] === c.id) { m.dueno[i] = quien ? quien.id : -1; if (quien) m.anexado[i] = m.turno; }
+    if (quien) for (const x of m.ciudades || []) if (x.civ === c.id || x.de === c.id) { if (x.civ === c.id) x.civ = quien.id; x.conquistada = null; x.complot = null; m.anexado[x.region] = m.turno; }
     for (const o of m.civs) o.guerras = o.guerras.filter(g => g.con !== c.id);
     c.guerras = [];
     m.alianzas = (m.alianzas || []).filter(x => x.a !== c.id && x.b !== c.id);
@@ -724,7 +763,8 @@
     if (rey) out.push(['su ' + titulo(c) + ' es ' + M.RASGOS[c.rey.rasgo].nombre, rey]);
     const alcalde = propio({ leal: 15, ambicioso: -15, codicioso: -5 }, x.rasgo);
     if (alcalde) out.push(['el alcalde es ' + x.rasgo, alcalde]);
-    if (x.conquistada != null && m.turno - x.conquistada < 10) out.push(['conquistada hace poco', -Math.round(30 * (1 - (m.turno - x.conquistada) / 10))]);
+    if (anexadaHacePoco(m, x.region)) out.push(['su antiguo reino ya no existe: acepta al nuevo', 25]);
+    else if (x.conquistada != null && m.turno - x.conquistada < 10) out.push(['conquistada hace poco', -Math.round(30 * (1 - (m.turno - x.conquistada) / 10))]);
     if (m.turno - c.ultimaHambre < 4) out.push(['hambre', -15]); else if ((c.comida || 0) > 20) out.push(['graneros llenos', 5]);
     out.push(['estabilidad del reino', Math.round((c.estab - 50) * 0.4)]);
     if (c.guerras.some(g => g.cansancio > 4)) out.push(['cansancio de la guerra', -10]);
@@ -954,6 +994,6 @@
     });
   }
 
-  M.sim = { turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

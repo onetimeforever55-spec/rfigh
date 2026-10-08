@@ -298,7 +298,7 @@
         '<div class="mejora-cab"><b>' + esc(t.nombre) + '</b>' + (hecha ? '<span class="verde">✓ hecha</span>' : '') + '</div>' +
         '<p class="mejora-texto">' + esc(t.texto) + '</p>' +
         (hecha ? '' : '<p class="mejora-precio">' + precioTxt(t.precio) + ' <span class="tenue">· en ' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · ' + M.costeTec(t) + ' de saber</span></p>') +
-        (ahora ? '<div class="mejora-barra"><span class="barra"><span style="width:' + pct + '%"></span></span> ' + pct + ' % <span class="tenue">· unos ' + turnos + ' turnos</span></div>' :
+        (ahora ? '<div class="mejora-barra"><span class="barra"><span style="width:' + pct + '%"></span></span> ' + pct + ' % <span class="tenue">· unos ' + turnos + ' turnos</span></div>' + (() => { const d = S.porPagar(c, t), ks = Object.keys(d); return ks.length ? '<p class="' + (c.investigacion.esperaPago ? 'rojo ' : 'tenue ') + 'mejora-falta">' + (c.investigacion.esperaPago ? 'Parado: faltan recursos para seguir pagando · ' : 'Se paga poco a poco · queda ') + esc(precioTxt(d)) + '</p>' : ''; })() :
           !hecha && mio ? (falta.length ? '<p class="rojo mejora-falta">Falta: ' + esc(falta.join(', ')) + '</p>' : '') + '<button type="button" class="' + (falta.length ? 'mando sutil' : 'obrar') + ' corte-tec" data-nombre="' + esc(t.nombre) + '">' + (falta.length ? 'Apuntar para después' : 'Investigar') + '</button>' : '') +
         '</div>';
     };
@@ -369,7 +369,7 @@
   }
   function mercadoDe(c) {
     const mk = m.mercado, V = M.vida, bienes = V.bienesDe(c), nb = k => V.NOMBRE_BIEN[k] || k;
-    const socios = [...new Set((m.vida.rutas || []).filter(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)).map(ru => (ru.a === c.id ? ru.b : ru.a)))].map(id => S.civ(m, id)).filter(o => o && o.viva && !S.enGuerra(c, o));
+    const socios = M.vida.sociosDe(m, c);
     const tabla = '<table class="mercado"><thead><tr><th>Bien</th><th>Precio</th><th>Últimos turnos</th><th>Hay / hace falta</th></tr></thead><tbody>' + bienes.map(k => {
       const h = mk.historia[k] || [], d = h.length > 6 ? h[h.length - 1] - h[h.length - 7] : 0, base = V.PRECIO_BASE[k];
       const col = mk.precio[k] > base * 1.25 ? '#ff8a7a' : mk.precio[k] < base * 0.8 ? '#9ad08a' : '#f0c05a';
@@ -455,7 +455,7 @@
         (req ? item(!/ser una|ser un|un templo|un cuartel|un castillo/.test(faltaTxt), req.texto.charAt(0).toUpperCase() + req.texto.slice(1)) + item(!/ de (comida|madera|piedra|oro|metal)/.test(faltaTxt), 'Pagar ' + precio) : '') + '</ul>' +
         (c.jugador ? '<button type="button" class="obrar avanzar-edad"' + (r.ok ? '' : ' disabled') + '>Avanzar a ' + esc(sig.nombre) + '</button>' : '')) + '</div>';
     }
-    return '<div class="arbol">' + edad + (c.jugador ? '<p class="tenue arbol-ayuda">Las mejoras se investigan en su edificio (el molino, el templo, el cuartel…) y se pagan al empezar; el saber lo traen tus ' + esc(M.ERUDITO(c.era).varios) + '. Toca una para investigarla o escribe «investigad …».</p>' : '') + eras.map(e => {
+    return '<div class="arbol">' + edad + (c.jugador ? '<p class="tenue arbol-ayuda">Las mejoras se investigan en su edificio (el molino, el templo, el cuartel…) y se pagan poco a poco mientras se investigan (no hace falta tenerlo todo de golpe); el saber lo traen tus ' + esc(M.ERUDITO(c.era).varios) + '. Toca una para investigarla o escribe «investigad …».</p>' : '') + eras.map(e => {
       const filas = M.TECNOLOGIAS.filter(t => t.era === e).map(t => {
         const hecha = ts.includes(t.id), ahora = inv === t.id, abierta = !hecha && t.era <= c.era;
         const pct = ahora ? Math.min(100, Math.round(100 * c.investigacion.puntos / M.costeTec(t))) : 0;

@@ -360,6 +360,8 @@
     if (/\b(emboscad\w*|tend\w* una trampa|escond\w*)\b/.test(n)) { const r = regionPropia(m, c, n + ' frontera'); return [{ tipo: 'defender', region: r != null ? r : c.capital, postura: 'emboscada' }]; }
     if (/\b(al ataque|ataquen ya|atacad ya|avanz\w*|carg\w*|adelante|a la carga|ofensiva|a por ellos|contraatac\w*|a muerte|sin piedad)\b/.test(n) && !o && !(m.ciudades || []).some(x => n.includes(norm(x.nombre)))) return [{ tipo: 'atacar' }];
     if (/^(alto|parad|deteneos|quietos|alto el fuego|cese el fuego|parad la guerra|deteneos ya)$/.test(n)) return c.guerras.length ? [{ tipo: 'defender', region: c.capital, postura: 'alto' }] : [{ tipo: 'fiesta', descanso: true }];
+    // Anexionar un reino entero: «anexionad X», «quedaos con todo X», «conquistad X entero».
+    if (/\b(anex\w*|absorb\w*|incorpor\w*|someted\w*|quedaos con todo|quedarnos con todo|conquist\w* (todo|entero|entera|del todo)|todo (el reino|su reino)|que desaparezca)\b/.test(n) && !/\b(parad|dejad de|cancel\w*)\b/.test(n)) return [{ tipo: 'anexar', con: o ? o.id : (c.guerras[0] ? c.guerras[0].con : null) }];
     if (/\b(rendi\w*|rinda\w*|rendicion|capitul\w*|rindete|rendid|nos rendimos|bandera blanca)\b/.test(n)) return [{ tipo: 'rendicion', con: o ? o.id : (c.guerras[0] ? c.guerras[0].con : null) }];
     // Diplomacia menuda: espiar, insultar, regalar; y la guerra sucia: quemar sus campos, saquear.
     if (/\b(espi\w*|infiltr\w*|reconocimiento|averigu\w*|investig\w* (a|al|sobre))\b/.test(n) && (o || c.guerras.length)) return [{ tipo: 'espiar', con: o ? o.id : c.guerras[0].con }];
@@ -415,6 +417,9 @@
       if (!cosa && /\b(no|dejad de|quita\w*|como querais|lo que querais)\b/.test(n)) return [{ tipo: 'especialidad', que: null }];
       if (cosa) return [{ tipo: 'especialidad', que: BIEN[cosa[1]] || cosa[1] }];
     }
+    // Comercio libre o solo a petición: «comerciad libremente», «comerciad solo lo que yo diga».
+    if (/\b(comerci\w*|negoci\w*|tratos?)\b/.test(n) && /\b(libre\w*|solos?|por vuestra cuenta|por su cuenta|lo que querais|automatic\w*)\b/.test(n) && !cosa) return [{ tipo: 'comercio_libre', si: !/\b(no|nunca|dejad de|solo (lo que|cuando) (yo )?(diga|mande|pida))\b/.test(n) }];
+    if (/\b(comerci\w*)\b/.test(n) && /\bsolo (lo que|cuando) (yo )?(diga|mande|pida)\b/.test(n)) return [{ tipo: 'comercio_libre', si: false }];
     if (/\b(compr\w*|adquir\w*|import\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'comprar', que: BIEN[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
     if (/\b(vend\w*|export\w*)\b/.test(n) && cosa) { const mt = n.match(new RegExp('\\b' + NUM + '\\b')); return [{ tipo: 'vender', que: BIEN[cosa[1]] || cosa[1], n: mt ? Math.round(numero(mt[1]) || 0) : null }]; }
     if (/\b(guard\w*|ahorr\w*|no gast\w*|reserv\w*) (el |todo el |nuestro )?(oro|dinero|tesoro)\b/.test(n)) return [{ tipo: 'tesoro', guardar: true }];
@@ -424,10 +429,16 @@
   }
   const PRECIO = { madera: 0.6, comida: 0.5, piedra: 0.9, metal: 2.5, armas: 6, carbon: 1.4, petroleo: 3.2, muebles: 2.4, vehiculos: 30, semillas: 0.35, granadas: 1.6 };
   // Con quién comercia de verdad un pueblo: los del otro lado de sus rutas entre reinos.
-  const sociosDe = (m, c) => [...new Set(((m.vida && m.vida.rutas) || []).filter(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)).map(ru => (ru.a === c.id ? ru.b : ru.a)))].map(id => S().civ(m, id)).filter(o => o && o.viva && !S().enGuerra(c, o));
+  // (rutas por tierra, tratados, puertos en el mismo mar y tratos recientes: vida.js › sociosDe)
+  const sociosDe = (m, c) => (M.vida && m.vida ? M.vida.sociosDe(m, c) : []);
   function aplicarEconomia(m, c, a, textos) {
     const p = plan(c), v = m.vida, an = t => v && (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t });
     const mk = m.mercado, pausa = M.vida && M.vida.pausada(m);
+    if (a.tipo === 'comercio_libre') {
+      p.comercioLibre = !!a.si;
+      textos.push(a.si ? 'Vuestros comerciantes comercian solos: venden lo que sobra, compran lo que falta y abren rutas con quien se lleve bien con vosotros.' : 'Vuestros comerciantes solo compran y venden lo que mandéis («comprad 20 de hierro», «vended madera»), y no se abren rutas nuevas sin vuestra orden.');
+      return;
+    }
     if (a.tipo === 'oferta') { const r = M.vida.aceptarOferta(m, c, a.si); textos.push(r.texto); if (r.ok && a.si) an('🤝 Trato cerrado'); return; }
     if (a.tipo === 'consulta_mercado') {
       if (!mk) { textos.push('Aún no hay mercado entre los reinos.'); return; }
@@ -480,12 +491,14 @@
       if (ts.includes(t.id)) { textos.push('Ya domináis ' + t.nombre.toLowerCase() + '.'); return; }
       if (t.era > c.era) { const faltan = M.TECNOLOGIAS.filter(x => x.era <= c.era && !ts.includes(x.id)); textos.push(t.nombre + ' es ' + ('de ' + M.ERAS[t.era].con).replace(/^de el /, 'del ') + '. Antes hay que dominar lo de ahora' + (faltan.length ? ': ' + faltan.map(x => x.nombre.toLowerCase()).join(', ') : '') + (m.libre || !M.ERAS[c.era + 1] || M.ERAS[c.era + 1].desde == null ? '' : ', y la nueva era no llega antes de ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) + '.'); return; }
       const falta = S().faltaPara(m, c, t), inv = c.investigacion = c.investigacion || { id: null, puntos: 0 };
-      if (falta.length && inv.id !== t.id) { p.investigar = t.id; textos.push(t.nombre + ' se investiga en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' y cuesta ' + Object.keys(t.precio).map(k => t.precio[k] + ' de ' + k).join(', ') + '. Os falta: ' + falta.join(', ') + '. Queda apuntada: empezará en cuanto se pueda.'); return; }
+      if (falta.length && inv.id !== t.id) { p.investigar = t.id; textos.push(t.nombre + ' se investiga en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' y cuesta ' + Object.keys(t.precio).map(k => t.precio[k] + ' de ' + k).join(', ') + ' (se paga poco a poco). Os falta ' + falta.join(', ') + '. Queda apuntada: empezará en cuanto se pueda.'); return; }
       p.investigar = t.id;
       // Lo que llevaba la investigación anterior no se pierde del todo: la mitad pasa a la nueva.
-      if (inv.id !== t.id) { inv.puntos = 0; inv.id = t.id; for (const k of Object.keys(t.precio || {})) c[k] = (c[k] || 0) - t.precio[k]; }
+      // No hace falta tener todo el precio: se va pagando poco a poco mientras se investiga (y lo pagado no se pierde).
+      if (inv.id !== t.id) { if (inv.id) (c.puntosTec = c.puntosTec || {})[inv.id] = inv.puntos; inv.puntos = (c.puntosTec || {})[t.id] || 0; inv.id = t.id; inv.esperaPago = 0; }
+      const debe = S().porPagar(c, t), debeTxt = Object.keys(debe).map(k => debe[k] + ' de ' + k).join(', ');
       an('🔬 Investigando: ' + t.nombre);
-      textos.push('Tus ' + M.ERUDITO(c.era).varios + ' se ponen con ' + t.nombre.toLowerCase() + ' en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' (' + t.texto + '; pagado: ' + Object.keys(t.precio).map(k => t.precio[k] + ' de ' + k).join(', ') + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.cienciaTurno || 1)))) + ' turnos. Más ciencia: más gente, estabilidad, ciudades, rutas y oro para los sabios.');
+      textos.push('Tus ' + M.ERUDITO(c.era).varios + ' se ponen con ' + t.nombre.toLowerCase() + ' en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' (' + t.texto + (debeTxt ? '; se paga poco a poco mientras avanza: ' + debeTxt : '') + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.cienciaTurno || 1)))) + ' turnos. Más ciencia: más gente, estabilidad, ciudades, rutas y oro para los sabios.');
       return;
     }
     if (a.tipo === 'consulta_tec') {
@@ -573,6 +586,26 @@
       M.vida.reasignar(m, c, null, true);
       an('⚔ ¡Al ataque!');
       textos.push('¡Al ataque! Tus guerreros dejan de esperar y marchan ' + (e ? 'sobre ' + nombrePlaza(m, e.obj) : 'contra ' + S().civ(m, c.guerras[0].con).nombre) + '.');
+      return;
+    }
+    if (a.tipo === 'anexar') {
+      if (!o || !o.viva || o.id === c.id) { textos.push('¿A quién? Di «anexionad» y el nombre del reino.'); return; }
+      const ratio = S().fuerza(m, c) / Math.max(0.1, S().fuerza(m, o)), tierras = S().casillas(m, o).length, ciudades = (m.ciudades || []).filter(x => x.civ === o.id).length;
+      const g = c.guerras.find(x => x.con === o.id);
+      // Si está perdido (mucho más débil, casi sin tierras o agotado de la guerra), se rinde sin condiciones.
+      // Ante un ejército cinco veces mayor, se rinde sin luchar.
+      if ((g && (ratio > 3 || (tierras <= 3 && !ciudades) || (g.cansancio > 6 && ratio > 1.5))) || ratio > 5) {
+        S().morir(m, o, c);
+        if (M.vida && m.vida) M.vida.reasignar(m, c, null, true);
+        an('👑 ¡' + o.nombre + ' es vuestro!', o.capital);
+        textos.push(o.nombre + ' se rinde sin condiciones: el reino deja de existir y sus tierras, sus ciudades y su gente pasan a ser vuestras. Esas tierras os serán fieles: no se rebelarán enseguida.');
+        return;
+      }
+      if (!g) { S().declararGuerra(m, c, o, 'Por orden de su gobierno, ' + c.nombre + ' declara la guerra a ' + o.nombre + ' para anexionarse todo su reino.'); p.guerrasMias = [...new Set([...(p.guerrasMias || []), o.id])]; if (M.vida && m.vida) M.vida.reasignar(m, c, null, true); }
+      p.anexar = o.id; p.objetivo = o.capital; p.defender = null;
+      if (v && v.ejercitos) delete v.ejercitos[c.id];
+      an('👑 ¡A por todo ' + o.nombre + '!', o.capital);
+      textos.push('Vuestro ejército irá a por ' + o.nombre + ' plaza por plaza, empezando por su capital, hasta que el reino deje de existir. Si en algún momento está perdido, repetid la orden y se rendirá sin condiciones.' + (ratio < 1 ? ' Ojo: ahora mismo son más fuertes que vosotros.' : ''));
       return;
     }
     if (a.tipo === 'rendicion') {
@@ -760,7 +793,7 @@
       textos.push('¡Manos a la obra! ' + (n ? n + ' que estaban parados vuelven al trabajo.' : 'Todos estaban ya trabajando.'));
     }
   }
-  const TIPOS_EXTRA = ['exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
+  const TIPOS_EXTRA = ['anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- Del texto a las acciones ----------
   /*
@@ -917,7 +950,7 @@
       const o = a.con != null ? S().civ(m, Number(a.con)) : null;
       if (a.tipo === 'milagro') textos.push('Eso solo puede hacerlo un dios, y aquí gobiernas un pueblo de carne y hueso. Puedes mandar a tu gente a talar, sembrar, construir, picar piedra o luchar; expandiros, declarar guerras, firmar paces y tratados, invertir en ciencia o cambiar de gobierno.');
       else if (a.tipo === 'informe') textos.push(informe(m, c));
-      else if (['edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'consulta_mercado', 'especialidad', 'oferta'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);
+      else if (['comercio_libre', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'consulta_mercado', 'especialidad', 'oferta'].includes(a.tipo)) aplicarEconomia(m, c, a, textos);
       else if (TIPOS_EXTRA.includes(a.tipo)) aplicarExtra(m, c, a, textos);
       else if (a.tipo === 'consulta') textos.push(consulta(m, c, a.o));
       else if (a.tipo === 'cuadrilla') aplicarCuadrilla(m, c, a, textos);
@@ -1173,6 +1206,7 @@
     'El pueblo se gobierna solo (reparte el trabajo según lo que le falta); el jugador cambia la IMPORTANCIA de cada cosa:',
     '{"tipo":"prioridad","cambios":{"madera"|"comida"|"piedra"|"casas"|"ejercito"|"ciencia"|"riqueza"|"expansion": {"a": 0|0.5|1|1.5|2} o {"mas": -0.5|0.5}}} (0 nada, 1 normal, 2 máxima; solo las que cambien);',
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
+    '{"tipo":"anexar","con":id} (conquistar o anexionarse un reino entero); {"tipo":"comercio_libre","si":true|false} (que los comerciantes comercien solos o solo lo que se mande);',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
     '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"saber"|"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"|"pozo"|"granero"|"fuente"|"parque"|"palacio"|"central"|"banco"|"fabrica"|"estacion"|"hospital"|"aerodromo"|"petroleo"|"mina"} (mina = galería, solo en la montaña, que da piedra, metal, carbón y algo de oro sin agotarse; petroleo = pozo de petróleo, en la Era Moderna y sobre una bolsa de crudo; banco desde el Renacimiento; fábrica y estación de tren desde la Revolución Industrial; hospital desde la Era Moderna; aeródromo en la II Guerra Mundial; fuente = plaza pública; central = central eléctrica, solo en la Era Moderna y en ciudades; templo = iglesia o catedral según la era; saber = la casa de los eruditos: cabaña del chamán, academia, monasterio, universidad o laboratorio); {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante, 6 erudito (chamán, filósofo, monje, científico); -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal"|"armas"|"carbon"|"petroleo"|"muebles"|"vehiculos"|"semillas"|"granadas","n":numero|null} (solo con reinos con los que hay ruta de comercio: el comerciante lo trae o lo lleva); {"tipo":"especialidad","que":"madera"|"comida"|"piedra"|"metal"|"armas"|"carbon"|"petroleo"|"muebles"|"vehiculos"|null} (a qué se dedica el pueblo para vender); {"tipo":"consulta_mercado"}; {"tipo":"oferta","si":bool} (aceptar o rechazar el trato que ofrece un mercader); {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"edad"} (pasar a la edad siguiente, como en Age of Empires: cuesta recursos y pide edificios); {"tipo":"consulta_edad"} (qué falta para la próxima edad); {"tipo":"edad_auto","si":bool}; {"tipo":"ahorrar_edad","si":bool}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"exterminio","con":id,"parar":bool} (los soldados matan también a los civiles de ese pueblo; parar:true lo cancela); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"reforestar"} (los leñadores plantan árboles con las semillas); {"tipo":"fabricar","que":"armas"|"muebles"|"vehiculos"|"granadas","n":numero} (fabricar armas de la época en la forja o la fábrica, o muebles con la madera en la fábrica); {"tipo":"huelga","ceder":true|false} (huelga obrera: subir salarios o reprimirla); {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
@@ -1184,7 +1218,7 @@
       '\nPlazas (región, dueño): ' + JSON.stringify([...S().vivas(m).map(o => ({ region: o.capital, nombre: 'capital de ' + o.nombre, dueno: o.id })), ...(m.ciudades || []).map(x => ({ region: x.region, nombre: x.nombre, dueno: m.dueno[x.region] }))]) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['exterminio', 'oferta', 'consulta_mercado', 'especialidad', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
+  const TIPOS = new Set(['anexar', 'comercio_libre', 'exterminio', 'oferta', 'consulta_mercado', 'especialidad', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
@@ -1223,7 +1257,7 @@
         if (a.tipo === 'fiesta' && a.descanso) x.descanso = true;
         if (a.tipo === 'huelga') x.ceder = a.ceder !== false;
         if (a.tipo === 'fabricar') { x.que = ['muebles', 'vehiculos', 'granadas'].includes(a.que) ? a.que : 'armas'; x.n = Math.max(1, Math.min(500, Math.round(Number(a.n) || 20))); }
-        if (['rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje'].includes(a.tipo) && x.con == null) continue;
+        if (['anexar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje'].includes(a.tipo) && x.con == null) continue;
         out.push(x);
       }
       else if (a.tipo === 'objetivo' || a.tipo === 'defender') { if (Number.isInteger(Number(a.region)) && Number(a.region) >= 0) out.push({ tipo: a.tipo, region: Number(a.region) }); }

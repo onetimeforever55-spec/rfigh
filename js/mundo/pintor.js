@@ -758,7 +758,8 @@
         const i = paso * 3, j = r ? Math.min(r.length - 3, i + 3) : 0;
         const dir = r && r.length >= 6 && r[j] !== r[i] ? Math.sign(r[j] - r[i]) : pega ? Math.sign(pega[0][2]) || 1 : (ultimaDir.get(a.id) || 1);
         ultimaDir.set(a.id, dir);
-        const img = ARTE().vehiculo(a.veh, color[a.c] || '#cccccc', anda && t ? 1 : 0), EV = a.veh === 'tanque' ? 0.62 : 0.55;
+        // A buen tamaño: un tanque ocupa casi una parcela; un cañón, más que un soldado.
+        const img = ARTE().vehiculo(a.veh, color[a.c] || '#cccccc', anda && t ? 1 : 0), EV = a.veh === 'tanque' ? 1 : a.veh === 'artilleria' ? 0.95 : 0.85;
         const w = img.width * EV, h = img.height * EV, vx = px + 1.5 - w / 2, vy = py + 6 - h;
         g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(vx + 1, py + 5.5, w - 2, 1);
         g.save(); if (dir < 0) { g.translate(vx * 2 + w, 0); g.scale(-1, 1); }
@@ -1937,18 +1938,19 @@
     }
   }
 
-  // Bombarderos: cruzan desde su capital hasta el blanco (llegan en 1,6 pasos) y siguen de largo, con su sombra.
+  // Aviones: cruzan desde su aeródromo hasta el blanco (llegan en V.VUELO pasos), sueltan las bombas y siguen de
+  // largo, con su sombra en el suelo. Biplanos en la Era Moderna; bombarderos en la II Guerra Mundial.
   function pintarAviones(k) {
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
-    for (const [x0, y0, x1, y1, paso, civ] of (m.vida.aviones || [])) {
-      const f = (k - paso) / 1.6;
-      if (f < 0 || f > 2.2) continue;
+    for (const [x0, y0, x1, y1, paso, civ, bomb] of (m.vida.aviones || [])) {
+      const f = (k - paso) / (V.VUELO || 1.6);
+      if (f < 0 || f > 1.9) continue;
       const ax = x0 * P + 8, ay = y0 * P + 8, bx = x1 * P + 8, by = y1 * P + 8;
-      const x = ax + (bx - ax) * f, y = ay + (by - ay) * f, img = ARTE().avion(color[civ] || '#cccccc'), dir = bx >= ax ? 1 : -1;
+      const x = ax + (bx - ax) * f, y = ay + (by - ay) * f, img = ARTE().avion(color[civ] || '#cccccc', bomb), dir = bx >= ax ? 1 : -1;
       const ang = Math.atan2(by - ay, (bx - ax) || 0.01) - (dir < 0 ? Math.PI : 0);
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x - 5, y + 14, 10, 2);
-      g.save(); g.translate(x, y - 6); g.rotate(ang); if (dir < 0) g.scale(-1, 1);
-      g.drawImage(img, -img.width * 0.4, -img.height * 0.4, img.width * 0.8, img.height * 0.8);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x - 8, y + 16, 16, 3);
+      g.save(); g.translate(x, y - 8); g.rotate(ang); if (dir < 0) g.scale(-1, 1);
+      g.drawImage(img, -img.width * 0.65, -img.height * 0.65, img.width * 1.3, img.height * 1.3);
       g.restore();
     }
   }
@@ -2051,7 +2053,7 @@
       if (tb.quien && t < 2600 && !['ahogado', 'vejez', 'hambre', 'peste', 'plaga'].includes(tb.tipo)) {
         // Cae como en WorldBox: destello rojo, se ladea y queda tendido con un charco de sangre; luego se desvanece.
         const a = tb.quien, civ = m.civs.find(c => c.id === tb.c), col = civ ? civ.color : '#cccccc';
-        const img = a.veh ? ARTE().vehiculo(a.veh, col, 0) : figura(a, col, 0, 0, 0), EA = a.veh ? 0.55 : 0.5;
+        const img = a.veh ? ARTE().vehiculo(a.veh, col, 0) : figura(a, col, 0, 0, 0), EA = a.veh ? 0.85 : 0.5;
         const w = img.width * EA, h = img.height * EA, cx = tb.x * P + 8, cy = tb.y * P + 12;
         const giro = Math.min(1, t / 260) * Math.PI / 2 * ((a.id % 2) ? 1 : -1);
         if (t > 200 && !a.veh) { g.fillStyle = 'rgba(120,10,10,' + Math.min(0.7, (t - 200) / 700).toFixed(2) + ')'; g.beginPath(); g.ellipse(cx, cy + 1, 2 + Math.min(4, t / 350), 1.2 + Math.min(1.5, t / 700), 0, 0, Math.PI * 2); g.fill(); }

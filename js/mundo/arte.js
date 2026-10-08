@@ -1159,11 +1159,19 @@
       return H.lienzo();
     });
   }
-  function avion(col) {
-    return guardado('avion' + col, () => {
+  // El avión de cada época: biplano (Era Moderna) o bombardero de dos motores (II Guerra Mundial).
+  function avion(col, bombardero) {
+    return guardado('avion' + col + (bombardero ? 'b' : ''), () => {
       const H = hoja(16, 9), cuerpo = mezcla(col, '#7a8070', 0.5);
       H.r(2, 4, 12, 2, cuerpo); H.r(13, 4, 2, 2, claro(cuerpo, 0.15)); H.p(15, 4, '#2a2a2a'); H.p(15, 5, '#2a2a2a'); // fuselaje y hélice
-      H.r(6, 1, 3, 7, oscuro(cuerpo, 0.12)); H.r(6, 1, 3, 1, claro(cuerpo, 0.1)); // alas
+      if (bombardero) {
+        H.r(5, 0, 4, 9, oscuro(cuerpo, 0.12)); H.r(5, 0, 4, 1, claro(cuerpo, 0.1)); // alas largas
+        H.r(9, 1, 2, 1, '#3a3a34'); H.r(9, 7, 2, 1, '#3a3a34'); // dos motores
+        H.p(6, 5, '#2a2a26'); H.p(7, 5, '#2a2a26'); // bombas bajo el vientre
+      } else {
+        H.r(6, 1, 3, 7, oscuro(cuerpo, 0.12)); H.r(6, 1, 3, 1, claro(cuerpo, 0.1)); // alas
+        H.p(6, 3, '#4a3a2a'); H.p(8, 6, '#4a3a2a'); // los montantes del biplano
+      }
       H.r(1, 2, 2, 2, oscuro(cuerpo, 0.12)); H.r(1, 6, 2, 1, oscuro(cuerpo, 0.12)); // cola
       H.p(11, 4, '#a8d8f0'); H.p(7, 3, col); H.p(7, 6, col);
       H.contorno();

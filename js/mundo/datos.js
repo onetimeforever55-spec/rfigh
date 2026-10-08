@@ -93,6 +93,14 @@
       : t.lugar === 'cuartel' ? { madera: Math.round(b * 0.5), oro: Math.round(b * 0.4), metal: t.era >= 2 ? Math.round(b * 0.1) : 0 }
       : t.lugar === 'puerto' ? { madera: Math.round(b * 0.6), oro: Math.round(b * 0.5) }
       : { comida: Math.round(b * 0.6), madera: Math.round(b * 0.5), oro: oro ? Math.round(b * 0.2) : 0 };
+    // Desde la Revolución Industrial, la ciencia ya no se paga con madera (la madera queda para fabricar y
+    // construir): se paga con carbón, metal y oro.
+    if (t.era >= 6 && t.precio.madera) {
+      const mad = t.precio.madera; delete t.precio.madera;
+      t.precio.carbon = (t.precio.carbon || 0) + Math.round(mad * 0.5);
+      t.precio.metal = (t.precio.metal || 0) + Math.round(mad * 0.15);
+      t.precio.oro = (t.precio.oro || 0) + Math.round(mad * 0.2);
+    }
     for (const k of Object.keys(t.precio)) if (!t.precio[k]) delete t.precio[k];
   }
   M.LUGARES = { saber: 'la casa del saber', plaza: 'la plaza', molino: 'el molino', templo: 'el templo', cuartel: 'el cuartel', puerto: 'el puerto' };
