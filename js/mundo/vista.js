@@ -64,6 +64,7 @@
   const modoPueblo = () => m.modo === 'pueblo' && m.jugador != null;
   const tuPueblo = () => { const c = modoPueblo() ? S.civ(m, m.jugador) : null; return c && c.viva ? c : null; };
   function pedirModo(titulo, texto) {
+    if (enLinea()) return; // en online no hay menú de modo: cada uno tiene su reino (o mira)
     $('inicio-titulo').textContent = titulo || '¿Cómo quieres jugar?';
     $('inicio-texto').textContent = texto || 'Puedes gobernar un solo pueblo con tus órdenes mientras los demás viven a su aire, o ser el dios de todos.';
     $('mundo-libre').checked = !!m.libre;
@@ -75,7 +76,7 @@
     // En línea, quien se une pide un pueblo al anfitrión (si está libre, es suyo).
     // En online cada uno tiene un solo reino para toda la partida: si cae, ha perdido (puede seguir mirando).
     if (enLinea() && red.miCiv != null) { $('inicio').hidden = true; responder(tuPueblo() ? 'En una partida online no se cambia de reino: gobiernas ' + tuPueblo().nombre + ' hasta el final.' : 'Tu reino ha caído: en online, quien pierde no vuelve a jugar. Puedes seguir mirando cómo acaba la partida.', 'duda'); return; }
-    if (red.modo === 'invitado') { $('inicio').hidden = true; enviarAnfitrion({ t: 'elijo', civ: civId != null ? civId : sel }); onlineEstado('Pidiendo ese pueblo…'); return; }
+    if (red.modo === 'invitado') { $('inicio').hidden = true; responder('En online el reino se reparte al azar al entrar: no se elige.', 'duda'); return; }
     if (red.modo === 'anfitrion' && modo !== 'pueblo') { $('inicio').hidden = true; responder('En una partida online solo se juega gobernando un pueblo.', 'duda'); return; }
     $('inicio').hidden = true;
     // El mundo libre se puede activar en cualquier momento: desde ahora, los años pasan de uno en uno.
@@ -307,7 +308,7 @@
       '<p class="subt">' + esc(M.conCaracter(c.regimen, c.caracter)) + ' · ' + esc(era(c).nombre) + '</p>' +
       '<div class="pestanas" role="tablist">' + Object.keys(pestanas).map(k => '<button type="button" role="tab" class="pestana' + (k === pestana ? ' activa' : '') + '" aria-selected="' + (k === pestana) + '" data-p="' + k + '">' + pestanas[k][0] + '</button>').join('') + '</div>' +
       (pestana === 'plan' || pestana === 'tecnica' || pestana === 'ciudad' || pestana === 'mercado' ? pestanas[pestana][1] : '<dl>' + pestanas[pestana][1] + '</dl>') +
-      (m.modo === 'pueblo' && !c.jugador && !(enLinea() && red.miCiv != null) ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
+      (m.modo === 'pueblo' && !c.jugador && !enLinea() ? '<button type="button" class="mando gobernar">Gobernar este pueblo</button>' : '');
     f.querySelectorAll('.pestana').forEach(b => b.addEventListener('click', () => { pestana = b.dataset.p; pintarFicha(); }));
     // Tocar una tecnología disponible de tu pueblo: se investiga esa (la misma orden que «investigad …»).
     f.querySelectorAll('.esp-elegir').forEach(b => b.addEventListener('click', () => { const r = X.ordenar(m, c.id, b.dataset.k ? 'especializaos en ' + b.dataset.k : 'dejad de especializaros'); if (r.ok) despuesDeOrden(r); pintarFicha(); }));
@@ -1296,7 +1297,7 @@
   function pintarOnline() {
     const b = $('online-barra'); if (!b) return;
     b.hidden = !enLinea();
-    $('cambiar-modo').disabled = enLinea() && red.miCiv != null; // en online no se cambia de reino
+    $('cambiar-modo').disabled = enLinea(); // en online no se cambia de reino ni de modo
     if (!enLinea()) return;
     colocarOnline();
     $('online-codigo-ver').textContent = '🌐 ' + red.codigo;
@@ -1466,6 +1467,12 @@
         j = { id: conn.id, nombre, civ: libre || (c && !c.viva) ? c.id : null, visto: performance.now() };
         red.jugadores.push(j);
         if (libre) red.cola.push({ tipo: 'unirse', civ: c.id });
+        // Si es nuevo, le toca un reino libre al azar (en online no se elige); si no queda ninguno, mira.
+        if (j.civ == null) {
+          const libres = S.vivas(m).filter(x => !red.jugadores.some(y => y.civ === x.id));
+          const otro = libres[Math.floor(Math.random() * libres.length)];
+          if (otro) { j.civ = otro.id; red.cola.push({ tipo: 'unirse', civ: otro.id }); }
+        }
       }
       mandarMundo(conn, j.civ, red.cargando); difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline(); avisoFlotante('🌐 Entra ' + String(d.nombre || 'un jugador').slice(0, 16), 3500); }
     else if (d.t === 'pideMundo') { if (!red.sala) mandarMundo(conn, null, red.cargando); }
@@ -1556,7 +1563,7 @@
       // En la carga del principio, se avisa al anfitrión y se espera a su señal para empezar todos a la vez.
       if (d.carga) { enviarAnfitrion({ t: 'listo' }); mostrarCarga('Mundo cargado. Esperando a los demás…', 0.8); if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift()); return; }
       if (d.eres != null) { const c = S.civ(m, d.eres); if (!m.retos || m.retos.civ !== d.eres) m.retos = { civ: d.eres, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; if (c && !c.viva) responder(c.nombre + ' cayó mientras estabas fuera: has perdido. Puedes seguir mirando la partida.', 'duda'); else if (c) P.centrarEn(c.capital, 3); if (c && c.viva) responder('¡Empieza la partida! Gobiernas ' + nombreDe(d.eres) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien'); }
-      if (red.miCiv == null) pedirModo('Elige tu pueblo', 'Toca en el mapa la tierra del pueblo que quieres gobernar y pulsa «Gobernar un pueblo». Los pueblos de los otros jugadores ya tienen dueño.');
+      if (red.miCiv == null && !red.avisadoMirar) { red.avisadoMirar = true; responder('Todos los reinos tienen dueño: miras la partida como observador.', 'duda'); }
       if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift());
     }
     else if (d.t === 'turno') { if (!red.sala) turnoRecibido(d); }
@@ -1567,7 +1574,7 @@
       responder('Gobiernas ' + nombreDe(d.civ) + ' en una partida online. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien');
       pintarModo(); pintarTodo(); pintarOnline();
     }
-    else if (d.t === 'ocupado') pedirModo('Ese pueblo ya tiene dueño', 'Toca otra tierra en el mapa y pulsa «Gobernar un pueblo».');
+    else if (d.t === 'ocupado') responder('Ese reino ya tiene dueño.', 'duda');
     else if (d.t === 'jugadores') { red.jugadores = d.lista || []; pintarOnline(); }
     else if (d.t === 'estado') { corriendo = !!d.corriendo; vel = d.vel || 0; pintarCabecera(); if (!d.corriendo && !red.cargandoInv) avisoFlotante('⏸ El anfitrión ha pausado la partida', 2500); }
     else if (d.t === 'chat') chat(d);
@@ -1628,7 +1635,7 @@
     if (!enLinea()) return;
     try { localStorage.setItem(SESION, JSON.stringify({ rol: red.modo, codigo: red.codigo, nombre: red.nombre, t: Date.now() })); } catch (e) { /* sin guardado */ }
   }
-  function leerSesion() { try { const s = JSON.parse(localStorage.getItem(SESION) || 'null'); return s && s.codigo && Date.now() - s.t < 12 * 3600e3 ? s : null; } catch (e) { return null; } }
+  function leerSesion() { try { const s = JSON.parse(localStorage.getItem(SESION) || 'null'); if (s && s.codigo && Date.now() - s.t < 30 * 60e3) return s; if (s) borrarSesion(); return null; } catch (e) { return null; } }
   function borrarSesion() { try { localStorage.removeItem(SESION); localStorage.removeItem(ONLINE); } catch (e) { /* nada */ } }
   let guardandoOnline = false;
   function guardarOnline() {
@@ -1706,7 +1713,7 @@
     try { if (red.peer) red.peer.destroy(); } catch (e) { /* ya cerrado */ }
     clearInterval(red.latido); clearInterval(red.vigia); clearTimeout(red.esperaCarga); chat0(); ocultarCarga(); borrarSesion();
     red.cargando = false; red.cargandoInv = false; red.mundoOnline = false; red.listos = null;
-    Object.assign(red, { canal: null, modo: null, peer: null, conns: new Map(), conn: null, codigo: null, jugadores: [], cola: [], pendientes: [], esperandoMundo: false, sala: false, ultimaSala: null, miCiv: null, idos: null });
+    Object.assign(red, { avisadoMirar: false, canal: null, modo: null, peer: null, conns: new Map(), conn: null, codigo: null, jugadores: [], cola: [], pendientes: [], esperandoMundo: false, sala: false, ultimaSala: null, miCiv: null, idos: null });
     pintarSala();
     for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = false; }
     pintarOnline();
