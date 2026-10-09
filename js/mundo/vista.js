@@ -1108,6 +1108,25 @@
     const c = { id: otro, enviar: d => canal.postMessage({ de: yo, para: otro, d }), al: f => fns.push(f), alCerrar: f => cierres.push(f), cerrar: () => { canal.postMessage({ de: yo, para: otro, fin: 1 }); }, _llega: d => fns.forEach(f => f(d)), _fin: () => cierres.forEach(f => f()) };
     return c;
   }
+  // Servidores para atravesar routers y redes móviles: STUN de Google y, si hace falta, un TURN público (relé).
+  const OPCIONES_PEER = { debug: 0, config: { iceServers: [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+    { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
+  ] } };
+  // Los errores de PeerJS, en cristiano (y qué hacer).
+  function errorRed(e) {
+    const t = (e && e.type) || '', msg = (e && e.message) || '';
+    if (t === 'peer-unavailable' || /could not connect to peer/i.test(msg)) return 'No se encuentra esa partida. Revisa el código y que el anfitrión tenga el juego abierto en pantalla (si lo deja en segundo plano, el móvil corta la conexión).';
+    if (t === 'unavailable-id') return 'Ese código ya está en uso. Vuelve a crear la partida.';
+    if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return 'No hay conexión con el servidor de partidas. Comprueba internet y vuelve a intentarlo.';
+    if (t === 'browser-incompatible') return 'Este navegador no puede jugar online. Prueba con Chrome, Safari o Firefox actualizados.';
+    return msg || 'error de conexión';
+  }
+  // Si el móvil corta la conexión con el servidor (pantalla apagada, otra app), el anfitrión se vuelve a dar de alta.
+  function mantenerVivo(peer) {
+    peer.on('disconnected', () => { setTimeout(() => { try { if (!peer.destroyed && peer.disconnected) peer.reconnect(); } catch (e) { /* se intenta al volver */ } }, 800); });
+    document.addEventListener('visibilitychange', () => { try { if (document.visibilityState === 'visible' && !peer.destroyed && peer.disconnected) peer.reconnect(); } catch (e) { /* nada */ } });
+  }
   function envolver(pc) { const c = { id: pc.peer, enviar: d => { try { pc.send(d); } catch (e) { /* conexión caída */ } }, al: f => pc.on('data', f), alCerrar: f => { pc.on('close', f); pc.on('error', f); }, cerrar: () => pc.close() }; return c; }
   function abrirAnfitrion(codigo, alConectar) {
     if (redLocal) {
@@ -1117,8 +1136,12 @@
       return Promise.resolve();
     }
     return new Promise((ok, mal) => {
-      const peer = new window.Peer(PREFIJO + codigo); red.peer = peer;
-      peer.on('open', () => ok()); peer.on('error', e => mal(e));
+      const peer = new window.Peer(PREFIJO + codigo, OPCIONES_PEER); red.peer = peer;
+      let abierto = false;
+      peer.on('open', () => { abierto = true; ok(); });
+      // Una vez abierta, los errores sueltos (un invitado que no llega) no cierran la partida.
+      peer.on('error', e => { if (!abierto) mal(e); else onlineEstado('Aviso de la red: ' + errorRed(e)); });
+      mantenerVivo(peer);
       peer.on('connection', pc => pc.on('open', () => alConectar(envolver(pc))));
     });
   }
@@ -1133,11 +1156,25 @@
         canal.postMessage({ de: yo, para: 'anfitrion', abrir: 1 });
       });
     }
+    // Si el anfitrión no aparece (aún está volviendo a la app, o se reconecta), se reintenta unas cuantas veces.
     return new Promise((ok, mal) => {
-      const peer = new window.Peer(); red.peer = peer;
-      const t = setTimeout(() => mal(new Error('no hay nadie con ese código')), 15000);
-      peer.on('error', e => { clearTimeout(t); mal(e); });
-      peer.on('open', () => { const pc = peer.connect(PREFIJO + codigo, { reliable: true }); pc.on('open', () => { clearTimeout(t); ok(envolver(pc)); }); pc.on('error', e => { clearTimeout(t); mal(e); }); });
+      const peer = new window.Peer(OPCIONES_PEER); red.peer = peer;
+      let hecho = false, intentos = 0;
+      const fin = (f, x) => { if (hecho) return; hecho = true; clearTimeout(t); f(x); };
+      const t = setTimeout(() => fin(mal, new Error('No se encuentra esa partida. Revisa el código y que el anfitrión tenga el juego abierto en pantalla.')), 40000);
+      const intentar = () => {
+        if (hecho) return;
+        intentos++;
+        const pc = peer.connect(PREFIJO + codigo, { reliable: true });
+        pc.on('open', () => fin(ok, envolver(pc)));
+        pc.on('error', e => { if (!hecho) onlineEstado('Buscando la partida ' + codigo + '… (intento ' + intentos + ')'); });
+      };
+      peer.on('error', e => {
+        // «No existe ese peer»: el anfitrión puede estar reconectándose. Se vuelve a probar dentro de 3 segundos.
+        if (e && e.type === 'peer-unavailable' && intentos < 10) { onlineEstado('Buscando la partida ' + codigo + '… (intento ' + intentos + '; que el anfitrión tenga el juego abierto)'); setTimeout(intentar, 3000); return; }
+        fin(mal, new Error(errorRed(e)));
+      });
+      peer.on('open', intentar);
     });
   }
   const comprimir = txt => typeof CompressionStream === 'function' ? new Response(new Blob([txt]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer().then(b => ({ gz: new Uint8Array(b) })) : Promise.resolve({ txt });
@@ -1167,10 +1204,10 @@
       await abrirAnfitrion(codigo, nuevoInvitado);
       red.modo = 'anfitrion'; red.codigo = codigo; red.miCiv = m.jugador;
       red.jugadores = [{ id: 'anfitrion', nombre: red.nombre, civ: m.jugador }];
-      onlineEstado('Partida abierta. Comparte este código: ' + codigo);
+      onlineEstado('Partida abierta. Comparte este código: ' + codigo + '. Mantén el juego abierto en pantalla mientras entran los demás.');
       $('online').hidden = true; corriendo = true; programar(); pintarOnline();
       avisoFlotante('🌐 Partida online abierta. Código: ' + codigo, 8000);
-    } catch (e) { onlineEstado('No se pudo abrir la partida (' + (e && e.message || 'sin conexión') + '). Hace falta internet.'); }
+    } catch (e) { onlineEstado('No se pudo abrir la partida: ' + errorRed(e)); }
   }
   function nuevoInvitado(conn) {
     red.conns.set(conn.id, conn);
@@ -1224,7 +1261,7 @@
       conn.alCerrar(() => { if (red.modo !== 'invitado') return; salirOnline(true); avisoFlotante('🌐 El anfitrión cerró la partida: sigues en este mundo tú solo.', 6000); });
       conn.enviar({ t: 'hola', nombre: red.nombre });
       onlineEstado('Conectado. Recibiendo el mundo…');
-    } catch (e) { red.modo = null; onlineEstado('No se encontró la partida (' + (e && e.message || 'error') + '). Revisa el código.'); }
+    } catch (e) { red.modo = null; try { if (red.peer) red.peer.destroy(); } catch (x) { /* nada */ } onlineEstado(errorRed(e)); }
   }
   async function mensajeInvitado(d) {
     if (!d || typeof d !== 'object') return;
