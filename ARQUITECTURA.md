@@ -24,7 +24,7 @@ Cada archivo es un módulo `(function () { … })()` que se cuelga de `RF.MUNDO`
 | `arte.js` | `M.arte` | Todos los dibujos en píxeles, hechos con código: suelos, árboles, edificios por época, aldeanos, vehículos, barcos e iconos. |
 | `pintor.js` | `M.pintor` | Pinta el mundo en el canvas en cada fotograma: interpola los caminos de los aldeanos entre turnos, combates, partículas, sucesos en el mapa, día y noche, cámara. |
 | `sonido.js` | `M.sonido` | Sonidos sintetizados con Web Audio. |
-| `vista.js` | — | La interfaz: paneles, fichas, mercado, corte, tiempo y velocidad, retos, online (PeerJS), la ventana de órdenes y el arranque. |
+| `vista.js` | — | La interfaz: paneles, fichas, mercado, corte, tiempo y velocidad, retos, online (relé por un servidor MQTT), la ventana de órdenes y el arranque. |
 
 `mundo.html` es la página y `css/mundo.css` su estilo. `scripts/empaquetar.js` junta todo en un solo HTML.
 

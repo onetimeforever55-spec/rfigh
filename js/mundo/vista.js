@@ -1098,7 +1098,83 @@
     return s;
   }
   // El transporte: PeerJS (de cdnjs) en internet; con ?red=local, un canal entre pestañas del mismo navegador (para probar).
-  const redLocal = /[?&]red=local\b/.test(location.search);
+  // EL TRANSPORTE. Por defecto, un servidor de mensajes (MQTT por WebSocket): cada uno se conecta al servidor y
+  // el servidor reparte los mensajes, así que funciona con cualquier red (datos móviles, routers, wifis cerradas).
+  // Con ?red=local, un canal entre pestañas del mismo navegador (para probar); con ?red=peer, PeerJS (directo).
+  const transporte = /[?&]red=local\b/.test(location.search) ? 'local' : /[?&]red=peer\b/.test(location.search) ? 'peer' : 'servidor';
+  const redLocal = transporte !== 'peer';
+  // Servidores públicos y gratuitos (no hace falta cuenta). Con ?servidor=wss://… se usa otro (uno propio).
+  const propio = (location.search.match(/[?&]servidor=([^&]+)/) || [])[1];
+  const SERVIDORES = propio ? [decodeURIComponent(propio)] : ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+  // Un cliente MQTT mínimo (3.1.1, calidad 0): conectar, suscribirse a mi buzón, publicar en el de otro y latir.
+  function clienteMqtt(url, buzon, alMensaje) {
+    return new Promise((ok, mal) => {
+      const enc = new TextEncoder(), dec = new TextDecoder();
+      const str = t => { const b = enc.encode(t); return [b.length >> 8, b.length & 255, ...b]; };
+      const largo = n => { const o = []; do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; o.push(d); } while (n > 0); return o; };
+      const paquete = (tipo, cuerpo) => new Uint8Array([tipo, ...largo(cuerpo.length), ...cuerpo]);
+      let ws, latir = null, buf = new Uint8Array(0), listo = false, cerrado = false, yaConecto = false, espera = 1000;
+      const conectar = () => {
+        try { ws = new WebSocket(url, 'mqtt'); } catch (e) { mal(e); return; }
+        ws.binaryType = 'arraybuffer';
+        const t = setTimeout(() => { if (!listo) { try { ws.close(); } catch (e) { /* nada */ } if (!yaConecto) mal(new Error('el servidor no responde')); } }, 7000);
+        ws.onopen = () => {
+          const id = 'gen' + Math.random().toString(36).slice(2, 12);
+          ws.send(paquete(0x10, [...str('MQTT'), 4, 0x02, 0, 60, ...str(id)]));
+        };
+        ws.onmessage = ev => {
+          const nuevo = new Uint8Array(ev.data), b = new Uint8Array(buf.length + nuevo.length); b.set(buf); b.set(nuevo, buf.length); buf = b;
+          for (;;) {
+            if (buf.length < 2) break;
+            let n = 0, mult = 1, i = 1, d;
+            do { if (i >= buf.length) return; d = buf[i++]; n += (d & 127) * mult; mult *= 128; } while (d & 128);
+            if (buf.length < i + n) break;
+            const tipo = buf[0] >> 4, cuerpo = buf.subarray(i, i + n); buf = buf.slice(i + n);
+            if (tipo === 2) ws.send(paquete(0x82, [0, 1, ...str(buzon), 0])); // CONNACK → me suscribo a mi buzón
+            else if (tipo === 9) { clearTimeout(t); listo = true; yaConecto = true; espera = 1000; latir = setInterval(() => { try { ws.send(new Uint8Array([0xC0, 0])); } catch (e) { /* nada */ } }, 20000); ok(api); } // SUBACK
+            else if (tipo === 3) { const lt = (cuerpo[0] << 8) | cuerpo[1]; alMensaje(dec.decode(cuerpo.subarray(2 + lt))); }
+          }
+        };
+        // Una vez conectado, si se corta, se reintenta sin parar (cada vez un poco más tarde, hasta 10 s).
+        ws.onclose = () => { clearInterval(latir); listo = false; if (yaConecto && !cerrado) { setTimeout(reconectar, espera); espera = Math.min(10000, espera * 1.6); } };
+        ws.onerror = () => { /* lo trata onclose */ };
+      };
+      // Si se corta (pantalla apagada, otra app, cambio de red), se vuelve a conectar solo, y al volver a la app.
+      const reconectar = () => { if (cerrado || listo) return; buf = new Uint8Array(0); conectar(); };
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !listo && !cerrado) reconectar(); });
+      const api = {
+        publicar: (tema, texto) => { if (!listo) return false; const cuerpo = [...str(tema), ...enc.encode(texto)]; try { ws.send(paquete(0x30, cuerpo)); return true; } catch (e) { return false; } },
+        cerrar: () => { cerrado = true; clearInterval(latir); try { ws.send(new Uint8Array([0xE0, 0])); ws.close(); } catch (e) { /* nada */ } },
+        conectado: () => listo
+      };
+      conectar();
+    });
+  }
+  // Los mensajes van en JSON (lo binario, en base64) y en trozos si son grandes (el mundo entero ocupa bastante).
+  const aTexto = x => JSON.stringify(x, (k, v) => v instanceof Uint8Array ? { __b64: btoa(Array.from(v, c => String.fromCharCode(c)).join('')) } : v);
+  const deTexto = t => JSON.parse(t, (k, v) => v && v.__b64 != null ? Uint8Array.from(atob(v.__b64), c => c.charCodeAt(0)) : v);
+  // Un «canal» con la misma forma que el BroadcastChannel de pruebas: postMessage({ de, para, … }) y onmessage.
+  async function crearCanal(base, yo, indice) {
+    if (transporte === 'local') { const bc = new BroadcastChannel(base); return { postMessage: x => bc.postMessage(x), set onmessage(f) { bc.onmessage = f; }, close: () => bc.close(), servidor: null }; }
+    const canal = { onmessage: null, close: () => cli && cli.cerrar() }, trozos = {};
+    const llega = t => {
+      let x; try { x = deTexto(t); } catch (e) { return; }
+      if (x.__trozo) { const q = trozos[x.__trozo] = trozos[x.__trozo] || []; q[x.i] = x.s; if (q.filter(v => v != null).length === x.n) { delete trozos[x.__trozo]; llega(q.join('')); } return; }
+      if (canal.onmessage) canal.onmessage({ data: x });
+    };
+    const lista = indice != null && SERVIDORES[indice] ? [SERVIDORES[indice]] : SERVIDORES;
+    let cli = null, error = null;
+    for (const url of lista) { try { cli = await clienteMqtt(url, base + '/' + yo, llega); canal.servidor = SERVIDORES.indexOf(url); break; } catch (e) { error = e; } }
+    if (!cli) throw new Error('No hay conexión con el servidor de partidas (' + ((error && error.message) || 'sin respuesta') + '). Comprueba internet.');
+    canal.postMessage = x => {
+      const t = aTexto(x), tema = base + '/' + x.para;
+      if (t.length < 60000) { cli.publicar(tema, t); return; }
+      const id = Math.random().toString(36).slice(2, 10), n = Math.ceil(t.length / 60000);
+      for (let i = 0; i < n; i++) cli.publicar(tema, JSON.stringify({ __trozo: id, i, n, s: t.slice(i * 60000, (i + 1) * 60000) }));
+    };
+    canal.conectado = () => cli.conectado();
+    return canal;
+  }
   function cargarPeer() {
     if (redLocal || window.Peer) return Promise.resolve();
     return new Promise((ok, mal) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js'; sc.onload = ok; sc.onerror = () => mal(new Error('sin conexión')); document.head.appendChild(sc); });
@@ -1129,12 +1205,11 @@
   }
   function envolver(pc) { const c = { id: pc.peer, enviar: d => { try { pc.send(d); } catch (e) { /* conexión caída */ } }, al: f => pc.on('data', f), alCerrar: f => { pc.on('close', f); pc.on('error', f); }, cerrar: () => pc.close() }; return c; }
   function abrirAnfitrion(codigo, alConectar) {
-    if (redLocal) {
-      const canal = new BroadcastChannel(PREFIJO + codigo), conns = {};
+    if (redLocal) return crearCanal(PREFIJO + codigo, 'anfitrion', indiceServidor(codigo)).then(canal => {
+      const conns = {};
       canal.onmessage = ev => { const x = ev.data; if (x.para !== 'anfitrion') return; if (x.abrir) { const c = conns[x.de] = conexionLocal(canal, 'anfitrion', x.de); canal.postMessage({ de: 'anfitrion', para: x.de, listo: 1 }); alConectar(c); return; } const c = conns[x.de]; if (!c) return; if (x.fin) { c._fin(); delete conns[x.de]; } else c._llega(x.d); };
-      red.peer = { destroy: () => canal.close() };
-      return Promise.resolve();
-    }
+      red.peer = { destroy: () => canal.close() }; red.servidor = canal.servidor;
+    });
     return new Promise((ok, mal) => {
       const peer = new window.Peer(PREFIJO + codigo, OPCIONES_PEER); red.peer = peer;
       let abierto = false;
@@ -1147,14 +1222,16 @@
   }
   function conectarA(codigo) {
     if (redLocal) {
-      return new Promise((ok, mal) => {
-        const canal = new BroadcastChannel(PREFIJO + codigo), yo = 'j' + Math.random().toString(36).slice(2, 8);
+      const yo = 'j' + Math.random().toString(36).slice(2, 8);
+      return crearCanal(PREFIJO + codigo, yo, indiceServidor(codigo)).then(canal => new Promise((ok, mal) => {
         const c = conexionLocal(canal, yo, 'anfitrion');
-        const t = setTimeout(() => mal(new Error('no hay nadie con ese código')), 4000);
-        canal.onmessage = ev => { const x = ev.data; if (x.para !== yo) return; if (x.listo) { clearTimeout(t); ok(c); } else if (x.fin) c._fin(); else c._llega(x.d); };
-        red.peer = { destroy: () => canal.close() };
-        canal.postMessage({ de: yo, para: 'anfitrion', abrir: 1 });
-      });
+        let hecho = false, intentos = 0;
+        // Se llama al anfitrión cada 2 segundos hasta que conteste (por si estaba volviendo a la app).
+        const llamar = () => { if (hecho) return; if (++intentos > 15) { hecho = true; canal.close(); mal(new Error('No se encuentra esa partida. Revisa el código y que el anfitrión tenga la sala abierta.')); return; } if (intentos > 1) onlineEstado('Buscando la partida ' + codigo + '… (intento ' + intentos + ')'); canal.postMessage({ de: yo, para: 'anfitrion', abrir: 1 }); setTimeout(llamar, 2000); };
+        canal.onmessage = ev => { const x = ev.data; if (x.para !== yo) return; if (x.listo) { if (!hecho) { hecho = true; ok(c); } } else if (x.fin) c._fin(); else c._llega(x.d); };
+        red.peer = { destroy: () => canal.close() }; red.servidor = canal.servidor;
+        llamar();
+      }));
     }
     // Si el anfitrión no aparece (aún está volviendo a la app, o se reconecta), se reintenta unas cuantas veces.
     return new Promise((ok, mal) => {
@@ -1193,14 +1270,21 @@
     $('online-invitar').hidden = red.modo !== 'anfitrion';
   }
   const nuevoCodigo = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+  // El código lleva al final qué servidor usa el anfitrión (2, 3 o 4), para que todos vayan al mismo.
+  const indiceServidor = codigo => { const d = +String(codigo).slice(-1); return codigo.length === 6 && d >= 2 && d <= 1 + SERVIDORES.length ? d - 2 : null; };
   // El anfitrión: abre la partida con un código y espera a los demás.
   async function crearOnline() {
     red.nombre = ($('online-nombre').value || 'Anfitrión').trim().slice(0, 16);
     onlineEstado('Abriendo la sala…');
     try {
       await cargarPeer();
-      const codigo = nuevoCodigo();
-      await abrirAnfitrion(codigo, nuevoInvitado);
+      // Con el servidor de mensajes, el código lleva al final qué servidor respondió (por si alguno está caído).
+      const base = nuevoCodigo(); let codigo = base;
+      if (transporte === 'servidor') {
+        let error = null, abierto = false;
+        for (let i = 0; i < SERVIDORES.length && !abierto; i++) { codigo = base + (i + 2); try { await abrirAnfitrion(codigo, nuevoInvitado); abierto = true; } catch (e) { error = e; } }
+        if (!abierto) throw error || new Error('sin conexión');
+      } else await abrirAnfitrion(codigo, nuevoInvitado);
       // LA SALA: antes de crear el mundo, todos esperan aquí; se ve quién está y cómo va su conexión.
       red.modo = 'anfitrion'; red.codigo = codigo; red.miCiv = null; red.sala = true;
       red.jugadores = [{ id: 'anfitrion', nombre: red.nombre, civ: null, ping: 0 }];
@@ -1307,12 +1391,21 @@
       conn.al(d => mensajeInvitado(d));
       conn.alCerrar(() => { if (red.modo !== 'invitado') return; salirOnline(true); avisoFlotante('🌐 El anfitrión cerró la partida: sigues en este mundo tú solo.', 6000); });
       conn.enviar({ t: 'hola', nombre: red.nombre });
+      // Si el anfitrión deja de dar señales (su móvil en segundo plano, sin cobertura), se avisa; al volver, sigue.
+      red.ultimoAnfitrion = performance.now(); clearInterval(red.vigia);
+      red.vigia = setInterval(() => {
+        if (red.modo !== 'invitado') { clearInterval(red.vigia); return; }
+        const callado = performance.now() - red.ultimoAnfitrion > 9000;
+        if (callado && !red.avisadoCallado) { red.avisadoCallado = true; avisoFlotante('⏳ El anfitrión no responde (¿ha salido del juego?). La partida sigue cuando vuelva.', 6000); onlineEstado('Esperando al anfitrión…'); }
+        else if (!callado && red.avisadoCallado) { red.avisadoCallado = false; avisoFlotante('🌐 El anfitrión ha vuelto', 2500); onlineEstado(''); }
+      }, 3000);
       red.sala = true; pintarSala({ jugadores: [{ nombre: red.nombre, ping: null }] });
       onlineEstado('Conectado con el anfitrión.');
     } catch (e) { red.modo = null; try { if (red.peer) red.peer.destroy(); } catch (x) { /* nada */ } onlineEstado(errorRed(e)); }
   }
   async function mensajeInvitado(d) {
     if (!d || typeof d !== 'object') return;
+    red.ultimoAnfitrion = performance.now();
     if (d.t === 'ping') { enviarAnfitrion({ t: 'pong', t0: d.t0 }); return; }
     if (d.t === 'sala') { red.sala = true; red.ultimaSala = d; red.esperandoMundo = false; pintarSala(d); return; }
     if (d.t === 'mundo') {
@@ -1359,7 +1452,7 @@
     if (era === 'anfitrion') { for (const c of red.conns.values()) c.cerrar(); }
     else if (era === 'invitado' && red.conn) red.conn.cerrar();
     try { if (red.peer) red.peer.destroy(); } catch (e) { /* ya cerrado */ }
-    clearInterval(red.latido);
+    clearInterval(red.latido); clearInterval(red.vigia);
     Object.assign(red, { modo: null, peer: null, conns: new Map(), conn: null, codigo: null, jugadores: [], cola: [], pendientes: [], esperandoMundo: false, sala: false, ultimaSala: null });
     pintarSala();
     for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = false; }
