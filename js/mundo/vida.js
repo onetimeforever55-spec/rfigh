@@ -1515,6 +1515,17 @@
       }
     }
   }
+  // LAS OBRAS SE PAGAN POCO A POCO (partidas pausadas): al empezar, una cuarta parte; el resto, a medida que los
+  // constructores avanzan en el andamio. Sin material, la obra espera (no se pierde lo hecho).
+  function pagarAndamio(c, an, hasta) {
+    if (!an.coste) return true;
+    const ya = an.pagado || 0, f = Math.min(1, hasta);
+    if (f <= ya + 1e-9) return true;
+    const d = f - ya, q = [an.coste[0] * d, an.coste[1] * d, (an.coste[2] || 0) * d];
+    if (c.madera < q[0] || c.piedra < q[1] || (c.oro || 0) < q[2]) return false;
+    c.madera -= q[0]; c.piedra -= q[1]; c.oro = (c.oro || 0) - q[2]; an.pagado = f;
+    return true;
+  }
   function pagarObra(c, o) {
     const coste = COSTES[o] || [0, 0, 0];
     if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0)) return false;
@@ -3132,11 +3143,11 @@
       const an = v.andamios && v.andamios[t];
       if (an && an.civ === c.id) { a.e = TRABAJAR; a.t = 3; }
       else if (!v.obra[t] && !pausada(m)) { colocarObra(m, t, a.edificio, paso); if (a.edificio === OBRA.casa) c.casas++; if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t); a.edificio = 0; }
-      else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && PUBLICAS.has(a.edificio))) && pagarObra(c, a.edificio)) {
+      else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && PUBLICAS.has(a.edificio))) && pagarAndamio(c, { coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0 }, 0.25)) {
         if (v.obra[t] === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
-        // Se paga al empezar y se monta el andamio; la obra avanza jornada a jornada.
+        // Se paga la cuarta parte al empezar y se monta el andamio; el resto, jornada a jornada.
         cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso);
-        (v.andamios = v.andamios || {})[t] = { o: a.edificio, falta: TRABAJO[a.edificio] || 4, total: TRABAJO[a.edificio] || 4, civ: c.id };
+        (v.andamios = v.andamios || {})[t] = { o: a.edificio, falta: TRABAJO[a.edificio] || 4, total: TRABAJO[a.edificio] || 4, civ: c.id, coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0.25 };
         if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t);
         a.e = TRABAJAR; a.t = 3;
       } else a.edificio = 0;
@@ -3256,7 +3267,11 @@
       // Una jornada más en el andamio; cuando se acaba, queda el edificio.
       const an = v.andamios[t];
       apuntarObrero(m, t, a);
-      an.falta -= 1 + M.tec(c, 'obra');
+      const avance = 1 + M.tec(c, 'obra');
+      // Se paga la parte de esta jornada; sin material, se espera a que llegue.
+      if (!pagarAndamio(c, an, (an.total - an.falta + avance) / an.total)) { an.espera = 1; a.e = TRABAJAR; a.t = 3; return; }
+      an.espera = 0;
+      an.falta -= avance;
       if (an.falta <= 0) { colocarObra(m, t, an.o, paso); delete v.andamios[t]; if (an.o === OBRA.casa) { c.casas++; c.hecho = c.hecho || {}; c.hecho.casas = (c.hecho.casas || 0) + 1; } a.edificio = 0; }
       else { a.e = TRABAJAR; a.t = 3; return; }
     }

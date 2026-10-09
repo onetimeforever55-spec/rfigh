@@ -877,12 +877,14 @@ console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
   // Con otra ciudad, la corte huye allí (no a un prado vacío) y el reino queda tocado.
   const c = S.vivas(m).filter(x => x !== b && S.casillas(m, x).length > 4).sort((p, q) => S.casillas(m, q).length - S.casillas(m, p).length)[0];
   const otra = S.casillas(m, c).filter(r => r !== c.capital).sort((p, q) => S.distancia(q, c.capital) - S.distancia(p, c.capital))[0];
-  m.ciudades = (m.ciudades || []).filter(x => x.civ !== c.id).concat([{ civ: c.id, region: otra, nombre: 'Refugio', alcalde: 'Anon', rasgo: 'justo' }]);
+  // (Solo la ciudad de prueba: fuera cualquier otra que haya en sus tierras, sea de quien sea.)
+  m.ciudades = (m.ciudades || []).filter(x => x.civ !== c.id && m.dueno[x.region] !== c.id).concat([{ civ: c.id, region: otra, nombre: 'Refugio', alcalde: 'Anon', rasgo: 'justo' }]);
   const molinos = () => { let n = 0; for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === V.OBRA.molino) n++; return n; };
-  const est = c.estab, mol = molinos();
+  const est = c.estab, mol = molinos(), vieja = c.capital;
+  // (Huye a la ciudad más cercana que tenga: la de prueba u otra que se haya formado en ese mismo turno.)
   m.dueno[c.capital] = b.id; c.oro = 100; S.turno(m);
-  comprobar((v.sucesos || []).some(x => x.tipo === 'caida') && v.sucesos.some(x => x.tipo === 'saqueo' && x.civ === b.id) && v.sucesos.some(x => x.tipo === 'huye' && x.region === otra), 'la caída, el saqueo y la huida de la corte quedan apuntados para verlos en el mapa');
-  comprobar(c.viva && c.capital === otra && c.estab < est && molinos() <= mol + 1, 'con otra ciudad, la corte huye a ella (sin plaza ni molino regalados) y el reino pierde estabilidad');
+  comprobar((v.sucesos || []).some(x => x.tipo === 'caida') && v.sucesos.some(x => x.tipo === 'saqueo' && x.civ === b.id) && v.sucesos.some(x => x.tipo === 'huye' && x.region === c.capital), 'la caída, el saqueo y la huida de la corte quedan apuntados para verlos en el mapa');
+  comprobar(c.viva && c.capital !== vieja && m.dueno[c.capital] === c.id && !(m.ciudades || []).some(x => x.region === c.capital) && c.estab < est && molinos() <= mol + 1, 'con otra ciudad, la corte huye a ella (sin plaza ni molino regalados) y el reino pierde estabilidad');
   // Los reinos que se separan conservan la técnica y parte del almacén de la metrópoli.
   const d = S.vivas(m).sort((p, q) => S.casillas(m, q).length - S.casillas(m, p).length)[0], tecs = M.tecsDe(d).length;
   d.metal = 100; const n0 = m.civs.length; S.separar(m, d, S.casillas(m, d));

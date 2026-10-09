@@ -543,3 +543,4 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
 .tropas-barra .tropas-texto { flex: 1 1 220px; font-size: 13px; color: #d8ffdc; }
 .tropas-barra button { font-size: 12px; }
 body.limpio .tropas-barra { display: none; }
+.tropas-barra[hidden] { display: none; }

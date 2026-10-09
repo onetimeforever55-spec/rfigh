@@ -564,6 +564,7 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
 .tropas-barra .tropas-texto { flex: 1 1 220px; font-size: 13px; color: #d8ffdc; }
 .tropas-barra button { font-size: 12px; }
 body.limpio .tropas-barra { display: none; }
+.tropas-barra[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -625,7 +626,7 @@ body.limpio .tropas-barra { display: none; }
         <div class="inicio-caja ayuda-caja" role="dialog" aria-labelledby="ayuda-titulo">
           <h2 class="inicio-titulo" id="ayuda-titulo">Cómo se juega</h2>
           <details open><summary>Lo básico</summary>
-            <p>Tu pueblo vive solo: talan, siembran, construyen, tienen hijos y envejecen. Tú decides las grandes cosas. Arrastra el mapa para moverte y pellizca o usa + y − para acercarte. Toca una tierra, una casa o un aldeano para ver su ficha.</p></details>
+            <p>Tu pueblo vive solo: talan, siembran, construyen, tienen hijos y envejecen. Tú decides las grandes cosas. Arrastra el mapa para moverte y pellizca o usa + y − para acercarte. Toca una tierra, una casa o un aldeano para ver su ficha. Junto a cada recurso ves cuánto entra o sale por minuto (en verde si sube, en rojo si baja). Las obras se pagan poco a poco mientras se construyen.</p></details>
           <details><summary>Las órdenes</summary>
             <p>Escribe abajo como hablarías: «haced 5 casas», «más comida», «quiero 10 leñadores», «construid un templo», «atacad a Nombre», «haced la paz». Si no entiende algo, te lo dice y te propone otra forma. Puedes juntar varias en una frase: «buscad hierro y sacad madera», «haced 3 casas y talad 10 árboles». El consejero te sugiere la orden que más falta hace: tócala para escribirla. La ventana de órdenes se cierra con ▾ (arriba a la derecha) y se vuelve a abrir con «✍ Órdenes». El botón 👁, junto a la cámara, quita toda la interfaz para ver solo el mundo (vuelve a tocarlo para recuperarla). Con 🏕 (Fundar pueblo) tocas una tierra libre y tres colonos van allí a fundar un pueblo nuevo; si está al otro lado del mar, van a tu puerto, embarcan y cruzan en barco.</p></details>
           <details><summary>Comida y molinos</summary>
@@ -3546,6 +3547,17 @@ body.limpio .tropas-barra { display: none; }
       }
     }
   }
+  // LAS OBRAS SE PAGAN POCO A POCO (partidas pausadas): al empezar, una cuarta parte; el resto, a medida que los
+  // constructores avanzan en el andamio. Sin material, la obra espera (no se pierde lo hecho).
+  function pagarAndamio(c, an, hasta) {
+    if (!an.coste) return true;
+    const ya = an.pagado || 0, f = Math.min(1, hasta);
+    if (f <= ya + 1e-9) return true;
+    const d = f - ya, q = [an.coste[0] * d, an.coste[1] * d, (an.coste[2] || 0) * d];
+    if (c.madera < q[0] || c.piedra < q[1] || (c.oro || 0) < q[2]) return false;
+    c.madera -= q[0]; c.piedra -= q[1]; c.oro = (c.oro || 0) - q[2]; an.pagado = f;
+    return true;
+  }
   function pagarObra(c, o) {
     const coste = COSTES[o] || [0, 0, 0];
     if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0)) return false;
@@ -5163,11 +5175,11 @@ body.limpio .tropas-barra { display: none; }
       const an = v.andamios && v.andamios[t];
       if (an && an.civ === c.id) { a.e = TRABAJAR; a.t = 3; }
       else if (!v.obra[t] && !pausada(m)) { colocarObra(m, t, a.edificio, paso); if (a.edificio === OBRA.casa) c.casas++; if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t); a.edificio = 0; }
-      else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && PUBLICAS.has(a.edificio))) && pagarObra(c, a.edificio)) {
+      else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && PUBLICAS.has(a.edificio))) && pagarAndamio(c, { coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0 }, 0.25)) {
         if (v.obra[t] === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
-        // Se paga al empezar y se monta el andamio; la obra avanza jornada a jornada.
+        // Se paga la cuarta parte al empezar y se monta el andamio; el resto, jornada a jornada.
         cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso);
-        (v.andamios = v.andamios || {})[t] = { o: a.edificio, falta: TRABAJO[a.edificio] || 4, total: TRABAJO[a.edificio] || 4, civ: c.id };
+        (v.andamios = v.andamios || {})[t] = { o: a.edificio, falta: TRABAJO[a.edificio] || 4, total: TRABAJO[a.edificio] || 4, civ: c.id, coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0.25 };
         if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t);
         a.e = TRABAJAR; a.t = 3;
       } else a.edificio = 0;
@@ -5287,7 +5299,11 @@ body.limpio .tropas-barra { display: none; }
       // Una jornada más en el andamio; cuando se acaba, queda el edificio.
       const an = v.andamios[t];
       apuntarObrero(m, t, a);
-      an.falta -= 1 + M.tec(c, 'obra');
+      const avance = 1 + M.tec(c, 'obra');
+      // Se paga la parte de esta jornada; sin material, se espera a que llegue.
+      if (!pagarAndamio(c, an, (an.total - an.falta + avance) / an.total)) { an.espera = 1; a.e = TRABAJAR; a.t = 3; return; }
+      an.espera = 0;
+      an.falta -= avance;
       if (an.falta <= 0) { colocarObra(m, t, an.o, paso); delete v.andamios[t]; if (an.o === OBRA.casa) { c.casas++; c.hecho = c.hecho || {}; c.hecho.casas = (c.hecho.casas || 0) + 1; } a.edificio = 0; }
       else { a.e = TRABAJAR; a.t = 3; return; }
     }
@@ -11726,7 +11742,6 @@ body.limpio .tropas-barra { display: none; }
 
   // La barra de recursos: el oro (con lo que entra y sale cada turno), la comida, la madera, la piedra, el metal,
   // la gente y las camas, el nivel del asentamiento y lo que se investiga.
-  const recursoAntes = {};
   // Iconos de píxeles (arte.js) en lugar de emojis, para que la interfaz sea del mismo mundo que el mapa.
   const ICO_PX = { '🐟': 'pescado', '🍖': 'carne', '🥛': 'leche', '🍎': 'frutos', '💣': 'granadas', '🌰': 'semillas', '🪑': 'muebles', '🛡': 'vehiculos', '⚫': 'carbon', '🛢': 'petroleo', '🪙': 'oro', '🌾': 'comida', '🪵': 'madera', '🪨': 'piedra', '⛓': 'metal', '⚔': 'armas', '👥': 'gente', '🏘': 'nivel', '🔬': 'tec', '⏫': 'subir', '🌱': 'primavera', '☀️': 'verano', '🍂': 'otono', '❄️': 'invierno' };
   const px = (n, cls) => M.arte && M.arte.iconoURL ? '<img class="px' + (cls ? ' ' + cls : '') + '" alt="" src="' + M.arte.iconoURL(n) + '">' : '';
@@ -11746,35 +11761,72 @@ body.limpio .tropas-barra { display: none; }
     caja.style.left = Math.max(8, Math.min(window.innerWidth - 290, r0.left)) + 'px'; caja.style.top = (r0.bottom + 6) + 'px';
     caja.hidden = false;
   }
+  // EL FLUJO DE RECURSOS, como en Age of Empires: los contadores suben (y bajan) poco a poco a lo largo del turno
+  // en vez de saltar, y junto a cada uno se ve cuánto entra o sale por minuto (lo de los últimos turnos).
+  const historialRec = {}, animRec = {};
+  const RECS = ['oro', 'comida', 'madera', 'piedra', 'metal', 'carbon', 'petroleo'];
+  function apuntarHistorial(c) {
+    const h = historialRec[c.id] = historialRec[c.id] || [];
+    if (h.length && h[h.length - 1].turno === m.turno) h.pop();
+    h.push({ turno: m.turno, stock: Object.fromEntries(RECS.map(k => [k, c[k] || 0])), hecho: Object.assign({}, c.hecho || {}) });
+    while (h.length > 8) h.shift();
+  }
+  // Por minuto de juego a la velocidad actual (a 1×, un turno son 8 segundos).
+  function porMinuto(c, k, deHecho) {
+    const h = historialRec[c.id]; if (!h || h.length < 2) return 0;
+    const a = h[0], b = h[h.length - 1], turnos = b.turno - a.turno; if (turnos <= 0) return 0;
+    const d = deHecho ? (b.hecho[k] || 0) - (a.hecho[k] || 0) : b.stock[k] - a.stock[k];
+    return d / turnos * (60000 / VELOCIDADES[vel][0]);
+  }
+  function numeroSuave(c, k, valor) {
+    const a = animRec[k] = animRec[k] || { mostrado: valor, desde: valor, hasta: valor, t0: 0, dur: 1, civ: c.id, turno: m.turno };
+    if (a.civ !== c.id) Object.assign(a, { mostrado: valor, desde: valor, hasta: valor, civ: c.id });
+    if (a.hasta !== valor) {
+      // Al terminar un turno, el cambio se reparte a lo largo del turno siguiente; si es por una orden, en medio segundo.
+      const deTurno = a.turno !== m.turno;
+      Object.assign(a, { desde: a.mostrado, hasta: valor, t0: performance.now(), dur: deTurno && corriendo ? VELOCIDADES[vel][0] * 0.9 : 500, turno: m.turno });
+    }
+    return '<b class="rec-n" data-k="' + k + '">' + Math.round(a.mostrado) + '</b>';
+  }
+  function animarRecursos() {
+    const ahora = performance.now();
+    for (const el of document.querySelectorAll('#recursos .rec-n')) {
+      const a = animRec[el.dataset.k]; if (!a) continue;
+      const f = Math.min(1, (ahora - a.t0) / a.dur);
+      a.mostrado = a.desde + (a.hasta - a.desde) * f;
+      const t = String(Math.round(a.mostrado)); if (el.textContent !== t) el.textContent = t;
+    }
+  }
+  const ritmo = (c, k) => { const d = porMinuto(c, k); if (Math.abs(d) < 0.5) return ''; return ' <small class="' + (d > 0 ? 'verde' : 'rojo') + '">' + (d > 0 ? '+' : '') + Math.round(d) + '/min</small>'; };
+  const ritmoTexto = (c, k) => { const neto = porMinuto(c, k), entra = porMinuto(c, k, true); return ' · ' + (neto >= 0 ? '+' : '') + Math.round(neto) + ' por minuto' + (entra > 0.5 ? ' (tus aldeanos recogen ' + Math.round(entra) + '/min; el resto se va en obras, mejoras, comida o comercio)' : ''); };
   function pintarRecursos() {
     const c = tuPueblo() || (sel != null ? S.civ(m, sel) : null), el = $('recursos');
     if (!c || !c.viva) { el.hidden = true; return; }
-    const r = Math.round, delta = (k, x) => { const d = recursoAntes[c.id + k] != null ? x - recursoAntes[c.id + k] : 0; recursoAntes[c.id + k] = x; return d; };
+    if (!historialRec[c.id] || historialRec[c.id][historialRec[c.id].length - 1].turno !== m.turno) apuntarHistorial(c);
+    const r = Math.round;
     const oro = c.oro || 0, neto = (c.ingresos || 0) - (c.gastos || 0) - (c.mecenazgo || 0);
     const tope = r((15 + (c.aldeanos || 0) * 1.2) * (1 + M.tec(c, 'granero')));
     const inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
     const pct = inv ? Math.min(100, r(100 * c.investigacion.puntos / M.costeTec(inv))) : 0;
     const chip = (ico, valor, titulo, cls, extra) => '<span class="rec' + (cls ? ' ' + cls : '') + '" title="' + esc(titulo) + '"><i>' + (ICO_PX[ico] ? px(ICO_PX[ico]) : ico) + '</i>' + valor + (extra || '') + '</span>';
-    const sig = (d, dec) => { if (!d || Math.abs(d) < 0.05) return ''; const t = (d > 0 ? '+' : '') + (dec ? d.toFixed(1) : r(d)); return ' <small class="' + (d > 0 ? 'verde' : 'rojo') + '">' + t + '</small>'; };
-    const dC = delta('comida', c.comida || 0), dM = delta('madera', c.madera || 0), dP = delta('piedra', c.piedra || 0), dMe = delta('metal', c.metal || 0);
     const nivel = M.NIVELES[c.nivel || 0];
     const est = m.vida && m.vida.estacion != null && m.vida.estacion >= 0 ? m.vida.estacion : -1;
     const ESTA = [['🌱', 'Primavera', 'se siembra y los campos brotan más deprisa'], ['☀️', 'Verano', 'los campos maduran'], ['🍂', 'Otoño', 'la gran cosecha: los campos dan más y el bosque da frutos'], ['❄️', 'Invierno', 'no crece nada, apenas se recolecta y se quema el doble de leña: se vive de lo guardado']];
     const hora = m.vida && m.vida.noche ? '🌙 noche' : '';
     el.innerHTML =
       (est >= 0 ? chip(ESTA[est][0], ESTA[est][1] + (hora ? ' <small class="tenue">' + hora + '</small>' : ''), ESTA[est][1] + ': ' + ESTA[est][2] + '. Cada estación dura 12 turnos; de cada 6 turnos, uno es de noche y la gente duerme en casa.', 'estacion') : '') +
-      chip('🪙', r(oro), 'Oro del tesoro: impuestos ' + (c.ingresos || 0).toFixed(1) + ' − sueldos y mantenimiento ' + (c.gastos || 0).toFixed(1) + (c.mecenazgo ? ' − ' + c.mecenazgo.toFixed(1) + ' para los sabios' : '') + ' por turno', oro < 0 ? 'mal' : 'oro', sig(neto, true)) +
-      chip('🌾', r(c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe). Tócala para ver de dónde sale: grano, pescado, carne, leche y frutos', 'comida' + ((c.comida || 0) < (c.aldeanos || 0) * 0.3 ? ' mal' : ''), sig(dC)) +
-      chip('🪵', r(c.madera || 0), 'Madera', '', sig(dM)) +
-      chip('🪨', r(c.piedra || 0), 'Piedra', '', sig(dP)) +
-      (c.era >= 1 ? chip('⛓', r(c.metal || 0), 'Metal (armas, armaduras, vehículos)' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.metal.toFixed(2) : ''), '', sig(dMe)) : '') +
-      (c.era >= 6 ? chip('⚫', r(c.carbon || 0), 'Carbón: lo queman las fábricas, los trenes y las centrales. Sale de las vetas negras y de las minas de la montaña.' + (c.paradas && Object.keys(c.paradas).length ? ' ¡Falta! Hay cosas paradas.' : ''), c.paradas && (c.paradas.fabrica || c.paradas.tren) ? 'mal' : '', sig(delta('carbon', c.carbon || 0))) : '') +
+      chip('🪙', numeroSuave(c, 'oro', oro), 'Oro del tesoro: impuestos ' + (c.ingresos || 0).toFixed(1) + ' − sueldos y mantenimiento ' + (c.gastos || 0).toFixed(1) + (c.mecenazgo ? ' − ' + c.mecenazgo.toFixed(1) + ' para los sabios' : '') + ' por turno' + ritmoTexto(c, 'oro'), oro < 0 ? 'mal' : 'oro', ritmo(c, 'oro')) +
+      chip('🌾', numeroSuave(c, 'comida', c.comida || 0) + '<small class="tenue">/' + tope + '</small>', 'Comida en el granero (y lo que cabe). Tócala para ver de dónde sale: grano, pescado, carne, leche y frutos' + ritmoTexto(c, 'comida'), 'comida' + ((c.comida || 0) < (c.aldeanos || 0) * 0.3 ? ' mal' : ''), ritmo(c, 'comida')) +
+      chip('🪵', numeroSuave(c, 'madera', c.madera || 0), 'Madera' + ritmoTexto(c, 'madera'), '', ritmo(c, 'madera')) +
+      chip('🪨', numeroSuave(c, 'piedra', c.piedra || 0), 'Piedra' + ritmoTexto(c, 'piedra'), '', ritmo(c, 'piedra')) +
+      (c.era >= 1 ? chip('⛓', numeroSuave(c, 'metal', c.metal || 0), 'Metal (armas, armaduras, vehículos)' + ritmoTexto(c, 'metal') + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.metal.toFixed(2) : ''), '', ritmo(c, 'metal')) : '') +
+      (c.era >= 6 ? chip('⚫', numeroSuave(c, 'carbon', c.carbon || 0), 'Carbón: lo queman las fábricas, los trenes y las centrales. Sale de las vetas negras y de las minas de la montaña.' + (c.paradas && Object.keys(c.paradas).length ? ' ¡Falta! Hay cosas paradas.' : ''), c.paradas && (c.paradas.fabrica || c.paradas.tren) ? 'mal' : '', ritmo(c, 'carbon')) : '') +
       ((c.armas || 0) >= 1 ? chip('⚔', r(c.armas || 0), 'Armas en el almacén: las usa el ejército y se pueden vender («vended armas»). «Fabricad 20 fusiles» pone a la forja a hacer más.', '') : '') +
       ((c.semillas || 0) >= 1 ? chip('🌰', r(c.semillas || 0), 'Semillas de árbol: los leñadores las recogen al talar y replantan cuando escasea el bosque. Se compran y se venden en el mercado.', '') : '') +
       ((c.muebles || 0) >= 1 ? chip('🪑', r(c.muebles || 0), 'Muebles de la fábrica: la gente compra parte cada turno y el resto se exporta («vended muebles»).', '') : '') +
       ((c.granadas || 0) >= 1 ? chip('💣', r(c.granadas || 0), 'Granadas: los soldados las lanzan a trincheras y grupos enemigos. «Fabricad 30 granadas» las hace el cuartel o la fábrica; también se venden («vended granadas»).', '') : '') +
       ((c.vehiculos || 0) >= 1 ? chip('🛡', r(c.vehiculos || 0), 'Cañones, artillería o tanques en el almacén: los soldados los usan o se venden («vended cañones», «fabricad 5 cañones»).', '') : '') +
-      (c.era >= 7 ? chip('🛢', r(c.petroleo || 0), 'Petróleo: lo gastan los tanques, los aviones y las centrales sin carbón. Sale de los pozos levantados sobre las manchas negras.' + ((c.pozosPetroleo || 0) ? ' Tenéis ' + c.pozosPetroleo + (c.pozosPetroleo === 1 ? ' pozo.' : ' pozos.') : ' No tenéis pozos.'), '', sig(delta('petroleo', c.petroleo || 0))) : '') +
+      (c.era >= 7 ? chip('🛢', numeroSuave(c, 'petroleo', c.petroleo || 0), 'Petróleo: lo gastan los tanques, los aviones y las centrales sin carbón. Sale de los pozos levantados sobre las manchas negras.' + ((c.pozosPetroleo || 0) ? ' Tenéis ' + c.pozosPetroleo + (c.pozosPetroleo === 1 ? ' pozo.' : ' pozos.') : ' No tenéis pozos.'), '', ritmo(c, 'petroleo')) : '') +
       (c.era >= 1 && (c.armas || 0) >= 1 ? chip('⚔', r(c.armas || 0), 'Armas forjadas o compradas, listas para tus guerreros' + (m.mercado ? ' · en el mercado: ' + m.mercado.precio.armas.toFixed(2) : ''), '') : '') +
       chip('👥', (c.aldeanos || 0) + '<small class="tenue">/' + (c.camas || 0) + '</small>', 'Aldeanos / camas', (c.aldeanos || 0) >= (c.camas || 0) ? 'mal' : '') +
       chip('🏘', esc(nivel.nombre), nivel.nombre + (M.NIVELES[(c.nivel || 0) + 1] ? ' · a ' + M.NIVELES[(c.nivel || 0) + 1].desde + ' vecinos será ' + M.NIVELES[(c.nivel || 0) + 1].nombre.toLowerCase() + ' (' + M.NIVELES[(c.nivel || 0) + 1].abre + ')' : '')) +
@@ -12445,6 +12497,7 @@ body.limpio .tropas-barra { display: none; }
     // Para depurar desde la consola: genesis.mundo() devuelve el mundo vivo.
     window.genesis = Object.assign(window.genesis || {}, { mundo: () => m, aldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); }, edificio: t => { aldeanoSel = null; edificioSel = t; pintarFicha(); } });
     if (!m || anioAntes == null) return;
+    animarRecursos();
     if (performance.now() - (relojSuave.ult || 0) > 500) { relojSuave.ult = performance.now(); pintarCuadrillas(); }
     const f = corriendo ? Math.min(1, (performance.now() - inicioTurno) / VELOCIDADES[vel][0]) : 1;
     const anio = Math.round(anioAntes + (m.anio - anioAntes) * f);
