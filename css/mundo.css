@@ -575,3 +575,13 @@ body.limpio .tropas-barra { display: none; }
 .sala-lista li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); font-size: 13px; }
 .sala-lista .bien { color: #7aff9a; } .sala-lista .regular { color: #ffd76a; } .sala-lista .mal { color: #ff8a7a; }
 .sala-ajustes { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; margin-bottom: 6px; }
+
+/* La sala y la carga online son pantallas propias: tapan del todo el mundo de detrás. */
+#online, .carga { background: #070b16 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='1' height='1' fill='%23131b30'/%3E%3C/svg%3E"); z-index: 30; }
+.carga-caja { width: min(420px, 100%); text-align: center; }
+.carga-barra { height: 14px; margin: 4px 0 14px; background: #0b1120; box-shadow: 0 0 0 2px var(--px-negro, #05070e), inset 0 0 0 1px rgba(240,192,90,0.4); overflow: hidden; }
+.carga-barra span { display: block; height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--oro) 0 8px, #d9a640 8px 16px); transition: width 0.35s ease-out; }
+.carga-lista { text-align: left; }
+.carga-lista .listo { color: #7aff9a; } .carga-lista .espera { color: #ffd76a; }
+.carga-botones { justify-content: center; margin-top: 10px; }
+#carga-ya[hidden] { display: none; }

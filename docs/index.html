@@ -596,6 +596,16 @@ body.limpio .tropas-barra { display: none; }
 .sala-lista li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); font-size: 13px; }
 .sala-lista .bien { color: #7aff9a; } .sala-lista .regular { color: #ffd76a; } .sala-lista .mal { color: #ff8a7a; }
 .sala-ajustes { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; margin-bottom: 6px; }
+
+/* La sala y la carga online son pantallas propias: tapan del todo el mundo de detrás. */
+#online, .carga { background: #070b16 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='1' height='1' fill='%23131b30'/%3E%3C/svg%3E"); z-index: 30; }
+.carga-caja { width: min(420px, 100%); text-align: center; }
+.carga-barra { height: 14px; margin: 4px 0 14px; background: #0b1120; box-shadow: 0 0 0 2px var(--px-negro, #05070e), inset 0 0 0 1px rgba(240,192,90,0.4); overflow: hidden; }
+.carga-barra span { display: block; height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--oro) 0 8px, #d9a640 8px 16px); transition: width 0.35s ease-out; }
+.carga-lista { text-align: left; }
+.carga-lista .listo { color: #7aff9a; } .carga-lista .espera { color: #ffd76a; }
+.carga-botones { justify-content: center; margin-top: 10px; }
+#carga-ya[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -638,7 +648,7 @@ body.limpio .tropas-barra { display: none; }
       <div class="inicio" id="online" hidden>
         <div class="inicio-caja">
           <h2 class="inicio-titulo">Jugar online</h2>
-          <p class="inicio-texto">Juega con amigos en el mismo mundo: cada uno gobierna su reino. Uno crea la sala y comparte el código; los demás lo escriben aquí y esperan en la sala, donde se ve quién está y cómo va su conexión. Cuando estén todos, el anfitrión empieza la partida. Hace falta internet.</p>
+          <p class="inicio-texto" id="online-intro">Juega con amigos en el mismo mundo: cada uno gobierna su reino. Uno crea la sala y comparte el código; los demás lo escriben aquí y esperan en la sala, donde se ve quién está y cómo va su conexión. Cuando estén todos, el anfitrión empieza la partida. Hace falta internet.</p>
           <div id="online-entrada">
           <label class="online-campo">Tu nombre <input id="online-nombre" maxlength="16" placeholder="Tu nombre" autocomplete="nickname"></label>
           <div class="inicio-botones"><button type="button" class="obrar" id="online-crear">Crear partida</button></div>
@@ -655,7 +665,17 @@ body.limpio .tropas-barra { display: none; }
             <div class="inicio-botones"><button type="button" class="obrar" id="sala-empezar">Empezar partida</button><button type="button" class="mando sutil" id="sala-salir">Salir de la sala</button></div>
           </div>
           <p class="clave" id="online-estado"></p>
-          <p class="clave"><button type="button" class="enlace" id="online-cerrar">Cerrar</button></p>
+          <p class="clave" id="online-cerrar-p"><button type="button" class="enlace" id="online-cerrar">Cerrar</button></p>
+        </div>
+      </div>
+      <div class="inicio carga" id="carga" hidden>
+        <div class="inicio-caja carga-caja" role="status" aria-live="polite">
+          <h2 class="inicio-titulo" id="carga-titulo">Preparando la partida</h2>
+          <p class="inicio-texto" id="carga-texto">Creando el mundo…</p>
+          <div class="carga-barra"><span id="carga-relleno"></span></div>
+          <ul class="sala-lista carga-lista" id="carga-lista"></ul>
+          <p class="clave" id="carga-pista">Cuando todos lo tengan cargado, la partida empieza a la vez para todos.</p>
+          <div class="inicio-botones carga-botones"><button type="button" class="mando" id="carga-ya" hidden>Empezar sin esperar</button></div>
         </div>
       </div>
       <div class="online-barra" id="online-barra" hidden>
@@ -695,7 +715,7 @@ body.limpio .tropas-barra { display: none; }
           <details><summary>La guerra</summary>
             <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Desde la Revolución Industrial, cada puerto con cuartel bota acorazados en guerra, que bombardean la costa enemiga. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan. «Anexionad X» lleva a tu ejército plaza por plaza hasta que el reino desaparezca; si está perdido (o eres mucho más fuerte), se rinde y es tuyo entero, y esas tierras no se rebelan enseguida. Los soldados rodean el mar y los lagos en vez de meterse a ahogarse. Desde la Era Moderna hay tanques y, con un aeródromo, aviones que despegan a bombardear. Con el botón ⚔ (modo tropas) eliges a tus soldados arrastrando sobre el mapa y tocas dónde quieres que vayan: si es tierra enemiga, atacan. «Automático» los devuelve al ejército; con dos dedos mueves la cámara.</p></details>
           <details><summary>Jugar online</summary>
-            <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. La partida online va aparte: tu partida en solitario y sus retos se quedan guardados y vuelves a ella al salir. Cada uno gobierna un solo reino toda la partida: no se puede cambiar, y si tu reino cae has perdido (puedes seguir mirando cómo acaba). El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba a la izquierda, la pestaña 🌐 con el código abre el chat y quién juega con qué reino; cerrada, los mensajes nuevos salen un momento como burbujas. Hace falta internet. La partida pasa por un servidor de mensajes, así que funciona aunque estéis en redes distintas (wifi, datos móviles). Si alguien sale del juego o pierde la conexión, no se cae nada: al volver se reconecta solo y se pone al día. Si el que sale es el anfitrión, el tiempo se para para todos hasta que vuelve. Antes de empezar hay una sala de espera: ahí se ve a cada jugador con su conexión (los milisegundos que tarda; en verde, bien), y el anfitrión elige cuántos reinos tiene el mundo. Al pulsar «Empezar partida» se crea el mundo y a cada uno le toca un reino.</p></details>
+            <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. La partida online va aparte: tu partida en solitario y sus retos se quedan guardados y vuelves a ella al salir. Cada uno gobierna un solo reino toda la partida: no se puede cambiar, y si tu reino cae has perdido (puedes seguir mirando cómo acaba). El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba a la izquierda, la pestaña 🌐 con el código abre el chat y quién juega con qué reino; cerrada, los mensajes nuevos salen un momento como burbujas. Hace falta internet. La partida pasa por un servidor de mensajes, así que funciona aunque estéis en redes distintas (wifi, datos móviles). Si alguien sale del juego o pierde la conexión, no se cae nada: al volver se reconecta solo y se pone al día. Si el que sale es el anfitrión, el tiempo se para para todos hasta que vuelve. Antes de empezar hay una sala de espera: ahí se ve a cada jugador con su conexión (los milisegundos que tarda; en verde, bien), y el anfitrión elige cuántos reinos tiene el mundo. Al pulsar «Empezar partida» todos pasan a una pantalla de carga: el mundo se crea, le llega a cada uno con su reino y, cuando todos lo tienen cargado, la partida empieza a la vez para todos.</p></details>
           <details><summary>La guerra en el mar</summary>
             <p>En guerra, cada puerto bota un barco de guerra de su época: galeras con flechas de fuego, galeones con cañones y, en la Era Moderna, acorazados. Persiguen y hunden los barcos enemigos y bombardean la costa. Si el enemigo está al otro lado del mar, tu ejército embarca en el puerto, cruza en un transporte y desembarca en su costa: ¡protégelo con tus barcos de guerra!</p></details>
           <details><summary>Retos y final</summary>
@@ -12822,7 +12842,7 @@ body.limpio .tropas-barra { display: none; }
     const canal = { onmessage: null, close: () => cli && cli.cerrar() }, trozos = {};
     const llega = t => {
       let x; try { x = deTexto(t); } catch (e) { return; }
-      if (x.__trozo) { const q = trozos[x.__trozo] = trozos[x.__trozo] || []; q[x.i] = x.s; if (q.filter(v => v != null).length === x.n) { delete trozos[x.__trozo]; llega(q.join('')); } return; }
+      if (x.__trozo) { const q = trozos[x.__trozo] = trozos[x.__trozo] || []; q[x.i] = x.s; const hay = q.filter(v => v != null).length; if (red.alTrozo && x.n > 1) red.alTrozo(hay, x.n); if (hay === x.n) { delete trozos[x.__trozo]; llega(q.join('')); } return; }
       if (canal.onmessage) canal.onmessage({ data: x });
     };
     const lista = indice != null && SERVIDORES[indice] ? [SERVIDORES[indice]] : SERVIDORES;
@@ -12983,10 +13003,10 @@ body.limpio .tropas-barra { display: none; }
       if (red.sala) { difundirSala(); pintarSala(); }
     });
   }
-  async function mandarMundo(conn, eres) {
+  async function mandarMundo(conn, eres, carga) {
     acabarTurno();
     const d = await comprimir(JSON.stringify(m));
-    conn.enviar(Object.assign({ t: 'mundo', turno: m.turno, jugadores: red.jugadores, vel, corriendo, eres: eres != null ? eres : undefined }, d));
+    conn.enviar(Object.assign({ t: 'mundo', turno: m.turno, jugadores: red.jugadores, vel, corriendo, eres: eres != null ? eres : undefined, carga: carga ? 1 : undefined }, d));
   }
   // El latido de la sala: cada 2 segundos el anfitrión pregunta a cada uno y mide cuánto tarda en contestar.
   function latido() {
@@ -13000,6 +13020,8 @@ body.limpio .tropas-barra { display: none; }
     const el = $('sala'); if (!el) return;
     const enSala = red.sala && (red.modo === 'anfitrion' || red.modo === 'invitado');
     el.hidden = !enSala; $('online-entrada').hidden = enSala;
+    // Dentro de la sala: solo la sala (sin la explicación ni «Cerrar», que dejaría ver el mundo de detrás).
+    $('online-intro').hidden = enSala; $('online-cerrar-p').hidden = enSala;
     if (!enSala) return;
     const d = datos || (red.modo === 'anfitrion' ? datosSala() : red.ultimaSala) || { jugadores: [] };
     $('sala-codigo').textContent = red.codigo;
@@ -13017,6 +13039,12 @@ body.limpio .tropas-barra { display: none; }
   async function empezarSala() {
     if (red.modo !== 'anfitrion' || !red.sala) return;
     const n = Math.min(10, Math.max(+$('sala-reinos').value || 5, red.jugadores.length));
+    // Primero, todos a la pantalla de carga; el mundo se crea, se manda y cada uno avisa cuando lo tiene listo.
+    red.sala = false; red.cargando = true; red.listos = new Set(['anfitrion']); red.mundoOnline = true;
+    difundir({ t: 'carga', fase: 'crear' });
+    $('online').hidden = true; $('inicio').hidden = true; corriendo = false; programar();
+    mostrarCarga('Creando el mundo…', 0.08); pintarCarga();
+    await new Promise(r => setTimeout(r, 60));
     m = S.crear((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, n, { libre: $('sala-libre').checked, ritmo: 3 });
     // Reparte los reinos de forma que no queden pegados: va saltando por la lista.
     const reinos = S.vivas(m), paso = Math.max(1, Math.floor(reinos.length / red.jugadores.length));
@@ -13024,12 +13052,45 @@ body.limpio .tropas-barra { display: none; }
     const yo = red.jugadores[0];
     m.modo = 'pueblo'; X.gobernar(m, yo.civ);
     for (const j of red.jugadores.slice(1)) X.unirse(m, j.civ);
-    red.miCiv = yo.civ; red.sala = false; calculo = null;
+    red.miCiv = yo.civ; calculo = null;
     sel = yo.civ; P.mundo(m); P.seleccionar(sel); const c = S.civ(m, yo.civ); if (c) P.centrarEn(c.capital, 3);
-    for (const j of red.jugadores.slice(1)) { const conn = red.conns.get(j.id); if (conn) await mandarMundo(conn, j.civ); }
+    pintarModo(); pintarTodo(); pintarOnline(); pintarSala();
+    mostrarCarga('Enviando el mundo a los jugadores…', 0.3);
     difundir({ t: 'jugadores', lista: red.jugadores });
-    $('online').hidden = true; $('inicio').hidden = true; corriendo = true; programar(); pintarModo(); pintarTodo(); pintarOnline(); pintarSala();
-    responder('¡Empieza la partida! Gobiernas ' + nombreDe(yo.civ) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien');
+    for (const j of red.jugadores.slice(1)) { const conn = red.conns.get(j.id); if (conn) await mandarMundo(conn, j.civ, true); }
+    mostrarCarga('Esperando a que todos carguen el mundo…', 0.6); pintarCarga();
+    // Si alguien no responde en 25 s, se empieza igual: al llegar, se pone al día solo.
+    clearTimeout(red.esperaCarga); red.esperaCarga = setTimeout(arrancarPartida, 25000);
+    // Y si alguien tarda (o cerró la app), el anfitrión puede empezar ya.
+    clearTimeout(red.botonYa); red.botonYa = setTimeout(() => { if (red.cargando) $('carga-ya').hidden = false; }, 6000);
+    revisarCarga();
+  }
+  // ---------- La pantalla de carga online ----------
+  function mostrarCarga(texto, avance) {
+    $('carga').hidden = false; $('carga-texto').textContent = texto;
+    if (avance != null) $('carga-relleno').style.width = Math.round(Math.max(0, Math.min(1, avance)) * 100) + '%';
+  }
+  function ocultarCarga() { $('carga').hidden = true; $('carga-ya').hidden = true; clearTimeout(red.botonYa); red.alTrozo = null; }
+  // Quién tiene ya el mundo cargado (lo ve el anfitrión y se lo manda a todos).
+  function pintarCarga(lista) {
+    const l = lista || red.jugadores.map(j => ({ nombre: j.nombre, listo: !!(red.listos && red.listos.has(j.id)), anfitrion: j.id === 'anfitrion' }));
+    $('carga-lista').innerHTML = l.map(j => '<li><span>' + escapar(j.nombre) + (j.anfitrion ? ' 👑' : '') + '</span><span class="' + (j.listo ? 'listo">✓ listo' : 'espera">cargando…') + '</span></li>').join('');
+  }
+  function revisarCarga() {
+    if (red.modo !== 'anfitrion' || !red.cargando) return;
+    const lista = red.jugadores.map(j => ({ nombre: j.nombre, listo: red.listos.has(j.id), anfitrion: j.id === 'anfitrion' }));
+    const hechos = lista.filter(j => j.listo).length;
+    pintarCarga(lista); difundir({ t: 'carga', fase: 'espera', lista });
+    mostrarCarga(hechos < lista.length ? 'Esperando a que todos carguen el mundo… (' + hechos + ' de ' + lista.length + ')' : '¡Todos listos!', 0.6 + 0.4 * hechos / lista.length);
+    if (hechos === lista.length) { clearTimeout(red.esperaCarga); red.esperaCarga = setTimeout(arrancarPartida, 500); }
+  }
+  // La salida: el anfitrión avisa a todos y arranca el reloj; cada uno quita la pantalla de carga a la vez.
+  function arrancarPartida() {
+    if (red.modo !== 'anfitrion' || !red.cargando) return;
+    red.cargando = false; clearTimeout(red.esperaCarga);
+    difundir({ t: 'arranca' });
+    ocultarCarga(); corriendo = true; programar(); pintarTodo();
+    responder('¡Empieza la partida! Gobiernas ' + nombreDe(red.miCiv) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien');
   }
   // Alguien entra con un id nuevo pero con el nombre de un jugador que lleva rato sin responder (cambió de navegador
   // o se le cerró la pestaña): es él, y recupera su plaza y su reino en vez de quedarse con dos.
@@ -13060,8 +13121,9 @@ body.limpio .tropas-barra { display: none; }
         red.jugadores.push(j);
         if (libre) red.cola.push({ tipo: 'unirse', civ: c.id });
       }
-      mandarMundo(conn, j.civ); difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline(); avisoFlotante('🌐 Entra ' + String(d.nombre || 'un jugador').slice(0, 16), 3500); }
-    else if (d.t === 'pideMundo') { if (!red.sala) mandarMundo(conn); }
+      mandarMundo(conn, j.civ, red.cargando); difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline(); avisoFlotante('🌐 Entra ' + String(d.nombre || 'un jugador').slice(0, 16), 3500); }
+    else if (d.t === 'pideMundo') { if (!red.sala) mandarMundo(conn, null, red.cargando); }
+    else if (d.t === 'listo' && j) { if (red.listos) red.listos.add(j.id); revisarCarga(); }
     else if (d.t === 'elijo') {
       // Sin elegir, le toca un pueblo libre al azar (de los que no gobierna nadie).
       const libres = S.vivas(m).filter(x => !red.jugadores.some(y => y.civ === x.id));
@@ -13110,13 +13172,30 @@ body.limpio .tropas-barra { display: none; }
     red.ultimoAnfitrion = performance.now();
     if (d.t === 'ping') { enviarAnfitrion({ t: 'pong', t0: d.t0 }); return; }
     if (d.t === 'sala') { red.sala = true; red.ultimaSala = d; red.esperandoMundo = false; pintarSala(d); return; }
+    if (d.t === 'carga') {
+      if (red.sala || red.cargandoInv) {
+        red.sala = false; red.cargandoInv = true; pintarSala(); $('online').hidden = true; $('inicio').hidden = true;
+        if (d.fase === 'crear') { mostrarCarga('El anfitrión está creando el mundo…', 0.08); red.alTrozo = (k, n) => mostrarCarga('Recibiendo el mundo… ' + Math.round(100 * k / n) + '%', 0.1 + 0.5 * k / n); }
+        if (d.lista) { pintarCarga(d.lista); const yo = d.lista.filter(j => j.listo).length; if (red.mundoOnline) mostrarCarga('Mundo cargado. Esperando a los demás… (' + yo + ' de ' + d.lista.length + ')', 0.6 + 0.4 * yo / d.lista.length); }
+      }
+      return;
+    }
+    if (d.t === 'arranca') {
+      red.cargandoInv = false; ocultarCarga(); $('online').hidden = true; $('inicio').hidden = true;
+      const c = S.civ(m, red.miCiv); if (c) P.centrarEn(c.capital, 3);
+      responder('¡Empieza la partida! Gobiernas ' + nombreDe(red.miCiv) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien');
+      return;
+    }
     if (d.t === 'mundo') {
       if (d.eres != null) red.miCiv = d.eres;
       red.sala = false; pintarSala();
+      if (d.carga) { red.cargandoInv = true; $('online').hidden = true; mostrarCarga('Cargando el mundo…', 0.62); }
       const txt = await descomprimir(d);
       const nuevo = JSON.parse(txt);
       // Los retos son de cada jugador: al recibir el mundo del anfitrión (que trae los suyos) se guardan los propios.
-      const misRetos = m && m.retos && red.miCiv != null && m.retos.civ === red.miCiv ? m.retos : null;
+      // (Solo si ya estaba en esta partida online: los retos del solitario no se mezclan con los del online.)
+      const misRetos = red.mundoOnline && m && m.retos && red.miCiv != null && m.retos.civ === red.miCiv ? m.retos : null;
+      red.mundoOnline = true;
       calculo = null; m = nuevo;
       if (red.miCiv != null) m.retos = misRetos || { civ: red.miCiv, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; vel = d.vel || 0; corriendo = true;
       m.jugador = red.miCiv; m.modo = 'pueblo'; m.guia = { oculta: 1 };
@@ -13126,6 +13205,8 @@ body.limpio .tropas-barra { display: none; }
       red.pendientes = red.pendientes.filter(x => x.n > m.turno).sort((a, b) => a.n - b.n);
       pintarModo(); pintarTodo(); pintarOnline();
       $('online').hidden = true; $('inicio').hidden = true;
+      // En la carga del principio, se avisa al anfitrión y se espera a su señal para empezar todos a la vez.
+      if (d.carga) { enviarAnfitrion({ t: 'listo' }); mostrarCarga('Mundo cargado. Esperando a los demás…', 0.8); if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift()); return; }
       if (d.eres != null) { const c = S.civ(m, d.eres); if (!m.retos || m.retos.civ !== d.eres) m.retos = { civ: d.eres, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; if (c && !c.viva) responder(c.nombre + ' cayó mientras estabas fuera: has perdido. Puedes seguir mirando la partida.', 'duda'); else if (c) P.centrarEn(c.capital, 3); if (c && c.viva) responder('¡Empieza la partida! Gobiernas ' + nombreDe(d.eres) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien'); }
       if (red.miCiv == null) pedirModo('Elige tu pueblo', 'Toca en el mapa la tierra del pueblo que quieres gobernar y pulsa «Gobernar un pueblo». Los pueblos de los otros jugadores ya tienen dueño.');
       if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift());
@@ -13140,7 +13221,7 @@ body.limpio .tropas-barra { display: none; }
     }
     else if (d.t === 'ocupado') pedirModo('Ese pueblo ya tiene dueño', 'Toca otra tierra en el mapa y pulsa «Gobernar un pueblo».');
     else if (d.t === 'jugadores') { red.jugadores = d.lista || []; pintarOnline(); }
-    else if (d.t === 'estado') { corriendo = !!d.corriendo; vel = d.vel || 0; pintarCabecera(); if (!d.corriendo) avisoFlotante('⏸ El anfitrión ha pausado la partida', 2500); }
+    else if (d.t === 'estado') { corriendo = !!d.corriendo; vel = d.vel || 0; pintarCabecera(); if (!d.corriendo && !red.cargandoInv) avisoFlotante('⏸ El anfitrión ha pausado la partida', 2500); }
     else if (d.t === 'chat') chat(d);
   }
   function turnoRecibido(msg) {
@@ -13212,7 +13293,8 @@ body.limpio .tropas-barra { display: none; }
     if (era === 'anfitrion') { for (const c of red.conns.values()) c.cerrar(); }
     else if (era === 'invitado' && red.conn) red.conn.cerrar();
     try { if (red.peer) red.peer.destroy(); } catch (e) { /* ya cerrado */ }
-    clearInterval(red.latido); clearInterval(red.vigia); chat0();
+    clearInterval(red.latido); clearInterval(red.vigia); clearTimeout(red.esperaCarga); chat0(); ocultarCarga();
+    red.cargando = false; red.cargandoInv = false; red.mundoOnline = false; red.listos = null;
     Object.assign(red, { modo: null, peer: null, conns: new Map(), conn: null, codigo: null, jugadores: [], cola: [], pendientes: [], esperandoMundo: false, sala: false, ultimaSala: null, miCiv: null, idos: null });
     pintarSala();
     for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = false; }
@@ -13239,6 +13321,7 @@ body.limpio .tropas-barra { display: none; }
       try { if (navigator.share) { await navigator.share({ title: 'Génesis', text: texto, url }); return; } } catch (e) { /* cancelado */ }
       try { await navigator.clipboard.writeText(texto + ' ' + url); avisoFlotante('🔗 Enlace copiado: pégalo a tus amigos', 3500); } catch (e) { avisoFlotante('Código: ' + red.codigo, 5000); }
     });
+    $('carga-ya').addEventListener('click', arrancarPartida);
     $('online-chip').addEventListener('click', () => abrirChat($('online-caja').hidden));
     $('online-ocultar').addEventListener('click', () => abrirChat(false));
     $('online-msg').addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.preventDefault(); abrirChat(false); } });
