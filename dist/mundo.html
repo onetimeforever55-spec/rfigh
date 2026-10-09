@@ -616,6 +616,9 @@ body.limpio .tropas-barra { display: none; }
   body:not(.ordenes-abiertas) .g-voluntad .respuesta { -webkit-line-clamp: 1; }
   body:not(.ordenes-abiertas) .g-voluntad .consejo { margin-top: 2px; }
 }
+/* Las pantallas de inicio, sala y carga se desplazan si no caben (móviles pequeños, salas de 10). */
+.inicio { overflow-y: auto; align-items: safe center; }
+.online-volver[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -659,6 +662,10 @@ body.limpio .tropas-barra { display: none; }
         <div class="inicio-caja">
           <h2 class="inicio-titulo">Jugar online</h2>
           <p class="inicio-texto" id="online-intro">Juega con amigos en el mismo mundo: cada uno gobierna su reino. Uno crea la sala y comparte el código; los demás lo escriben aquí y esperan en la sala, donde se ve quién está y cómo va su conexión. Cuando estén todos, el anfitrión empieza la partida. Hace falta internet.</p>
+          <div class="online-volver" id="online-volver" hidden>
+            <p class="inicio-texto" id="online-volver-texto"></p>
+            <div class="inicio-botones"><button type="button" class="obrar" id="online-volver-si">Volver a la partida</button><button type="button" class="mando" id="online-volver-no">Dejarla</button></div>
+          </div>
           <div id="online-entrada">
           <label class="online-campo">Tu nombre <input id="online-nombre" maxlength="16" placeholder="Tu nombre" autocomplete="nickname"></label>
           <div class="inicio-botones"><button type="button" class="obrar" id="online-crear">Crear partida</button></div>
@@ -726,7 +733,7 @@ body.limpio .tropas-barra { display: none; }
           <details><summary>La guerra</summary>
             <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Desde la Revolución Industrial, cada puerto con cuartel bota acorazados en guerra, que bombardean la costa enemiga. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan. «Anexionad X» lleva a tu ejército plaza por plaza hasta que el reino desaparezca; si está perdido (o eres mucho más fuerte), se rinde y es tuyo entero, y esas tierras no se rebelan enseguida. Los soldados rodean el mar y los lagos en vez de meterse a ahogarse. Desde la Era Moderna hay tanques y, con un aeródromo, aviones que despegan a bombardear. Con el botón ⚔ (modo tropas) eliges a tus soldados arrastrando sobre el mapa y tocas dónde quieres que vayan: si es tierra enemiga, atacan. «Automático» los devuelve al ejército; con dos dedos mueves la cámara.</p></details>
           <details><summary>Jugar online</summary>
-            <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. La partida online va aparte: tu partida en solitario y sus retos se quedan guardados y vuelves a ella al salir. Si a alguien se le cierra el juego (otra app, pantalla apagada), al volver a abrirlo vuelve solo a la partida, también el anfitrión: la sala sigue con el mismo código. Cada uno gobierna un solo reino toda la partida: no se puede cambiar, y si tu reino cae has perdido (puedes seguir mirando cómo acaba). El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba a la izquierda, la pestaña 🌐 con el código abre el chat y quién juega con qué reino; cerrada, los mensajes nuevos salen un momento como burbujas. Hace falta internet. La partida pasa por un servidor de mensajes, así que funciona aunque estéis en redes distintas (wifi, datos móviles). Si alguien sale del juego o pierde la conexión, no se cae nada: al volver se reconecta solo y se pone al día. Si el que sale es el anfitrión, el tiempo se para para todos hasta que vuelve. Antes de empezar hay una sala de espera: ahí se ve a cada jugador con su conexión (los milisegundos que tarda; en verde, bien), y el anfitrión elige cuántos reinos tiene el mundo. Al pulsar «Empezar partida» todos pasan a una pantalla de carga: el mundo se crea, le llega a cada uno con su reino y, cuando todos lo tienen cargado, la partida empieza a la vez para todos.</p></details>
+            <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. La partida online va aparte: tu partida en solitario y sus retos se quedan guardados y vuelves a ella al salir. Si a alguien se le cierra el juego (otra app, pantalla apagada), al volver a abrirlo el juego le pregunta si vuelve a la partida, también al anfitrión: la sala sigue con el mismo código. Para salir de la partida: «Salir de la partida online» (en el menú ⋯ del móvil o arriba en el ordenador). Cada uno gobierna un solo reino toda la partida: no se puede cambiar, y si tu reino cae has perdido (puedes seguir mirando cómo acaba). El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba a la izquierda, la pestaña 🌐 con el código abre el chat y quién juega con qué reino; cerrada, los mensajes nuevos salen un momento como burbujas. Hace falta internet. La partida pasa por un servidor de mensajes, así que funciona aunque estéis en redes distintas (wifi, datos móviles). Si alguien sale del juego o pierde la conexión, no se cae nada: al volver se reconecta solo y se pone al día. Si el que sale es el anfitrión, el tiempo se para para todos hasta que vuelve. Antes de empezar hay una sala de espera: ahí se ve a cada jugador con su conexión (los milisegundos que tarda; en verde, bien), y el anfitrión elige cuántos reinos tiene el mundo. Al pulsar «Empezar partida» todos pasan a una pantalla de carga: el mundo se crea, le llega a cada uno con su reino y, cuando todos lo tienen cargado, la partida empieza a la vez para todos.</p></details>
           <details><summary>La guerra en el mar</summary>
             <p>En guerra, cada puerto bota un barco de guerra de su época: galeras con flechas de fuego, galeones con cañones y, en la Era Moderna, acorazados. Persiguen y hunden los barcos enemigos y bombardean la costa. Si el enemigo está al otro lado del mar, tu ejército embarca en el puerto, cruza en un transporte y desembarca en su costa: ¡protégelo con tus barcos de guerra!</p></details>
           <details><summary>Retos y final</summary>
@@ -12985,7 +12992,8 @@ body.limpio .tropas-barra { display: none; }
   function pintarOnline() {
     const b = $('online-barra'); if (!b) return;
     b.hidden = !enLinea();
-    $('cambiar-modo').disabled = enLinea(); // en online no se cambia de reino ni de modo
+    // En online no se cambia de modo: ese botón sirve para salir de la partida (con un segundo toque para confirmar).
+    $('cambiar-modo').disabled = false; if (!red.confirmarSalir) $('cambiar-modo').textContent = enLinea() ? 'Salir de la partida online' : 'Cambiar de modo';
     if (!enLinea()) return;
     colocarOnline();
     $('online-codigo-ver').textContent = '🌐 ' + red.codigo;
@@ -13345,10 +13353,19 @@ body.limpio .tropas-barra { display: none; }
       return JSON.parse(t);
     } catch (e) { return null; }
   }
-  // Al abrir el juego: si estabas en una partida online, vuelves a ella.
-  async function volverAPartida() {
+  // Al abrir el juego: si estabas en una partida online, se pregunta si vuelves a ella o la dejas.
+  function volverAPartida() {
     const ses = leerSesion(); if (!ses || enLinea()) return;
-    $('inicio').hidden = true; $('online').hidden = false; $('online-nombre').value = ses.nombre || '';
+    $('inicio').hidden = true; $('online').hidden = false;
+    $('online-entrada').hidden = true; $('online-intro').hidden = true; $('online-volver').hidden = false;
+    $('online-volver-texto').textContent = 'Tienes una partida online a medias (' + ses.codigo + (ses.rol === 'anfitrion' ? ', la creaste tú' : '') + '). ¿Vuelves a ella?';
+    const fin = () => { $('online-volver').hidden = true; $('online-entrada').hidden = false; $('online-intro').hidden = false; };
+    $('online-volver-si').onclick = () => { fin(); reanudarPartida(ses); };
+    $('online-volver-no').onclick = () => { fin(); borrarSesion(); $('online').hidden = true; if (!m.modo) pedirModo(); };
+  }
+  async function reanudarPartida(ses) {
+    if (enLinea()) return;
+    $('online-nombre').value = ses.nombre || '';
     if (ses.rol === 'invitado') { $('online-codigo').value = ses.codigo; onlineEstado('Volviendo a tu partida online ' + ses.codigo + '…'); unirseOnline(); return; }
     const d = await leerOnline();
     if (!d || d.codigo !== ses.codigo) { borrarSesion(); $('online').hidden = true; if (!m.modo) pedirModo(); return; }
@@ -13648,7 +13665,11 @@ body.limpio .tropas-barra { display: none; }
     $('modo-pueblo').addEventListener('click', () => elegirModo('pueblo', sel != null && S.civ(m, sel) && S.civ(m, sel).viva ? sel : null));
     $('modo-dios').addEventListener('click', () => elegirModo('dios'));
     atarOnline();
-    $('cambiar-modo').addEventListener('click', () => pedirModo());
+    $('cambiar-modo').addEventListener('click', () => {
+      if (!enLinea()) { pedirModo(); return; }
+      if (!red.confirmarSalir) { red.confirmarSalir = true; $('cambiar-modo').textContent = '¿Seguro? Toca otra vez'; setTimeout(() => { red.confirmarSalir = false; pintarOnline(); }, 3500); return; }
+      red.confirmarSalir = false; salirOnline(false);
+    });
     // La ayuda: se abre desde el menú o desde la pantalla de inicio, y se cierra con «Entendido» o tocando fuera.
     const ayuda = abrir => { $('ayuda').hidden = !abrir; };
     $('ayuda-abrir').addEventListener('click', () => ayuda(true));

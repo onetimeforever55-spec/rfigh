@@ -595,3 +595,6 @@ body.limpio .tropas-barra { display: none; }
   body:not(.ordenes-abiertas) .g-voluntad .respuesta { -webkit-line-clamp: 1; }
   body:not(.ordenes-abiertas) .g-voluntad .consejo { margin-top: 2px; }
 }
+/* Las pantallas de inicio, sala y carga se desplazan si no caben (móviles pequeños, salas de 10). */
+.inicio { overflow-y: auto; align-items: safe center; }
+.online-volver[hidden] { display: none; }

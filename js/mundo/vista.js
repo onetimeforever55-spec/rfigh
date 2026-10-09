@@ -1297,7 +1297,8 @@
   function pintarOnline() {
     const b = $('online-barra'); if (!b) return;
     b.hidden = !enLinea();
-    $('cambiar-modo').disabled = enLinea(); // en online no se cambia de reino ni de modo
+    // En online no se cambia de modo: ese botón sirve para salir de la partida (con un segundo toque para confirmar).
+    $('cambiar-modo').disabled = false; if (!red.confirmarSalir) $('cambiar-modo').textContent = enLinea() ? 'Salir de la partida online' : 'Cambiar de modo';
     if (!enLinea()) return;
     colocarOnline();
     $('online-codigo-ver').textContent = '🌐 ' + red.codigo;
@@ -1657,10 +1658,19 @@
       return JSON.parse(t);
     } catch (e) { return null; }
   }
-  // Al abrir el juego: si estabas en una partida online, vuelves a ella.
-  async function volverAPartida() {
+  // Al abrir el juego: si estabas en una partida online, se pregunta si vuelves a ella o la dejas.
+  function volverAPartida() {
     const ses = leerSesion(); if (!ses || enLinea()) return;
-    $('inicio').hidden = true; $('online').hidden = false; $('online-nombre').value = ses.nombre || '';
+    $('inicio').hidden = true; $('online').hidden = false;
+    $('online-entrada').hidden = true; $('online-intro').hidden = true; $('online-volver').hidden = false;
+    $('online-volver-texto').textContent = 'Tienes una partida online a medias (' + ses.codigo + (ses.rol === 'anfitrion' ? ', la creaste tú' : '') + '). ¿Vuelves a ella?';
+    const fin = () => { $('online-volver').hidden = true; $('online-entrada').hidden = false; $('online-intro').hidden = false; };
+    $('online-volver-si').onclick = () => { fin(); reanudarPartida(ses); };
+    $('online-volver-no').onclick = () => { fin(); borrarSesion(); $('online').hidden = true; if (!m.modo) pedirModo(); };
+  }
+  async function reanudarPartida(ses) {
+    if (enLinea()) return;
+    $('online-nombre').value = ses.nombre || '';
     if (ses.rol === 'invitado') { $('online-codigo').value = ses.codigo; onlineEstado('Volviendo a tu partida online ' + ses.codigo + '…'); unirseOnline(); return; }
     const d = await leerOnline();
     if (!d || d.codigo !== ses.codigo) { borrarSesion(); $('online').hidden = true; if (!m.modo) pedirModo(); return; }
@@ -1960,7 +1970,11 @@
     $('modo-pueblo').addEventListener('click', () => elegirModo('pueblo', sel != null && S.civ(m, sel) && S.civ(m, sel).viva ? sel : null));
     $('modo-dios').addEventListener('click', () => elegirModo('dios'));
     atarOnline();
-    $('cambiar-modo').addEventListener('click', () => pedirModo());
+    $('cambiar-modo').addEventListener('click', () => {
+      if (!enLinea()) { pedirModo(); return; }
+      if (!red.confirmarSalir) { red.confirmarSalir = true; $('cambiar-modo').textContent = '¿Seguro? Toca otra vez'; setTimeout(() => { red.confirmarSalir = false; pintarOnline(); }, 3500); return; }
+      red.confirmarSalir = false; salirOnline(false);
+    });
     // La ayuda: se abre desde el menú o desde la pantalla de inicio, y se cierra con «Entendido» o tocando fuera.
     const ayuda = abrir => { $('ayuda').hidden = !abrir; };
     $('ayuda-abrir').addEventListener('click', () => ayuda(true));
