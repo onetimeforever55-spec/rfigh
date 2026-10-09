@@ -12868,11 +12868,12 @@ body.limpio .tropas-barra { display: none; }
       peer.on('connection', pc => pc.on('open', () => alConectar(envolver(pc))));
     });
   }
-  // Cada pestaña tiene su id de jugador: si sale y vuelve a entrar, el anfitrión sabe que es el mismo y le devuelve su reino.
+  // Cada jugador tiene su id guardado en el navegador (aunque el móvil cierre la app): si sale y vuelve a entrar,
+  // el anfitrión sabe que es el mismo y le devuelve su reino. Para probar con pestañas (?red=local), uno por pestaña.
   function miId() {
-    let id = null;
-    try { id = sessionStorage.getItem('genesis.yo'); } catch (e) { /* sin almacenamiento */ }
-    if (!id) { id = 'j' + Math.random().toString(36).slice(2, 10); try { sessionStorage.setItem('genesis.yo', id); } catch (e) { /* nada */ } }
+    let id = null, alm = null;
+    try { alm = transporte === 'local' ? sessionStorage : localStorage; id = alm.getItem('genesis.yo'); } catch (e) { /* sin almacenamiento */ }
+    if (!id) { id = 'j' + Math.random().toString(36).slice(2, 10); try { alm.setItem('genesis.yo', id); } catch (e) { /* nada */ } }
     return id;
   }
   function conectarA(codigo) {
@@ -12957,7 +12958,7 @@ body.limpio .tropas-barra { display: none; }
       red.conns.delete(conn.id);
       const j = red.jugadores.find(x => x.id === conn.id);
       red.jugadores = red.jugadores.filter(x => x.id !== conn.id);
-      if (j && j.civ != null) red.cola.push({ tipo: 'salir', civ: j.civ });
+      if (j && j.civ != null) { red.cola.push({ tipo: 'salir', civ: j.civ }); red.idos = red.idos || {}; red.idos[conn.id] = red.idos['n:' + j.nombre] = j.civ; }
       if (j) avisoFlotante('🌐 ' + j.nombre + ' ha salido' + (j.civ != null ? ': ' + nombreDe(j.civ) + ' vuelve a gobernarse solo' : ''), 4000);
       difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline();
       if (red.sala) { difundirSala(); pintarSala(); }
@@ -13028,7 +13029,18 @@ body.limpio .tropas-barra { display: none; }
     if (d.t === 'hola' && !j) j = recuperarPlaza(conn, d.nombre);
     if (d.t === 'pong' && j) { j.ping = Math.max(1, Math.round(performance.now() - (d.t0 || 0))); j.visto = performance.now(); return; }
     if (d.t === 'hola' && red.sala) { if (!j) red.jugadores.push({ id: conn.id, nombre: String(d.nombre || 'Jugador').slice(0, 16), civ: null, ping: null, visto: performance.now() }); difundirSala(); pintarSala(); avisoFlotante('🌐 Entra en la sala ' + String(d.nombre || 'un jugador').slice(0, 16), 3000); return; }
-    if (d.t === 'hola') { if (!j) red.jugadores.push({ id: conn.id, nombre: String(d.nombre || 'Jugador').slice(0, 16), civ: null, visto: performance.now() }); mandarMundo(conn, j ? j.civ : null); difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline(); avisoFlotante('🌐 Entra ' + String(d.nombre || 'un jugador').slice(0, 16), 3500); }
+    if (d.t === 'hola') {
+      if (!j) {
+        // Si ya jugó en esta partida y salió, recupera su reino de antes (si nadie lo ha cogido).
+        const nombre = String(d.nombre || 'Jugador').slice(0, 16), idos = red.idos || {};
+        const antes = idos[conn.id] != null ? idos[conn.id] : idos['n:' + nombre];
+        const c = antes != null ? S.civ(m, antes) : null;
+        const libre = c && c.viva && !red.jugadores.some(x => x.civ === c.id);
+        j = { id: conn.id, nombre, civ: libre ? c.id : null, visto: performance.now() };
+        red.jugadores.push(j);
+        if (libre) red.cola.push({ tipo: 'unirse', civ: c.id });
+      }
+      mandarMundo(conn, j.civ); difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline(); avisoFlotante('🌐 Entra ' + String(d.nombre || 'un jugador').slice(0, 16), 3500); }
     else if (d.t === 'pideMundo') mandarMundo(conn);
     else if (d.t === 'elijo') {
       // Sin elegir, le toca un pueblo libre al azar (de los que no gobierna nadie).
