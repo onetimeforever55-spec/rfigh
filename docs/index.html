@@ -523,13 +523,31 @@ table.mercado td:first-child { white-space: nowrap; }
 .online-campo input, .online-unirse input, .online-chat input { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--oro); color: inherit; padding: 8px 10px; font: inherit; font-size: 16px; border-radius: 4px; }
 .online-unirse { display: flex; gap: 8px; margin-top: 12px; }
 .online-unirse input { flex: 1; min-width: 0; text-transform: uppercase; letter-spacing: 3px; font-family: var(--f-pixel, monospace); }
-.online-barra { position: absolute; z-index: 5; left: 50%; transform: translateX(-50%); top: calc(max(6px, env(safe-area-inset-top)) + 120px); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: min(640px, calc(100% - 24px)); background: rgba(13, 19, 34, 0.9); border: 1px solid var(--oro); padding: 6px 10px; font-size: 13px; box-shadow: 0 0 0 2px var(--px-negro, #000), 4px 4px 0 rgba(0,0,0,0.4); }
-.online-barra[hidden] { display: none; }
+.online-barra { position: absolute; z-index: 5; left: 10px; top: var(--online-top, 130px); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: min(300px, calc(100% - 90px)); pointer-events: none; font-size: 13px; }
+.online-barra > * { pointer-events: auto; }
+.online-barra[hidden], .online-caja[hidden], .online-nuevos[hidden] { display: none; }
+.online-chip { display: inline-flex; align-items: center; gap: 8px; background: rgba(13, 19, 34, 0.9); color: #d8deea; border: 0; padding: 5px 10px; font: inherit; cursor: pointer; box-shadow: 0 0 0 2px var(--px-negro, #05070e), inset 0 0 0 1px rgba(240,192,90,0.5); }
+.online-chip[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--px-negro, #05070e), inset 0 0 0 2px var(--oro); }
 .online-codigo { font-family: var(--f-pixel, monospace); color: var(--oro); letter-spacing: 2px; }
-.online-jugadores { color: #d8deea; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
-.online-chat { flex: 1; min-width: 120px; }
-.online-chat input { width: 100%; font-size: 14px; padding: 4px 8px; }
-@media (max-width: 899px) { .online-barra { top: calc(max(6px, env(safe-area-inset-top)) + 96px); font-size: 12px; } .online-jugadores { max-width: 160px; } }
+.online-cuantos { color: #a8b0c4; }
+.online-nuevos { background: #d94848; color: #fff; font-family: var(--f-dato, monospace); font-size: 10px; min-width: 18px; padding: 1px 5px; text-align: center; }
+.online-burbujas { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; pointer-events: none; }
+.online-burbuja { background: rgba(13, 19, 34, 0.82); color: #e8ecf4; padding: 4px 9px; max-width: 100%; overflow-wrap: anywhere; box-shadow: 0 0 0 2px rgba(5,7,14,0.7); animation: burbuja-entra 0.2s ease-out; transition: opacity 0.6s; }
+.online-burbuja.se-va { opacity: 0; }
+.online-burbuja b, .online-linea b { font-weight: 700; }
+@keyframes burbuja-entra { from { transform: translateY(-4px); opacity: 0; } to { transform: none; opacity: 1; } }
+.online-caja { width: 100%; background: rgba(13, 19, 34, 0.94); padding: 8px 10px; box-shadow: 0 0 0 2px var(--px-negro, #05070e), inset 0 0 0 2px var(--oro), 4px 4px 0 rgba(0,0,0,0.4); }
+.online-jugadores { list-style: none; margin: 0 0 6px; padding: 0 0 6px; border-bottom: 1px solid rgba(240,192,90,0.25); display: flex; flex-wrap: wrap; gap: 2px 12px; color: #d8deea; font-size: 12px; }
+.online-jugadores i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; box-shadow: 0 0 0 1px var(--px-negro, #05070e); }
+.online-jugadores .tenue { color: #8a92a8; }
+.online-log { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; overscroll-behavior: contain; }
+.online-linea { margin: 0; color: #e8ecf4; overflow-wrap: anywhere; line-height: 1.35; }
+.online-vacio { margin: 0; color: #8a92a8; font-style: italic; }
+.online-chat { display: flex; gap: 6px; }
+.online-chat input { flex: 1; min-width: 0; font-size: 16px; padding: 5px 8px; }
+.online-chat .mando { padding: 4px 10px; }
+.online-pie { margin: 6px 0 0; display: flex; gap: 14px; font-size: 12px; }
+@media (max-width: 899px) { .online-barra { left: 8px; font-size: 12px; width: min(280px, calc(100% - 84px)); } .online-log { max-height: 110px; } }
 
 /* El desglose de la comida (al tocar el trigo de la barra). */
 .rec.comida { cursor: pointer; }
@@ -637,11 +655,14 @@ body.limpio .tropas-barra { display: none; }
         </div>
       </div>
       <div class="online-barra" id="online-barra" hidden>
-        <span class="online-codigo" id="online-codigo-ver"></span>
-        <span class="online-jugadores" id="online-jugadores"></span>
-        <form id="online-chat" class="online-chat"><input id="online-msg" maxlength="140" placeholder="Mensaje…" autocomplete="off"></form>
-        <button type="button" class="enlace" id="online-invitar">Invitar</button>
-        <button type="button" class="enlace" id="online-salir">Salir</button>
+        <button type="button" class="online-chip" id="online-chip" aria-expanded="false" aria-controls="online-caja" title="Chat y jugadores"><span class="online-codigo" id="online-codigo-ver"></span><span class="online-cuantos" id="online-cuantos"></span><span class="online-nuevos" id="online-nuevos" hidden></span></button>
+        <div class="online-burbujas" id="online-burbujas" aria-live="polite"></div>
+        <div class="online-caja" id="online-caja" hidden>
+          <ul class="online-jugadores" id="online-jugadores"></ul>
+          <div class="online-log" id="online-log"><p class="online-vacio">Aún no hay mensajes.</p></div>
+          <form id="online-chat" class="online-chat"><input id="online-msg" maxlength="140" placeholder="Mensaje…" autocomplete="off" enterkeyhint="send"><button type="submit" class="mando" aria-label="Enviar">➤</button></form>
+          <p class="online-pie"><button type="button" class="enlace" id="online-invitar">Invitar</button> <button type="button" class="enlace" id="online-ocultar">Ocultar</button> <button type="button" class="enlace" id="online-salir">Salir</button></p>
+        </div>
       </div>
       <div class="inicio ayuda" id="ayuda" hidden>
         <div class="inicio-caja ayuda-caja" role="dialog" aria-labelledby="ayuda-titulo">
@@ -670,7 +691,7 @@ body.limpio .tropas-barra { display: none; }
           <details><summary>La guerra</summary>
             <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Desde la Revolución Industrial, cada puerto con cuartel bota acorazados en guerra, que bombardean la costa enemiga. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan. «Anexionad X» lleva a tu ejército plaza por plaza hasta que el reino desaparezca; si está perdido (o eres mucho más fuerte), se rinde y es tuyo entero, y esas tierras no se rebelan enseguida. Los soldados rodean el mar y los lagos en vez de meterse a ahogarse. Desde la Era Moderna hay tanques y, con un aeródromo, aviones que despegan a bombardear. Con el botón ⚔ (modo tropas) eliges a tus soldados arrastrando sobre el mapa y tocas dónde quieres que vayan: si es tierra enemiga, atacan. «Automático» los devuelve al ejército; con dos dedos mueves la cámara.</p></details>
           <details><summary>Jugar online</summary>
-            <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba tienes el código, quién juega y un chat. Hace falta internet. La partida pasa por un servidor de mensajes, así que funciona aunque estéis en redes distintas (wifi, datos móviles). Si alguien sale del juego o pierde la conexión, no se cae nada: al volver se reconecta solo y se pone al día. Si el que sale es el anfitrión, el tiempo se para para todos hasta que vuelve. Antes de empezar hay una sala de espera: ahí se ve a cada jugador con su conexión (los milisegundos que tarda; en verde, bien), y el anfitrión elige cuántos reinos tiene el mundo. Al pulsar «Empezar partida» se crea el mundo y a cada uno le toca un reino.</p></details>
+            <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba a la izquierda, la pestaña 🌐 con el código abre el chat y quién juega con qué reino; cerrada, los mensajes nuevos salen un momento como burbujas. Hace falta internet. La partida pasa por un servidor de mensajes, así que funciona aunque estéis en redes distintas (wifi, datos móviles). Si alguien sale del juego o pierde la conexión, no se cae nada: al volver se reconecta solo y se pone al día. Si el que sale es el anfitrión, el tiempo se para para todos hasta que vuelve. Antes de empezar hay una sala de espera: ahí se ve a cada jugador con su conexión (los milisegundos que tarda; en verde, bien), y el anfitrión elige cuántos reinos tiene el mundo. Al pulsar «Empezar partida» se crea el mundo y a cada uno le toca un reino.</p></details>
           <details><summary>La guerra en el mar</summary>
             <p>En guerra, cada puerto bota un barco de guerra de su época: galeras con flechas de fuego, galeones con cañones y, en la Era Moderna, acorazados. Persiguen y hunden los barcos enemigos y bombardean la costa. Si el enemigo está al otro lado del mar, tu ejército embarca en el puerto, cruza en un transporte y desembarca en su costa: ¡protégelo con tus barcos de guerra!</p></details>
           <details><summary>Retos y final</summary>
@@ -12920,8 +12941,10 @@ body.limpio .tropas-barra { display: none; }
     const b = $('online-barra'); if (!b) return;
     b.hidden = !enLinea();
     if (!enLinea()) return;
+    colocarOnline();
     $('online-codigo-ver').textContent = '🌐 ' + red.codigo;
-    $('online-jugadores').textContent = red.jugadores.map(j => j.nombre + (j.civ != null ? ' (' + nombreDe(j.civ) + ')' : '')).join(' · ');
+    $('online-cuantos').textContent = '👥 ' + red.jugadores.length + ' · 💬';
+    $('online-jugadores').innerHTML = red.jugadores.map(j => { const c = j.civ != null ? S.civ(m, j.civ) : null; return '<li><i style="background:' + (c ? c.color : '#555') + '"></i>' + escapar(j.nombre) + (c ? ' <span class="tenue">' + escapar(c.nombre) + '</span>' : ' <span class="tenue">eligiendo…</span>') + '</li>'; }).join('');
     for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = red.modo === 'invitado' || (id !== 'play' && id !== 'vel' && red.modo === 'anfitrion'); }
     $('online-invitar').hidden = red.modo !== 'anfitrion';
   }
@@ -13127,13 +13150,44 @@ body.limpio .tropas-barra { display: none; }
     vel = msg.vel || 0;
     empezarTurno(msg);
   }
-  function chat(d) { avisoFlotante('💬 ' + d.de + ': ' + d.texto, 5000); }
+  // ---------- El chat online ----------
+  // Una pestañita arriba a la izquierda: cerrada, los mensajes nuevos salen como burbujas que se apagan solas;
+  // abierta, se ven los jugadores, los últimos mensajes y dónde escribir.
+  function escapar(t) { return String(t).replace(/[&<>"]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[x]); }
+  function colocarOnline() {
+    const cab = document.querySelector('.g-cab'), b = $('online-barra'); if (!cab || !b) return;
+    b.style.setProperty('--online-top', Math.round(cab.getBoundingClientRect().bottom + 8) + 'px');
+  }
+  function colorDe(nombre) { const j = red.jugadores.find(x => x.nombre === nombre); const c = j && j.civ != null ? S.civ(m, j.civ) : null; return c ? c.color : 'var(--oro)'; }
+  function lineaChat(d) { return '<b style="color:' + colorDe(d.de) + '">' + escapar(d.de) + ':</b> ' + escapar(d.texto); }
+  function chat(d) {
+    red.mensajes = (red.mensajes || []).concat([d]).slice(-60);
+    const log = $('online-log'), abajo = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+    const v = log.querySelector('.online-vacio'); if (v) v.remove();
+    const p = document.createElement('p'); p.className = 'online-linea'; p.innerHTML = lineaChat(d); log.appendChild(p);
+    while (log.children.length > 60) log.firstChild.remove();
+    if (abajo) log.scrollTop = log.scrollHeight;
+    if (!$('online-caja').hidden) return;
+    red.sinLeer = (red.sinLeer || 0) + 1;
+    const n = $('online-nuevos'); n.hidden = false; n.textContent = red.sinLeer > 9 ? '9+' : String(red.sinLeer);
+    const bs = $('online-burbujas'), bu = document.createElement('div'); bu.className = 'online-burbuja'; bu.innerHTML = lineaChat(d); bs.appendChild(bu);
+    while (bs.children.length > 3) bs.firstChild.remove();
+    setTimeout(() => bu.classList.add('se-va'), 6000); setTimeout(() => bu.remove(), 6700);
+  }
+  function abrirChat(abrir) {
+    const caja = $('online-caja'); caja.hidden = !abrir; $('online-chip').setAttribute('aria-expanded', String(abrir));
+    if (!abrir) return;
+    red.sinLeer = 0; $('online-nuevos').hidden = true; $('online-burbujas').textContent = '';
+    const log = $('online-log'); log.scrollTop = log.scrollHeight;
+    if (!movil()) $('online-msg').focus();
+  }
+  function chat0() { $('online-log').innerHTML = '<p class="online-vacio">Aún no hay mensajes.</p>'; $('online-burbujas').textContent = ''; red.mensajes = []; red.sinLeer = 0; $('online-nuevos').hidden = true; abrirChat(false); }
   function salirOnline(silencioso) {
     const era = red.modo;
     if (era === 'anfitrion') { for (const c of red.conns.values()) c.cerrar(); }
     else if (era === 'invitado' && red.conn) red.conn.cerrar();
     try { if (red.peer) red.peer.destroy(); } catch (e) { /* ya cerrado */ }
-    clearInterval(red.latido); clearInterval(red.vigia);
+    clearInterval(red.latido); clearInterval(red.vigia); chat0();
     Object.assign(red, { modo: null, peer: null, conns: new Map(), conn: null, codigo: null, jugadores: [], cola: [], pendientes: [], esperandoMundo: false, sala: false, ultimaSala: null });
     pintarSala();
     for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = false; }
@@ -13158,6 +13212,10 @@ body.limpio .tropas-barra { display: none; }
       try { if (navigator.share) { await navigator.share({ title: 'Génesis', text: texto, url }); return; } } catch (e) { /* cancelado */ }
       try { await navigator.clipboard.writeText(texto + ' ' + url); avisoFlotante('🔗 Enlace copiado: pégalo a tus amigos', 3500); } catch (e) { avisoFlotante('Código: ' + red.codigo, 5000); }
     });
+    $('online-chip').addEventListener('click', () => abrirChat($('online-caja').hidden));
+    $('online-ocultar').addEventListener('click', () => abrirChat(false));
+    $('online-msg').addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.preventDefault(); abrirChat(false); } });
+    window.addEventListener('resize', colocarOnline);
     $('online-chat').addEventListener('submit', ev => { ev.preventDefault(); const t = $('online-msg').value.trim(); if (!t) return; $('online-msg').value = ''; if (red.modo === 'anfitrion') { const msg = { t: 'chat', de: red.nombre, texto: t.slice(0, 140) }; difundir(msg); chat(msg); } else enviarAnfitrion({ t: 'chat', texto: t }); });
     // Abrir el juego con #unirse=CODIGO (un enlace que comparte el anfitrión) rellena el código.
     const h = location.hash.match(/unirse=([A-Z0-9]{4,8})/i); if (h) { $('online-codigo').value = h[1].toUpperCase(); $('online').hidden = false; }

@@ -1288,8 +1288,10 @@
     const b = $('online-barra'); if (!b) return;
     b.hidden = !enLinea();
     if (!enLinea()) return;
+    colocarOnline();
     $('online-codigo-ver').textContent = '🌐 ' + red.codigo;
-    $('online-jugadores').textContent = red.jugadores.map(j => j.nombre + (j.civ != null ? ' (' + nombreDe(j.civ) + ')' : '')).join(' · ');
+    $('online-cuantos').textContent = '👥 ' + red.jugadores.length + ' · 💬';
+    $('online-jugadores').innerHTML = red.jugadores.map(j => { const c = j.civ != null ? S.civ(m, j.civ) : null; return '<li><i style="background:' + (c ? c.color : '#555') + '"></i>' + escapar(j.nombre) + (c ? ' <span class="tenue">' + escapar(c.nombre) + '</span>' : ' <span class="tenue">eligiendo…</span>') + '</li>'; }).join('');
     for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = red.modo === 'invitado' || (id !== 'play' && id !== 'vel' && red.modo === 'anfitrion'); }
     $('online-invitar').hidden = red.modo !== 'anfitrion';
   }
@@ -1495,13 +1497,44 @@
     vel = msg.vel || 0;
     empezarTurno(msg);
   }
-  function chat(d) { avisoFlotante('💬 ' + d.de + ': ' + d.texto, 5000); }
+  // ---------- El chat online ----------
+  // Una pestañita arriba a la izquierda: cerrada, los mensajes nuevos salen como burbujas que se apagan solas;
+  // abierta, se ven los jugadores, los últimos mensajes y dónde escribir.
+  function escapar(t) { return String(t).replace(/[&<>"]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[x]); }
+  function colocarOnline() {
+    const cab = document.querySelector('.g-cab'), b = $('online-barra'); if (!cab || !b) return;
+    b.style.setProperty('--online-top', Math.round(cab.getBoundingClientRect().bottom + 8) + 'px');
+  }
+  function colorDe(nombre) { const j = red.jugadores.find(x => x.nombre === nombre); const c = j && j.civ != null ? S.civ(m, j.civ) : null; return c ? c.color : 'var(--oro)'; }
+  function lineaChat(d) { return '<b style="color:' + colorDe(d.de) + '">' + escapar(d.de) + ':</b> ' + escapar(d.texto); }
+  function chat(d) {
+    red.mensajes = (red.mensajes || []).concat([d]).slice(-60);
+    const log = $('online-log'), abajo = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+    const v = log.querySelector('.online-vacio'); if (v) v.remove();
+    const p = document.createElement('p'); p.className = 'online-linea'; p.innerHTML = lineaChat(d); log.appendChild(p);
+    while (log.children.length > 60) log.firstChild.remove();
+    if (abajo) log.scrollTop = log.scrollHeight;
+    if (!$('online-caja').hidden) return;
+    red.sinLeer = (red.sinLeer || 0) + 1;
+    const n = $('online-nuevos'); n.hidden = false; n.textContent = red.sinLeer > 9 ? '9+' : String(red.sinLeer);
+    const bs = $('online-burbujas'), bu = document.createElement('div'); bu.className = 'online-burbuja'; bu.innerHTML = lineaChat(d); bs.appendChild(bu);
+    while (bs.children.length > 3) bs.firstChild.remove();
+    setTimeout(() => bu.classList.add('se-va'), 6000); setTimeout(() => bu.remove(), 6700);
+  }
+  function abrirChat(abrir) {
+    const caja = $('online-caja'); caja.hidden = !abrir; $('online-chip').setAttribute('aria-expanded', String(abrir));
+    if (!abrir) return;
+    red.sinLeer = 0; $('online-nuevos').hidden = true; $('online-burbujas').textContent = '';
+    const log = $('online-log'); log.scrollTop = log.scrollHeight;
+    if (!movil()) $('online-msg').focus();
+  }
+  function chat0() { $('online-log').innerHTML = '<p class="online-vacio">Aún no hay mensajes.</p>'; $('online-burbujas').textContent = ''; red.mensajes = []; red.sinLeer = 0; $('online-nuevos').hidden = true; abrirChat(false); }
   function salirOnline(silencioso) {
     const era = red.modo;
     if (era === 'anfitrion') { for (const c of red.conns.values()) c.cerrar(); }
     else if (era === 'invitado' && red.conn) red.conn.cerrar();
     try { if (red.peer) red.peer.destroy(); } catch (e) { /* ya cerrado */ }
-    clearInterval(red.latido); clearInterval(red.vigia);
+    clearInterval(red.latido); clearInterval(red.vigia); chat0();
     Object.assign(red, { modo: null, peer: null, conns: new Map(), conn: null, codigo: null, jugadores: [], cola: [], pendientes: [], esperandoMundo: false, sala: false, ultimaSala: null });
     pintarSala();
     for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = false; }
@@ -1526,6 +1559,10 @@
       try { if (navigator.share) { await navigator.share({ title: 'Génesis', text: texto, url }); return; } } catch (e) { /* cancelado */ }
       try { await navigator.clipboard.writeText(texto + ' ' + url); avisoFlotante('🔗 Enlace copiado: pégalo a tus amigos', 3500); } catch (e) { avisoFlotante('Código: ' + red.codigo, 5000); }
     });
+    $('online-chip').addEventListener('click', () => abrirChat($('online-caja').hidden));
+    $('online-ocultar').addEventListener('click', () => abrirChat(false));
+    $('online-msg').addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.preventDefault(); abrirChat(false); } });
+    window.addEventListener('resize', colocarOnline);
     $('online-chat').addEventListener('submit', ev => { ev.preventDefault(); const t = $('online-msg').value.trim(); if (!t) return; $('online-msg').value = ''; if (red.modo === 'anfitrion') { const msg = { t: 'chat', de: red.nombre, texto: t.slice(0, 140) }; difundir(msg); chat(msg); } else enviarAnfitrion({ t: 'chat', texto: t }); });
     // Abrir el juego con #unirse=CODIGO (un enlace que comparte el anfitrión) rellena el código.
     const h = location.hash.match(/unirse=([A-Z0-9]{4,8})/i); if (h) { $('online-codigo').value = h[1].toUpperCase(); $('online').hidden = false; }
