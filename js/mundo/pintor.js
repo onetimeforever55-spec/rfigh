@@ -153,6 +153,8 @@
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.mina) gl.drawImage(ARTE().edificio('mina', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.gremio) gl.drawImage(ARTE().edificio('gremio', color, 0), x, y);
+      else if (obra === V.OBRA.casona) gl.drawImage(ARTE().edificio('casona', color, eraT >= 6 ? 2 : eraT >= 5 ? 1 : 0), x, y);
       else if (obra === V.OBRA.petroleo) gl.drawImage(ARTE().edificio('petroleo', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.aduana) gl.drawImage(ARTE().edificio('aduana', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.campamento) gl.drawImage(ARTE().edificio('campamento', color, V.fase(eraT)), x, y);
@@ -532,8 +534,9 @@
       arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
       piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4,
       sabio: oficio === 'erudito' ? M.ERUDITO((S.civ(m, a.c) || { era: 0 }).era).tipo : undefined,
-      // Mercaderes (desde la Edad Media) y empresarios con su traje: casaca y sombrero; desde la Revolución Industrial, chistera.
-      traje: nino || (!a.emp && oficio !== 'comerciante') ? 0 : (() => { const era = (S.civ(m, a.c) || { era: 0 }).era; return era >= 6 ? 2 : a.emp || era >= 4 ? 1 : 0; })()
+      // Mercaderes con gremio, banqueros y empresarios con su traje: casaca y sombrero; desde la Revolución Industrial, chistera.
+      // (El comerciante de siempre lleva su gorro; el mercader con gremio, el banquero y el empresario, su traje.)
+      traje: nino || (!a.emp && !a.merc) ? 0 : ((S.civ(m, a.c) || { era: 0 }).era >= 6 ? 2 : 1)
     });
   }
   const durmiendo = new Set();

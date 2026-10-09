@@ -408,6 +408,8 @@
       if (nombre === 'aduana') return aduana(H, fase, col);
       if (nombre === 'petroleo') return pozoPetroleo(H, fase, col);
       if (nombre === 'mina') return mina(H, fase, col);
+      if (nombre === 'gremio') return gremio(H, fase, col);
+      if (nombre === 'casona') return casona(H, fase, col);
       if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
       if (nombre === 'molino' && fase !== 1) return molinoDeFase(H, fase, col);
@@ -585,6 +587,52 @@
     H.r(10, 13, 4, 1, '#7a4a24'); H.r(11, 12, 3, 1, '#8a5a2a'); H.p(10, 13, '#c89a62'); H.p(11, 12, '#c89a62');
     H.r(14, 1, 1, 6, MADERA); H.r(15, 1, 1, 2, col);
     if (fase >= 2) { H.r(0, 13, 3, 2, '#7a5530'); H.p(0, 15, '#2a2a2a'); H.p(2, 15, '#2a2a2a'); }
+    H.contorno(); return H.lienzo();
+  }
+  // El gremio de mercaderes (Edad Media): casa de entramado de dos pisos con soportal, el cartel colgado del gremio,
+  // fardos y toneles a la puerta.
+  function gremio(H, fase, col) {
+    const muro = '#e8dcc0', viga = '#5a3a22', teja = '#8a3a2a';
+    H.r(1, 5, 14, 9, muro);
+    for (const x of [1, 5, 10, 14]) H.r(x, 5, 1, 9, viga);
+    H.r(1, 9, 14, 1, viga); H.r(1, 5, 14, 1, viga);
+    for (let k = 0; k < 4; k++) H.r(k, 4 - k, 16 - 2 * k, 1, k === 3 ? oscuro(teja, 0.2) : teja);
+    H.r(3, 6, 2, 2, LUZ); H.r(11, 6, 2, 2, LUZ); H.r(7, 6, 2, 2, LUZ);
+    H.r(7, 10, 3, 4, '#3a2618'); H.p(9, 12, '#c8a050');
+    // El cartel del gremio, colgado de un brazo de hierro, con el color del reino y una balanza dorada.
+    H.r(11, 10, 1, 1, '#3a3a40'); H.r(11, 11, 3, 2, col); H.p(12, 11, '#f0c040'); H.p(13, 12, '#f0c040');
+    // Fardos y un tonel.
+    H.r(1, 12, 2, 2, '#c8a870'); H.p(1, 12, '#e0c890'); H.r(3, 13, 2, 1, '#8a5a2b'); H.p(4, 12, '#8a5a2b');
+    H.r(0, 14, 16, 1, oscuro(muro, 0.4));
+    H.contorno(); return H.lienzo();
+  }
+  // La casa del rico: casona de entramado con chimenea (Edad Media), palacete de piedra con balcones (Renacimiento) o
+  // mansión de ladrillo con columnas y verja (Revolución Industrial en adelante).
+  function casona(H, fase, col) {
+    if (fase >= 2) {
+      const lad = '#a8584a', bl = '#efe8dc';
+      H.r(1, 5, 14, 9, lad); for (let y = 6; y < 14; y += 2) for (let x = (y % 4 ? 1 : 2); x < 15; x += 3) H.p(x, y, oscuro(lad, 0.15));
+      H.r(0, 3, 16, 2, '#3a3a44'); H.r(2, 2, 12, 1, '#4a4a54'); H.r(12, 0, 2, 3, '#6a3a2e');
+      for (const x of [2, 5, 10, 13]) H.r(x, 6, 1, 3, LUZ);
+      H.r(6, 8, 4, 1, bl); for (const x of [6, 9]) H.r(x, 9, 1, 5, bl);
+      H.r(7, 10, 2, 4, '#3a2618');
+      for (let x = 0; x < 16; x += 2) H.p(x, 14, '#2a2a30'); H.r(0, 15, 16, 1, '#2a2a30');
+      H.p(8, 5, col);
+    } else if (fase >= 1) {
+      const pie = '#e6dcc8';
+      H.r(1, 5, 14, 9, pie); H.r(1, 13, 14, 1, oscuro(pie, 0.2));
+      for (let k = 0; k < 3; k++) H.r(1 + k, 4 - k, 14 - 2 * k, 1, k === 2 ? '#7a3424' : '#9a4430');
+      for (const x of [2, 5, 10, 13]) { H.r(x, 6, 1, 2, LUZ); H.r(x - 1, 8, 3, 1, '#4a4a54'); H.r(x, 10, 1, 2, LUZ); }
+      H.r(7, 9, 2, 5, '#3a2618'); H.r(6, 8, 4, 1, oscuro(pie, 0.2)); H.p(8, 2, col);
+      H.r(0, 14, 16, 1, oscuro(pie, 0.4));
+    } else {
+      const muro = '#ecdfc2', viga = '#5a3a22';
+      H.r(1, 6, 14, 8, muro); for (const x of [1, 4, 8, 11, 14]) H.r(x, 6, 1, 8, viga); H.r(1, 10, 14, 1, viga);
+      for (let k = 0; k < 5; k++) H.r(k, 5 - k, 16 - 2 * k, 1, k === 4 ? '#5a2a1a' : '#7a3a2a');
+      H.r(12, 0, 2, 3, '#7a6a5a');
+      H.r(2, 7, 2, 2, LUZ); H.r(12, 7, 2, 2, LUZ); H.r(5, 7, 2, 2, LUZ); H.r(9, 11, 2, 3, '#3a2618'); H.p(6, 12, col);
+      H.r(0, 14, 16, 1, oscuro(muro, 0.4));
+    }
     H.contorno(); return H.lienzo();
   }
   // El banco (Renacimiento en adelante): fachada de piedra con columnas, frontón, escalinata y la moneda dorada.

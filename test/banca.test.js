@@ -20,6 +20,28 @@ const avisos = [];
 const turno = () => { const n0 = (v.anuncios || []).length; S.turno(m); avisos.push(...(v.anuncios || []).slice(n0).filter(x => x.civ === c.id && /🏦/.test(x.texto)).map(x => x.texto)); };
 for (let k = 0; k < 90 && !(c.bancos > 0 && c.banca); k++) { sostener(); turno(); }
 
+console.log('LOS GREMIOS (Edad Media)');
+{
+  const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 60; k++) S.turno(g);
+  const r = S.vivas(g)[0], w = g.vida; X.gobernar(g, r.id); g.modo = 'pueblo';
+  r.nivel = 4; r.nivelMax = 4; r.madera = r.piedra = 300; r.oro = 300;
+  X.ordenar(g, r.id, 'quiero 4 comerciantes');
+  const av = []; let gremio = null, casona = null, conSueldo = false, oroDeObras = 0;
+  for (let k = 0; k < 220 && !(gremio != null && casona != null && conSueldo); k++) {
+    r.era = Math.max(r.era, 4); r.oro = Math.max(r.oro, 100); r.madera = Math.max(r.madera, 100); r.piedra = Math.max(r.piedra, 100);
+    const n0 = (w.anuncios || []).length; S.turno(g);
+    av.push(...(w.anuncios || []).slice(n0).filter(x => x.civ === r.id).map(x => x.texto));
+    for (const t of Object.keys(w.privados || {})) { if (w.obra[t] === V.OBRA.gremio && gremio == null) gremio = +t; if (w.obra[t] === V.OBRA.casona && casona == null) casona = +t; }
+    if (w.aldeanos.some(a => a.gremio != null && a.o === 5 && V.mercaderesDe(g, r).some(x => x.id === a.gremio))) conSueldo = true;
+  }
+  for (const x of av) { const q = x.match(/paga (\d+) de oro al reino/); if (q) oroDeObras += +q[1]; }
+  comprobar(av.some(x => /funda un gremio de mercaderes/.test(x)) && gremio != null && /^Gremio de mercaderes /.test((w.edificios[gremio] || {}).nombre || ''), 'un comerciante que ahorró funda un gremio con su dinero (' + ((w.edificios[gremio] || {}).nombre || 'ninguno') + ')');
+  comprobar(conSueldo, 'los comerciantes del gremio trabajan para el mercader');
+  comprobar(casona != null && /^Casona de /.test((w.edificios[casona] || {}).nombre || ''), 'el mercader que gana lo bastante se hace su casona (' + ((w.edificios[casona] || {}).nombre || 'ninguna') + ')');
+  comprobar(oroDeObras > 0, 'gremio y casona se pagan al reino: materiales y obra (' + oroDeObras + ' de oro)');
+  comprobar(V.mercaderesDe(g, r).every(a => !a.emp || a.emp.neg === 'banco'), 'los mercaderes no son empresarios de un banco: el gremio es suyo');
+}
+
 console.log('EL BANCO CENTRAL');
 const ahorros = v.aldeanos.filter(a => a.c === c.id && (a.dinero || 0) > 0).length;
 comprobar(ahorros > 0, 'antes del banco, los mercaderes ya han ahorrado (' + ahorros + ' con dinero)');
@@ -36,7 +58,7 @@ comprobar(/Banco central:/.test(X.ordenar(m, c.id, '¿cómo va el banco?').respu
 
 console.log('BANQUEROS Y EMPRESARIOS');
 let fabrica = null, sinBanquero = false, bancos = 0;
-for (let k = 0; k < 200; k++) {
+for (let k = 0; k < 320 && !(fabrica != null && V.banquerosDe(m, c).length); k++) {
   sostener(); turno();
   const emp = V.empresariosDe(m, c);
   bancos = Math.max(bancos, V.banquerosDe(m, c).length);
@@ -57,11 +79,11 @@ comprobar(V.empresariosDe(m, c).every(a => a.o === 5), 'banqueros y empresarios 
   const t = S.casillas(m, c).flatMap(r => V.parcelas(m, r)).find(t => !v.obra[t] && !(v.andamios && v.andamios[t]) && !V.puedeColocar(m, c, t, 'fabrica'));
   const a = v.aldeanos.filter(x => x.c === c.id && !x.emp && (x.edad || 0) >= V.ADULTO).sort((x, y) => (x.edad || 0) - (y.edad || 0))[0];
   if (t != null && a) {
-    v.privados = v.privados || {}; v.privados[t] = { dueno: a.id, civ: c.id };
+    v.privados = v.privados || {}; v.privados[t] = { dueno: a.id, civ: c.id, tipo: 'fabrica' };
     a.emp = { neg: 'fabrica', t, monto: 40, deuda: 48, cuota: 1.6, caja: 0, banquero: null, desde: m.turno, atraso: 0 };
     (c.plan.encargos = c.plan.encargos || []).push({ t, o: V.OBRA.fabrica, clave: 'fabrica', privado: a.id });
     c.madera = 0; c.piedra = 0;
-    let empezada = false; for (let k = 0; k < 30 && !empezada; k++) { c.madera = 0; c.piedra = 0; c.oro = Math.max(c.oro, 120); S.turno(m); empezada = !!((v.andamios && v.andamios[t]) || v.obra[t] === V.OBRA.fabrica); }
+    let empezada = false; for (let k = 0; k < 30 && !empezada; k++) { a.edad = V.ADULTO + 1; c.madera = 0; c.piedra = 0; c.oro = Math.max(c.oro, 120); S.turno(m); empezada = !!((v.andamios && v.andamios[t]) || v.obra[t] === V.OBRA.fabrica); }
     if (!empezada) console.log('   (encargo: ' + JSON.stringify((c.plan.encargos || []).find(x => x.t === t)) + ', privado: ' + JSON.stringify((v.privados || {})[t]) + ', emp: ' + JSON.stringify(a.emp) + ', puede: ' + V.puedeColocar(m, c, t, 'fabrica', true) + ', constructores: ' + v.aldeanos.filter(x => x.c === c.id && x.o === 2).length + ')');
     comprobar(empezada, 'la fábrica privada se empieza sin madera ni piedra del reino (la paga su dueño)');
   } else comprobar(false, 'hay sitio para probar la fábrica privada');
