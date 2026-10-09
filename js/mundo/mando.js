@@ -480,13 +480,14 @@
     if (a.tipo === 'edad' || a.tipo === 'consulta_edad') {
       const sig = M.ERAS[c.era + 1];
       if (!sig) { textos.push('Ya estáis en la última edad.'); return; }
-      if (c.subiendo) { textos.push('Ya estáis pasando a ' + sig.con + ': faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos.'); return; }
+      if (c.subiendo) { const d = c.subiendo.debe; textos.push('Ya estáis pasando a ' + sig.con + ': faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos' + (d ? ' y por pagar ' + Object.keys(d).map(k => Math.ceil(d[k]) + ' de ' + k).join(', ') + ' (se paga poco a poco; si falta, el paso espera)' : '') + '.'); return; }
       const r = S().puedeSubir(m, c), req = M.EDADES[c.era + 1];
       const precio = req ? ['comida', 'madera', 'piedra', 'oro', 'metal'].filter(k => req[k]).map(k => req[k] + ' de ' + k).join(', ') : '';
       if (a.tipo === 'edad' && r.ok) {
         S().empezarSubida(m, c);
         an('⏫ Hacia ' + sig.nombre);
-        textos.push('¡Adelante! Pagáis ' + precio + ' y empieza el paso a ' + sig.con + ' (' + (c.subiendo.hasta - m.turno) + ' turnos). Cuando termine, llegan sus armas, edificios y técnicas.');
+        const d = c.subiendo.debe;
+        textos.push(d ? '¡Adelante! Empieza el paso a ' + sig.con + ' (' + (c.subiendo.hasta - m.turno) + ' turnos). No teníais todo (' + precio + '): pagáis ahora la cuarta parte y el resto (' + Object.keys(d).map(k => Math.ceil(d[k]) + ' de ' + k).join(', ') + ') poco a poco mientras dura; si falta, el paso espera. Cuando termine, llegan sus armas, edificios y técnicas.' : '¡Adelante! Pagáis ' + precio + ' de golpe y empieza el paso a ' + sig.con + ' (' + (c.subiendo.hasta - m.turno) + ' turnos). Cuando termine, llegan sus armas, edificios y técnicas.');
         return;
       }
       textos.push((a.tipo === 'edad' ? 'Aún no podéis pasar a ' + sig.con + '. ' : 'Para pasar a ' + sig.con + ' hace falta: saber ' + sig.umbral + (sig.desde != null && !m.libre ? ', llegar al año ' + S().anioTexto(sig.desde).replace(/(\d)\.$/, '$1') : '') + (req ? ', ' + req.texto + ' y pagar ' + precio : '') + '. ') + (r.falta.length ? 'Os falta: ' + r.falta.join(', ') + '.' : '¡Lo tenéis todo! Decid «avanzad de edad».') + (r.falta.some(x => /saber/.test(x)) ? ' El saber lo traen tus ' + M.ERUDITO(c.era).varios + ': «más ' + M.ERUDITO(c.era).varios + '».' : ''));

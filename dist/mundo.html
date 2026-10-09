@@ -716,7 +716,7 @@ body.limpio .tropas-barra { display: none; }
           <details><summary>Comida y molinos</summary>
             <p>Toca el trigo de la barra para ver de dónde sale la comida: grano, pescado (barcas), carne (caza), leche (rebaños) y frutos. El puerto, con su barca y su mercante, se puede hacer desde el principio. Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
           <details><summary>La corte y las eras</summary>
-            <p>Toca tu plaza o el botón 🏛 para abrir la corte. Ahí eliges qué investigan tus sabios. Para pasar a la era siguiente hacen falta 3 mejoras de la era actual, el saber suficiente, haber llegado a su fecha y lo que pida (un templo, un cuartel, recursos…). Tu gobierno ahorra y pasa de era solo en cuanto se puede (si prefieres decidirlo tú: «no paséis de edad solos», y luego «Avanzar»). Sobre la plaza sale ⏫ si ya puedes avanzar, o ? si los sabios esperan que elijas. Las mejoras no cuestan recursos: las investigan tus sabios (chamanes, filósofos, monjes, científicos…), y cuantos más tengas, antes salen («quiero 4 sabios»). Lo único que se paga es el paso de edad, cuando ya tienes investigado lo que pide.</p></details>
+            <p>Toca tu plaza o el botón 🏛 para abrir la corte. Ahí eliges qué investigan tus sabios. Para pasar a la era siguiente hacen falta 3 mejoras de la era actual, el saber suficiente, haber llegado a su fecha y lo que pida (un templo, un cuartel, recursos…). Los recursos se pagan como las obras: si los tienes todos, de golpe; si no, basta con la cuarta parte para empezar y el resto se paga poco a poco mientras dura el paso (si falta, el paso espera). Tu gobierno ahorra y pasa de era solo en cuanto se puede (si prefieres decidirlo tú: «no paséis de edad solos», y luego «Avanzar»). Sobre la plaza sale ⏫ si ya puedes avanzar, o ? si los sabios esperan que elijas. Las mejoras no cuestan recursos: las investigan tus sabios (chamanes, filósofos, monjes, científicos…), y cuantos más tengas, antes salen («quiero 4 sabios»). Lo único que se paga es el paso de edad, cuando ya tienes investigado lo que pide.</p></details>
           <details><summary>Gente y salud</summary>
             <p>Cada aldeano tiene nombre, padres, pareja y una salud. La muerte es una probabilidad que sube con la edad y con cómo ha vivido: el hambre, las heridas, dormir sin casa o el frío la acercan; una casa, un hospital y la medicina de su época la alejan. Sin casas libres no nacen niños.</p></details>
           <details><summary>Minas y bosques</summary>
@@ -1533,7 +1533,21 @@ body.limpio .tropas-barra { display: none; }
     c.ciencia += ganancia;
     investigar(m, c, c.tecTurno);
     // Subir de edad (como en Age of Empires): cuando se cumple todo, la IA empieza sola; el jugador lo ordena.
-    if (c.subiendo) { if (m.turno >= c.subiendo.hasta) { c.subiendo = null; subirEra(m, c, null); } }
+    if (c.subiendo) {
+      const su = c.subiendo;
+      if (su.debe) {
+        // Se paga lo que toca este turno (lo que falta, repartido en los turnos que quedan); si no llega, el paso espera.
+        const quedan = Math.max(1, su.hasta - m.turno);
+        let falta = false;
+        for (const k of Object.keys(su.debe)) {
+          const q = Math.min(su.debe[k], Math.ceil(su.debe[k] / quedan));
+          if ((c[k] || 0) >= q) { c[k] -= q; su.debe[k] -= q; if (su.debe[k] <= 0) delete su.debe[k]; } else falta = true;
+        }
+        if (!Object.keys(su.debe).length) delete su.debe;
+        if (falta) { su.hasta++; su.espera = (su.espera || 0) + 1; }
+      }
+      if (!su.debe && m.turno >= su.hasta) { c.subiendo = null; subirEra(m, c, null); }
+    }
     else if (M.ERAS[c.era + 1] && (!c.jugador || (c.plan && c.plan.autoEdad)) && puedeSubir(m, c).ok) empezarSubida(m, c);
     tesoro(m, c);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
@@ -1732,15 +1746,24 @@ body.limpio .tropas-barra { display: none; }
     if (m.vida && req) {
       if (req.pide.nivel && (c.nivel || 0) < req.pide.nivel) falta.push(['', 'ser una aldea', 'ser un pueblo', 'ser una villa', 'ser una ciudad'][req.pide.nivel]);
       if (req.pide.obra && !(c[OBRA_CUENTA[req.pide.obra]] > 0)) falta.push('un ' + req.pide.obra);
-      for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k] && (c[k] || 0) < req[k]) falta.push((req[k] - Math.floor(c[k] || 0)) + ' de ' + k);
+      // Como las obras: para empezar basta con la cuarta parte; el resto se paga poco a poco mientras dura el paso.
+      for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k] && (c[k] || 0) < anticipoEdad(req[k])) falta.push((anticipoEdad(req[k]) - Math.floor(c[k] || 0)) + ' de ' + k);
     }
     return { ok: !falta.length, falta };
   }
+  // EL PRECIO DEL PASO DE EDAD, como las obras: si se tiene todo, se paga de golpe; si no, una cuarta parte al
+  // empezar y el resto poco a poco mientras dura el paso. Si en un turno falta, el paso espera (no se pierde lo pagado).
+  const anticipoEdad = n => Math.ceil(n * 0.25);
   function empezarSubida(m, c) {
-    const req = M.EDADES[c.era + 1];
-    if (m.vida && req) for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k]) c[k] = (c[k] || 0) - req[k];
+    const req = M.EDADES[c.era + 1], debe = {};
+    if (m.vida && req) for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k]) {
+      const q = (c[k] || 0) >= req[k] ? req[k] : anticipoEdad(req[k]);
+      c[k] = (c[k] || 0) - q;
+      if (q < req[k]) debe[k] = req[k] - q;
+    }
     const dura = ritmo(m) > 1 ? 4 : 1;
     c.subiendo = { a: c.era + 1, desde: m.turno, hasta: m.turno + dura };
+    if (Object.keys(debe).length) c.subiendo.debe = debe;
     if (c.jugador) cronica(m, 'avance', c.nombre + ' se prepara para ' + M.ERAS[c.era + 1].con, 'Los sabios de ' + c.nombre + ' ponen por escrito lo aprendido, los artesanos ensayan técnicas nuevas y el gobierno paga lo que haga falta: en unos años, otra época.', c);
   }
   function subirEra(m, c, regalo) {
@@ -2230,7 +2253,7 @@ body.limpio .tropas-barra { display: none; }
   }
 
   M.sim = { perderCapital, turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, ordenarPor, prestar, perdonar, deudas, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, anticipoEdad, ordenarPor, prestar, perdonar, deudas, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vida.js
@@ -5274,14 +5297,14 @@ body.limpio .tropas-barra { display: none; }
       const vendeCarbon = pausada(m) && c.cartera && c.cartera.carbon;
       const faltaCarbon = c.era >= 6 && ((c.carbon || 0) < objetivo(c, 'carbon') || (vendeCarbon && (c.carbon || 0) < 80) || (prio(c, 'carbon') > 1 && (c.carbon || 0) < 150));
       a.buscaCarbon = 0;
-      if (faltaCarbon && azar(v) < (quierePiedra ? 0.25 : 0.55)) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] === 3, 5, 'carbon');
+      if (faltaCarbon && azar(v) < (quierePiedra ? 0.25 : 0.55)) { t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] === 3, 5, 'carbon'); }
       if (t < 0 && faltaCarbon && pausada(m) && azar(v) < 0.5) { t = cercaDeCasa(m, a, c, rec, x => ter[x] === 'montana' && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaCarbon = 1; } }
-      if (t < 0 && faltaMetal && azar(v) < (quierePiedra ? 0.2 : 0.8)) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && (v.mena[x] === 1 || v.mena[x] === 2), 4, 'mena');
+      if (t < 0 && faltaMetal && azar(v) < (quierePiedra ? 0.2 : 0.8)) { t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && (v.mena[x] === 1 || v.mena[x] === 2), 4, 'mena'); }
       const faltaPiedra = c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'));
       if (!a.buscaCarbon) a.cantera = 0;
       // Agotadas las vetas sueltas, una mina en la montaña sigue dando metal a quien lo necesita o lo vende.
       if (t < 0 && faltaMetal && pausada(m) && azar(v) < (quierePiedra ? 0.3 : 0.85)) { t = cercaDeCasa(m, a, c, rec, x => ter[x] === 'montana' && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaMetal = 1; } }
-      if (t < 0 && faltaPiedra) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3, 'roca');
+      if (t < 0 && faltaPiedra) { t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3, 'roca'); }
       // Sin vetas ni piedras sueltas cerca (o al azar, para no depender solo de ellas), a la mina: nunca se agota.
       a.enMina = 0;
       if ((c.minasT || []).length && (t < 0 || azar(v) < 0.25) && (faltaPiedra || faltaMetal || faltaCarbon)) {
@@ -5290,6 +5313,10 @@ body.limpio .tropas-barra { display: none; }
       }
       // Sin piedras sueltas cerca, se abre una cantera en la montaña o la colina: más lejos, pero no se acaba.
       if (t < 0 && (faltaPiedra || faltaMetal)) { t = cercaDeCasa(m, a, c, rec, x => (ter[x] === 'montana' || ter[x] === 'colina') && !v.obra[x] && !v.arbol[x] && !v.roca[x], 3, 'cantera'); if (t >= 0) a.cantera = 1; }
+      // Como el leñador: sin nada cerca (ni vetas, ni mina, ni cantera), van más lejos, hasta 8 comarcas, antes que quedarse parados.
+      if (t < 0 && faltaCarbon) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] === 3, 8, 'carbonLejos');
+      if (t < 0 && faltaMetal) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && (v.mena[x] === 1 || v.mena[x] === 2), 8, 'menaLejos');
+      if (t < 0 && faltaPiedra) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 8, 'rocaLejos');
     }
     else if (a.o === GRANJERO) {
       a.siega = 0;
@@ -7501,13 +7528,14 @@ body.limpio .tropas-barra { display: none; }
     if (a.tipo === 'edad' || a.tipo === 'consulta_edad') {
       const sig = M.ERAS[c.era + 1];
       if (!sig) { textos.push('Ya estáis en la última edad.'); return; }
-      if (c.subiendo) { textos.push('Ya estáis pasando a ' + sig.con + ': faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos.'); return; }
+      if (c.subiendo) { const d = c.subiendo.debe; textos.push('Ya estáis pasando a ' + sig.con + ': faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos' + (d ? ' y por pagar ' + Object.keys(d).map(k => Math.ceil(d[k]) + ' de ' + k).join(', ') + ' (se paga poco a poco; si falta, el paso espera)' : '') + '.'); return; }
       const r = S().puedeSubir(m, c), req = M.EDADES[c.era + 1];
       const precio = req ? ['comida', 'madera', 'piedra', 'oro', 'metal'].filter(k => req[k]).map(k => req[k] + ' de ' + k).join(', ') : '';
       if (a.tipo === 'edad' && r.ok) {
         S().empezarSubida(m, c);
         an('⏫ Hacia ' + sig.nombre);
-        textos.push('¡Adelante! Pagáis ' + precio + ' y empieza el paso a ' + sig.con + ' (' + (c.subiendo.hasta - m.turno) + ' turnos). Cuando termine, llegan sus armas, edificios y técnicas.');
+        const d = c.subiendo.debe;
+        textos.push(d ? '¡Adelante! Empieza el paso a ' + sig.con + ' (' + (c.subiendo.hasta - m.turno) + ' turnos). No teníais todo (' + precio + '): pagáis ahora la cuarta parte y el resto (' + Object.keys(d).map(k => Math.ceil(d[k]) + ' de ' + k).join(', ') + ') poco a poco mientras dura; si falta, el paso espera. Cuando termine, llegan sus armas, edificios y técnicas.' : '¡Adelante! Pagáis ' + precio + ' de golpe y empieza el paso a ' + sig.con + ' (' + (c.subiendo.hasta - m.turno) + ' turnos). Cuando termine, llegan sus armas, edificios y técnicas.');
         return;
       }
       textos.push((a.tipo === 'edad' ? 'Aún no podéis pasar a ' + sig.con + '. ' : 'Para pasar a ' + sig.con + ' hace falta: saber ' + sig.umbral + (sig.desde != null && !m.libre ? ', llegar al año ' + S().anioTexto(sig.desde).replace(/(\d)\.$/, '$1') : '') + (req ? ', ' + req.texto + ' y pagar ' + precio : '') + '. ') + (r.falta.length ? 'Os falta: ' + r.falta.join(', ') + '.' : '¡Lo tenéis todo! Decid «avanzad de edad».') + (r.falta.some(x => /saber/.test(x)) ? ' El saber lo traen tus ' + M.ERUDITO(c.era).varios + ': «más ' + M.ERUDITO(c.era).varios + '».' : ''));
@@ -12591,7 +12619,7 @@ body.limpio .tropas-barra { display: none; }
       '<p class="tec-era">' + esc(('Mejoras de ' + M.ERAS[c.era].con).replace(/ de el /, ' del ')) + ' <span class="tenue">· ' + med.hechas + ' de ' + med.lista.length + ' hechas (hacen falta ' + med.pide + ' para avanzar)</span></p>' +
       '<div class="mejoras">' + med.lista.map(tarjeta).join('') + '</div>' +
       (pendientesViejas.length ? '<details class="corte-viejas"><summary>Mejoras pendientes de edades anteriores (' + pendientesViejas.length + ')</summary><div class="mejoras">' + pendientesViejas.map(tarjeta).join('') + '</div></details>' : '') +
-      (sig ? '<p class="tec-era">Siguiente edad: ' + esc(sig.nombre) + '</p>' + (c.subiendo ? '<p class="corte-subiendo">⏫ Pasando a ' + esc(sig.con) + ' <span class="barra"><span style="width:' + Math.round(100 * (m.turno - c.subiendo.desde) / Math.max(1, c.subiendo.hasta - c.subiendo.desde)) + '%"></span></span> faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos</p>' : pideEdad +
+      (sig ? '<p class="tec-era">Siguiente edad: ' + esc(sig.nombre) + '</p>' + (c.subiendo ? '<p class="corte-subiendo">⏫ Pasando a ' + esc(sig.con) + ' <span class="barra"><span style="width:' + Math.round(100 * (m.turno - c.subiendo.desde) / Math.max(1, c.subiendo.hasta - c.subiendo.desde)) + '%"></span></span> faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos' + (c.subiendo.debe ? ' <span class="tenue">· por pagar ' + Object.keys(c.subiendo.debe).map(k => Math.ceil(c.subiendo.debe[k]) + ' de ' + esc(k)).join(', ') + (c.subiendo.espera ? ' (esperando material)' : '') + '</span>' : '') + '</p>' : pideEdad +
         (mio ? '<button type="button" class="obrar corte-avanzar"' + (r.ok ? '' : ' disabled') + '>' + (r.ok ? '⏫ Avanzar a ' + esc(sig.nombre) : 'Aún no se puede avanzar') + '</button>' +
           '<label class="corte-auto"><input type="checkbox" class="corte-auto-c"' + (c.plan && c.plan.autoEdad ? ' checked' : '') + '> Avanzar solos en cuanto se pueda</label>' : '')) : '<p class="tenue">Es la última edad.</p>') +
       '</div>';
@@ -12760,7 +12788,7 @@ body.limpio .tropas-barra { display: none; }
       const r = S.puedeSubir(m, c), precio = req ? ['comida', 'madera', 'piedra', 'oro', 'metal'].filter(k => req[k]).map(k => req[k] + ' ' + k).join(' · ') : '';
       const item = (ok, txt) => '<li class="' + (ok ? 'ok' : 'no') + '">' + (ok ? '✓' : '✗') + ' ' + esc(txt) + '</li>';
       const faltaTxt = r.falta.join(' ');
-      edad = '<div class="edad"><p class="tec-era">Siguiente edad: ' + esc(sig.nombre) + '</p>' + (c.subiendo ? '<p>⏫ Pasando a ' + esc(sig.con) + ': <span class="barra mini"><span style="width:' + Math.round(100 * (m.turno - c.subiendo.desde) / Math.max(1, c.subiendo.hasta - c.subiendo.desde)) + '%"></span></span> faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos</p>' :
+      edad = '<div class="edad"><p class="tec-era">Siguiente edad: ' + esc(sig.nombre) + '</p>' + (c.subiendo ? '<p>⏫ Pasando a ' + esc(sig.con) + ': <span class="barra mini"><span style="width:' + Math.round(100 * (m.turno - c.subiendo.desde) / Math.max(1, c.subiendo.hasta - c.subiendo.desde)) + '%"></span></span> faltan ' + Math.max(0, c.subiendo.hasta - m.turno) + ' turnos' + (c.subiendo.debe ? ' <span class="tenue">· por pagar ' + Object.keys(c.subiendo.debe).map(k => Math.ceil(c.subiendo.debe[k]) + ' de ' + esc(k)).join(', ') + '</span>' : '') + '</p>' :
         '<ul class="edad-req">' + item(!/saber/.test(faltaTxt), 'Saber ' + Math.floor(c.ciencia) + ' / ' + sig.umbral + ' (lo traen tus ' + M.ERUDITO(c.era).varios + ')') +
         (sig.desde != null && !m.libre ? item(!/llegar al año/.test(faltaTxt), 'Año ' + S.anioTexto(sig.desde).replace(/(\d)\.$/, '$1')) : '') +
         (req ? item(!/ser una|ser un|un templo|un cuartel|un castillo/.test(faltaTxt), req.texto.charAt(0).toUpperCase() + req.texto.slice(1)) + item(!/ de (comida|madera|piedra|oro|metal)/.test(faltaTxt), 'Pagar ' + precio) : '') + '</ul>' +

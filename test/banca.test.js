@@ -119,5 +119,27 @@ console.log('LOS CRÉDITOS ENTRE REINOS');
   comprobar(/hace falta un banco/.test(S.prestar(m, o, c, 10).texto) || o.bancos > 0, 'sin banco no se puede prestar');
 }
 
+console.log('EL PASO DE EDAD SE PAGA COMO LAS OBRAS');
+{
+  const e = S.crear(9, 5, { ritmo: 3 }); for (let k = 0; k < 20; k++) S.turno(e);
+  const [c1, c2] = S.vivas(e), req = M.EDADES[c1.era + 1], ks = ['comida', 'madera', 'piedra', 'oro', 'metal'].filter(k => req[k]);
+  // Con todo: de golpe.
+  for (const k of ks) c1[k] = req[k] + 5;
+  S.empezarSubida(e, c1);
+  comprobar(!c1.subiendo.debe && ks.every(k => Math.round(c1[k]) === 5), 'con todo el precio, se paga de golpe');
+  // Con un tercio: la cuarta parte ahora y el resto poco a poco; si falta, espera; al tener, termina.
+  for (const k of ks) c2[k] = Math.ceil(req[k] / 3);
+  const era0 = c2.era;
+  comprobar(!ks.some(k => S.puedeSubir(e, c2).falta.some(f => f.endsWith(' de ' + k))), 'para empezar basta con la cuarta parte de cada cosa');
+  S.empezarSubida(e, c2);
+  comprobar(c2.subiendo && c2.subiendo.debe && ks.every(k => Math.round(c2.subiendo.debe[k]) === req[k] - Math.ceil(req[k] * 0.25)), 'sin todo, paga la cuarta parte y apunta lo que falta');
+  for (const k of ks) c2[k] = 0;
+  const hasta0 = c2.subiendo.hasta;
+  for (let k = 0; k < 6; k++) { for (const x of ks) c2[x] = 0; S.turno(e); }
+  comprobar(c2.era === era0 && c2.subiendo && c2.subiendo.hasta > hasta0, 'sin material, el paso espera (no avanza de edad)');
+  for (let k = 0; k < 12 && c2.era === era0; k++) { for (const x of ks) c2[x] = Math.max(c2[x] || 0, req[x]); S.turno(e); }
+  comprobar(c2.era === era0 + 1, 'con material, termina de pagar y pasa de edad');
+}
+
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
 process.exit(fallos ? 1 : 0);

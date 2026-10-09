@@ -3038,14 +3038,14 @@
       const vendeCarbon = pausada(m) && c.cartera && c.cartera.carbon;
       const faltaCarbon = c.era >= 6 && ((c.carbon || 0) < objetivo(c, 'carbon') || (vendeCarbon && (c.carbon || 0) < 80) || (prio(c, 'carbon') > 1 && (c.carbon || 0) < 150));
       a.buscaCarbon = 0;
-      if (faltaCarbon && azar(v) < (quierePiedra ? 0.25 : 0.55)) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] === 3, 5, 'carbon');
+      if (faltaCarbon && azar(v) < (quierePiedra ? 0.25 : 0.55)) { t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] === 3, 5, 'carbon'); }
       if (t < 0 && faltaCarbon && pausada(m) && azar(v) < 0.5) { t = cercaDeCasa(m, a, c, rec, x => ter[x] === 'montana' && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaCarbon = 1; } }
-      if (t < 0 && faltaMetal && azar(v) < (quierePiedra ? 0.2 : 0.8)) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && (v.mena[x] === 1 || v.mena[x] === 2), 4, 'mena');
+      if (t < 0 && faltaMetal && azar(v) < (quierePiedra ? 0.2 : 0.8)) { t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && (v.mena[x] === 1 || v.mena[x] === 2), 4, 'mena'); }
       const faltaPiedra = c.piedra < (30 + 10 * c.era) * Math.max(0.5, prio(c, 'piedra'));
       if (!a.buscaCarbon) a.cantera = 0;
       // Agotadas las vetas sueltas, una mina en la montaña sigue dando metal a quien lo necesita o lo vende.
       if (t < 0 && faltaMetal && pausada(m) && azar(v) < (quierePiedra ? 0.3 : 0.85)) { t = cercaDeCasa(m, a, c, rec, x => ter[x] === 'montana' && !v.obra[x] && !v.arbol[x] && !v.roca[x], 5, 'mina'); if (t >= 0) { a.cantera = 1; a.buscaMetal = 1; } }
-      if (t < 0 && faltaPiedra) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3, 'roca');
+      if (t < 0 && faltaPiedra) { t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 3, 'roca'); }
       // Sin vetas ni piedras sueltas cerca (o al azar, para no depender solo de ellas), a la mina: nunca se agota.
       a.enMina = 0;
       if ((c.minasT || []).length && (t < 0 || azar(v) < 0.25) && (faltaPiedra || faltaMetal || faltaCarbon)) {
@@ -3054,6 +3054,10 @@
       }
       // Sin piedras sueltas cerca, se abre una cantera en la montaña o la colina: más lejos, pero no se acaba.
       if (t < 0 && (faltaPiedra || faltaMetal)) { t = cercaDeCasa(m, a, c, rec, x => (ter[x] === 'montana' || ter[x] === 'colina') && !v.obra[x] && !v.arbol[x] && !v.roca[x], 3, 'cantera'); if (t >= 0) a.cantera = 1; }
+      // Como el leñador: sin nada cerca (ni vetas, ni mina, ni cantera), van más lejos, hasta 8 comarcas, antes que quedarse parados.
+      if (t < 0 && faltaCarbon) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && v.mena[x] === 3, 8, 'carbonLejos');
+      if (t < 0 && faltaMetal) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && (v.mena[x] === 1 || v.mena[x] === 2), 8, 'menaLejos');
+      if (t < 0 && faltaPiedra) t = cercaDeCasa(m, a, c, rec, x => v.roca[x] > 0 && ter[x] !== 'agua', 8, 'rocaLejos');
     }
     else if (a.o === GRANJERO) {
       a.siega = 0;

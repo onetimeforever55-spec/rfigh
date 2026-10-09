@@ -841,14 +841,16 @@ console.log('TRINCHERAS EN LA SEGUNDA GUERRA MUNDIAL');
 {
   // Un mundo (de varias semillas) con dos vecinos con frontera y alguno con soldados: la pareja de frontera más larga.
   const V = M.vida;
-  let m = null, par = null;
-  for (const sem of [11, 12, 13, 14, 15, 16]) {
+  let m = null, par = null, mejor = null;
+  for (const sem of [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) {
     m = S.crear(sem, 5, { ritmo: 3 });
     for (let k = 0; k < 200; k++) S.turno(m);
     par = S.vivas(m).flatMap(c => S.vecinosDe(m, c).map(o => [c, o])).filter(([c, o]) => c.guerreros + o.guerreros > 3).sort((p, q) => S.frontera(m, q[0], q[1]).length - S.frontera(m, p[0], p[1]).length)[0];
     if (!par) { const c = S.vivas(m).find(x => S.vecinosDe(m, x).length); if (c) par = [c, S.vecinosDe(m, c)[0]]; }
-    if (par && S.frontera(m, par[0], par[1]).length >= 6) break;
+    if (par && (!mejor || S.frontera(m, par[0], par[1]).length > mejor.largo)) mejor = { m, par, largo: S.frontera(m, par[0], par[1]).length };
+    if (mejor && mejor.largo >= 6) break;
   }
+  m = mejor.m; par = mejor.par;
   const [a, o] = par;
   comprobar(!m.vida.trinchera || !m.vida.trinchera.some(Boolean), 'antes de la Segunda Guerra Mundial nadie cava trincheras');
   // (Dónde están las trincheras se mira justo antes de la guerra: luego las conquistas mueven la frontera.)

@@ -398,7 +398,21 @@
     c.ciencia += ganancia;
     investigar(m, c, c.tecTurno);
     // Subir de edad (como en Age of Empires): cuando se cumple todo, la IA empieza sola; el jugador lo ordena.
-    if (c.subiendo) { if (m.turno >= c.subiendo.hasta) { c.subiendo = null; subirEra(m, c, null); } }
+    if (c.subiendo) {
+      const su = c.subiendo;
+      if (su.debe) {
+        // Se paga lo que toca este turno (lo que falta, repartido en los turnos que quedan); si no llega, el paso espera.
+        const quedan = Math.max(1, su.hasta - m.turno);
+        let falta = false;
+        for (const k of Object.keys(su.debe)) {
+          const q = Math.min(su.debe[k], Math.ceil(su.debe[k] / quedan));
+          if ((c[k] || 0) >= q) { c[k] -= q; su.debe[k] -= q; if (su.debe[k] <= 0) delete su.debe[k]; } else falta = true;
+        }
+        if (!Object.keys(su.debe).length) delete su.debe;
+        if (falta) { su.hasta++; su.espera = (su.espera || 0) + 1; }
+      }
+      if (!su.debe && m.turno >= su.hasta) { c.subiendo = null; subirEra(m, c, null); }
+    }
     else if (M.ERAS[c.era + 1] && (!c.jugador || (c.plan && c.plan.autoEdad)) && puedeSubir(m, c).ok) empezarSubida(m, c);
     tesoro(m, c);
     // Estabilidad: el carácter, el tamaño (sobreextensión), las guerras, el hambre y el desorden heredado.
@@ -597,15 +611,24 @@
     if (m.vida && req) {
       if (req.pide.nivel && (c.nivel || 0) < req.pide.nivel) falta.push(['', 'ser una aldea', 'ser un pueblo', 'ser una villa', 'ser una ciudad'][req.pide.nivel]);
       if (req.pide.obra && !(c[OBRA_CUENTA[req.pide.obra]] > 0)) falta.push('un ' + req.pide.obra);
-      for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k] && (c[k] || 0) < req[k]) falta.push((req[k] - Math.floor(c[k] || 0)) + ' de ' + k);
+      // Como las obras: para empezar basta con la cuarta parte; el resto se paga poco a poco mientras dura el paso.
+      for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k] && (c[k] || 0) < anticipoEdad(req[k])) falta.push((anticipoEdad(req[k]) - Math.floor(c[k] || 0)) + ' de ' + k);
     }
     return { ok: !falta.length, falta };
   }
+  // EL PRECIO DEL PASO DE EDAD, como las obras: si se tiene todo, se paga de golpe; si no, una cuarta parte al
+  // empezar y el resto poco a poco mientras dura el paso. Si en un turno falta, el paso espera (no se pierde lo pagado).
+  const anticipoEdad = n => Math.ceil(n * 0.25);
   function empezarSubida(m, c) {
-    const req = M.EDADES[c.era + 1];
-    if (m.vida && req) for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k]) c[k] = (c[k] || 0) - req[k];
+    const req = M.EDADES[c.era + 1], debe = {};
+    if (m.vida && req) for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k]) {
+      const q = (c[k] || 0) >= req[k] ? req[k] : anticipoEdad(req[k]);
+      c[k] = (c[k] || 0) - q;
+      if (q < req[k]) debe[k] = req[k] - q;
+    }
     const dura = ritmo(m) > 1 ? 4 : 1;
     c.subiendo = { a: c.era + 1, desde: m.turno, hasta: m.turno + dura };
+    if (Object.keys(debe).length) c.subiendo.debe = debe;
     if (c.jugador) cronica(m, 'avance', c.nombre + ' se prepara para ' + M.ERAS[c.era + 1].con, 'Los sabios de ' + c.nombre + ' ponen por escrito lo aprendido, los artesanos ensayan técnicas nuevas y el gobierno paga lo que haga falta: en unos años, otra época.', c);
   }
   function subirEra(m, c, regalo) {
@@ -1095,5 +1118,5 @@
   }
 
   M.sim = { perderCapital, turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, ordenarPor, prestar, perdonar, deudas, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, anticipoEdad, ordenarPor, prestar, perdonar, deudas, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
