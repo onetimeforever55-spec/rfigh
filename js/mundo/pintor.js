@@ -1108,6 +1108,23 @@
         g.fillStyle = '#e8e0c8'; g.fillText(x.nombre, sx, sy);
       }
     }
+    // Los letreros de los gremios, de madera con letras doradas, cuando te acercas.
+    if (cam.z >= 2.4 && m.vida && m.vida.privados) {
+      const v = m.vida, tl = Math.round(9 * dpr);
+      g.font = '600 ' + tl + 'px "Pixelify Sans", "Courier New", monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      for (const t of Object.keys(v.privados)) {
+        if (v.obra[t] !== V.OBRA.gremio) continue;
+        const rec = v.edificios && v.edificios[t], texto = rec && rec.nombre ? rec.nombre.replace(/^Gremio de mercaderes /, 'Gremio ') : 'Gremio';
+        const wx = (t % v.tw) * P + P / 2, wy = Math.floor(t / v.tw) * P - 3;
+        const sx = ox + wx * z, sy = oy + wy * z, ancho = g.measureText(texto).width + 8 * dpr, alto = tl * 1.5;
+        if (sx < -ancho || sy < -alto || sx > g.canvas.width + ancho || sy > g.canvas.height + alto) continue;
+        g.fillStyle = '#3a2412'; g.fillRect(sx - ancho / 2 - dpr, sy - alto / 2 - dpr, ancho + 2 * dpr, alto + 2 * dpr);
+        g.fillStyle = '#8a5a2b'; g.fillRect(sx - ancho / 2, sy - alto / 2, ancho, alto);
+        g.fillStyle = '#a06a34'; g.fillRect(sx - ancho / 2, sy - alto / 2, ancho, dpr);
+        g.fillStyle = '#f0c040'; g.fillText(texto, sx, sy + dpr * 0.5);
+      }
+    }
     const tam = Math.round(12 * dpr);
     g.font = '600 ' + tam + 'px "Pixelify Sans", "Courier New", monospace';
     g.textAlign = 'center'; g.textBaseline = 'middle';

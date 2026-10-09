@@ -599,6 +599,10 @@
     for (let k = 0; k < 4; k++) H.r(k, 4 - k, 16 - 2 * k, 1, k === 3 ? oscuro(teja, 0.2) : teja);
     H.r(3, 6, 2, 2, LUZ); H.r(11, 6, 2, 2, LUZ); H.r(7, 6, 2, 2, LUZ);
     H.r(7, 10, 3, 4, '#3a2618'); H.p(9, 12, '#c8a050');
+    // El letrero de madera sobre la puerta, con letras doradas.
+    H.r(4, 8, 8, 2, '#7a4a22'); H.r(4, 8, 8, 1, '#8a5a2b');
+    for (const x of [5, 6, 8, 9, 10]) H.p(x, 9, '#f0c040');
+    H.p(5, 8, '#f0c040'); H.p(8, 8, '#f0c040'); H.p(10, 8, '#f0c040');
     // El cartel del gremio, colgado de un brazo de hierro, con el color del reino y una balanza dorada.
     H.r(11, 10, 1, 1, '#3a3a40'); H.r(11, 11, 3, 2, col); H.p(12, 11, '#f0c040'); H.p(13, 12, '#f0c040');
     // Fardos y un tonel.

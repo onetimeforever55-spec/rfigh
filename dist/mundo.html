@@ -9084,6 +9084,10 @@ body.limpio .tropas-barra { display: none; }
     for (let k = 0; k < 4; k++) H.r(k, 4 - k, 16 - 2 * k, 1, k === 3 ? oscuro(teja, 0.2) : teja);
     H.r(3, 6, 2, 2, LUZ); H.r(11, 6, 2, 2, LUZ); H.r(7, 6, 2, 2, LUZ);
     H.r(7, 10, 3, 4, '#3a2618'); H.p(9, 12, '#c8a050');
+    // El letrero de madera sobre la puerta, con letras doradas.
+    H.r(4, 8, 8, 2, '#7a4a22'); H.r(4, 8, 8, 1, '#8a5a2b');
+    for (const x of [5, 6, 8, 9, 10]) H.p(x, 9, '#f0c040');
+    H.p(5, 8, '#f0c040'); H.p(8, 8, '#f0c040'); H.p(10, 8, '#f0c040');
     // El cartel del gremio, colgado de un brazo de hierro, con el color del reino y una balanza dorada.
     H.r(11, 10, 1, 1, '#3a3a40'); H.r(11, 11, 3, 2, col); H.p(12, 11, '#f0c040'); H.p(13, 12, '#f0c040');
     // Fardos y un tonel.
@@ -10926,6 +10930,23 @@ body.limpio .tropas-barra { display: none; }
         g.fillStyle = 'rgba(13,19,34,0.7)'; g.fillRect(sx - ancho / 2, sy - tc * 0.7, ancho, tc * 1.4);
         g.fillStyle = c.color; g.fillRect(sx - ancho / 2, sy - tc * 0.7, 2 * dpr, tc * 1.4);
         g.fillStyle = '#e8e0c8'; g.fillText(x.nombre, sx, sy);
+      }
+    }
+    // Los letreros de los gremios, de madera con letras doradas, cuando te acercas.
+    if (cam.z >= 2.4 && m.vida && m.vida.privados) {
+      const v = m.vida, tl = Math.round(9 * dpr);
+      g.font = '600 ' + tl + 'px "Pixelify Sans", "Courier New", monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      for (const t of Object.keys(v.privados)) {
+        if (v.obra[t] !== V.OBRA.gremio) continue;
+        const rec = v.edificios && v.edificios[t], texto = rec && rec.nombre ? rec.nombre.replace(/^Gremio de mercaderes /, 'Gremio ') : 'Gremio';
+        const wx = (t % v.tw) * P + P / 2, wy = Math.floor(t / v.tw) * P - 3;
+        const sx = ox + wx * z, sy = oy + wy * z, ancho = g.measureText(texto).width + 8 * dpr, alto = tl * 1.5;
+        if (sx < -ancho || sy < -alto || sx > g.canvas.width + ancho || sy > g.canvas.height + alto) continue;
+        g.fillStyle = '#3a2412'; g.fillRect(sx - ancho / 2 - dpr, sy - alto / 2 - dpr, ancho + 2 * dpr, alto + 2 * dpr);
+        g.fillStyle = '#8a5a2b'; g.fillRect(sx - ancho / 2, sy - alto / 2, ancho, alto);
+        g.fillStyle = '#a06a34'; g.fillRect(sx - ancho / 2, sy - alto / 2, ancho, dpr);
+        g.fillStyle = '#f0c040'; g.fillText(texto, sx, sy + dpr * 0.5);
       }
     }
     const tam = Math.round(12 * dpr);
