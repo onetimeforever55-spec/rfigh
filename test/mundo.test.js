@@ -847,7 +847,7 @@ console.log('TRINCHERAS EN LA SEGUNDA GUERRA MUNDIAL');
     for (let k = 0; k < 200; k++) S.turno(m);
     par = S.vivas(m).flatMap(c => S.vecinosDe(m, c).map(o => [c, o])).filter(([c, o]) => c.guerreros + o.guerreros > 3).sort((p, q) => S.frontera(m, q[0], q[1]).length - S.frontera(m, p[0], p[1]).length)[0];
     if (!par) { const c = S.vivas(m).find(x => S.vecinosDe(m, x).length); if (c) par = [c, S.vecinosDe(m, c)[0]]; }
-    if (par) break;
+    if (par && S.frontera(m, par[0], par[1]).length >= 6) break;
   }
   const [a, o] = par;
   comprobar(!m.vida.trinchera || !m.vida.trinchera.some(Boolean), 'antes de la Segunda Guerra Mundial nadie cava trincheras');
@@ -1005,9 +1005,16 @@ console.log('COMERCIO A TU MANDO, SABIOS QUE INVESTIGAN Y ANEXIONES');
   comprobar(M.TECNOLOGIAS.every(x => !Object.keys(x.precio || {}).length) && M.EDADES[5].oro > 95, 'las mejoras no cuestan recursos (lo que se paga es el paso de edad, que ahora cuesta más)');
   {
     const A = S.crear(5, 5, { ritmo: 3 }), B = S.crear(5, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) { S.turno(A); S.turno(B); }
-    const ca = S.vivas(A)[0], cb = S.vivas(B)[0], pts = c => (c.investigacion ? c.investigacion.puntos : 0) + M.tecsDe(c).reduce((k, id) => k + M.costeTec(M.TECNOLOGIAS.find(t => t.id === id)), 0);
+    // El mismo reino en dos copias del mundo: en una con 4 sabios fijos, en la otra sin ninguno. El saber cuenta
+    // también lo que se guarda («banco») cuando no hay mejora elegida.
+    const ca = S.vivas(A)[0], cb = S.vivas(B)[0], pts = c => (c.investigacion ? c.investigacion.puntos + (c.investigacion.banco || 0) : 0) + M.tecsDe(c).reduce((k, id) => k + M.costeTec(M.TECNOLOGIAS.find(t => t.id === id)), 0);
     const a0 = pts(ca), b0 = pts(cb);
-    for (let k = 0; k < 20; k++) { for (const x of B.vida.aldeanos) if (x.c === cb.id && x.o === 6) M.vida.mover(x, 1); S.turno(A); S.turno(B); }
+    for (let k = 0; k < 20; k++) {
+      for (const x of B.vida.aldeanos) if (x.c === cb.id && x.o === 6) M.vida.mover(x, 1);
+      const suyos = A.vida.aldeanos.filter(x => x.c === ca.id && x.o !== 4 && (x.edad || 20) >= 16);
+      for (const x of suyos.slice(0, 4)) if (x.o !== 6) M.vida.mover(x, 6);
+      S.turno(A); S.turno(B);
+    }
     comprobar(pts(ca) - a0 > (pts(cb) - b0) * 1.3, 'los sabios investigan: con ellos las mejoras avanzan mucho más que sin ellos (' + Math.round(pts(cb) - b0) + ' → ' + Math.round(pts(ca) - a0) + ' de saber en 20 turnos)');
   }
   // Anexionar: un reino mucho más débil se rinde entero y sus tierras no se rebelan.
