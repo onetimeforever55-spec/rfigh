@@ -338,11 +338,11 @@
     const tarjeta = t => {
       const hecha = ts.includes(t.id), ahora = inv === t.id, falta = hecha || ahora ? [] : S.faltaPara(m, c, t);
       const pct = ahora ? Math.min(100, Math.round(100 * c.investigacion.puntos / M.costeTec(t))) : 0;
-      const turnos = ahora ? Math.max(1, Math.ceil((M.costeTec(t) - c.investigacion.puntos) / Math.max(0.01, c.cienciaTurno || 1))) : 0;
+      const turnos = ahora ? Math.max(1, Math.ceil((M.costeTec(t) - c.investigacion.puntos) / Math.max(0.01, c.tecTurno || c.cienciaTurno || 1))) : 0;
       return '<div class="mejora' + (hecha ? ' hecha' : ahora ? ' ahora' : falta.length ? ' falta' : '') + '">' +
         '<div class="mejora-cab"><b>' + esc(t.nombre) + '</b>' + (hecha ? '<span class="verde">✓ hecha</span>' : '') + '</div>' +
         '<p class="mejora-texto">' + esc(t.texto) + '</p>' +
-        (hecha ? '' : '<p class="mejora-precio">' + precioTxt(t.precio) + ' <span class="tenue">· en ' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · ' + M.costeTec(t) + ' de saber</span></p>') +
+        (hecha ? '' : '<p class="mejora-precio"><span class="tenue">en ' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · ' + M.costeTec(t) + ' de saber · la investigan tus sabios, sin coste</span></p>') +
         (ahora ? '<div class="mejora-barra"><span class="barra"><span style="width:' + pct + '%"></span></span> ' + pct + ' % <span class="tenue">· unos ' + turnos + ' turnos</span></div>' + (() => { const d = S.porPagar(c, t), ks = Object.keys(d); return ks.length ? '<p class="' + (c.investigacion.esperaPago ? 'rojo ' : 'tenue ') + 'mejora-falta">' + (c.investigacion.esperaPago ? 'Parado: faltan recursos para seguir pagando · ' : 'Se paga poco a poco · queda ') + esc(precioTxt(d)) + '</p>' : ''; })() :
           !hecha && mio ? (falta.length ? '<p class="rojo mejora-falta">Falta: ' + esc(falta.join(', ')) + '</p>' : '') + '<button type="button" class="' + (falta.length ? 'mando sutil' : 'obrar') + ' corte-tec" data-nombre="' + esc(t.nombre) + '">' + (falta.length ? 'Apuntar para después' : 'Investigar') + '</button>' : '') +
         '</div>';
@@ -535,12 +535,12 @@
         (req ? item(!/ser una|ser un|un templo|un cuartel|un castillo/.test(faltaTxt), req.texto.charAt(0).toUpperCase() + req.texto.slice(1)) + item(!/ de (comida|madera|piedra|oro|metal)/.test(faltaTxt), 'Pagar ' + precio) : '') + '</ul>' +
         (c.jugador ? '<button type="button" class="obrar avanzar-edad"' + (r.ok ? '' : ' disabled') + '>Avanzar a ' + esc(sig.nombre) + '</button>' : '')) + '</div>';
     }
-    return '<div class="arbol">' + edad + (c.jugador ? '<p class="tenue arbol-ayuda">Las mejoras se investigan en su edificio (el molino, el templo, el cuartel…) y se pagan poco a poco mientras se investigan (no hace falta tenerlo todo de golpe); el saber lo traen tus ' + esc(M.ERUDITO(c.era).varios) + '. Toca una para investigarla o escribe «investigad …».</p>' : '') + eras.map(e => {
+    return '<div class="arbol">' + edad + (c.jugador ? '<p class="tenue arbol-ayuda">Las mejoras se investigan en su edificio (el molino, el templo, el cuartel…) y no cuestan recursos: las investigan tus sabios (cuantos más, antes); lo que se paga es el paso de edad. El saber lo traen tus ' + esc(M.ERUDITO(c.era).varios) + '. Toca una para investigarla o escribe «investigad …».</p>' : '') + eras.map(e => {
       const filas = M.TECNOLOGIAS.filter(t => t.era === e).map(t => {
         const hecha = ts.includes(t.id), ahora = inv === t.id, abierta = !hecha && t.era <= c.era;
         const pct = ahora ? Math.min(100, Math.round(100 * c.investigacion.puntos / M.costeTec(t))) : 0;
         const falta = !hecha && !ahora && abierta ? S.faltaPara(m, c, t) : [];
-        const precio = '<span class="tec-precio">' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · ' + Object.keys(t.precio || {}).map(k => t.precio[k] + ' ' + k).join(', ') + '</span>';
+        const precio = '<span class="tec-precio">' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · la investigan tus sabios</span>';
         const estado = hecha ? '<span class="verde">✓</span>' : ahora ? '<span class="barra mini"><span style="width:' + pct + '%"></span></span> ' + pct + ' %' : abierta ? (c.jugador ? '<button type="button" class="ejemplo tec-elegir" data-nombre="' + esc(t.nombre) + '">' + (pide === t.id ? 'siguiente' : 'investigar') + '</button>' : '<span class="tenue">pendiente</span>') : '<span class="tenue">🔒</span>';
         return '<li class="tec' + (hecha ? ' hecha' : ahora ? ' ahora' : abierta ? '' : ' cerrada') + '"><span class="tec-nombre">' + esc(t.nombre) + '</span> <span class="tenue">' + esc(t.texto) + '</span> <span class="tec-estado">' + estado + '</span>' + (hecha ? '' : '<br>' + precio + (falta.length ? ' <span class="rojo">· falta ' + esc(falta.join(', ')) + '</span>' : '')) + '</li>';
       }).join('');

@@ -872,7 +872,8 @@ console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
   const [a, b] = S.vivas(m).filter(c => S.casillas(m, c).length > 3);
   m.ciudades = (m.ciudades || []).filter(x => x.civ !== a.id);
   const tierrasA = S.casillas(m, a).length, antesB = S.casillas(m, b).length;
-  m.dueno[a.capital] = b.id; S.turno(m);
+  // (Se aplica la caída directamente: en un turno entero podría formarse antes otra ciudad en sus tierras.)
+  m.dueno[a.capital] = b.id; S.perderCapital(m, a, S.casillas(m, a));
   comprobar(!a.viva && S.casillas(m, b).length >= antesB + tierrasA - 2, 'sin otra ciudad, perder la capital hunde el reino y el conquistador se queda con sus tierras');
   // Con otra ciudad, la corte huye allí (no a un prado vacío) y el reino queda tocado.
   const c = S.vivas(m).filter(x => x !== b && S.casillas(m, x).length > 4).sort((p, q) => S.casillas(m, q).length - S.casillas(m, p).length)[0];
@@ -882,7 +883,7 @@ console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
   const molinos = () => { let n = 0; for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === V.OBRA.molino) n++; return n; };
   const est = c.estab, mol = molinos(), vieja = c.capital;
   // (Huye a la ciudad más cercana que tenga: la de prueba u otra que se haya formado en ese mismo turno.)
-  m.dueno[c.capital] = b.id; c.oro = 100; S.turno(m);
+  m.dueno[c.capital] = b.id; c.oro = 100; S.perderCapital(m, c, S.casillas(m, c));
   comprobar((v.sucesos || []).some(x => x.tipo === 'caida') && v.sucesos.some(x => x.tipo === 'saqueo' && x.civ === b.id) && v.sucesos.some(x => x.tipo === 'huye' && x.region === c.capital), 'la caída, el saqueo y la huida de la corte quedan apuntados para verlos en el mapa');
   comprobar(c.viva && c.capital !== vieja && m.dueno[c.capital] === c.id && !(m.ciudades || []).some(x => x.region === c.capital) && c.estab < est && molinos() <= mol + 1, 'con otra ciudad, la corte huye a ella (sin plaza ni molino regalados) y el reino pierde estabilidad');
   // Los reinos que se separan conservan la técnica y parte del almacén de la metrópoli.
@@ -983,7 +984,7 @@ console.log('FUNDAR PUEBLOS (TAMBIÉN AL OTRO LADO DEL MAR)');
   S.maxCiudades = maxAntes;
 }
 
-console.log('COMERCIO A TU MANDO, MEJORAS A PLAZOS, ANEXIONES Y BOSQUES');
+console.log('COMERCIO A TU MANDO, SABIOS QUE INVESTIGAN Y ANEXIONES');
 {
   const V = M.vida, X = M.mando;
   const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(m);
@@ -994,18 +995,15 @@ console.log('COMERCIO A TU MANDO, MEJORAS A PLAZOS, ANEXIONES Y BOSQUES');
   comprobar(!otro || V.sociosDe(m, yo).includes(otro), 'un tratado de comercio ya cuenta como socio para comprar y vender');
   comprobar(!/No comerciáis con ningún reino/.test(X.ordenar(m, yo.id, 'comprad 10 de piedra').respuesta || ''), 'la orden de comprar encuentra a los socios');
   comprobar(!V.comercioLibre(yo) && /solos/.test(X.ordenar(m, yo.id, 'comerciad libremente').respuesta) && V.comercioLibre(yo) && !(X.ordenar(m, yo.id, 'comerciad solo lo que yo diga'), V.comercioLibre(yo)), 'tu reino solo comercia lo que mandes, salvo que digas «comerciad libremente»');
-  // Las mejoras se pagan poco a poco.
-  const t = M.TECNOLOGIAS.find(x => x.era <= yo.era && !M.tecsDe(yo).includes(x.id) && Object.keys(x.precio).length);
-  if (t) {
-    const antes = Object.assign({}, yo), pl = { autoEdad: yo.plan.autoEdad, ahorrarEdad: yo.plan.ahorrarEdad }; yo.plan.autoEdad = yo.plan.ahorrarEdad = false; for (const k of Object.keys(t.precio)) yo[k] = t.precio[k] * 0.3 + (k === 'comida' ? yo.aldeanos : 0);
-    yo.investigacion = { id: t.id, puntos: 0 };
-    S.investigar(m, yo, M.costeTec(t));
-    const parte = S.partePagada(yo, t);
-    comprobar(yo.investigacion.puntos > 0 && parte > 0.1 && parte < 0.9 && yo.investigacion.puntos <= parte * M.costeTec(t) + 1e-6, 'una mejora se paga a medida que avanza: con el 30 % del precio se investiga hasta donde está pagado (' + Math.round(parte * 100) + ' %)');
-    for (const k of Object.keys(t.precio)) yo[k] = antes[k];
-    Object.assign(yo.plan, pl);
-  } else comprobar(true, 'no queda ninguna mejora por investigar en esta era');
-  comprobar(M.TECNOLOGIAS.filter(x => x.era >= 6).every(x => !x.precio.madera), 'desde la Revolución Industrial la ciencia no se paga con madera');
+  // Las mejoras las investigan los sabios: no cuestan recursos, y sin sabios la técnica casi no avanza.
+  comprobar(M.TECNOLOGIAS.every(x => !Object.keys(x.precio || {}).length) && M.EDADES[5].oro > 95, 'las mejoras no cuestan recursos (lo que se paga es el paso de edad, que ahora cuesta más)');
+  {
+    const A = S.crear(5, 5, { ritmo: 3 }), B = S.crear(5, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) { S.turno(A); S.turno(B); }
+    const ca = S.vivas(A)[0], cb = S.vivas(B)[0], pts = c => (c.investigacion ? c.investigacion.puntos : 0) + M.tecsDe(c).reduce((k, id) => k + M.costeTec(M.TECNOLOGIAS.find(t => t.id === id)), 0);
+    const a0 = pts(ca), b0 = pts(cb);
+    for (let k = 0; k < 20; k++) { for (const x of B.vida.aldeanos) if (x.c === cb.id && x.o === 6) M.vida.mover(x, 1); S.turno(A); S.turno(B); }
+    comprobar(pts(ca) - a0 > (pts(cb) - b0) * 1.3, 'los sabios investigan: con ellos las mejoras avanzan mucho más que sin ellos (' + Math.round(pts(cb) - b0) + ' → ' + Math.round(pts(ca) - a0) + ' de saber en 20 turnos)');
+  }
   // Anexionar: un reino mucho más débil se rinde entero y sus tierras no se rebelan.
   const debil = S.vecinosDe(m, yo).filter(o => o.viva).sort((a, b) => S.fuerza(m, a) - S.fuerza(m, b))[0];
   const ratio = S.fuerza(m, yo) / Math.max(0.1, S.fuerza(m, debil));

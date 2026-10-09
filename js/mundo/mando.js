@@ -498,7 +498,7 @@
       if (inv.id !== t.id) { if (inv.id) (c.puntosTec = c.puntosTec || {})[inv.id] = inv.puntos; inv.puntos = (c.puntosTec || {})[t.id] || 0; inv.id = t.id; inv.esperaPago = 0; }
       const debe = S().porPagar(c, t), debeTxt = Object.keys(debe).map(k => debe[k] + ' de ' + k).join(', ');
       an('🔬 Investigando: ' + t.nombre);
-      textos.push('Tus ' + M.ERUDITO(c.era).varios + ' se ponen con ' + t.nombre.toLowerCase() + ' en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' (' + t.texto + (debeTxt ? '; se paga poco a poco mientras avanza: ' + debeTxt : '') + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.cienciaTurno || 1)))) + ' turnos. Más ciencia: más gente, estabilidad, ciudades, rutas y oro para los sabios.');
+      textos.push('Tus ' + M.ERUDITO(c.era).varios + ' se ponen con ' + t.nombre.toLowerCase() + ' en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' (' + t.texto + (debeTxt ? '; se paga poco a poco mientras avanza: ' + debeTxt : '') + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.tecTurno || c.cienciaTurno || 1)))) + ' turnos. La investigan tus ' + M.ERUDITO(c.era).varios + ' (' + ((m.vida && m.vida.aldeanos.filter(x => x.c === c.id && x.o === 6).length) || 0) + '): cuantos más, antes; pon más con «quiero 4 ' + M.ERUDITO(c.era).varios + '».');
       return;
     }
     if (a.tipo === 'consulta_tec') {

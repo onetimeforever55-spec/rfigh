@@ -917,7 +917,8 @@
       // Un comerciante por cada ruta abierta, más o menos.
       Math.min(0.2, 0.06 * (c.rutas || 0)),
       // Eruditos: pocos en una tribu (un chamán), más con templo, escritura y ciudades; los pueblos sabios, más.
-      (c.aldeanos || 0) < 8 ? 0.02 : 0.045 + 0.01 * c.era + ((c.templos || 0) > 0 ? 0.02 : 0) + (c.caracter === 'sabio' || c.caracter === 'devoto' ? 0.025 : 0)
+      // (Ahora son los que investigan las mejoras: siempre hay alguno, y más cuanto más avanzado el pueblo.)
+      (c.aldeanos || 0) < 8 ? 0.06 : 0.075 + 0.012 * c.era + ((c.templos || 0) > 0 ? 0.02 : 0) + (c.caracter === 'sabio' || c.caracter === 'devoto' ? 0.03 : 0)
     ];
     // La especialidad del reino: produce de más de lo suyo para venderlo, y algún comerciante más si tiene socios.
     // La cartera: cada bien en el que trabaja el reino sube el oficio que lo produce, según su peso.

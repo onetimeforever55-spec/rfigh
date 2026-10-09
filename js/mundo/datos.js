@@ -85,6 +85,7 @@
     if (e.estab && t.era >= 1) return 'templo';
     return 'plaza'; };
   const BASE_COSTE = era => Math.round(18 * Math.pow(1 + era, 1.45));
+  const PRECIO_ERA = [];
   for (const t of M.TECNOLOGIAS) {
     t.lugar = LUGAR_DE(t);
     const b = BASE_COSTE(t.era), oro = t.era >= 1;
@@ -102,6 +103,10 @@
       t.precio.oro = (t.precio.oro || 0) + Math.round(mad * 0.2);
     }
     for (const k of Object.keys(t.precio)) if (!t.precio[k]) delete t.precio[k];
+    // Las mejoras ya no se pagan con recursos: las investigan los sabios. Lo que costaban pasa, en parte, al
+    // paso de era (ver M.EDADES): el gran gasto es dar el salto.
+    for (const k of Object.keys(t.precio)) (PRECIO_ERA[t.era] = PRECIO_ERA[t.era] || {})[k] = (PRECIO_ERA[t.era][k] || 0) + t.precio[k];
+    t.precio = {};
   }
   M.LUGARES = { saber: 'la casa del saber', plaza: 'la plaza', molino: 'el molino', templo: 'el templo', cuartel: 'el cuartel', puerto: 'el puerto' };
   /*
@@ -120,6 +125,11 @@
     { comida: 130, oro: 170, metal: 30, pide: { nivel: 4 }, texto: 'ser una ciudad' },
     { comida: 150, oro: 210, metal: 45, pide: { nivel: 4 }, texto: 'ser una ciudad' }
   ];
+  // El paso a cada era cuesta, además, la cuarta parte de lo que costaban antes las mejoras de la era que se deja.
+  for (let e = 1; e < M.EDADES.length; e++) {
+    const extra = PRECIO_ERA[e - 1] || {}, ed = M.EDADES[e]; if (!ed) continue;
+    for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (extra[k]) ed[k] = (ed[k] || 0) + Math.round(extra[k] * 0.25);
+  }
   // La casa del saber de cada época, donde estudian los eruditos.
   M.CASA_SABER = era => era <= 1 ? 'cabaña del chamán' : era <= 3 ? 'academia' : era === 4 ? 'monasterio' : era === 5 ? 'universidad' : 'laboratorio';
   // El erudito de cada época: quien guarda y busca el saber del pueblo.

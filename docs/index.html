@@ -632,7 +632,7 @@ body.limpio .tropas-barra { display: none; }
           <details><summary>Comida y molinos</summary>
             <p>Toca el trigo de la barra para ver de dónde sale la comida: grano, pescado (barcas), carne (caza), leche (rebaños) y frutos. El puerto, con su barca y su mercante, se puede hacer desde el principio. Sin molino no hay tierra de cultivo: los campos solo se siembran cerca de un molino y fuera del centro del pueblo. En invierno se cosecha menos; los graneros guardan para entonces. Si falta comida, la gente enferma y muere antes.</p></details>
           <details><summary>La corte y las eras</summary>
-            <p>Toca tu plaza o el botón 🏛 para abrir la corte. Ahí eliges qué investigan tus sabios. Para pasar a la era siguiente hacen falta 3 mejoras de la era actual, el saber suficiente, haber llegado a su fecha y lo que pida (un templo, un cuartel, recursos…). Tu gobierno ahorra y pasa de era solo en cuanto se puede (si prefieres decidirlo tú: «no paséis de edad solos», y luego «Avanzar»). Sobre la plaza sale ⏫ si ya puedes avanzar, o ? si los sabios esperan que elijas. Las mejoras no hace falta pagarlas de golpe: se van pagando poco a poco mientras se investigan, y lo pagado no se pierde. Desde la Revolución Industrial, la ciencia se paga con carbón, metal y oro, no con madera.</p></details>
+            <p>Toca tu plaza o el botón 🏛 para abrir la corte. Ahí eliges qué investigan tus sabios. Para pasar a la era siguiente hacen falta 3 mejoras de la era actual, el saber suficiente, haber llegado a su fecha y lo que pida (un templo, un cuartel, recursos…). Tu gobierno ahorra y pasa de era solo en cuanto se puede (si prefieres decidirlo tú: «no paséis de edad solos», y luego «Avanzar»). Sobre la plaza sale ⏫ si ya puedes avanzar, o ? si los sabios esperan que elijas. Las mejoras no cuestan recursos: las investigan tus sabios (chamanes, filósofos, monjes, científicos…), y cuantos más tengas, antes salen («quiero 4 sabios»). Lo único que se paga es el paso de edad, cuando ya tienes investigado lo que pide.</p></details>
           <details><summary>Gente y salud</summary>
             <p>Cada aldeano tiene nombre, padres, pareja y una salud. La muerte es una probabilidad que sube con la edad y con cómo ha vivido: el hambre, las heridas, dormir sin casa o el frío la acercan; una casa, un hospital y la medicina de su época la alejan. Sin casas libres no nacen niños.</p></details>
           <details><summary>Minas y bosques</summary>
@@ -833,6 +833,7 @@ body.limpio .tropas-barra { display: none; }
     if (e.estab && t.era >= 1) return 'templo';
     return 'plaza'; };
   const BASE_COSTE = era => Math.round(18 * Math.pow(1 + era, 1.45));
+  const PRECIO_ERA = [];
   for (const t of M.TECNOLOGIAS) {
     t.lugar = LUGAR_DE(t);
     const b = BASE_COSTE(t.era), oro = t.era >= 1;
@@ -850,6 +851,10 @@ body.limpio .tropas-barra { display: none; }
       t.precio.oro = (t.precio.oro || 0) + Math.round(mad * 0.2);
     }
     for (const k of Object.keys(t.precio)) if (!t.precio[k]) delete t.precio[k];
+    // Las mejoras ya no se pagan con recursos: las investigan los sabios. Lo que costaban pasa, en parte, al
+    // paso de era (ver M.EDADES): el gran gasto es dar el salto.
+    for (const k of Object.keys(t.precio)) (PRECIO_ERA[t.era] = PRECIO_ERA[t.era] || {})[k] = (PRECIO_ERA[t.era][k] || 0) + t.precio[k];
+    t.precio = {};
   }
   M.LUGARES = { saber: 'la casa del saber', plaza: 'la plaza', molino: 'el molino', templo: 'el templo', cuartel: 'el cuartel', puerto: 'el puerto' };
   /*
@@ -868,6 +873,11 @@ body.limpio .tropas-barra { display: none; }
     { comida: 130, oro: 170, metal: 30, pide: { nivel: 4 }, texto: 'ser una ciudad' },
     { comida: 150, oro: 210, metal: 45, pide: { nivel: 4 }, texto: 'ser una ciudad' }
   ];
+  // El paso a cada era cuesta, además, la cuarta parte de lo que costaban antes las mejoras de la era que se deja.
+  for (let e = 1; e < M.EDADES.length; e++) {
+    const extra = PRECIO_ERA[e - 1] || {}, ed = M.EDADES[e]; if (!ed) continue;
+    for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (extra[k]) ed[k] = (ed[k] || 0) + Math.round(extra[k] * 0.25);
+  }
   // La casa del saber de cada época, donde estudian los eruditos.
   M.CASA_SABER = era => era <= 1 ? 'cabaña del chamán' : era <= 3 ? 'academia' : era === 4 ? 'monasterio' : era === 5 ? 'universidad' : 'laboratorio';
   // El erudito de cada época: quien guarda y busca el saber del pueblo.
@@ -1384,9 +1394,13 @@ body.limpio .tropas-barra { display: none; }
     // Con aldeanos, buena parte del saber lo traen los eruditos (chamanes, filósofos, monjes, científicos) que
     // estudian en el templo o en la plaza (vida.js, c.saber); el resto, la gente y lo que llega de fuera.
     const deLaGente = m.vida && M.vida ? 0.9 : 1, eruditos = m.vida && M.vida ? (c.saber || 0) : 0; c.saber = 0;
-    const ganancia = (deLaGente * (Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia) + eruditos) * (1 + M.tec(c, 'ciencia')) * pausa(m);
-    c.ciencia += ganancia; c.cienciaTurno = ganancia;
-    investigar(m, c, ganancia);
+    // El saber del pueblo (lo que cuenta para pasar de era) sale de todo; las mejoras las investigan sobre todo los
+    // sabios: sin ellos, la técnica apenas avanza (lo que llega de la gente y de fuera, una tercera parte).
+    const mult = (1 + M.tec(c, 'ciencia')) * pausa(m), resto = deLaGente * (Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia);
+    const ganancia = (resto + eruditos) * mult;
+    c.cienciaTurno = ganancia; c.tecTurno = (m.vida && M.vida ? resto * 0.35 + eruditos * 2.2 : resto + eruditos) * mult;
+    c.ciencia += ganancia;
+    investigar(m, c, c.tecTurno);
     // Subir de edad (como en Age of Empires): cuando se cumple todo, la IA empieza sola; el jugador lo ordena.
     if (c.subiendo) { if (m.turno >= c.subiendo.hasta) { c.subiendo = null; subirEra(m, c, null); } }
     else if (M.ERAS[c.era + 1] && (!c.jugador || (c.plan && c.plan.autoEdad)) && puedeSubir(m, c).ok) empezarSubida(m, c);
@@ -2025,7 +2039,7 @@ body.limpio .tropas-barra { display: none; }
     });
   }
 
-  M.sim = { turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { perderCapital, turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
@@ -2949,7 +2963,8 @@ body.limpio .tropas-barra { display: none; }
       // Un comerciante por cada ruta abierta, más o menos.
       Math.min(0.2, 0.06 * (c.rutas || 0)),
       // Eruditos: pocos en una tribu (un chamán), más con templo, escritura y ciudades; los pueblos sabios, más.
-      (c.aldeanos || 0) < 8 ? 0.02 : 0.045 + 0.01 * c.era + ((c.templos || 0) > 0 ? 0.02 : 0) + (c.caracter === 'sabio' || c.caracter === 'devoto' ? 0.025 : 0)
+      // (Ahora son los que investigan las mejoras: siempre hay alguno, y más cuanto más avanzado el pueblo.)
+      (c.aldeanos || 0) < 8 ? 0.06 : 0.075 + 0.012 * c.era + ((c.templos || 0) > 0 ? 0.02 : 0) + (c.caracter === 'sabio' || c.caracter === 'devoto' ? 0.03 : 0)
     ];
     // La especialidad del reino: produce de más de lo suyo para venderlo, y algún comerciante más si tiene socios.
     // La cartera: cada bien en el que trabaja el reino sube el oficio que lo produce, según su peso.
@@ -7029,7 +7044,7 @@ body.limpio .tropas-barra { display: none; }
       if (inv.id !== t.id) { if (inv.id) (c.puntosTec = c.puntosTec || {})[inv.id] = inv.puntos; inv.puntos = (c.puntosTec || {})[t.id] || 0; inv.id = t.id; inv.esperaPago = 0; }
       const debe = S().porPagar(c, t), debeTxt = Object.keys(debe).map(k => debe[k] + ' de ' + k).join(', ');
       an('🔬 Investigando: ' + t.nombre);
-      textos.push('Tus ' + M.ERUDITO(c.era).varios + ' se ponen con ' + t.nombre.toLowerCase() + ' en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' (' + t.texto + (debeTxt ? '; se paga poco a poco mientras avanza: ' + debeTxt : '') + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.cienciaTurno || 1)))) + ' turnos. Más ciencia: más gente, estabilidad, ciudades, rutas y oro para los sabios.');
+      textos.push('Tus ' + M.ERUDITO(c.era).varios + ' se ponen con ' + t.nombre.toLowerCase() + ' en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' (' + t.texto + (debeTxt ? '; se paga poco a poco mientras avanza: ' + debeTxt : '') + '). Cuesta ' + M.costeTec(t) + ' de ciencia; con lo de ahora, unos ' + Math.max(1, Math.ceil((M.costeTec(t) - inv.puntos) / Math.max(0.01, (c.tecTurno || c.cienciaTurno || 1)))) + ' turnos. La investigan tus ' + M.ERUDITO(c.era).varios + ' (' + ((m.vida && m.vida.aldeanos.filter(x => x.c === c.id && x.o === 6).length) || 0) + '): cuantos más, antes; pon más con «quiero 4 ' + M.ERUDITO(c.era).varios + '».');
       return;
     }
     if (a.tipo === 'consulta_tec') {
@@ -11934,11 +11949,11 @@ body.limpio .tropas-barra { display: none; }
     const tarjeta = t => {
       const hecha = ts.includes(t.id), ahora = inv === t.id, falta = hecha || ahora ? [] : S.faltaPara(m, c, t);
       const pct = ahora ? Math.min(100, Math.round(100 * c.investigacion.puntos / M.costeTec(t))) : 0;
-      const turnos = ahora ? Math.max(1, Math.ceil((M.costeTec(t) - c.investigacion.puntos) / Math.max(0.01, c.cienciaTurno || 1))) : 0;
+      const turnos = ahora ? Math.max(1, Math.ceil((M.costeTec(t) - c.investigacion.puntos) / Math.max(0.01, c.tecTurno || c.cienciaTurno || 1))) : 0;
       return '<div class="mejora' + (hecha ? ' hecha' : ahora ? ' ahora' : falta.length ? ' falta' : '') + '">' +
         '<div class="mejora-cab"><b>' + esc(t.nombre) + '</b>' + (hecha ? '<span class="verde">✓ hecha</span>' : '') + '</div>' +
         '<p class="mejora-texto">' + esc(t.texto) + '</p>' +
-        (hecha ? '' : '<p class="mejora-precio">' + precioTxt(t.precio) + ' <span class="tenue">· en ' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · ' + M.costeTec(t) + ' de saber</span></p>') +
+        (hecha ? '' : '<p class="mejora-precio"><span class="tenue">en ' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · ' + M.costeTec(t) + ' de saber · la investigan tus sabios, sin coste</span></p>') +
         (ahora ? '<div class="mejora-barra"><span class="barra"><span style="width:' + pct + '%"></span></span> ' + pct + ' % <span class="tenue">· unos ' + turnos + ' turnos</span></div>' + (() => { const d = S.porPagar(c, t), ks = Object.keys(d); return ks.length ? '<p class="' + (c.investigacion.esperaPago ? 'rojo ' : 'tenue ') + 'mejora-falta">' + (c.investigacion.esperaPago ? 'Parado: faltan recursos para seguir pagando · ' : 'Se paga poco a poco · queda ') + esc(precioTxt(d)) + '</p>' : ''; })() :
           !hecha && mio ? (falta.length ? '<p class="rojo mejora-falta">Falta: ' + esc(falta.join(', ')) + '</p>' : '') + '<button type="button" class="' + (falta.length ? 'mando sutil' : 'obrar') + ' corte-tec" data-nombre="' + esc(t.nombre) + '">' + (falta.length ? 'Apuntar para después' : 'Investigar') + '</button>' : '') +
         '</div>';
@@ -12131,12 +12146,12 @@ body.limpio .tropas-barra { display: none; }
         (req ? item(!/ser una|ser un|un templo|un cuartel|un castillo/.test(faltaTxt), req.texto.charAt(0).toUpperCase() + req.texto.slice(1)) + item(!/ de (comida|madera|piedra|oro|metal)/.test(faltaTxt), 'Pagar ' + precio) : '') + '</ul>' +
         (c.jugador ? '<button type="button" class="obrar avanzar-edad"' + (r.ok ? '' : ' disabled') + '>Avanzar a ' + esc(sig.nombre) + '</button>' : '')) + '</div>';
     }
-    return '<div class="arbol">' + edad + (c.jugador ? '<p class="tenue arbol-ayuda">Las mejoras se investigan en su edificio (el molino, el templo, el cuartel…) y se pagan poco a poco mientras se investigan (no hace falta tenerlo todo de golpe); el saber lo traen tus ' + esc(M.ERUDITO(c.era).varios) + '. Toca una para investigarla o escribe «investigad …».</p>' : '') + eras.map(e => {
+    return '<div class="arbol">' + edad + (c.jugador ? '<p class="tenue arbol-ayuda">Las mejoras se investigan en su edificio (el molino, el templo, el cuartel…) y no cuestan recursos: las investigan tus sabios (cuantos más, antes); lo que se paga es el paso de edad. El saber lo traen tus ' + esc(M.ERUDITO(c.era).varios) + '. Toca una para investigarla o escribe «investigad …».</p>' : '') + eras.map(e => {
       const filas = M.TECNOLOGIAS.filter(t => t.era === e).map(t => {
         const hecha = ts.includes(t.id), ahora = inv === t.id, abierta = !hecha && t.era <= c.era;
         const pct = ahora ? Math.min(100, Math.round(100 * c.investigacion.puntos / M.costeTec(t))) : 0;
         const falta = !hecha && !ahora && abierta ? S.faltaPara(m, c, t) : [];
-        const precio = '<span class="tec-precio">' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · ' + Object.keys(t.precio || {}).map(k => t.precio[k] + ' ' + k).join(', ') + '</span>';
+        const precio = '<span class="tec-precio">' + esc(M.LUGARES[t.lugar] || 'la plaza') + ' · la investigan tus sabios</span>';
         const estado = hecha ? '<span class="verde">✓</span>' : ahora ? '<span class="barra mini"><span style="width:' + pct + '%"></span></span> ' + pct + ' %' : abierta ? (c.jugador ? '<button type="button" class="ejemplo tec-elegir" data-nombre="' + esc(t.nombre) + '">' + (pide === t.id ? 'siguiente' : 'investigar') + '</button>' : '<span class="tenue">pendiente</span>') : '<span class="tenue">🔒</span>';
         return '<li class="tec' + (hecha ? ' hecha' : ahora ? ' ahora' : abierta ? '' : ' cerrada') + '"><span class="tec-nombre">' + esc(t.nombre) + '</span> <span class="tenue">' + esc(t.texto) + '</span> <span class="tec-estado">' + estado + '</span>' + (hecha ? '' : '<br>' + precio + (falta.length ? ' <span class="rojo">· falta ' + esc(falta.join(', ')) + '</span>' : '')) + '</li>';
       }).join('');

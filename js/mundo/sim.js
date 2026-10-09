@@ -381,9 +381,13 @@
     // Con aldeanos, buena parte del saber lo traen los eruditos (chamanes, filósofos, monjes, científicos) que
     // estudian en el templo o en la plaza (vida.js, c.saber); el resto, la gente y lo que llega de fuera.
     const deLaGente = m.vida && M.vida ? 0.9 : 1, eruditos = m.vida && M.vida ? (c.saber || 0) : 0; c.saber = 0;
-    const ganancia = (deLaGente * (Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia) + eruditos) * (1 + M.tec(c, 'ciencia')) * pausa(m);
-    c.ciencia += ganancia; c.cienciaTurno = ganancia;
-    investigar(m, c, ganancia);
+    // El saber del pueblo (lo que cuenta para pasar de era) sale de todo; las mejoras las investigan sobre todo los
+    // sabios: sin ellos, la técnica apenas avanza (lo que llega de la gente y de fuera, una tercera parte).
+    const mult = (1 + M.tec(c, 'ciencia')) * pausa(m), resto = deLaGente * (Math.sqrt(c.pob) * 0.62 * car.ciencia * (0.4 + c.estab / 100) * (1 + 0.1 * enPaz.length) * (1 + c.era * 0.18) * foco(c, 'ciencia') * rasgo(c, 'ciencia') + copia);
+    const ganancia = (resto + eruditos) * mult;
+    c.cienciaTurno = ganancia; c.tecTurno = (m.vida && M.vida ? resto * 0.35 + eruditos * 2.2 : resto + eruditos) * mult;
+    c.ciencia += ganancia;
+    investigar(m, c, c.tecTurno);
     // Subir de edad (como en Age of Empires): cuando se cumple todo, la IA empieza sola; el jugador lo ordena.
     if (c.subiendo) { if (m.turno >= c.subiendo.hasta) { c.subiendo = null; subirEra(m, c, null); } }
     else if (M.ERAS[c.era + 1] && (!c.jugador || (c.plan && c.plan.autoEdad)) && puedeSubir(m, c).ok) empezarSubida(m, c);
@@ -1022,6 +1026,6 @@
     });
   }
 
-  M.sim = { turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
+  M.sim = { perderCapital, turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
     cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
