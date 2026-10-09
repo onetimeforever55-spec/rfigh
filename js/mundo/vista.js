@@ -2003,6 +2003,12 @@
       $('nav-punto').hidden = !(!$('cuadrillas-hud').hidden || !$('guerra-hud').hidden);
     };
     new MutationObserver(navActiva).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    // En «Mapa», tocar la franja de abajo abre las órdenes (salvo los botones que lleva dentro).
+    $('voluntad').addEventListener('click', ev => {
+      const bd = document.body;
+      if (!movil() || bd.classList.contains('ordenes-abiertas') || ev.target.closest('button, input')) return;
+      ev.stopPropagation(); bd.classList.remove('sin-ordenes'); bd.classList.add('ordenes-abiertas'); navActiva();
+    }, true);
     for (const b of document.querySelectorAll('.nav-b')) b.addEventListener('click', () => {
       const v = b.dataset.v, bd = document.body, abierto = !bd.classList.contains('sin-panel');
       bd.classList.remove('menu-abierto');

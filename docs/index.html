@@ -606,6 +606,16 @@ body.limpio .tropas-barra { display: none; }
 .carga-lista .listo { color: #7aff9a; } .carga-lista .espera { color: #ffd76a; }
 .carga-botones { justify-content: center; margin-top: 10px; }
 #carga-ya[hidden] { display: none; }
+
+/* Móvil, pestaña «Mapa»: el mapa despejado y abajo solo una franja con el último aviso; al tocarla se abren las órdenes.
+   La pestaña «Órdenes» es la caja entera para escribir. */
+@media (max-width: 899px) {
+  body:not(.ordenes-abiertas) .g-voluntad .linea, body:not(.ordenes-abiertas) .g-voluntad .cerrar-ordenes { display: none !important; }
+  body:not(.ordenes-abiertas) .g-voluntad { cursor: pointer; padding: 6px 46px 8px 10px; }
+  body:not(.ordenes-abiertas) .g-voluntad::after { content: '✍'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 20px; opacity: 0.85; }
+  body:not(.ordenes-abiertas) .g-voluntad .respuesta { -webkit-line-clamp: 1; }
+  body:not(.ordenes-abiertas) .g-voluntad .consejo { margin-top: 2px; }
+}
 </style>
 </head>
 <body>
@@ -13681,6 +13691,12 @@ body.limpio .tropas-barra { display: none; }
       $('nav-punto').hidden = !(!$('cuadrillas-hud').hidden || !$('guerra-hud').hidden);
     };
     new MutationObserver(navActiva).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    // En «Mapa», tocar la franja de abajo abre las órdenes (salvo los botones que lleva dentro).
+    $('voluntad').addEventListener('click', ev => {
+      const bd = document.body;
+      if (!movil() || bd.classList.contains('ordenes-abiertas') || ev.target.closest('button, input')) return;
+      ev.stopPropagation(); bd.classList.remove('sin-ordenes'); bd.classList.add('ordenes-abiertas'); navActiva();
+    }, true);
     for (const b of document.querySelectorAll('.nav-b')) b.addEventListener('click', () => {
       const v = b.dataset.v, bd = document.body, abierto = !bd.classList.contains('sin-panel');
       bd.classList.remove('menu-abierto');
