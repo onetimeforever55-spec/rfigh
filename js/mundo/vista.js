@@ -1507,7 +1507,7 @@
       red.modo = 'invitado'; red.codigo = codigo; red.conn = conn; red.esperandoMundo = true; red.pendientes = [];
       corriendo = true; programar();
       conn.al(d => mensajeInvitado(d));
-      conn.alCerrar(() => { if (red.modo !== 'invitado') return; salirOnline(true); avisoFlotante('🌐 El anfitrión cerró la partida: vuelves a tu partida en solitario.', 6000); });
+      conn.alCerrar(() => { if (red.modo !== 'invitado') return; salirOnline(true); avisoFlotante('🌐 El anfitrión cerró la partida.', 6000); });
       conn.enviar({ t: 'hola', nombre: red.nombre });
       // Si el anfitrión deja de dar señales (su móvil en segundo plano, sin cobertura), se avisa; al volver, sigue.
       red.ultimoAnfitrion = performance.now(); clearInterval(red.vigia);
@@ -1666,7 +1666,7 @@
     $('online-volver-texto').textContent = 'Tienes una partida online a medias (' + ses.codigo + (ses.rol === 'anfitrion' ? ', la creaste tú' : '') + '). ¿Vuelves a ella?';
     const fin = () => { $('online-volver').hidden = true; $('online-entrada').hidden = false; $('online-intro').hidden = false; };
     $('online-volver-si').onclick = () => { fin(); reanudarPartida(ses); };
-    $('online-volver-no').onclick = () => { fin(); borrarSesion(); $('online').hidden = true; if (!m.modo) pedirModo(); };
+    $('online-volver-no').onclick = () => { fin(); borrarSesion(); $('online').hidden = true; pedirModo('Has dejado la partida online', 'Elige cómo jugar, o «🌐 Jugar online» para entrar en otra partida.'); };
   }
   async function reanudarPartida(ses) {
     if (enLinea()) return;
@@ -1729,7 +1729,8 @@
     pintarOnline();
     $('online').hidden = true; $('fin').hidden = true;
     const habia = volverASolo();
-    if (!silencioso) responder('Has salido de la partida online. ' + (habia ? 'Vuelves a tu partida en solitario, tal como la dejaste.' : 'Empiezas una partida en solitario.'), 'bien');
+    // Siempre al menú principal, explicando dónde estás: así no parece que te haya mandado a otra partida.
+    pedirModo('Has salido de la partida online', habia ? 'Detrás está tu partida en solitario, tal como la dejaste: elige cómo seguir con ella, o vuelve a «🌐 Jugar online» para entrar en otra.' : 'Elige cómo jugar en solitario, o vuelve a «🌐 Jugar online» para entrar en otra partida.');
   }
   function atarOnline() {
     const n = $('online-nombre'); try { n.value = localStorage.getItem('genesis.nombre') || ''; } catch (e) { /* sin preferencia */ }
@@ -1740,7 +1741,7 @@
     $('online-entrar').addEventListener('click', () => { if (red.uniendo) { if (red.cancelar) red.cancelar(); } else if (!enLinea()) unirseOnline(); });
     $('online-salir').addEventListener('click', () => salirOnline(false));
     $('sala-empezar').addEventListener('click', () => empezarSala());
-    $('sala-salir').addEventListener('click', () => { salirOnline(true); onlineEstado('Has salido de la sala.'); });
+    $('sala-salir').addEventListener('click', () => salirOnline(true));
     $('sala-invitar').addEventListener('click', () => $('online-invitar').click());
     for (const id of ['sala-reinos', 'sala-libre']) $(id).addEventListener('change', () => { if (red.modo === 'anfitrion' && red.sala) difundirSala(); });
     // Invitar: un enlace al juego que ya trae el código (se comparte o se copia).
