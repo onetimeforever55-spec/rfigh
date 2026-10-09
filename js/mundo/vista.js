@@ -290,7 +290,7 @@
         fila('Ganado', ganado(c)) +
         fila('Madera', Math.floor(c.madera || 0) + ' <span class="tenue">· piedra ' + Math.floor(c.piedra || 0) + ' · ' + (c.arboles || 0) + ' árboles en su tierra</span>') +
         fila('Minas', Math.floor(c.metal || 0) + ' de ' + (c.era >= 6 ? 'acero' : c.era >= 2 ? 'hierro' : 'bronce') + ' <span class="tenue">· ' + Math.floor(c.oro || 0) + ' de oro</span>') +
-        fila('Obras', (c.casas || 0) + ' casas') + fila('Edificios', edificios) + fila('Comercio', comercioDe(c)) + (c.era >= 5 || (m.creditos || []).some(x => x.de === c.id || x.a === c.id) ? fila('Banca', bancaDe(c)) : '')],
+        fila('Obras', (c.casas || 0) + ' casas') + fila('Edificios', edificios) + fila('Comercio', comercioDe(c)) + (c.era >= 2 || (m.creditos || []).some(x => x.de === c.id || x.a === c.id) ? fila('Banca', bancaDe(c)) : '')],
       ejercito: ['Ejército', fila('Ejército', (c.guerreros || 0) + ' guerreros' + (c.guerreros ? ' <span class="tenue">· ' + (c.armados || 0) + ' con ' + esc(M.vida.ARMAS[c.era].nombre) + (c.era >= 1 ? ', tiradores con ' + esc(M.vida.TIROS[c.era]) : '') + '</span>' : '')) +
         fila('Equipo', esc(M.vida.ARMAS[c.era].nombre) + ' <span class="tenue">(' + M.vida.ARMAS[c.era].dano + ' de daño, ' + esc(M.vida.ARMAS[c.era].material) + ')</span> · ' + esc(M.vida.ARMADURAS[M.vida.armaduraDeEra(c.era)].nombre) + ' <span class="tenue">(−' + Math.round(M.vida.ARMADURAS[M.vida.armaduraDeEra(c.era)].reduce * 100) + ' %)</span>') +
         (c.era >= 5 ? fila('Vehículos', vehiculosDe(c)) : '') +
@@ -594,15 +594,16 @@
   }
   // La banca del reino: el fondo, el interés (con botones si es tu pueblo), los empresarios y las deudas.
   function bancaDe(c) {
-    const mio = tuPueblo() === c, l = [];
+    const mio = tuPueblo() === c, l = [], boton = (orden, texto, activo) => '<button type="button" class="mando sutil mercado-orden' + (activo ? ' activa' : '') + '" data-orden="' + orden + '">' + texto + '</button>';
     if (c.bancos > 0 && c.banca) {
-      const b = c.banca, n = M.vida.nivelInteres(c), emp = M.vida.empresariosDe(m, c);
-      l.push(Math.round(b.fondo) + ' de oro para prestar <span class="tenue">· prestado ' + Math.round(b.prestado) + ', devuelto ' + Math.round(b.devuelto) + (b.quiebras ? ', ' + b.quiebras + (b.quiebras === 1 ? ' quiebra' : ' quiebras') : '') + '</span>');
-      l.push('Interés <b>' + (n === 0.5 ? 'bajo' : n === 1.5 ? 'alto' : 'normal') + '</b>' + (mio ? ' ' + [[0.5, 'bajad los intereses', 'Bajo'], [1, 'intereses normales', 'Normal'], [1.5, 'subid los intereses', 'Alto']].map(([k, o, t]) => '<button type="button" class="mando sutil mercado-orden' + (k === n ? ' activa' : '') + '" data-orden="' + o + '">' + t + '</button>').join(' ') : ''));
-      l.push(emp.length ? '🎩 ' + emp.map(a => esc(a.nombre + ' ' + (a.familia || '')) + ' <span class="tenue">(' + (a.emp.neg === 'fabrica' ? 'fábrica' : 'mercader') + (a.emp.deuda > 0 ? ', debe ' + Math.round(a.emp.deuda) : ', pagado') + ')</span>').join(', ') : '<span class="tenue">Sin empresarios aún: el banco presta cada tanto a quien quiere montar un negocio.</span>');
-    } else l.push('<span class="tenue">' + (c.era >= 5 ? 'Sin banco: hace falta una villa o ciudad (lo construyen solos o «construid un banco»).' : 'El banco llega con el Renacimiento.') + '</span>');
+      const b = c.banca, n = M.vida.nivelInteres(c), bancos = M.vida.banquerosDe(m, c), emp = M.vida.empresariosDe(m, c).filter(a => a.emp.neg !== 'banco');
+      l.push('🏛 Banco central: <b>' + Math.round(b.fondo) + '</b> de oro <span class="tenue">· prestado ' + Math.round(b.prestado) + ', devuelto ' + Math.round(b.devuelto) + (b.quiebras ? ', ' + b.quiebras + (b.quiebras === 1 ? ' quiebra' : ' quiebras') : '') + '</span>' + (mio ? ' ' + boton('pasad 20 de oro al banco central', '+20') + ' ' + boton('sacad 20 de oro del banco central al tesoro', '−20') : ''));
+      l.push('Interés <b>' + (n === 0.5 ? 'bajo' : n === 1.5 ? 'alto' : 'normal') + '</b>' + (mio ? ' ' + [[0.5, 'bajad los intereses', 'Bajo'], [1, 'intereses normales', 'Normal'], [1.5, 'subid los intereses', 'Alto']].map(([k, o, t]) => boton(o, t, k === n)).join(' ') : ''));
+      l.push(bancos.length ? '🏦 ' + bancos.map(a => 'Banco ' + esc(a.nombre + ' ' + (a.familia || '')) + ' <span class="tenue">(' + Math.round(a.emp.capital) + ' de capital' + (a.emp.deuda > 0 ? ', debe al central ' + Math.round(a.emp.deuda) : '') + ')</span>').join(', ') : '<span class="tenue">Sin banqueros aún: el mercader más rico abrirá un banco cuando tenga fortuna.</span>');
+      if (emp.length) l.push('🎩 ' + emp.map(a => esc(a.nombre + ' ' + (a.familia || '')) + ' <span class="tenue">(' + (a.emp.neg === 'fabrica' ? 'fábrica' : 'mercader') + (a.emp.deuda > 0 ? ', debe ' + Math.round(a.emp.deuda) : ', pagado') + ')</span>').join(', '));
+    } else l.push('<span class="tenue">' + (c.era >= 5 ? 'Sin banco: hace falta una villa o ciudad (lo construyen solos o «construid un banco»).' : 'El banco llega con el Renacimiento; mientras, los mercaderes ahorran.') + '</span>');
     const nombreC = id => esc((S.civ(m, id) || { nombre: '?' }).nombre);
-    for (const cr of (m.creditos || []).filter(x => x.de === c.id)) l.push('Os debe ' + nombreC(cr.a) + ': ' + Math.round(cr.resta) + (mio ? ' <button type="button" class="mando sutil mercado-orden" data-orden="perdonad la deuda de ' + nombreC(cr.a) + '">Perdonar</button>' : ''));
+    for (const cr of (m.creditos || []).filter(x => x.de === c.id)) l.push('Os debe ' + nombreC(cr.a) + ': ' + Math.round(cr.resta) + (mio ? ' ' + boton('perdonad la deuda de ' + nombreC(cr.a), 'Perdonar') : ''));
     for (const cr of (m.creditos || []).filter(x => x.a === c.id)) l.push('Debe a ' + nombreC(cr.de) + ': ' + Math.round(cr.resta) + ' <span class="tenue">(' + cr.cuota + ' cada dos turnos)</span>');
     return l.join('<br>');
   }
@@ -682,7 +683,7 @@
     const siguiendo = P.siguiendoA() === a.id;
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(a.nombre + ' ' + (a.familia || '')) + '</h3>' +
       '<p class="subt">' + esc(etapa) + ' de ' + esc(c ? c.nombre : '—') + (ciudad ? ', vive en ' + esc(ciudad.nombre) : c && a.h === c.capital ? ', vive en la capital' : '') + '</p>' +
-      '<dl>' + fila('Oficio', esc(oficio)) + fila('Edad', M.vida.anos(a) + ' años <span class="tenue">(nació en ' + M.ERAS[a.eraNacio != null ? a.eraNacio : c.era].con + ')</span>') +
+      '<dl>' + fila('Oficio', esc(oficio)) + (a.emp ? fila('Negocio', a.emp.neg === 'banco' ? '🏦 Banquero <span class="tenue">· ' + Math.round(a.emp.capital) + ' de capital' + (a.emp.deuda > 0 ? ', debe al banco central ' + Math.round(a.emp.deuda) : '') + '</span>' : '🎩 ' + (a.emp.neg === 'fabrica' ? 'Dueño de una fábrica' : 'Mercader') + ' <span class="tenue">· ' + (a.emp.deuda > 0 ? 'debe ' + Math.round(a.emp.deuda) + (a.emp.banquero != null ? ' a su banquero' : ' al banco central') : 'sin deudas') + ', caja ' + Math.round(a.emp.caja || 0) + '</span>') : '') + ((a.dinero || 0) >= 1 ? fila('Ahorros', Math.round(a.dinero) + ' de oro') : '') + fila('Edad', M.vida.anos(a) + ' años <span class="tenue">(nació en ' + M.ERAS[a.eraNacio != null ? a.eraNacio : c.era].con + ')</span>') +
       fila('Vida', vidaAldeano(a)) + fila('Lleva', equipoAldeano(a)) +
       fila('Rasgos', a.rasgos && a.rasgos.length ? esc(a.rasgos.join(', ')) : '<span class="tenue">ninguno especial</span>') +
       fila('Padres', (() => {

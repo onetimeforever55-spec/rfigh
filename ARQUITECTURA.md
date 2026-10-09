@@ -46,7 +46,7 @@ Cada archivo es un módulo `(function () { … })()` que se cuelga de `RF.MUNDO`
 | Precios, tratos, carretas, trenes | `vida.js` › EL MERCADO GLOBAL, LA CARTERA DE CADA REINO, CAMINOS Y RUTAS COMERCIALES |
 | Barcos: pesca, mercantes, guerra, transportes | `vida.js` › LOS BARCOS, LA MARINA DE GUERRA (`maresDe`, `sitioPuerto`, `planNaval`, `porMar`, `NAVAL`) |
 | Ejércitos, asedios, torres, trincheras | `vida.js` › LOS EJÉRCITOS, EL ASEDIO, LAS TORRES DE VIGILANCIA, LAS TRINCHERAS |
-| Banco, empresarios y créditos entre reinos | `vida.js` › LA BANCA (`banca`, `heredar`, `quiebra`, `v.privados`); `sim.js` › LOS CRÉDITOS ENTRE REINOS (`prestar`, `perdonar`, `pagarCreditos`) |
+| Banco, empresarios y créditos entre reinos | `vida.js` › LA BANCA (`banca`, banco central y banqueros, `heredar`, `legar`, `quiebra`, `v.privados`); `sim.js` › LOS CRÉDITOS ENTRE REINOS (`prestar`, `perdonar`, `pagarCreditos`) |
 | Explosiones y daño a edificios | `vida.js` › LAS EXPLOSIONES (`estallido`, `RESISTE`) |
 | Comida y sus tipos | `vida.js` › COMER, `ALIMENTOS`, `alimento`, `desglose` |
 | Técnica, eras, caída de capital, independencias | `sim.js` › La técnica, CAE LA CAPITAL, LA LEALTAD DE LAS CIUDADES |

@@ -367,6 +367,10 @@
     if (/\b(espi\w*|infiltr\w*|reconocimiento|averigu\w*|investig\w* (a|al|sobre))\b/.test(n) && (o || c.guerras.length)) return [{ tipo: 'espiar', con: o ? o.id : c.guerras[0].con }];
     if (/\b(insult\w*|provoc\w*|amenaz\w*|humill\w*|burl\w*|ofend\w*|desafi\w*)\b/.test(n) && o) return [{ tipo: 'insultar', con: o.id }];
     // La banca: el interés, prestar a otro reino, perdonarle la deuda, pedirle un préstamo y cómo va el banco.
+    if (/\bbanco central\b/.test(n) && /\b(pas\w*|met\w*|deposit\w*|ingres\w*|sac\w*|retir\w*|mov\w*|llev\w*|dad|pon\w*|transfer\w*)\b/.test(n) && !/\b(prest\w*|credito)\b/.test(n)) {
+      const cant = numero(((n.match(new RegExp('\\b' + NUM + '\\b')) || [])[1]) || '');
+      return [{ tipo: 'banco_central', oro: cant || 30, al: /\b(sac\w*|retir\w*)\b|\bdel banco central\b|\bal tesoro\b/.test(n) ? 'tesoro' : 'banco' }];
+    }
     if (/\b(interes\w*|tipos? de interes)\b/.test(n) && !o) return [{ tipo: 'interes', nivel: /\b(baj\w*|barat\w*|menos|reduc\w*)\b/.test(n) ? 0.5 : /\b(sub\w*|alt\w*|car\w*|mas)\b/.test(n) ? 1.5 : 1 }];
     if (/\bperdon\w* (la |su |sus )?deudas?\b|\bcondon\w*\b/.test(n) && o) return [{ tipo: 'perdonar', con: o.id }];
     if (/\b(pedi\w*|solicit\w*) (un |una )?(prestamo|credito)\b/.test(n) && o) return [{ tipo: 'pedir_prestamo', con: o.id }];
@@ -651,6 +655,13 @@
       return;
     }
     if (a.tipo === 'consulta_banca') { textos.push(informeBanca(m, c)); return; }
+    if (a.tipo === 'banco_central') {
+      if (!(c.bancos > 0) || !c.banca) { textos.push('Aún no tenéis banco central: llega con el banco, en el Renacimiento.'); return; }
+      const q = M.vida.moverAlBanco(c, a.al === 'tesoro' ? -Math.abs(a.oro || 30) : Math.abs(a.oro || 30));
+      an(q >= 0 ? '🏦 Al banco central' : '🏦 Al tesoro');
+      textos.push(q > 0 ? 'Pasáis ' + Math.round(q) + ' de oro del tesoro al banco central (ahora tiene ' + Math.round(c.banca.fondo) + '): podrá prestar más a los banqueros y a otros reinos.' : q < 0 ? 'Pasáis ' + Math.round(-q) + ' de oro del banco central al tesoro (ahora tenéis ' + Math.round(c.oro) + ' para gastar).' : 'No hay oro que mover.');
+      return;
+    }
     if (a.tipo === 'prestar' || a.tipo === 'perdonar' || a.tipo === 'pedir_prestamo') {
       if (!o || !o.viva) { textos.push('¿A qué reino? Nómbralo: «prestad 50 de oro a X».'); return; }
       if (a.tipo === 'prestar') { const oro = Math.max(5, Math.round(a.oro || Math.min(60, (c.oro || 0) * 0.3))); const r = S().prestar(m, c, o, oro); if (r.ok) an('🏦 Préstamo a ' + o.nombre); textos.push(r.texto); return; }
@@ -659,12 +670,12 @@
       const aprecio = o.rel[c.id] || 0;
       if (!(o.bancos > 0)) { textos.push(o.nombre + ' no tiene banco: no puede prestaros.'); return; }
       if (S().enGuerra(c, o)) { textos.push(o.nombre + ' está en guerra con vosotros: no os prestará nada.'); return; }
-      if ((o.oro || 0) < 40) { textos.push(o.nombre + ' tampoco anda sobrado de oro (' + Math.round(o.oro || 0) + ').'); return; }
+      if (!o.banca || o.banca.fondo < 30) { textos.push('El banco central de ' + o.nombre + ' no tiene oro para prestar (' + Math.round((o.banca || {}).fondo || 0) + ').'); return; }
       if (aprecio < 25 && !S().aliados(m, c, o)) { textos.push(o.nombre + ' no se fía lo bastante de vosotros (opinión ' + Math.round(aprecio) + '; hace falta 25 o ser aliados).'); return; }
       if ((m.creditos || []).some(cr => cr.de === o.id && cr.a === c.id)) { textos.push('Ya le debéis un préstamo a ' + o.nombre + ': primero devolvedlo.'); return; }
-      const oro = Math.round(Math.min(50, (o.oro || 0) * 0.3)), r = S().prestar(m, o, c, oro);
+      const oro = Math.round(Math.min(50, o.banca.fondo * 0.5)), r = S().prestar(m, o, c, oro);
       if (r.ok) an('🏦 Préstamo de ' + o.nombre);
-      textos.push(r.ok ? o.nombre + ' os presta ' + oro + ' de oro. Se lo devolveréis a plazos cada dos turnos, con un poco de interés.' : r.texto);
+      textos.push(r.ok ? 'El banco central de ' + o.nombre + ' os presta ' + oro + ' de oro: entra en vuestro tesoro. Se lo devolveréis a plazos cada dos turnos, con un poco de interés.' : r.texto);
       return;
     }
     if (a.tipo === 'regalo') {
@@ -827,16 +838,19 @@
   function informeBanca(m, c) {
     const l = [];
     if (c.bancos > 0 && c.banca) {
-      const b = c.banca, emp = M.vida.empresariosDe(m, c), n = M.vida.nivelInteres(c);
-      l.push('El banco tiene ' + Math.round(b.fondo) + ' de oro para prestar; ha prestado ' + Math.round(b.prestado) + ' y le han devuelto ' + Math.round(b.devuelto) + (b.quiebras ? ' (' + b.quiebras + (b.quiebras === 1 ? ' quiebra' : ' quiebras') + ')' : '') + '. Interés ' + (n === 0.5 ? 'bajo' : n === 1.5 ? 'alto' : 'normal') + '.');
-      l.push(emp.length ? 'Empresarios: ' + emp.map(a => a.nombre + ' ' + (a.familia || '') + ' (' + (a.emp.neg === 'fabrica' ? 'fábrica' : 'mercader') + (a.emp.deuda > 0 ? ', debe ' + Math.round(a.emp.deuda) : ', sin deudas') + ')').join(', ') + '.' : 'Aún no hay empresarios: el banco presta cada tanto a quien quiere montar algo.');
-    } else l.push(c.era >= 5 ? 'Aún no tenéis banco: «construid un banco» (hace falta una villa o ciudad).' : 'El banco llega con el Renacimiento.');
+      const b = c.banca, n = M.vida.nivelInteres(c), bancos = M.vida.banquerosDe(m, c), emp = M.vida.empresariosDe(m, c).filter(a => a.emp.neg !== 'banco');
+      l.push('Banco central: ' + Math.round(b.fondo) + ' de oro (prestado ' + Math.round(b.prestado) + ', devuelto ' + Math.round(b.devuelto) + (b.quiebras ? ', ' + b.quiebras + (b.quiebras === 1 ? ' quiebra' : ' quiebras') : '') + '). Interés ' + (n === 0.5 ? 'bajo' : n === 1.5 ? 'alto' : 'normal') + '. Solo presta a banqueros y a otros reinos.');
+      l.push(bancos.length ? 'Bancos privados: ' + bancos.map(a => 'el de ' + a.nombre + ' ' + (a.familia || '') + ' (' + Math.round(a.emp.capital) + ' de capital' + (a.emp.deuda > 0 ? ', debe al central ' + Math.round(a.emp.deuda) : '') + ')').join(', ') + '.' : 'Aún no hay banqueros: el mercader más rico abrirá un banco en cuanto tenga fortuna (y el central oro que prestarle).');
+      if (emp.length) l.push('Empresarios: ' + emp.map(a => a.nombre + ' ' + (a.familia || '') + ' (' + (a.emp.neg === 'fabrica' ? 'fábrica' : 'mercader') + (a.emp.deuda > 0 ? ', debe ' + Math.round(a.emp.deuda) : ', sin deudas') + ')').join(', ') + '.');
+    } else l.push(c.era >= 5 ? 'Aún no tenéis banco: «construid un banco» (hace falta una villa o ciudad).' : 'El banco llega con el Renacimiento. Mientras, vuestros mercaderes ahorran.');
+    const ricos = m.vida.aldeanos.filter(a => a.c === c.id && !a.emp && (a.dinero || 0) >= 1).sort((x, y) => y.dinero - x.dinero).slice(0, 3);
+    if (ricos.length) l.push('Los más ricos: ' + ricos.map(a => a.nombre + ' ' + (a.familia || '') + ' (' + Math.round(a.dinero) + ')').join(', ') + '.');
     const debo = (m.creditos || []).filter(cr => cr.a === c.id), meDeben = (m.creditos || []).filter(cr => cr.de === c.id);
     if (meDeben.length) l.push('Os deben: ' + meDeben.map(cr => (S().civ(m, cr.a) || {}).nombre + ' ' + Math.round(cr.resta)).join(', ') + '.');
     if (debo.length) l.push('Debéis: ' + debo.map(cr => (S().civ(m, cr.de) || {}).nombre + ' ' + Math.round(cr.resta)).join(', ') + '.');
     return l.join(' ');
   }
-  const TIPOS_EXTRA = ['interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
+  const TIPOS_EXTRA = ['banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
   /*
@@ -928,6 +942,8 @@
     // Preguntas: «¿cuántos leñadores tengo?», «¿cuánta madera hay?», «¿qué hace mi gente?».
     if (/\b(cuant[oa]s?|que hace mi gente|que hacen|en que trabaja\w*|reparto|oficios|cuadrillas|cupos)\b/.test(n) && !/\b(oro|dinero|tesoro|arcas|investig\w*|tecnolog\w*)\b/.test(n) && !/\b(quiero|pon\w*|mand\w*|que (se )?(vayan|pongan)|quit\w*|liber\w*|cancel\w*|anul\w*|solt\w*|suelt\w*)\b/.test(n) && !/\d/.test(n.replace(/\bcuant\w*/, ''))) { const of = NOMBRE_OF.find(([o, re]) => o >= 0 && new RegExp('\\b(' + re + ')\\b').test(n)); return [{ tipo: 'consulta', o: of ? of[0] : undefined }]; }
     // La técnica y el tesoro: «investigad la rueda», «¿qué investigamos?», «comprad 20 de madera», «guardad el oro».
+    // (Lo del banco va antes: «sacad 10 del banco central al tesoro» no es una pregunta sobre el tesoro.)
+    if (/\b(banco|banca|interes\w*|prestamos?|deudas?)\b/.test(n)) { const ex = extras(m, c, n); if (ex) return acciones.concat(ex); }
     { const ec = economia(m, c, n); if (ec) return acciones.concat(ec); }
     // Escuadrones, posturas de guerra, diplomacia menuda y el ánimo del pueblo.
     { const ex = extras(m, c, n); if (ex) return acciones.concat(ex); }
@@ -1297,7 +1313,7 @@
       '\nPlazas (región, dueño): ' + JSON.stringify([...S().vivas(m).map(o => ({ region: o.capital, nombre: 'capital de ' + o.nombre, dueno: o.id })), ...(m.ciudades || []).map(x => ({ region: x.region, nombre: x.nombre, dueno: m.dueno[x.region] }))]) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'comercio_libre', 'exterminio', 'oferta', 'consulta_mercado', 'especialidad', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
+  const TIPOS = new Set(['banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'comercio_libre', 'exterminio', 'oferta', 'consulta_mercado', 'especialidad', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
