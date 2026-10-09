@@ -8,6 +8,42 @@
   'use strict';
   const M = RF.MUNDO = RF.MUNDO || {};
 
+  // ---------- Matemáticas iguales en todos los navegadores ----------
+  // Math.pow, Math.exp, Math.tanh o Math.hypot pueden redondear distinto en Chrome, Safari o Firefox (la norma
+  // no lo fija), y en online cada navegador tiene que calcular exactamente lo mismo. Estas usan solo sumas,
+  // restas, multiplicaciones, divisiones y raíz cuadrada (exactas por norma), siempre en el mismo orden.
+  const LN2 = 0.6931471805599453;
+  function dexp(x) {
+    if (x !== x) return x;
+    if (x > 700) return Infinity;
+    if (x < -700) return 0;
+    const k = Math.round(x / LN2), r = x - k * LN2;
+    let t = 1, s = 1;
+    for (let i = 1; i < 24; i++) { t = t * r / i; s += t; }
+    let f = 1, n = k < 0 ? -k : k;
+    while (n-- > 0) f *= 2;
+    return k < 0 ? s / f : s * f;
+  }
+  function dlog(x) {
+    if (!(x > 0)) return x === 0 ? -Infinity : NaN;
+    let e = 0;
+    while (x >= 2) { x /= 2; e++; }
+    while (x < 1) { x *= 2; e--; }
+    const z = (x - 1) / (x + 1), z2 = z * z;
+    let t = z, s = 0;
+    for (let i = 1; i < 60; i += 2) { s += t / i; t *= z2; }
+    return 2 * s + e * LN2;
+  }
+  const dpow = (a, b) => {
+    if (b === 0) return 1;
+    if (a === 0) return 0;
+    if (Number.isInteger(b) && b > 0 && b < 64) { let r = 1; for (let i = 0; i < b; i++) r *= a; return r; }
+    return dexp(b * dlog(a));
+  };
+  const dtanh = x => { if (x > 20) return 1; if (x < -20) return -1; const e = dexp(2 * x); return (e - 1) / (e + 1); };
+  const dhypot = (x, y) => Math.sqrt(x * x + y * y);
+  M.mat = { exp: dexp, log: dlog, pow: dpow, tanh: dtanh, hypot: dhypot };
+
   // Cada era: cuántos años dura un turno cuando el pueblo más avanzado está en ella, cuánta gente
   // alimenta cada casilla (cap), cuánto pesa en la guerra (fuerza) y cuánta ciencia hace falta para llegar.
   M.ERAS = [
@@ -84,7 +120,7 @@
     if (e.ciencia) return t.era >= 1 ? 'saber' : 'plaza';
     if (e.estab && t.era >= 1) return 'templo';
     return 'plaza'; };
-  const BASE_COSTE = era => Math.round(18 * Math.pow(1 + era, 1.45));
+  const BASE_COSTE = era => Math.round(18 * dpow(1 + era, 1.45));
   const PRECIO_ERA = [];
   for (const t of M.TECNOLOGIAS) {
     t.lugar = LUGAR_DE(t);

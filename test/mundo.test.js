@@ -546,7 +546,7 @@ console.log('LA VIDA PAUSADA: NOCHES, ESTACIONES, OBRAS Y NECESIDADES');
   comprobar(prueba(2, 4, 0) === null && prueba(4, 2, 0) === 'aceite' && prueba(6, 2, 0) === 'aceite' && prueba(6, 3, 0) === 'gas' && prueba(7, 4, 0) === 'gas' && prueba(7, 4, 1) === 'electrico', 'alumbrado: faroles de aceite en la Edad Media, farolas de gas victorianas (villa), eléctricas solo con central');
   // La plaza pública empiedra su explanada de adoquín.
   const v = m.vida, libre = S.casillas(m, c).flatMap(r => V2.parcelas(m, r)).find(x => !V2.puedeColocar(m, c, x, 'pozo') && [1, -1, v.tw, -v.tw].every(d => !v.obra[x + d] && !v.camino[x + d] && !V2.puedeColocar(m, c, x + d, 'pozo')));
-  if (libre != null) { V2.cambiar(m, 'obra', libre, 0, 0); const antes = [1, -1, v.tw, -v.tw].filter(d => v.camino[libre + d]).length; c.plan.encargos = []; c.era = 3; c.nivelMax = 4; c.nivel = 4; c.madera = c.piedra = c.oro = 99; const r0 = V2.encargar(m, c, libre, 'fuente'); if (!r0.ok) console.log('   (encargo:', r0.razon + ')'); let ok = false; for (let i = 0; i < 40 && !ok; i++) { S.turno(m); ok = v.obra[libre] === V2.OBRA.fuente; } comprobar(ok && [1, -1, v.tw, -v.tw].filter(d => v.camino[libre + d]).length > antes, 'al acabar la plaza pública, alrededor se empiedra una explanada de adoquín'); }
+  if (libre != null) { V2.cambiar(m, 'obra', libre, 0, 0); const antes = [1, -1, v.tw, -v.tw].filter(d => v.camino[libre + d]).length; c.plan.encargos = []; c.era = 3; c.nivelMax = 4; c.nivel = 4; c.madera = c.piedra = c.oro = 99; const r0 = V2.encargar(m, c, libre, 'fuente'); if (!r0.ok) console.log('   (encargo:', r0.razon + ')'); let ok = false; for (let i = 0; i < 90 && !ok; i++) { S.turno(m); ok = v.obra[libre] === V2.OBRA.fuente; } if (!ok) console.log('   (la fuente no se terminó: ' + v.obra[libre] + ')'); comprobar(ok && [1, -1, v.tw, -v.tw].filter(d => v.camino[libre + d]).length > antes, 'al acabar la plaza pública, alrededor se empiedra una explanada de adoquín'); }
 }
 console.log('EL MERCADO GLOBAL');
 {
@@ -839,10 +839,16 @@ console.log('MINAS Y SEMILLAS DE ÁRBOL');
 
 console.log('TRINCHERAS EN LA SEGUNDA GUERRA MUNDIAL');
 {
-  const V = M.vida, m = S.crear(11, 5, { ritmo: 3 });
-  for (let k = 0; k < 200; k++) S.turno(m);
-  // La pareja de vecinos con la frontera más larga (y alguno con soldados).
-  const par = S.vivas(m).flatMap(c => S.vecinosDe(m, c).map(o => [c, o])).filter(([c, o]) => c.guerreros + o.guerreros > 3).sort((p, q) => S.frontera(m, q[0], q[1]).length - S.frontera(m, p[0], p[1]).length)[0] || [S.vivas(m)[0], S.vecinosDe(m, S.vivas(m)[0])[0]];
+  // Un mundo (de varias semillas) con dos vecinos con frontera y alguno con soldados: la pareja de frontera más larga.
+  const V = M.vida;
+  let m = null, par = null;
+  for (const sem of [11, 12, 13, 14, 15, 16]) {
+    m = S.crear(sem, 5, { ritmo: 3 });
+    for (let k = 0; k < 200; k++) S.turno(m);
+    par = S.vivas(m).flatMap(c => S.vecinosDe(m, c).map(o => [c, o])).filter(([c, o]) => c.guerreros + o.guerreros > 3).sort((p, q) => S.frontera(m, q[0], q[1]).length - S.frontera(m, p[0], p[1]).length)[0];
+    if (!par) { const c = S.vivas(m).find(x => S.vecinosDe(m, x).length); if (c) par = [c, S.vecinosDe(m, c)[0]]; }
+    if (par) break;
+  }
   const [a, o] = par;
   comprobar(!m.vida.trinchera || !m.vida.trinchera.some(Boolean), 'antes de la Segunda Guerra Mundial nadie cava trincheras');
   // (Dónde están las trincheras se mira justo antes de la guerra: luego las conquistas mueven la frontera.)

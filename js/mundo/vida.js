@@ -634,7 +634,7 @@
       for (const c of vivas) { of += c[k] || 0; de += objetivo(c, k); }
       mk.oferta[k] = Math.round(of); mk.demanda[k] = Math.round(de);
       if (mk.precio[k] == null) mk.precio[k] = PRECIO_BASE[k];
-      const nuevo = PRECIO_BASE[k] * Math.pow(Math.max(0.3, Math.min(3, (de + 5) / (of + 5))), 0.7) * (mk.suceso && mk.suceso.k === k ? mk.suceso.f : 1);
+      const nuevo = PRECIO_BASE[k] * M.mat.pow(Math.max(0.3, Math.min(3, (de + 5) / (of + 5))), 0.7) * (mk.suceso && mk.suceso.k === k ? mk.suceso.f : 1);
       mk.precio[k] = Math.round((mk.precio[k] * 0.75 + nuevo * 0.25) * 100) / 100;
       const h = mk.historia[k] = mk.historia[k] || [];
       h.push(mk.precio[k]); if (h.length > 30) h.shift();
@@ -1001,7 +1001,7 @@
   function riesgoAnual(m, a, c) {
     const anos = M.vida.anos(a), era = c ? c.era : 0, s_ = salud(m, a, c);
     // Mortalidad de Gompertz: muy baja de joven, se dobla cada ~8 años de vejez; mejora con las edades.
-    const base = anos < 5 ? 0.012 * Math.max(0.3, 1 - 0.09 * era) : 0.0003 * Math.max(0.35, 1 - 0.07 * era) * Math.exp(0.08 * anos);
+    const base = anos < 5 ? 0.012 * Math.max(0.3, 1 - 0.09 * era) : 0.0003 * Math.max(0.35, 1 - 0.07 * era) * M.mat.exp(0.08 * anos);
     return { p: Math.min(0.9, base * s_.f), salud: s_, anos };
   }
   // Lo que queda escrito de quien muere (para la ficha de sus hijos y de su casa).
@@ -1088,7 +1088,7 @@
           const dy = Math.max(0, anos - antes);
           if (!dy || quitar.has(a) || quedan <= 2) continue;
           // (Los colonos de viaje van en grupo y bien provistos: no los mata dormir al raso.)
-          const p = 1 - Math.pow(1 - riesgoAnual(m, a, c).p * (a.colono != null ? 0.25 : 1), dy);
+          const p = 1 - M.mat.pow(1 - riesgoAnual(m, a, c).p * (a.colono != null ? 0.25 : 1), dy);
           if (azar(v) < p) { quitar.add(a); quedan--; a.causa = anos >= 55 ? 'vejez' : esNino(a) ? 'enfermedad de niño' : 'enfermedad'; v.muertos.push([a.x, a.y, a.c, anos >= 55 ? 'vejez' : 'enfermedad', 0]); recordarMuerte(m, a, c); }
         }
       } else {
@@ -2962,8 +2962,8 @@
       const sesgo = ((Math.imul(t, 2654435761) >>> 0) % 1000) / 1000;
       const dd = plano
         // Con plan: lo más cerca de la plaza, junto a la calle, rellenando manzanas (y la huerta vieja, solo si no hay otra cosa).
-        ? Math.hypot(x - bx, ty - by) + (huertaVieja ? 2.5 : 0) - Math.min(2, vecinas) * 0.6 + azar(v) * 0.8
-        : Math.hypot(x - bx, ty - by) * (0.75 + sesgo * 0.5) + [0, -0.4, 0.8, 2.5, 4][vecinas] + azar(v) * 3;
+        ? M.mat.hypot(x - bx, ty - by) + (huertaVieja ? 2.5 : 0) - Math.min(2, vecinas) * 0.6 + azar(v) * 0.8
+        : M.mat.hypot(x - bx, ty - by) * (0.75 + sesgo * 0.5) + [0, -0.4, 0.8, 2.5, 4][vecinas] + azar(v) * 3;
       if (dd < md) { md = dd; mejor = t; }
     }
     return mejor;
@@ -3521,7 +3521,7 @@
         for (let y = Math.max(0, Math.floor(ce.cy - ce.R)); y <= Math.min(v.th - 1, Math.ceil(ce.cy + ce.R)); y++) for (let x = Math.max(0, Math.floor(ce.cx - ce.R)); x <= Math.min(tw - 1, Math.ceil(ce.cx + ce.R)); x++) {
           const t = y * tw + x;
           if (v.plan[t] !== 1 || v.camino[t] || v.obra[t] || ya.has(t) || !andable(ter[t])) continue;
-          if ([t - 1, t + 1, t - tw, t + tw].some(n => n >= 0 && n < v.obra.length && v.obra[n] && v.obra[n] !== OBRA.campo && v.obra[n] !== OBRA.ruina)) nuevas.push([Math.hypot(x - ce.cx, y - ce.cy), t]);
+          if ([t - 1, t + 1, t - tw, t + tw].some(n => n >= 0 && n < v.obra.length && v.obra[n] && v.obra[n] !== OBRA.campo && v.obra[n] !== OBRA.ruina)) nuevas.push([M.mat.hypot(x - ce.cx, y - ce.cy), t]);
         }
         nuevas.sort((p, q) => p[0] - q[0]);
         for (const [, t] of nuevas.slice(0, 12)) lista.push(t);

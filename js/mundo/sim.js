@@ -32,6 +32,14 @@
   }
 
   // ---------- Azar con semilla (mulberry32): el estado vive en el mundo ----------
+  // Ordenar por una clave calculada una vez por elemento (y en el mismo orden): da lo mismo en todos los navegadores.
+  // Un comparador con azar dentro, o con restas de varias cosas, depende de cómo ordene cada navegador.
+  function ordenarPor(lista, clave) {
+    const k = lista.map((x, i) => [clave(x), i, x]);
+    k.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]));
+    for (let i = 0; i < k.length; i++) lista[i] = k[i][2];
+    return lista;
+  }
   function azar(m) {
     let t = (m.rng = (m.rng + 0x6D2B79F5) >>> 0);
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -212,7 +220,7 @@
   }
   function fuerza(m, c, cs) {
     const car = M.CARACTERES[c.caracter];
-    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * Math.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * foco(c, 'fuerza') * rasgo(c, 'fuerza') * (c.guerreros ? 1 + 0.25 * Math.min(1, (c.armados || 0) / Math.max(3, c.guerreros)) : 1));
+    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * M.mat.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * foco(c, 'fuerza') * rasgo(c, 'fuerza') * (c.guerreros ? 1 + 0.25 * Math.min(1, (c.armados || 0) / Math.max(3, c.guerreros)) : 1));
   }
   function frontera(m, a, b) {
     // Casillas de b que tocan a a.
@@ -281,7 +289,7 @@
     // Los primeros pueblos, en tierras fértiles y lejos unos de otros (mejor junto a un río).
     const candidatas = [];
     for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.tipo[i] !== 'nieve' && fertil(m, i) >= 3) candidatas.push(i);
-    candidatas.sort((a, b) => fertil(m, b) - fertil(m, a) + (azar(m) - 0.5));
+    ordenarPor(candidatas, i => -fertil(m, i) + azar(m) * 0.7);
     // Lejos unos de otros; con muchos pueblos (hasta 10), se acepta que nazcan algo más cerca.
     const elegidas = [];
     for (const sep of [12, 10, 8, 6]) {
@@ -408,7 +416,7 @@
       // Un jugador puede marcar un rumbo: hacia un punto cardinal o hacia otro pueblo.
       const rumbo = c.plan && c.plan.rumbo != null ? destinoRumbo(m, c, c.plan.rumbo) : null;
       const tiron = i => (rumbo == null ? 0 : distancia(i, rumbo) * 0.6);
-      const orden = [...libres].sort((a, b) => fertil(m, b) - fertil(m, a) + distancia(a, c.capital) * 0.15 - distancia(b, c.capital) * 0.15 + tiron(a) - tiron(b));
+      const orden = ordenarPor([...libres], i => -fertil(m, i) + distancia(i, c.capital) * 0.15 + tiron(i));
       // Expandirse cuesta madera (o piedra) cuando hay aldeanos que la traen (vida.js).
       const vida = m.vida && M.vida;
       const cuantas = Math.min((c.era >= 3 ? 4 : 2) + (pe >= 2 ? 1 : 0), vida ? vida.tierrasPagables(m, c) : 99);
@@ -914,7 +922,7 @@
       // Las batallas que ganan los guerreros de cada bando (vida.js) inclinan la guerra.
       const batallas = ((a.victorias || 0) - (b.victorias || 0));
       a.victorias = 0; b.victorias = 0;
-      const empuje = 1 + 0.25 * Math.tanh(batallas / 6);
+      const empuje = 1 + 0.25 * M.mat.tanh(batallas / 6);
       const fa = fuerza(m, a) * empuje, fb = fuerza(m, b) / empuje;
       const [gana, pierde, ratio] = fa >= fb ? [a, b, fa / fb] : [b, a, fb / fa];
       // Las batallas ganan algo de frontera cada año; las plazas se toman con asedios (vida.js).
@@ -923,7 +931,7 @@
       // sabe qué defender.
       const plaza = new Set(m.vida && (a.jugador || b.jugador) ? [pierde.capital, ...(m.ciudades || []).map(x => x.region)] : []);
       const fr = frontera(m, gana, pierde).filter(i => !plaza.has(i));
-      const tomadas = fr.sort(() => azar(m) - 0.5).slice(0, k);
+      const tomadas = ordenarPor(fr, () => azar(m)).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;
       a.pob *= 0.975; b.pob *= 0.975;
       pierde.pob *= 1 - 0.02 * tomadas.length;
@@ -1027,5 +1035,5 @@
   }
 
   M.sim = { perderCapital, turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, ordenarPor, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});

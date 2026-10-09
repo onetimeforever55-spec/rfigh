@@ -1400,7 +1400,7 @@
     m.modo = 'pueblo'; X.gobernar(m, yo.civ);
     for (const j of red.jugadores.slice(1)) X.unirse(m, j.civ);
     red.miCiv = yo.civ; calculo = null;
-    sel = yo.civ; P.mundo(m); P.seleccionar(sel); const c = S.civ(m, yo.civ); if (c) P.centrarEn(c.capital, 3);
+    sel = yo.civ; P.mundo(m, false); P.seleccionar(sel); const c = S.civ(m, yo.civ); if (c) P.centrarEn(c.capital, 3);
     pintarModo(); pintarTodo(); pintarOnline(); pintarSala();
     mostrarCarga('Enviando el mundo a los jugadores…', 0.3);
     difundir({ t: 'jugadores', lista: red.jugadores });
@@ -1550,12 +1550,15 @@
       const nuevo = JSON.parse(txt);
       // Los retos son de cada jugador: al recibir el mundo del anfitrión (que trae los suyos) se guardan los propios.
       // (Solo si ya estaba en esta partida online: los retos del solitario no se mezclan con los del online.)
+      const yaEstaba = !!red.mundoOnline;
       const misRetos = red.mundoOnline && m && m.retos && red.miCiv != null && m.retos.civ === red.miCiv ? m.retos : null;
       red.mundoOnline = true;
       calculo = null; m = nuevo;
       if (red.miCiv != null) m.retos = misRetos || { civ: red.miCiv, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; vel = d.vel || 0; corriendo = true;
       m.jugador = red.miCiv; m.modo = 'pueblo'; m.guia = { oculta: 1 };
-      P.mundo(m); if (red.miCiv != null) { sel = red.miCiv; P.seleccionar(sel); }
+      // Al recibir otra vez el mundo (para ponerse al día), la cámara se queda donde estaba: no salta a otro reino.
+      P.mundo(m, !yaEstaba && red.miCiv == null); if (red.miCiv != null) { sel = red.miCiv; P.seleccionar(sel); }
+      if (!yaEstaba && red.miCiv != null && !d.carga) { const c0 = S.civ(m, red.miCiv); if (c0 && c0.viva) P.centrarEn(c0.capital, 3); }
       red.jugadores = d.jugadores || [];
       red.esperandoMundo = false;
       red.pendientes = red.pendientes.filter(x => x.n > m.turno).sort((a, b) => a.n - b.n);
@@ -1563,7 +1566,7 @@
       $('online').hidden = true; $('inicio').hidden = true;
       // En la carga del principio, se avisa al anfitrión y se espera a su señal para empezar todos a la vez.
       if (d.carga) { enviarAnfitrion({ t: 'listo' }); mostrarCarga('Mundo cargado. Esperando a los demás…', 0.8); if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift()); return; }
-      if (d.eres != null) { const c = S.civ(m, d.eres); if (!m.retos || m.retos.civ !== d.eres) m.retos = { civ: d.eres, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; if (c && !c.viva) responder(c.nombre + ' cayó mientras estabas fuera: has perdido. Puedes seguir mirando la partida.', 'duda'); else if (c) P.centrarEn(c.capital, 3); if (c && c.viva) responder('¡Empieza la partida! Gobiernas ' + nombreDe(d.eres) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien'); }
+      if (d.eres != null) { const c = S.civ(m, d.eres); if (!m.retos || m.retos.civ !== d.eres) m.retos = { civ: d.eres, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; if (c && !c.viva) responder(c.nombre + ' cayó mientras estabas fuera: has perdido. Puedes seguir mirando la partida.', 'duda'); else if (c && !yaEstaba) P.centrarEn(c.capital, 3); if (c && c.viva && !yaEstaba) responder('¡Empieza la partida! Gobiernas ' + nombreDe(d.eres) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien'); }
       if (red.miCiv == null && !red.avisadoMirar) { red.avisadoMirar = true; responder('Todos los reinos tienen dueño: miras la partida como observador.', 'duda'); }
       if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift());
     }
@@ -1689,7 +1692,7 @@
         difundirSala();
       } else {
         red.sala = false; red.mundoOnline = true; calculo = null; m = d.mundo; vel = d.vel || 0;
-        m.jugador = red.miCiv; m.modo = 'pueblo'; sel = red.miCiv; P.mundo(m); P.seleccionar(sel); if (tuPueblo()) P.centrarEn(tuPueblo().capital, 3);
+        m.jugador = red.miCiv; m.modo = 'pueblo'; sel = red.miCiv; P.mundo(m, false); P.seleccionar(sel); if (tuPueblo()) P.centrarEn(tuPueblo().capital, 3);
         $('online').hidden = true; pintarModo(); pintarTodo(); pintarOnline();
         // A cada jugador se le manda el mundo tal como lo tiene el anfitrión, y se sigue desde ahí.
         for (const j of red.jugadores) if (j.id !== 'anfitrion') { const c = red.conectarId(j.id); await mandarMundo(c, j.civ); }
@@ -1710,7 +1713,7 @@
     const s = red.solo; red.solo = null;
     let vuelto = null; try { vuelto = s ? JSON.parse(s.json) : null; } catch (e) { vuelto = null; }
     calculo = null;
-    if (vuelto) { m = vuelto; vel = s.vel || 0; P.mundo(m); sel = s.sel != null ? s.sel : m.jugador; P.seleccionar(sel); if (tuPueblo()) P.centrarEn(tuPueblo().capital, 3); }
+    if (vuelto) { m = vuelto; vel = s.vel || 0; P.mundo(m, !(m.modo === 'pueblo' && m.jugador != null)); sel = s.sel != null ? s.sel : m.jugador; P.seleccionar(sel); if (tuPueblo()) P.centrarEn(tuPueblo().capital, 3); }
     else mundoNuevo();
     corriendo = !!m.modo; programar(); pintarModo(); pintarTodo();
     if (!m.modo) pedirModo();

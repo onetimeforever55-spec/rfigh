@@ -840,6 +840,42 @@ body.limpio .tropas-barra { display: none; }
   'use strict';
   const M = RF.MUNDO = RF.MUNDO || {};
 
+  // ---------- Matemáticas iguales en todos los navegadores ----------
+  // Math.pow, Math.exp, Math.tanh o Math.hypot pueden redondear distinto en Chrome, Safari o Firefox (la norma
+  // no lo fija), y en online cada navegador tiene que calcular exactamente lo mismo. Estas usan solo sumas,
+  // restas, multiplicaciones, divisiones y raíz cuadrada (exactas por norma), siempre en el mismo orden.
+  const LN2 = 0.6931471805599453;
+  function dexp(x) {
+    if (x !== x) return x;
+    if (x > 700) return Infinity;
+    if (x < -700) return 0;
+    const k = Math.round(x / LN2), r = x - k * LN2;
+    let t = 1, s = 1;
+    for (let i = 1; i < 24; i++) { t = t * r / i; s += t; }
+    let f = 1, n = k < 0 ? -k : k;
+    while (n-- > 0) f *= 2;
+    return k < 0 ? s / f : s * f;
+  }
+  function dlog(x) {
+    if (!(x > 0)) return x === 0 ? -Infinity : NaN;
+    let e = 0;
+    while (x >= 2) { x /= 2; e++; }
+    while (x < 1) { x *= 2; e--; }
+    const z = (x - 1) / (x + 1), z2 = z * z;
+    let t = z, s = 0;
+    for (let i = 1; i < 60; i += 2) { s += t / i; t *= z2; }
+    return 2 * s + e * LN2;
+  }
+  const dpow = (a, b) => {
+    if (b === 0) return 1;
+    if (a === 0) return 0;
+    if (Number.isInteger(b) && b > 0 && b < 64) { let r = 1; for (let i = 0; i < b; i++) r *= a; return r; }
+    return dexp(b * dlog(a));
+  };
+  const dtanh = x => { if (x > 20) return 1; if (x < -20) return -1; const e = dexp(2 * x); return (e - 1) / (e + 1); };
+  const dhypot = (x, y) => Math.sqrt(x * x + y * y);
+  M.mat = { exp: dexp, log: dlog, pow: dpow, tanh: dtanh, hypot: dhypot };
+
   // Cada era: cuántos años dura un turno cuando el pueblo más avanzado está en ella, cuánta gente
   // alimenta cada casilla (cap), cuánto pesa en la guerra (fuerza) y cuánta ciencia hace falta para llegar.
   M.ERAS = [
@@ -916,7 +952,7 @@ body.limpio .tropas-barra { display: none; }
     if (e.ciencia) return t.era >= 1 ? 'saber' : 'plaza';
     if (e.estab && t.era >= 1) return 'templo';
     return 'plaza'; };
-  const BASE_COSTE = era => Math.round(18 * Math.pow(1 + era, 1.45));
+  const BASE_COSTE = era => Math.round(18 * dpow(1 + era, 1.45));
   const PRECIO_ERA = [];
   for (const t of M.TECNOLOGIAS) {
     t.lugar = LUGAR_DE(t);
@@ -1129,6 +1165,14 @@ body.limpio .tropas-barra { display: none; }
   }
 
   // ---------- Azar con semilla (mulberry32): el estado vive en el mundo ----------
+  // Ordenar por una clave calculada una vez por elemento (y en el mismo orden): da lo mismo en todos los navegadores.
+  // Un comparador con azar dentro, o con restas de varias cosas, depende de cómo ordene cada navegador.
+  function ordenarPor(lista, clave) {
+    const k = lista.map((x, i) => [clave(x), i, x]);
+    k.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]));
+    for (let i = 0; i < k.length; i++) lista[i] = k[i][2];
+    return lista;
+  }
   function azar(m) {
     let t = (m.rng = (m.rng + 0x6D2B79F5) >>> 0);
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -1309,7 +1353,7 @@ body.limpio .tropas-barra { display: none; }
   }
   function fuerza(m, c, cs) {
     const car = M.CARACTERES[c.caracter];
-    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * Math.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * foco(c, 'fuerza') * rasgo(c, 'fuerza') * (c.guerreros ? 1 + 0.25 * Math.min(1, (c.armados || 0) / Math.max(3, c.guerreros)) : 1));
+    return Math.max(0.1, c.pob * M.ERAS[c.era].fuerza * (0.5 + c.estab / 100) * M.mat.pow(car.agresion, 0.4) * (1 + Math.min(1, c.riqueza / 200)) * foco(c, 'fuerza') * rasgo(c, 'fuerza') * (c.guerreros ? 1 + 0.25 * Math.min(1, (c.armados || 0) / Math.max(3, c.guerreros)) : 1));
   }
   function frontera(m, a, b) {
     // Casillas de b que tocan a a.
@@ -1378,7 +1422,7 @@ body.limpio .tropas-barra { display: none; }
     // Los primeros pueblos, en tierras fértiles y lejos unos de otros (mejor junto a un río).
     const candidatas = [];
     for (let i = 0; i < W * H; i++) if (esTierra(m, i) && m.tipo[i] !== 'nieve' && fertil(m, i) >= 3) candidatas.push(i);
-    candidatas.sort((a, b) => fertil(m, b) - fertil(m, a) + (azar(m) - 0.5));
+    ordenarPor(candidatas, i => -fertil(m, i) + azar(m) * 0.7);
     // Lejos unos de otros; con muchos pueblos (hasta 10), se acepta que nazcan algo más cerca.
     const elegidas = [];
     for (const sep of [12, 10, 8, 6]) {
@@ -1505,7 +1549,7 @@ body.limpio .tropas-barra { display: none; }
       // Un jugador puede marcar un rumbo: hacia un punto cardinal o hacia otro pueblo.
       const rumbo = c.plan && c.plan.rumbo != null ? destinoRumbo(m, c, c.plan.rumbo) : null;
       const tiron = i => (rumbo == null ? 0 : distancia(i, rumbo) * 0.6);
-      const orden = [...libres].sort((a, b) => fertil(m, b) - fertil(m, a) + distancia(a, c.capital) * 0.15 - distancia(b, c.capital) * 0.15 + tiron(a) - tiron(b));
+      const orden = ordenarPor([...libres], i => -fertil(m, i) + distancia(i, c.capital) * 0.15 + tiron(i));
       // Expandirse cuesta madera (o piedra) cuando hay aldeanos que la traen (vida.js).
       const vida = m.vida && M.vida;
       const cuantas = Math.min((c.era >= 3 ? 4 : 2) + (pe >= 2 ? 1 : 0), vida ? vida.tierrasPagables(m, c) : 99);
@@ -2011,7 +2055,7 @@ body.limpio .tropas-barra { display: none; }
       // Las batallas que ganan los guerreros de cada bando (vida.js) inclinan la guerra.
       const batallas = ((a.victorias || 0) - (b.victorias || 0));
       a.victorias = 0; b.victorias = 0;
-      const empuje = 1 + 0.25 * Math.tanh(batallas / 6);
+      const empuje = 1 + 0.25 * M.mat.tanh(batallas / 6);
       const fa = fuerza(m, a) * empuje, fb = fuerza(m, b) / empuje;
       const [gana, pierde, ratio] = fa >= fb ? [a, b, fa / fb] : [b, a, fb / fa];
       // Las batallas ganan algo de frontera cada año; las plazas se toman con asedios (vida.js).
@@ -2020,7 +2064,7 @@ body.limpio .tropas-barra { display: none; }
       // sabe qué defender.
       const plaza = new Set(m.vida && (a.jugador || b.jugador) ? [pierde.capital, ...(m.ciudades || []).map(x => x.region)] : []);
       const fr = frontera(m, gana, pierde).filter(i => !plaza.has(i));
-      const tomadas = fr.sort(() => azar(m) - 0.5).slice(0, k);
+      const tomadas = ordenarPor(fr, () => azar(m)).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;
       a.pob *= 0.975; b.pob *= 0.975;
       pierde.pob *= 1 - 0.02 * tomadas.length;
@@ -2124,7 +2168,7 @@ body.limpio .tropas-barra { display: none; }
   }
 
   M.sim = { perderCapital, turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, ordenarPor, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vida.js
@@ -2764,7 +2808,7 @@ body.limpio .tropas-barra { display: none; }
       for (const c of vivas) { of += c[k] || 0; de += objetivo(c, k); }
       mk.oferta[k] = Math.round(of); mk.demanda[k] = Math.round(de);
       if (mk.precio[k] == null) mk.precio[k] = PRECIO_BASE[k];
-      const nuevo = PRECIO_BASE[k] * Math.pow(Math.max(0.3, Math.min(3, (de + 5) / (of + 5))), 0.7) * (mk.suceso && mk.suceso.k === k ? mk.suceso.f : 1);
+      const nuevo = PRECIO_BASE[k] * M.mat.pow(Math.max(0.3, Math.min(3, (de + 5) / (of + 5))), 0.7) * (mk.suceso && mk.suceso.k === k ? mk.suceso.f : 1);
       mk.precio[k] = Math.round((mk.precio[k] * 0.75 + nuevo * 0.25) * 100) / 100;
       const h = mk.historia[k] = mk.historia[k] || [];
       h.push(mk.precio[k]); if (h.length > 30) h.shift();
@@ -3131,7 +3175,7 @@ body.limpio .tropas-barra { display: none; }
   function riesgoAnual(m, a, c) {
     const anos = M.vida.anos(a), era = c ? c.era : 0, s_ = salud(m, a, c);
     // Mortalidad de Gompertz: muy baja de joven, se dobla cada ~8 años de vejez; mejora con las edades.
-    const base = anos < 5 ? 0.012 * Math.max(0.3, 1 - 0.09 * era) : 0.0003 * Math.max(0.35, 1 - 0.07 * era) * Math.exp(0.08 * anos);
+    const base = anos < 5 ? 0.012 * Math.max(0.3, 1 - 0.09 * era) : 0.0003 * Math.max(0.35, 1 - 0.07 * era) * M.mat.exp(0.08 * anos);
     return { p: Math.min(0.9, base * s_.f), salud: s_, anos };
   }
   // Lo que queda escrito de quien muere (para la ficha de sus hijos y de su casa).
@@ -3218,7 +3262,7 @@ body.limpio .tropas-barra { display: none; }
           const dy = Math.max(0, anos - antes);
           if (!dy || quitar.has(a) || quedan <= 2) continue;
           // (Los colonos de viaje van en grupo y bien provistos: no los mata dormir al raso.)
-          const p = 1 - Math.pow(1 - riesgoAnual(m, a, c).p * (a.colono != null ? 0.25 : 1), dy);
+          const p = 1 - M.mat.pow(1 - riesgoAnual(m, a, c).p * (a.colono != null ? 0.25 : 1), dy);
           if (azar(v) < p) { quitar.add(a); quedan--; a.causa = anos >= 55 ? 'vejez' : esNino(a) ? 'enfermedad de niño' : 'enfermedad'; v.muertos.push([a.x, a.y, a.c, anos >= 55 ? 'vejez' : 'enfermedad', 0]); recordarMuerte(m, a, c); }
         }
       } else {
@@ -5092,8 +5136,8 @@ body.limpio .tropas-barra { display: none; }
       const sesgo = ((Math.imul(t, 2654435761) >>> 0) % 1000) / 1000;
       const dd = plano
         // Con plan: lo más cerca de la plaza, junto a la calle, rellenando manzanas (y la huerta vieja, solo si no hay otra cosa).
-        ? Math.hypot(x - bx, ty - by) + (huertaVieja ? 2.5 : 0) - Math.min(2, vecinas) * 0.6 + azar(v) * 0.8
-        : Math.hypot(x - bx, ty - by) * (0.75 + sesgo * 0.5) + [0, -0.4, 0.8, 2.5, 4][vecinas] + azar(v) * 3;
+        ? M.mat.hypot(x - bx, ty - by) + (huertaVieja ? 2.5 : 0) - Math.min(2, vecinas) * 0.6 + azar(v) * 0.8
+        : M.mat.hypot(x - bx, ty - by) * (0.75 + sesgo * 0.5) + [0, -0.4, 0.8, 2.5, 4][vecinas] + azar(v) * 3;
       if (dd < md) { md = dd; mejor = t; }
     }
     return mejor;
@@ -5651,7 +5695,7 @@ body.limpio .tropas-barra { display: none; }
         for (let y = Math.max(0, Math.floor(ce.cy - ce.R)); y <= Math.min(v.th - 1, Math.ceil(ce.cy + ce.R)); y++) for (let x = Math.max(0, Math.floor(ce.cx - ce.R)); x <= Math.min(tw - 1, Math.ceil(ce.cx + ce.R)); x++) {
           const t = y * tw + x;
           if (v.plan[t] !== 1 || v.camino[t] || v.obra[t] || ya.has(t) || !andable(ter[t])) continue;
-          if ([t - 1, t + 1, t - tw, t + tw].some(n => n >= 0 && n < v.obra.length && v.obra[n] && v.obra[n] !== OBRA.campo && v.obra[n] !== OBRA.ruina)) nuevas.push([Math.hypot(x - ce.cx, y - ce.cy), t]);
+          if ([t - 1, t + 1, t - tw, t + tw].some(n => n >= 0 && n < v.obra.length && v.obra[n] && v.obra[n] !== OBRA.campo && v.obra[n] !== OBRA.ruina)) nuevas.push([M.mat.hypot(x - ce.cx, y - ce.cy), t]);
         }
         nuevas.sort((p, q) => p[0] - q[0]);
         for (const [, t] of nuevas.slice(0, 12)) lista.push(t);
@@ -7783,7 +7827,7 @@ body.limpio .tropas-barra { display: none; }
         const cs = S().casillas(m, c);
         const libres = [];
         for (let i = 0; i < m.W * m.H; i++) if (S().esTierra(m, i) && m.dueno[i] < 0 && m.tipo[i] !== 'nieve' && S().vecinos(i).some(v => m.tipo[v] === 'costa')) libres.push(i);
-        libres.sort((x, y) => Math.min(...cs.map(j => S().distancia(x, j))) - Math.min(...cs.map(j => S().distancia(y, j))) - (S().fertil(m, x) - S().fertil(m, y)) * 2);
+        S().ordenarPor(libres, x => Math.min(...cs.map(j => S().distancia(x, j))) - S().fertil(m, x) * 2);
         const destino = libres[0];
         if (destino == null) { textos.push('No queda costa libre en el mundo que colonizar.'); continue; }
         c.madera -= 15;
@@ -11611,7 +11655,7 @@ body.limpio .tropas-barra { display: none; }
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { camara: () => ({ x: cam.x, y: cam.y, z: cam.z }), modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/sonido.js
@@ -13095,7 +13139,7 @@ body.limpio .tropas-barra { display: none; }
     m.modo = 'pueblo'; X.gobernar(m, yo.civ);
     for (const j of red.jugadores.slice(1)) X.unirse(m, j.civ);
     red.miCiv = yo.civ; calculo = null;
-    sel = yo.civ; P.mundo(m); P.seleccionar(sel); const c = S.civ(m, yo.civ); if (c) P.centrarEn(c.capital, 3);
+    sel = yo.civ; P.mundo(m, false); P.seleccionar(sel); const c = S.civ(m, yo.civ); if (c) P.centrarEn(c.capital, 3);
     pintarModo(); pintarTodo(); pintarOnline(); pintarSala();
     mostrarCarga('Enviando el mundo a los jugadores…', 0.3);
     difundir({ t: 'jugadores', lista: red.jugadores });
@@ -13245,12 +13289,15 @@ body.limpio .tropas-barra { display: none; }
       const nuevo = JSON.parse(txt);
       // Los retos son de cada jugador: al recibir el mundo del anfitrión (que trae los suyos) se guardan los propios.
       // (Solo si ya estaba en esta partida online: los retos del solitario no se mezclan con los del online.)
+      const yaEstaba = !!red.mundoOnline;
       const misRetos = red.mundoOnline && m && m.retos && red.miCiv != null && m.retos.civ === red.miCiv ? m.retos : null;
       red.mundoOnline = true;
       calculo = null; m = nuevo;
       if (red.miCiv != null) m.retos = misRetos || { civ: red.miCiv, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; vel = d.vel || 0; corriendo = true;
       m.jugador = red.miCiv; m.modo = 'pueblo'; m.guia = { oculta: 1 };
-      P.mundo(m); if (red.miCiv != null) { sel = red.miCiv; P.seleccionar(sel); }
+      // Al recibir otra vez el mundo (para ponerse al día), la cámara se queda donde estaba: no salta a otro reino.
+      P.mundo(m, !yaEstaba && red.miCiv == null); if (red.miCiv != null) { sel = red.miCiv; P.seleccionar(sel); }
+      if (!yaEstaba && red.miCiv != null && !d.carga) { const c0 = S.civ(m, red.miCiv); if (c0 && c0.viva) P.centrarEn(c0.capital, 3); }
       red.jugadores = d.jugadores || [];
       red.esperandoMundo = false;
       red.pendientes = red.pendientes.filter(x => x.n > m.turno).sort((a, b) => a.n - b.n);
@@ -13258,7 +13305,7 @@ body.limpio .tropas-barra { display: none; }
       $('online').hidden = true; $('inicio').hidden = true;
       // En la carga del principio, se avisa al anfitrión y se espera a su señal para empezar todos a la vez.
       if (d.carga) { enviarAnfitrion({ t: 'listo' }); mostrarCarga('Mundo cargado. Esperando a los demás…', 0.8); if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift()); return; }
-      if (d.eres != null) { const c = S.civ(m, d.eres); if (!m.retos || m.retos.civ !== d.eres) m.retos = { civ: d.eres, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; if (c && !c.viva) responder(c.nombre + ' cayó mientras estabas fuera: has perdido. Puedes seguir mirando la partida.', 'duda'); else if (c) P.centrarEn(c.capital, 3); if (c && c.viva) responder('¡Empieza la partida! Gobiernas ' + nombreDe(d.eres) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien'); }
+      if (d.eres != null) { const c = S.civ(m, d.eres); if (!m.retos || m.retos.civ !== d.eres) m.retos = { civ: d.eres, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; if (c && !c.viva) responder(c.nombre + ' cayó mientras estabas fuera: has perdido. Puedes seguir mirando la partida.', 'duda'); else if (c && !yaEstaba) P.centrarEn(c.capital, 3); if (c && c.viva && !yaEstaba) responder('¡Empieza la partida! Gobiernas ' + nombreDe(d.eres) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien'); }
       if (red.miCiv == null && !red.avisadoMirar) { red.avisadoMirar = true; responder('Todos los reinos tienen dueño: miras la partida como observador.', 'duda'); }
       if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift());
     }
@@ -13384,7 +13431,7 @@ body.limpio .tropas-barra { display: none; }
         difundirSala();
       } else {
         red.sala = false; red.mundoOnline = true; calculo = null; m = d.mundo; vel = d.vel || 0;
-        m.jugador = red.miCiv; m.modo = 'pueblo'; sel = red.miCiv; P.mundo(m); P.seleccionar(sel); if (tuPueblo()) P.centrarEn(tuPueblo().capital, 3);
+        m.jugador = red.miCiv; m.modo = 'pueblo'; sel = red.miCiv; P.mundo(m, false); P.seleccionar(sel); if (tuPueblo()) P.centrarEn(tuPueblo().capital, 3);
         $('online').hidden = true; pintarModo(); pintarTodo(); pintarOnline();
         // A cada jugador se le manda el mundo tal como lo tiene el anfitrión, y se sigue desde ahí.
         for (const j of red.jugadores) if (j.id !== 'anfitrion') { const c = red.conectarId(j.id); await mandarMundo(c, j.civ); }
@@ -13405,7 +13452,7 @@ body.limpio .tropas-barra { display: none; }
     const s = red.solo; red.solo = null;
     let vuelto = null; try { vuelto = s ? JSON.parse(s.json) : null; } catch (e) { vuelto = null; }
     calculo = null;
-    if (vuelto) { m = vuelto; vel = s.vel || 0; P.mundo(m); sel = s.sel != null ? s.sel : m.jugador; P.seleccionar(sel); if (tuPueblo()) P.centrarEn(tuPueblo().capital, 3); }
+    if (vuelto) { m = vuelto; vel = s.vel || 0; P.mundo(m, !(m.modo === 'pueblo' && m.jugador != null)); sel = s.sel != null ? s.sel : m.jugador; P.seleccionar(sel); if (tuPueblo()) P.centrarEn(tuPueblo().capital, 3); }
     else mundoNuevo();
     corriendo = !!m.modo; programar(); pintarModo(); pintarTodo();
     if (!m.modo) pedirModo();

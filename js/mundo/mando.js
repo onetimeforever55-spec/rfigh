@@ -1153,7 +1153,7 @@
         const cs = S().casillas(m, c);
         const libres = [];
         for (let i = 0; i < m.W * m.H; i++) if (S().esTierra(m, i) && m.dueno[i] < 0 && m.tipo[i] !== 'nieve' && S().vecinos(i).some(v => m.tipo[v] === 'costa')) libres.push(i);
-        libres.sort((x, y) => Math.min(...cs.map(j => S().distancia(x, j))) - Math.min(...cs.map(j => S().distancia(y, j))) - (S().fertil(m, x) - S().fertil(m, y)) * 2);
+        S().ordenarPor(libres, x => Math.min(...cs.map(j => S().distancia(x, j))) - S().fertil(m, x) * 2);
         const destino = libres[0];
         if (destino == null) { textos.push('No queda costa libre en el mundo que colonizar.'); continue; }
         c.madera -= 15;

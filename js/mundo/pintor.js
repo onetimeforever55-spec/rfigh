@@ -2298,5 +2298,5 @@
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { camara: () => ({ x: cam.x, y: cam.y, z: cam.z }), modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});
