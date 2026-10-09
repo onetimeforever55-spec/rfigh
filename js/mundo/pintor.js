@@ -531,7 +531,9 @@
       paso: paso || 0, corre: !!corre, alto: alto || 0, carga: carga || 0,
       arma: oficio === 'guerrero' ? a.arma || 0 : 0, tirador: oficio === 'guerrero' && !!a.tirador, armadura: oficio === 'guerrero' ? a.armadura || 0 : 0,
       piel: (a.c + (a.id % 6 === 0 ? 1 : 0)) % 4, pelo: a.id % 4,
-      sabio: oficio === 'erudito' ? M.ERUDITO((S.civ(m, a.c) || { era: 0 }).era).tipo : undefined
+      sabio: oficio === 'erudito' ? M.ERUDITO((S.civ(m, a.c) || { era: 0 }).era).tipo : undefined,
+      // Mercaderes (desde la Edad Media) y empresarios con su traje: casaca y sombrero; desde la Revolución Industrial, chistera.
+      traje: nino || (!a.emp && oficio !== 'comerciante') ? 0 : (() => { const era = (S.civ(m, a.c) || { era: 0 }).era; return era >= 6 ? 2 : a.emp || era >= 4 ? 1 : 0; })()
     });
   }
   const durmiendo = new Set();

@@ -460,6 +460,9 @@
     const porQuien = obreros.map(id => v.aldeanos.find(a => a.id === id)).filter(Boolean);
     v.edificios[t] = { tipo: o, nombre: nombreEdificio(m, o, t, porQuien), anio: m.anio, turno: m.turno, era: c ? c.era : 0, civ: c ? c.id : -1, por: porQuien.slice(0, 4).map(a => a.nombre + ' ' + (a.familia || '')), historia: [{ anio: m.anio, texto: rec && rec.ruina ? 'reconstruido sobre las ruinas' : 'construido' }] };
     if (v.obreros) delete v.obreros[t];
+    // La fábrica de un empresario lleva su nombre.
+    const pv = v.privados && v.privados[t], duenio = pv && v.aldeanos.find(x => x.id === pv.dueno);
+    if (duenio) { v.edificios[t].nombre = 'Fábrica de ' + duenio.nombre + ' ' + (duenio.familia || ''); v.edificios[t].dueno = duenio.nombre + ' ' + (duenio.familia || ''); }
   }
   const SIN_REFORMA = new Set([OBRA.campamento, OBRA.centro, OBRA.campo, OBRA.ruina]);
   function apuntarObrero(m, t, a) { const v = m.vida; v.obreros = v.obreros || {}; const l = v.obreros[t] = v.obreros[t] || []; if (!l.includes(a.id)) l.push(a.id); }
@@ -626,6 +629,100 @@
     }
     c.especialidad = principal;
   }
+  /*
+   * LA BANCA (con banco, desde el Renacimiento): el banco junta un fondo con los ahorros de la gente y lo que le
+   * devuelven, y presta a los vecinos que quieren montar algo. Quien recibe el préstamo se hace EMPRESARIO (a.emp):
+   * un mercader con su carreta o, desde la Revolución Industrial, el dueño de una fábrica que se levanta con su
+   * dinero (v.privados[t]), no con la madera ni la piedra del reino. Los que trabajan allí siguen siendo del reino.
+   * Con lo que gana paga impuestos y devuelve el préstamo, a plazos y con intereses. La fábrica privada produce para
+   * el reino como cualquier otra; a cambio, el reino le paga cada turno su parte (y recupera los impuestos).
+   * El interés (c.plan.interes): bajo = más préstamos y más quiebras; alto = pocos, seguros, y el banco gana más.
+   * Si un empresario no puede pagar en mucho tiempo, quiebra: su negocio pasa al reino y el banco pierde lo que faltaba.
+   */
+  const TIPO_INTERES = n => (n <= 0.5 ? 0.05 : n >= 1.5 ? 0.18 : 0.1);
+  const nivelInteres = c => (c.plan && c.plan.interes) || 1;
+  const empresariosDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.emp);
+  function sitioFabrica(m, c) {
+    const v = m.vida, regiones = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
+    for (const r of regiones) for (const t of parcelas(m, r)) if (!v.obra[t] && !(v.andamios && v.andamios[t]) && !puedeColocar(m, c, t, 'fabrica')) return t;
+    return null;
+  }
+  function quiebra(m, c, a, porque) {
+    const v = m.vida, e = a.emp, b = c.banca;
+    if (b && e.deuda > 0) { b.perdido = (b.perdido || 0) + e.deuda; b.quiebras = (b.quiebras || 0) + 1; }
+    if (e.t != null && v.privados) delete v.privados[e.t];
+    (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🏦 ' + a.nombre + ' ' + (a.familia || '') + ' quiebra' + (porque ? ' (' + porque + ')' : '') + (e.neg === 'fabrica' ? ': su fábrica pasa al reino.' : '.') });
+    delete a.emp;
+  }
+  // Muere un empresario: su negocio (y lo que debe) lo hereda un hijo o su pareja; si no hay nadie, pasa al reino.
+  function heredar(m, a, quitar) {
+    const v = m.vida, c = S().civ(m, a.c), e = a.emp;
+    const familia = v.aldeanos.filter(b => b !== a && b.c === a.c && !b.emp && !esNino(b) && !(quitar && quitar.has(b)) && (b.padre === a.id || b.madre === a.id || b.id === a.pareja || b.pareja === a.id));
+    const hijo = familia.filter(b => b.padre === a.id || b.madre === a.id).sort((x, y) => (x.edad || 0) - (y.edad || 0))[0], b = hijo || familia[0];
+    delete a.emp;
+    if (b && c) {
+      b.emp = e; mover(b, COMERCIANTE);
+      if (e.t != null && v.privados && v.privados[e.t]) v.privados[e.t].dueno = b.id;
+      (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🏦 ' + b.nombre + ' ' + (b.familia || '') + ' hereda el negocio de ' + a.nombre + ' ' + (a.familia || '') + (hijo ? '' : ', su pareja') + (e.deuda > 0 ? ' (y su deuda con el banco)' : '') });
+    } else if (c) {
+      if (c.banca && e.deuda > 0) c.banca.perdido = (c.banca.perdido || 0) + e.deuda;
+      if (e.t != null && v.privados) delete v.privados[e.t];
+      (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🏦 Muere ' + a.nombre + ' ' + (a.familia || '') + ' sin herederos' + (e.neg === 'fabrica' ? ': su fábrica pasa al reino.' : '.') });
+    }
+  }
+  function banca(m, c) {
+    const v = m.vida;
+    // Los negocios privados de quien ya no está (murió, se fue o el reino perdió la tierra) pasan al reino.
+    if (v.privados) for (const t of Object.keys(v.privados)) { const p = v.privados[t], a = v.aldeanos.find(x => x.id === p.dueno); if (p.civ === c.id && (!a || !a.emp || a.c !== c.id || m.dueno[region(m, +t)] !== c.id)) delete v.privados[t]; }
+    if (!(c.bancos > 0) || c.era < 5) return;
+    const b = c.banca = c.banca || { fondo: 30, prestado: 0, devuelto: 0, quiebras: 0, perdido: 0 };
+    const nivel = nivelInteres(c), tipo = TIPO_INTERES(nivel), impuesto = Math.min(0.6, 0.25 * ((c.plan && c.plan.impuesto) || 1));
+    // Los ahorros de la gente entran en el banco.
+    b.fondo += 0.4 * c.bancos + (c.aldeanos || 0) * 0.012;
+    const emp = empresariosDe(m, c);
+    for (const a of emp) {
+      const e = a.emp;
+      let bruto = 0;
+      if (e.neg === 'fabrica') {
+        // Mientras se levanta no da nada; si la tiraron o se perdió, el negocio se acaba.
+        const encargada = e.t != null && ((c.plan && c.plan.encargos) || []).some(x => x.t === e.t);
+        if (e.t == null || (!encargada && !(v.andamios && v.andamios[e.t]) && v.obra[e.t] !== OBRA.fabrica)) { quiebra(m, c, a, 'perdió su fábrica'); continue; }
+        if (v.obra[e.t] === OBRA.fabrica) { bruto = 1.5 + c.era * 0.4; if ((c.oro || 0) >= bruto) c.oro -= bruto; else bruto = 0; }
+      } else bruto = 1 + c.era * 0.25;
+      // Un mal año para el negocio, de vez en cuando (más si el dinero fue barato).
+      if (azar(v) < (nivel <= 0.5 ? 0.03 : 0.012)) e.caja -= 6 + c.era;
+      const imp = bruto * impuesto;
+      c.oro = (c.oro || 0) + imp; e.caja += bruto - imp; e.impuestos = (e.impuestos || 0) + imp;
+      if (e.deuda > 0) {
+        const q = Math.min(e.deuda, e.cuota);
+        if (e.caja >= q) { e.caja -= q; e.deuda = Math.round((e.deuda - q) * 100) / 100; b.fondo += q; b.devuelto += q; e.atraso = Math.max(0, (e.atraso || 0) - 1); if (e.deuda <= 0.01) { e.deuda = 0; (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🏦 ' + a.nombre + ' ' + (a.familia || '') + ' ha devuelto su préstamo al banco' }); } }
+        else if ((e.atraso = (e.atraso || 0) + 1) > 24) quiebra(m, c, a, 'no podía pagar');
+      }
+      // El sombrero y el traje: el empresario se dedica a su negocio (no lo mueve el reparto de oficios).
+      if (a.emp && a.o !== COMERCIANTE) mover(a, COMERCIANTE);
+    }
+    // Un préstamo nuevo cada tanto, si hay fondo y alguien con ganas.
+    if (m.turno % 6 !== c.id % 6) return;
+    const max = 1 + c.bancos + Math.floor((c.aldeanos || 0) / 40) + (nivel <= 0.5 ? 1 : 0) - (nivel >= 1.5 ? 1 : 0);
+    const monto = 20 + 4 * c.era;
+    if (empresariosDe(m, c).length >= max || b.fondo < monto) return;
+    if (azar(v) > (nivel <= 0.5 ? 0.85 : nivel >= 1.5 ? 0.3 : 0.55) * (impuesto > 0.32 ? 0.5 : 1)) return;
+    const libres = v.aldeanos.filter(a => a.c === c.id && !a.emp && !esNino(a) && (a.edad || 0) <= VIEJO - 7 && a.o !== GUERRERO && a.o !== ERUDITO && !a.fijo && a.colono == null && a.aBordo == null);
+    if (!libres.length) return;
+    const merc = libres.filter(a => a.o === COMERCIANTE), a = (merc.length ? merc : libres)[Math.floor(azar(v) * (merc.length || libres.length))];
+    const privadas = Object.values(v.privados || {}).filter(p => p.civ === c.id).length;
+    let neg = 'mercader', t = null;
+    if (c.era >= 6 && privadas < 1 + Math.floor((c.aldeanos || 0) / 60)) { t = sitioFabrica(m, c); if (t != null) neg = 'fabrica'; }
+    if (neg === 'fabrica') {
+      (v.privados = v.privados || {})[t] = { dueno: a.id, civ: c.id };
+      const p = c.plan = c.plan || {}; (p.encargos = p.encargos || []).push({ t, o: OBRA.fabrica, clave: 'fabrica', privado: a.id });
+    }
+    const deuda = Math.round(monto * (1 + tipo * 2) * 10) / 10;
+    a.emp = { neg, t, monto, deuda, cuota: Math.max(0.8, Math.round(deuda / 30 * 10) / 10), caja: 0, desde: m.turno, atraso: 0 };
+    b.fondo -= monto; b.prestado += monto;
+    mover(a, COMERCIANTE);
+    (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🏦 El banco presta ' + monto + ' de oro a ' + a.nombre + ' ' + (a.familia || '') + (neg === 'fabrica' ? ': levantará una fábrica con su dinero' : ': se hace mercader') });
+  }
   function mercado(m, recursosDe) {
     const v = m.vida, vivas = S().vivas(m);
     const mk = m.mercado = m.mercado || { precio: Object.assign({}, PRECIO_BASE), historia: {}, oferta: {}, demanda: {} };
@@ -678,6 +775,7 @@
       }
       // El banco: el oro guardado da un pequeño interés.
       if (c.bancos > 0 && (c.oro || 0) > 0) c.oro += Math.min(2 + c.bancos, c.oro * 0.012);
+      banca(m, c);
       // La fábrica: forja en serie (sin cuartel) y convierte la madera que sobra en muebles que se venden por oro.
       if (c.fabricas > 0 && enMarcha(c, 'fabrica')) {
         const q = Math.min(2 * c.fabricas, Math.floor(Math.max(0, (c.metal || 0) - 4 - reserva)));
@@ -1065,7 +1163,7 @@
       if (objetivo < lista.length) {
         const tipo = c.guerras.length ? 'batalla' : 'vejez';
         // (Los que van embarcados y los colonos que van a fundar, los últimos: las bajas caen antes entre los de casa.)
-        const lejos = a => (a.aBordo != null || a.colono != null) ? 1 : 0;
+        const lejos = a => (a.aBordo != null || a.colono != null || a.emp) ? 1 : 0;
         for (const a of lista.slice().sort((x, y) => (lejos(x) - lejos(y)) || (y.edad || 0) - (x.edad || 0)).slice(0, lista.length - Math.max(1, objetivo))) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, tipo, 0]); }
       } else if (objetivo > lista.length) {
         // Los que llegan también necesitan cama (salvo un pueblo que casi no tiene a nadie).
@@ -1126,6 +1224,7 @@
         }
       }
     }
+    for (const a of quitar) if (a.emp) heredar(m, a, quitar);
     if (quitar.size) v.aldeanos = v.aldeanos.filter(a => !quitar.has(a));
     // Oficios: los libres cambian de oficio para cubrir lo que falta en su pueblo.
     for (const c of vivas) reasignar(m, c, recursosDe ? recursosDe[c.id] : null, false);
@@ -1148,7 +1247,7 @@
     const conCupo = i => cupos[i] != null;
     const tiene = [0, 0, 0, 0, 0, 0, 0];
     for (const a of todos) tiene[a.o]++;
-    const libres = todos.filter(a => !a.fijo);
+    const libres = todos.filter(a => !a.fijo && !a.emp);
     let p = reparto(c, recursos || { arboles: 1, rocas: 1 });
     // Los oficios con cupo salen del reparto automático; lo demás se reparte en proporción.
     if (Object.keys(cupos).length) { p = p.map((x, i) => (conCupo(i) ? 0 : x)); const sum = p.reduce((k, x) => k + x, 0) || 1; p = p.map(x => x / sum); }
@@ -1527,6 +1626,8 @@
     c.madera -= q[0]; c.piedra -= q[1]; c.oro = (c.oro || 0) - q[2]; an.pagado = f;
     return true;
   }
+  // Una obra privada (la fábrica de un empresario) la paga su dueño con su préstamo, no el reino.
+  const privada = (v, t, c) => !!(v.privados && v.privados[t] && v.privados[t].civ === c.id);
   function pagarObra(c, o) {
     const coste = COSTES[o] || [0, 0, 0];
     if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0)) return false;
@@ -2838,7 +2939,7 @@
           // Si lo que falta es tamaño o época, el encargo espera; si la parcela ya no vale, se olvida.
           if (no) { if (!/hace falta ser|llega con/.test(no)) encargos.splice(i--, 1); continue; }
           if (rec.reservadas.has(e.t)) continue;
-          const coste = COSTES[e.o] || [0, 0, 0];
+          const coste = e.privado != null ? [0, 0, 0] : COSTES[e.o] || [0, 0, 0];
           if (c.madera < coste[0] || c.piedra < coste[1] || (c.oro || 0) < (coste[2] || 0)) { const pr = c.plan.prioridad; if (pr) { if (c.madera < coste[0]) pr.madera = Math.max(pr.madera || 1, 1.5); if (c.piedra < coste[1]) pr.piedra = Math.max(pr.piedra || 1, 1.5); } continue; }
           a.edificio = e.o; ir(a, e.t, v.tw, IR); rec.reservadas.add(e.t); return;
         }
@@ -3144,11 +3245,11 @@
       const an = v.andamios && v.andamios[t];
       if (an && an.civ === c.id) { a.e = TRABAJAR; a.t = 3; }
       else if (!v.obra[t] && !pausada(m)) { colocarObra(m, t, a.edificio, paso); if (a.edificio === OBRA.casa) c.casas++; if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t); a.edificio = 0; }
-      else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && PUBLICAS.has(a.edificio))) && pagarAndamio(c, { coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0 }, 0.25)) {
+      else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && PUBLICAS.has(a.edificio))) && (privada(v, t, c) || pagarAndamio(c, { coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0 }, 0.25))) {
         if (v.obra[t] === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
         // Se paga la cuarta parte al empezar y se monta el andamio; el resto, jornada a jornada.
         cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso);
-        (v.andamios = v.andamios || {})[t] = { o: a.edificio, falta: TRABAJO[a.edificio] || 4, total: TRABAJO[a.edificio] || 4, civ: c.id, coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0.25 };
+        (v.andamios = v.andamios || {})[t] = { o: a.edificio, falta: TRABAJO[a.edificio] || 4, total: TRABAJO[a.edificio] || 4, civ: c.id, coste: privada(v, t, c) ? [0, 0, 0] : COSTES[a.edificio] || [0, 0, 0], pagado: 0.25 };
         if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t);
         a.e = TRABAJAR; a.t = 3;
       } else a.edificio = 0;
@@ -4177,5 +4278,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { banca, empresariosDe, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

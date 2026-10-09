@@ -46,6 +46,7 @@ Cada archivo es un módulo `(function () { … })()` que se cuelga de `RF.MUNDO`
 | Precios, tratos, carretas, trenes | `vida.js` › EL MERCADO GLOBAL, LA CARTERA DE CADA REINO, CAMINOS Y RUTAS COMERCIALES |
 | Barcos: pesca, mercantes, guerra, transportes | `vida.js` › LOS BARCOS, LA MARINA DE GUERRA (`maresDe`, `sitioPuerto`, `planNaval`, `porMar`, `NAVAL`) |
 | Ejércitos, asedios, torres, trincheras | `vida.js` › LOS EJÉRCITOS, EL ASEDIO, LAS TORRES DE VIGILANCIA, LAS TRINCHERAS |
+| Banco, empresarios y créditos entre reinos | `vida.js` › LA BANCA (`banca`, `heredar`, `quiebra`, `v.privados`); `sim.js` › LOS CRÉDITOS ENTRE REINOS (`prestar`, `perdonar`, `pagarCreditos`) |
 | Explosiones y daño a edificios | `vida.js` › LAS EXPLOSIONES (`estallido`, `RESISTE`) |
 | Comida y sus tipos | `vida.js` › COMER, `ALIMENTOS`, `alimento`, `desglose` |
 | Técnica, eras, caída de capital, independencias | `sim.js` › La técnica, CAE LA CAPITAL, LA LEALTAD DE LAS CIUDADES |
@@ -58,7 +59,7 @@ Cada archivo es un módulo `(function () { … })()` que se cuelga de `RF.MUNDO`
 ## Pruebas y publicación
 
 ```
-for f in test/*.test.js; do timeout 900 node $f; done   # 14 pruebas; todas terminan en «Todo bien» o con sus cifras
+for f in test/*.test.js; do timeout 900 node $f; done   # 15 pruebas; todas terminan en «Todo bien» o con sus cifras
 sh scripts/pwa.sh        # genera docs/ (la versión jugable)
 sh scripts/paquete.sh    # genera Genesis.html (un solo archivo)
 ```

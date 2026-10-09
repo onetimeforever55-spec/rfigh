@@ -1006,7 +1006,7 @@
     });
   }
   function aldeano(o) {
-    const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.corre ? 1 : 0, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo, o.sabio || ''].join(':');
+    const clave = 'v' + [o.col, o.oficio, o.edad, o.paso, o.corre ? 1 : 0, o.alto, o.carga, o.arma, o.tirador ? 1 : 0, o.armadura, o.piel, o.pelo, o.sabio || '', o.traje || 0].join(':');
     return guardado(clave, () => {
       const H = hoja(12, 14), piel = PIEL[o.piel || 0], pelo = o.edad === 'viejo' ? '#e8e8ec' : PELO[o.pelo || 0];
       if (o.edad === 'nino') {
@@ -1024,7 +1024,10 @@
       // Piernas (al andar, una adelantada) y zapatos.
       // Piernas: quieto, o un ciclo de cuatro tiempos al andar (zancada, cruce, zancada con la otra, cruce);
       // al correr, la zancada es más larga y la rodilla sube. La pierna de delante va un poco más oscura.
-      const pierna = unif ? oscuro(unif, 0.3) : '#4a3a2e', lejana = unif ? oscuro(unif, 0.45) : '#3a2e24', zapato = '#2a1e14', pn = o.paso || 0, larga = o.corre ? 1 : 0;
+      // El traje de mercaderes y empresarios: 1 = casaca y sombrero de ala (hasta la Revolución Industrial),
+      // 2 = traje oscuro, camisa blanca, corbata del color del reino y chistera.
+      const traje = !guerrero && o.traje ? o.traje : 0, tela = traje === 2 ? '#24242c' : traje === 1 ? '#5a2a2a' : null;
+      const pierna = unif ? oscuro(unif, 0.3) : tela ? oscuro(tela, 0.1) : '#4a3a2e', lejana = unif ? oscuro(unif, 0.45) : tela ? oscuro(tela, 0.3) : '#3a2e24', zapato = '#2a1e14', pn = o.paso || 0, larga = o.corre ? 1 : 0;
       const pie = (x, y, col) => { H.p(x, y - 1, col); H.p(x, y, zapato); };
       if (pn === 0) { H.r(5, 11, 1, 2, pierna); H.r(7, 11, 1, 2, pierna); H.p(5, 12, zapato); H.p(7, 12, zapato); }
       else if (pn === 1 || pn === 3) {
@@ -1037,9 +1040,11 @@
         H.r(6, 11, 1, 2, apoyo); H.p(6, 12, zapato); H.p(7, 11, aire); H.p(7 + larga, 12 - larga, aire);
       }
       // Cuerpo con la ropa del color del pueblo (o la armadura con un tabardo del color del pueblo), cinturón.
-      const ropa = unif || arm || o.col;
+      const ropa = unif || arm || tela || o.col;
       H.r(4, 7, 5, 4, ropa); H.r(4, 7, 1, 4, claro(ropa, 0.15)); H.r(8, 7, 1, 4, oscuro(ropa, 0.2));
       if (arm && !unif) H.r(6, 7, 1, 4, o.col);
+      if (traje === 2) { H.p(6, 7, '#f2efe8'); H.p(5, 7, '#f2efe8'); H.p(6, 8, o.col); H.p(6, 9, oscuro(o.col, 0.2)); H.p(8, 8, '#c8a050'); }
+      else if (traje === 1) { H.r(6, 7, 1, 3, '#e8d8b0'); H.r(4, 10, 5, 1, '#c8a050'); }
       H.r(4, 10, 5, 1, oscuro(ropa, 0.35));
       // Correajes: bandolera blanca y botones dorados con la espingarda; cinturón y tirantes de cuero en la era moderna.
       if (unif && (o.arma || 0) === 6) { H.p(4, 7, '#f0ece0'); H.p(5, 8, '#f0ece0'); H.p(6, 9, '#f0ece0'); H.r(4, 10, 5, 1, '#f0ece0'); H.p(7, 7, '#c8a050'); H.p(7, 8, '#c8a050'); }
@@ -1055,6 +1060,8 @@
       // Sombreros y cascos según el oficio.
       if (o.oficio === 'granjero') { H.r(3, 2, 7, 1, '#e2c25a'); H.r(5, 1, 3, 1, '#d0b048'); }
       else if (o.oficio === 'minero') { H.r(4, 1, 5, 2, '#c8a03a'); H.p(7, 2, '#fff4a0'); }
+      else if (traje === 2) { H.r(4, 0, 5, 3, '#16161c'); H.r(4, 2, 5, 1, oscuro(o.col, 0.3)); H.r(3, 3, 7, 1, '#101014'); H.p(5, 0, '#3a3a44'); H.p(5, 1, '#2a2a32'); }
+      else if (traje === 1) { H.r(4, 0, 5, 2, '#3a2a1e'); H.r(2, 2, 9, 1, '#2a1e14'); H.p(8, 0, '#e8e0c8'); H.p(9, 0, '#d8d0b8'); }
       else if (o.oficio === 'comerciante') { H.r(4, 1, 5, 2, '#7a3a1a'); H.r(3, 2, 7, 1, '#5a2a12'); }
       else if (o.oficio === 'constructor') { H.r(4, 1, 5, 2, '#e8a030'); }
       else if (unif) { const casco = (o.arma || 0) >= 7 ? oscuro(unif, 0.25) : oscuro(unif, 0.55); if ((o.arma || 0) >= 7) { H.r(4, 1, 5, 2, casco); H.r(3, 2, 7, 1, oscuro(casco, 0.2)); H.p(5, 1, claro(casco, 0.15)); } else { H.r(5, 0, 3, 3, casco); H.r(4, 2, 5, 1, oscuro(casco, 0.3)); H.p(6, 0, '#e8d8a0'); } }

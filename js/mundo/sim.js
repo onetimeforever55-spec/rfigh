@@ -319,6 +319,7 @@
     const lista = vivas(m);
     for (const c of lista) vivir(m, c);
     diplomacia(m);
+    pagarCreditos(m);
     for (const c of vivas(m)) guerras(m, c);
     lealtades(m);
     sucesosNaturales(m);
@@ -738,10 +739,67 @@
     if (t != null && m.turno - t < 15) out.push(['guerra reciente', -Math.round(40 * (1 - (m.turno - t) / 15))]);
     if (enGuerra(a, b)) out.push(['están en guerra', -60]);
     if (b.atrocidad != null && m.turno - b.atrocidad < 300) out.push(['exterminó a un pueblo', -Math.round(60 * (1 - (m.turno - b.atrocidad) / 300))]);
+    // Las deudas: a quien te prestó cuando hacía falta se le tiene aprecio; a quien no te paga, no tanto.
+    for (const cr of m.creditos || []) {
+      if (cr.a === a.id && cr.de === b.id) out.push(['nos prestó oro cuando hacía falta', 20]);
+      if (cr.de === a.id && cr.a === b.id && (cr.atraso || 0) > 6) out.push(['no nos devuelve lo que le prestamos', -12]);
+    }
+    const perdon = (m.perdones || {})[b.id + '>' + a.id];
+    if (perdon != null && m.turno - perdon < 200) out.push(['nos perdonó una deuda', Math.round(30 * (1 - (m.turno - perdon) / 200))]);
     return out;
   }
   const opinionObjetivo = (m, a, b) => motivos(m, a, b).reduce((k, x) => k + x[1], 0);
 
+  /*
+   * LOS CRÉDITOS ENTRE REINOS (con banco, desde el Renacimiento): un reino presta oro a otro (m.creditos) y este lo
+   * devuelve a plazos con un interés suave. Mientras debe, aprecia a quien le prestó; si no paga, se enfría la cosa.
+   * Se puede perdonar la deuda (y eso se recuerda). La IA presta a sus amigos en apuros.
+   */
+  const INTERES_CREDITO = 0.1, PLAZOS = 20;
+  function deudas(m, c) { return (m.creditos || []).filter(cr => cr.a === c.id); }
+  function prestar(m, de, a, oro) {
+    oro = Math.round(oro);
+    if (!de || !a || !de.viva || !a.viva || de === a) return { ok: false, texto: 'No hay a quién prestar.' };
+    if (!(de.bancos > 0)) return { ok: false, texto: 'Para prestar a otro reino hace falta un banco (llega con el Renacimiento).' };
+    if (enGuerra(de, a)) return { ok: false, texto: 'No se presta oro a un reino con el que estás en guerra.' };
+    if (oro < 5 || (de.oro || 0) < oro) return { ok: false, texto: 'No tenéis tanto oro: hay ' + Math.round(de.oro || 0) + '.' };
+    de.oro -= oro; a.oro = (a.oro || 0) + oro;
+    const total = Math.round(oro * (1 + INTERES_CREDITO) * 10) / 10;
+    (m.creditos = m.creditos || []).push({ de: de.id, a: a.id, prestado: oro, resta: total, cuota: Math.max(1, Math.round(total / PLAZOS * 10) / 10), desde: m.turno, atraso: 0 });
+    a.rel[de.id] = (a.rel[de.id] || 0) + 15;
+    if (de.jugador || a.jugador || oro >= 40) cronica(m, 'comercio', de.nombre + ' presta ' + oro + ' de oro a ' + a.nombre, a.nombre + ' lo devolverá a plazos, con un poco de interés. Mientras tanto, mira con buenos ojos a quien le ayudó.', de, a.capital);
+    return { ok: true, texto: 'Prestáis ' + oro + ' de oro a ' + a.nombre + '. Lo devolverá en unos ' + PLAZOS + ' plazos (' + total + ' en total). Mientras os deba, os tendrá aprecio.' };
+  }
+  function perdonar(m, de, a) {
+    const lista = (m.creditos || []).filter(cr => cr.de === de.id && cr.a === a.id);
+    if (!lista.length) return { ok: false, texto: a.nombre + ' no os debe nada.' };
+    const resto = lista.reduce((k, cr) => k + cr.resta, 0);
+    m.creditos = m.creditos.filter(cr => !lista.includes(cr));
+    (m.perdones = m.perdones || {})[de.id + '>' + a.id] = m.turno;
+    a.rel[de.id] = (a.rel[de.id] || 0) + 20;
+    cronica(m, 'paz', de.nombre + ' perdona la deuda de ' + a.nombre, 'Le quedaban por pagar ' + Math.round(resto) + ' de oro. ' + a.nombre + ' no lo olvidará.', de, a.capital);
+    return { ok: true, texto: 'Perdonáis a ' + a.nombre + ' los ' + Math.round(resto) + ' de oro que os debía. Os lo agradecerá durante mucho tiempo.' };
+  }
+  function pagarCreditos(m) {
+    const lista = m.creditos || [];
+    for (const cr of lista) {
+      const de = civ(m, cr.de), a = civ(m, cr.a);
+      if (!de || !a || !de.viva || !a.viva) { cr.fin = 1; continue; }
+      if (m.turno % 2) continue;
+      const q = Math.min(cr.resta, cr.cuota);
+      if ((a.oro || 0) >= q + 3) { a.oro -= q; de.oro = (de.oro || 0) + q; cr.resta = Math.round((cr.resta - q) * 100) / 100; cr.atraso = Math.max(0, (cr.atraso || 0) - 1); if (cr.resta <= 0.01) { cr.fin = 1; if (de.jugador || a.jugador) cronica(m, 'comercio', a.nombre + ' termina de pagar su deuda con ' + de.nombre, 'Devolvió todo lo prestado, con su interés.', a, a.capital); } }
+      else cr.atraso = (cr.atraso || 0) + 1;
+    }
+    m.creditos = lista.filter(cr => !cr.fin);
+    // La IA presta a sus amigos en apuros (sin oro y en guerra, o recién vencidos).
+    if (m.turno % 12 === 5) {
+      for (const de of vivas(m)) {
+        if (de.jugador || !(de.bancos > 0) || (de.oro || 0) < 80) continue;
+        const necesitado = vivas(m).find(a => a !== de && (a.oro || 0) < 8 && (a.guerras.length || a.estab < 40) && !enGuerra(de, a) && ((de.rel[a.id] || 0) >= 40 || aliados(m, de, a)) && !(m.creditos || []).some(cr => cr.de === de.id && cr.a === a.id));
+        if (necesitado) prestar(m, de, necesitado, Math.min(40, (de.oro || 0) * 0.25));
+      }
+    }
+  }
   function diplomacia(m) {
     const lista = vivas(m);
     m.complots = (m.complots || []).filter(p => { const a = civ(m, p.de), b = civ(m, p.contra); return a && a.viva && b && b.viva; });
@@ -1035,5 +1093,5 @@
   }
 
   M.sim = { perderCapital, turnoPorPartes, suceso, W, H, K, TIERRA, TALADO, crear, turno, mejorasDeEdad, reservaMejora, elegirTec, ahorrando, investigar, porPagar, partePagada, pausa, aniosTurno, puedeSubir, empezarSubida, faltaPara, azar, elegir, idx, xy, vecinos, distancia, esTierra, fertil, casillas, capacidad, fuerza, vecinosDe, enGuerra, civ, vivas,
-    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, ordenarPor, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
+    cronica, subirEra, casusBelli, maxCiudades, motivosLealtad, aliados, aliadosDe, aliar, romper, motivos, opinionObjetivo, tramar, destinoRumbo, gobernante, nombreRey, titulo, nombrePersona, nombre, PRIORIDADES, prio, separar, morir, ordenarPor, prestar, perdonar, deudas, declararGuerra, hacerPaz, plaga, nuevoPueblo, nuevaCiv, regimenPorEra, resumen, anioTexto, miles, frontera };
 })(globalThis.RF = globalThis.RF || {});
