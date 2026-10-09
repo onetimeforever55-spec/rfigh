@@ -11707,6 +11707,22 @@ body.limpio .tropas-barra { display: none; }
     // En línea, quien se une pide un pueblo al anfitrión (si está libre, es suyo).
     if (red.modo === 'invitado') { $('inicio').hidden = true; enviarAnfitrion({ t: 'elijo', civ: civId != null ? civId : sel }); onlineEstado('Pidiendo ese pueblo…'); return; }
     if (red.modo === 'anfitrion' && modo !== 'pueblo') { $('inicio').hidden = true; responder('En una partida online solo se juega gobernando un pueblo.', 'duda'); return; }
+    // El anfitrión que cambia de pueblo: igual que los invitados, por la cola del turno y solo si está libre.
+    if (red.modo === 'anfitrion') {
+      $('inicio').hidden = true;
+      const c = S.civ(m, civId != null ? civId : sel), yo = red.jugadores[0];
+      if (!c || !c.viva || red.jugadores.some(x => x.civ === c.id && x !== yo)) { responder('Ese pueblo ya tiene dueño: elige otro.', 'duda'); return; }
+      if (yo.civ !== c.id) {
+        if (yo.civ != null) red.cola.push({ tipo: 'salir', civ: yo.civ });
+        yo.civ = red.miCiv = c.id; red.cola.push({ tipo: 'unirse', civ: c.id });
+        m.jugador = c.id; m.modo = 'pueblo'; sel = c.id; P.seleccionar(sel); P.centrarEn(c.capital, 3);
+        if (!m.retos || m.retos.civ !== c.id) m.retos = { civ: c.id, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno };
+        difundir({ t: 'jugadores', lista: red.jugadores });
+        responder('Gobiernas ' + c.nombre + ' (el cambio se cumple al empezar el turno).', 'bien');
+      }
+      pintarModo(); pintarTodo(); pintarOnline(); corriendo = true; programar();
+      return;
+    }
     $('inicio').hidden = true;
     // El mundo libre se puede activar en cualquier momento: desde ahora, los años pasan de uno en uno.
     const libre = $('mundo-libre').checked;
@@ -12852,9 +12868,16 @@ body.limpio .tropas-barra { display: none; }
       peer.on('connection', pc => pc.on('open', () => alConectar(envolver(pc))));
     });
   }
+  // Cada pestaña tiene su id de jugador: si sale y vuelve a entrar, el anfitrión sabe que es el mismo y le devuelve su reino.
+  function miId() {
+    let id = null;
+    try { id = sessionStorage.getItem('genesis.yo'); } catch (e) { /* sin almacenamiento */ }
+    if (!id) { id = 'j' + Math.random().toString(36).slice(2, 10); try { sessionStorage.setItem('genesis.yo', id); } catch (e) { /* nada */ } }
+    return id;
+  }
   function conectarA(codigo) {
     if (redLocal) {
-      const yo = 'j' + Math.random().toString(36).slice(2, 8);
+      const yo = miId();
       return crearCanal(PREFIJO + codigo, yo, indiceServidor(codigo)).then(canal => new Promise((ok, mal) => {
         const c = conexionLocal(canal, yo, 'anfitrion');
         let hecho = false, intentos = 0;
@@ -12988,12 +13011,24 @@ body.limpio .tropas-barra { display: none; }
     $('online').hidden = true; corriendo = true; programar(); pintarModo(); pintarTodo(); pintarOnline(); pintarSala();
     responder('¡Empieza la partida! Gobiernas ' + nombreDe(yo.civ) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien');
   }
+  // Alguien entra con un id nuevo pero con el nombre de un jugador que lleva rato sin responder (cambió de navegador
+  // o se le cerró la pestaña): es él, y recupera su plaza y su reino en vez de quedarse con dos.
+  function recuperarPlaza(conn, nombre) {
+    nombre = String(nombre || 'Jugador').slice(0, 16);
+    const j = red.jugadores.find(x => x.id !== 'anfitrion' && x.nombre === nombre && (x.visto == null || performance.now() - x.visto > 12000));
+    if (!j) return null;
+    const viejo = red.conns.get(j.id);
+    red.conns.delete(j.id); j.id = conn.id; j.visto = performance.now();
+    if (viejo && viejo !== conn) try { viejo.cerrar(); } catch (e) { /* ya no está */ }
+    return j;
+  }
   function mensajeAnfitrion(conn, d) {
     if (!d || typeof d !== 'object') return;
-    const j = red.jugadores.find(x => x.id === conn.id);
+    let j = red.jugadores.find(x => x.id === conn.id);
+    if (d.t === 'hola' && !j) j = recuperarPlaza(conn, d.nombre);
     if (d.t === 'pong' && j) { j.ping = Math.max(1, Math.round(performance.now() - (d.t0 || 0))); j.visto = performance.now(); return; }
     if (d.t === 'hola' && red.sala) { if (!j) red.jugadores.push({ id: conn.id, nombre: String(d.nombre || 'Jugador').slice(0, 16), civ: null, ping: null, visto: performance.now() }); difundirSala(); pintarSala(); avisoFlotante('🌐 Entra en la sala ' + String(d.nombre || 'un jugador').slice(0, 16), 3000); return; }
-    if (d.t === 'hola') { if (!j) red.jugadores.push({ id: conn.id, nombre: String(d.nombre || 'Jugador').slice(0, 16), civ: null }); mandarMundo(conn); difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline(); avisoFlotante('🌐 Entra ' + String(d.nombre || 'un jugador').slice(0, 16), 3500); }
+    if (d.t === 'hola') { if (!j) red.jugadores.push({ id: conn.id, nombre: String(d.nombre || 'Jugador').slice(0, 16), civ: null, visto: performance.now() }); mandarMundo(conn, j ? j.civ : null); difundir({ t: 'jugadores', lista: red.jugadores }); pintarOnline(); avisoFlotante('🌐 Entra ' + String(d.nombre || 'un jugador').slice(0, 16), 3500); }
     else if (d.t === 'pideMundo') mandarMundo(conn);
     else if (d.t === 'elijo') {
       // Sin elegir, le toca un pueblo libre al azar (de los que no gobierna nadie).
@@ -13012,6 +13047,8 @@ body.limpio .tropas-barra { display: none; }
   async function unirseOnline() {
     const codigo = ($('online-codigo').value || '').trim().toUpperCase();
     if (codigo.length < 4) { onlineEstado('Escribe el código que te ha dado el anfitrión.'); return; }
+    if (red.uniendo) return;
+    red.uniendo = true; $('online-entrar').disabled = true;
     red.nombre = ($('online-nombre').value || 'Jugador').trim().slice(0, 16);
     onlineEstado('Buscando la partida ' + codigo + '…');
     try {
@@ -13033,7 +13070,7 @@ body.limpio .tropas-barra { display: none; }
       }, 3000);
       red.sala = true; pintarSala({ jugadores: [{ nombre: red.nombre, ping: null }] });
       onlineEstado('Conectado con el anfitrión.');
-    } catch (e) { red.modo = null; try { if (red.peer) red.peer.destroy(); } catch (x) { /* nada */ } onlineEstado(errorRed(e)); }
+    } catch (e) { red.modo = null; try { if (red.peer) red.peer.destroy(); } catch (x) { /* nada */ } onlineEstado(errorRed(e)); } finally { red.uniendo = false; $('online-entrar').disabled = false; }
   }
   async function mensajeInvitado(d) {
     if (!d || typeof d !== 'object') return;
