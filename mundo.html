@@ -62,10 +62,22 @@
       <div class="inicio" id="online" hidden>
         <div class="inicio-caja">
           <h2 class="inicio-titulo">Jugar online</h2>
-          <p class="inicio-texto">Juega con amigos en el mismo mundo: cada uno gobierna su pueblo. Uno crea la partida y comparte el código; los demás lo escriben aquí. Hace falta internet.</p>
+          <p class="inicio-texto">Juega con amigos en el mismo mundo: cada uno gobierna su reino. Uno crea la sala y comparte el código; los demás lo escriben aquí y esperan en la sala, donde se ve quién está y cómo va su conexión. Cuando estén todos, el anfitrión empieza la partida. Hace falta internet.</p>
+          <div id="online-entrada">
           <label class="online-campo">Tu nombre <input id="online-nombre" maxlength="16" placeholder="Tu nombre" autocomplete="nickname"></label>
           <div class="inicio-botones"><button type="button" class="obrar" id="online-crear">Crear partida</button></div>
           <div class="online-unirse"><input id="online-codigo" maxlength="8" placeholder="CÓDIGO" autocapitalize="characters" autocomplete="off"><button type="button" class="mando" id="online-entrar">Unirse</button></div>
+          </div>
+          <div class="sala" id="sala" hidden>
+            <p class="sala-codigo">Sala <b id="sala-codigo"></b> <button type="button" class="enlace" id="sala-invitar">Invitar</button></p>
+            <ul class="sala-lista" id="sala-lista"></ul>
+            <div class="sala-ajustes" id="sala-ajustes">
+              <label>Reinos: <select id="sala-reinos"><option value="5">5</option><option value="8">8</option><option value="10">10</option></select></label>
+              <label><input type="checkbox" id="sala-libre"> Mundo libre</label>
+            </div>
+            <p class="clave" id="sala-espera"></p>
+            <div class="inicio-botones"><button type="button" class="obrar" id="sala-empezar">Empezar partida</button><button type="button" class="mando sutil" id="sala-salir">Salir de la sala</button></div>
+          </div>
           <p class="clave" id="online-estado"></p>
           <p class="clave"><button type="button" class="enlace" id="online-cerrar">Cerrar</button></p>
         </div>
@@ -104,7 +116,7 @@
           <details><summary>La guerra</summary>
             <p>Con un cuartel puedes tener soldados, y desde la pólvora, cañones, artillería y tanques. Desde la Revolución Industrial, cada puerto con cuartel bota acorazados en guerra, que bombardean la costa enemiga. Escribe «atacad a Nombre», «defended la capital» o «retirada». Cuando hay una batalla sale el botón ⚔, que te lleva a ella. Las torres, los castillos y los puestos fronterizos disparan a los enemigos que se acercan. «Anexionad X» lleva a tu ejército plaza por plaza hasta que el reino desaparezca; si está perdido (o eres mucho más fuerte), se rinde y es tuyo entero, y esas tierras no se rebelan enseguida. Los soldados rodean el mar y los lagos en vez de meterse a ahogarse. Desde la Era Moderna hay tanques y, con un aeródromo, aviones que despegan a bombardear. Con el botón ⚔ (modo tropas) eliges a tus soldados arrastrando sobre el mapa y tocas dónde quieres que vayan: si es tierra enemiga, atacan. «Automático» los devuelve al ejército; con dos dedos mueves la cámara.</p></details>
           <details><summary>Jugar online</summary>
-            <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba tienes el código, quién juega y un chat. Hace falta internet. Importante: quien crea la partida tiene que dejar el juego abierto en pantalla mientras entran los demás (si pasa a otra app, el móvil corta la conexión; al volver, se reconecta solo). Si dice que no encuentra la partida, espera unos segundos: vuelve a intentarlo solo.</p></details>
+            <p>En la pantalla de inicio, «🌐 Jugar online». Uno crea la partida y comparte el código (o el enlace de «Invitar»); los demás lo escriben y eligen su pueblo. El anfitrión lleva el tiempo. Tus órdenes se cumplen al empezar el turno siguiente, a la vez que las de los demás. Arriba tienes el código, quién juega y un chat. Hace falta internet. Importante: quien crea la partida tiene que dejar el juego abierto en pantalla mientras entran los demás (si pasa a otra app, el móvil corta la conexión; al volver, se reconecta solo). Si dice que no encuentra la partida, espera unos segundos: vuelve a intentarlo solo. Antes de empezar hay una sala de espera: ahí se ve a cada jugador con su conexión (los milisegundos que tarda; en verde, bien), y el anfitrión elige cuántos reinos tiene el mundo. Al pulsar «Empezar partida» se crea el mundo y a cada uno le toca un reino.</p></details>
           <details><summary>La guerra en el mar</summary>
             <p>En guerra, cada puerto bota un barco de guerra de su época: galeras con flechas de fuego, galeones con cañones y, en la Era Moderna, acorazados. Persiguen y hunden los barcos enemigos y bombardean la costa. Si el enemigo está al otro lado del mar, tu ejército embarca en el puerto, cruza en un transporte y desembarca en su costa: ¡protégelo con tus barcos de guerra!</p></details>
           <details><summary>Retos y final</summary>

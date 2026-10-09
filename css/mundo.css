@@ -544,3 +544,12 @@ body.limpio #limpio { outline: 2px solid var(--oro); }
 .tropas-barra button { font-size: 12px; }
 body.limpio .tropas-barra { display: none; }
 .tropas-barra[hidden] { display: none; }
+
+/* La sala de espera del online: quién hay, cómo va su conexión y los ajustes del mundo. */
+.sala { margin: 8px 0; text-align: left; }
+.sala-codigo { font-size: 15px; margin: 0 0 6px; }
+.sala-codigo b { letter-spacing: 2px; color: #ffd76a; font-size: 18px; }
+.sala-lista { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 4px; }
+.sala-lista li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(255,255,255,0.06); font-size: 13px; }
+.sala-lista .bien { color: #7aff9a; } .sala-lista .regular { color: #ffd76a; } .sala-lista .mal { color: #ff8a7a; }
+.sala-ajustes { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; margin-bottom: 6px; }
