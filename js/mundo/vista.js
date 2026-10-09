@@ -1369,7 +1369,7 @@
     sel = yo.civ; P.mundo(m); P.seleccionar(sel); const c = S.civ(m, yo.civ); if (c) P.centrarEn(c.capital, 3);
     for (const j of red.jugadores.slice(1)) { const conn = red.conns.get(j.id); if (conn) await mandarMundo(conn, j.civ); }
     difundir({ t: 'jugadores', lista: red.jugadores });
-    $('online').hidden = true; corriendo = true; programar(); pintarModo(); pintarTodo(); pintarOnline(); pintarSala();
+    $('online').hidden = true; $('inicio').hidden = true; corriendo = true; programar(); pintarModo(); pintarTodo(); pintarOnline(); pintarSala();
     responder('¡Empieza la partida! Gobiernas ' + nombreDe(yo.civ) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien');
   }
   // Alguien entra con un id nuevo pero con el nombre de un jugador que lleva rato sin responder (cambió de navegador
@@ -1465,7 +1465,7 @@
       red.esperandoMundo = false;
       red.pendientes = red.pendientes.filter(x => x.n > m.turno).sort((a, b) => a.n - b.n);
       pintarModo(); pintarTodo(); pintarOnline();
-      $('online').hidden = true;
+      $('online').hidden = true; $('inicio').hidden = true;
       if (d.eres != null) { const c = S.civ(m, d.eres); if (!m.retos || m.retos.civ !== d.eres) m.retos = { civ: d.eres, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; if (c && !c.viva) responder(c.nombre + ' cayó mientras estabas fuera: has perdido. Puedes seguir mirando la partida.', 'duda'); else if (c) P.centrarEn(c.capital, 3); if (c && c.viva) responder('¡Empieza la partida! Gobiernas ' + nombreDe(d.eres) + '. Tus órdenes se cumplen al empezar cada turno, a la vez que las de los demás.', 'bien'); }
       if (red.miCiv == null) pedirModo('Elige tu pueblo', 'Toca en el mapa la tierra del pueblo que quieres gobernar y pulsa «Gobernar un pueblo». Los pueblos de los otros jugadores ya tienen dueño.');
       if (red.pendientes.length && !calculo) turnoRecibido(red.pendientes.shift());
@@ -1495,6 +1495,14 @@
   // Una pestañita arriba a la izquierda: cerrada, los mensajes nuevos salen como burbujas que se apagan solas;
   // abierta, se ven los jugadores, los últimos mensajes y dónde escribir.
   function escapar(t) { return String(t).replace(/[&<>"]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[x]); }
+  // En el móvil, la columna de botones de la cámara va justo entre la cabecera y las órdenes (si no cabe, en dos columnas).
+  function colocarCamara() {
+    const cab = document.querySelector('.g-cab'), vol = document.querySelector('.g-voluntad'), cam = document.querySelector('.camara'); if (!cab || !vol || !cam) return;
+    const caja = cam.offsetParent ? cam.offsetParent.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+    const v = vol.getBoundingClientRect(), abajo = v.height && getComputedStyle(vol).display !== 'none' ? caja.bottom - v.top + 8 : 16;
+    document.documentElement.style.setProperty('--cam-arriba', Math.round(cab.getBoundingClientRect().bottom - caja.top + 8) + 'px');
+    document.documentElement.style.setProperty('--cam-abajo', Math.round(Math.max(16, abajo)) + 'px');
+  }
   function colocarOnline() {
     const cab = document.querySelector('.g-cab'), b = $('online-barra'); if (!cab || !b) return;
     b.style.setProperty('--online-top', Math.round(cab.getBoundingClientRect().bottom + 8) + 'px');
@@ -1557,9 +1565,12 @@
     $('online-ocultar').addEventListener('click', () => abrirChat(false));
     $('online-msg').addEventListener('keydown', ev => { if (ev.key === 'Escape') { ev.preventDefault(); abrirChat(false); } });
     window.addEventListener('resize', colocarOnline);
+    window.addEventListener('resize', colocarCamara);
+    if (window.ResizeObserver) { const ro = new ResizeObserver(colocarCamara); for (const sel of ['.g-cab', '.g-voluntad']) { const e = document.querySelector(sel); if (e) ro.observe(e); } }
+    colocarCamara();
     $('online-chat').addEventListener('submit', ev => { ev.preventDefault(); const t = $('online-msg').value.trim(); if (!t) return; $('online-msg').value = ''; if (red.modo === 'anfitrion') { const msg = { t: 'chat', de: red.nombre, texto: t.slice(0, 140) }; difundir(msg); chat(msg); } else enviarAnfitrion({ t: 'chat', texto: t }); });
     // Abrir el juego con #unirse=CODIGO (un enlace que comparte el anfitrión) rellena el código.
-    const h = location.hash.match(/unirse=([A-Z0-9]{4,8})/i); if (h) { $('online-codigo').value = h[1].toUpperCase(); $('online').hidden = false; }
+    const h = location.hash.match(/unirse=([A-Z0-9]{4,8})/i); if (h) { $('online-codigo').value = h[1].toUpperCase(); $('inicio').hidden = true; $('online').hidden = false; }
     window.genesis = Object.assign(window.genesis || {}, { red: () => ({ modo: red.modo, codigo: red.codigo, jugadores: red.jugadores, miCiv: red.miCiv, turno: m.turno, suma: sumaMundo(m) }) });
   }
 

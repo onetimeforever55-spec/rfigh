@@ -356,8 +356,12 @@ body.sin-panel .panel { display: none; }
 
   /* La cámara: a la derecha, a media altura, con botones grandes. */
   .camara { right: 8px; top: 50%; bottom: auto !important; transform: translateY(-50%); gap: 8px; }
+  /* Que quepan siempre entre la cabecera y las órdenes: si no caben en una columna, pasan a una segunda a la izquierda. */
+  .camara { top: var(--cam-arriba, 110px); bottom: var(--cam-abajo, 250px) !important; transform: none; flex-wrap: wrap-reverse; justify-content: center; align-content: flex-start; }
   .mando.cam { width: 46px; height: 46px; font-size: 22px; border-radius: 12px; }
   body:not(.sin-panel) .camara { display: none; }
+  /* En pantallas táctiles se acerca y se aleja con dos dedos: sin esos botones, los del juego no quedan tapados. */
+  @media (pointer: coarse) { #zoom-mas, #zoom-menos, #ver-todo { display: none; } }
 
   /* El arquitecto: la paleta abajo, al alcance del pulgar. */
   .arquitecto { top: auto !important; bottom: calc(var(--abajo) + 6px); width: calc(100% - 12px); border-radius: 12px; }
