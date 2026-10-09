@@ -662,6 +662,7 @@ body.limpio .tropas-barra { display: none; }
               <label><input type="checkbox" id="sala-libre"> Mundo libre</label>
             </div>
             <p class="clave" id="sala-espera"></p>
+            <p class="clave sala-red" id="sala-red"></p>
             <div class="inicio-botones"><button type="button" class="obrar" id="sala-empezar">Empezar partida</button><button type="button" class="mando sutil" id="sala-salir">Salir de la sala</button></div>
           </div>
           <p class="clave" id="online-estado"></p>
@@ -12848,7 +12849,7 @@ body.limpio .tropas-barra { display: none; }
     const lista = indice != null && SERVIDORES[indice] ? [SERVIDORES[indice]] : SERVIDORES;
     let cli = null, error = null;
     for (const url of lista) { try { cli = await clienteMqtt(url, base + '/' + yo, llega); canal.servidor = SERVIDORES.indexOf(url); break; } catch (e) { error = e; } }
-    if (!cli) throw new Error('No hay conexión con el servidor de partidas (' + ((error && error.message) || 'sin respuesta') + '). Comprueba internet.');
+    if (!cli) throw new Error('No se puede conectar con el servidor de partidas' + (lista.length === 1 ? ' (' + nombreServidor(SERVIDORES.indexOf(lista[0])) + ')' : '') + ': ' + ((error && error.message) || 'sin respuesta') + '. Comprueba internet; si funciona, puede que esta red (wifi o datos) bloquee el servidor: prueba con la otra.');
     canal.postMessage = x => {
       const t = aTexto(x), tema = base + '/' + x.para;
       if (t.length < 60000) { cli.publicar(tema, t); return; }
@@ -12891,7 +12892,7 @@ body.limpio .tropas-barra { display: none; }
     if (redLocal) return crearCanal(PREFIJO + codigo, 'anfitrion', indiceServidor(codigo)).then(canal => {
       const conns = {};
       canal.onmessage = ev => { const x = ev.data; if (x.para !== 'anfitrion') return; if (x.abrir) { const c = conns[x.de] = conexionLocal(canal, 'anfitrion', x.de); canal.postMessage({ de: 'anfitrion', para: x.de, listo: 1 }); alConectar(c); return; } const c = conns[x.de]; if (!c) return; if (x.fin) { c._fin(); delete conns[x.de]; } else c._llega(x.d); };
-      red.peer = { destroy: () => canal.close() }; red.servidor = canal.servidor;
+      red.peer = { destroy: () => canal.close() }; red.servidor = canal.servidor; red.canal = canal;
     });
     return new Promise((ok, mal) => {
       const peer = new window.Peer(PREFIJO + codigo, OPCIONES_PEER); red.peer = peer;
@@ -12911,6 +12912,14 @@ body.limpio .tropas-barra { display: none; }
     if (!id) { id = 'j' + Math.random().toString(36).slice(2, 10); try { alm.setItem('genesis.yo', id); } catch (e) { /* nada */ } }
     return id;
   }
+  const nombreServidor = i => { const u = SERVIDORES[i] || ''; return /emqx/.test(u) ? 'EMQX' : /hivemq/.test(u) ? 'HiveMQ' : /mosquitto/.test(u) ? 'Mosquitto' : u.replace(/^wss?:\/\//, '').split(/[:/]/)[0] || 'local'; };
+  // El estado de la conexión con el servidor, a la vista en la sala: así se sabe si falla internet o el otro.
+  function pintarRedSala() {
+    const e = $('sala-red'); if (!e) return;
+    const c = red.canal;
+    if (!c || !c.conectado) { e.textContent = ''; return; }
+    e.textContent = c.conectado() ? '🟢 Conectado al servidor de partidas (' + nombreServidor(c.servidor) + ')' : '🟠 Sin conexión con el servidor: reconectando…';
+  }
   function conectarA(codigo) {
     if (redLocal) {
       const yo = miId();
@@ -12918,9 +12927,16 @@ body.limpio .tropas-barra { display: none; }
         const c = conexionLocal(canal, yo, 'anfitrion');
         let hecho = false, intentos = 0;
         // Se llama al anfitrión cada 2 segundos hasta que conteste (por si estaba volviendo a la app).
-        const llamar = () => { if (hecho) return; if (++intentos > 15) { hecho = true; canal.close(); mal(new Error('No se encuentra esa partida. Revisa el código y que el anfitrión tenga la sala abierta.')); return; } if (intentos > 1) onlineEstado('Buscando la partida ' + codigo + '… (intento ' + intentos + ')'); canal.postMessage({ de: yo, para: 'anfitrion', abrir: 1 }); setTimeout(llamar, 2000); };
+        // Se llama al anfitrión cada 2 segundos hasta 3 minutos: si ha salido a otra app (a mandar el código), al volver contesta.
+        const llamar = () => {
+          if (hecho) return;
+          if (++intentos > 90) { hecho = true; canal.close(); mal(new Error('El servidor funciona, pero la partida ' + codigo + ' no contesta. Revisa el código y que el anfitrión tenga el juego abierto en pantalla, con la sala creada.')); return; }
+          if (intentos > 2) onlineEstado('✓ Conectado al servidor de partidas (' + nombreServidor(canal.servidor) + '). Buscando la partida ' + codigo + '… El anfitrión aún no contesta: si ha salido a otra app (por ejemplo, a mandar el código), en cuanto vuelva al juego entraréis. (' + Math.round(intentos * 2) + ' s)');
+          canal.postMessage({ de: yo, para: 'anfitrion', abrir: 1 }); setTimeout(llamar, 2000);
+        };
+        red.cancelar = () => { if (hecho) return; hecho = true; canal.close(); mal(new Error('Búsqueda cancelada.')); };
         canal.onmessage = ev => { const x = ev.data; if (x.para !== yo) return; if (x.listo) { if (!hecho) { hecho = true; ok(c); } } else if (x.fin) c._fin(); else c._llega(x.d); };
-        red.peer = { destroy: () => canal.close() }; red.servidor = canal.servidor;
+        red.peer = { destroy: () => canal.close() }; red.servidor = canal.servidor; red.canal = canal;
         llamar();
       }));
     }
@@ -13012,6 +13028,7 @@ body.limpio .tropas-barra { display: none; }
   function latido() {
     if (red.modo !== 'anfitrion') { clearInterval(red.latido); return; }
     for (const c of red.conns.values()) c.enviar({ t: 'ping', t0: performance.now() });
+    pintarRedSala();
     if (red.sala) { difundirSala(); pintarSala(); }
   }
   const datosSala = () => ({ t: 'sala', codigo: red.codigo, jugadores: red.jugadores.map(j => ({ nombre: j.nombre, ping: j.ping, anfitrion: j.id === 'anfitrion', perdido: j.id !== 'anfitrion' && j.visto != null && performance.now() - j.visto > 7000 })), reinos: +$('sala-reinos').value || 5, libre: $('sala-libre').checked });
@@ -13142,7 +13159,7 @@ body.limpio .tropas-barra { display: none; }
     const codigo = ($('online-codigo').value || '').trim().toUpperCase();
     if (codigo.length < 4) { onlineEstado('Escribe el código que te ha dado el anfitrión.'); return; }
     if (red.uniendo) return;
-    red.uniendo = true; $('online-entrar').disabled = true;
+    red.uniendo = true; red.cancelar = null; $('online-entrar').textContent = 'Cancelar';
     red.nombre = ($('online-nombre').value || 'Jugador').trim().slice(0, 16);
     onlineEstado('Buscando la partida ' + codigo + '…');
     try {
@@ -13159,13 +13176,14 @@ body.limpio .tropas-barra { display: none; }
       red.ultimoAnfitrion = performance.now(); clearInterval(red.vigia);
       red.vigia = setInterval(() => {
         if (red.modo !== 'invitado') { clearInterval(red.vigia); return; }
+        pintarRedSala();
         const callado = performance.now() - red.ultimoAnfitrion > 9000;
         if (callado && !red.avisadoCallado) { red.avisadoCallado = true; avisoFlotante('⏳ El anfitrión no responde (¿ha salido del juego?). La partida sigue cuando vuelva.', 6000); onlineEstado('Esperando al anfitrión…'); }
         else if (!callado && red.avisadoCallado) { red.avisadoCallado = false; avisoFlotante('🌐 El anfitrión ha vuelto', 2500); onlineEstado(''); }
       }, 3000);
       red.sala = true; pintarSala({ jugadores: [{ nombre: red.nombre, ping: null }] });
       onlineEstado('Conectado con el anfitrión.');
-    } catch (e) { red.modo = null; red.solo = null; try { if (red.peer) red.peer.destroy(); } catch (x) { /* nada */ } onlineEstado(errorRed(e)); } finally { red.uniendo = false; $('online-entrar').disabled = false; }
+    } catch (e) { red.modo = null; red.solo = null; try { if (red.peer) red.peer.destroy(); } catch (x) { /* nada */ } onlineEstado(errorRed(e)); } finally { red.uniendo = false; red.cancelar = null; $('online-entrar').textContent = 'Unirse'; }
   }
   async function mensajeInvitado(d) {
     if (!d || typeof d !== 'object') return;
@@ -13295,7 +13313,7 @@ body.limpio .tropas-barra { display: none; }
     try { if (red.peer) red.peer.destroy(); } catch (e) { /* ya cerrado */ }
     clearInterval(red.latido); clearInterval(red.vigia); clearTimeout(red.esperaCarga); chat0(); ocultarCarga();
     red.cargando = false; red.cargandoInv = false; red.mundoOnline = false; red.listos = null;
-    Object.assign(red, { modo: null, peer: null, conns: new Map(), conn: null, codigo: null, jugadores: [], cola: [], pendientes: [], esperandoMundo: false, sala: false, ultimaSala: null, miCiv: null, idos: null });
+    Object.assign(red, { canal: null, modo: null, peer: null, conns: new Map(), conn: null, codigo: null, jugadores: [], cola: [], pendientes: [], esperandoMundo: false, sala: false, ultimaSala: null, miCiv: null, idos: null });
     pintarSala();
     for (const id of ['play', 'vel', 'nuevo', 'modo-dios']) { const e = $(id); if (e) e.disabled = false; }
     pintarOnline();
@@ -13309,7 +13327,7 @@ body.limpio .tropas-barra { display: none; }
     $('modo-online').addEventListener('click', () => { $('inicio').hidden = true; $('online').hidden = false; onlineEstado(enLinea() && !red.sala ? 'Ya estás en una partida (código ' + red.codigo + ').' : ''); pintarSala(); });
     $('online-cerrar').addEventListener('click', () => { $('online').hidden = true; });
     $('online-crear').addEventListener('click', () => { if (!enLinea()) crearOnline(); });
-    $('online-entrar').addEventListener('click', () => { if (!enLinea()) unirseOnline(); });
+    $('online-entrar').addEventListener('click', () => { if (red.uniendo) { if (red.cancelar) red.cancelar(); } else if (!enLinea()) unirseOnline(); });
     $('online-salir').addEventListener('click', () => salirOnline(false));
     $('sala-empezar').addEventListener('click', () => empezarSala());
     $('sala-salir').addEventListener('click', () => { salirOnline(true); onlineEstado('Has salido de la sala.'); });
