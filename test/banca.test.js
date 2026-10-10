@@ -141,5 +141,14 @@ console.log('EL PASO DE EDAD SE PAGA COMO LAS OBRAS');
   comprobar(c2.era === era0 + 1, 'con material, termina de pagar y pasa de edad');
 }
 
+console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
+{
+  // Sin ayudas: aunque la capital esté llena de calles y casas, el gremio busca sitio (otra ciudad, más lejos o un huerto).
+  const n = S.crear(3, 6, { ritmo: 3 });
+  for (let k = 0; k < 420; k++) S.turno(n);
+  const conGremio = S.vivas(n).filter(c => V.gremiosDe(n, c).length > 0);
+  comprobar(conGremio.length >= 2, 'en la Edad Media los comerciantes ricos fundan gremios por su cuenta (' + conGremio.length + ' reinos con gremio)');
+}
+
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
 process.exit(fallos ? 1 : 0);

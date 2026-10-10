@@ -666,9 +666,13 @@
     const v = m.vida;
     regiones = regiones || [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
     // Primero en la ciudad; si está llena, en las tierras del reino de alrededor.
-    const lista = [...regiones, ...regiones.flatMap(r => S().vecinos(r)).filter(r => m.dueno[r] === c.id && !regiones.includes(r))];
+    const anillo1 = [...new Set(regiones.flatMap(r => S().vecinos(r)))].filter(r => m.dueno[r] === c.id && !regiones.includes(r));
+    const anillo2 = [...new Set(anillo1.flatMap(r => S().vecinos(r)))].filter(r => m.dueno[r] === c.id && !regiones.includes(r) && !anillo1.includes(r));
+    const lista = [...regiones, ...anillo1, ...anillo2];
     const reservadas = new Set([...((c.plan && c.plan.encargos) || []).map(x => x.t), ...Object.keys(v.privados || {}).map(Number)]);
     for (const r of lista) for (const t of parcelas(m, r)) if (!reservadas.has(t) && !v.obra[t] && !(v.andamios && v.andamios[t]) && !puedeColocar(m, c, t, clave)) return t;
+    // Sin solar libre, como las obras del reino: sobre un huerto (el dueño se lo compra al reino con la obra).
+    for (const r of lista) for (const t of parcelas(m, r)) if (!reservadas.has(t) && v.obra[t] === OBRA.campo && !(v.andamios && v.andamios[t]) && !puedeColocar(m, c, t, clave)) return t;
     return null;
   }
   const sitioFabrica = (m, c) => sitioPara(m, c, 'fabrica');
@@ -792,10 +796,13 @@
     // UN MERCADER NUEVO: el comerciante que más ha juntado funda su gremio (uno por ciudad como mucho).
     const ciudades = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
     const conGremio = new Set(mercs.filter(x => x.merc.t != null).map(x => region(m, x.merc.t)));
-    const libre = ciudades.find(r => !conGremio.has(r));
-    if (libre != null) {
-      const cand = v.aldeanos.filter(a => a.c === c.id && a.o === COMERCIANTE && !a.emp && !a.merc && !esNino(a) && (a.edad || 0) <= VIEJO - 6 && (a.dinero || 0) >= precioObra(m, 'gremio')).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
-      const t = cand ? sitioPara(m, c, 'gremio', [libre]) : null;
+    const libres = ciudades.filter(r => !conGremio.has(r));
+    if (libres.length) {
+      // (Aunque sea mayor: al morir, el gremio pasa a su heredero.)
+      const cand = v.aldeanos.filter(a => a.c === c.id && a.o === COMERCIANTE && !a.emp && !a.merc && !esNino(a) && (a.dinero || 0) >= precioObra(m, 'gremio')).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
+      // En la primera ciudad sin gremio que tenga sitio.
+      let t = null;
+      if (cand) for (const r of libres) { t = sitioPara(m, c, 'gremio', [r]); if (t != null) break; }
       if (cand && t != null) {
         const pagado = encargarPrivado(m, c, cand, 'gremio', t, 'gremio');
         if (pagado) {
@@ -1651,6 +1658,8 @@
     templo: { nombre: 'Fe', edificio: 'un templo', bien: 'hay dónde rezar y enterrar a los muertos', mal: 'no hay dónde rezar: la gente teme a los dioses', estab: -2, animo: -6 }
   };
   const PUBLICAS = new Set([OBRA.pozo, OBRA.granero, OBRA.fuente, OBRA.parque, OBRA.palacio, OBRA.templo, OBRA.central, OBRA.banco, OBRA.fabrica, OBRA.estacion, OBRA.hospital, OBRA.aerodromo]);
+  // Lo que se puede levantar sobre un huerto cuando no queda solar: las obras públicas y los edificios de los ricos.
+  const SOBRE_HUERTO = new Set([...PUBLICAS, OBRA.gremio, OBRA.casona]);
   const AGUAS = new Set(['rio', 'agua', 'bajo', 'lago']);
   /*
    * LOS CULTIVOS según la tierra: trigo en la llanura, maíz en la selva y la sabana, arroz en los pantanos y
@@ -1745,7 +1754,7 @@
     if (clave === 'camino') return v.camino[t] ? 'ya hay calle' : v.obra[t] && v.obra[t] !== OBRA.campo ? 'hay un edificio' : andable(ter[t]) || ter[t] === 'rio' ? null : 'ahí no se puede';
     const o = OBRA[clave];
     if (!o) return 'no se sabe construir eso';
-    if (v.obra[t] && !(v.obra[t] === OBRA.campo && PUBLICAS.has(o))) return 'ya hay algo construido';
+    if (v.obra[t] && !(v.obra[t] === OBRA.campo && SOBRE_HUERTO.has(o))) return 'ya hay algo construido';
     if (v.andamios && v.andamios[t]) return 'ya hay una obra';
     if (v.camino[t]) return 'es una calle';
     if (esVia(v, t)) return 'por ahí pasa la vía del tren';
@@ -3433,7 +3442,7 @@
       const an = v.andamios && v.andamios[t];
       if (an && an.civ === c.id) { a.e = TRABAJAR; a.t = 3; }
       else if (!v.obra[t] && !pausada(m)) { colocarObra(m, t, a.edificio, paso); if (a.edificio === OBRA.casa) c.casas++; if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t); a.edificio = 0; }
-      else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && PUBLICAS.has(a.edificio))) && (privada(v, t, c) || pagarAndamio(c, { coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0 }, 0.25))) {
+      else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && SOBRE_HUERTO.has(a.edificio))) && (privada(v, t, c) || pagarAndamio(c, { coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0 }, 0.25))) {
         if (v.obra[t] === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
         // Se paga la cuarta parte al empezar y se monta el andamio; el resto, jornada a jornada.
         cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso);
