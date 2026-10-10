@@ -1008,7 +1008,7 @@ console.log('COMERCIO A TU MANDO, SABIOS QUE INVESTIGAN Y ANEXIONES');
   if (otro) { (yo.plan.socios = yo.plan.socios || []).push(otro.id); }
   comprobar(!otro || V.sociosDe(m, yo).includes(otro), 'un tratado de comercio ya cuenta como socio para comprar y vender');
   comprobar(!/No comerciáis con ningún reino/.test(X.ordenar(m, yo.id, 'comprad 10 de piedra').respuesta || ''), 'la orden de comprar encuentra a los socios');
-  comprobar(!V.comercioLibre(yo) && /solos/.test(X.ordenar(m, yo.id, 'comerciad libremente').respuesta) && V.comercioLibre(yo) && !(X.ordenar(m, yo.id, 'comerciad solo lo que yo diga'), V.comercioLibre(yo)), 'tu reino solo comercia lo que mandes, salvo que digas «comerciad libremente»');
+  comprobar(V.comercioLibre(yo) && !(X.ordenar(m, yo.id, 'comerciad solo lo que yo diga'), V.comercioLibre(yo)) && /solos/.test(X.ordenar(m, yo.id, 'comerciad libremente').respuesta) && V.comercioLibre(yo), 'con tus socios se comercia solo, según convenga; con «comerciad solo lo que yo diga», solo lo que mandes');
   // Las mejoras las investigan los sabios: no cuestan recursos, y sin sabios la técnica casi no avanza.
   comprobar(M.TECNOLOGIAS.every(x => !Object.keys(x.precio || {}).length) && M.EDADES[5].oro > 95, 'las mejoras no cuestan recursos (lo que se paga es el paso de edad, que ahora cuesta más)');
   {

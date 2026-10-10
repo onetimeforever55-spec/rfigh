@@ -179,6 +179,12 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   comprobar(central != null && /^Banco central de /.test(n.vida.edificios[central].nombre), 'el banco del reino es el banco central (' + (central != null ? n.vida.edificios[central].nombre : 'ninguno') + ')');
   const bq = S.vivas(n).flatMap(c => V.banquerosDe(n, c)), conSede = bq.filter(a => a.emp.sede != null && n.vida.obra[a.emp.sede] === O.bancopriv);
   comprobar(privados.length > 0 && conSede.length >= bq.length * 0.6 && conSede.every(a => /^Banco /.test((n.vida.edificios[a.emp.sede] || {}).nombre || '') && !/central/.test(n.vida.edificios[a.emp.sede].nombre)), 'cada banquero levanta su propio banco, con su nombre (' + conSede.length + ' de ' + bq.length + ': ' + (conSede[0] ? n.vida.edificios[conSede[0].emp.sede].nombre : '-') + ')');
+  // LOS MUELLES PRIVADOS: uno por familia como mucho, con su barco mercante.
+  const muelles = edif.filter(t => n.vida.obra[t] === O.muelle && n.vida.privados && n.vida.privados[t]);
+  const porFam = {}; for (const t of muelles) { const d = n.vida.aldeanos.find(a => a.id === n.vida.privados[t].dueno); if (d) { const k = d.c + ':' + d.familia; porFam[k] = (porFam[k] || 0) + 1; } }
+  comprobar(muelles.length > 0 && Object.values(porFam).every(k => k === 1), 'las casas comerciales levantan su muelle, uno por familia como mucho (' + muelles.length + ' muelles: ' + JSON.stringify(porFam) + ')');
+  comprobar(muelles.every(t => n.vida.barcos.some(b => b.puerto === t && b.privado === n.vida.privados[t].dueno)), 'y cada muelle tiene su barco mercante');
+  comprobar(muelles.every(t => /^Muelle de los /.test((n.vida.edificios[t] || {}).nombre || '')), 'que lleva el nombre de la familia (' + ((n.vida.edificios[muelles[0]] || {}).nombre || '-') + ')');
   const sucNombre = Object.keys(n.vida.privados || {}).filter(t => n.vida.privados[t].sucursal && n.vida.obra[t] === V.OBRA.gremio).map(t => (n.vida.edificios[t] || {}).nombre);
   comprobar(!sucNombre.length || sucNombre.every(x => / \(sucursal\)$/.test(x || '')), 'el letrero de la sucursal lo dice (' + (sucNombre[0] || 'aún sin terminar') + ')');
 }

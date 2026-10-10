@@ -446,10 +446,10 @@
     const mk = m.mercado, pausa = M.vida && M.vida.pausada(m);
     if (a.tipo === 'comercio_libre') {
       p.comercioLibre = !!a.si;
-      textos.push(a.si ? 'Vuestros comerciantes comercian solos: venden lo que sobra, compran lo que falta y abren rutas con quien se lleve bien con vosotros.' : 'Vuestros comerciantes solo compran y venden lo que mandéis («comprad 20 de hierro», «vended madera»), y no se abren rutas nuevas sin vuestra orden.');
+      textos.push(a.si ? 'Vuestros comerciantes comercian solos con vuestros socios: venden lo que sobra y compran lo que falta, según convenga. (Con quién, lo decidís vosotros: «abrid una ruta comercial con X».)' : 'Vuestros comerciantes solo compran y venden lo que mandéis («comprad 20 de hierro», «vended madera»). Para que vuelvan a comerciar solos: «comerciad libremente».');
       return;
     }
-    if (a.tipo === 'oferta') { const r = M.vida.aceptarOferta(m, c, a.si); textos.push(r.texto); if (r.ok && a.si) an('🤝 Trato cerrado'); return; }
+    if (a.tipo === 'oferta') { const r = M.vida.aceptarOferta(m, c, a.si); textos.push(r.ok ? r.texto : 'Ya no hay ofertas que aceptar: con vuestros socios, los comerciantes compran y venden solos según convenga.'); if (r.ok && a.si) an('🤝 Trato cerrado'); return; }
     if (a.tipo === 'consulta_mercado') {
       if (!mk) { textos.push('Aún no hay mercado entre los reinos.'); return; }
       const fl = k => { const h = mk.historia[k] || []; const d = h.length > 6 ? h[h.length - 1] - h[h.length - 7] : 0; return d > 0.02 ? ' ▲' : d < -0.02 ? ' ▼' : ''; };
@@ -1402,7 +1402,7 @@
     if (c.jugador || !m.vida) return;
     const p = plan(c), antes = new Set(p.socios || []);
     for (const ru of m.vida.rutas || []) if (ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)) antes.add(ru.a === c.id ? ru.b : ru.a);
-    p.socios = []; p.comercioLibre = false;
+    p.socios = []; delete p.comercioLibre;
     const nombres = [...antes].map(id => S().civ(m, id)).filter(o => o && o.viva && !S().enGuerra(c, o)).map(o => o.nombre);
     if (nombres.length) (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: '🤝 Tu reino comerciaba con ' + nombres.join(', ') + ': para seguir, di «abrid una ruta comercial con ' + nombres[0] + '»' });
   }

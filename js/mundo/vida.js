@@ -21,7 +21,7 @@
   const ADULTO = 2, VIEJO = 18;
   const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
   const esNino = a => (a.edad || 0) < ADULTO;
-  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18, central: 19, banco: 20, fabrica: 21, estacion: 22, hospital: 23, aerodromo: 24, campamento: 25, aduana: 26, petroleo: 27, mina: 28, gremio: 29, casona: 30, bancopriv: 31 };
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18, central: 19, banco: 20, fabrica: 21, estacion: 22, hospital: 23, aerodromo: 24, campamento: 25, aduana: 26, petroleo: 27, mina: 28, gremio: 29, casona: 30, bancopriv: 31, muelle: 32 };
   // Hasta dónde llegan los campos de un molino (parcelas): más allá no se ara.
   const RANGO_MOLINO = 4;
   // En las partidas pausadas el molino alcanza menos (un rango medio): hacen falta varios molinos repartidos
@@ -469,7 +469,7 @@
     const v = m.vida, o = v.obra[t], pv = v.privados && v.privados[t], duenio = pv && v.aldeanos.find(x => x.id === pv.dueno);
     if (!duenio || !v.edificios[t]) return;
     const era = c ? c.era : 0, quien = duenio.nombre + ' ' + (duenio.familia || '');
-    v.edificios[t].nombre = o === OBRA.gremio ? 'Gremio de mercaderes ' + (duenio.familia || duenio.nombre) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.bancopriv ? 'Banco ' + (duenio.familia || duenio.nombre) : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
+    v.edificios[t].nombre = o === OBRA.gremio ? 'Gremio de mercaderes ' + (duenio.familia || duenio.nombre) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.bancopriv ? 'Banco ' + (duenio.familia || duenio.nombre) : o === OBRA.muelle ? 'Muelle de los ' + (duenio.familia || duenio.nombre) : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
     v.edificios[t].dueno = quien;
   }
   const SIN_REFORMA = new Set([OBRA.campamento, OBRA.centro, OBRA.campo, OBRA.ruina]);
@@ -723,6 +723,14 @@
   }
   // Muere un banquero, un empresario o un mercader: su negocio (y lo que debe), su gremio, su casona y sus ahorros
   // los hereda un hijo o su pareja; si no hay nadie, pasan al reino (y los préstamos de un banquero, al banco central).
+  // Un muelle por familia: si quien recibe un gremio (al heredar, de relevo o comprado) ya tiene muelle en su familia,
+  // el que venía con el gremio queda vacío (lo comprará otra casa).
+  function soltarMuelleSiSobra(m, c, h, mc) {
+    const v = m.vida;
+    if (!h || !mc || mc.muelle == null) return;
+    const ya = v.aldeanos.some(x => x !== h && x.merc && x.merc !== mc && x.c === h.c && x.familia && x.familia === h.familia && x.merc.muelle != null && v.obra[x.merc.muelle] === OBRA.muelle);
+    if (ya) { olvidarPrivado(m, c, mc.muelle); delete mc.muelle; }
+  }
   function heredar(m, a, quitar) {
     const v = m.vida, c = S().civ(m, a.c), e = a.emp, mc = a.merc;
     const familia = v.aldeanos.filter(b => b !== a && b.c === a.c && !b.emp && !b.merc && !esNino(b) && !(quitar && quitar.has(b)) && (b.padre === a.id || b.madre === a.id || b.id === a.pareja || b.pareja === a.id));
@@ -734,8 +742,8 @@
     const llena = b && mc && b.familia && b.familia !== a.familia && v.aldeanos.filter(x => x.merc && x.c === a.c && x.familia === b.familia).length >= SUCURSALES + 1;
     const relevo = (!b || llena) && mc && !e && c ? v.aldeanos.filter(x => x.gremio === a.id && x !== a && x.c === a.c && !x.emp && !x.merc && !esNino(x) && !(quitar && quitar.has(x)) && !(x.familia && v.aldeanos.filter(y => y.merc && y.c === a.c && y.familia === x.familia).length >= SUCURSALES + 1)).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0] : null;
     if (relevo) {
-      relevo.merc = mc; delete mc.de; delete relevo.gremio; mover(relevo, COMERCIANTE);
-      if (v.privados) for (const t of Object.keys(v.privados)) if (v.privados[t].dueno === a.id) { if (v.privados[t].tipo === 'gremio' || v.privados[t].tipo === 'casona') { v.privados[t].dueno = relevo.id; delete v.privados[t].sucursal; nombrarPrivado(m, +t, c); } else olvidarPrivado(m, c, +t); }
+      relevo.merc = mc; delete mc.de; delete relevo.gremio; mover(relevo, COMERCIANTE); soltarMuelleSiSobra(m, c, relevo, mc);
+      if (v.privados) for (const t of Object.keys(v.privados)) if (v.privados[t].dueno === a.id) { if (v.privados[t].tipo === 'gremio' || v.privados[t].tipo === 'casona' || v.privados[t].tipo === 'muelle') { v.privados[t].dueno = relevo.id; delete v.privados[t].sucursal; nombrarPrivado(m, +t, c); } else olvidarPrivado(m, c, +t); }
       for (const x of v.aldeanos) { if (x.gremio === a.id) x.gremio = relevo.id; if (x.merc && x.merc.de === a.id) delete x.merc.de; }
       if (b) { b.dinero = redondo((b.dinero || 0) + (a.dinero || 0)); a.dinero = 0; }
       anunciar(m, c, '🏪 Muere ' + nombreDe(a) + (b ? ': su familia ya tiene casa comercial llena, así que ' : ' sin familia: ') + nombreDe(relevo) + ', comerciante de su gremio, se queda con el negocio');
@@ -747,10 +755,11 @@
       const otro = v.aldeanos.filter(x => x.gremio === a.id && x !== a && x !== b && x.c === a.c && !x.emp && !x.merc && !esNino(x) && !(quitar && quitar.has(x)) && !(x.familia && v.aldeanos.filter(y => y.merc && y.c === a.c && y.familia === x.familia).length >= SUCURSALES + 1)).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
       if (e) b.emp = e;
       b.dinero = redondo((b.dinero || 0) + (a.dinero || 0)); a.dinero = 0; if (e) mover(b, COMERCIANTE);
-      if (otro) { otro.merc = mc; delete mc.de; delete otro.gremio; mover(otro, COMERCIANTE); }
+      if (otro) { otro.merc = mc; delete mc.de; delete otro.gremio; mover(otro, COMERCIANTE); soltarMuelleSiSobra(m, c, otro, mc); }
+      else if (mc && mc.muelle != null) { olvidarPrivado(m, c, mc.muelle); delete mc.muelle; }
       if (v.privados) for (const t of Object.keys(v.privados)) if (v.privados[t].dueno === a.id) {
         const tipo = v.privados[t].tipo;
-        if (tipo === 'gremio' || tipo === 'casona') { if (otro) { v.privados[t].dueno = otro.id; delete v.privados[t].sucursal; nombrarPrivado(m, +t, c); } else olvidarPrivado(m, c, +t); }
+        if (tipo === 'gremio' || tipo === 'casona' || tipo === 'muelle') { if (otro) { v.privados[t].dueno = otro.id; delete v.privados[t].sucursal; nombrarPrivado(m, +t, c); } else olvidarPrivado(m, c, +t); }
         else v.privados[t].dueno = b.id;
       }
       for (const x of v.aldeanos) { if (x.gremio === a.id) { if (otro) x.gremio = otro.id; else delete x.gremio; } if (x.emp && x.emp.banquero === a.id) x.emp.banquero = b.id; if (x.merc && x.merc.de === a.id) delete x.merc.de; }
@@ -759,7 +768,7 @@
     }
     if (b && c) {
       if (e) b.emp = e;
-      if (mc) b.merc = mc;
+      if (mc) { b.merc = mc; soltarMuelleSiSobra(m, c, b, mc); }
       b.dinero = (b.dinero || 0) + (a.dinero || 0); a.dinero = 0; mover(b, COMERCIANTE);
       if (v.privados) for (const t of Object.keys(v.privados)) if (v.privados[t].dueno === a.id) v.privados[t].dueno = b.id;
       for (const x of v.aldeanos) { if (x.gremio === a.id) x.gremio = b.id; if (x.emp && x.emp.banquero === a.id) x.emp.banquero = b.id; if (x.merc && x.merc.de === a.id) x.merc.de = b.id; }
@@ -851,7 +860,7 @@
       const compra = x => x.c === c.id && x.o === COMERCIANTE && !x.merc && !x.emp && !esNino(x) && x.familia !== fam && !llenaF(x.familia), mejorDe = l => l.sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
       const nuevo = ultima && (mejorDe(v.aldeanos.filter(x => x.gremio === ultima.id && compra(x))) || mejorDe(v.aldeanos.filter(compra)));
       if (!nuevo) continue;
-      const mc = ultima.merc; delete ultima.merc; delete mc.de; nuevo.merc = mc; delete nuevo.gremio; mover(nuevo, COMERCIANTE);
+      const mc = ultima.merc; delete ultima.merc; delete mc.de; nuevo.merc = mc; delete nuevo.gremio; mover(nuevo, COMERCIANTE); soltarMuelleSiSobra(m, c, nuevo, mc);
       for (const x of v.aldeanos) if (x.gremio === ultima.id) x.gremio = nuevo.id;
       ultima.gremio = nuevo.id; mercs.splice(mercs.indexOf(ultima), 1, nuevo);
       if (mc.t != null && v.privados && v.privados[mc.t]) { v.privados[mc.t].dueno = nuevo.id; delete v.privados[mc.t].sucursal; nombrarPrivado(m, mc.t, c); }
@@ -904,6 +913,30 @@
         }
       }
     }
+    // EL MUELLE: la casa comercial (su jefe) se hace un muelle con su barco mercante, uno por familia como mucho. Si hay
+    // uno vacío, lo compra a mitad de precio; si no, lo levanta en la costa (materiales y obra se los paga al reino).
+    if (c.era >= ERA_OBRA[OBRA.muelle]) for (const jefe of jefeCasa.values()) {
+      const fam = jefe.familia, mc = jefe.merc;
+      const tiene = mercs.some(x => x.familia === fam && x.merc.muelle != null && (v.obra[x.merc.muelle] === OBRA.muelle || ((c.plan && c.plan.encargos) || []).some(e => e.t === x.merc.muelle)));
+      if (tiene) continue;
+      delete mc.muelle;
+      const precio = precioObra(m, 'muelle');
+      const vacio = Object.keys(v.edificios || {}).map(Number).find(t => v.obra[t] === OBRA.muelle && m.dueno[region(m, t)] === c.id && !(v.privados && v.privados[t]));
+      if (vacio != null && mc.caja >= precio / 2 + 10) {
+        mc.caja = redondo(mc.caja - precio / 2); c.oro = (c.oro || 0) + precio / 2; mc.muelle = vacio;
+        (v.privados = v.privados || {})[vacio] = { dueno: jefe.id, civ: c.id, tipo: 'muelle' }; nombrarPrivado(m, vacio, c);
+        anunciar(m, c, '⚓ La casa comercial ' + fam + ' compra al reino un muelle vacío, con su barco (paga ' + Math.round(precio / 2) + ' de oro)');
+        break;
+      }
+      if (mc.caja < precio + 15) continue;
+      const t = sitioPara(m, c, 'muelle', mc.t != null ? [region(m, mc.t)] : undefined) ?? sitioPara(m, c, 'muelle');
+      if (t == null) continue;
+      jefe.dinero = (jefe.dinero || 0) + mc.caja; mc.caja = 0;
+      const pagado = encargarPrivado(m, c, jefe, 'muelle', t, 'muelle');
+      mc.caja = jefe.dinero; jefe.dinero = 0;
+      if (pagado) { mc.muelle = t; anunciar(m, c, '⚓ La casa comercial ' + fam + ' levanta su muelle, con su propio barco mercante (paga ' + Math.round(pagado) + ' de oro al reino por la obra)'); }
+      break;
+    }
     // LA CASONA: el mercader que ha ganado lo bastante se hace una casa grande (le compra al reino los materiales).
     for (const a of mercs) {
       const mc = a.merc;
@@ -954,7 +987,7 @@
   function banca(m, c) {
     const v = m.vida;
     // Los negocios privados de quien ya no está (murió, se fue o el reino perdió la tierra) pasan al reino.
-    if (v.privados) for (const t of Object.keys(v.privados)) { const p = v.privados[t], a = v.aldeanos.find(x => x.id === p.dueno); if (p.civ === c.id && (!a || (p.tipo === 'gremio' ? !a.merc : p.tipo === 'casona' ? false : !a.emp) || a.c !== c.id || m.dueno[region(m, +t)] !== c.id)) olvidarPrivado(m, c, +t); }
+    if (v.privados) for (const t of Object.keys(v.privados)) { const p = v.privados[t], a = v.aldeanos.find(x => x.id === p.dueno); if (p.civ === c.id && (!a || (p.tipo === 'gremio' || p.tipo === 'muelle' ? !a.merc : p.tipo === 'casona' ? false : !a.emp) || a.c !== c.id || m.dueno[region(m, +t)] !== c.id)) olvidarPrivado(m, c, +t); }
     const impuesto = Math.min(0.6, 0.25 * ((c.plan && c.plan.impuesto) || 1));
     comercio(m, c, impuesto);
     if (!(c.bancos > 0) || c.era < 5) return;
@@ -1067,7 +1100,7 @@
     v.resumenTratos = {};
     sucesosDelCampo(m);
     sucesosDelMercado(m);
-    ofertasAlJugador(m);
+    // (Ya no hay ofertas sueltas que aceptar: con los socios, el comercio va solo, según convenga.)
     for (const c of vivas) {
       // El combustible: los pozos dan crudo; fábricas, trenes y centrales queman lo que haya.
       if ((c.pozosPetroleo || 0) > 0 && c.era >= 7) c.petroleo = (c.petroleo || 0) + 1.2 * c.pozosPetroleo;
@@ -1224,14 +1257,16 @@
   const bodegaDe = c => (c.era >= 6 ? 5 : 3);
   // El reino del jugador solo comercia con lo que él diga («comprad hierro», «vended madera»), salvo que
   // mande «comerciad libremente»; los de la IA, con todo lo que les sobra y les falta.
-  const comercioLibre = x => !x.jugador || !!(x.plan && x.plan.comercioLibre);
+  // Qué bienes: con sus socios, los comerciantes compran y venden solos según convenga (salvo que el jugador diga
+  // «comerciad solo lo que yo diga»: entonces solo lo que mande). Con quién, siempre lo decide el jugador.
+  const comercioLibre = x => !x.jugador || !(x.plan && x.plan.comercioLibre === false);
   /*
    * ¿PUEDEN COMERCIAR c Y o? Nunca en guerra. Y los dos tienen que permitirlo: un reino de la IA comercia con quien
    * quiera (salvo con quien le haya cerrado el comercio); el reino de un jugador, solo con quien él haya abierto
-   * comercio («abrid una ruta comercial con X»), o con todos si dijo «comerciad libremente», y nunca con quien haya
+   * comercio («abrid una ruta comercial con X»), y nunca con quien haya
    * prohibido («cerrad el comercio con X»). Vale para las carretas, los barcos, el mercado y los mercaderes.
    */
-  const permiteComercio = (c, o) => { const p = c.plan || {}; if ((p.embargo || []).includes(o.id)) return false; return !c.jugador || !!p.comercioLibre || (p.socios || []).includes(o.id); };
+  const permiteComercio = (c, o) => { const p = c.plan || {}; if ((p.embargo || []).includes(o.id)) return false; return !c.jugador || (p.socios || []).includes(o.id); };
   const comercian = (m, c, o) => !!(c && o && c !== o && c.viva && o.viva && !S().enGuerra(c, o) && permiteComercio(c, o) && permiteComercio(o, c));
   // Cuánto de un bien le puede vender o a c: lo que le sobra o, si c lo encargó, también de su reserva (se queda la mitad
   // de lo que necesita).
@@ -1815,6 +1850,7 @@
   // mansión desde la Revolución Industrial): los paga su dueño, comprándole al reino la madera y la piedra.
   COSTES[OBRA.gremio] = [12, 6, 6]; TRABAJO[OBRA.gremio] = 7; NIVEL_OBRA[OBRA.gremio] = 2; ERA_OBRA[OBRA.gremio] = 4;
   COSTES[OBRA.casona] = [10, 8, 4]; TRABAJO[OBRA.casona] = 6; NIVEL_OBRA[OBRA.casona] = 2; ERA_OBRA[OBRA.casona] = 4;
+  COSTES[OBRA.muelle] = [12, 4, 6]; TRABAJO[OBRA.muelle] = 5; NIVEL_OBRA[OBRA.muelle] = 2; ERA_OBRA[OBRA.muelle] = 4;
   COSTES[OBRA.bancopriv] = [8, 10, 6]; TRABAJO[OBRA.bancopriv] = 6; NIVEL_OBRA[OBRA.bancopriv] = 2; ERA_OBRA[OBRA.bancopriv] = 5;
   const NOMBRE_ERA = ['el Neolítico', 'la Edad del Bronce', 'la Edad del Hierro', 'la Antigüedad clásica', 'la Edad Media', 'el Renacimiento', 'la Revolución Industrial', 'la Era Moderna', 'la II Guerra Mundial'];
   /*
@@ -1961,7 +1997,7 @@
     if (v.trinchera && v.trinchera[t]) return 'ahí hay una trinchera';
     if (!marcado && pausada(m) && v.plan && v.plan[t] === 1) return 'ahí va una calle del plano';
     if (o === OBRA.mina) { if (ter[t] !== 'montana') return 'la mina solo se abre en la montaña'; }
-    else if (o === OBRA.puerto ? !((ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) && !navegable(ter, t) && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
+    else if (o === OBRA.puerto || o === OBRA.muelle ? !((ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) && !navegable(ter, t) && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
     if (c.era < (ERA_OBRA[o] || 0)) return 'aún no existe: llega con ' + NOMBRE_ERA[ERA_OBRA[o]];
     if (o === OBRA.petroleo && !(v.crudo && v.crudo[t])) return 'ahí no hay petróleo: busca las manchas negras';
     if ((c.nivel || 0) < (NIVEL_OBRA[o] || 0)) return 'hace falta ser ' + ['un campamento', 'una aldea', 'un pueblo', 'una villa', 'una ciudad'][NIVEL_OBRA[o]];
@@ -2296,8 +2332,16 @@
     puertosDelTurno = [];
     for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === OBRA.puerto) puertosDelTurno.push(t);
     // Un barco que se queda sin puerto (quemado, conquistado) devuelve su carga a su pueblo antes de desaparecer.
-    for (const b of v.barcos || []) if (b.carga && !(v.obra[b.puerto] === OBRA.puerto && m.dueno[region(m, b.puerto)] === b.c)) { const c = S().civ(m, b.c); if (c && c.viva) descargar(m, b, c); }
-    v.barcos = (v.barcos || []).filter(b => v.obra[b.puerto] === OBRA.puerto && m.dueno[region(m, b.puerto)] === b.c);
+    const conMuelle = b => b.privado != null && v.obra[b.puerto] === OBRA.muelle && v.privados && v.privados[b.puerto] && v.privados[b.puerto].dueno === b.privado;
+    const sigue = b => (v.obra[b.puerto] === OBRA.puerto || conMuelle(b)) && m.dueno[region(m, b.puerto)] === b.c;
+    for (const b of v.barcos || []) if (b.carga && !sigue(b)) { const c = S().civ(m, b.c); if (c && c.viva) descargar(m, b, c); }
+    v.barcos = (v.barcos || []).filter(sigue);
+    // EL BARCO DE CADA MUELLE PRIVADO: un mercante de la casa comercial, que comercia con los socios del reino.
+    for (const t of Object.keys(v.privados || {}).map(Number)) {
+      const pv = v.privados[t]; if (pv.tipo !== 'muelle' || v.obra[t] !== OBRA.muelle || v.barcos.some(b => b.puerto === t)) continue;
+      const agua = aguaJunto(m, t, ter); if (agua == null) continue;
+      v.barcos.push({ id: v.sig++, tipo: 'mercante', c: pv.civ, privado: pv.dueno, puerto: t, x: agua % v.tw, y: agua / v.tw | 0, ruta: null, i: 0, vuelta: 0, r: [] });
+    }
     for (const t of puertosDelTurno) {
       const c = S().civ(m, m.dueno[region(m, t)]);
       if (!c) continue;
@@ -2533,7 +2577,12 @@
         b.i = b.ruta.length - 1; b.vuelta = 1;
         const o = S().civ(m, m.dueno[region(m, b.destino)]);
         // En el puerto de destino vende la carga y compra lo que hace falta en casa, igual que una carreta.
-        if (o && comercian(m, c, o)) { venderComprar(m, b, c, o, bodegaDe(c), 'mar'); c.riqueza += 2 + c.era * 0.5; o.riqueza += 2 + o.era * 0.5; c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1); }
+        if (o && comercian(m, c, o)) {
+          venderComprar(m, b, c, o, bodegaDe(c), 'mar'); c.riqueza += 2 + c.era * 0.5; o.riqueza += 2 + o.era * 0.5; c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1);
+          // El barco de un muelle privado: la casa comercial gana el flete (y paga su parte al reino).
+          const dueno = b.privado != null && v.aldeanos.find(x => x.id === b.privado && x.merc);
+          if (dueno) { const flete = (2 + 0.4 * c.era) * (dueno.merc.de == null ? 1 : 1), imp = flete * 0.25; dueno.merc.caja = redondo(dueno.merc.caja + flete - imp); c.oro = (c.oro || 0) + imp; }
+        }
       } else if (b.vuelta && b.i <= 0) { b.i = 0; b.ruta = null; descargar(m, b, c); }
       const t = b.ruta ? b.ruta[Math.max(0, Math.min(b.ruta.length - 1, b.i))] : aguaJunto(m, b.puerto, ter);
       if (t != null) { b.x = t % v.tw; b.y = t / v.tw | 0; }

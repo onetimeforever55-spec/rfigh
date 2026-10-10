@@ -410,6 +410,7 @@
       if (nombre === 'mina') return mina(H, fase, col);
       if (nombre === 'gremio') return gremio(H, fase, col);
       if (nombre === 'bancopriv') return bancoPrivado(H, fase, col);
+      if (nombre === 'muelle') return muelle(H, fase, col);
       if (nombre === 'casona') return casona(H, fase, col);
       if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
@@ -652,6 +653,17 @@
     for (const x of [1, 3, 5, 10, 12, 14]) H.r(x, 9, 1, 4, '#fafaf4');
     H.r(7, 10, 2, 3, '#4a3020'); H.p(7, 9, '#e0b040'); H.p(8, 9, '#e0b040');
     H.r(0, 13, 16, 1, muro); H.r(0, 14, 16, 1, som); H.r(0, 15, 16, 1, oscuro(muro, 0.35));
+    H.contorno(); return H.lienzo();
+  }
+  // El muelle de una casa comercial: tablones de madera sobre pilotes, una grúa de madera con su cuerda, cajas y
+  // toneles, y el banderín de la casa.
+  function muelle(H, fase, col) {
+    const tabla = '#9a6a3a', junta = '#6a4424';
+    H.r(0, 9, 16, 5, tabla); for (let x = 1; x < 16; x += 3) H.r(x, 9, 1, 5, junta); H.r(0, 9, 16, 1, '#b07a44');
+    for (const x of [1, 6, 11, 15]) H.r(x, 14, 1, 2, '#4a3018');
+    H.r(3, 1, 1, 8, '#5a3a1e'); H.r(3, 1, 7, 1, '#5a3a1e'); H.r(9, 2, 1, 4, '#c8b890'); H.r(8, 6, 3, 2, '#8a5a2b');
+    H.r(11, 6, 3, 3, '#a87a44'); H.p(12, 7, '#6a4424'); H.r(13, 5, 2, 4, '#7a4a22'); H.p(13, 6, '#c8a050');
+    H.r(0, 0, 1, 9, '#4a4a4a'); H.r(1, 0, 2, 2, col);
     H.contorno(); return H.lienzo();
   }
   // El banco de un banquero (privado): local de piedra más pequeño, con el letrero de letras doradas, rejas en las
