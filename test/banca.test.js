@@ -19,7 +19,7 @@ V.encargar(m, c, zona.find(t => !V.puedeColocar(m, c, t, 'banco')), 'banco');
 const sostener = () => { c.era = Math.max(c.era, 6); c.oro = Math.max(c.oro, 120); c.madera = Math.max(c.madera, 100); c.piedra = Math.max(c.piedra, 100); };
 const avisos = [];
 const turno = () => { const n0 = (v.anuncios || []).length; S.turno(m); avisos.push(...(v.anuncios || []).slice(n0).filter(x => x.civ === c.id && /🏦/.test(x.texto)).map(x => x.texto)); };
-for (let k = 0; k < 90 && !(c.bancos > 0 && c.banca); k++) { sostener(); turno(); }
+for (let k = 0; k < 160 && !(c.bancos > 0 && c.banca); k++) { sostener(); turno(); } // (el banco central pide ser villa: depende de lo que crezca el pueblo)
 
 console.log('LOS GREMIOS (Edad Media)');
 {
@@ -144,9 +144,11 @@ console.log('EL PASO DE EDAD SE PAGA COMO LAS OBRAS');
   S.empezarSubida(e, c1);
   comprobar(!c1.subiendo.debe && ks.every(k => Math.round(c1[k]) === 5), 'con todo el precio, se paga de golpe');
   // Con un tercio: la cuarta parte ahora y el resto poco a poco; si falta, espera; al tener, termina.
-  for (const k of ks) c2[k] = Math.ceil(req[k] / 3);
+  // (De la comida, siempre queda en el granero la que necesita la gente: eso no se gasta en la edad.)
+  const reserva = Math.max(4, (c2.habitantes || 0) * 0.8);
+  for (const k of ks) c2[k] = Math.ceil(req[k] / 3) + (k === 'comida' ? reserva : 0);
   const era0 = c2.era;
-  comprobar(!ks.some(k => S.puedeSubir(e, c2).falta.some(f => f.endsWith(' de ' + k))), 'para empezar basta con la cuarta parte de cada cosa');
+  comprobar(!ks.some(k => S.puedeSubir(e, c2).falta.some(f => f.includes(' de ' + k))), 'para empezar basta con la cuarta parte de cada cosa');
   S.empezarSubida(e, c2);
   comprobar(c2.subiendo && c2.subiendo.debe && ks.every(k => Math.round(c2.subiendo.debe[k]) === req[k] - Math.ceil(req[k] * 0.25)), 'sin todo, paga la cuarta parte y apunta lo que falta');
   for (const k of ks) c2[k] = 0;
@@ -155,6 +157,14 @@ console.log('EL PASO DE EDAD SE PAGA COMO LAS OBRAS');
   comprobar(c2.era === era0 && c2.subiendo && c2.subiendo.hasta > hasta0, 'sin material, el paso espera (no avanza de edad)');
   for (let k = 0; k < 12 && c2.era === era0; k++) { for (const x of ks) c2[x] = Math.max(c2[x] || 0, req[x]); S.turno(e); }
   comprobar(c2.era === era0 + 1, 'con material, termina de pagar y pasa de edad');
+  // La comida que necesita la gente no se gasta en la edad: con el granero justo, el paso no empieza (ni lo aconseja el consejero).
+  const c3 = S.vivas(e).find(x => x !== c1 && x !== c2 && !x.subiendo && M.EDADES[x.era + 1]), req3 = c3 && M.EDADES[c3.era + 1];
+  if (c3 && req3.comida) {
+    for (const k of ['madera', 'piedra', 'oro', 'metal']) if (req3[k]) c3[k] = req3[k] * 2;
+    c3.comida = Math.max(4, (c3.habitantes || 0) * 0.8);
+    const f = S.puedeSubir(e, c3).falta;
+    comprobar(f.some(x => /de comida \(sin tocar la que necesita la gente\)/.test(x)), 'pagar la edad no deja a la gente sin comer: «' + f.filter(x => /comida/.test(x)).join(', ') + '»');
+  } else comprobar(false, 'hace falta un tercer reino para probar la reserva de comida');
 }
 
 console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');

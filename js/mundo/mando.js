@@ -63,7 +63,7 @@
     [1, 'granjer\\w*|campesin\\w*|agricultor\\w*|labrador\\w*|pastor\\w*|cazador\\w*|pescador\\w*'],
     [2, 'constructor\\w*|albanil\\w*|obrer\\w*|carpinter\\w*|arquitect\\w*'],
     [3, 'miner\\w*|canter\\w*|picapedrer\\w*|herrer\\w*'],
-    [4, 'guerrer\\w*|soldad\\w*|tropas?|arquer\\w*|milician\\w*|reclutas?|caballer\\w*|tanquistas?|artiller\\w*'],
+    [4, 'guerrer\\w*|soldad\\w*|tropas?|arquer(?:os?|as?)|milician\\w*|reclutas?|caballer\\w*|tanquistas?|artiller\\w*'],
     [5, 'comerciant\\w*|mercader\\w*|tender\\w*|buhoner\\w*'],
     [6, 'erudit\\w*|sabios?|chaman\\w*|filosof\\w*|monjes?|frailes?|sacerdot\\w*|cientific\\w*|druid\\w*|escribas?|maestros?|investigador\\w*'],
     [-1, 'aldean\\w*|personas?|gente|hombres|mujeres|trabajador\\w*|vecinos|habitantes|tipos|curritos|peones|mios']
@@ -507,7 +507,8 @@
       if (ts.includes(t.id)) { textos.push('Ya domináis ' + t.nombre.toLowerCase() + '.'); return; }
       if (t.era > c.era) { const faltan = M.TECNOLOGIAS.filter(x => x.era <= c.era && !ts.includes(x.id)); textos.push(t.nombre + ' es ' + ('de ' + M.ERAS[t.era].con).replace(/^de el /, 'del ') + '. Antes hay que dominar lo de ahora' + (faltan.length ? ': ' + faltan.map(x => x.nombre.toLowerCase()).join(', ') : '') + (m.libre || !M.ERAS[c.era + 1] || M.ERAS[c.era + 1].desde == null ? '' : ', y la nueva era no llega antes de ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) + '.'); return; }
       const falta = S().faltaPara(m, c, t), inv = c.investigacion = c.investigacion || { id: null, puntos: 0 };
-      if (falta.length && inv.id !== t.id) { p.investigar = t.id; textos.push(t.nombre + ' se investiga en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' y cuesta ' + Object.keys(t.precio).map(k => t.precio[k] + ' de ' + k).join(', ') + ' (se paga poco a poco). Os falta ' + falta.join(', ') + '. Queda apuntada: empezará en cuanto se pueda.'); return; }
+      if (falta.length && inv.id !== t.id) { p.investigar = t.id; const precio = Object.keys(t.precio || {}).map(k => t.precio[k] + ' de ' + k).join(', '), ORDEN_LUGAR = { saber: 'construid una casa del saber', molino: 'construid un molino', templo: 'construid un templo', cuartel: 'construid un cuartel', puerto: 'construid un puerto' };
+        textos.push(t.nombre + ' se investiga en ' + (M.LUGARES[t.lugar] || 'la plaza') + (precio ? ' y cuesta ' + precio + ' (se paga poco a poco)' : '') + '. Os falta ' + falta.join(', ') + (ORDEN_LUGAR[t.lugar] ? ': «' + ORDEN_LUGAR[t.lugar] + '»' : '') + '. Queda apuntada: empezará en cuanto se pueda.'); return; }
       p.investigar = t.id;
       // Lo que llevaba la investigación anterior no se pierde del todo: la mitad pasa a la nueva.
       // No hace falta tener todo el precio: se va pagando poco a poco mientras se investiga (y lo pagado no se pierde).
@@ -520,7 +521,7 @@
     if (a.tipo === 'consulta_tec') {
       const ts = M.tecsDe(c), inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
       const libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !ts.includes(t.id));
-      textos.push((inv ? 'Investigáis ' + inv.nombre.toLowerCase() + ' (' + Math.round(100 * c.investigacion.puntos / M.costeTec(inv)) + ' %). ' : '') + (libres.length ? 'Podéis investigar: ' + libres.map(t => t.nombre + ' (' + t.texto + ')').join('; ') + '.' : 'Domináis todo lo de ' + M.ERAS[c.era].con + (M.ERAS[c.era + 1] ? '; la próxima era llegará ' + (m.libre || M.ERAS[c.era + 1].desde == null ? 'enseguida' : 'en ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) : '') + '.') + ' Dominadas: ' + ts.length + ' de ' + M.TECNOLOGIAS.length + '.');
+      textos.push((inv ? 'Investigáis ' + inv.nombre.toLowerCase() + ' (' + Math.round(100 * c.investigacion.puntos / M.costeTec(inv)) + ' %). ' : '') + (libres.length ? 'Podéis investigar: ' + libres.map(t => t.nombre + ' (' + t.texto + ')').join('; ') + '. Para elegir, di «investigad ' + libres[0].nombre.toLowerCase() + '».' : 'Domináis todo lo de ' + M.ERAS[c.era].con + (M.ERAS[c.era + 1] ? '; la próxima era llegará ' + (m.libre || M.ERAS[c.era + 1].desde == null ? 'enseguida' : 'en ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) : '') + '.') + ' Dominadas: ' + ts.length + ' de ' + M.TECNOLOGIAS.length + '.');
       return;
     }
     if (a.tipo === 'comprar' || a.tipo === 'vender') {
@@ -1287,23 +1288,38 @@
     }
     if (c.huelga) return { texto: 'Los obreros están en huelga: las fábricas no producen y el descontento crece. Subirles el sueldo cuesta oro; reprimirlos acaba la huelga, pero la gente se enfada más.', orden: 'Subid los salarios' };
     if (c.efectos.some(e => e.sequia) && (pr.comida || 1) < 2) return { texto: 'Hay sequía: el trigo se agosta y mueren reses. El granero tiene ' + Math.floor(c.comida || 0) + ' de comida para ' + hab + ' bocas; más gente al campo y al ganado.', orden: 'Más comida' };
-    if ((c.comida || 0) < hab * 0.15 && (pr.comida || 1) < 2) return { texto: 'Los graneros están casi vacíos (' + Math.floor(c.comida || 0) + ' de comida para ' + hab + ' bocas): si se acaban, la gente muere de hambre.', orden: 'Más comida' };
+    if ((c.comida || 0) < hab * 0.15) {
+      const vacio = 'Los graneros están casi vacíos (' + Math.floor(c.comida || 0) + ' de comida para ' + hab + ' bocas): si se acaban, la gente muere de hambre.';
+      const cupos = (c.plan && c.plan.cupos) || {}, conCupo = Object.keys(cupos).filter(k => +k !== 1 && cupos[k] && cupos[k].n > 0);
+      if (conCupo.length && hab < 40) return { texto: vacio + ' Además, tus cupos de oficio (' + conCupo.map(k => cupos[k].n + ' ' + (OFICIOS_N[k] || 'de un oficio')).join(', ') + ') quitan gente del campo.', orden: 'Liberad los cupos' };
+      if (Object.keys(pr).some(k => k !== 'comida' && k !== 'expansion' && pr[k] > 1.2)) return { texto: vacio + ' Ahora mismo lo primero es comer: lo demás puede esperar.', orden: 'Todo a la comida' };
+      if ((pr.comida || 1) < 2) return { texto: vacio, orden: 'Más comida' };
+    }
     if ((c.madera || 0) < 4 && (pr.madera || 1) < 2) return { texto: 'Sin madera no se levantan casas ni se pagan tierras nuevas.', orden: 'Más madera' };
     const rebelde = (m.ciudades || []).find(x => x.civ === c.id && x.lealtad != null && x.lealtad < 0);
     if (rebelde) return { texto: rebelde.nombre + ' no es leal (' + Math.round(rebelde.lealtad) + '): pronto se rebelará. Una corte más estable o un ejército cerca la retienen.', orden: 'Más soldados' };
     if (c.sinCama > 0 && (pr.casas || 1) < 2) return { texto: 'Hay parejas que quieren tener hijos y no tienen cama: faltan casas.', orden: 'Más casas' };
     // Lo que le falta al pueblo (agua, granero, plaza, parque, palacio): con su porqué y la orden para hacerlo.
     const ORDEN = { pozo: 'Construid un pozo', granero: 'Construid un granero', fuente: 'Construid una plaza pública', parque: 'Haced un parque', palacio: 'Construid un palacio', central: 'Construid una central eléctrica', banco: 'Abrid un banco', fabrica: 'Construid una fábrica', estacion: 'Construid una estación de tren', hospital: 'Construid un hospital', aerodromo: 'Construid un aeródromo', templo: 'Construid un templo' };
-    const falta = !(c.plan && c.plan.obra) && (c.necesidades || []).find(x => x.falta && x.capital !== false && ORDEN[x.obra]);
+    const cabe = x => !M.vida || ((c.nivel || 0) >= (M.vida.NIVEL_OBRA[M.vida.OBRA[x.obra]] || 0) && c.era >= (M.vida.ERA_OBRA[M.vida.OBRA[x.obra]] || 0));
+    const falta = !(c.plan && c.plan.obra) && (c.necesidades || []).find(x => x.falta && x.capital !== false && ORDEN[x.obra] && cabe(x));
     if (falta) return { texto: falta.nombre + ': ' + falta.mal + '. Hace falta ' + falta.edificio + '.', orden: ORDEN[falta.obra] };
-    if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : 'Construid un templo' };
+    if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : cabe({ obra: 'templo' }) && !(c.templos > 0) ? 'Construid un templo' : 'Haced una fiesta' };
     if (M.ERAS[c.era + 1] && !c.subiendo && S().puedeSubir(m, c).ok) return { texto: '¡Podéis pasar a ' + M.ERAS[c.era + 1].con + '! Tenéis las mejoras, el saber, los edificios y con qué pagarlo. Toca tu plaza (o 🏛) y pulsa «Avanzar».', orden: 'Avanzad de edad' };
-    if (M.ERAS[c.era + 1] && !c.subiendo && S().ahorrando(Object.assign({}, m), Object.assign({}, c, { jugador: false })) && !S().puedeSubir(m, c).ok && S().puedeSubir(m, c).falta.every(x => /de (comida|madera|piedra|oro|metal)$/.test(x))) return { texto: 'Para ' + M.ERAS[c.era + 1].con + ' solo os falta pagar: ' + S().puedeSubir(m, c).falta.join(', ') + '.', orden: 'Ahorrad para la edad' };
+    if (M.ERAS[c.era + 1] && !c.subiendo && S().ahorrando(Object.assign({}, m), Object.assign({}, c, { jugador: false })) && !S().puedeSubir(m, c).ok && S().puedeSubir(m, c).falta.every(x => /de (comida|madera|piedra|oro|metal)( \(.*\))?$/.test(x))) return { texto: 'Para ' + M.ERAS[c.era + 1].con + ' solo os falta pagar: ' + S().puedeSubir(m, c).falta.join(', ') + '.', orden: 'Ahorrad para la edad' };
     if ((c.oro || 0) < 0) return { texto: 'Las arcas están vacías: los soldados no cobran y desertan, y la gente se queja.', orden: (c.plan && c.plan.impuesto || 1) < 1.5 ? 'Subid los impuestos' : 'Vended madera' };
-    if (c.investigacion && !c.investigacion.id && M.TECNOLOGIAS.some(t => t.era <= c.era && !M.tecsDe(c).includes(t.id))) return { texto: 'Tus sabios esperan saber qué investigar.', orden: '¿Qué investigamos?' };
+    const porInvestigar = M.TECNOLOGIAS.filter(t => t.era <= c.era && !M.tecsDe(c).includes(t.id)).sort((p, q) => M.costeTec(p) - M.costeTec(q));
+    // (Primero lo que se puede empezar ya; si todo pide un edificio que falta, el consejo es levantarlo.)
+    const yaSe = porInvestigar.filter(t => !S().faltaPara(m, c, t).length);
+    if (c.investigacion && !c.investigacion.id && porInvestigar.length && !yaSe.length) {
+      const LUGAR = { saber: ['una casa del saber', 'Construid una casa del saber'], molino: ['un molino', 'Construid un molino'], templo: ['un templo', 'Construid un templo'], cuartel: ['un cuartel', 'Construid un cuartel'], puerto: ['un puerto', 'Construid un puerto'] };
+      const l = porInvestigar.map(t => t.lugar).find(x => LUGAR[x] && cabe({ obra: x }));
+      if (l && !(c.plan && c.plan.obra)) return { texto: 'Tus sabios no pueden seguir: ' + porInvestigar.filter(t => t.lugar === l).map(t => t.nombre.toLowerCase()).slice(0, 3).join(', ') + ' se investiga en ' + LUGAR[l][0] + ', y no tenéis.', orden: LUGAR[l][1] };
+    }
+    if (c.investigacion && !c.investigacion.id && yaSe.length) return { texto: 'Tus sabios esperan saber qué investigar. Lo más a mano: ' + yaSe.slice(0, 3).map(t => t.nombre.toLowerCase() + ' (' + t.texto + ')').join('; ') + '.', orden: 'Investigad ' + yaSe[0].nombre.toLowerCase() };
     if (c.plan && c.plan.obra) return { texto: 'Tus constructores esperan madera y piedra para el encargo (' + c.plan.obra + ').', orden: 'Más piedra' };
     const sig = M.ERAS[c.era + 1];
-    if (sig && (pr.ciencia || 1) < 1.5) return { texto: 'Todo en orden. Si invertís en saber, llegaréis antes ' + aEra(sig.con) + '.', orden: 'Todo a la ciencia' };
+    if (sig && (pr.ciencia || 1) < 1.5 && (c.comida || 0) >= hab * 0.8) return { texto: 'Todo en orden. Si invertís en saber, llegaréis antes ' + aEra(sig.con) + '.', orden: 'Más ciencia' };
     return { texto: 'Todo en orden. Tu pueblo trabaja solo; tú decides las grandes cosas.', orden: 'Informe' };
   }
 

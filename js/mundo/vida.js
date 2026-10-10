@@ -787,6 +787,8 @@
     const familia = v.aldeanos.filter(b => b !== a && b.c === a.c && !esNino(b) && !(quitar && quitar.has(b)) && (b.padre === a.id || b.madre === a.id || b.id === a.pareja || b.pareja === a.id));
     const b = familia.filter(x => x.padre === a.id || x.madre === a.id).sort((x, y) => (x.edad || 0) - (y.edad || 0))[0] || familia[0];
     if (b) b.dinero = Math.round(((b.dinero || 0) + a.dinero) * 100) / 100;
+    // El hijo de un comerciante con ahorros sigue con el oficio de su padre (así el dinero de la familia acaba en un gremio).
+    if (b && a.o === COMERCIANTE && a.dinero >= 3 && pausada(m) && b.o !== COMERCIANTE && !b.emp && !b.merc && !b.fijo && b.colono == null && b.aBordo == null && (b.edad || 0) < VIEJO) mover(b, COMERCIANTE);
     a.dinero = 0;
   }
   // Pasar oro entre el tesoro y el banco central (orden del jugador; la IA lo hace sola).
@@ -1415,7 +1417,8 @@
       0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - comida / Math.max(6, (c.habitantes || 10) * 1.5)) +
         // Antes del invierno se hace acopio: en verano y otoño, más gente al campo si el granero no da para tres meses.
         (c.estacion === 1 || c.estacion === 2 ? 0.3 * Math.max(0, 1 - (c.comida || 0) / Math.max(10, (c.aldeanos || 10) * 3)) : 0),
-      faltanCamas(c) ? 0.2 : 0.06,
+      // (Con una obra encargada por el jugador, siempre hay alguien construyendo.)
+      (faltanCamas(c) ? 0.2 : 0.06) + (c.jugador && c.plan && (c.plan.obra || (c.plan.encargos || []).length) ? 0.14 : 0),
       recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) + ((c.metal || 0) < 10 ? 0.08 : 0) : 0.04) : 0,
       guerra ? 0.6 : c.era >= 2 ? 0.07 : 0.04,
       // Un comerciante por cada ruta abierta, más o menos.
@@ -1686,8 +1689,14 @@
     if (Object.keys(cupos).length) { p = p.map((x, i) => (conCupo(i) ? 0 : x)); const sum = p.reduce((k, x) => k + x, 0) || 1; p = p.map(x => x / sum); }
     const fuera = libres.filter(a => !conCupo(a.o)).length;
     // 1. Cumplir los cupos: quitar a los que sobran y traer a los que faltan (primero de lo que más sobra).
+    // (Con el granero casi vacío, un cupo que no da de comer no se lleva a todos: el 40 % sigue en el campo.)
+    const hambre = pausada(m) && (c.comida || 0) < Math.max(3, todos.length * 0.3);
     for (const k of Object.keys(cupos).map(Number)) {
-      const meta = Math.max(0, Math.min(cupos[k].n, todos.length));
+      let meta = Math.max(0, Math.min(cupos[k].n, todos.length));
+      if (hambre && k !== GRANJERO && meta > todos.length - Math.ceil(todos.length * 0.4)) {
+        meta = Math.max(0, todos.length - Math.ceil(todos.length * 0.4));
+        if (c.jugador && !(c.avisoCupoHambre > m.turno - 20)) { c.avisoCupoHambre = m.turno; (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: '🌾 Con el granero vacío, el cupo de ' + ['leñadores', 'granjeros', 'constructores', 'mineros', 'guerreros', 'comerciantes', 'eruditos'][k] + ' espera: hace falta gente en el campo' }); }
+      }
       const orden = l => l.sort((x, y) => (x.k ? 1 : 0) - (y.k ? 1 : 0));
       for (const a of orden(libres.filter(a => a.o === k))) {
         if (tiene[k] <= meta) break;
@@ -2990,7 +2999,6 @@
     centros(m);
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
-    if (pausada(m)) asignarCasas(m);
     rec = recursos(m);
     v.marcadas = new Set(S().vivas(m).flatMap(c => ((c.plan && c.plan.encargos) || []).map(e => e.t)));
     ejercitos(m);
@@ -3036,6 +3044,9 @@
     comer(m);
     if (pausada(m)) { subsuelo(m, ter); mercado(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length, carbones: x.carbones.length }))); }
     botarMuelles(m, ter); // (un muelle recién comprado o terminado ya tiene su barco al acabar el turno)
+    // Las casas se reparten al final del turno: quien perdió la suya (un fuego, una batalla, un derribo) o acaba de nacer
+    // ya tiene dónde dormir, y ninguna casa queda con más gente que camas.
+    if (pausada(m)) asignarCasas(m);
     // La crónica cuenta los lobos cuando hacen daño de verdad (una vez cada tanto por pueblo).
     for (const c of S().vivas(m)) {
       const mordidos = (v.mordidos || {})[c.id] || 0;
@@ -3481,7 +3492,9 @@
       // (Con caminos pendientes, la mitad de las veces se mira antes si hace falta un edificio: si no, un reino con
       // un solo constructor se pasa la vida empedrando y nunca levanta su puerto o su templo.)
       let yaMirado = false;
-      if (pend.length && !urge && azar(v) < 0.5) { yaMirado = true; const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
+      // (Y lo que mandó construir el jugador va siempre antes que empedrar, aunque la carretera también la pidiera él.)
+      const mandada = pausada(m) && c.plan && c.plan.obra;
+      if (pend.length && (mandada || (!urge && azar(v) < 0.5))) { yaMirado = true; const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
       if (t < 0 && pend.length && (!faltanCamas(c) || azar(v) < (urge ? 0.75 : 0.4))) {
         const aqui = a.y * v.tw + a.x;
         // Se empiedra de dentro afuera: el tramo sin hacer más cercano, aunque la carretera vaya muy lejos.
@@ -3735,6 +3748,8 @@
       else {
         // Un soldado no se mete en el mar ni en los bajíos (salvo por un puente).
         if (a.o === GUERRERO && (ter[n] === 'agua' || ter[n] === 'bajo') && !v.camino[n]) continue;
+        // Y nadie se mete a nado en el mar hondo (solo en bajíos y ríos), salvo quien ya está en él y busca la orilla.
+        if (pausada(m) && ter[n] === 'agua' && !v.camino[n] && ter[a.y * v.tw + a.x] !== 'agua') continue;
         // El agua solo se elige si no hay otro camino: cuesta más, y el mar abierto mucho más.
         const coste = enAgua(m, ter, n) ? (ter[n] === 'agua' ? 4 : 2) : 0;
         d = Math.abs(a.tx - x) + Math.abs(a.ty - y) + coste + azar(v) * 0.9;

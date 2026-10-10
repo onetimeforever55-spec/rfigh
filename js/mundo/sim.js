@@ -406,7 +406,7 @@
         let falta = false;
         for (const k of Object.keys(su.debe)) {
           const q = Math.min(su.debe[k], Math.ceil(su.debe[k] / quedan));
-          if ((c[k] || 0) >= q) { c[k] -= q; su.debe[k] -= q; if (su.debe[k] <= 0) delete su.debe[k]; } else falta = true;
+          if (disponible(m, c, k) >= q) { c[k] -= q; su.debe[k] -= q; if (su.debe[k] <= 0) delete su.debe[k]; } else falta = true;
         }
         if (!Object.keys(su.debe).length) delete su.debe;
         if (falta) { su.hasta++; su.espera = (su.espera || 0) + 1; }
@@ -483,7 +483,8 @@
   const EDIFICIO = { saber: c => c.saberes > 0, plaza: () => true, molino: c => c.molinos > 0, templo: c => c.templos > 0, cuartel: c => c.cuarteles > 0, puerto: c => c.puertos > 0 };
   function faltaPara(m, c, t) {
     const falta = [];
-    if (m.vida && !EDIFICIO[t.lugar || 'plaza'](c)) falta.push('un ' + (t.lugar || 'plaza'));
+    const UN = { saber: 'una casa del saber', molino: 'un molino', templo: 'un templo', cuartel: 'un cuartel', puerto: 'un puerto', plaza: 'una plaza' };
+    if (m.vida && !EDIFICIO[t.lugar || 'plaza'](c)) falta.push(UN[t.lugar || 'plaza'] || 'un ' + t.lugar);
     return falta;
   }
   // Lo pagado de cada mejora se guarda aunque se cambie de investigación: no se pierde.
@@ -612,17 +613,19 @@
       if (req.pide.nivel && (c.nivel || 0) < req.pide.nivel) falta.push(['', 'ser una aldea', 'ser un pueblo', 'ser una villa', 'ser una ciudad'][req.pide.nivel]);
       if (req.pide.obra && !(c[OBRA_CUENTA[req.pide.obra]] > 0)) falta.push('un ' + req.pide.obra);
       // Como las obras: para empezar basta con la cuarta parte; el resto se paga poco a poco mientras dura el paso.
-      for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k] && (c[k] || 0) < anticipoEdad(req[k])) falta.push((anticipoEdad(req[k]) - Math.floor(c[k] || 0)) + ' de ' + k);
+      for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k] && disponible(m, c, k) < anticipoEdad(req[k])) falta.push((anticipoEdad(req[k]) - Math.floor(disponible(m, c, k))) + ' de ' + k + (k === 'comida' && disponible(m, c, k) < (c[k] || 0) ? ' (sin tocar la que necesita la gente)' : ''));
     }
     return { ok: !falta.length, falta };
   }
   // EL PRECIO DEL PASO DE EDAD, como las obras: si se tiene todo, se paga de golpe; si no, una cuarta parte al
   // empezar y el resto poco a poco mientras dura el paso. Si en un turno falta, el paso espera (no se pierde lo pagado).
   const anticipoEdad = n => Math.ceil(n * 0.25);
+  // Lo que se puede gastar en el paso sin dejar a la gente sin comer: del granero siempre queda una reserva.
+  const disponible = (m, c, k) => (c[k] || 0) - (k === 'comida' && m.vida && ritmo(m) > 1 ? Math.max(4, (c.habitantes || 0) * 0.8) : 0);
   function empezarSubida(m, c) {
     const req = M.EDADES[c.era + 1], debe = {};
     if (m.vida && req) for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k]) {
-      const q = (c[k] || 0) >= req[k] ? req[k] : anticipoEdad(req[k]);
+      const q = disponible(m, c, k) >= req[k] ? req[k] : Math.min(anticipoEdad(req[k]), Math.max(0, Math.floor(disponible(m, c, k))));
       c[k] = (c[k] || 0) - q;
       if (q < req[k]) debe[k] = req[k] - q;
     }
@@ -1020,8 +1023,8 @@
       const fr = frontera(m, gana, pierde).filter(i => !plaza.has(i));
       const tomadas = ordenarPor(fr, () => azar(m)).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;
-      a.pob *= 0.975; b.pob *= 0.975;
-      pierde.pob *= 1 - 0.02 * tomadas.length;
+      // (Con aldeanos y a ritmo pausado, las bajas son las de las batallas de verdad, vida.js: no se quita gente de golpe.)
+      if (!(m.vida && ritmo(m) > 1)) { a.pob *= 0.975; b.pob *= 0.975; pierde.pob *= 1 - 0.02 * tomadas.length; }
       a.estab -= 1.5; b.estab -= 1.5;
       const ga = a.guerras.find(x => x.con === b.id), gb = b.guerras.find(x => x.con === a.id);
       const gg = gana.guerras.find(x => x.con === pierde.id); if (gg) gg.comarcas = (gg.comarcas || 0) + tomadas.length;

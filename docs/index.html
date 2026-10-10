@@ -1541,7 +1541,7 @@ body.limpio .tropas-barra { display: none; }
         let falta = false;
         for (const k of Object.keys(su.debe)) {
           const q = Math.min(su.debe[k], Math.ceil(su.debe[k] / quedan));
-          if ((c[k] || 0) >= q) { c[k] -= q; su.debe[k] -= q; if (su.debe[k] <= 0) delete su.debe[k]; } else falta = true;
+          if (disponible(m, c, k) >= q) { c[k] -= q; su.debe[k] -= q; if (su.debe[k] <= 0) delete su.debe[k]; } else falta = true;
         }
         if (!Object.keys(su.debe).length) delete su.debe;
         if (falta) { su.hasta++; su.espera = (su.espera || 0) + 1; }
@@ -1618,7 +1618,8 @@ body.limpio .tropas-barra { display: none; }
   const EDIFICIO = { saber: c => c.saberes > 0, plaza: () => true, molino: c => c.molinos > 0, templo: c => c.templos > 0, cuartel: c => c.cuarteles > 0, puerto: c => c.puertos > 0 };
   function faltaPara(m, c, t) {
     const falta = [];
-    if (m.vida && !EDIFICIO[t.lugar || 'plaza'](c)) falta.push('un ' + (t.lugar || 'plaza'));
+    const UN = { saber: 'una casa del saber', molino: 'un molino', templo: 'un templo', cuartel: 'un cuartel', puerto: 'un puerto', plaza: 'una plaza' };
+    if (m.vida && !EDIFICIO[t.lugar || 'plaza'](c)) falta.push(UN[t.lugar || 'plaza'] || 'un ' + t.lugar);
     return falta;
   }
   // Lo pagado de cada mejora se guarda aunque se cambie de investigación: no se pierde.
@@ -1747,17 +1748,19 @@ body.limpio .tropas-barra { display: none; }
       if (req.pide.nivel && (c.nivel || 0) < req.pide.nivel) falta.push(['', 'ser una aldea', 'ser un pueblo', 'ser una villa', 'ser una ciudad'][req.pide.nivel]);
       if (req.pide.obra && !(c[OBRA_CUENTA[req.pide.obra]] > 0)) falta.push('un ' + req.pide.obra);
       // Como las obras: para empezar basta con la cuarta parte; el resto se paga poco a poco mientras dura el paso.
-      for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k] && (c[k] || 0) < anticipoEdad(req[k])) falta.push((anticipoEdad(req[k]) - Math.floor(c[k] || 0)) + ' de ' + k);
+      for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k] && disponible(m, c, k) < anticipoEdad(req[k])) falta.push((anticipoEdad(req[k]) - Math.floor(disponible(m, c, k))) + ' de ' + k + (k === 'comida' && disponible(m, c, k) < (c[k] || 0) ? ' (sin tocar la que necesita la gente)' : ''));
     }
     return { ok: !falta.length, falta };
   }
   // EL PRECIO DEL PASO DE EDAD, como las obras: si se tiene todo, se paga de golpe; si no, una cuarta parte al
   // empezar y el resto poco a poco mientras dura el paso. Si en un turno falta, el paso espera (no se pierde lo pagado).
   const anticipoEdad = n => Math.ceil(n * 0.25);
+  // Lo que se puede gastar en el paso sin dejar a la gente sin comer: del granero siempre queda una reserva.
+  const disponible = (m, c, k) => (c[k] || 0) - (k === 'comida' && m.vida && ritmo(m) > 1 ? Math.max(4, (c.habitantes || 0) * 0.8) : 0);
   function empezarSubida(m, c) {
     const req = M.EDADES[c.era + 1], debe = {};
     if (m.vida && req) for (const k of ['comida', 'madera', 'piedra', 'oro', 'metal']) if (req[k]) {
-      const q = (c[k] || 0) >= req[k] ? req[k] : anticipoEdad(req[k]);
+      const q = disponible(m, c, k) >= req[k] ? req[k] : Math.min(anticipoEdad(req[k]), Math.max(0, Math.floor(disponible(m, c, k))));
       c[k] = (c[k] || 0) - q;
       if (q < req[k]) debe[k] = req[k] - q;
     }
@@ -2155,8 +2158,8 @@ body.limpio .tropas-barra { display: none; }
       const fr = frontera(m, gana, pierde).filter(i => !plaza.has(i));
       const tomadas = ordenarPor(fr, () => azar(m)).slice(0, k);
       for (const i of tomadas) m.dueno[i] = gana.id;
-      a.pob *= 0.975; b.pob *= 0.975;
-      pierde.pob *= 1 - 0.02 * tomadas.length;
+      // (Con aldeanos y a ritmo pausado, las bajas son las de las batallas de verdad, vida.js: no se quita gente de golpe.)
+      if (!(m.vida && ritmo(m) > 1)) { a.pob *= 0.975; b.pob *= 0.975; pierde.pob *= 1 - 0.02 * tomadas.length; }
       a.estab -= 1.5; b.estab -= 1.5;
       const ga = a.guerras.find(x => x.con === b.id), gb = b.guerras.find(x => x.con === a.id);
       const gg = gana.guerras.find(x => x.con === pierde.id); if (gg) gg.comarcas = (gg.comarcas || 0) + tomadas.length;
@@ -3050,6 +3053,8 @@ body.limpio .tropas-barra { display: none; }
     const familia = v.aldeanos.filter(b => b !== a && b.c === a.c && !esNino(b) && !(quitar && quitar.has(b)) && (b.padre === a.id || b.madre === a.id || b.id === a.pareja || b.pareja === a.id));
     const b = familia.filter(x => x.padre === a.id || x.madre === a.id).sort((x, y) => (x.edad || 0) - (y.edad || 0))[0] || familia[0];
     if (b) b.dinero = Math.round(((b.dinero || 0) + a.dinero) * 100) / 100;
+    // El hijo de un comerciante con ahorros sigue con el oficio de su padre (así el dinero de la familia acaba en un gremio).
+    if (b && a.o === COMERCIANTE && a.dinero >= 3 && pausada(m) && b.o !== COMERCIANTE && !b.emp && !b.merc && !b.fijo && b.colono == null && b.aBordo == null && (b.edad || 0) < VIEJO) mover(b, COMERCIANTE);
     a.dinero = 0;
   }
   // Pasar oro entre el tesoro y el banco central (orden del jugador; la IA lo hace sola).
@@ -3678,7 +3683,8 @@ body.limpio .tropas-barra { display: none; }
       0.22 + Math.max(0, lleno - 0.75) * 1.6 + ((c.campos || 0) < metaCampos(c) ? 0.08 : 0) + 0.4 * Math.max(0, 1 - comida / Math.max(6, (c.habitantes || 10) * 1.5)) +
         // Antes del invierno se hace acopio: en verano y otoño, más gente al campo si el granero no da para tres meses.
         (c.estacion === 1 || c.estacion === 2 ? 0.3 * Math.max(0, 1 - (c.comida || 0) / Math.max(10, (c.aldeanos || 10) * 3)) : 0),
-      faltanCamas(c) ? 0.2 : 0.06,
+      // (Con una obra encargada por el jugador, siempre hay alguien construyendo.)
+      (faltanCamas(c) ? 0.2 : 0.06) + (c.jugador && c.plan && (c.plan.obra || (c.plan.encargos || []).length) ? 0.14 : 0),
       recursos.rocas ? (c.era >= 1 ? 0.08 + ((c.piedra || 0) < 20 ? 0.06 : 0) + ((c.metal || 0) < 10 ? 0.08 : 0) : 0.04) : 0,
       guerra ? 0.6 : c.era >= 2 ? 0.07 : 0.04,
       // Un comerciante por cada ruta abierta, más o menos.
@@ -3949,8 +3955,14 @@ body.limpio .tropas-barra { display: none; }
     if (Object.keys(cupos).length) { p = p.map((x, i) => (conCupo(i) ? 0 : x)); const sum = p.reduce((k, x) => k + x, 0) || 1; p = p.map(x => x / sum); }
     const fuera = libres.filter(a => !conCupo(a.o)).length;
     // 1. Cumplir los cupos: quitar a los que sobran y traer a los que faltan (primero de lo que más sobra).
+    // (Con el granero casi vacío, un cupo que no da de comer no se lleva a todos: el 40 % sigue en el campo.)
+    const hambre = pausada(m) && (c.comida || 0) < Math.max(3, todos.length * 0.3);
     for (const k of Object.keys(cupos).map(Number)) {
-      const meta = Math.max(0, Math.min(cupos[k].n, todos.length));
+      let meta = Math.max(0, Math.min(cupos[k].n, todos.length));
+      if (hambre && k !== GRANJERO && meta > todos.length - Math.ceil(todos.length * 0.4)) {
+        meta = Math.max(0, todos.length - Math.ceil(todos.length * 0.4));
+        if (c.jugador && !(c.avisoCupoHambre > m.turno - 20)) { c.avisoCupoHambre = m.turno; (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: '🌾 Con el granero vacío, el cupo de ' + ['leñadores', 'granjeros', 'constructores', 'mineros', 'guerreros', 'comerciantes', 'eruditos'][k] + ' espera: hace falta gente en el campo' }); }
+      }
       const orden = l => l.sort((x, y) => (x.k ? 1 : 0) - (y.k ? 1 : 0));
       for (const a of orden(libres.filter(a => a.o === k))) {
         if (tiene[k] <= meta) break;
@@ -5253,7 +5265,6 @@ body.limpio .tropas-barra { display: none; }
     centros(m);
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
-    if (pausada(m)) asignarCasas(m);
     rec = recursos(m);
     v.marcadas = new Set(S().vivas(m).flatMap(c => ((c.plan && c.plan.encargos) || []).map(e => e.t)));
     ejercitos(m);
@@ -5299,6 +5310,9 @@ body.limpio .tropas-barra { display: none; }
     comer(m);
     if (pausada(m)) { subsuelo(m, ter); mercado(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length, carbones: x.carbones.length }))); }
     botarMuelles(m, ter); // (un muelle recién comprado o terminado ya tiene su barco al acabar el turno)
+    // Las casas se reparten al final del turno: quien perdió la suya (un fuego, una batalla, un derribo) o acaba de nacer
+    // ya tiene dónde dormir, y ninguna casa queda con más gente que camas.
+    if (pausada(m)) asignarCasas(m);
     // La crónica cuenta los lobos cuando hacen daño de verdad (una vez cada tanto por pueblo).
     for (const c of S().vivas(m)) {
       const mordidos = (v.mordidos || {})[c.id] || 0;
@@ -5744,7 +5758,9 @@ body.limpio .tropas-barra { display: none; }
       // (Con caminos pendientes, la mitad de las veces se mira antes si hace falta un edificio: si no, un reino con
       // un solo constructor se pasa la vida empedrando y nunca levanta su puerto o su templo.)
       let yaMirado = false;
-      if (pend.length && !urge && azar(v) < 0.5) { yaMirado = true; const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
+      // (Y lo que mandó construir el jugador va siempre antes que empedrar, aunque la carretera también la pidiera él.)
+      const mandada = pausada(m) && c.plan && c.plan.obra;
+      if (pend.length && (mandada || (!urge && azar(v) < 0.5))) { yaMirado = true; const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
       if (t < 0 && pend.length && (!faltanCamas(c) || azar(v) < (urge ? 0.75 : 0.4))) {
         const aqui = a.y * v.tw + a.x;
         // Se empiedra de dentro afuera: el tramo sin hacer más cercano, aunque la carretera vaya muy lejos.
@@ -5998,6 +6014,8 @@ body.limpio .tropas-barra { display: none; }
       else {
         // Un soldado no se mete en el mar ni en los bajíos (salvo por un puente).
         if (a.o === GUERRERO && (ter[n] === 'agua' || ter[n] === 'bajo') && !v.camino[n]) continue;
+        // Y nadie se mete a nado en el mar hondo (solo en bajíos y ríos), salvo quien ya está en él y busca la orilla.
+        if (pausada(m) && ter[n] === 'agua' && !v.camino[n] && ter[a.y * v.tw + a.x] !== 'agua') continue;
         // El agua solo se elige si no hay otro camino: cuesta más, y el mar abierto mucho más.
         const coste = enAgua(m, ter, n) ? (ter[n] === 'agua' ? 4 : 2) : 0;
         d = Math.abs(a.tx - x) + Math.abs(a.ty - y) + coste + azar(v) * 0.9;
@@ -7544,7 +7562,7 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     [1, 'granjer\\w*|campesin\\w*|agricultor\\w*|labrador\\w*|pastor\\w*|cazador\\w*|pescador\\w*'],
     [2, 'constructor\\w*|albanil\\w*|obrer\\w*|carpinter\\w*|arquitect\\w*'],
     [3, 'miner\\w*|canter\\w*|picapedrer\\w*|herrer\\w*'],
-    [4, 'guerrer\\w*|soldad\\w*|tropas?|arquer\\w*|milician\\w*|reclutas?|caballer\\w*|tanquistas?|artiller\\w*'],
+    [4, 'guerrer\\w*|soldad\\w*|tropas?|arquer(?:os?|as?)|milician\\w*|reclutas?|caballer\\w*|tanquistas?|artiller\\w*'],
     [5, 'comerciant\\w*|mercader\\w*|tender\\w*|buhoner\\w*'],
     [6, 'erudit\\w*|sabios?|chaman\\w*|filosof\\w*|monjes?|frailes?|sacerdot\\w*|cientific\\w*|druid\\w*|escribas?|maestros?|investigador\\w*'],
     [-1, 'aldean\\w*|personas?|gente|hombres|mujeres|trabajador\\w*|vecinos|habitantes|tipos|curritos|peones|mios']
@@ -7988,7 +8006,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       if (ts.includes(t.id)) { textos.push('Ya domináis ' + t.nombre.toLowerCase() + '.'); return; }
       if (t.era > c.era) { const faltan = M.TECNOLOGIAS.filter(x => x.era <= c.era && !ts.includes(x.id)); textos.push(t.nombre + ' es ' + ('de ' + M.ERAS[t.era].con).replace(/^de el /, 'del ') + '. Antes hay que dominar lo de ahora' + (faltan.length ? ': ' + faltan.map(x => x.nombre.toLowerCase()).join(', ') : '') + (m.libre || !M.ERAS[c.era + 1] || M.ERAS[c.era + 1].desde == null ? '' : ', y la nueva era no llega antes de ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) + '.'); return; }
       const falta = S().faltaPara(m, c, t), inv = c.investigacion = c.investigacion || { id: null, puntos: 0 };
-      if (falta.length && inv.id !== t.id) { p.investigar = t.id; textos.push(t.nombre + ' se investiga en ' + (M.LUGARES[t.lugar] || 'la plaza') + ' y cuesta ' + Object.keys(t.precio).map(k => t.precio[k] + ' de ' + k).join(', ') + ' (se paga poco a poco). Os falta ' + falta.join(', ') + '. Queda apuntada: empezará en cuanto se pueda.'); return; }
+      if (falta.length && inv.id !== t.id) { p.investigar = t.id; const precio = Object.keys(t.precio || {}).map(k => t.precio[k] + ' de ' + k).join(', '), ORDEN_LUGAR = { saber: 'construid una casa del saber', molino: 'construid un molino', templo: 'construid un templo', cuartel: 'construid un cuartel', puerto: 'construid un puerto' };
+        textos.push(t.nombre + ' se investiga en ' + (M.LUGARES[t.lugar] || 'la plaza') + (precio ? ' y cuesta ' + precio + ' (se paga poco a poco)' : '') + '. Os falta ' + falta.join(', ') + (ORDEN_LUGAR[t.lugar] ? ': «' + ORDEN_LUGAR[t.lugar] + '»' : '') + '. Queda apuntada: empezará en cuanto se pueda.'); return; }
       p.investigar = t.id;
       // Lo que llevaba la investigación anterior no se pierde del todo: la mitad pasa a la nueva.
       // No hace falta tener todo el precio: se va pagando poco a poco mientras se investiga (y lo pagado no se pierde).
@@ -8001,7 +8020,7 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     if (a.tipo === 'consulta_tec') {
       const ts = M.tecsDe(c), inv = c.investigacion && c.investigacion.id ? M.TECNOLOGIAS.find(t => t.id === c.investigacion.id) : null;
       const libres = M.TECNOLOGIAS.filter(t => t.era <= c.era && !ts.includes(t.id));
-      textos.push((inv ? 'Investigáis ' + inv.nombre.toLowerCase() + ' (' + Math.round(100 * c.investigacion.puntos / M.costeTec(inv)) + ' %). ' : '') + (libres.length ? 'Podéis investigar: ' + libres.map(t => t.nombre + ' (' + t.texto + ')').join('; ') + '.' : 'Domináis todo lo de ' + M.ERAS[c.era].con + (M.ERAS[c.era + 1] ? '; la próxima era llegará ' + (m.libre || M.ERAS[c.era + 1].desde == null ? 'enseguida' : 'en ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) : '') + '.') + ' Dominadas: ' + ts.length + ' de ' + M.TECNOLOGIAS.length + '.');
+      textos.push((inv ? 'Investigáis ' + inv.nombre.toLowerCase() + ' (' + Math.round(100 * c.investigacion.puntos / M.costeTec(inv)) + ' %). ' : '') + (libres.length ? 'Podéis investigar: ' + libres.map(t => t.nombre + ' (' + t.texto + ')').join('; ') + '. Para elegir, di «investigad ' + libres[0].nombre.toLowerCase() + '».' : 'Domináis todo lo de ' + M.ERAS[c.era].con + (M.ERAS[c.era + 1] ? '; la próxima era llegará ' + (m.libre || M.ERAS[c.era + 1].desde == null ? 'enseguida' : 'en ' + S().anioTexto(M.ERAS[c.era + 1].desde).replace(/(\d)\.$/, '$1')) : '') + '.') + ' Dominadas: ' + ts.length + ' de ' + M.TECNOLOGIAS.length + '.');
       return;
     }
     if (a.tipo === 'comprar' || a.tipo === 'vender') {
@@ -8768,23 +8787,38 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     }
     if (c.huelga) return { texto: 'Los obreros están en huelga: las fábricas no producen y el descontento crece. Subirles el sueldo cuesta oro; reprimirlos acaba la huelga, pero la gente se enfada más.', orden: 'Subid los salarios' };
     if (c.efectos.some(e => e.sequia) && (pr.comida || 1) < 2) return { texto: 'Hay sequía: el trigo se agosta y mueren reses. El granero tiene ' + Math.floor(c.comida || 0) + ' de comida para ' + hab + ' bocas; más gente al campo y al ganado.', orden: 'Más comida' };
-    if ((c.comida || 0) < hab * 0.15 && (pr.comida || 1) < 2) return { texto: 'Los graneros están casi vacíos (' + Math.floor(c.comida || 0) + ' de comida para ' + hab + ' bocas): si se acaban, la gente muere de hambre.', orden: 'Más comida' };
+    if ((c.comida || 0) < hab * 0.15) {
+      const vacio = 'Los graneros están casi vacíos (' + Math.floor(c.comida || 0) + ' de comida para ' + hab + ' bocas): si se acaban, la gente muere de hambre.';
+      const cupos = (c.plan && c.plan.cupos) || {}, conCupo = Object.keys(cupos).filter(k => +k !== 1 && cupos[k] && cupos[k].n > 0);
+      if (conCupo.length && hab < 40) return { texto: vacio + ' Además, tus cupos de oficio (' + conCupo.map(k => cupos[k].n + ' ' + (OFICIOS_N[k] || 'de un oficio')).join(', ') + ') quitan gente del campo.', orden: 'Liberad los cupos' };
+      if (Object.keys(pr).some(k => k !== 'comida' && k !== 'expansion' && pr[k] > 1.2)) return { texto: vacio + ' Ahora mismo lo primero es comer: lo demás puede esperar.', orden: 'Todo a la comida' };
+      if ((pr.comida || 1) < 2) return { texto: vacio, orden: 'Más comida' };
+    }
     if ((c.madera || 0) < 4 && (pr.madera || 1) < 2) return { texto: 'Sin madera no se levantan casas ni se pagan tierras nuevas.', orden: 'Más madera' };
     const rebelde = (m.ciudades || []).find(x => x.civ === c.id && x.lealtad != null && x.lealtad < 0);
     if (rebelde) return { texto: rebelde.nombre + ' no es leal (' + Math.round(rebelde.lealtad) + '): pronto se rebelará. Una corte más estable o un ejército cerca la retienen.', orden: 'Más soldados' };
     if (c.sinCama > 0 && (pr.casas || 1) < 2) return { texto: 'Hay parejas que quieren tener hijos y no tienen cama: faltan casas.', orden: 'Más casas' };
     // Lo que le falta al pueblo (agua, granero, plaza, parque, palacio): con su porqué y la orden para hacerlo.
     const ORDEN = { pozo: 'Construid un pozo', granero: 'Construid un granero', fuente: 'Construid una plaza pública', parque: 'Haced un parque', palacio: 'Construid un palacio', central: 'Construid una central eléctrica', banco: 'Abrid un banco', fabrica: 'Construid una fábrica', estacion: 'Construid una estación de tren', hospital: 'Construid un hospital', aerodromo: 'Construid un aeródromo', templo: 'Construid un templo' };
-    const falta = !(c.plan && c.plan.obra) && (c.necesidades || []).find(x => x.falta && x.capital !== false && ORDEN[x.obra]);
+    const cabe = x => !M.vida || ((c.nivel || 0) >= (M.vida.NIVEL_OBRA[M.vida.OBRA[x.obra]] || 0) && c.era >= (M.vida.ERA_OBRA[M.vida.OBRA[x.obra]] || 0));
+    const falta = !(c.plan && c.plan.obra) && (c.necesidades || []).find(x => x.falta && x.capital !== false && ORDEN[x.obra] && cabe(x));
     if (falta) return { texto: falta.nombre + ': ' + falta.mal + '. Hace falta ' + falta.edificio + '.', orden: ORDEN[falta.obra] };
-    if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : 'Construid un templo' };
+    if (c.estab < 30) return { texto: 'La gente está descontenta (estabilidad ' + Math.round(c.estab) + '). La paz y un templo ayudan.', orden: S().vecinosDe(m, c).length && c.guerras.length ? 'Haced la paz' : cabe({ obra: 'templo' }) && !(c.templos > 0) ? 'Construid un templo' : 'Haced una fiesta' };
     if (M.ERAS[c.era + 1] && !c.subiendo && S().puedeSubir(m, c).ok) return { texto: '¡Podéis pasar a ' + M.ERAS[c.era + 1].con + '! Tenéis las mejoras, el saber, los edificios y con qué pagarlo. Toca tu plaza (o 🏛) y pulsa «Avanzar».', orden: 'Avanzad de edad' };
-    if (M.ERAS[c.era + 1] && !c.subiendo && S().ahorrando(Object.assign({}, m), Object.assign({}, c, { jugador: false })) && !S().puedeSubir(m, c).ok && S().puedeSubir(m, c).falta.every(x => /de (comida|madera|piedra|oro|metal)$/.test(x))) return { texto: 'Para ' + M.ERAS[c.era + 1].con + ' solo os falta pagar: ' + S().puedeSubir(m, c).falta.join(', ') + '.', orden: 'Ahorrad para la edad' };
+    if (M.ERAS[c.era + 1] && !c.subiendo && S().ahorrando(Object.assign({}, m), Object.assign({}, c, { jugador: false })) && !S().puedeSubir(m, c).ok && S().puedeSubir(m, c).falta.every(x => /de (comida|madera|piedra|oro|metal)( \(.*\))?$/.test(x))) return { texto: 'Para ' + M.ERAS[c.era + 1].con + ' solo os falta pagar: ' + S().puedeSubir(m, c).falta.join(', ') + '.', orden: 'Ahorrad para la edad' };
     if ((c.oro || 0) < 0) return { texto: 'Las arcas están vacías: los soldados no cobran y desertan, y la gente se queja.', orden: (c.plan && c.plan.impuesto || 1) < 1.5 ? 'Subid los impuestos' : 'Vended madera' };
-    if (c.investigacion && !c.investigacion.id && M.TECNOLOGIAS.some(t => t.era <= c.era && !M.tecsDe(c).includes(t.id))) return { texto: 'Tus sabios esperan saber qué investigar.', orden: '¿Qué investigamos?' };
+    const porInvestigar = M.TECNOLOGIAS.filter(t => t.era <= c.era && !M.tecsDe(c).includes(t.id)).sort((p, q) => M.costeTec(p) - M.costeTec(q));
+    // (Primero lo que se puede empezar ya; si todo pide un edificio que falta, el consejo es levantarlo.)
+    const yaSe = porInvestigar.filter(t => !S().faltaPara(m, c, t).length);
+    if (c.investigacion && !c.investigacion.id && porInvestigar.length && !yaSe.length) {
+      const LUGAR = { saber: ['una casa del saber', 'Construid una casa del saber'], molino: ['un molino', 'Construid un molino'], templo: ['un templo', 'Construid un templo'], cuartel: ['un cuartel', 'Construid un cuartel'], puerto: ['un puerto', 'Construid un puerto'] };
+      const l = porInvestigar.map(t => t.lugar).find(x => LUGAR[x] && cabe({ obra: x }));
+      if (l && !(c.plan && c.plan.obra)) return { texto: 'Tus sabios no pueden seguir: ' + porInvestigar.filter(t => t.lugar === l).map(t => t.nombre.toLowerCase()).slice(0, 3).join(', ') + ' se investiga en ' + LUGAR[l][0] + ', y no tenéis.', orden: LUGAR[l][1] };
+    }
+    if (c.investigacion && !c.investigacion.id && yaSe.length) return { texto: 'Tus sabios esperan saber qué investigar. Lo más a mano: ' + yaSe.slice(0, 3).map(t => t.nombre.toLowerCase() + ' (' + t.texto + ')').join('; ') + '.', orden: 'Investigad ' + yaSe[0].nombre.toLowerCase() };
     if (c.plan && c.plan.obra) return { texto: 'Tus constructores esperan madera y piedra para el encargo (' + c.plan.obra + ').', orden: 'Más piedra' };
     const sig = M.ERAS[c.era + 1];
-    if (sig && (pr.ciencia || 1) < 1.5) return { texto: 'Todo en orden. Si invertís en saber, llegaréis antes ' + aEra(sig.con) + '.', orden: 'Todo a la ciencia' };
+    if (sig && (pr.ciencia || 1) < 1.5 && (c.comida || 0) >= hab * 0.8) return { texto: 'Todo en orden. Si invertís en saber, llegaréis antes ' + aEra(sig.con) + '.', orden: 'Más ciencia' };
     return { texto: 'Todo en orden. Tu pueblo trabaja solo; tú decides las grandes cosas.', orden: 'Informe' };
   }
 
