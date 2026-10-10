@@ -741,6 +741,22 @@
       anunciar(m, c, '🏪 Muere ' + nombreDe(a) + (b ? ': su familia ya tiene casa comercial llena, así que ' : ' sin familia: ') + nombreDe(relevo) + ', comerciante de su gremio, se queda con el negocio');
       return;
     }
+    if (b && c && llena) {
+      // El heredero es de otra familia que ya tiene la casa comercial llena: se queda con el dinero (y el banco o el
+      // negocio, si los había), pero el gremio pasa a un comerciante de otra familia; si no hay nadie, queda vacío.
+      const otro = v.aldeanos.filter(x => x.gremio === a.id && x !== a && x !== b && x.c === a.c && !x.emp && !x.merc && !esNino(x) && !(quitar && quitar.has(x)) && !(x.familia && v.aldeanos.filter(y => y.merc && y.c === a.c && y.familia === x.familia).length >= SUCURSALES + 1)).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
+      if (e) b.emp = e;
+      b.dinero = redondo((b.dinero || 0) + (a.dinero || 0)); a.dinero = 0; if (e) mover(b, COMERCIANTE);
+      if (otro) { otro.merc = mc; delete mc.de; delete otro.gremio; mover(otro, COMERCIANTE); }
+      if (v.privados) for (const t of Object.keys(v.privados)) if (v.privados[t].dueno === a.id) {
+        const tipo = v.privados[t].tipo;
+        if (tipo === 'gremio' || tipo === 'casona') { if (otro) { v.privados[t].dueno = otro.id; delete v.privados[t].sucursal; nombrarPrivado(m, +t, c); } else olvidarPrivado(m, c, +t); }
+        else v.privados[t].dueno = b.id;
+      }
+      for (const x of v.aldeanos) { if (x.gremio === a.id) { if (otro) x.gremio = otro.id; else delete x.gremio; } if (x.emp && x.emp.banquero === a.id) x.emp.banquero = b.id; if (x.merc && x.merc.de === a.id) delete x.merc.de; }
+      anunciar(m, c, '🏪 Muere ' + nombreDe(a) + ': ' + nombreDe(b) + ' hereda ' + (e && e.neg === 'banco' ? 'el banco y ' : e ? 'el negocio y ' : '') + 'su dinero, pero su familia ya tiene la casa comercial llena: ' + (otro ? 'el gremio se lo queda ' + nombreDe(otro) : 'el gremio queda vacío y el reino lo venderá'));
+      return;
+    }
     if (b && c) {
       if (e) b.emp = e;
       if (mc) b.merc = mc;
@@ -960,6 +976,9 @@
       if (a.o !== COMERCIANTE) mover(a, COMERCIANTE);
     }
     // LOS EMPRESARIOS: su negocio les da; pagan impuestos y devuelven a su banquero (o al central).
+    // Venden dentro (el 60 %) y fuera, pero solo a los reinos con los que se comercia (para el jugador, los que él abrió):
+    // así decides si tu industria privada beneficia o no a otro reino.
+    const fueraE = 0.6 + 0.4 * Math.min(1, sociosDe(m, c).length / 2);
     for (const a of empresariosDe(m, c)) {
       const e = a.emp; if (e.neg === 'banco') continue;
       let bruto = 0;
@@ -969,6 +988,7 @@
         if (e.t == null || (!encargada && !(v.andamios && v.andamios[e.t]) && v.obra[e.t] !== OBRA.fabrica)) { quiebra(m, c, a, 'perdió su fábrica'); continue; }
         if (v.obra[e.t] === OBRA.fabrica) { bruto = 1.5 + c.era * 0.4; if ((c.oro || 0) >= bruto) c.oro -= bruto; else bruto = 0; }
       } else bruto = 1 + c.era * 0.25;
+      bruto *= fueraE;
       // Un mal año para el negocio, de vez en cuando (más si el dinero fue barato); no antes de abrir.
       if (bruto > 0 && azar(v) < (nivel <= 0.5 ? 0.03 : 0.012)) e.caja -= 6 + c.era;
       const imp = bruto * impuesto;

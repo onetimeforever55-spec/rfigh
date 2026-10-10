@@ -978,6 +978,9 @@
     if (aliados(m, a, b)) romper(m, a, b, a.nombre + ' traiciona a su aliado ' + b.nombre + ': la alianza se rompe el mismo día que cruzan la frontera.');
     a.guerras.push({ con: b.id, desde: m.turno, cansancio: 0 });
     b.guerras.push({ con: a.id, desde: m.turno, cansancio: 0 });
+    // La guerra rompe el tratado de comercio: tras la paz no se vuelve a comerciar solo (el jugador lo reabre con
+    // «abrid una ruta comercial con X»; hasta entonces, cerrado aunque haya dicho «comerciad libremente»).
+    for (const [x, y] of [[a, b], [b, a]]) if (x.plan) { x.plan.socios = (x.plan.socios || []).filter(id => id !== y.id); if (x.jugador) x.plan.embargo = [...new Set([...(x.plan.embargo || []), y.id])]; }
     m.complots = (m.complots || []).filter(p => !(p.tipo === 'guerra' && p.de === a.id && p.contra === b.id));
     a.rel[b.id] = b.rel[a.id] = Math.min(a.rel[b.id] || 0, -50);
     const e = cronica(m, 'guerra', 'Guerra entre ' + a.nombre + ' y ' + b.nombre, motivo || (a.nombre + ' cruza la frontera de ' + b.nombre + '. ' + elegir(m, ['Dicen que por un pozo.', 'Dicen que por un insulto a sus dioses.', 'Dicen que por unas ovejas.', 'Dicen que por un matrimonio que no se celebró.', 'Nadie recuerda ya por qué.'])), a, frontera(m, b, a)[0]);

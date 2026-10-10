@@ -45,6 +45,14 @@ console.log('EN GUERRA NO HAY COMERCIO');
 {
   S.declararGuerra(m, c, o, 'prueba');
   comprobar(S.enGuerra(c, o) && !V.comercian(m, c, o) && !V.sociosDe(m, c).includes(o), 'en guerra se para el comercio, aunque haya tratado');
+  // En guerra con uno, el comercio con los demás sigue.
+  const otro = S.vivas(m).find(x => x !== c && x !== o && !S.enGuerra(c, x));
+  if (otro) { X.ordenar(m, c.id, 'abrid una ruta comercial con ' + otro.nombre); comprobar(V.comercian(m, c, otro) && V.sociosDe(m, c).includes(otro), 'en guerra con uno, sigues comerciando con los demás (' + otro.nombre + ')'); }
+  // Y la guerra rompe el tratado: tras la paz no se vuelve a comerciar solo.
+  S.hacerPaz(m, c, o, 'paz de prueba');
+  comprobar(!S.enGuerra(c, o) && !V.comercian(m, c, o), 'tras la paz no se vuelve a comerciar sin que lo digas');
+  X.ordenar(m, c.id, 'abrid una ruta comercial con ' + o.nombre);
+  comprobar(V.comercian(m, c, o), 'hasta que vuelves a abrir la ruta');
   const a = S.vivas(m).find(x => x !== c && x !== o && !S.enGuerra(x, o)), b = o;
   if (a) { S.declararGuerra(m, a, b, 'prueba'); comprobar(!V.comercian(m, a, b), 'también entre otros dos reinos en guerra'); }
 }
@@ -67,6 +75,20 @@ console.log('QUIEN TOMA UN REINO A MITAD DE PARTIDA HEREDA SUS TRATADOS');
   const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 200; k++) S.turno(g);
   const r = S.vivas(g).find(x => (g.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === x.id || ru.b === x.id) && !S.enGuerra(S.civ(g, ru.a), S.civ(g, ru.b))));
   if (r) { const antes = V.sociosDe(g, r).length; X.gobernar(g, r.id); comprobar(antes > 0 && V.sociosDe(g, r).length >= 1, 'las rutas que el reino ya tenía siguen (' + antes + ' → ' + V.sociosDe(g, r).length + ' socios)'); }
+}
+
+console.log('LA INDUSTRIA PRIVADA VENDE FUERA SOLO A QUIEN TÚ DEJES');
+{
+  const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 150; k++) S.turno(g);
+  const r = S.vivas(g)[0]; X.gobernar(g, r.id); r.plan.socios = []; r.plan.embargo = []; r.plan.comercioLibre = false;
+  r.era = Math.max(r.era, 5); r.bancos = 1; r.banca = r.banca || { fondo: 100, prestado: 0, devuelto: 0, perdido: 0 };
+  const a = g.vida.aldeanos.find(x => x.c === r.id && !x.emp && !x.merc && (x.edad || 0) >= V.ADULTO);
+  a.emp = { neg: 'mercader', caja: 0, deuda: 0, cuota: 0, banquero: null, desde: g.turno, atraso: 0 };
+  const caja = () => { const c0 = a.emp.caja; const o0 = r.oro; V.banca(g, r); const d = a.emp.caja - c0; a.emp.caja = c0; r.oro = o0; return d; };
+  const solo = caja();
+  r.plan.socios = S.vivas(g).filter(x => x !== r && !S.enGuerra(x, r)).slice(0, 2).map(x => x.id);
+  const conSocios = caja();
+  comprobar(conSocios > solo * 1.3, 'sin socios, un empresario solo vende dentro; con los reinos que abras, también fuera (' + solo.toFixed(2) + ' → ' + conSocios.toFixed(2) + ')');
 }
 
 console.log('LOS CRÉDITOS A TU REINO, SOLO SI LOS PIDES');
