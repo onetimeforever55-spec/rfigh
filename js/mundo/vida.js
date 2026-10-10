@@ -2153,7 +2153,8 @@
       // carretera de comercio sale de su tierra.
       if (r === c.capital && c.era >= ERA_OBRA[OBRA.aduana]) { const pf = pasoSinPuesto(m, c, ter); if (pf) pide.push([OBRA.aduana, () => pf.sitio]); }
       // La mina: en la montaña más cercana (solo ahí), una galería que no se agota (pero da poco a poco).
-      if (r === c.capital && c.era >= ERA_OBRA[OBRA.mina] && (c.minas || 0) < 1 + (c.era >= 4 ? 1 : 0) && (c.aldeanos || 0) >= 12) {
+      // (Una más cada dos edades, hasta cuatro: la mina es de donde sale el metal de verdad.)
+      if (r === c.capital && c.era >= ERA_OBRA[OBRA.mina] && (c.minas || 0) < (pausada(m) ? Math.min(4, 1 + Math.floor(c.era / 2)) : 1 + (c.era >= 4 ? 1 : 0)) && (c.aldeanos || 0) >= 12) {
         const sm = sitioMina(m, c, ter); if (sm != null) pide.push([OBRA.mina, () => sm]);
       }
       // El pozo de petróleo: sobre una bolsa de crudo de su tierra (uno por bolsa, hasta tres), si le hace falta o lo vende.
@@ -3689,13 +3690,16 @@
       a.enMina = 0; const q = azar(v), quiere = a.mineQuiere;
       if (q < 0.06 && c.era >= 1) { a.kt = 2; a.k = 1; }
       else if (quiere === 'carbon' && c.era >= 6 && q < 0.75) { a.kt = 4; a.k = 2 + Math.floor(M.tec(c, 'piedra') / 2); }
-      else if ((quiere === 'metal' || q < 0.3) && c.era >= 1 && q < 0.8) { a.kt = 1; a.k = 1 + (azar(v) < 0.4 ? 1 : 0); }
+      else if (pausada(m) && quiere === 'metal' && c.era >= 1 && q < 0.85) { a.kt = 1; a.k = 2 + (azar(v) < 0.5 ? 1 : 0) + Math.floor(M.tec(c, 'piedra')); }
+      else if (pausada(m) && q < 0.3 && c.era >= 1) { a.kt = 1; a.k = 1; }
+      else if (!pausada(m) && (quiere === 'metal' || q < 0.3) && c.era >= 1 && q < 0.8) { a.kt = 1; a.k = 1 + (azar(v) < 0.4 ? 1 : 0); }
       else { a.kt = 0; a.k = 2; }
       ir(a, centro(m, a.h), v.tw, VOLVER); return;
     }
     if (a.o === MINERO && a.cantera && !v.roca[t] && a.buscaCarbon) { a.cantera = 0; a.buscaCarbon = 0; a.k = 2; a.kt = azar(v) < 0.7 ? 4 : 0; if (a.kt === 4) { a.k = 2 + M.tec(c, 'piedra'); marcar(m, t, 'escombros', 1, paso); } ir(a, centro(m, a.h), v.tw, VOLVER); return; }
-    if (a.o === MINERO && a.cantera && !v.roca[t]) { a.cantera = 0; a.k = 2; a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 0.7 : 0.25) : a.buscaMetal ? 0.4 : 0) ? 1 : 0; if (a.kt === 1) { a.k = 2 + M.tec(c, 'piedra'); marcar(m, t, 'escombros', 1, paso); } a.buscaMetal = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
-    if (a.o === MINERO && v.roca[t] > 0) { a.k = (v.mena[t] === 3 ? 3 : v.mena[t] ? 1 : 2) + M.tec(c, 'piedra'); a.kt = v.mena[t] === 3 ? 4 : v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === MINERO && a.cantera && !v.roca[t]) { a.cantera = 0; a.k = 2; // (Sin mina, cavar en la montaña da sobre todo piedra; metal, poco y de vez en cuando: el metal sale de las vetas y de las minas.)
+const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? (pm ? 0.3 : 0.7) : pm ? 0.08 : 0.25) : a.buscaMetal ? (pm ? 0.12 : 0.4) : 0) ? 1 : 0; if (a.kt === 1) { a.k = (pm ? 1 : 2) + M.tec(c, 'piedra'); marcar(m, t, 'escombros', 1, paso); } a.buscaMetal = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
+    if (a.o === MINERO && v.roca[t] > 0) { a.k = (v.mena[t] === 3 ? 3 : v.mena[t] === 1 && pausada(m) ? 2 : v.mena[t] ? 1 : 2) + M.tec(c, 'piedra'); a.kt = v.mena[t] === 3 ? 4 : v.mena[t] || 0; cambiar(m, 'roca', t, v.roca[t] - 1, paso); if (!v.roca[t]) v.mena[t] = 0; ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     if (a.o === GRANJERO && a.caza != null) {
       // El ciervo se caza (si sigue cerca); el pez se pesca y el banco sigue ahí casi siempre.
       const b = v.animales.find(x => x.id === a.caza), seca = c.efectos.some(e => e.sequia);

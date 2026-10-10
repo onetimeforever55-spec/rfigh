@@ -70,11 +70,17 @@ console.log('LOS MERCADERES Y EL COMERCIO EXTERIOR');
   comprobar(coms.length > 0 && otros.length && conSocios > solos * 1.3, 'sin socios, los comerciantes solo ganan el comercio de dentro; con socios, también el de fuera (' + solos.toFixed(2) + ' → ' + conSocios.toFixed(2) + ')');
 }
 
-console.log('QUIEN TOMA UN REINO A MITAD DE PARTIDA HEREDA SUS TRATADOS');
+console.log('QUIEN TOMA UN REINO A MITAD DE PARTIDA NO HEREDA SUS TRATADOS');
 {
   const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 200; k++) S.turno(g);
-  const r = S.vivas(g).find(x => (g.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === x.id || ru.b === x.id) && !S.enGuerra(S.civ(g, ru.a), S.civ(g, ru.b))));
-  if (r) { const antes = V.sociosDe(g, r).length; X.gobernar(g, r.id); comprobar(antes > 0 && V.sociosDe(g, r).length >= 1, 'las rutas que el reino ya tenía siguen (' + antes + ' → ' + V.sociosDe(g, r).length + ' socios)'); }
+  const r = S.vivas(g).find(x => V.sociosDe(g, x).length > 0);
+  if (r) {
+    const antes = V.sociosDe(g, r).length; X.gobernar(g, r.id);
+    comprobar(antes > 0 && V.sociosDe(g, r).length === 0, 'al tomarlo deja de comerciar: el comercio lo decides tú (' + antes + ' → ' + V.sociosDe(g, r).length + ' socios)');
+    comprobar((g.vida.anuncios || []).some(x => x.civ === r.id && /comerciaba con/.test(x.texto)), 'y se te avisa de con quién comerciaba');
+    let barcos = 0; for (let k = 0; k < 15; k++) { S.turno(g); barcos += g.vida.barcos.filter(b => b.tipo === 'mercante' && b.ruta && b.destino != null && (b.c === r.id || g.dueno[V.region(g, b.destino)] === r.id)).length; }
+    comprobar(barcos === 0, 'ni sus barcos ni los de otros comercian con él sin tu orden (' + barcos + ')');
+  }
 }
 
 console.log('LA INDUSTRIA PRIVADA VENDE FUERA SOLO A QUIEN TÚ DEJES');

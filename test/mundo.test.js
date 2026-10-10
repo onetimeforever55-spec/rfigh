@@ -576,7 +576,9 @@ console.log('EL MERCADO GLOBAL');
   const con = S.vivas(m).find(c => (m.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)));
   if (solo) { X2.gobernar(m, solo.id); comprobar(/No comerciáis con ningún reino/.test(X2.ordenar(m, solo.id, 'comprad 10 de madera').respuesta), 'sin socios no se puede comprar: hay que producirlo'); }
   if (con) {
-    X2.gobernar(m, con.id);
+    // (Al tomar el reino no se heredan sus tratados: se abre la ruta con su socio, como haría el jugador.)
+    const ru = (m.vida.rutas || []).find(x => x.tipo === 'externa' && (x.a === con.id || x.b === con.id)), socio = S.civ(m, ru.a === con.id ? ru.b : ru.a);
+    X2.gobernar(m, con.id); X2.ordenar(m, con.id, 'abrid una ruta comercial con ' + socio.nombre);
     const r = X2.ordenar(m, con.id, 'comprad 10 de piedra');
     comprobar(/Encargáis 10 de piedra/.test(r.respuesta) && con.plan.pedidos.some(x => x.que === 'piedra'), 'con socios, el pedido espera al comerciante');
     X2.ordenar(m, con.id, 'especializaos en madera');
@@ -1000,7 +1002,7 @@ console.log('COMERCIO A TU MANDO, SABIOS QUE INVESTIGAN Y ANEXIONES');
 {
   const V = M.vida, X = M.mando;
   const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(m);
-  const yo = S.vivas(m).find(c => S.vecinosDe(m, c).length); X.gobernar(m, yo.id);
+  const yo = S.vivas(m).find(c => S.vecinosDe(m, c).length) || S.vivas(m).slice().sort((x, y) => (y.aldeanos || 0) - (x.aldeanos || 0))[0]; X.gobernar(m, yo.id);
   // Comprar: cuenta como socio cualquiera con tratado, aunque la carretera aún no esté hecha.
   const otro = S.vivas(m).find(o => o !== yo && !S.enGuerra(yo, o) && !V.sociosDe(m, yo).includes(o));
   if (otro) { (yo.plan.socios = yo.plan.socios || []).push(otro.id); }
@@ -1020,7 +1022,7 @@ console.log('COMERCIO A TU MANDO, SABIOS QUE INVESTIGAN Y ANEXIONES');
     comprobar(pts(ca) - a0 > (pts(cb) - b0) * 1.3, 'los sabios investigan: con ellos las mejoras avanzan mucho más que sin ellos (' + Math.round(pts(cb) - b0) + ' → ' + Math.round(pts(ca) - a0) + ' de saber en 20 turnos)');
   }
   // Anexionar: un reino mucho más débil se rinde entero y sus tierras no se rebelan.
-  const debil = S.vecinosDe(m, yo).filter(o => o.viva).sort((a, b) => S.fuerza(m, a) - S.fuerza(m, b))[0];
+  const debil = (S.vecinosDe(m, yo).filter(o => o.viva).length ? S.vecinosDe(m, yo).filter(o => o.viva) : S.vivas(m).filter(o => o !== yo)).sort((a, b) => S.fuerza(m, a) - S.fuerza(m, b))[0];
   const ratio = S.fuerza(m, yo) / Math.max(0.1, S.fuerza(m, debil));
   X.ordenar(m, yo.id, 'anexionad ' + debil.nombre);
   if (ratio > 5) comprobar(!debil.viva && S.casillas(m, yo).length > 0, 'ante un ejército cinco veces mayor, «anexionad X» hace que se rinda y todo pasa a ser tuyo');
@@ -1031,8 +1033,10 @@ console.log('MODO TROPAS Y MUNDOS DE 10 REINOS');
 {
   const V = M.vida, X = M.mando;
   comprobar([1, 2, 3].every(sd => S.vivas(S.crear(sd, 10, { ritmo: 3 })).length === 10), 'se puede crear un mundo con 10 reinos (para jugar online hasta 10)');
-  const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(m);
-  const yo = S.vivas(m).find(c => S.vecinosDe(m, c).length); X.gobernar(m, yo.id);
+  // (Un mundo en el que tu reino ya tenga frontera con otro.)
+  let m = null, yo = null;
+  for (const sd of [7, 3, 5, 11, 12]) { m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(m); yo = S.vivas(m).find(c => S.vecinosDe(m, c).length); if (yo) break; }
+  X.gobernar(m, yo.id);
   X.ordenar(m, yo.id, 'quiero 8 soldados'); S.turno(m);
   const sold = m.vida.aldeanos.filter(a => a.c === yo.id && a.o === 4), ene = S.vecinosDe(m, yo)[0], t = V.centro(m, ene.capital), tw = m.vida.tw;
   const r = X.ordenar(m, yo.id, '#tropas ' + sold.map(a => a.id).join(',') + ' ' + t);

@@ -1391,13 +1391,15 @@
 
   // ---------- Elegir pueblo ----------
   // En línea: otro jugador toma un pueblo (sin quitárselo a los demás jugadores).
-  // Quien toma un reino a mitad de partida hereda sus tratados: las rutas de comercio que ya tenía siguen (las
-  // nuevas, solo si él las abre).
+  // Quien toma un reino a mitad de partida no hereda sus tratados: el comercio lo decide él. Se le avisa de con quién
+  // comerciaba el reino, por si quiere seguir («abrid una ruta comercial con X»).
   function heredarTratados(m, c) {
     if (c.jugador || !m.vida) return;
-    const p = plan(c), ya = new Set(p.socios || []);
-    for (const ru of m.vida.rutas || []) if (ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)) { const o = ru.a === c.id ? ru.b : ru.a; if (!S().enGuerra(c, S().civ(m, o) || { guerras: [] })) ya.add(o); }
-    p.socios = [...ya];
+    const p = plan(c), antes = new Set(p.socios || []);
+    for (const ru of m.vida.rutas || []) if (ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)) antes.add(ru.a === c.id ? ru.b : ru.a);
+    p.socios = []; p.comercioLibre = false;
+    const nombres = [...antes].map(id => S().civ(m, id)).filter(o => o && o.viva && !S().enGuerra(c, o)).map(o => o.nombre);
+    if (nombres.length) (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: '🤝 Tu reino comerciaba con ' + nombres.join(', ') + ': para seguir, di «abrid una ruta comercial con ' + nombres[0] + '»' });
   }
   function unirse(m, civId) { const c = S().civ(m, civId); if (c && c.viva) { heredarTratados(m, c); c.jugador = true; plan(c); } return c; }
   function gobernar(m, civId) {
