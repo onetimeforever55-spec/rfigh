@@ -21,7 +21,7 @@
   const ADULTO = 2, VIEJO = 18;
   const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
   const esNino = a => (a.edad || 0) < ADULTO;
-  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18, central: 19, banco: 20, fabrica: 21, estacion: 22, hospital: 23, aerodromo: 24, campamento: 25, aduana: 26, petroleo: 27, mina: 28, gremio: 29, casona: 30 };
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18, central: 19, banco: 20, fabrica: 21, estacion: 22, hospital: 23, aerodromo: 24, campamento: 25, aduana: 26, petroleo: 27, mina: 28, gremio: 29, casona: 30, bancopriv: 31 };
   // Hasta dónde llegan los campos de un molino (parcelas): más allá no se ara.
   const RANGO_MOLINO = 4;
   // En las partidas pausadas el molino alcanza menos (un rango medio): hacen falta varios molinos repartidos
@@ -437,7 +437,7 @@
       case OBRA.parque: return 'Parque de ' + santo;
       case OBRA.palacio: return 'Palacio de ' + (c ? c.nombre : sitio);
       case OBRA.central: return 'Central eléctrica de ' + sitio;
-      case OBRA.banco: return 'Banco ' + fam;
+      case OBRA.banco: return 'Banco central de ' + (c ? c.nombre : sitio);
       case OBRA.fabrica: return 'Fábrica ' + fam + ' e Hijos';
       case OBRA.estacion: return 'Estación de ' + sitio;
       case OBRA.hospital: return 'Hospital de San ' + santo;
@@ -469,7 +469,7 @@
     const v = m.vida, o = v.obra[t], pv = v.privados && v.privados[t], duenio = pv && v.aldeanos.find(x => x.id === pv.dueno);
     if (!duenio || !v.edificios[t]) return;
     const era = c ? c.era : 0, quien = duenio.nombre + ' ' + (duenio.familia || '');
-    v.edificios[t].nombre = o === OBRA.gremio ? 'Gremio de mercaderes ' + (duenio.familia || duenio.nombre) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
+    v.edificios[t].nombre = o === OBRA.gremio ? 'Gremio de mercaderes ' + (duenio.familia || duenio.nombre) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.bancopriv ? 'Banco ' + (duenio.familia || duenio.nombre) : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
     v.edificios[t].dueno = quien;
   }
   const SIN_REFORMA = new Set([OBRA.campamento, OBRA.centro, OBRA.campo, OBRA.ruina]);
@@ -828,7 +828,9 @@
       if (suyas.length <= SUCURSALES + 1) continue;
       const ultima = S().ordenarPor(suyas.filter(x => x !== jefe), x => -((x.merc.desde || 0) * 1e7 + x.id))[0];
       const llenaF = f => f && mercs.filter(y => y.merc && y.familia === f).length >= SUCURSALES + 1;
-      const nuevo = ultima && v.aldeanos.filter(x => x.gremio === ultima.id && x.c === c.id && !x.merc && !x.emp && !esNino(x) && x.familia !== fam && !llenaF(x.familia)).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
+      // (Primero a uno de sus comerciantes; si no, a cualquier comerciante del reino de otra familia.)
+      const compra = x => x.c === c.id && x.o === COMERCIANTE && !x.merc && !x.emp && !esNino(x) && x.familia !== fam && !llenaF(x.familia), mejorDe = l => l.sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
+      const nuevo = ultima && (mejorDe(v.aldeanos.filter(x => x.gremio === ultima.id && compra(x))) || mejorDe(v.aldeanos.filter(compra)));
       if (!nuevo) continue;
       const mc = ultima.merc; delete ultima.merc; delete mc.de; nuevo.merc = mc; delete nuevo.gremio; mover(nuevo, COMERCIANTE);
       for (const x of v.aldeanos) if (x.gremio === ultima.id) x.gremio = nuevo.id;
@@ -907,6 +909,29 @@
       break;
     }
   }
+  // EL BANCO DEL BANQUERO: un edificio privado (no el banco central del reino). Si hay uno vacío (su dueño quebró o
+  // murió sin nadie), lo compra a mitad de precio; si no, lo levanta: le paga al reino materiales y obra con su capital.
+  function sedeBanco(m, c, ban) {
+    const v = m.vida, e = ban.emp;
+    if (!e || e.neg !== 'banco') return;
+    if (e.sede != null && (v.obra[e.sede] === OBRA.bancopriv || (v.andamios && v.andamios[e.sede]) || ((c.plan && c.plan.encargos) || []).some(x => x.t === e.sede))) return;
+    delete e.sede;
+    const precio = precioObra(m, 'bancopriv');
+    const vacio = Object.keys(v.edificios || {}).map(Number).find(t => v.obra[t] === OBRA.bancopriv && m.dueno[region(m, t)] === c.id && !(v.privados && v.privados[t]));
+    if (vacio != null && e.capital >= precio / 2 + 5) {
+      e.capital = redondo(e.capital - precio / 2); c.oro = (c.oro || 0) + precio / 2; e.sede = vacio;
+      (v.privados = v.privados || {})[vacio] = { dueno: ban.id, civ: c.id, tipo: 'banco' }; nombrarPrivado(m, vacio, c);
+      anunciar(m, c, '🏦 ' + nombreDe(ban) + ' compra al reino un banco vacío (paga ' + Math.round(precio / 2) + ' de oro)');
+      return;
+    }
+    if (e.capital < precio + 10) return;
+    const t = sitioPara(m, c, 'bancopriv', ban.merc && ban.merc.t != null ? [region(m, ban.merc.t)] : undefined);
+    if (t == null) return;
+    ban.dinero = (ban.dinero || 0) + e.capital; e.capital = 0;
+    const pagado = encargarPrivado(m, c, ban, 'bancopriv', t, 'banco');
+    e.capital = ban.dinero; ban.dinero = 0;
+    if (pagado) { e.sede = t; anunciar(m, c, '🏦 ' + nombreDe(ban) + ' levanta su banco (paga ' + Math.round(pagado) + ' de oro al reino por la obra)'); }
+  }
   function banca(m, c) {
     const v = m.vida;
     // Los negocios privados de quien ya no está (murió, se fue o el reino perdió la tierra) pasan al reino.
@@ -968,8 +993,11 @@
         rico.emp = { neg: 'banco', capital: Math.round((fortuna + montoBanco) * 10) / 10, deuda, cuota: Math.max(0.8, Math.round(deuda / 30 * 10) / 10), desde: m.turno, atraso: 0, prestado: 0, cobrado: 0, perdido: 0 };
         rico.dinero = 0; b.fondo -= montoBanco; b.prestado += montoBanco; mover(rico, COMERCIANTE);
         anunciar(m, c, '🏦 El mercader ' + nombreDe(rico) + ' abre su banco con su fortuna y ' + montoBanco + ' de oro del banco central');
+        sedeBanco(m, c, rico);
       }
     }
+    // Cada banquero tiene (o se levanta) su banco: un edificio suyo, pagado con su capital.
+    if (m.turno % 8 === c.id % 8) for (const ban of banquerosDe(m, c)) sedeBanco(m, c, ban);
     // LOS BANQUEROS PRESTAN, de lo suyo, a vecinos que quieren montar un negocio (a un interés algo mayor).
     const max = 1 + c.bancos + Math.floor((c.aldeanos || 0) / 40) + (nivel <= 0.5 ? 1 : 0) - (nivel >= 1.5 ? 1 : 0);
     for (const ban of banquerosDe(m, c)) {
@@ -1725,6 +1753,7 @@
   // mansión desde la Revolución Industrial): los paga su dueño, comprándole al reino la madera y la piedra.
   COSTES[OBRA.gremio] = [12, 6, 6]; TRABAJO[OBRA.gremio] = 7; NIVEL_OBRA[OBRA.gremio] = 2; ERA_OBRA[OBRA.gremio] = 4;
   COSTES[OBRA.casona] = [10, 8, 4]; TRABAJO[OBRA.casona] = 6; NIVEL_OBRA[OBRA.casona] = 2; ERA_OBRA[OBRA.casona] = 4;
+  COSTES[OBRA.bancopriv] = [8, 10, 6]; TRABAJO[OBRA.bancopriv] = 6; NIVEL_OBRA[OBRA.bancopriv] = 2; ERA_OBRA[OBRA.bancopriv] = 5;
   const NOMBRE_ERA = ['el Neolítico', 'la Edad del Bronce', 'la Edad del Hierro', 'la Antigüedad clásica', 'la Edad Media', 'el Renacimiento', 'la Revolución Industrial', 'la Era Moderna', 'la II Guerra Mundial'];
   /*
    * EL ALUMBRADO de las calles, según la época y lo que haya (no se construye: llega con el progreso):
@@ -1758,7 +1787,7 @@
     parque: { nombre: 'Parque', edificio: 'un parque', bien: 'aire, sombra y juegos para los niños', mal: 'tantas casas juntas sin un árbol: se vive apretado y triste', estab: -2, animo: -8 },
     palacio: { nombre: 'Sede del gobierno', edificio: 'un palacio', bien: 'el gobierno tiene una sede digna y las ciudades lo respetan', mal: 'una ciudad gobernada desde una choza: las demás ciudades obedecen menos', estab: -3, animo: -4 },
     central: { nombre: 'Electricidad', edificio: 'una central eléctrica', bien: 'hay luz en las casas, farolas eléctricas y fuerza para los talleres', mal: 'una ciudad moderna a oscuras: sin electricidad no hay farolas eléctricas ni luz en las casas', estab: -3, animo: -6 },
-    banco: { nombre: 'Banca', edificio: 'un banco', bien: 'hay banco central: presta a los banqueros, que dan crédito a la gente', mal: 'sin banco no hay banca: ni banco central ni banqueros que presten', estab: 0, animo: 0 },
+    banco: { nombre: 'Banca', edificio: 'un banco central', bien: 'hay banco central: presta a los banqueros, que dan crédito a la gente', mal: 'sin banco no hay banca: ni banco central ni banqueros que presten', estab: 0, animo: 0 },
     fabrica: { nombre: 'Industria', edificio: 'una fábrica', bien: 'se fabrica en serie: más armas y la madera sobrante se vende hecha mueble', mal: 'todo se hace a mano en talleres: sin fábrica, la ciudad se queda atrás', estab: -2, animo: -3 },
     estacion: { nombre: 'Ferrocarril', edificio: 'una estación de tren', bien: 'el tren lleva el doble de carga y llega antes', mal: 'las mercancías siguen yendo en carreta: sin estación no llega el tren', estab: -1, animo: -2 },
     hospital: { nombre: 'Sanidad', edificio: 'un hospital', bien: 'los heridos se curan y la gente vive más años', mal: 'sin hospital, las heridas y las epidemias se llevan a mucha gente', estab: -3, animo: -6 },
@@ -1767,7 +1796,7 @@
   };
   const PUBLICAS = new Set([OBRA.pozo, OBRA.granero, OBRA.fuente, OBRA.parque, OBRA.palacio, OBRA.templo, OBRA.central, OBRA.banco, OBRA.fabrica, OBRA.estacion, OBRA.hospital, OBRA.aerodromo]);
   // Lo que se puede levantar sobre un huerto cuando no queda solar: las obras públicas y los edificios de los ricos.
-  const SOBRE_HUERTO = new Set([...PUBLICAS, OBRA.gremio, OBRA.casona]);
+  const SOBRE_HUERTO = new Set([...PUBLICAS, OBRA.gremio, OBRA.casona, OBRA.bancopriv]);
   const AGUAS = new Set(['rio', 'agua', 'bajo', 'lago']);
   /*
    * LOS CULTIVOS según la tierra: trigo en la llanura, maíz en la selva y la sabana, arroz en los pantanos y
@@ -2119,7 +2148,7 @@
       // Lo que pidió el jugador va primero; cuando ya está hecho en la plaza, se olvida el encargo.
       const encargo = c.plan && c.plan.obra ? OBRA[c.plan.obra] : null;
       if (encargo && r === c.capital && tiene(encargo)) {
-        const NOMBRES = { [OBRA.pozo]: 'El pozo', [OBRA.granero]: 'El granero', [OBRA.fuente]: 'La plaza pública', [OBRA.parque]: 'El parque', [OBRA.palacio]: 'El palacio', [OBRA.central]: 'La central eléctrica', [OBRA.banco]: 'El banco', [OBRA.fabrica]: 'La fábrica', [OBRA.estacion]: 'La estación de tren', [OBRA.hospital]: 'El hospital', [OBRA.aerodromo]: 'El aeródromo', [OBRA.saber]: 'La casa del saber', [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino', [OBRA.cuartel]: 'El cuartel', [OBRA.arqueria]: 'La arquería', [OBRA.castillo]: 'El castillo', [OBRA.aduana]: 'El puesto fronterizo', [OBRA.petroleo]: 'El pozo de petróleo', [OBRA.mina]: 'La mina' };
+        const NOMBRES = { [OBRA.pozo]: 'El pozo', [OBRA.granero]: 'El granero', [OBRA.fuente]: 'La plaza pública', [OBRA.parque]: 'El parque', [OBRA.palacio]: 'El palacio', [OBRA.central]: 'La central eléctrica', [OBRA.banco]: 'El banco central', [OBRA.fabrica]: 'La fábrica', [OBRA.estacion]: 'La estación de tren', [OBRA.hospital]: 'El hospital', [OBRA.aerodromo]: 'El aeródromo', [OBRA.saber]: 'La casa del saber', [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino', [OBRA.cuartel]: 'El cuartel', [OBRA.arqueria]: 'La arquería', [OBRA.castillo]: 'El castillo', [OBRA.aduana]: 'El puesto fronterizo', [OBRA.petroleo]: 'El pozo de petróleo', [OBRA.mina]: 'La mina' };
         S().cronica(m, 'obra', (NOMBRES[encargo] || 'La obra') + ' de ' + c.nombre + (encargo === OBRA.torre || encargo === OBRA.arqueria || encargo === OBRA.fuente || encargo === OBRA.central || encargo === OBRA.fabrica || encargo === OBRA.estacion ? ' está terminada' : ' está terminado'), 'Los constructores de ' + c.nombre + ' terminan lo que su gobierno les encargó y lo celebran con una fiesta en la plaza.', c);
         c.plan.obra = null;
       }

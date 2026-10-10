@@ -154,6 +154,7 @@
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.mina) gl.drawImage(ARTE().edificio('mina', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.gremio) gl.drawImage(ARTE().edificio('gremio', color, 0), x, y);
+      else if (obra === V.OBRA.bancopriv) gl.drawImage(ARTE().edificio('bancopriv', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.casona) gl.drawImage(ARTE().edificio('casona', color, eraT >= 6 ? 2 : eraT >= 5 ? 1 : 0), x, y);
       else if (obra === V.OBRA.petroleo) gl.drawImage(ARTE().edificio('petroleo', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.aduana) gl.drawImage(ARTE().edificio('aduana', color, V.fase(eraT)), x, y);
@@ -1112,14 +1113,14 @@
         g.fillStyle = '#e8e0c8'; g.fillText(x.nombre, sx, sy);
       }
     }
-    // Los letreros de los gremios, de madera con letras doradas, cuando te acercas.
+    // Los letreros de los gremios y de los bancos privados, de madera con letras doradas, cuando te acercas.
     if (cam.z >= 2.4 && m.vida && m.vida.privados) {
       const v = m.vida, tl = Math.round(9 * dpr);
       g.font = '600 ' + tl + 'px "Pixelify Sans", "Courier New", monospace';
       g.textAlign = 'center'; g.textBaseline = 'middle';
       for (const t of Object.keys(v.privados)) {
-        if (v.obra[t] !== V.OBRA.gremio) continue;
-        const rec = v.edificios && v.edificios[t], texto = rec && rec.nombre ? rec.nombre.replace(/^Gremio de mercaderes /, 'Gremio ') : 'Gremio';
+        if (v.obra[t] !== V.OBRA.gremio && v.obra[t] !== V.OBRA.bancopriv) continue;
+        const rec = v.edificios && v.edificios[t], texto = rec && rec.nombre ? rec.nombre.replace(/^Gremio de mercaderes /, 'Gremio ') : v.obra[t] === V.OBRA.bancopriv ? 'Banco' : 'Gremio';
         const wx = (t % v.tw) * P + P / 2, wy = Math.floor(t / v.tw) * P - 3;
         const sx = ox + wx * z, sy = oy + wy * z, ancho = g.measureText(texto).width + 8 * dpr, alto = tl * 1.5;
         if (sx < -ancho || sy < -alto || sx > g.canvas.width + ancho || sy > g.canvas.height + alto) continue;

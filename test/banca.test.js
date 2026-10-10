@@ -171,6 +171,12 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   const capMedia = prov.reduce((k, x) => k + x.cap, 0) / prov.length, provMedia = prov.reduce((k, x) => k + x.prov, 0) / prov.length;
   comprobar(provMedia >= capMedia * 0.2, 'las provincias también tienen gente: no se queda todo en la capital (capital ' + Math.round(capMedia) + ', provincia ' + Math.round(provMedia) + ' de media)');
   comprobar(Object.keys(n.vida.sede || {}).length > 0, 'con la ciudad llena, sus obras públicas se levantan en las tierras de al lado (' + Object.keys(n.vida.sede || {}).length + ')');
+  // EL BANCO CENTRAL (del reino) Y LOS BANCOS PRIVADOS (de cada banquero, con su edificio).
+  const O = V.OBRA, edif = Object.keys(n.vida.edificios || {}).map(Number);
+  const central = edif.find(t => n.vida.obra[t] === O.banco), privados = edif.filter(t => n.vida.obra[t] === O.bancopriv);
+  comprobar(central != null && /^Banco central de /.test(n.vida.edificios[central].nombre), 'el banco del reino es el banco central (' + (central != null ? n.vida.edificios[central].nombre : 'ninguno') + ')');
+  const bq = S.vivas(n).flatMap(c => V.banquerosDe(n, c)), conSede = bq.filter(a => a.emp.sede != null && n.vida.obra[a.emp.sede] === O.bancopriv);
+  comprobar(privados.length > 0 && conSede.length >= bq.length * 0.6 && conSede.every(a => /^Banco /.test((n.vida.edificios[a.emp.sede] || {}).nombre || '') && !/central/.test(n.vida.edificios[a.emp.sede].nombre)), 'cada banquero levanta su propio banco, con su nombre (' + conSede.length + ' de ' + bq.length + ': ' + (conSede[0] ? n.vida.edificios[conSede[0].emp.sede].nombre : '-') + ')');
   const sucNombre = Object.keys(n.vida.privados || {}).filter(t => n.vida.privados[t].sucursal && n.vida.obra[t] === V.OBRA.gremio).map(t => (n.vida.edificios[t] || {}).nombre);
   comprobar(!sucNombre.length || sucNombre.every(x => / \(sucursal\)$/.test(x || '')), 'el letrero de la sucursal lo dice (' + (sucNombre[0] || 'aún sin terminar') + ')');
 }

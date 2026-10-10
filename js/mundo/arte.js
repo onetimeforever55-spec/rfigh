@@ -409,6 +409,7 @@
       if (nombre === 'petroleo') return pozoPetroleo(H, fase, col);
       if (nombre === 'mina') return mina(H, fase, col);
       if (nombre === 'gremio') return gremio(H, fase, col);
+      if (nombre === 'bancopriv') return bancoPrivado(H, fase, col);
       if (nombre === 'casona') return casona(H, fase, col);
       if (nombre === 'templo' && fase === 4) return iglesia(H, col);
       if (nombre === 'templo' && fase !== 1) return temploDeFase(H, fase, col);
@@ -639,15 +640,29 @@
     }
     H.contorno(); return H.lienzo();
   }
-  // El banco (Renacimiento en adelante): fachada de piedra con columnas, frontón, escalinata y la moneda dorada.
+  // El banco central (del reino, desde el Renacimiento): edificio grande de piedra con cúpula dorada y la bandera del
+  // reino, frontón, seis columnas y una escalinata ancha.
   function banco(H, fase, col) {
-    const muro = fase >= 3 ? '#e4e4de' : '#e0d4b8';
-    H.r(1, 6, 14, 9, muro); H.r(1, 14, 14, 1, oscuro(muro, 0.25)); H.r(0, 15, 16, 1, oscuro(muro, 0.35));
-    for (let y = 1; y < 6; y++) H.r(8 - y * 1.4, y, Math.round(y * 2.8), 1, y === 5 ? oscuro(muro, 0.15) : muro);
-    H.p(8, 1, oscuro(col, 0.1)); H.r(7, 3, 2, 2, '#e0b040'); H.p(7, 3, '#fff0a0');
-    for (const x of [2, 5, 10, 13]) { H.r(x, 7, 1, 7, '#fafaf2'); H.p(x, 7, oscuro(muro, 0.1)); }
-    H.r(7, 9, 2, 5, '#4a3020'); H.r(7, 8, 2, 1, '#e0b040');
-    H.p(3, 10, CRISTAL); H.p(4, 10, CRISTAL); H.p(11, 10, CRISTAL); H.p(12, 10, CRISTAL);
+    const muro = fase >= 3 ? '#e8e8e2' : '#e6dcc2', som = oscuro(muro, 0.2);
+    H.disco(8, 4, 3.2, '#d8a838'); H.r(5, 4, 7, 2, '#c89828'); H.p(7, 2, '#ffe890'); H.p(8, 2, '#ffe890');
+    H.r(8, 0, 1, 2, '#5a5a5a'); H.r(9, 0, 2, 1, col);
+    for (let y = 5; y < 8; y++) H.r(8 - (y - 4) * 2.3, y, Math.round((y - 4) * 4.6), 1, y === 7 ? som : muro);
+    H.r(1, 8, 14, 1, som);
+    H.r(1, 9, 14, 4, oscuro(muro, 0.1));
+    for (const x of [1, 3, 5, 10, 12, 14]) H.r(x, 9, 1, 4, '#fafaf4');
+    H.r(7, 10, 2, 3, '#4a3020'); H.p(7, 9, '#e0b040'); H.p(8, 9, '#e0b040');
+    H.r(0, 13, 16, 1, muro); H.r(0, 14, 16, 1, som); H.r(0, 15, 16, 1, oscuro(muro, 0.35));
+    H.contorno(); return H.lienzo();
+  }
+  // El banco de un banquero (privado): local de piedra más pequeño, con el letrero de letras doradas, rejas en las
+  // ventanas y la puerta con la moneda.
+  function bancoPrivado(H, fase, col) {
+    const muro = fase >= 3 ? '#cfc8bc' : '#d8c8a8';
+    H.r(2, 4, 12, 11, muro); H.r(2, 4, 12, 1, oscuro(muro, 0.25)); H.r(1, 3, 14, 1, oscuro(muro, 0.35));
+    H.r(3, 5, 10, 2, '#2a2a34'); for (const x of [4, 6, 8, 10, 11]) H.p(x, 6, '#f0c040'); H.p(4, 5, '#f0c040'); H.p(8, 5, '#f0c040'); H.p(11, 5, '#f0c040');
+    for (const x of [3, 11]) { H.r(x, 8, 2, 3, CRISTAL); H.p(x, 9, '#3a3a40'); H.p(x + 1, 9, '#3a3a40'); }
+    H.r(7, 9, 2, 6, '#3a2618'); H.p(8, 11, '#e0b040'); H.r(6, 8, 4, 1, col);
+    H.r(0, 15, 16, 1, oscuro(muro, 0.4));
     H.contorno(); return H.lienzo();
   }
   // La fábrica (Revolución Industrial): nave de ladrillo con tejado de dientes de sierra, ventanales y una chimenea alta.
