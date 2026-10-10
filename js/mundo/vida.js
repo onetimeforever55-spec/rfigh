@@ -879,7 +879,8 @@
     const huerfano = vacios.find(t => !conGremio.has(ciudadDe(t)));
     const libres = ciudades.filter(r => !conGremio.has(r) && !vacios.some(t => ciudadDe(t) === r));
     // Un gremio vacío en una ciudad que ya tiene el suyo sobra: el reino lo convierte en viviendas.
-    const sobra = vacios.find(t => conGremio.has(ciudadDe(t)));
+    // (Y si en una ciudad sin gremio activo quedan dos vacíos, sobra el segundo.)
+    const sobra = vacios.find(t => conGremio.has(ciudadDe(t))) ?? vacios.find((t, i) => vacios.findIndex(q => ciudadDe(q) === ciudadDe(t)) < i);
     if (sobra != null) cambiar(m, 'obra', sobra, OBRA.casa, 0);
     if (libres.length || huerfano != null) {
       // (Aunque sea mayor: al morir, el gremio pasa a su heredero.)
@@ -917,7 +918,8 @@
     // uno vacío, lo compra a mitad de precio; si no, lo levanta en la costa (materiales y obra se los paga al reino).
     if (c.era >= ERA_OBRA[OBRA.muelle]) for (const jefe of jefeCasa.values()) {
       const fam = jefe.familia, mc = jefe.merc;
-      const tiene = mercs.some(x => x.familia === fam && x.merc.muelle != null && (v.obra[x.merc.muelle] === OBRA.muelle || ((c.plan && c.plan.encargos) || []).some(e => e.t === x.merc.muelle)));
+      const tiene = mercs.some(x => x.familia === fam && x.merc.muelle != null && (v.obra[x.merc.muelle] === OBRA.muelle || ((c.plan && c.plan.encargos) || []).some(e => e.t === x.merc.muelle)))
+        || Object.keys(v.privados || {}).some(t => { const p = v.privados[t]; if (p.tipo !== 'muelle' || p.civ !== c.id) return false; const d = v.aldeanos.find(x => x.id === p.dueno); return d && d.familia === fam; });
       if (tiene) continue;
       delete mc.muelle;
       const precio = precioObra(m, 'muelle');
@@ -988,6 +990,17 @@
     const v = m.vida;
     // Los negocios privados de quien ya no está (murió, se fue o el reino perdió la tierra) pasan al reino.
     if (v.privados) for (const t of Object.keys(v.privados)) { const p = v.privados[t], a = v.aldeanos.find(x => x.id === p.dueno); if (p.civ === c.id && (!a || (p.tipo === 'gremio' || p.tipo === 'muelle' ? !a.merc : p.tipo === 'casona' ? false : !a.emp) || a.c !== c.id || m.dueno[region(m, +t)] !== c.id)) olvidarPrivado(m, c, +t); }
+    // Un muelle por familia, pase lo que pase (herencias, relevos, ventas): si una familia acaba con dos, se queda el primero
+    // y los demás quedan vacíos para que los compre otra casa.
+    if (v.privados) {
+      const visto = new Set();
+      for (const t of Object.keys(v.privados).map(Number).sort((p, q) => p - q)) {
+        const p = v.privados[t]; if (p.tipo !== 'muelle' || p.civ !== c.id) continue;
+        const a = v.aldeanos.find(x => x.id === p.dueno), k = a && (a.familia || 'id' + a.id);
+        if (!k) continue;
+        if (visto.has(k)) { olvidarPrivado(m, c, t); if (a.merc && a.merc.muelle === t) delete a.merc.muelle; } else { visto.add(k); if (a.merc) a.merc.muelle = t; }
+      }
+    }
     const impuesto = Math.min(0.6, 0.25 * ((c.plan && c.plan.impuesto) || 1));
     comercio(m, c, impuesto);
     if (!(c.bancos > 0) || c.era < 5) return;
@@ -1685,7 +1698,9 @@
       if (tiene[k] < meta) {
         const viejoNo = a => !(k === GUERRERO && (a.edad || 0) >= VIEJO);
         const candidatos = orden(libres.filter(a => a.o !== k && !conCupo(a.o) && viejoNo(a)));
-        candidatos.sort((x, y) => (tiene[y.o] - p[y.o] * fuera) - (tiene[x.o] - p[x.o] * fuera) || (x.k ? 1 : 0) - (y.k ? 1 : 0));
+        // (Primero los adultos jóvenes: un oficio nuevo es para años, no para quien está a punto de morir de viejo.)
+        const anciano = a => ((a.edad || 0) >= VIEJO ? 1 : 0);
+        candidatos.sort((x, y) => anciano(x) - anciano(y) || (tiene[y.o] - p[y.o] * fuera) - (tiene[x.o] - p[x.o] * fuera) || (x.k ? 1 : 0) - (y.k ? 1 : 0));
         for (const a of candidatos) { if (tiene[k] >= meta) break; tiene[a.o]--; tiene[k]++; mover(a, k); }
       }
     }
@@ -2281,6 +2296,32 @@
    * navega hasta el puerto de otro reino en paz y vuelve (oro para los dos).
    */
   function navegable(ter, t) { return ter[t] === 'agua' || ter[t] === 'bajo'; }
+  // ¿Esta agua es del océano (un mar abierto que toca el borde del mapa)?
+  const oceanica = (m, ter, t) => { const mr = maresDe(m, ter), id = mr.comp[t]; return id >= 0 && mr.borde.has(id) && (mr.tam[id] || 0) >= MAR_ABIERTO; };
+  // El camino por agua desde t hasta el borde del mapa más cercano.
+  function alBorde(m, de, ter) {
+    const v = m.vida, tw = v.tw, th = v.th, prev = new Map([[de, -1]]), cola = [de];
+    let fin = -1;
+    for (let i = 0; i < cola.length; i++) {
+      const t = cola[i], x = t % tw, y = Math.floor(t / tw);
+      if (x === 0 || y === 0 || x === tw - 1 || y === th - 1) { fin = t; break; }
+      for (const n of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) if (n >= 0 && n < ter.length && !prev.has(n) && navegable(ter, n)) { prev.set(n, t); cola.push(n); }
+    }
+    if (fin < 0) return null;
+    const out = [fin]; while (prev.get(out[out.length - 1]) !== -1) out.push(prev.get(out[out.length - 1]));
+    return out.reverse();
+  }
+  // LA TRAVESÍA POR EL OCÉANO: entre dos mares que no se tocan dentro del mapa, el barco sale por el borde, navega por
+  // alta mar (fuera del mapa, -1 en la ruta: no se ve) el tiempo que le llevaría rodear, y entra por el borde del otro.
+  function rutaOceano(m, de, a, ter) {
+    const directa = rutaPorMar(m, de, a, ter);
+    if (directa || !oceanica(m, ter, de) || !oceanica(m, ter, a)) return directa;
+    const ida = alBorde(m, de, ter), llegada = alBorde(m, a, ter);
+    if (!ida || !llegada) return null;
+    const tw = m.vida.tw, e1 = ida[ida.length - 1], e2 = llegada[llegada.length - 1];
+    const lejos = Math.abs(e1 % tw - e2 % tw) + Math.abs(Math.floor(e1 / tw) - Math.floor(e2 / tw));
+    return [...ida, ...new Array(Math.max(4, lejos)).fill(-1), ...llegada.reverse()];
+  }
   function rutaPorMar(m, de, a, ter) {
     const v = m.vida, prev = new Map([[de, -1]]), cola = [de];
     for (let i = 0; i < cola.length; i++) {
@@ -2310,7 +2351,11 @@
       for (let i = 0; i < cola.length; i++) { const t = cola[i], x = t % tw; for (const u of [x > 0 ? t - 1 : -1, x < tw - 1 ? t + 1 : -1, t - tw, t + tw]) if (u >= 0 && u < n && comp[u] < 0 && navegable(ter, u)) { comp[u] = id; cola.push(u); } }
       tam.push(cola.length);
     }
-    mares = { mundo: m, vez: Math.floor(m.turno / 50), comp, tam };
+    // Los mares que tocan el borde del mapa son el mismo océano: por fuera del mapa, todos se juntan.
+    const borde = new Set(), th = Math.floor(n / tw);
+    for (let x = 0; x < tw; x++) for (const t of [x, (th - 1) * tw + x]) if (comp[t] >= 0) borde.add(comp[t]);
+    for (let y = 0; y < th; y++) for (const t of [y * tw, y * tw + tw - 1]) if (comp[t] >= 0) borde.add(comp[t]);
+    mares = { mundo: m, vez: Math.floor(m.turno / 50), comp, tam, borde };
     return mares;
   }
   const MAR_ABIERTO = 250; // casillas de agua para que cuente como mar (y no como lago)
@@ -2326,22 +2371,30 @@
     }
     return mejor;
   }
+  // EL BARCO DE CADA MUELLE PRIVADO: un mercante de la casa comercial, que comercia con los socios del reino. Se bota
+  // al empezar el turno y también al acabarlo (así un muelle recién comprado o terminado ya tiene su barco).
+  function botarMuelles(m, ter) {
+    const v = m.vida;
+    for (const t of Object.keys(v.privados || {}).map(Number)) {
+      const pv = v.privados[t]; if (pv.tipo !== 'muelle' || v.obra[t] !== OBRA.muelle || m.dueno[region(m, t)] !== pv.civ || v.barcos.some(b => b.puerto === t)) continue;
+      const agua = aguaJunto(m, t, ter); if (agua == null) continue;
+      const x = agua % v.tw, y = agua / v.tw | 0;
+      v.barcos.push({ id: v.sig++, tipo: 'mercante', c: pv.civ, privado: pv.dueno, puerto: t, x, y, ruta: null, i: 0, vuelta: 0, r: [x, y] });
+    }
+  }
   let puertosDelTurno = [], travesias = {};
   function barcos(m, ter) {
     const v = m.vida;
     puertosDelTurno = [];
     for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === OBRA.puerto) puertosDelTurno.push(t);
     // Un barco que se queda sin puerto (quemado, conquistado) devuelve su carga a su pueblo antes de desaparecer.
+    // (Si el muelle pasó a otro dueño —herencia, relevo, venta—, el barco pasa con él.)
+    for (const b of v.barcos || []) if (b.privado != null && v.obra[b.puerto] === OBRA.muelle && v.privados && v.privados[b.puerto] && v.privados[b.puerto].tipo === 'muelle') b.privado = v.privados[b.puerto].dueno;
     const conMuelle = b => b.privado != null && v.obra[b.puerto] === OBRA.muelle && v.privados && v.privados[b.puerto] && v.privados[b.puerto].dueno === b.privado;
     const sigue = b => (v.obra[b.puerto] === OBRA.puerto || conMuelle(b)) && m.dueno[region(m, b.puerto)] === b.c;
     for (const b of v.barcos || []) if (b.carga && !sigue(b)) { const c = S().civ(m, b.c); if (c && c.viva) descargar(m, b, c); }
     v.barcos = (v.barcos || []).filter(sigue);
-    // EL BARCO DE CADA MUELLE PRIVADO: un mercante de la casa comercial, que comercia con los socios del reino.
-    for (const t of Object.keys(v.privados || {}).map(Number)) {
-      const pv = v.privados[t]; if (pv.tipo !== 'muelle' || v.obra[t] !== OBRA.muelle || v.barcos.some(b => b.puerto === t)) continue;
-      const agua = aguaJunto(m, t, ter); if (agua == null) continue;
-      v.barcos.push({ id: v.sig++, tipo: 'mercante', c: pv.civ, privado: pv.dueno, puerto: t, x: agua % v.tw, y: agua / v.tw | 0, ruta: null, i: 0, vuelta: 0, r: [] });
-    }
+    botarMuelles(m, ter);
     for (const t of puertosDelTurno) {
       const c = S().civ(m, m.dueno[region(m, t)]);
       if (!c) continue;
@@ -2410,7 +2463,7 @@
     if (travesias.mundo !== m) travesias = { mundo: m };
     for (const p of de.slice(0, 2)) for (const q of a2.slice(0, 2)) {
       const x = aguaJunto(m, p, ter), y = aguaJunto(m, q, ter); if (x == null || y == null) continue;
-      const clave = x + '>' + y; if (!(clave in travesias)) travesias[clave] = rutaPorMar(m, x, y, ter);
+      const clave = 'o' + x + '>' + y; if (!(clave in travesias)) travesias[clave] = rutaOceano(m, x, y, ter);
       if (travesias[clave]) return true;
     }
     return false;
@@ -2556,15 +2609,15 @@
         if (azar(v) < 0.45) { b.r.push(b.x, b.y); return; }
         // Solo a los puertos a los que se puede llegar por mar (mismo mar), de reinos en paz.
         const de = aguaJunto(m, b.puerto, ter), mr = maresDe(m, ter);
-        const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); if (!o || o.id === c.id || !comercian(m, c, o)) return false; const a = aguaJunto(m, t, ter); return de != null && a != null && mr.comp[a] === mr.comp[de]; });
+        const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); if (!o || o.id === c.id || !comercian(m, c, o)) return false; const a = aguaJunto(m, t, ter); return de != null && a != null && (mr.comp[a] === mr.comp[de] || (oceanica(m, ter, a) && oceanica(m, ter, de))); });
         if (!otros.length) { b.r.push(b.x, b.y); return; }
         // Si hay algo encargado, primero a un puerto de quien lo pueda vender.
         const utiles = otros.filter(t => sirveSocio(m, c, S().civ(m, m.dueno[region(m, t)])));
         const lista = utiles.length ? utiles : otros, destino = lista[Math.floor(azar(v) * lista.length)];
         const a = aguaJunto(m, destino, ter);
         // Las travesías se recuerdan (el mar no cambia): solo se calcula la primera vez.
-        const clave = de + '>' + a;
-        if (!(clave in travesias) || travesias.mundo !== m) { if (travesias.mundo !== m) travesias = { mundo: m }; travesias[clave] = rutaPorMar(m, de, a, ter); }
+        const clave = 'o' + de + '>' + a;
+        if (!(clave in travesias) || travesias.mundo !== m) { if (travesias.mundo !== m) travesias = { mundo: m }; travesias[clave] = rutaOceano(m, de, a, ter); }
         const ruta = travesias[clave];
         if (!ruta || ruta.length < 3) { b.r.push(b.x, b.y); return; }
         b.ruta = ruta; b.i = 0; b.vuelta = 0; b.destino = destino;
@@ -2572,6 +2625,8 @@
         const o = S().civ(m, m.dueno[region(m, destino)]);
         if (o && !b.carga) cargar(m, b, c, o, bodegaDe(c));
       }
+      // Si a mitad de camino ya no se puede comerciar con el destino (guerra, cierre, otro dueño), da media vuelta.
+      if (!b.vuelta && b.destino != null) { const o = S().civ(m, m.dueno[region(m, b.destino)]); if (!o || !comercian(m, c, o)) { b.vuelta = 1; b.destino = null; } }
       b.i += b.vuelta ? -2 : 2;
       if (!b.vuelta && b.i >= b.ruta.length - 1) {
         b.i = b.ruta.length - 1; b.vuelta = 1;
@@ -2583,9 +2638,11 @@
           const dueno = b.privado != null && v.aldeanos.find(x => x.id === b.privado && x.merc);
           if (dueno) { const flete = (2 + 0.4 * c.era) * (dueno.merc.de == null ? 1 : 1), imp = flete * 0.25; dueno.merc.caja = redondo(dueno.merc.caja + flete - imp); c.oro = (c.oro || 0) + imp; }
         }
+        b.destino = null; // (de vuelta a casa ya no comercia con nadie)
       } else if (b.vuelta && b.i <= 0) { b.i = 0; b.ruta = null; descargar(m, b, c); }
       const t = b.ruta ? b.ruta[Math.max(0, Math.min(b.ruta.length - 1, b.i))] : aguaJunto(m, b.puerto, ter);
-      if (t != null) { b.x = t % v.tw; b.y = t / v.tw | 0; }
+      if (t != null && t < 0) { b.altaMar = 1; b.x = -20; b.y = -20; }
+      else if (t != null) { b.altaMar = 0; b.x = t % v.tw; b.y = t / v.tw | 0; }
     }
     b.r.push(b.x, b.y);
   }
@@ -2978,6 +3035,7 @@
     fauna(m, ter);
     comer(m);
     if (pausada(m)) { subsuelo(m, ter); mercado(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length, carbones: x.carbones.length }))); }
+    botarMuelles(m, ter); // (un muelle recién comprado o terminado ya tiene su barco al acabar el turno)
     // La crónica cuenta los lobos cuando hacen daño de verdad (una vez cada tanto por pueblo).
     for (const c of S().vivas(m)) {
       const mordidos = (v.mordidos || {})[c.id] || 0;
@@ -4646,12 +4704,15 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     const v = m.vida, todas = {};
     for (let t = 0; t < v.obra.length; t++) if (VIVIENDA.has(v.obra[t])) { const d = m.dueno[region(m, t)]; if (d >= 0) (todas[d] = todas[d] || []).push(t); }
     const porCiv = {};
-    for (const a of v.aldeanos) if (a.colono == null && a.aBordo == null) (porCiv[a.c] = porCiv[a.c] || []).push(a);
+    // (Los que van embarcados o de colonos no se mueven de casa, pero guardan su cama: así no vuelven a una casa llena.)
+    const fuera = a => a.colono != null || a.aBordo != null, ausentes = {};
+    for (const a of v.aldeanos) if (!fuera(a)) (porCiv[a.c] = porCiv[a.c] || []).push(a); else if (a.casa != null) (ausentes[a.c] = ausentes[a.c] || []).push(a.casa);
     for (const c of S().vivas(m)) {
       const lista = porCiv[c.id]; if (!lista) continue;
       const extra = M.tec(c, 'casa'), cap = new Map();
       for (const t of todas[c.id] || []) if (VIVIENDA.has(v.obra[t]) && m.dueno[region(m, t)] === c.id) cap.set(t, camasDe(v, t, extra));
       const ocupa = new Map(), porId = new Map(lista.map(a => [a.id, a]));
+      for (const t of ausentes[c.id] || []) if (cap.has(t)) ocupa.set(t, (ocupa.get(t) || 0) + 1);
       const hay = t => t != null && cap.has(t) && (ocupa.get(t) || 0) < cap.get(t);
       const entra = (a, t) => { a.casa = t; ocupa.set(t, (ocupa.get(t) || 0) + 1); };
       // Primero los adultos (los niños van con ellos), y siempre en el mismo orden.

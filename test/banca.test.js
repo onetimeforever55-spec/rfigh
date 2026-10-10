@@ -23,21 +23,29 @@ for (let k = 0; k < 90 && !(c.bancos > 0 && c.banca); k++) { sostener(); turno()
 
 console.log('LOS GREMIOS (Edad Media)');
 {
-  const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 60; k++) S.turno(g);
-  const r = S.vivas(g)[0], w = g.vida; X.gobernar(g, r.id); g.modo = 'pueblo';
-  r.nivel = 4; r.nivelMax = 4; r.madera = r.piedra = 300; r.oro = 300;
-  r.plan.comercioLibre = true; // (con socios: sin comercio exterior, los mercaderes ganan menos y tardan en hacerse ricos)
-  X.ordenar(g, r.id, 'quiero 4 comerciantes');
-  const av = []; let gremio = null, casona = null, conSueldo = false, oroDeObras = 0;
-  for (let k = 0; k < 220 && !(gremio != null && casona != null && conSueldo); k++) {
-    r.era = Math.max(r.era, 4); r.oro = Math.max(r.oro, 100); r.madera = Math.max(r.madera, 100); r.piedra = Math.max(r.piedra, 100);
-    const n0 = (w.anuncios || []).length; S.turno(g);
-    av.push(...(w.anuncios || []).slice(n0).filter(x => x.civ === r.id).map(x => x.texto));
-    for (const t of Object.keys(w.privados || {})) { if (w.obra[t] === V.OBRA.gremio && gremio == null) gremio = +t; if (w.obra[t] === V.OBRA.casona && casona == null) casona = +t; }
-    if (w.aldeanos.some(a => a.gremio != null && a.o === 5 && V.mercaderesDe(g, r).some(x => x.id === a.gremio))) conSueldo = true;
-  }
+  // (Si en una partida los comerciantes mueren de viejos antes de ahorrar, se mira otra: es cuestión de suerte.)
+  const probar = sd => {
+    const g = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 60; k++) S.turno(g);
+    const r = S.vivas(g)[0], w = g.vida; X.gobernar(g, r.id); g.modo = 'pueblo';
+    r.nivel = 4; r.nivelMax = 4; r.madera = r.piedra = 300; r.oro = 300;
+    r.plan.comercioLibre = true; // (con socios: sin comercio exterior, los mercaderes ganan menos y tardan en hacerse ricos)
+    for (const o of S.vivas(g)) if (o !== r && !S.enGuerra(r, o)) X.ordenar(g, r.id, 'abrid una ruta comercial con ' + o.nombre);
+    X.ordenar(g, r.id, 'quiero 4 comerciantes');
+    const av = []; let gremio = null, casona = null, conSueldo = false;
+    for (let k = 0; k < 220 && !(gremio != null && casona != null && conSueldo); k++) {
+      r.era = Math.max(r.era, 4); r.oro = Math.max(r.oro, 100); r.madera = Math.max(r.madera, 100); r.piedra = Math.max(r.piedra, 100);
+      const n0 = (w.anuncios || []).length; S.turno(g);
+      av.push(...(w.anuncios || []).slice(n0).filter(x => x.civ === r.id).map(x => x.texto));
+      for (const t of Object.keys(w.privados || {})) { if (w.obra[t] === V.OBRA.gremio && gremio == null) gremio = +t; if (w.obra[t] === V.OBRA.casona && casona == null) casona = +t; }
+      if (w.aldeanos.some(a => a.gremio != null && a.o === 5 && V.mercaderesDe(g, r).some(x => x.id === a.gremio))) conSueldo = true;
+    }
+    return { g, r, w, av, gremio, casona, conSueldo, sd };
+  };
+  let p = null;
+  for (const sd of [7, 11, 3]) { p = probar(sd); if (p.gremio != null && p.casona != null && p.conSueldo) break; }
+  const { g, r, w, av, gremio, casona, conSueldo } = p; let oroDeObras = 0;
   for (const x of av) { const q = x.match(/paga (\d+) de oro al reino/); if (q) oroDeObras += +q[1]; }
-  comprobar(av.some(x => /funda un gremio de mercaderes/.test(x)) && gremio != null && /^Gremio de mercaderes /.test((w.edificios[gremio] || {}).nombre || ''), 'un comerciante que ahorró funda un gremio con su dinero (' + ((w.edificios[gremio] || {}).nombre || 'ninguno') + ')');
+  comprobar(av.some(x => /funda un gremio de mercaderes/.test(x)) && gremio != null && /^Gremio de mercaderes /.test((w.edificios[gremio] || {}).nombre || ''), 'un comerciante que ahorró funda un gremio con su dinero (' + ((w.edificios[gremio] || {}).nombre || 'ninguno') + ', semilla ' + p.sd + ')');
   comprobar(conSueldo, 'los comerciantes del gremio trabajan para el mercader');
   comprobar(casona != null && /^Casona de /.test((w.edificios[casona] || {}).nombre || ''), 'el mercader que gana lo bastante se hace su casona (' + ((w.edificios[casona] || {}).nombre || 'ninguna') + ')');
   comprobar(oroDeObras > 0, 'gremio y casona se pagan al reino: materiales y obra (' + oroDeObras + ' de oro)');

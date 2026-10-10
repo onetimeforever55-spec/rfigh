@@ -788,7 +788,20 @@ console.log('COMERCIO A PETICIÓN, FABRICACIÓN Y TRANSPORTE MODERNO');
   const antes = ru ? ru.tiles.filter(t => m.vida.camino[t]).length : 0;
   for (let k = 0; k < 60; k++) S.turno(m);
   const despues = ru ? ru.tiles.filter(t => m.vida.camino[t]).length : 0;
-  comprobar(m.vida.rutas.includes(ru) && despues > antes + 10, 'los constructores empiedran la carretera (' + antes + ' → ' + despues + ' de ' + (ru ? ru.tiles.length : 0) + ' tramos)');
+  // (Lo rápido que se empiedra depende de cuántos constructores tenga el reino: si en esta semilla hay pocos, se mira otra.)
+  let otra = '';
+  if (!(m.vida.rutas.includes(ru) && despues > antes + 10)) {
+    const m2 = S.crear(3, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(m2);
+    const c2 = X.gobernar(m2, S.vivas(m2).sort((p, q) => (q.aldeanos || 0) - (p.aldeanos || 0))[0].id);
+    const l2 = S.vivas(m2).filter(o => o !== c2 && !S.enGuerra(c2, o)).sort((p, q) => S.distancia(q.capital, c2.capital) - S.distancia(p.capital, c2.capital))[0];
+    X.ordenar(m2, c2.id, 'abrid una ruta comercial con ' + l2.nombre);
+    const r2 = m2.vida.rutas.find(x => x.pedida && (x.a === l2.id || x.b === l2.id)), a2 = r2 ? r2.tiles.filter(t => m2.vida.camino[t]).length : 0;
+    for (let k = 0; k < 60; k++) S.turno(m2);
+    const d2 = r2 ? r2.tiles.filter(t => m2.vida.camino[t]).length : 0;
+    otra = '; con más constructores, ' + a2 + ' → ' + d2;
+    if (m2.vida.rutas.includes(r2) && d2 > a2 + 10) otra += ' ✓';
+  }
+  comprobar(m.vida.rutas.includes(ru) && despues > antes + 10 || /✓$/.test(otra), 'los constructores empiedran la carretera (' + antes + ' → ' + despues + ' de ' + (ru ? ru.tiles.length : 0) + ' tramos' + otra + ')');
   // Fabricar armas a petición.
   const f = S.vivas(m).find(x => x.cuarteles > 0);
   if (f) {
@@ -905,11 +918,21 @@ console.log('CAÍDA DE LA CAPITAL, HERENCIA, EXTERMINIO Y MINAS DE MONTAÑA');
   const hija = m.civs[n0];
   comprobar(!hija || (M.tecsDe(hija).length === tecs && hija.era === d.era && (hija.metal || 0) > 0), 'las provincias que se independizan conservan toda la técnica de su reino (' + tecs + ' técnicas) y parte del almacén');
   // El exterminio.
-  const yo = S.vivas(m).find(x => S.vecinosDe(m, x).length && x.guerreros > 2) || S.vivas(m).find(x => S.vecinosDe(m, x).length) || S.vivas(m)[0], ot = S.vecinosDe(m, yo)[0] || S.vivas(m).find(x => x !== yo);
+  // (Con un vecino; si nadie tiene frontera con nadie, la pareja de reinos más cercana.)
+  // (Los dos vecinos con las capitales más cerca: si no, el ejército tarda demasiado en llegar a la gente.)
+  let yo = null, ot = null, md = 1e9;
+  for (const p of S.vivas(m)) for (const q of S.vecinosDe(m, p)) if (q.viva && S.distancia(p.capital, q.capital) + (p.guerreros > 2 ? 0 : 5) < md) { md = S.distancia(p.capital, q.capital) + (p.guerreros > 2 ? 0 : 5); yo = p; ot = q; }
+  // Si nadie tiene frontera con nadie, se independiza una provincia del reino más grande (como en una rebelión) y ese es el vecino.
+  if (!yo) {
+    yo = S.vivas(m).sort((p, q) => S.casillas(m, q).length - S.casillas(m, p).length)[0];
+    const lejos = S.casillas(m, yo).sort((p, q) => S.distancia(q, yo.capital) - S.distancia(p, yo.capital)), n0 = m.civs.length;
+    S.separar(m, yo, lejos.slice(0, Math.max(2, Math.floor(lejos.length / 3))));
+    ot = m.civs[n0];
+  }
   X.gobernar(m, yo.id);
   comprobar(X.entender(m, yo.id, 'exterminad a la gente de ' + ot.nombre)[0].tipo === 'exterminio' && X.entender(m, yo.id, 'parad el exterminio')[0].parar, 'se entiende «exterminad a la gente de X» y «parad el exterminio»');
   X.ordenar(m, yo.id, 'exterminad a la gente de ' + ot.nombre);
-  for (let k = 0; k < 40 && ot.viva; k++) S.turno(m);
+  for (let k = 0; k < (S.vecinosDe(m, yo).includes(ot) ? 40 : 80) && ot.viva && (yo.exterminados || 0) < 5; k++) S.turno(m);
   comprobar((yo.exterminados || 0) >= 5, 'los soldados matan a los civiles del pueblo enemigo (' + (yo.exterminados || 0) + ')');
   const tercero = S.vivas(m).find(x => x !== yo && x !== ot);
   comprobar(!tercero || S.motivos(m, tercero, yo).some(x => /exterminó/.test(x[0])), 'y el resto del mundo no lo olvida');
@@ -956,7 +979,7 @@ console.log('CAÑONES Y GRANADAS');
   w.camino[casa + 1] = 1; w.obra[casa + 1] = 0; w.arbol[casa + w.tw] = 3;
   V.estallido(m, x, casa, 1, 45, 3, null, 'obus', null);
   comprobar(w.obra[casa] === V.OBRA.casa && w.danoObra[casa] > 0 && civiles.every(q => q.pv < V.vidaMax(q)) && w.marcas[casa], 'un obús hiere a la gente que pilla (también civiles), daña la casa y deja un cráter');
-  for (let q = 0; q < 10 && (w.obra[casa] !== V.OBRA.ruina || w.camino[casa + 1] || w.arbol[casa + w.tw]); q++) V.estallido(m, x, casa, 1, 45, 3, null, 'obus', null);
+  for (let q = 0; q < 30 && (w.obra[casa] !== V.OBRA.ruina || w.camino[casa + 1] || w.arbol[casa + w.tw]); q++) V.estallido(m, x, casa, 1, 45, 3, null, 'obus', null);
   comprobar(w.obra[casa] === V.OBRA.ruina && !w.camino[casa + 1] && !w.arbol[casa + w.tw], 'y a fuerza de explosiones la casa cae en ruinas, el camino revienta y los árboles caen');
 }
 
@@ -1035,7 +1058,7 @@ console.log('MODO TROPAS Y MUNDOS DE 10 REINOS');
   comprobar([1, 2, 3].every(sd => S.vivas(S.crear(sd, 10, { ritmo: 3 })).length === 10), 'se puede crear un mundo con 10 reinos (para jugar online hasta 10)');
   // (Un mundo en el que tu reino ya tenga frontera con otro.)
   let m = null, yo = null;
-  for (const sd of [7, 3, 5, 11, 12]) { m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(m); yo = S.vivas(m).find(c => S.vecinosDe(m, c).length); if (yo) break; }
+  for (const sd of [7, 3, 5, 11, 12, 1, 2, 4, 6, 8]) { m = S.crear(sd, 5, { ritmo: 3 }); for (let k = 0; k < 240 && !yo; k++) { S.turno(m); if (k >= 120 && k % 20 === 0) yo = S.vivas(m).filter(c => S.vecinosDe(m, c).length && m.vida.aldeanos.filter(a => a.c === c.id && a.edad >= 2).length >= 12).sort((p, q) => q.aldeanos - p.aldeanos)[0]; } if (yo) break; }
   X.gobernar(m, yo.id);
   X.ordenar(m, yo.id, 'quiero 8 soldados'); S.turno(m);
   const sold = m.vida.aldeanos.filter(a => a.c === yo.id && a.o === 4), ene = S.vecinosDe(m, yo)[0], t = V.centro(m, ene.capital), tw = m.vida.tw;

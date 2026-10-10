@@ -1401,6 +1401,8 @@
     for (const b of v.barcos || []) {
       if (b.hundido) continue; // lo dibuja el naufragio
       const br = rVisto.get(b) || b.r;
+      // En alta mar (fuera del mapa, entre dos mares) no se ve.
+      if (b.x < 0 || (br && br.length >= 4 && (br[Math.min(br.length - 2, paso * 2)] < 0 || br[Math.min(br.length - 2, paso * 2 + 2)] < 0))) continue;
       let px = b.x * P, py = b.y * P;
       if (br && br.length >= 4) { const i = paso * 2, j = Math.min(br.length - 2, i + 2); px = (br[i] + (br[j] - br[i]) * f) * P; py = (br[i + 1] + (br[j + 1] - br[i + 1]) * f) * P; }
       if (px < x0 - 10 || py < y0 - 10 || px > x1 + 10 || py > y1 + 10) continue;

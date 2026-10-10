@@ -115,7 +115,9 @@ console.log('COMPRAR LO QUE TIENE OTRO REINO (AUNQUE NO LE SOBRE)');
   X.ordenar(g, yo.id, 'comprad 10 de hierro');
   let solo = 0;
   for (let k = 0; k < 40; k++) { socio.metal = Math.max(socio.metal || 0, 40); yo.oro = Math.max(yo.oro || 0, 300); S.turno(g); solo += ((g.mercado && g.mercado.tratos) || []).filter(x => x.t === g.turno && x.compra === yo.id && x.que === 'metal').reduce((q, x) => q + x.n, 0); }
-  comprobar(solo >= 5 && solo <= 12, 'con «comerciad solo lo que yo diga», solo llega lo encargado (' + solo + ' de 10)');
+  // (Lo que ya venía de camino en un barco también cuenta para el encargo: se compra solo lo que falta.)
+  const queda = (yo.plan.pedidos || []).filter(p => p.que === 'metal').reduce((q, p) => q + p.n, 0);
+  comprobar(solo <= 12 && queda === 0, 'con «comerciad solo lo que yo diga», solo llega lo encargado (' + solo + ' comprado ahora, encargo ' + (queda ? 'pendiente: ' + queda : 'cumplido') + ')');
   X.ordenar(g, yo.id, 'comerciad libremente');
   comprobar(llegan > 0, 'y se avisa cuando llega (' + llegan + ' avisos «📦 Llegan … de metal»)');
 }
@@ -130,6 +132,24 @@ console.log('CON TUS SOCIOS, EL COMERCIO VA SOLO (SIN OFERTAS QUE ACEPTAR)');
   for (let k = 0; k < 40; k++) { g.vida.anuncios = []; S.turno(g); tratos += ((g.mercado && g.mercado.tratos) || []).filter(x => x.t === g.turno && (x.compra === yo.id || x.vende === yo.id)).length; ofertas += (g.vida.anuncios || []).filter(x => x.civ === yo.id && /os ofrece|quiere comprar/.test(x.texto)).length + (yo.oferta ? 1 : 0); }
   comprobar(tratos > 0, 'con un socio abierto, tus comerciantes compran y venden solos lo que conviene, sin encargar nada (' + tratos + ' tratos con ' + socio.nombre + ')');
   comprobar(ofertas === 0, 'y no llegan ofertas que haya que aceptar a mano (' + ofertas + ')');
+}
+
+console.log('POR MAR, AUNQUE SEA OTRO MAR: TODOS LOS OCÉANOS SE JUNTAN');
+{
+  // En este mapa, tu reino tiene sus puertos en un mar y el socio en otro (separados por tierra dentro del mapa).
+  const g = S.crear(3, 6, { ritmo: 3 }), yo = S.civ(g, 0); X.gobernar(g, yo.id);
+  for (let k = 0; k < 300; k++) S.turno(g);
+  const otro = S.civ(g, 4);
+  if (yo.viva && otro && otro.viva && !S.enGuerra(yo, otro) && yo.puertos > 0 && otro.puertos > 0) {
+    X.ordenar(g, yo.id, 'abrid una ruta comercial con ' + otro.nombre);
+    g.vida.rutas = g.vida.rutas.filter(r => !(r.tipo === 'externa' && [r.a, r.b].includes(yo.id))); // (solo por mar)
+    otro.metal = Math.max(otro.metal || 0, 60); yo.oro = Math.max(yo.oro || 0, 500);
+    const r = X.ordenar(g, yo.id, 'comprad 10 de hierro').respuesta;
+    let alta = 0, porMar = 0;
+    for (let k = 0; k < 60; k++) { otro.metal = Math.max(otro.metal || 0, 60); yo.oro = Math.max(yo.oro || 0, 500); S.turno(g); alta += g.vida.barcos.filter(b => b.c === yo.id && b.altaMar).length; porMar += ((g.mercado && g.mercado.tratos) || []).filter(x => x.t === g.turno && x.ruta === 'mar' && [x.compra, x.vende].includes(yo.id) && [x.compra, x.vende].includes(otro.id)).length; }
+    comprobar(new RegExp(otro.nombre + ' \\(\\d+, en barco\\)').test(r), 'el consejero dice que llega en barco, aunque esté en otro mar');
+    comprobar(alta > 0 && porMar > 0, 'tus barcos salen por el borde, cruzan el océano y comercian con él (' + alta + ' turnos en alta mar, ' + porMar + ' tratos)');
+  } else comprobar(false, 'hace falta el mapa con los dos mares para probarlo');
 }
 
 console.log('LOS CRÉDITOS A TU REINO, SOLO SI LOS PIDES');
