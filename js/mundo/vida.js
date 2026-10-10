@@ -464,7 +464,7 @@
     const pv = v.privados && v.privados[t], duenio = pv && v.aldeanos.find(x => x.id === pv.dueno);
     if (duenio) {
       const era = c ? c.era : 0, quien = duenio.nombre + ' ' + (duenio.familia || '');
-      v.edificios[t].nombre = o === OBRA.gremio ? 'Gremio de mercaderes ' + (duenio.familia || duenio.nombre) : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
+      v.edificios[t].nombre = o === OBRA.gremio ? 'Gremio de mercaderes ' + (duenio.familia || duenio.nombre) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
       v.edificios[t].dueno = quien;
     }
   }
@@ -724,12 +724,14 @@
     const familia = v.aldeanos.filter(b => b !== a && b.c === a.c && !b.emp && !b.merc && !esNino(b) && !(quitar && quitar.has(b)) && (b.padre === a.id || b.madre === a.id || b.id === a.pareja || b.pareja === a.id));
     const hijo = familia.filter(b => b.padre === a.id || b.madre === a.id).sort((x, y) => (x.edad || 0) - (y.edad || 0))[0], b = hijo || familia[0];
     delete a.emp; delete a.merc;
+    // Sin heredero, la sucursal más antigua pasa a ser la casa de la familia (y las otras le mandan a ella).
+    if (!b) { const suc = v.aldeanos.filter(x => x.merc && x.merc.de === a.id); if (suc.length) { delete suc[0].merc.de; for (const x of suc.slice(1)) x.merc.de = suc[0].id; } }
     if (b && c) {
       if (e) b.emp = e;
       if (mc) b.merc = mc;
       b.dinero = (b.dinero || 0) + (a.dinero || 0); a.dinero = 0; mover(b, COMERCIANTE);
       if (v.privados) for (const t of Object.keys(v.privados)) if (v.privados[t].dueno === a.id) v.privados[t].dueno = b.id;
-      for (const x of v.aldeanos) { if (x.gremio === a.id) x.gremio = b.id; if (x.emp && x.emp.banquero === a.id) x.emp.banquero = b.id; }
+      for (const x of v.aldeanos) { if (x.gremio === a.id) x.gremio = b.id; if (x.emp && x.emp.banquero === a.id) x.emp.banquero = b.id; if (x.merc && x.merc.de === a.id) x.merc.de = b.id; }
       anunciar(m, c, (e ? '🏦 ' : '🏪 ') + nombreDe(b) + ' hereda ' + (e && e.neg === 'banco' ? 'el banco' : e ? 'el negocio' : 'el gremio') + ' de ' + nombreDe(a) + (hijo ? '' : ', su pareja') + (e && e.deuda > 0 ? ' (y su deuda)' : ''));
     } else if (c) {
       if (e && e.neg === 'banco') { if (c.banca && e.deuda > 0) c.banca.perdido = (c.banca.perdido || 0) + e.deuda; prestamosAlCentral(m, c, a.id); }
@@ -755,7 +757,7 @@
     return q;
   }
   // LOS COMERCIANTES, LOS MERCADERES Y SUS GREMIOS (cada turno, cuentas sencillas).
-  const PLAZAS_GREMIO = 4;
+  const SUCURSALES = 3, PLAZAS_GREMIO = 4;
   const mercaderesDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.merc);
   const gremiosDe = (m, c) => Object.keys(m.vida.privados || {}).filter(t => m.vida.privados[t].civ === c.id && m.vida.privados[t].tipo === 'gremio' && m.vida.obra[t] === OBRA.gremio).map(Number);
   const redondo = x => Math.round(x * 100) / 100;
@@ -776,11 +778,18 @@
         a.dinero = redondo((a.dinero || 0) + (0.2 + 0.05 * c.era) * (1 - impuesto));
       }
     }
+    // Cada familia tiene una sola casa comercial en el reino: el jefe es el de la casa principal (o el más antiguo);
+    // los demás gremios de la familia son sus sucursales (así también al heredar, o si una ciudad cambia de reino).
+    const jefeCasa = new Map();
+    for (const a of S().ordenarPor(mercs.slice(), x => (x.merc.de == null ? 0 : 1e13) + (x.merc.desde || 0) * 1e7 + x.id)) if (a.familia && !jefeCasa.has(a.familia)) jefeCasa.set(a.familia, a);
     for (const a of mercs) {
       const mc = a.merc;
       // El mercader también comercia; y si su gremio se perdió (lo tiraron o se quemó), puede fundar otro.
       const g = 0.4 + 0.08 * c.era, imp = g * impuesto;
       mc.caja = redondo(mc.caja + g - imp); c.oro = (c.oro || 0) + imp;
+      // Una sucursal manda lo que gana a la caja del jefe de la familia; si la casa ya no está, va por su cuenta.
+      const jefe = a.familia ? jefeCasa.get(a.familia) : null;
+      if (jefe && jefe !== a) { mc.de = jefe.id; jefe.merc.caja = redondo(jefe.merc.caja + mc.caja); mc.caja = 0; } else delete mc.de;
       if (mc.t != null && v.obra[mc.t] !== OBRA.gremio && !(v.andamios && v.andamios[mc.t]) && !((c.plan && c.plan.encargos) || []).some(x => x.t === mc.t)) mc.t = null;
       if (mc.casona != null && v.obra[mc.casona] === OBRA.casona && a.casa !== mc.casona) a.casa = mc.casona;
       if (a.o !== COMERCIANTE) mover(a, COMERCIANTE);
@@ -793,21 +802,29 @@
       a.gremio = jefe.id; enGremio.set(jefe.id, enGremio.get(jefe.id) + 1);
     }
     if (c.era < 4 || m.turno % 8 !== c.id % 8) return;
-    // UN MERCADER NUEVO: el comerciante que más ha juntado funda su gremio (uno por ciudad como mucho).
+    // UN MERCADER NUEVO: el comerciante que más ha juntado funda su gremio (uno por ciudad como mucho). Si su familia
+    // ya tiene una casa comercial, abre una sucursal de esa casa (hasta SUCURSALES por familia), no un gremio aparte.
     const ciudades = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
     const conGremio = new Set(mercs.filter(x => x.merc.t != null).map(x => region(m, x.merc.t)));
     const libres = ciudades.filter(r => !conGremio.has(r));
     if (libres.length) {
       // (Aunque sea mayor: al morir, el gremio pasa a su heredero.)
-      const cand = v.aldeanos.filter(a => a.c === c.id && a.o === COMERCIANTE && !a.emp && !a.merc && !esNino(a) && (a.dinero || 0) >= precioObra(m, 'gremio')).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
+      const casa = a => mercs.find(x => a.familia && x.familia === a.familia && x.merc.de == null);
+      const llena = a => a.familia && mercs.filter(x => x.familia === a.familia).length > SUCURSALES;
+      const cand = v.aldeanos.filter(a => a.c === c.id && a.o === COMERCIANTE && !a.emp && !a.merc && !esNino(a) && (a.dinero || 0) >= precioObra(m, 'gremio') && !llena(a)).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
       // En la primera ciudad sin gremio que tenga sitio.
       let t = null;
       if (cand) for (const r of libres) { t = sitioPara(m, c, 'gremio', [r]); if (t != null) break; }
       if (cand && t != null) {
         const pagado = encargarPrivado(m, c, cand, 'gremio', t, 'gremio');
         if (pagado) {
+          const jefe = casa(cand);
           cand.merc = { t, caja: 0, desde: m.turno }; delete cand.gremio; mover(cand, COMERCIANTE);
-          anunciar(m, c, '🏪 ' + nombreDe(cand) + ' funda un gremio de mercaderes con su dinero (paga ' + Math.round(pagado) + ' de oro al reino por la obra)');
+          if (jefe) {
+            cand.merc.de = jefe.id; v.privados[t].sucursal = 1;
+            anunciar(m, c, '🏪 ' + nombreDe(cand) + ' abre una sucursal de la casa comercial ' + cand.familia + ' (paga ' + Math.round(pagado) + ' de oro al reino por la obra; lo que gane irá a ' + nombreDe(jefe) + ', el jefe de la familia)');
+          }
+          else anunciar(m, c, '🏪 ' + nombreDe(cand) + ' funda un gremio de mercaderes con su dinero (paga ' + Math.round(pagado) + ' de oro al reino por la obra)');
         }
       }
     }
@@ -1615,7 +1632,7 @@
   const ERA_OBRA = { [OBRA.torre]: 1, [OBRA.templo]: 1, [OBRA.puerto]: 0, [OBRA.cuartel]: 1, [OBRA.arqueria]: 1, [OBRA.castillo]: 2, [OBRA.fuente]: 1, [OBRA.palacio]: 1, [OBRA.parque]: 3, [OBRA.central]: 7, [OBRA.banco]: 5, [OBRA.fabrica]: 6, [OBRA.estacion]: 6, [OBRA.hospital]: 7, [OBRA.aerodromo]: 7, [OBRA.aduana]: 6, [OBRA.petroleo]: 7, [OBRA.mina]: 1 };
   // El gremio de mercaderes (desde la Edad Media) y la casona del mercader rico (palacete en el Renacimiento,
   // mansión desde la Revolución Industrial): los paga su dueño, comprándole al reino la madera y la piedra.
-  COSTES[OBRA.gremio] = [6, 3, 3]; TRABAJO[OBRA.gremio] = 5; NIVEL_OBRA[OBRA.gremio] = 2; ERA_OBRA[OBRA.gremio] = 4;
+  COSTES[OBRA.gremio] = [12, 6, 6]; TRABAJO[OBRA.gremio] = 7; NIVEL_OBRA[OBRA.gremio] = 2; ERA_OBRA[OBRA.gremio] = 4;
   COSTES[OBRA.casona] = [10, 8, 4]; TRABAJO[OBRA.casona] = 6; NIVEL_OBRA[OBRA.casona] = 2; ERA_OBRA[OBRA.casona] = 4;
   const NOMBRE_ERA = ['el Neolítico', 'la Edad del Bronce', 'la Edad del Hierro', 'la Antigüedad clásica', 'la Edad Media', 'el Renacimiento', 'la Revolución Industrial', 'la Era Moderna', 'la II Guerra Mundial'];
   /*

@@ -845,7 +845,7 @@
       if (emp.length) l.push('Empresarios: ' + emp.map(a => a.nombre + ' ' + (a.familia || '') + ' (' + (a.emp.neg === 'fabrica' ? 'fábrica' : 'mercader') + (a.emp.deuda > 0 ? ', debe ' + Math.round(a.emp.deuda) : ', sin deudas') + ')').join(', ') + '.');
     } else l.push(c.era >= 5 ? 'Aún no tenéis banco: «construid un banco» (hace falta una villa o ciudad).' : 'El banco llega con el Renacimiento. Mientras, vuestros mercaderes ahorran.');
     const mercs = M.vida.mercaderesDe(m, c);
-    if (c.era >= 4) l.push(mercs.length ? 'Gremios: ' + mercs.map(a => 'el de ' + a.nombre + ' ' + (a.familia || '') + ' (caja ' + Math.round(a.merc.caja) + ')').join(', ') + '.' : 'Aún no hay gremios: el comerciante que junte lo bastante fundará uno.');
+    if (c.era >= 4) l.push(mercs.length ? 'Casas comerciales: ' + mercs.filter(a => a.merc.de == null).map(a => { const n = mercs.filter(x => x.merc.de === a.id).length; return 'la de ' + a.nombre + ' ' + (a.familia || '') + ' (' + (n ? n + (n > 1 ? ' sucursales, ' : ' sucursal, ') : '') + 'caja ' + Math.round(a.merc.caja) + ')'; }).join(', ') + '.' : 'Aún no hay gremios: el comerciante que junte lo bastante fundará uno.');
     const ricos = m.vida.aldeanos.filter(a => a.c === c.id && !a.emp && (a.dinero || 0) >= 1).sort((x, y) => y.dinero - x.dinero).slice(0, 3);
     if (ricos.length) l.push('Los más ricos: ' + ricos.map(a => a.nombre + ' ' + (a.familia || '') + ' (' + Math.round(a.dinero) + ')').join(', ') + '.');
     const debo = (m.creditos || []).filter(cr => cr.a === c.id), meDeben = (m.creditos || []).filter(cr => cr.de === c.id);

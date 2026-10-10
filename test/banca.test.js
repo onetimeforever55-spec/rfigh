@@ -148,6 +148,15 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   for (let k = 0; k < 420; k++) S.turno(n);
   const conGremio = S.vivas(n).filter(c => V.gremiosDe(n, c).length > 0);
   comprobar(conGremio.length >= 2, 'en la Edad Media los comerciantes ricos fundan gremios por su cuenta (' + conGremio.length + ' reinos con gremio)');
+  // LAS CASAS COMERCIALES: el pariente de un mercader no funda un gremio aparte, abre una sucursal de la casa.
+  const avisos2 = [];
+  for (let k = 0; k < 220; k++) { const n0 = (n.vida.anuncios || []).length; S.turno(n); avisos2.push(...(n.vida.anuncios || []).slice(n0).map(x => x.texto)); }
+  const mercs = S.vivas(n).flatMap(c => V.mercaderesDe(n, c)), suc = mercs.filter(a => a.merc.de != null);
+  comprobar(suc.length > 0 && avisos2.some(x => /abre una sucursal de la casa comercial/.test(x)), 'los parientes abren sucursales de la casa de la familia (' + suc.length + ' sucursales)');
+  comprobar(suc.every(a => { const j = mercs.find(x => x.id === a.merc.de); return j && j.familia === a.familia && j.merc.de == null && a.merc.caja === 0; }), 'lo que gana cada sucursal sube a la caja del jefe de la familia');
+  comprobar(S.vivas(n).every(c => { const jefes = V.mercaderesDe(n, c).filter(a => a.merc.de == null).map(a => a.familia); return jefes.length === new Set(jefes).size; }), 'cada familia tiene una sola casa comercial en su reino');
+  const sucNombre = Object.keys(n.vida.privados || {}).filter(t => n.vida.privados[t].sucursal && n.vida.obra[t] === V.OBRA.gremio).map(t => (n.vida.edificios[t] || {}).nombre);
+  comprobar(!sucNombre.length || sucNombre.every(x => / \(sucursal\)$/.test(x || '')), 'el letrero de la sucursal lo dice (' + (sucNombre[0] || 'aún sin terminar') + ')');
 }
 
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
