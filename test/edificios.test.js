@@ -1,5 +1,5 @@
 // Prueba de los edificios de Génesis: cada familia vive en una casa de verdad (con sus camas), y lo que promete
-// cada edificio funciona: el banco y la plaza mejoran lo que ganan los mercaderes, la central da fuerza a las
+// cada edificio funciona: la plaza (el mercado) mejora lo que ganan los mercaderes (el banco no da premios), la central da fuerza a las
 // fábricas, la plaza hace mejores las fiestas y el pozo ayuda a apagar los fuegos.
 // node test/edificios.test.js
 global.RF = global.RF || {};
@@ -36,13 +36,13 @@ for (let k = 0; k < 300; k++) S.turno(m);
   comprobar(total > 0 && vuelven >= total * 0.8, 'de noche cada uno vuelve a dormir a su casa (' + vuelven + ' de ' + total + ')');
 }
 
-console.log('EL BANCO Y LA PLAZA: LOS MERCADERES COBRAN MEJOR');
+console.log('LA PLAZA ES MERCADO; EL BANCO NO DA PREMIOS');
 {
   const c = S.vivas(m).find(x => v.aldeanos.some(a => a.c === x.id && a.o === 5));
   const coms = v.aldeanos.filter(a => a.c === c.id && a.o === 5 && !a.merc && !a.emp && a.gremio == null);
   const gana = (bancos, fuentes) => { const b0 = c.bancos, f0 = c.fuentes, d0 = coms.map(a => a.dinero || 0); c.bancos = bancos; c.fuentes = fuentes; V.comercio(m, c, 0.25); const g = coms.reduce((k, a, i) => k + (a.dinero || 0) - d0[i], 0); coms.forEach((a, i) => { a.dinero = d0[i]; }); c.bancos = b0; c.fuentes = f0; return g; };
   const nada = gana(0, 0), conBanco = gana(1, 0), conPlaza = gana(0, 1);
-  comprobar(coms.length > 0 && conBanco > nada * 1.15, 'con banco, los comerciantes ganan más (' + nada.toFixed(2) + ' → ' + conBanco.toFixed(2) + ')');
+  comprobar(coms.length > 0 && Math.abs(conBanco - nada) < 1e-9, 'el banco no da premios: los comerciantes ganan lo mismo con o sin él (' + nada.toFixed(2) + ' → ' + conBanco.toFixed(2) + ')');
   comprobar(conPlaza > nada * 1.05, 'con plaza pública hay mercado: también ganan más (' + nada.toFixed(2) + ' → ' + conPlaza.toFixed(2) + ')');
 }
 

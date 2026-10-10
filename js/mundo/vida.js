@@ -778,8 +778,8 @@
   const redondo = x => Math.round(x * 100) / 100;
   function comercio(m, c, impuesto) {
     const v = m.vida, mercs = mercaderesDe(m, c), porId = new Map(mercs.map(a => [a.id, a]));
-    // Con banco, los mercaderes cobran mejor (letras de cambio, crédito): +20 %. Con plaza pública, hay mercado: +10 %.
-    const mejor = (c.bancos > 0 ? 1.2 : 1) * (c.fuentes > 0 ? 1.1 : 1);
+    // Con plaza pública hay mercado: los tratos rinden un 10 % más. (El banco no da premio: solo trae la banca y el crédito.)
+    const mejor = c.fuentes > 0 ? 1.1 : 1;
     const enGremio = new Map(mercs.map(a => [a.id, 0]));
     for (const a of v.aldeanos) {
       if (a.c !== c.id || a.o !== COMERCIANTE || a.emp || a.merc) continue;
@@ -1043,8 +1043,6 @@
         if (fab.hechos >= fab.n) { (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: (fab.que === 'muebles' ? '🏭 Hechos ' : '⚒ Hechas ') + fab.n + (fab.que === 'armas' ? ' armas' : fab.que === 'granadas' ? ' granadas' : ' lotes de muebles') }); c.plan.fabricar = null; }
         else if (!q && m.turno - fab.desde > 3 && !fab.avisado) { fab.avisado = 1; (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: fab.que !== 'muebles' ? '⚒ Sin metal para ' + (fab.que === 'granadas' ? 'las granadas' : 'las armas') + ': haced minas o compradlo' : '🏭 Sin madera para los muebles' }); }
       }
-      // El banco: el oro guardado da un pequeño interés.
-      if (c.bancos > 0 && (c.oro || 0) > 0) c.oro += Math.min(2 + c.bancos, c.oro * 0.012);
       banca(m, c);
       // La fábrica: forja en serie (sin cuartel) y convierte la madera que sobra en muebles que se venden por oro.
       if (c.fabricas > 0 && enMarcha(c, 'fabrica')) {
@@ -1760,7 +1758,7 @@
     parque: { nombre: 'Parque', edificio: 'un parque', bien: 'aire, sombra y juegos para los niños', mal: 'tantas casas juntas sin un árbol: se vive apretado y triste', estab: -2, animo: -8 },
     palacio: { nombre: 'Sede del gobierno', edificio: 'un palacio', bien: 'el gobierno tiene una sede digna y las ciudades lo respetan', mal: 'una ciudad gobernada desde una choza: las demás ciudades obedecen menos', estab: -3, animo: -4 },
     central: { nombre: 'Electricidad', edificio: 'una central eléctrica', bien: 'hay luz en las casas, farolas eléctricas y fuerza para los talleres', mal: 'una ciudad moderna a oscuras: sin electricidad no hay farolas eléctricas ni luz en las casas', estab: -3, animo: -6 },
-    banco: { nombre: 'Banca', edificio: 'un banco', bien: 'el oro da intereses y los mercaderes cobran mejor', mal: 'el oro se guarda en cofres: sin banco no hay préstamos ni intereses', estab: -1, animo: -2 },
+    banco: { nombre: 'Banca', edificio: 'un banco', bien: 'hay banco central: presta a los banqueros, que dan crédito a la gente', mal: 'sin banco no hay banca: ni banco central ni banqueros que presten', estab: 0, animo: 0 },
     fabrica: { nombre: 'Industria', edificio: 'una fábrica', bien: 'se fabrica en serie: más armas y la madera sobrante se vende hecha mueble', mal: 'todo se hace a mano en talleres: sin fábrica, la ciudad se queda atrás', estab: -2, animo: -3 },
     estacion: { nombre: 'Ferrocarril', edificio: 'una estación de tren', bien: 'el tren lleva el doble de carga y llega antes', mal: 'las mercancías siguen yendo en carreta: sin estación no llega el tren', estab: -1, animo: -2 },
     hospital: { nombre: 'Sanidad', edificio: 'un hospital', bien: 'los heridos se curan y la gente vive más años', mal: 'sin hospital, las heridas y las epidemias se llevan a mucha gente', estab: -3, animo: -6 },
