@@ -92,7 +92,7 @@
   // ---------- Pintar el suelo y las obras ----------
   let subVisto = 0;
   function mundo(nuevo, enfocar) {
-    m = nuevo; regionDe = null;
+    m = nuevo; regionDe = null; gente = null;
     if (!m.vida) V.crear(m);
     const v = m.vida;
     lienzo = document.createElement('canvas'); lienzo.width = v.tw * A; lienzo.height = v.th * A; gl = lienzo.getContext('2d');
@@ -375,6 +375,7 @@
     // Lo que se dibuja es el recorrido de este turno, aunque el siguiente ya se esté calculando por partes.
     for (const b of (m.vida.animales || []).concat(m.vida.barcos || [])) rVisto.set(b, b.r);
     sincronizar(m.vida.cambios || []);
+    gente = m.vida.aldeanos.slice();
     inicio = performance.now(); duracion = Math.max(80, ms || 1000);
     vistos = new Set();
     recogerMuertos(duracion);
@@ -393,6 +394,9 @@
   }
   // Quien muere durante el turno sigue en pie (y peleando) hasta el paso en que cae; luego, su caída.
   let caidos = [];
+  // La gente tal como estaba al empezar el turno que se ve: mientras se anima, el siguiente ya se calcula por partes,
+  // y quien muera en él no debe esfumarse antes de tiempo (se le ve hasta el final y luego cae en su turno).
+  let gente = null;
   function recogerMuertos(dur) {
     const ahora = performance.now();
     caidos = [];
@@ -744,7 +748,7 @@
     dibujados.clear(); quietos = []; gritos = []; durmiendo.clear();
     const fiesta = new Set(), hambre = new Set();
     for (const c of S.vivas(m)) { if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 1) fiesta.add(c.id); if ((c.comida || 0) < (c.aldeanos || 0) * 0.15) hambre.add(c.id); }
-    const todos = caidos.length ? v.aldeanos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : v.aldeanos;
+    const vivos = gente || v.aldeanos, todos = caidos.length ? vivos.concat(caidos.filter(x => !x.animal && k < x.paso).map(x => x.a)) : vivos;
     for (const a of todos) {
       if (a.aBordo != null) continue; // va en un transporte: se le ve en cubierta
       let r = rVisto.get(a) || a.r, kk = k - desfase(a);
@@ -2320,5 +2324,5 @@
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { camara: () => ({ x: cam.x, y: cam.y, z: cam.z }), modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { camara: () => ({ x: cam.x, y: cam.y, z: cam.z }), dibujados: () => [...dibujados], modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});

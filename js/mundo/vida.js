@@ -803,6 +803,9 @@
       // Una sucursal manda lo que gana a la caja del jefe de la familia; si la casa ya no está, va por su cuenta.
       const jefe = a.familia ? jefeCasa.get(a.familia) : null;
       if (jefe && jefe !== a) { mc.de = jefe.id; jefe.merc.caja = redondo(jefe.merc.caja + mc.caja); mc.caja = 0; } else delete mc.de;
+      // El letrero dice de quién es (y si es sucursal), aunque haya cambiado de manos.
+      const pv = mc.t != null && v.privados && v.privados[mc.t];
+      if (pv && (pv.dueno !== a.id || !pv.sucursal !== (mc.de == null))) { pv.dueno = a.id; if (mc.de != null) pv.sucursal = 1; else delete pv.sucursal; nombrarPrivado(m, mc.t, c); }
       if (mc.t != null && v.obra[mc.t] !== OBRA.gremio && !(v.andamios && v.andamios[mc.t]) && !((c.plan && c.plan.encargos) || []).some(x => x.t === mc.t)) mc.t = null;
       if (mc.casona != null && v.obra[mc.casona] === OBRA.casona && a.casa !== mc.casona) a.casa = mc.casona;
       if (a.o !== COMERCIANTE) mover(a, COMERCIANTE);
@@ -815,11 +818,26 @@
       a.gremio = jefe.id; enGremio.set(jefe.id, enGremio.get(jefe.id) + 1);
     }
     if (c.era < 4 || m.turno % 8 !== c.id % 8) return;
+    // Una familia con más gremios de la cuenta (por conquistas o herencias) vende su sucursal más nueva a un comerciante de ella.
+    for (const [fam, jefe] of jefeCasa) {
+      const suyas = mercs.filter(x => x.familia === fam && x.merc);
+      if (suyas.length <= SUCURSALES + 1) continue;
+      const ultima = S().ordenarPor(suyas.filter(x => x !== jefe), x => -((x.merc.desde || 0) * 1e7 + x.id))[0];
+      const llenaF = f => f && mercs.filter(y => y.merc && y.familia === f).length >= SUCURSALES + 1;
+      const nuevo = ultima && v.aldeanos.filter(x => x.gremio === ultima.id && x.c === c.id && !x.merc && !x.emp && !esNino(x) && x.familia !== fam && !llenaF(x.familia)).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
+      if (!nuevo) continue;
+      const mc = ultima.merc; delete ultima.merc; delete mc.de; nuevo.merc = mc; delete nuevo.gremio; mover(nuevo, COMERCIANTE);
+      for (const x of v.aldeanos) if (x.gremio === ultima.id) x.gremio = nuevo.id;
+      ultima.gremio = nuevo.id; mercs.splice(mercs.indexOf(ultima), 1, nuevo);
+      if (mc.t != null && v.privados && v.privados[mc.t]) { v.privados[mc.t].dueno = nuevo.id; delete v.privados[mc.t].sucursal; nombrarPrivado(m, mc.t, c); }
+      anunciar(m, c, '🏪 La casa comercial ' + fam + ' tiene demasiados gremios: ' + nombreDe(nuevo) + ' se queda con la sucursal de ' + nombreDe(ultima));
+      break;
+    }
     // UN MERCADER NUEVO: el comerciante que más ha juntado funda su gremio (uno por ciudad como mucho). Si su familia
     // ya tiene una casa comercial, abre una sucursal de esa casa (hasta SUCURSALES por familia), no un gremio aparte.
     const ciudades = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
     // Cada gremio es de la ciudad más cercana (aunque se levantara en una comarca de al lado, si el centro estaba lleno).
-    const ciudadDe = t => { const r = region(m, t), x = r % m.W, y = Math.floor(r / m.W); let mejor = ciudades[0], md = 1e9; for (const q of ciudades) { const d = Math.max(Math.abs(q % m.W - x), Math.abs(Math.floor(q / m.W) - y)); if (d < md) { md = d; mejor = q; } } return mejor; };
+    const ciudadDe = t => { if (v.gremioCiudad && ciudades.includes(v.gremioCiudad[t])) return v.gremioCiudad[t]; const r = region(m, t), x = r % m.W, y = Math.floor(r / m.W); let mejor = ciudades[0], md = 1e9; for (const q of ciudades) { const d = Math.max(Math.abs(q % m.W - x), Math.abs(Math.floor(q / m.W) - y)); if (d < md) { md = d; mejor = q; } } return mejor; };
     const suyos = new Set(mercs.filter(x => x.merc.t != null).map(x => x.merc.t));
     const conGremio = new Set([...suyos].map(ciudadDe));
     // Los gremios vacíos (de quien murió sin nadie que siguiera): se venden antes de levantar otro.
@@ -835,21 +853,22 @@
       const llena = a => a.familia && mercs.filter(x => x.familia === a.familia).length > SUCURSALES;
       const cand = v.aldeanos.filter(a => a.c === c.id && a.o === COMERCIANTE && !a.emp && !a.merc && !esNino(a) && (a.dinero || 0) >= precioObra(m, 'gremio') && !llena(a)).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
       // En la primera ciudad sin gremio que tenga sitio.
-      let t = null;
+      let t = null, ciudadPedida = null;
       if (cand && huerfano != null) {
         // Compra el gremio vacío al reino, a mitad de precio: no hay que levantar nada.
         const precio = Math.round(precioObra(m, 'gremio') * 5) / 10, jefe = casa(cand);
         cand.dinero -= precio; c.oro = (c.oro || 0) + precio;
-        (v.privados = v.privados || {})[huerfano] = { dueno: cand.id, civ: c.id, tipo: 'gremio' };
+        (v.privados = v.privados || {})[huerfano] = { dueno: cand.id, civ: c.id, tipo: 'gremio' }; (v.gremioCiudad = v.gremioCiudad || {})[huerfano] = ciudadDe(huerfano);
         cand.merc = { t: huerfano, caja: 0, desde: m.turno }; delete cand.gremio; mover(cand, COMERCIANTE);
         if (jefe) { cand.merc.de = jefe.id; v.privados[huerfano].sucursal = 1; }
         nombrarPrivado(m, huerfano, c);
         anunciar(m, c, '🏪 ' + nombreDe(cand) + ' compra al reino un gremio vacío' + (jefe ? ' para la casa comercial ' + cand.familia : '') + ' (paga ' + Math.round(precio) + ' de oro)');
       }
-      else if (cand) for (const r of libres) { t = sitioPara(m, c, 'gremio', [r]); if (t != null) break; }
+      else if (cand) for (const r of libres) { t = sitioPara(m, c, 'gremio', [r]); if (t != null) { ciudadPedida = r; break; } }
       if (cand && t != null && !cand.merc) {
         const pagado = encargarPrivado(m, c, cand, 'gremio', t, 'gremio');
         if (pagado) {
+          (v.gremioCiudad = v.gremioCiudad || {})[t] = ciudadPedida;
           const jefe = casa(cand);
           cand.merc = { t, caja: 0, desde: m.turno }; delete cand.gremio; mover(cand, COMERCIANTE);
           if (jefe) {
@@ -1290,6 +1309,32 @@
     for (let t = 0; t < v.obra.length; t++) { const o = v.obra[t]; if ((o === OBRA.casa || o === OBRA.centro || o === OBRA.ayuntamiento || o === OBRA.campamento) && m.dueno[region(m, t)] === c.id) out.push(t); }
     return out;
   }
+  // LA MUDANZA: la capital es la ciudad grande, pero no se lo queda todo. Si tiene más de la mitad de la gente del
+  // reino, una familia joven (con sus hijos) se muda a la provincia más pequeña: allí sus constructores levantan casas
+  // y sus granjeros, campos. Si se queda con menos de la cuarta parte, una familia de la provincia más grande se va a la
+  // capital. Y entre provincias, de la que ha crecido el doble a la que se ha quedado atrás.
+  function mudanza(m, c, lista) {
+    const v = m.vida, ciudades = (m.ciudades || []).filter(x => x.civ === c.id && m.dueno[x.region] === c.id).map(x => x.region);
+    if (!ciudades.length) return;
+    const pob = new Map([[c.capital, 0], ...ciudades.map(r => [r, 0])]);
+    for (const a of lista) if (pob.has(a.h)) pob.set(a.h, pob.get(a.h) + 1);
+    const total = [...pob.values()].reduce((k, x) => k + x, 0), enCapital = pob.get(c.capital);
+    const orden = S().ordenarPor(ciudades.slice(), r => pob.get(r) * 1e6 + r), chica = orden[0], grande = orden[orden.length - 1];
+    let de = null, a_ = null;
+    if (enCapital >= 30 && enCapital > total * 0.5 && enCapital > 2 * (pob.get(chica) + 6)) { de = c.capital; a_ = chica; }
+    else if (enCapital < total * 0.25 && pob.get(grande) > enCapital + 6) { de = grande; a_ = c.capital; }
+    // Entre provincias: de la que ha crecido mucho a la que se ha quedado atrás.
+    else if (grande !== chica && pob.get(grande) >= 30 && pob.get(grande) > 2 * (pob.get(chica) + 6)) { de = grande; a_ = chica; }
+    if (de == null) return;
+    const libre = a => a.h === de && a.colono == null && a.aBordo == null && !a.fijo && !a.emp && !a.merc && a.o !== GUERRERO && a.o !== ERUDITO && (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO - 10;
+    const sinObrero = !lista.some(a => a.h === a_ && a.o === CONSTRUCTOR);
+    const quien = S().ordenarPor(lista.filter(libre), a => (sinObrero && a.o === CONSTRUCTOR ? 0 : 1) * 1e9 + (a.edad || 0) * 1e5 + (a.id % 1e5))[0];
+    if (!quien) return;
+    const pareja = lista.find(b => b.id === quien.pareja && libre(b));
+    const familia = [quien, ...(pareja ? [pareja] : []), ...lista.filter(b => esNino(b) && b.h === de && (b.padre === quien.id || b.madre === quien.id))];
+    const sitio = centro(m, a_), casa = [OBRA.centro, OBRA.ayuntamiento, OBRA.campamento].includes(v.obra[sitio]) ? sitio : null;
+    for (const b of familia) { b.h = a_; b.casa = casa; b.e = LIBRE; b.paseo = 0; }
+  }
   function hogar(m, c, cs) {
     const v = m.vida;
     if (azar(v) < 0.4 || cs.length < 2) return c.capital;
@@ -1402,6 +1447,7 @@
     for (const c of vivas) {
       const cs = S().casillas(m, c), lista = porCiv[c.id];
       for (const a of lista) if (m.dueno[a.h] !== c.id && a.colono == null) a.h = hogar(m, c, cs);
+      if (pausada(m) && !soloQuitar && m.turno % 3 === c.id % 3) mudanza(m, c, lista);
       // Lo que el resto del mundo le hizo a la población desde el último turno (una peste, una batalla perdida,
       // un milagro) se cumple en los aldeanos: mueren los más viejos, o llegan familias nuevas.
       let objetivo = c.pobVida ? Math.round(lista.length * c.pob / c.pobVida) : Math.max(lista.length, 6);
@@ -1753,7 +1799,7 @@
     const plazas = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)].slice(0, 4);
     for (const r of plazas) {
       const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)], tiles = zona.flatMap(z => parcelas(m, z));
-      const hay = o => tiles.some(t => v.obra[t] === OBRA[o]), cap = r === c.capital;
+      const hay = o => tiles.some(t => v.obra[t] === OBRA[o]) || enSede(m, r, OBRA[o]), cap = r === c.capital;
       const pon = (obra, falta, extra) => out.push(Object.assign({ obra, region: r, capital: cap, falta, tiene: hay(obra) }, NECESIDADES[obra], extra || {}));
       if (!hayAgua(m, ter, centro(m, r))) pon('pozo', !hay('pozo'), { urgente: 1 });
       if (cap && nivel >= 1) pon('granero', !hay('granero') && ((c.comida || 0) >= tope * 0.8 || (v.estacion === 2 && (c.comida || 0) >= tope * 0.5)), { urgente: v.estacion === 2 });
@@ -2006,6 +2052,14 @@
     }
     return mejor;
   }
+  // Las obras de una ciudad que, por falta de sitio, se levantaron en una comarca de al lado (v.sede[t] = la ciudad).
+  const LEJOS_OK = new Set([OBRA.pozo, OBRA.granero, OBRA.fuente, OBRA.parque, OBRA.palacio, OBRA.central, OBRA.banco, OBRA.fabrica, OBRA.estacion, OBRA.hospital, OBRA.aerodromo, OBRA.templo, OBRA.saber, OBRA.cuartel, OBRA.arqueria, OBRA.castillo]);
+  const CLAVE_OBRA = Object.fromEntries(Object.entries(OBRA).map(([k, o]) => [o, k]));
+  function enSede(m, r, o) {
+    const sd = m.vida.sede; if (!sd) return false;
+    for (const t in sd) if (sd[t] === r && (m.vida.obra[t] === o || (m.vida.andamios && m.vida.andamios[t] && m.vida.andamios[t].o === o))) return true;
+    return false;
+  }
   function edificioPendiente(m, a, c, ter) {
     const v = m.vida;
     // Con un encargo del jugador pendiente, la madera y la piedra se guardan para él (en la capital).
@@ -2013,7 +2067,7 @@
     for (const r of plazas.slice(0, 3)) {
       const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)];
       const tiles = zona.flatMap(z => parcelas(m, z));
-      const tiene = o => tiles.some(t => v.obra[t] === o || (v.andamios && v.andamios[t] && v.andamios[t].o === o));
+      const tiene = o => tiles.some(t => v.obra[t] === o || (v.andamios && v.andamios[t] && v.andamios[t].o === o)) || enSede(m, r, o);
       const libreEn = (lista, ok) => lista.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !ocupada(v, t) && !calleDelPlan(m, t) && ok(t)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
       // El sitio de un molino nuevo: tierra de cultivo fuera del casco, lejos de los otros molinos, lo más cerca posible del pueblo.
       const sitioMolino = () => tiles.filter(t => !v.obra[t] && !v.roca[t] && !v.camino[t] && !ocupada(v, t) && CULTIVABLE.has(ter[t]) && !enCasco(m, t) && !tiles.some(u => v.obra[u] === OBRA.molino && dist(m, u, t) < rangoMolino(m) * 2 - 1)).sort((p, q) => dist(m, p, centro(m, r)) - dist(m, q, centro(m, r)))[0];
@@ -2082,7 +2136,9 @@
         const necesaria = (c.necesidades || []).some(n => n.falta && OBRA[n.obra] === obra);
         // (Los pozos de petróleo y las minas no esperan: dan lo que hace falta para todo lo demás.)
         if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && obra !== OBRA.petroleo && obra !== OBRA.mina && obra !== OBRA.puerto && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
-        const t = donde();
+        let t = donde();
+        // Ciudad llena: las obras públicas se levantan más lejos (hasta dos comarcas), y siguen siendo de esta ciudad.
+        if (t == null && pausada(m) && LEJOS_OK.has(obra)) { t = sitioPara(m, c, CLAVE_OBRA[obra], [r]); if (t != null) (v.sede = v.sede || {})[t] = r; }
         if (t != null) { if (obra !== OBRA.molino || pausada(m)) (c.enCurso = c.enCurso || {})[obra] = m.turno; return [t, obra]; }
       }
     }

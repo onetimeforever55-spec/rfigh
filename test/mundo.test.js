@@ -852,6 +852,8 @@ console.log('TRINCHERAS EN LA SEGUNDA GUERRA MUNDIAL');
   }
   m = mejor.m; par = mejor.par;
   const [a, o] = par;
+  // (Con soldados de verdad en los dos lados: en paz, un reino puede tener solo uno o dos.)
+  for (const c of [a, o]) M.mando.ordenar(m, c.id, 'quiero 8 soldados');
   comprobar(!m.vida.trinchera || !m.vida.trinchera.some(Boolean), 'antes de la Segunda Guerra Mundial nadie cava trincheras');
   // (Dónde están las trincheras se mira justo antes de la guerra: luego las conquistas mueven la frontera.)
   const cerca = (t, d) => { const v = m.vida, x = t % v.tw, y = t / v.tw | 0; for (let j = -d; j <= d; j++) for (let i = -d; i <= d; i++) if (m.dueno[V.region(m, (y + j) * v.tw + x + i)] !== m.dueno[V.region(m, t)]) return true; return false; };

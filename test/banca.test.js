@@ -160,6 +160,11 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   comprobar(cuenta.every(x => x.g <= x.ciudades), 'como mucho un gremio por ciudad (' + cuenta.map(x => x.g + '/' + x.ciudades).join(', ') + ')');
   const porFamilia = S.vivas(n).flatMap(c => { const f = {}; for (const a of V.mercaderesDe(n, c)) f[a.familia] = (f[a.familia] || 0) + 1; return Object.values(f); });
   comprobar(porFamilia.every(k => k <= 4), 'ninguna familia tiene más de una casa y 3 sucursales (máximo ' + Math.max(0, ...porFamilia) + ')');
+  // LAS PROVINCIAS: también crecen (familias que se mudan desde la capital) y, si están llenas, sus obras van al lado.
+  const prov = S.vivas(n).filter(c => (n.ciudades || []).some(x => x.civ === c.id)).map(c => { const l = n.vida.aldeanos.filter(a => a.c === c.id), cs = (n.ciudades || []).filter(x => x.civ === c.id).map(x => x.region); return { cap: l.filter(a => a.h === c.capital).length, prov: cs.reduce((k, r) => k + l.filter(a => a.h === r).length, 0) / cs.length }; });
+  const capMedia = prov.reduce((k, x) => k + x.cap, 0) / prov.length, provMedia = prov.reduce((k, x) => k + x.prov, 0) / prov.length;
+  comprobar(provMedia >= capMedia * 0.2, 'las provincias también tienen gente: no se queda todo en la capital (capital ' + Math.round(capMedia) + ', provincia ' + Math.round(provMedia) + ' de media)');
+  comprobar(Object.keys(n.vida.sede || {}).length > 0, 'con la ciudad llena, sus obras públicas se levantan en las tierras de al lado (' + Object.keys(n.vida.sede || {}).length + ')');
   const sucNombre = Object.keys(n.vida.privados || {}).filter(t => n.vida.privados[t].sucursal && n.vida.obra[t] === V.OBRA.gremio).map(t => (n.vida.edificios[t] || {}).nombre);
   comprobar(!sucNombre.length || sucNombre.every(x => / \(sucursal\)$/.test(x || '')), 'el letrero de la sucursal lo dice (' + (sucNombre[0] || 'aún sin terminar') + ')');
 }
