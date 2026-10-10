@@ -155,6 +155,11 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   comprobar(suc.length > 0 && avisos2.some(x => /abre una sucursal de la casa comercial/.test(x)), 'los parientes abren sucursales de la casa de la familia (' + suc.length + ' sucursales)');
   comprobar(suc.every(a => { const j = mercs.find(x => x.id === a.merc.de); return j && j.familia === a.familia && j.merc.de == null && a.merc.caja === 0; }), 'lo que gana cada sucursal sube a la caja del jefe de la familia');
   comprobar(S.vivas(n).every(c => { const jefes = V.mercaderesDe(n, c).filter(a => a.merc.de == null).map(a => a.familia); return jefes.length === new Set(jefes).size; }), 'cada familia tiene una sola casa comercial en su reino');
+  // Ni gremios de más ni vacíos que se acumulen: uno por ciudad como mucho, y ninguna familia con más de 4.
+  const cuenta = S.vivas(n).map(c => { let g = 0; for (let t = 0; t < n.vida.obra.length; t++) if (n.vida.obra[t] === V.OBRA.gremio && n.dueno[V.region(n, t)] === c.id) g++; return { g, ciudades: 1 + (n.ciudades || []).filter(x => x.civ === c.id).length }; });
+  comprobar(cuenta.every(x => x.g <= x.ciudades), 'como mucho un gremio por ciudad (' + cuenta.map(x => x.g + '/' + x.ciudades).join(', ') + ')');
+  const porFamilia = S.vivas(n).flatMap(c => { const f = {}; for (const a of V.mercaderesDe(n, c)) f[a.familia] = (f[a.familia] || 0) + 1; return Object.values(f); });
+  comprobar(porFamilia.every(k => k <= 4), 'ninguna familia tiene más de una casa y 3 sucursales (máximo ' + Math.max(0, ...porFamilia) + ')');
   const sucNombre = Object.keys(n.vida.privados || {}).filter(t => n.vida.privados[t].sucursal && n.vida.obra[t] === V.OBRA.gremio).map(t => (n.vida.edificios[t] || {}).nombre);
   comprobar(!sucNombre.length || sucNombre.every(x => / \(sucursal\)$/.test(x || '')), 'el letrero de la sucursal lo dice (' + (sucNombre[0] || 'aún sin terminar') + ')');
 }

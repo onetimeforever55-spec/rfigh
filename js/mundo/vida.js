@@ -461,12 +461,14 @@
     v.edificios[t] = { tipo: o, nombre: nombreEdificio(m, o, t, porQuien), anio: m.anio, turno: m.turno, era: c ? c.era : 0, civ: c ? c.id : -1, por: porQuien.slice(0, 4).map(a => a.nombre + ' ' + (a.familia || '')), historia: [{ anio: m.anio, texto: rec && rec.ruina ? 'reconstruido sobre las ruinas' : 'construido' }] };
     if (v.obreros) delete v.obreros[t];
     // Los edificios privados llevan el nombre de su dueño.
-    const pv = v.privados && v.privados[t], duenio = pv && v.aldeanos.find(x => x.id === pv.dueno);
-    if (duenio) {
-      const era = c ? c.era : 0, quien = duenio.nombre + ' ' + (duenio.familia || '');
-      v.edificios[t].nombre = o === OBRA.gremio ? 'Gremio de mercaderes ' + (duenio.familia || duenio.nombre) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
-      v.edificios[t].dueno = quien;
-    }
+    nombrarPrivado(m, t, c);
+  }
+  function nombrarPrivado(m, t, c) {
+    const v = m.vida, o = v.obra[t], pv = v.privados && v.privados[t], duenio = pv && v.aldeanos.find(x => x.id === pv.dueno);
+    if (!duenio || !v.edificios[t]) return;
+    const era = c ? c.era : 0, quien = duenio.nombre + ' ' + (duenio.familia || '');
+    v.edificios[t].nombre = o === OBRA.gremio ? 'Gremio de mercaderes ' + (duenio.familia || duenio.nombre) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
+    v.edificios[t].dueno = quien;
   }
   const SIN_REFORMA = new Set([OBRA.campamento, OBRA.centro, OBRA.campo, OBRA.ruina]);
   function apuntarObrero(m, t, a) { const v = m.vida; v.obreros = v.obreros || {}; const l = v.obreros[t] = v.obreros[t] || []; if (!l.includes(a.id)) l.push(a.id); }
@@ -726,6 +728,17 @@
     delete a.emp; delete a.merc;
     // Sin heredero, la sucursal más antigua pasa a ser la casa de la familia (y las otras le mandan a ella).
     if (!b) { const suc = v.aldeanos.filter(x => x.merc && x.merc.de === a.id); if (suc.length) { delete suc[0].merc.de; for (const x of suc.slice(1)) x.merc.de = suc[0].id; } }
+    // Sin familia, el gremio no se queda vacío: se lo queda el comerciante del gremio que más ha ahorrado.
+    const llena = b && mc && b.familia && b.familia !== a.familia && v.aldeanos.filter(x => x.merc && x.c === a.c && x.familia === b.familia).length >= SUCURSALES + 1;
+    const relevo = (!b || llena) && mc && !e && c ? v.aldeanos.filter(x => x.gremio === a.id && x !== a && x.c === a.c && !x.emp && !x.merc && !esNino(x) && !(quitar && quitar.has(x)) && !(x.familia && v.aldeanos.filter(y => y.merc && y.c === a.c && y.familia === x.familia).length >= SUCURSALES + 1)).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0] : null;
+    if (relevo) {
+      relevo.merc = mc; delete mc.de; delete relevo.gremio; mover(relevo, COMERCIANTE);
+      if (v.privados) for (const t of Object.keys(v.privados)) if (v.privados[t].dueno === a.id) { if (v.privados[t].tipo === 'gremio' || v.privados[t].tipo === 'casona') { v.privados[t].dueno = relevo.id; delete v.privados[t].sucursal; nombrarPrivado(m, +t, c); } else olvidarPrivado(m, c, +t); }
+      for (const x of v.aldeanos) { if (x.gremio === a.id) x.gremio = relevo.id; if (x.merc && x.merc.de === a.id) delete x.merc.de; }
+      if (b) { b.dinero = redondo((b.dinero || 0) + (a.dinero || 0)); a.dinero = 0; }
+      anunciar(m, c, '🏪 Muere ' + nombreDe(a) + (b ? ': su familia ya tiene casa comercial llena, así que ' : ' sin familia: ') + nombreDe(relevo) + ', comerciante de su gremio, se queda con el negocio');
+      return;
+    }
     if (b && c) {
       if (e) b.emp = e;
       if (mc) b.merc = mc;
@@ -805,17 +818,36 @@
     // UN MERCADER NUEVO: el comerciante que más ha juntado funda su gremio (uno por ciudad como mucho). Si su familia
     // ya tiene una casa comercial, abre una sucursal de esa casa (hasta SUCURSALES por familia), no un gremio aparte.
     const ciudades = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
-    const conGremio = new Set(mercs.filter(x => x.merc.t != null).map(x => region(m, x.merc.t)));
-    const libres = ciudades.filter(r => !conGremio.has(r));
-    if (libres.length) {
+    // Cada gremio es de la ciudad más cercana (aunque se levantara en una comarca de al lado, si el centro estaba lleno).
+    const ciudadDe = t => { const r = region(m, t), x = r % m.W, y = Math.floor(r / m.W); let mejor = ciudades[0], md = 1e9; for (const q of ciudades) { const d = Math.max(Math.abs(q % m.W - x), Math.abs(Math.floor(q / m.W) - y)); if (d < md) { md = d; mejor = q; } } return mejor; };
+    const suyos = new Set(mercs.filter(x => x.merc.t != null).map(x => x.merc.t));
+    const conGremio = new Set([...suyos].map(ciudadDe));
+    // Los gremios vacíos (de quien murió sin nadie que siguiera): se venden antes de levantar otro.
+    const vacios = Object.keys(v.edificios || {}).map(Number).filter(t => v.obra[t] === OBRA.gremio && !suyos.has(t) && m.dueno[region(m, t)] === c.id && !(v.privados && v.privados[t]));
+    const huerfano = vacios.find(t => !conGremio.has(ciudadDe(t)));
+    const libres = ciudades.filter(r => !conGremio.has(r) && !vacios.some(t => ciudadDe(t) === r));
+    // Un gremio vacío en una ciudad que ya tiene el suyo sobra: el reino lo convierte en viviendas.
+    const sobra = vacios.find(t => conGremio.has(ciudadDe(t)));
+    if (sobra != null) cambiar(m, 'obra', sobra, OBRA.casa, 0);
+    if (libres.length || huerfano != null) {
       // (Aunque sea mayor: al morir, el gremio pasa a su heredero.)
       const casa = a => mercs.find(x => a.familia && x.familia === a.familia && x.merc.de == null);
       const llena = a => a.familia && mercs.filter(x => x.familia === a.familia).length > SUCURSALES;
       const cand = v.aldeanos.filter(a => a.c === c.id && a.o === COMERCIANTE && !a.emp && !a.merc && !esNino(a) && (a.dinero || 0) >= precioObra(m, 'gremio') && !llena(a)).sort((x, y) => (y.dinero || 0) - (x.dinero || 0) || x.id - y.id)[0];
       // En la primera ciudad sin gremio que tenga sitio.
       let t = null;
-      if (cand) for (const r of libres) { t = sitioPara(m, c, 'gremio', [r]); if (t != null) break; }
-      if (cand && t != null) {
+      if (cand && huerfano != null) {
+        // Compra el gremio vacío al reino, a mitad de precio: no hay que levantar nada.
+        const precio = Math.round(precioObra(m, 'gremio') * 5) / 10, jefe = casa(cand);
+        cand.dinero -= precio; c.oro = (c.oro || 0) + precio;
+        (v.privados = v.privados || {})[huerfano] = { dueno: cand.id, civ: c.id, tipo: 'gremio' };
+        cand.merc = { t: huerfano, caja: 0, desde: m.turno }; delete cand.gremio; mover(cand, COMERCIANTE);
+        if (jefe) { cand.merc.de = jefe.id; v.privados[huerfano].sucursal = 1; }
+        nombrarPrivado(m, huerfano, c);
+        anunciar(m, c, '🏪 ' + nombreDe(cand) + ' compra al reino un gremio vacío' + (jefe ? ' para la casa comercial ' + cand.familia : '') + ' (paga ' + Math.round(precio) + ' de oro)');
+      }
+      else if (cand) for (const r of libres) { t = sitioPara(m, c, 'gremio', [r]); if (t != null) break; }
+      if (cand && t != null && !cand.merc) {
         const pagado = encargarPrivado(m, c, cand, 'gremio', t, 'gremio');
         if (pagado) {
           const jefe = casa(cand);
@@ -832,6 +864,17 @@
     for (const a of mercs) {
       const mc = a.merc;
       if (mc.casona != null || mc.caja < precioObra(m, 'casona') + 10) continue;
+      // Si hay una casona vacía (su dueño murió sin familia), la compra a mitad de precio en vez de levantar otra.
+      const usadas = new Set(mercs.map(x => x.merc.casona).filter(x => x != null));
+      const vacia = Object.keys(v.edificios || {}).map(Number).find(t => v.obra[t] === OBRA.casona && !usadas.has(t) && m.dueno[region(m, t)] === c.id && !(v.privados && v.privados[t]));
+      if (vacia != null) {
+        const precio = Math.round(precioObra(m, 'casona') * 5) / 10;
+        mc.caja -= precio; c.oro = (c.oro || 0) + precio; mc.casona = vacia;
+        (v.privados = v.privados || {})[vacia] = { dueno: a.id, civ: c.id, tipo: 'casona' };
+        nombrarPrivado(m, vacia, c);
+        anunciar(m, c, '🏠 ' + nombreDe(a) + ' compra ' + (c.era >= 6 ? 'una mansión vacía' : c.era >= 5 ? 'un palacete vacío' : 'una casona vacía') + ' (paga ' + Math.round(precio) + ' de oro al reino)');
+        break;
+      }
       const t = sitioPara(m, c, 'casona', mc.t != null ? [region(m, mc.t)] : undefined);
       if (t == null) continue;
       a.dinero = (a.dinero || 0) + mc.caja; mc.caja = 0;
