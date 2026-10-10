@@ -97,6 +97,22 @@ console.log('LA INDUSTRIA PRIVADA VENDE FUERA SOLO A QUIEN TÚ DEJES');
   comprobar(conSocios > solo * 1.3, 'sin socios, un empresario solo vende dentro; con los reinos que abras, también fuera (' + solo.toFixed(2) + ' → ' + conSocios.toFixed(2) + ')');
 }
 
+console.log('COMPRAR LO QUE TIENE OTRO REINO (AUNQUE NO LE SOBRE)');
+{
+  const g = S.crear(5, 6, { ritmo: 3 }), yo = S.vivas(g)[0]; X.gobernar(g, yo.id);
+  for (let k = 0; k < 300; k++) S.turno(g);
+  // Un socio al que se llega por carretera (la ruta se abre y se traza en el acto).
+  let socio = null;
+  for (const o of S.vivas(g).filter(o => o !== yo && !S.enGuerra(yo, o))) { const t = X.ordenar(g, yo.id, 'abrid una ruta comercial con ' + o.nombre).respuesta; if (/carretera|Ya teníais ruta/.test(t)) { socio = o; break; } X.ordenar(g, yo.id, 'cerrad el comercio con ' + o.nombre); }
+  socio.metal = Math.max(socio.metal || 0, 40);
+  const r = X.ordenar(g, yo.id, 'comprad 10 de hierro').respuesta;
+  let compradas = 0, llegan = 0;
+  for (let k = 0; k < 40; k++) { socio.metal = Math.max(socio.metal || 0, 40); yo.oro = Math.max(yo.oro || 0, 300); g.vida.anuncios = []; S.turno(g); llegan += (g.vida.anuncios || []).filter(x => x.civ === yo.id && /📦 Llegan \d+ de metal/.test(x.texto)).length; compradas += ((g.mercado && g.mercado.tratos) || []).filter(x => x.t === g.turno && x.compra === yo.id && x.que === 'metal').reduce((q, x) => q + x.n, 0); }
+  comprobar(/Os lo pueden vender/.test(r) && r.includes(socio.nombre), 'al encargarlo, el consejero dice quién lo tiene y cómo llega (' + r.slice(r.indexOf('Os lo'), r.indexOf('Os lo') + 60) + '…)');
+  comprobar(compradas >= 5 && compradas <= 12, 'y vuestros comerciantes lo traen, aunque al otro no le sobre (lo vende de su reserva, más caro), y solo lo encargado (' + compradas + ' de 10)');
+  comprobar(llegan > 0, 'y se avisa cuando llega (' + llegan + ' avisos «📦 Llegan … de metal»)');
+}
+
 console.log('LOS CRÉDITOS A TU REINO, SOLO SI LOS PIDES');
 {
   const g = S.crear(5, 5, { ritmo: 3 }); for (let k = 0; k < 220; k++) S.turno(g);

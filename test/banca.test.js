@@ -12,6 +12,7 @@ const comprobar = (c, t) => { console.log((c ? '  ✓ ' : '  ✗ ') + t); if (!c
 // Un reino de la Revolución Industrial con banco (encargado y levantado por sus constructores).
 const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 60; k++) S.turno(m);
 const c = S.vivas(m)[0], v = m.vida; X.gobernar(m, c.id);
+c.plan.comercioLibre = true; // (un reino que comercia: sin comercio exterior, sus negocios ganan menos y tardan más)
 c.era = 6; c.nivel = 4; c.nivelMax = 4; c.madera = c.piedra = 300; c.oro = 300;
 const zona = [c.capital, ...S.vecinos(c.capital)].flatMap(r => V.parcelas(m, r));
 V.encargar(m, c, zona.find(t => !V.puedeColocar(m, c, t, 'banco')), 'banco');

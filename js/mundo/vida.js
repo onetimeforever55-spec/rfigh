@@ -1233,6 +1233,13 @@
    */
   const permiteComercio = (c, o) => { const p = c.plan || {}; if ((p.embargo || []).includes(o.id)) return false; return !c.jugador || !!p.comercioLibre || (p.socios || []).includes(o.id); };
   const comercian = (m, c, o) => !!(c && o && c !== o && c.viva && o.viva && !S().enGuerra(c, o) && permiteComercio(c, o) && permiteComercio(o, c));
+  // Cuánto de un bien le puede vender o a c: lo que le sobra o, si c lo encargó, también de su reserva (se queda la mitad
+  // de lo que necesita).
+  const vendible = (m, o, c, k) => { if (!o.balance) return 0; const encargado = ((c.plan && c.plan.pedidos) || []).some(y => y.que === k); return Math.max(o.balance.sobra[k] || 0, encargado ? Math.max(0, Math.floor((o[k] || 0) - objetivo(o, k) * 0.5)) : 0); };
+  // ¿Le sirve a c ir a comerciar con o? Si tiene algo encargado que o le puede vender.
+  const sirveSocio = (m, c, o) => ((c.plan && c.plan.pedidos) || []).some(y => vendible(m, o, c, y.que) >= 1);
+  // Lo que un reino tiene encargado de un bien y aún no ha recibido.
+  const encargoDe = (c, k) => ((c.plan && c.plan.pedidos) || []).filter(y => y.que === k).reduce((q, y) => q + y.n, 0);
   const vendeBien = (x, k) => comercioLibre(x) || !!(x.plan && (x.plan.ventas || []).some(y => y.que === k));
   const compraBien = (x, k) => comercioLibre(x) || !!(x.plan && (x.plan.pedidos || []).some(y => y.que === k));
   // Con quién comercia un reino: rutas por tierra, tratados, puertos en el mismo mar y tratos recientes.
@@ -1253,7 +1260,10 @@
     for (const k of BIENES) {
       // Lo que el jugador puso a la venta se coloca aunque al otro no le haga mucha falta (más barato).
       if (!vendeBien(c, k) || !compraBien(o, k)) continue;
-      const enVenta = c.plan && (c.plan.ventas || []).some(x => x.que === k), quiere = o.balance.falta[k] || (enVenta && (o[k] || 0) < objetivo(o, k) * 2 ? Math.max(4, objetivo(o, k)) : 0);
+      const enVenta = c.plan && (c.plan.ventas || []).some(x => x.que === k);
+      let quiere = o.balance.falta[k] || (enVenta && (o[k] || 0) < objetivo(o, k) * 2 ? Math.max(4, objetivo(o, k)) : 0);
+      // A un reino de jugador solo se le lleva lo que encargó (y no más de lo que le queda por recibir).
+      if (o.jugador && !comercioLibre(o)) quiere = Math.min(quiere, encargoDe(o, k));
       const q = Math.min(c.balance.sobra[k], quiere, Math.floor(c[k] || 0), k === 'vehiculos' ? 2 : k === 'armas' ? Math.ceil(cap / 3) : cap);
       if (q < 1) continue;
       const val = q * mk.precio[k] * (1 + o.balance.urg[k]);
@@ -1267,7 +1277,7 @@
     const tratos = [];
     if (a.carga && a.carga.de === c.id) {
       const k = a.carga.que, urg = o.balance ? o.balance.urg[k] : 0, precio = mk.precio[k] * (urg > 0 ? 1 + 0.5 * Math.min(1.6, urg) : 0.7);
-      const q = Math.min(a.carga.n, Math.floor(Math.max(0, o.oro || 0) / precio));
+      const q = Math.min(a.carga.n, Math.floor(Math.max(0, o.oro || 0) / precio), o.jugador && !comercioLibre(o) ? encargoDe(o, k) : Infinity);
       if (q > 0) {
         const oro = Math.round(q * precio * 10) / 10;
         o[k] = (o[k] || 0) + q; o.oro -= oro; c.oro = (c.oro || 0) + oro; c.comercioOro = (c.comercioOro || 0) + oro;
@@ -1285,17 +1295,23 @@
       let mejor = null, mv = 0;
       for (const k of BIENES) {
         if (!vendeBien(o, k) || !compraBien(c, k)) continue;
-        const precio = mk.precio[k] * (1 + 0.3 * Math.min(1.6, c.balance.urg[k]));
-        const q = Math.min(o.balance.sobra[k], Math.floor(o[k] || 0), c.balance.falta[k], Math.floor(Math.max(0, (c.oro || 0) * 0.6) / precio), k === 'vehiculos' ? 2 : k === 'armas' ? Math.ceil(cap / 3) : cap);
+        // Lo que se encargó («comprad 10 de metal»): el otro vende también de su reserva (se queda con la mitad de lo que
+        // necesita), pero más caro, porque lo saca de lo suyo. Si no, solo lo que le sobra.
+        const disponible = vendible(m, o, c, k);
+        const precio = mk.precio[k] * (1 + 0.3 * Math.min(1.6, c.balance.urg[k])) * (disponible > (o.balance.sobra[k] || 0) ? 1.4 : 1);
+        // (Del encargo, solo lo que falta por comprar: lo que ya viene de camino ya se descontó.)
+        const pedido = ((c.plan && c.plan.pedidos) || []).find(y => y.que === k), resta = c.jugador && pedido ? pedido.n : Infinity;
+        const q = Math.min(disponible, resta, Math.floor(o[k] || 0), c.balance.falta[k], Math.floor(Math.max(0, (c.oro || 0) * 0.6) / precio), k === 'vehiculos' ? 2 : k === 'armas' ? Math.ceil(cap / 3) : cap);
         if (q < 1 || c.balance.urg[k] < 0.25) continue;
         const val = c.balance.urg[k] * q;
         if (val > mv) { mv = val; mejor = [k, Math.floor(q), precio]; }
       }
       if (mejor) {
         const [k, q, precio] = mejor, oro = Math.round(q * precio * 10) / 10;
-        o[k] -= q; o.balance.sobra[k] -= q; c.oro -= oro; o.oro = (o.oro || 0) + oro; o.comercioOro = (o.comercioOro || 0) + oro;
+        o[k] -= q; o.balance.sobra[k] = Math.max(0, (o.balance.sobra[k] || 0) - q); c.oro -= oro; o.oro = (o.oro || 0) + oro; o.comercioOro = (o.comercioOro || 0) + oro;
         (o.ganado = o.ganado || {})[k] = (o.ganado[k] || 0) + oro;
         a.carga = { que: k, n: q, de: o.id, para: c.id };
+        if (((c.plan && c.plan.pedidos) || []).some(y => y.que === k)) { a.carga.encargo = 1; quitarPedido(c, k, q); }
         quitarVenta(o, k, q);
         tratos.push({ t: m.turno, vende: o.id, compra: c.id, que: k, n: q, oro });
       }
@@ -1303,10 +1319,25 @@
     const ru = via ? null : v.rutas.find(x => x.id === a.ruta);
     for (const x of tratos) { x.ruta = via || (ru ? ru.tipo : null); apuntarTrato(m, x); }
   }
+  // Si muere quien lleva una carreta (de viejo, en una batalla, en un incendio…), la carga no se pierde: lo comprado
+  // llega igual a su pueblo y lo que no vendió vuelve a su almacén. Se mira lo que llevaba cada uno al acabar el turno
+  // anterior (v.cargas: así va igual en las dos copias de una partida en línea).
+  function rescatarCargas(m) {
+    const v = m.vida, vivos = new Map(v.aldeanos.map(a => [a.id, a]));
+    for (const id of Object.keys(v.cargas || {})) {
+      if (vivos.has(+id)) continue;
+      const k = v.cargas[id], c = S().civ(m, k.c);
+      if (!c || !c.viva) continue;
+      descargar(m, { carga: k.carga, tipo: null, rescate: 1 }, c);
+    }
+    v.cargas = {};
+    for (const a of v.aldeanos) if (a.carga) v.cargas[a.id] = { c: a.c, carga: Object.assign({}, a.carga) };
+  }
   // De vuelta en casa: se descarga lo comprado fuera.
   function descargar(m, a, c) {
     if (!a.carga) return;
-    if (a.carga.para === c.id) { c[a.carga.que] = (c[a.carga.que] || 0) + a.carga.n; c.importa = c.importa || {}; c.importa[a.carga.que] = (c.importa[a.carga.que] || 0) + a.carga.n; quitarPedido(c, a.carga.que, a.carga.n); }
+    if (a.carga.para === c.id && c.jugador && a.carga.encargo) { const o = S().civ(m, a.carga.de); (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: '📦 Llegan ' + Math.round(a.carga.n) + ' de ' + (NOMBRE_BIEN[a.carga.que] || a.carga.que) + (o ? ' de ' + o.nombre : '') + (a.tipo ? ' en barco' : ' en carreta') + (a.rescate ? ' (el carretero murió en el camino, pero la carga llegó)' : '') }); }
+    if (a.carga.para === c.id) { c[a.carga.que] = (c[a.carga.que] || 0) + a.carga.n; c.importa = c.importa || {}; c.importa[a.carga.que] = (c.importa[a.carga.que] || 0) + a.carga.n; if (!a.carga.encargo) quitarPedido(c, a.carga.que, a.carga.n); }
     else if (a.carga.de === c.id) c[a.carga.que] = (c[a.carga.que] || 0) + a.carga.n; // lo que no se vendió vuelve al almacén
     a.carga = null;
   }
@@ -2483,7 +2514,9 @@
         const de = aguaJunto(m, b.puerto, ter), mr = maresDe(m, ter);
         const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); if (!o || o.id === c.id || !comercian(m, c, o)) return false; const a = aguaJunto(m, t, ter); return de != null && a != null && mr.comp[a] === mr.comp[de]; });
         if (!otros.length) { b.r.push(b.x, b.y); return; }
-        const destino = otros[Math.floor(azar(v) * otros.length)];
+        // Si hay algo encargado, primero a un puerto de quien lo pueda vender.
+        const utiles = otros.filter(t => sirveSocio(m, c, S().civ(m, m.dueno[region(m, t)])));
+        const lista = utiles.length ? utiles : otros, destino = lista[Math.floor(azar(v) * lista.length)];
         const a = aguaJunto(m, destino, ter);
         // Las travesías se recuerdan (el mar no cambia): solo se calcula la primera vez.
         const clave = de + '>' + a;
@@ -2885,6 +2918,7 @@
     // Donde cae alguien en batalla queda sangre unos turnos.
     for (const [x, y, , tipo, paso] of v.muertos) if (['batalla', 'flecha', 'obus', 'bomba', 'torre'].includes(tipo)) marcar(m, y * v.tw + x, 'sangre', 3, paso || 0.1);
     naturaleza(m, ter);
+    rescatarCargas(m);
     contar(m);
     yield;
     ciudades(m);
@@ -3356,7 +3390,10 @@
       // Elige una ruta abierta de su pueblo y sale desde su extremo: la capital propia en las rutas entre reinos.
       const rutas = v.rutas.filter(ru => ru.tipo !== 'calle' && (ru.a === c.id || ru.b === c.id) && rutaActiva(m, ru));
       if (rutas.length) {
-        const ru = rutas[Math.floor(azar(v) * rutas.length)], aqui = a.y * v.tw + a.x;
+        // Si hay algo encargado, primero la ruta hasta quien lo pueda vender.
+        const utiles = rutas.filter(ru => ru.tipo === 'externa' && sirveSocio(m, c, S().civ(m, ru.a === c.id ? ru.b : ru.a)));
+        const lista = utiles.length && azar(v) < 0.7 ? utiles : rutas;
+        const ru = lista[Math.floor(azar(v) * lista.length)], aqui = a.y * v.tw + a.x;
         const desdeA = ru.tipo === 'externa' ? ru.a === c.id : dist(m, aqui, ru.tiles[0]) <= dist(m, aqui, ru.tiles[ru.tiles.length - 1]);
         a.ruta = ru.id; a.dir = desdeA ? 1 : -1; a.i = desdeA ? 0 : ru.tiles.length - 1; a.vuelta = 0; a.viaje = 1;
         t = ru.tiles[a.i];
@@ -4748,5 +4785,5 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     actualizarPoblacion(m);
   }
 
-  M.vida = { comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

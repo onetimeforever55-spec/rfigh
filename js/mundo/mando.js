@@ -472,9 +472,14 @@
       if (nq <= 0) { textos.push(a.tipo === 'comprar' ? 'No hay oro para comprar ' + NB(a.que) + '.' : 'No tenéis ' + NB(a.que) + ' que vender.'); return; }
       const lista = a.tipo === 'comprar' ? (p.pedidos = p.pedidos || []) : (p.ventas = p.ventas || []);
       lista.push({ que: a.que, n: nq, desde: m.turno });
-      const tienen = socios.filter(o => o.balance && (a.tipo === 'comprar' ? o.balance.sobra[a.que] >= 1 : o.balance.falta[a.que] >= 1));
+      const tienen = socios.filter(o => o.balance && (a.tipo === 'comprar' ? M.vida.vendible(m, o, c, a.que) >= 1 : o.balance.falta[a.que] >= 1));
       an((a.tipo === 'comprar' ? '📦 Pedido: ' : '🏷 A la venta: ') + nq + ' ' + NB(a.que));
-      textos.push(a.tipo === 'comprar' ? 'Encargáis ' + nq + ' de ' + NB(a.que) + ' a unas ' + precio.toFixed(2) + ' de oro cada una (' + Math.round(nq * precio) + ' en total, más si corre prisa). ' + (tienen.length ? 'A ' + tienen.map(o => o.nombre).join(' y ') + ' le sobra: vuestros comerciantes lo traerán en la próxima carreta.' : 'Ahora a vuestros socios no les sobra; en cuanto tengan, llegará. Mientras, quizá convenga producirlo.') : 'Ponéis a la venta ' + nq + ' de ' + NB(a.que) + ' (unas ' + precio.toFixed(2) + ' de oro cada una). ' + (tienen.length ? 'A ' + tienen.map(o => o.nombre).join(' y ') + ' le hace falta: la carreta saldrá cargada.' : 'Ahora ningún socio lo necesita; se venderá cuando lo pidan.'));
+      // Quién lo tiene y cómo llega: en carreta (si hay carretera) o en barco (si hay puertos en el mismo mar).
+      const via = o => ((m.vida.rutas || []).some(r => r.tipo === 'externa' && [r.a, r.b].includes(c.id) && [r.a, r.b].includes(o.id)) ? 'en carreta' : M.vida.porMar(m, c, o) ? 'en barco' : 'cuando haya camino o puertos en el mismo mar');
+      const quien = tienen.map(o => o.nombre + ' (' + Math.floor(M.vida.vendible(m, o, c, a.que)) + ', ' + via(o) + ')').join(', ');
+      const fuera = a.tipo === 'comprar' ? S().vivas(m).filter(o => o !== c && !socios.includes(o) && !S().enGuerra(c, o) && M.vida.vendible(m, o, c, a.que) >= 3).sort((x, y) => M.vida.vendible(m, y, c, a.que) - M.vida.vendible(m, x, c, a.que)).slice(0, 2) : [];
+      const consejo = fuera.length ? ' ' + fuera.map(o => o.nombre + ' tiene ' + Math.floor(M.vida.vendible(m, o, c, a.que))).join(' y ') + ': si queréis, «abrid una ruta comercial con ' + fuera[0].nombre + '».' : '';
+      textos.push(a.tipo === 'comprar' ? 'Encargáis ' + nq + ' de ' + NB(a.que) + ' a unas ' + precio.toFixed(2) + ' de oro cada una (' + Math.round(nq * precio) + ' en total, más si corre prisa). ' + (tienen.length ? 'Os lo pueden vender ' + quien + ' (si es de su reserva, algo más caro): vuestros comerciantes irán primero a por ello.' : 'Ahora ninguno de vuestros socios tiene para venderos; en cuanto tengan, llegará. Mientras, quizá convenga producirlo.') + consejo : 'Ponéis a la venta ' + nq + ' de ' + NB(a.que) + ' (unas ' + precio.toFixed(2) + ' de oro cada una). ' + (tienen.length ? 'A ' + tienen.map(o => o.nombre).join(' y ') + ' le hace falta: la carreta saldrá cargada.' : 'Ahora ningún socio lo necesita; se venderá cuando lo pidan.'));
       return;
     }
     if (a.tipo === 'edad' || a.tipo === 'consulta_edad') {
