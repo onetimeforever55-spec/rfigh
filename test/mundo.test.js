@@ -988,7 +988,8 @@ console.log('FUNDAR PUEBLOS (TAMBIÉN AL OTRO LADO DEL MAR)');
     comprobar(res.ok && res.via.mar && fases.has('navega') && (m.ciudades || []).some(x => x.region === rm && x.civ === cm.id && masa[x.region] !== masa[cm.capital]), 'al otro lado del mar, los colonos embarcan en su puerto, cruzan y fundan un pueblo en otra isla (' + k + ' turnos)');
   } else comprobar(false, 'hace falta un reino con puerto y tierra libre al otro lado del mar');
   // Por tierra: el jugador toca un sitio y los colonos van andando y acampan.
-  const ct = S.vivas(m).find(c => sitios(c, false).length), rt = sitios(ct, false)[0];
+  // (El reino más poblado con tierra libre al lado: uno pequeño podría hundirse mientras sus colonos van de camino.)
+  const ct = S.vivas(m).filter(c => sitios(c, false).length).sort((x, y) => (y.aldeanos || 0) - (x.aldeanos || 0) || x.id - y.id)[0], rt = sitios(ct, false)[0];
   const rest = V.encargar(m, ct, V.centro(m, rt), 'colonia');
   k = 0; while (k++ < 40 && !(m.ciudades || []).some(x => x.region === rt)) S.turno(m);
   comprobar(rest.ok && rest.via.tierra != null && (m.ciudades || []).some(x => x.region === rt && x.civ === ct.id), 'con «Fundar pueblo» los colonos van andando al sitio elegido y fundan allí (' + k + ' turnos)');

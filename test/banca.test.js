@@ -76,17 +76,21 @@ comprobar(cobrado > 0 || c.banca.devuelto > 0, 'los empresarios devuelven a su b
 comprobar(V.empresariosDe(m, c).every(a => a.o === 5), 'banqueros y empresarios se dedican a su negocio (oficio de comerciante: sombrero y traje)');
 {
   // Una fábrica privada no le cuesta madera ni piedra al reino al levantarla.
-  const t = S.casillas(m, c).flatMap(r => V.parcelas(m, r)).find(t => !v.obra[t] && !(v.andamios && v.andamios[t]) && !V.puedeColocar(m, c, t, 'fabrica'));
+  // (Un reino con categoría de villa, que es lo que pide la fábrica; y un solar libre o, como en el juego cuando la ciudad está llena, un huerto.)
+  c.nivelMax = Math.max(c.nivelMax || 0, 4); c.nivel = Math.max(c.nivel || 0, 3);
+  const solares = S.casillas(m, c).flatMap(r => V.parcelas(m, r)).filter(t => !(v.andamios && v.andamios[t]) && !(v.privados && v.privados[t]) && !V.puedeColocar(m, c, t, 'fabrica'));
+  const cap = V.centro(m, c.capital), lejos = t => Math.abs(t % v.tw - cap % v.tw) + Math.abs(Math.floor(t / v.tw) - Math.floor(cap / v.tw));
+  const t = S.ordenarPor(solares.slice(), x => (v.obra[x] ? 1e6 : 0) + lejos(x))[0];
   const a = v.aldeanos.filter(x => x.c === c.id && !x.emp && (x.edad || 0) >= V.ADULTO).sort((x, y) => (x.edad || 0) - (y.edad || 0))[0];
   if (t != null && a) {
     v.privados = v.privados || {}; v.privados[t] = { dueno: a.id, civ: c.id, tipo: 'fabrica' };
     a.emp = { neg: 'fabrica', t, monto: 40, deuda: 48, cuota: 1.6, caja: 0, banquero: null, desde: m.turno, atraso: 0 };
     (c.plan.encargos = c.plan.encargos || []).push({ t, o: V.OBRA.fabrica, clave: 'fabrica', privado: a.id });
     c.madera = 0; c.piedra = 0;
-    let empezada = false; for (let k = 0; k < 30 && !empezada; k++) { a.edad = V.ADULTO + 1; c.madera = 0; c.piedra = 0; c.oro = Math.max(c.oro, 120); S.turno(m); empezada = !!((v.andamios && v.andamios[t]) || v.obra[t] === V.OBRA.fabrica); }
+    let empezada = false; for (let k = 0; k < 30 && !empezada; k++) { a.edad = V.ADULTO + 1; c.madera = 0; c.piedra = 0; c.oro = Math.max(c.oro, 120); c.nivelMax = Math.max(c.nivelMax, 4); S.turno(m); empezada = !!((v.andamios && v.andamios[t]) || v.obra[t] === V.OBRA.fabrica); }
     if (!empezada) console.log('   (encargo: ' + JSON.stringify((c.plan.encargos || []).find(x => x.t === t)) + ', privado: ' + JSON.stringify((v.privados || {})[t]) + ', emp: ' + JSON.stringify(a.emp) + ', puede: ' + V.puedeColocar(m, c, t, 'fabrica', true) + ', constructores: ' + v.aldeanos.filter(x => x.c === c.id && x.o === 2).length + ')');
     comprobar(empezada, 'la fábrica privada se empieza sin madera ni piedra del reino (la paga su dueño)');
-  } else comprobar(false, 'hay sitio para probar la fábrica privada');
+  } else { const k = {}; for (const t of S.casillas(m, c).flatMap(r => V.parcelas(m, r))) { const q = V.puedeColocar(m, c, t, 'fabrica') || (v.privados && v.privados[t] ? 'privado' : 'OK'); k[q] = (k[q] || 0) + 1; } console.log('   (' + JSON.stringify(k) + ', era ' + c.era + ', nivel ' + c.nivel + ')'); comprobar(false, 'hay sitio para probar la fábrica privada'); }
 }
 {
   // Muere un empresario: lo hereda su familia (o, sin nadie, el negocio pasa al reino).
@@ -95,9 +99,11 @@ comprobar(V.empresariosDe(m, c).every(a => a.o === 5), 'banqueros y empresarios 
   if (e) {
     const hijo = v.aldeanos.filter(b => b !== e && b.c === c.id && !b.emp && (b.edad || 0) >= V.ADULTO).sort((x, y) => (x.edad || 0) - (y.edad || 0))[0];
     if (hijo) hijo.padre = e.id;
+    const negocio = e.emp;
     e.edad = 99; for (let k = 0; k < 6 && v.aldeanos.includes(e); k++) S.turno(m);
-    if (v.aldeanos.includes(e) || (hijo && !hijo.emp)) console.log('   (sigue vivo: ' + v.aldeanos.includes(e) + ', hijo en el reino: ' + (hijo && v.aldeanos.includes(hijo)) + ', hijo emp: ' + !!(hijo && hijo.emp) + ', último: ' + ((v.anuncios || []).filter(x => /🏦/.test(x.texto)).slice(-2).map(x => x.texto).join(' / ')) + ')');
-    comprobar(!v.aldeanos.includes(e) && (!hijo || hijo.emp), 'al morir un empresario, su hijo hereda el negocio' + (hijo ? ' (' + hijo.nombre + ')' : ''));
+    const heredero = v.aldeanos.find(b => b.emp === negocio);
+    if (v.aldeanos.includes(e) || (hijo && !heredero)) console.log('   (sigue vivo: ' + v.aldeanos.includes(e) + ', hijo en el reino: ' + (hijo && v.aldeanos.includes(hijo)) + ', hijo emp: ' + !!(hijo && hijo.emp) + ', último: ' + ((v.anuncios || []).filter(x => /🏦/.test(x.texto)).slice(-2).map(x => x.texto).join(' / ')) + ')');
+    comprobar(!v.aldeanos.includes(e) && (!hijo || heredero), 'al morir un empresario, su familia hereda el negocio' + (heredero ? ' (' + heredero.nombre + ')' : ''));
   }
   comprobar(vivos > 0, 'el reino sigue vivo');
 }

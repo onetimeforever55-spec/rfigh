@@ -628,6 +628,7 @@
   const NOMBRE_TIPO = o => { const O = M.vida.OBRA; return ({ [O.casa]: 'casa', [O.molino]: 'molino', [O.templo]: 'templo', [O.saber]: 'casa del saber', [O.torre]: 'torre', [O.cuartel]: 'cuartel', [O.arqueria]: 'arquería', [O.castillo]: 'castillo', [O.puerto]: 'puerto', [O.pozo]: 'pozo', [O.granero]: 'granero', [O.fuente]: 'plaza pública', [O.parque]: 'parque', [O.palacio]: 'palacio', [O.central]: 'central eléctrica', [O.banco]: 'banco', [O.fabrica]: 'fábrica', [O.estacion]: 'estación de tren', [O.hospital]: 'hospital', [O.aerodromo]: 'aeródromo', [O.campamento]: 'campamento', [O.aduana]: 'puesto fronterizo', [O.petroleo]: 'pozo de petróleo', [O.mina]: 'mina', [O.ayuntamiento]: 'ayuntamiento', [O.centro]: 'plaza mayor', [O.ruina]: 'ruinas' })[o] || 'edificio'; };
   const hace = anio => { const d = Math.max(0, Math.round(m.anio - anio)); return d === 0 ? 'este año' : d === 1 ? 'hace 1 año' : 'hace ' + d.toLocaleString('es-ES') + ' años'; };
   const anioTxt = a => S.anioTexto(a).replace(/(\d)\.$/, '$1');
+  const esNinoV = a => (a.edad || 0) < 2;
   function fichaEdificio(f) {
     const v = m.vida, t = edificioSel, o = v.obra[t], an = v.andamios && v.andamios[t], rec = v.edificios && v.edificios[t];
     if (!o && !an) { edificioSel = null; return false; }
@@ -636,7 +637,10 @@
     if (ciudad) return fichaCiudad(f, ciudad, c, rec);
     const vecinos = o === M.vida.OBRA.casa ? v.aldeanos.filter(a => a.casa === t) : [];
     const obreros = an && v.obreros && v.obreros[t] ? v.obreros[t].map(id => v.aldeanos.find(a => a.id === id)).filter(Boolean) : [];
-    const titulo = rec ? rec.nombre : an ? NOMBRE_TIPO(an.o).charAt(0).toUpperCase() + NOMBRE_TIPO(an.o).slice(1) + ' en obras' : NOMBRE_TIPO(o).charAt(0).toUpperCase() + NOMBRE_TIPO(o).slice(1);
+    // Una casa se llama por la familia que vive en ella (la más numerosa), no por quien la construyó.
+    const famDe = () => { const k = {}; for (const a of vecinos) if (a.familia) k[a.familia] = (k[a.familia] || 0) + 1 + (esNinoV(a) ? 0 : 0.5); const top = Object.keys(k).sort((x, y) => k[y] - k[x] || (x < y ? -1 : 1))[0]; return top; };
+    const familiaCasa = vecinos.length ? famDe() : null;
+    const titulo = familiaCasa ? 'Casa de los ' + familiaCasa : rec ? rec.nombre : an ? NOMBRE_TIPO(an.o).charAt(0).toUpperCase() + NOMBRE_TIPO(an.o).slice(1) + ' en obras' : NOMBRE_TIPO(o).charAt(0).toUpperCase() + NOMBRE_TIPO(o).slice(1);
     f.innerHTML = '<h3><span class="muestra"></span>' + esc(titulo) + '</h3><p class="subt">' + esc(NOMBRE_TIPO(an ? an.o : o)) + (c ? ' de ' + esc(c.nombre) : '') + ' · en ' + esc(M.vida.lugarDe ? M.vida.lugarDe(m, t) : '') + '</p><dl>' +
       (an ? fila('Obras', '<span class="barra"><span style="width:' + Math.round(100 * (1 - Math.max(0, an.falta) / an.total)) + '%"></span></span> ' + Math.round(100 * (1 - Math.max(0, an.falta) / an.total)) + ' %') + (obreros.length ? fila('Trabajan', esc(obreros.map(a => a.nombre + ' ' + (a.familia || '')).join(', '))) : '') : '') +
       (rec ? fila('Construido', esc(anioTxt(rec.anio)) + ' <span class="tenue">(' + hace(rec.anio) + ')</span>') + (rec.por && rec.por.length ? fila('Lo levantó', esc(rec.por.join(', '))) : '') + fila('Estilo', 'de ' + esc(M.ERAS[rec.era].con) + (c && M.vida.fase(rec.era) < M.vida.fase(c.era) ? ' <span class="tenue">(antiguo: lo reformarán)</span>' : '')) : (!an ? fila('Construido', '<span class="tenue">antes de que nadie lo apuntara</span>') : '')) +

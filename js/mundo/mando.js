@@ -790,10 +790,12 @@
       if (p.ultimaFiesta != null && m.turno - p.ultimaFiesta < 3) { textos.push('Aún les dura la resaca de la última fiesta.'); return; }
       const coste = Math.round(Math.max(3, adultosDe(m, c).length * 0.3));
       if ((c.comida || 0) < coste) { textos.push('No hay comida para una fiesta (hace falta ' + coste + ').'); return; }
-      p.ultimaFiesta = m.turno; c.comida -= coste; c.estab = Math.min(100, c.estab + (a.descanso ? 5 : 9));
+      // Con plaza pública la fiesta luce más (+12 en vez de +9).
+      const sube = a.descanso ? 5 : c.fuentes > 0 ? 12 : 9;
+      p.ultimaFiesta = m.turno; c.comida -= coste; c.estab = Math.min(100, c.estab + sube);
       for (const x of adultosDe(m, c)) if (!x.fijo && !x.k && x.o !== 4) { x.e = 3; x.t = a.descanso ? 3 : 2; } // ESPERAR: dejan el trabajo un rato
       an(a.descanso ? '😴 Día de descanso' : '🎉 ¡Fiesta en la plaza!');
-      textos.push((a.descanso ? 'Tu gente descansa un par de turnos' : 'Fiesta en la plaza: música, vino y ' + coste + ' de comida') + '. Estabilidad +' + (a.descanso ? 5 : 9) + ' (ahora ' + Math.round(c.estab) + ').');
+      textos.push((a.descanso ? 'Tu gente descansa un par de turnos' : 'Fiesta en la plaza: música, vino y ' + coste + ' de comida') + '. Estabilidad +' + sube + (!a.descanso && !(c.fuentes > 0) ? ' (con una plaza pública lucirá más)' : '') + ' (ahora ' + Math.round(c.estab) + ').');
       return;
     }
     if (a.tipo === 'rezar') {

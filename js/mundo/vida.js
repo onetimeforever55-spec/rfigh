@@ -142,6 +142,8 @@
   const GASTO = { fabrica: 0.4, tren: 0.3, central: 0.5 };
   const enMarcha = (c, k) => !(c && ((c.paradas && c.paradas[k]) || (k === 'fabrica' && c.huelga)));
   // Lo sucio que está el aire (0 limpio; 0,6 como mucho): fábricas y centrales que funcionan, menos lo que limpian los parques.
+  // La electricidad mueve las máquinas: con una central en marcha, la forja y las fábricas sacan un 50 % más.
+  const fuerza = c => (c.era >= 7 && (c.centrales || 0) > 0 && enMarcha(c, 'central') ? 1.5 : 1);
   const contaminacion = c => c && c.era >= 6 ? Math.max(0, Math.min(0.6, (enMarcha(c, 'fabrica') ? (c.fabricas || 0) * 0.12 : 0) + (enMarcha(c, 'central') ? (c.centrales || 0) * 0.15 : 0) + (enMarcha(c, 'tren') ? (c.estaciones || 0) * 0.04 : 0) - (c.parques || 0) * 0.1)) : 0;
   // Se descubre lo que hay bajo tierra cuando alguien llega a la era que sabe usarlo (una vez por mundo).
   function subsuelo(m, ter) {
@@ -776,19 +778,21 @@
   const redondo = x => Math.round(x * 100) / 100;
   function comercio(m, c, impuesto) {
     const v = m.vida, mercs = mercaderesDe(m, c), porId = new Map(mercs.map(a => [a.id, a]));
+    // Con banco, los mercaderes cobran mejor (letras de cambio, crédito): +20 %. Con plaza pública, hay mercado: +10 %.
+    const mejor = (c.bancos > 0 ? 1.2 : 1) * (c.fuentes > 0 ? 1.1 : 1);
     const enGremio = new Map(mercs.map(a => [a.id, 0]));
     for (const a of v.aldeanos) {
       if (a.c !== c.id || a.o !== COMERCIANTE || a.emp || a.merc) continue;
       const jefe = a.gremio != null ? porId.get(a.gremio) : null;
       if (jefe && jefe.merc.t != null && v.obra[jefe.merc.t] === OBRA.gremio) {
         // En el gremio: el trato lo cobra el mercader; el comerciante, su sueldo.
-        const bruto = 0.45 + 0.09 * c.era, sueldo = 0.15 + 0.03 * c.era, imp = bruto * impuesto;
+        const bruto = (0.45 + 0.09 * c.era) * mejor, sueldo = 0.15 + 0.03 * c.era, imp = bruto * impuesto;
         a.dinero = redondo((a.dinero || 0) + sueldo); jefe.merc.caja = redondo(jefe.merc.caja + bruto - sueldo - imp); c.oro = (c.oro || 0) + imp;
         enGremio.set(jefe.id, enGremio.get(jefe.id) + 1);
       } else {
         if (a.gremio != null && !jefe) delete a.gremio;
         // Por su cuenta (el comercio de siempre, para el reino): una pequeña comisión de cada trato.
-        a.dinero = redondo((a.dinero || 0) + (0.2 + 0.05 * c.era) * (1 - impuesto));
+        a.dinero = redondo((a.dinero || 0) + (0.2 + 0.05 * c.era) * mejor * (1 - impuesto));
       }
     }
     // Cada familia tiene una sola casa comercial en el reino: el jefe es el de la casa principal (o el más antiguo);
@@ -798,7 +802,7 @@
     for (const a of mercs) {
       const mc = a.merc;
       // El mercader también comercia; y si su gremio se perdió (lo tiraron o se quemó), puede fundar otro.
-      const g = 0.4 + 0.08 * c.era, imp = g * impuesto;
+      const g = (0.4 + 0.08 * c.era) * mejor, imp = g * impuesto;
       mc.caja = redondo(mc.caja + g - imp); c.oro = (c.oro || 0) + imp;
       // Una sucursal manda lo que gana a la caja del jefe de la familia; si la casa ya no está, va por su cuenta.
       const jefe = a.familia ? jefeCasa.get(a.familia) : null;
@@ -1032,7 +1036,7 @@
       // por cada fábrica en marcha) o muebles (2 de madera cada lote, que se vende por oro).
       const fab = c.plan && c.plan.fabricar;
       if (fab && fab.n > fab.hechos && fab.que !== 'vehiculos') {
-        const ritmo = (c.cuarteles > 0 ? 2 : 0) + (enMarcha(c, 'fabrica') ? 4 * (c.fabricas || 0) : 0);
+        const ritmo = Math.round(((c.cuarteles > 0 ? 2 : 0) + (enMarcha(c, 'fabrica') ? 4 * (c.fabricas || 0) : 0)) * fuerza(c));
         const q = Math.min(fab.que === 'granadas' ? ritmo * 3 : ritmo, fab.n - fab.hechos, fab.que === 'armas' ? Math.floor(c.metal || 0) : fab.que === 'granadas' ? Math.floor(c.metal || 0) * 3 : Math.floor((c.madera || 0) / 2));
         if (fab.que === 'vehiculos') { /* los hace el cuartel, más abajo */ }
         else if (q > 0) { if (fab.que === 'armas') { c.metal -= q; c.armas = (c.armas || 0) + q; } else if (fab.que === 'granadas') { c.metal -= Math.ceil(q / 3); c.granadas = (c.granadas || 0) + q; } else { c.madera -= q * 2; c.muebles = (c.muebles || 0) + q; } fab.hechos += q; }
@@ -1044,9 +1048,9 @@
       banca(m, c);
       // La fábrica: forja en serie (sin cuartel) y convierte la madera que sobra en muebles que se venden por oro.
       if (c.fabricas > 0 && enMarcha(c, 'fabrica')) {
-        const q = Math.min(2 * c.fabricas, Math.floor(Math.max(0, (c.metal || 0) - 4 - reserva)));
+        const q = Math.min(Math.round(2 * c.fabricas * fuerza(c)), Math.floor(Math.max(0, (c.metal || 0) - 4 - reserva)));
         if (q > 0 && (c.cartera && (c.cartera.armas || c.cartera.metal) || c.guerras.length)) { c.metal -= q; c.armas = (c.armas || 0) + q; }
-        const mad = Math.min(4 * c.fabricas, Math.floor(Math.max(0, (c.madera || 0) - objetivo(c, 'madera') * 1.2) / 2));
+        const mad = Math.min(Math.round(4 * c.fabricas * fuerza(c)), Math.floor(Math.max(0, (c.madera || 0) - objetivo(c, 'madera') * 1.2) / 2));
         if (mad > 0) { c.madera -= mad * 2; c.muebles = (c.muebles || 0) + mad; }
       }
       // El mercado interior: la gente compra cada turno parte de los muebles del almacén (lo demás se exporta).
@@ -1332,8 +1336,8 @@
     if (!quien) return;
     const pareja = lista.find(b => b.id === quien.pareja && libre(b));
     const familia = [quien, ...(pareja ? [pareja] : []), ...lista.filter(b => esNino(b) && b.h === de && (b.padre === quien.id || b.madre === quien.id))];
-    const sitio = centro(m, a_), casa = [OBRA.centro, OBRA.ayuntamiento, OBRA.campamento].includes(v.obra[sitio]) ? sitio : null;
-    for (const b of familia) { b.h = a_; b.casa = casa; b.e = LIBRE; b.paseo = 0; }
+    // (La casa nueva se la busca el reparto de casas, en su pueblo nuevo.)
+    for (const b of familia) { b.h = a_; b.casa = null; b.e = LIBRE; b.paseo = 0; }
   }
   function hogar(m, c, cs) {
     const v = m.vida;
@@ -1828,7 +1832,8 @@
     // Calles alumbradas: se sale de noche sin miedo.
     c.alumbrado = alumbradoDe(c);
     if (c.alumbrado) animo += c.alumbrado === 'electrico' ? 6 : c.alumbrado === 'gas' ? 4 : 2;
-    if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 2) animo += 10;
+    // Una fiesta se nota más con una plaza donde celebrarla.
+    if (c.plan && c.plan.ultimaFiesta != null && m.turno - c.plan.ultimaFiesta <= 2) animo += c.fuentes > 0 ? 15 : 10;
     if (c.plan && c.plan.impuesto > 1) animo -= Math.round((c.plan.impuesto - 1) * 25);
     c.animo = Math.max(0, Math.min(100, Math.round(animo)));
     return out;
@@ -2542,12 +2547,20 @@
     marcar(m, t, 'ceniza', 8, paso);
   }
   // Un paso del fuego: arde, salta, quema a quien esté dentro, y la gente lo apaga.
+  let pozosVistos = { m: null, turno: -1, set: null };
+  function comarcasConPozo(m) {
+    if (pozosVistos.m === m && pozosVistos.turno === m.turno) return pozosVistos.set;
+    const v = m.vida, set = new Set();
+    for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === OBRA.pozo) { const r = region(m, t); set.add(r); for (const n of S().vecinos(r)) set.add(n); }
+    pozosVistos = { m, turno: m.turno, set };
+    return set;
+  }
   function arder(m, paso, gente) {
     const v = m.vida;
     if (!v.fuego) return;
     const claves = Object.keys(v.fuego);
     if (!claves.length) return;
-    const ter = terrenos(m), tw = v.tw, mucho = claves.length > 500;
+    const ter = terrenos(m), tw = v.tw, mucho = claves.length > 500, conPozo = comarcasConPozo(m);
     const humedo = new Set(S().vivas(m).filter(c => c.efectos.some(e => e.comida > 1.2 && e.hasta > m.turno)).map(c => c.id)); // diluvio reciente
     const seco = new Set(S().vivas(m).filter(c => c.efectos.some(e => e.sequia)).map(c => c.id));
     const nuevos = [];
@@ -2555,7 +2568,8 @@
       const t = +k, r = region(m, t), dueno = m.dueno[r];
       if (!ardible(v, t) || (v.inundado && v.inundado[t]) || humedo.has(dueno)) { apagar(m, t, paso); continue; }
       // Los vecinos acuden con cubos: cuanta más gente en la comarca, antes se apaga (en sequía, peor).
-      const cubos = Math.min(0.3, 0.012 * (gente.get(r) || 0)) * (seco.has(dueno) ? 0.5 : 1);
+      // Con un pozo cerca (en la comarca o al lado), hay agua a mano: los cubos van y vienen el doble de rápido.
+      const cubos = Math.min(0.3, 0.012 * (gente.get(r) || 0)) * (seco.has(dueno) ? 0.5 : 1) * (conPozo.has(r) ? 2 : 1);
       if (azar(v) < cubos) { apagar(m, t, paso); marcar(m, t, 'ceniza', 3); continue; }
       v.fuego[t]--;
       if (v.fuego[t] <= 0) { apagar(m, t, paso); quemado(m, t, paso); continue; }
@@ -2778,6 +2792,7 @@
     centros(m);
     let rec = recursos(m);
     sincronizar(m, mapa(rec, x => ({ arboles: x.arboles.length, rocas: x.rocas.length })));
+    if (pausada(m)) asignarCasas(m);
     rec = recursos(m);
     v.marcadas = new Set(S().vivas(m).flatMap(c => ((c.plan && c.plan.encargos) || []).map(e => e.t)));
     ejercitos(m);
@@ -3226,7 +3241,9 @@
       // Lo primero, las obras a medias del pueblo: se va a ayudar a la más cercana.
       if (pausada(m) && v.andamios) {
         let mejor = -1, md = 40;
-        for (const k of Object.keys(v.andamios)) { const an = v.andamios[k]; if (an.civ !== c.id) continue; const d = dist(m, a.y * v.tw + a.x, +k); if (d < md) { md = d; mejor = +k; } }
+        // (Una obra parada por falta de material no retiene al constructor si hay una privada, ya pagada, esperando.)
+        const privadaEspera = (c.plan && c.plan.encargos || []).some(e => e.privado != null && !rec.reservadas.has(e.t) && !(v.andamios && v.andamios[e.t]));
+        for (const k of Object.keys(v.andamios)) { const an = v.andamios[k]; if (an.civ !== c.id || (an.espera && privadaEspera)) continue; const d = dist(m, a.y * v.tw + a.x, +k); if (d < md) { md = d; mejor = +k; } }
         if (mejor >= 0) { a.edificio = v.andamios[mejor].o; ir(a, mejor, v.tw, IR); rec.reservadas.add(mejor); return; }
       }
       // Las reformas: un edificio de una edad pasada se pone al día (tejado nuevo, piedra, ladrillo…), uno a uno.
@@ -3684,7 +3701,12 @@
       apuntarObrero(m, t, a);
       const avance = 1 + M.tec(c, 'obra');
       // Se paga la parte de esta jornada; sin material, se espera a que llegue.
-      if (!pagarAndamio(c, an, (an.total - an.falta + avance) / an.total)) { an.espera = 1; a.e = TRABAJAR; a.t = 3; return; }
+      if (!pagarAndamio(c, an, (an.total - an.falta + avance) / an.total)) {
+        an.espera = 1;
+        // Si hay una obra privada esperando (esa la paga su dueño), se deja esta parada y se va a hacer aquella.
+        if ((c.plan && c.plan.encargos || []).some(e => e.privado != null && e.t !== t && !rec.reservadas.has(e.t) && !(v.andamios && v.andamios[e.t]))) { a.edificio = 0; a.e = LIBRE; return; }
+        a.e = TRABAJAR; a.t = 3; return;
+      }
       an.espera = 0;
       an.falta -= avance;
       if (an.falta <= 0) { colocarObra(m, t, an.o, paso); delete v.andamios[t]; if (an.o === OBRA.casa) { c.casas++; c.hecho = c.hecho || {}; c.hecho.casas = (c.hecho.casas || 0) + 1; } a.edificio = 0; }
@@ -4461,6 +4483,77 @@
     for (const b of v.aldeanos) if (b.colono === r && b.c === c.id) { b.colono = null; b.h = r; }
   }
 
+  /*
+   * CADA FAMILIA EN SU CASA: las casas tienen camas (3, más con la técnica; la casona 5; el ayuntamiento y el
+   * campamento 3; el centro del pueblo 2) y cada aldeano vive en una de verdad: allí duerme y allí se le ve
+   * volver de noche. Se conserva la casa si cabe; si no, va con su pareja o sus padres; y si no, a la casa con
+   * sitio más cercana a su pueblo. Si no queda sitio en ninguna, vive sin casa (duerme fuera, y se le nota en el ánimo).
+   */
+  const VIVIENDA = new Set([OBRA.casa, OBRA.casona, OBRA.centro, OBRA.ayuntamiento, OBRA.campamento]);
+  function camasDe(v, t, extra) { const o = v.obra[t]; return o === OBRA.casa ? 3 + Math.round(extra || 0) : o === OBRA.casona ? 5 : o === OBRA.centro ? 2 : 3; }
+  function asignarCasas(m) {
+    // (Las viviendas se leen del mapa cada vez: así dos copias del mundo, en dos navegadores, reparten igual.)
+    const v = m.vida, todas = {};
+    for (let t = 0; t < v.obra.length; t++) if (VIVIENDA.has(v.obra[t])) { const d = m.dueno[region(m, t)]; if (d >= 0) (todas[d] = todas[d] || []).push(t); }
+    const porCiv = {};
+    for (const a of v.aldeanos) if (a.colono == null && a.aBordo == null) (porCiv[a.c] = porCiv[a.c] || []).push(a);
+    for (const c of S().vivas(m)) {
+      const lista = porCiv[c.id]; if (!lista) continue;
+      const extra = M.tec(c, 'casa'), cap = new Map();
+      for (const t of todas[c.id] || []) if (VIVIENDA.has(v.obra[t]) && m.dueno[region(m, t)] === c.id) cap.set(t, camasDe(v, t, extra));
+      const ocupa = new Map(), porId = new Map(lista.map(a => [a.id, a]));
+      const hay = t => t != null && cap.has(t) && (ocupa.get(t) || 0) < cap.get(t);
+      const entra = (a, t) => { a.casa = t; ocupa.set(t, (ocupa.get(t) || 0) + 1); };
+      // Primero los adultos (los niños van con ellos), y siempre en el mismo orden.
+      const orden = S().ordenarPor(lista.slice(), a => (esNino(a) ? 1e9 : 0) + a.id);
+      // El mercader con casona vive en ella.
+      const ya = new Set();
+      for (const a of orden) if (a.merc && a.merc.casona != null && v.obra[a.merc.casona] === OBRA.casona && hay(a.merc.casona)) { entra(a, a.merc.casona); ya.add(a); }
+      const sinCasa = [];
+      for (const a of orden) { if (ya.has(a)) continue; if (hay(a.casa)) entra(a, a.casa); else sinCasa.push(a); }
+      if (!sinCasa.length) continue;
+      // Las casas con sitio, por comarca.
+      const libres = new Map();
+      for (const [t, k] of cap) if ((ocupa.get(t) || 0) < k) { const r = region(m, t); if (!libres.has(r)) libres.set(r, []); libres.get(r).push(t); }
+      const tomar = r => { const l = libres.get(r); if (!l) return null; while (l.length && !hay(l[0])) l.shift(); if (!l.length) { libres.delete(r); return null; } return l[0]; };
+      for (const a of sinCasa) {
+        const pareja = a.pareja != null ? porId.get(a.pareja) : null, padre = esNino(a) ? porId.get(a.padre) || porId.get(a.madre) : null;
+        let t = pareja && hay(pareja.casa) ? pareja.casa : padre && hay(padre.casa) ? padre.casa : null;
+        if (t == null) t = tomar(a.h);
+        if (t == null) for (const r of S().vecinos(a.h)) { t = tomar(r); if (t != null) break; }
+        if (t == null && libres.size) { let md = 1e9; for (const r of libres.keys()) { const d = S().distancia(r, a.h); if (d < md) { const x = tomar(r); if (x != null) { md = d; t = x; } } } }
+        if (t != null) entra(a, t); else a.casa = null;
+      }
+      juntarFamilias(orden, porId, hay, ocupa, entra);
+    }
+  }
+  // Las parejas viven juntas, y los niños con sus padres: si en la casa de uno hay sitio, el otro se muda allí;
+  // si las dos están llenas, se cambia la casa con un vecino que no tenga allí a su familia.
+  function juntarFamilias(orden, porId, hay, ocupa, entra) {
+    const vecinos = new Map();
+    for (const a of orden) if (a.casa != null) { if (!vecinos.has(a.casa)) vecinos.set(a.casa, []); vecinos.get(a.casa).push(a); }
+    const quitar = a => { const l = vecinos.get(a.casa); if (l) l.splice(l.indexOf(a), 1); };
+    const poner = (a, t) => { a.casa = t; if (!vecinos.has(t)) vecinos.set(t, []); vecinos.get(t).push(a); };
+    const mudar = (a, t) => { if (a.casa != null) { ocupa.set(a.casa, (ocupa.get(a.casa) || 1) - 1); quitar(a); } entra(a, t); poner(a, t); };
+    const suelto = (x, t) => !x.merc && !(vecinos.get(t) || []).some(y => y !== x && (y.id === x.pareja || y.padre === x.id || y.madre === x.id || x.padre === y.id || x.madre === y.id));
+    const cambiar = (a, t) => { const x = (vecinos.get(t) || []).find(y => !esNino(y) && suelto(y, t)); if (!x || a.casa == null) return false; const ta = a.casa; quitar(a); quitar(x); poner(a, t); poner(x, ta); return true; };
+    const fija = a => a.merc && a.casa === a.merc.casona;
+    for (const a of orden) {
+      const b = a.pareja != null ? porId.get(a.pareja) : null;
+      if (!b || esNino(a) || a.casa === b.casa || a.id > b.id) continue;
+      if (a.casa != null && hay(a.casa) && !fija(b)) mudar(b, a.casa);
+      else if (b.casa != null && hay(b.casa) && !fija(a)) mudar(a, b.casa);
+      else if (b.casa != null && !fija(a) && cambiar(a, b.casa)) continue;
+      else if (a.casa != null && !fija(b)) cambiar(b, a.casa);
+    }
+    for (const a of orden) {
+      if (!esNino(a)) continue;
+      const p = porId.get(a.padre) || porId.get(a.madre);
+      if (!p || p.casa == null || p.casa === a.casa) continue;
+      if (hay(p.casa)) mudar(a, p.casa); else cambiar(a, p.casa);
+    }
+  }
+
   // Lo que cada pueblo tiene levantado en su tierra: lo usa la capacidad (sim.js) y la ficha.
   function contar(m) {
     const v = m.vida, casas = {}, campos = {}, arboles = {}, edif = {}, camas = {}, masCamas = {}, ocio = {}, aduanas = {}, minasT = {};
@@ -4591,5 +4684,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
