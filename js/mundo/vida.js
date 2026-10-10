@@ -663,6 +663,7 @@
   const TIPO_INTERES = n => (n <= 0.5 ? 0.05 : n >= 1.5 ? 0.18 : 0.1);
   const nivelInteres = c => (c.plan && c.plan.interes) || 1;
   const empresariosDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.emp);
+  const ERA_BANQUERO = 6; // los bancos privados nacen con la industrialización (de un gremio que se convierte)
   const banquerosDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.emp && a.emp.neg === 'banco');
   const nombreDe = a => a.nombre + ' ' + (a.familia || '');
   const anunciar = (m, c, t) => (m.vida.anuncios = m.vida.anuncios || []).push({ civ: c.id, texto: t });
@@ -1053,18 +1054,31 @@
       if (a.emp && a.o !== COMERCIANTE) mover(a, COMERCIANTE);
     }
     const libres = () => v.aldeanos.filter(a => a.c === c.id && !a.emp && !a.merc && !esNino(a) && (a.edad || 0) <= VIEJO - 7 && a.o !== GUERRERO && a.o !== ERUDITO && !a.fijo && a.colono == null && a.aBordo == null);
-    // UN BANQUERO NUEVO: el mercader más rico, con su fortuna y un préstamo del banco central.
+    // UN BANQUERO NUEVO (desde la Revolución Industrial): el jefe de una casa comercial con gremio y dinero propio pide un
+    // préstamo al banco central; si se lo dan, su GREMIO SE CONVIERTE EN SU BANCO (el mismo edificio, reformado: paga al
+    // reino la obra). No llega con la era: hace falta el dinero y el préstamo. Sin banco central, o sin fondos, espera.
     const banqueros = banquerosDe(m, c), maxBancos = Math.min(3, 1 + Math.floor((m.ciudades || []).filter(x => x.civ === c.id).length / 2));
-    const montoBanco = 25 + 5 * c.era;
-    if (m.turno % 8 === c.id % 8 && banqueros.length < maxBancos && b.fondo >= montoBanco) {
-      const rico = mercaderesDe(m, c).filter(a => !a.emp && (a.merc.caja + (a.dinero || 0)) >= 15).sort((x, y) => (y.merc.caja + (y.dinero || 0)) - (x.merc.caja + (x.dinero || 0)) || x.id - y.id)[0];
-      if (rico) {
-        const deuda = Math.round(montoBanco * (1 + tipo * 2) * 10) / 10, fortuna = rico.merc.caja + (rico.dinero || 0);
-        rico.merc.caja = 0;
-        rico.emp = { neg: 'banco', capital: Math.round((fortuna + montoBanco) * 10) / 10, deuda, cuota: Math.max(0.8, Math.round(deuda / 30 * 10) / 10), desde: m.turno, atraso: 0, prestado: 0, cobrado: 0, perdido: 0 };
-        rico.dinero = 0; b.fondo -= montoBanco; b.prestado += montoBanco; mover(rico, COMERCIANTE);
-        anunciar(m, c, '🏦 El mercader ' + nombreDe(rico) + ' abre su banco con su fortuna y ' + montoBanco + ' de oro del banco central');
-        sedeBanco(m, c, rico);
+    const montoBanco = 25 + 5 * c.era, reforma = Math.round(precioObra(m, 'bancopriv') * 5) / 10, pide = montoBanco * 0.6 + reforma;
+    if (c.era >= ERA_BANQUERO && m.turno % 8 === c.id % 8 && banqueros.length < maxBancos) {
+      const fortuna = a => a.merc.caja + (a.dinero || 0);
+      const conGremio = mercaderesDe(m, c).filter(a => !a.emp && a.merc.de == null && a.merc.t != null && v.obra[a.merc.t] === OBRA.gremio);
+      const rico = conGremio.filter(a => fortuna(a) >= pide).sort((x, y) => fortuna(y) - fortuna(x) || x.id - y.id)[0];
+      if (rico && b.fondo < montoBanco) {
+        if (!(rico.merc.pidioBanco > m.turno - 40)) { rico.merc.pidioBanco = m.turno; anunciar(m, c, '🏦 ' + nombreDe(rico) + ' quiere convertir su gremio en banco y pide ' + montoBanco + ' de oro al banco central, pero no tiene fondos (tiene ' + Math.round(b.fondo) + '): «pasad oro al banco central»'); }
+      } else if (rico) {
+        const deuda = Math.round(montoBanco * (1 + tipo * 2) * 10) / 10, t = rico.merc.t;
+        let dinero = fortuna(rico) - reforma; rico.merc.caja = 0; rico.dinero = 0; c.oro = (c.oro || 0) + reforma;
+        rico.emp = { neg: 'banco', capital: Math.round((dinero + montoBanco) * 10) / 10, deuda, cuota: Math.max(0.8, Math.round(deuda / 30 * 10) / 10), desde: m.turno, atraso: 0, prestado: 0, cobrado: 0, perdido: 0, sede: t };
+        b.fondo -= montoBanco; b.prestado += montoBanco; mover(rico, COMERCIANTE);
+        // El edificio: el gremio pasa a ser su banco; los comerciantes del gremio quedan libres (entran en otro).
+        cambiar(m, 'obra', t, OBRA.bancopriv, 0);
+        (v.privados = v.privados || {})[t] = { dueno: rico.id, civ: c.id, tipo: 'banco' };
+        if (v.gremioCiudad) delete v.gremioCiudad[t];
+        rico.merc.t = null;
+        for (const x of v.aldeanos) if (x.gremio === rico.id) delete x.gremio;
+        nombrarPrivado(m, t, c);
+        anunciar(m, c, '🏦 El gremio de los ' + (rico.familia || nombreDe(rico)) + ' se convierte en su banco: ' + nombreDe(rico) + ' pone ' + Math.round(dinero) + ' de su fortuna, el banco central le presta ' + montoBanco + ' y paga ' + Math.round(reforma) + ' al reino por la reforma');
+        S().cronica(m, 'banca', 'Nace el ' + ((v.edificios[t] || {}).nombre || 'banco') + ' en ' + c.nombre, 'La casa comercial de los ' + (rico.familia || nombreDe(rico)) + ' cierra el gremio y abre un banco en el mismo edificio: con su fortuna y un préstamo del banco central, ahora presta a quien quiere montar un negocio.', c, region(m, t));
       }
     }
     // Cada banquero tiene (o se levanta) su banco: un edificio suyo, pagado con su capital.
@@ -1875,7 +1889,7 @@
   COSTES[OBRA.gremio] = [12, 6, 6]; TRABAJO[OBRA.gremio] = 7; NIVEL_OBRA[OBRA.gremio] = 2; ERA_OBRA[OBRA.gremio] = 4;
   COSTES[OBRA.casona] = [10, 8, 4]; TRABAJO[OBRA.casona] = 6; NIVEL_OBRA[OBRA.casona] = 2; ERA_OBRA[OBRA.casona] = 4;
   COSTES[OBRA.muelle] = [12, 4, 6]; TRABAJO[OBRA.muelle] = 5; NIVEL_OBRA[OBRA.muelle] = 2; ERA_OBRA[OBRA.muelle] = 4;
-  COSTES[OBRA.bancopriv] = [8, 10, 6]; TRABAJO[OBRA.bancopriv] = 6; NIVEL_OBRA[OBRA.bancopriv] = 2; ERA_OBRA[OBRA.bancopriv] = 5;
+  COSTES[OBRA.bancopriv] = [8, 10, 6]; TRABAJO[OBRA.bancopriv] = 6; NIVEL_OBRA[OBRA.bancopriv] = 2; ERA_OBRA[OBRA.bancopriv] = 6;
   const NOMBRE_ERA = ['el Neolítico', 'la Edad del Bronce', 'la Edad del Hierro', 'la Antigüedad clásica', 'la Edad Media', 'el Renacimiento', 'la Revolución Industrial', 'la Era Moderna', 'la II Guerra Mundial'];
   /*
    * EL ALUMBRADO de las calles, según la época y lo que haya (no se construye: llega con el progreso):
@@ -2270,7 +2284,10 @@
       else if (pideEdad && r === c.capital) { const i = pide.findIndex(x => x[0] === pideEdad); if (i > 0) pide.unshift(pide.splice(i, 1)[0]); }
       // Lo que pidió el jugador va primero; cuando ya está hecho en la plaza, se olvida el encargo.
       const encargo = c.plan && c.plan.obra ? OBRA[c.plan.obra] : null;
-      if (encargo && r === c.capital && tiene(encargo)) {
+      // (Terminado de verdad: con el andamio puesto aún no está hecho, y el encargo sigue en pie hasta acabarlo.)
+      const hecho = o => tiles.some(t => v.obra[t] === o) || [...Object.keys(v.sede || {})].some(t => v.sede[t] === r && v.obra[t] === o);
+      if (encargo && r === c.capital && tiene(encargo) && !hecho(encargo)) { const i = pide.findIndex(x => x[0] === encargo); if (i >= 0) pide.splice(i, 1); }
+      else if (encargo && r === c.capital && hecho(encargo)) {
         const NOMBRES = { [OBRA.pozo]: 'El pozo', [OBRA.granero]: 'El granero', [OBRA.fuente]: 'La plaza pública', [OBRA.parque]: 'El parque', [OBRA.palacio]: 'El palacio', [OBRA.central]: 'La central eléctrica', [OBRA.banco]: 'El banco central', [OBRA.fabrica]: 'La fábrica', [OBRA.estacion]: 'La estación de tren', [OBRA.hospital]: 'El hospital', [OBRA.aerodromo]: 'El aeródromo', [OBRA.saber]: 'La casa del saber', [OBRA.templo]: 'El templo', [OBRA.torre]: 'La torre', [OBRA.puerto]: 'El puerto', [OBRA.molino]: 'El molino', [OBRA.cuartel]: 'El cuartel', [OBRA.arqueria]: 'La arquería', [OBRA.castillo]: 'El castillo', [OBRA.aduana]: 'El puesto fronterizo', [OBRA.petroleo]: 'El pozo de petróleo', [OBRA.mina]: 'La mina' };
         S().cronica(m, 'obra', (NOMBRES[encargo] || 'La obra') + ' de ' + c.nombre + (encargo === OBRA.torre || encargo === OBRA.arqueria || encargo === OBRA.fuente || encargo === OBRA.central || encargo === OBRA.fabrica || encargo === OBRA.estacion ? ' está terminada' : ' está terminado'), 'Los constructores de ' + c.nombre + ' terminan lo que su gobierno les encargó y lo celebran con una fiesta en la plaza.', c);
         c.plan.obra = null;

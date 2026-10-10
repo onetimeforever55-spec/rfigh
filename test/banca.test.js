@@ -68,7 +68,9 @@ comprobar(/Banco central:/.test(X.ordenar(m, c.id, '¿cómo va el banco?').respu
 
 console.log('BANQUEROS Y EMPRESARIOS');
 let fabrica = null, sinBanquero = false, bancos = 0;
+const eranGremio = new Set();
 for (let k = 0; k < 320 && !(fabrica != null && V.banquerosDe(m, c).length); k++) {
+  for (const t of V.gremiosDe(m, c)) eranGremio.add(t);
   sostener(); turno();
   const emp = V.empresariosDe(m, c);
   bancos = Math.max(bancos, V.banquerosDe(m, c).length);
@@ -76,8 +78,9 @@ for (let k = 0; k < 320 && !(fabrica != null && V.banquerosDe(m, c).length); k++
   const t = Object.keys(v.privados || {}).find(t => v.privados[t].civ === c.id && v.obra[t] === V.OBRA.fabrica);
   if (t != null && fabrica == null) fabrica = +t;
 }
-const primeroBanco = avisos.findIndex(x => /abre su banco/.test(x)), primerPrestamo = avisos.findIndex(x => /presta \d+ de oro a/.test(x));
-comprobar(bancos > 0 && primeroBanco >= 0, 'un mercader rico abre su banco con su fortuna y un préstamo del central');
+const primeroBanco = avisos.findIndex(x => /se convierte en su banco/.test(x)), primerPrestamo = avisos.findIndex(x => /presta \d+ de oro a/.test(x));
+const ban0 = V.banquerosDe(m, c)[0];
+comprobar(bancos > 0 && primeroBanco >= 0 && ban0 && eranGremio.has(ban0.emp.sede) && v.obra[ban0.emp.sede] === V.OBRA.bancopriv, 'en la industrialización, el mercader con gremio y dinero pide un préstamo al central y su gremio se convierte en su banco (' + (avisos[primeroBanco] || 'ninguno').slice(0, 150) + ')');
 comprobar(!sinBanquero && (primerPrestamo < 0 || primeroBanco < primerPrestamo), 'el banco central no presta a particulares: los préstamos a la gente llegan después, de los banqueros');
 comprobar(primerPrestamo >= 0 && avisos.some(x => /El banco de .* presta \d+ de oro a/.test(x)), 'los banqueros prestan de lo suyo a vecinos que montan negocios (' + avisos.filter(x => /El banco de .* presta/.test(x)).length + ' préstamos)');
 comprobar(fabrica != null && /^Fábrica de /.test((v.edificios[fabrica] || {}).nombre || ''), 'un empresario levanta su fábrica y lleva su nombre (' + ((v.edificios[fabrica] || {}).nombre || 'ninguna') + ')');
@@ -165,6 +168,38 @@ console.log('EL PASO DE EDAD SE PAGA COMO LAS OBRAS');
     const f = S.puedeSubir(e, c3).falta;
     comprobar(f.some(x => /de comida \(sin tocar la que necesita la gente\)/.test(x)), 'pagar la edad no deja a la gente sin comer: «' + f.filter(x => /comida/.test(x)).join(', ') + '»');
   } else comprobar(false, 'hace falta un tercer reino para probar la reserva de comida');
+}
+
+console.log('EL GREMIO SE CONVIERTE EN BANCO: CON LA INDUSTRIALIZACIÓN, DINERO Y UN PRÉSTAMO');
+{
+  // Un reino con banco central y un mercader con su gremio (puesto a mano: aquí solo se prueba la regla).
+  const prep = (era, caja, fondo) => {
+    const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 40; k++) S.turno(g);
+    const r = S.vivas(g)[0], w = g.vida; X.gobernar(g, r.id);
+    r.era = era; r.nivel = 4; r.nivelMax = 4; r.bancos = 1; r.banca = { fondo, prestado: 0, devuelto: 0, quiebras: 0, perdido: 0, abierto: g.turno };
+    const zona = [r.capital, ...S.vecinos(r.capital)].flatMap(q => V.parcelas(g, q));
+    const t = zona.find(x => !w.obra[x] && !V.puedeColocar(g, r, x, 'casa'));
+    V.cambiar(g, 'obra', t, V.OBRA.gremio, 0);
+    V.cambiar(g, 'obra', zona.find(x => x !== t && !w.obra[x] && !V.puedeColocar(g, r, x, 'casa')), V.OBRA.banco, 0); V.contar(g);
+    const mer = w.aldeanos.find(x => x.c === r.id && x.edad >= 3 && x.edad < 14 && !x.fijo);
+    mer.merc = { t, caja, desde: g.turno }; (w.privados = w.privados || {})[t] = { dueno: mer.id, civ: r.id, tipo: 'gremio' };
+    const obrero = w.aldeanos.find(x => x.c === r.id && x !== mer && x.edad >= 3 && !x.merc); obrero.o = 5; obrero.gremio = mer.id;
+    const av = [];
+    for (let k = 0; k < 9; k++) { r.era = era; if (mer.merc && !mer.emp) mer.merc.caja = Math.max(mer.merc.caja, caja); const n0 = (w.anuncios || []).length; S.turno(g); av.push(...(w.anuncios || []).slice(n0).filter(x => x.civ === r.id).map(x => x.texto)); if (mer.emp) break; }
+    return { g, r, w, t, mer, obrero, av };
+  };
+  const p5 = prep(5, 200, 200);
+  comprobar(!p5.mer.emp && p5.w.obra[p5.t] === V.OBRA.gremio, 'en el Renacimiento aún no: el gremio sigue siendo gremio aunque haya dinero y banco central');
+  const pobre = prep(6, 5, 200);
+  comprobar(!pobre.mer.emp && pobre.w.obra[pobre.t] === V.OBRA.gremio, 'en la industrialización, sin dinero propio no hay banco: hace falta tener fortuna');
+  const sinFondos = prep(6, 200, 0);
+  comprobar(!sinFondos.mer.emp && sinFondos.w.obra[sinFondos.t] === V.OBRA.gremio && sinFondos.av.some(x => /pide \d+ de oro al banco central, pero no tiene fondos/.test(x)), 'con dinero pero sin fondos en el banco central, espera y lo avisa («' + (sinFondos.av.find(x => /no tiene fondos/.test(x)) || '').slice(0, 110) + '…»)');
+  const ok = prep(6, 200, 200);
+  // (Si el mercader muere en estos turnos, el banco lo hereda su familia: se mira al dueño del edificio.)
+  const dueno = ok.w.privados && ok.w.privados[ok.t] && ok.w.aldeanos.find(a => a.id === ok.w.privados[ok.t].dueno);
+  if (dueno) ok.mer = dueno;
+  comprobar(ok.mer.emp && ok.mer.emp.neg === 'banco' && ok.mer.emp.deuda > 0 && ok.mer.emp.sede === ok.t && ok.w.obra[ok.t] === V.OBRA.bancopriv && /^Banco /.test((ok.w.edificios[ok.t] || {}).nombre || ''), 'con dinero y préstamo, su gremio se convierte en su banco, en el mismo sitio (' + ((ok.w.edificios[ok.t] || {}).nombre || '-') + ', debe ' + (ok.mer.emp && ok.mer.emp.deuda) + ' al central)');
+  comprobar(!ok.w.aldeanos.some(x => x.gremio != null && x.gremio === ok.mer.id) && (!ok.w.aldeanos.includes(ok.obrero) || ok.obrero.gremio == null) && ok.av.some(x => /se convierte en su banco/.test(x)) && ok.g.cronica.some(x => /^Nace el Banco/.test(x.titulo)), 'los comerciantes del gremio quedan libres, se avisa y lo cuenta la crónica');
 }
 
 console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');

@@ -1209,7 +1209,9 @@
         }
         if (M.vida && m.vida) {
           const zona = [c.capital, ...S().vecinos(c.capital).filter(r => m.dueno[r] === c.id)].flatMap(r => M.vida.parcelas(m, r));
-          if (zona.some(t => m.vida.obra[t] === M.vida.OBRA[a.obra])) { textos.push('Ya tenéis ' + NOMBRE[a.obra] + ' en ' + c.nombre + '.'); continue; }
+          const o = M.vida.OBRA[a.obra], sede = m.vida.sede || {}, lejos = Object.keys(sede).filter(t => sede[t] === c.capital).map(Number);
+          if (zona.some(t => m.vida.obra[t] === o) || lejos.some(t => m.vida.obra[t] === o)) { textos.push('Ya tenéis ' + NOMBRE[a.obra] + ' en ' + c.nombre + '.'); continue; }
+          if (zona.concat(lejos).some(t => m.vida.andamios && m.vida.andamios[t] && m.vida.andamios[t].o === o)) { textos.push('Ya se está construyendo ' + NOMBRE[a.obra] + ' en ' + c.nombre + ': tus constructores lo terminarán.'); continue; }
         }
         p.obra = a.obra;
         // El porqué: si de verdad hace falta, el pueblo lo agradece; si no, se dice para qué sirve.
