@@ -820,7 +820,8 @@
     if (m.turno % 12 === 5) {
       for (const de of vivas(m)) {
         if (de.jugador || !(de.bancos > 0) || !de.banca || de.banca.fondo < 50) continue;
-        const necesitado = vivas(m).find(a => a !== de && (a.oro || 0) < 8 && (a.guerras.length || a.estab < 40) && !enGuerra(de, a) && ((de.rel[a.id] || 0) >= 40 || aliados(m, de, a)) && !(m.creditos || []).some(cr => cr.de === de.id && cr.a === a.id));
+        // (A un jugador, nunca por su cuenta: el préstamo lo pide él con «pedid un préstamo a X».)
+        const necesitado = vivas(m).find(a => a !== de && !a.jugador && (a.oro || 0) < 8 && (a.guerras.length || a.estab < 40) && !enGuerra(de, a) && ((de.rel[a.id] || 0) >= 40 || aliados(m, de, a)) && !(m.creditos || []).some(cr => cr.de === de.id && cr.a === a.id));
         if (necesitado) prestar(m, de, necesitado, Math.min(40, de.banca.fondo * 0.4));
       }
     }

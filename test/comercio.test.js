@@ -1,0 +1,83 @@
+// Prueba del comercio entre reinos de Génesis: tu reino (y tus mercaderes) solo comercian con quien tú abras
+// comercio; si lo cierras, nadie comercia contigo (ni carretas, ni barcos, ni compras); en guerra no hay comercio;
+// y los créditos del banco central a tu reino solo llegan si los pides.
+// node test/comercio.test.js
+global.RF = global.RF || {};
+for (const f of ['datos', 'sim', 'vida', 'dios', 'mando']) require('../js/mundo/' + f + '.js');
+const M = RF.MUNDO, S = M.sim, V = M.vida, X = M.mando;
+
+let fallos = 0;
+const comprobar = (c, t) => { console.log((c ? '  ✓ ' : '  ✗ ') + t); if (!c) fallos++; };
+
+// Gobiernas un reino desde el principio: en 200 turnos, nadie abre comercio contigo sin que tú lo digas.
+const m = S.crear(7, 5, { ritmo: 3 }), v = m.vida, c = S.vivas(m)[0];
+X.gobernar(m, c.id);
+for (let k = 0; k < 200; k++) S.turno(m);
+const o = S.vivas(m).find(x => x !== c && !S.enGuerra(c, x));
+const barcosDe = (de, a) => v.barcos.filter(b => b.c === de.id && b.tipo === 'mercante' && b.destino != null && m.dueno[V.region(m, b.destino)] === a.id).length;
+const rutaActivaCon = x => v.rutas.some(r => r.tipo === 'externa' && [r.a, r.b].includes(c.id) && [r.a, r.b].includes(x.id) && v.aldeanos.some(a => a.ruta === r.id && a.comercio));
+
+console.log('SOLO CON QUIEN TÚ ABRAS COMERCIO');
+{
+  const socios = V.sociosDe(m, c);
+  comprobar(!socios.length && S.vivas(m).filter(x => x !== c).every(x => !V.comercian(m, c, x)), 'sin abrir nada, tu reino no comercia con nadie (aunque otros quieran o tengan puerto en tu mar)');
+  for (let k = 0; k < 10; k++) S.turno(m);
+  comprobar(S.vivas(m).filter(x => x !== c).every(x => barcosDe(x, c) === 0), 'los barcos mercantes de otros no vienen a tu puerto sin permiso');
+  const r = X.ordenar(m, c.id, 'abrid una ruta comercial con ' + o.nombre).respuesta;
+  comprobar(/Tratado con/.test(r) && V.comercian(m, c, o) && V.sociosDe(m, c).includes(o), 'con «abrid una ruta comercial con X», comerciáis (' + o.nombre + ')');
+  const tercero = S.vivas(m).find(x => x !== c && x !== o);
+  comprobar(!tercero || !V.comercian(m, c, tercero), 'pero solo con ese reino, no con los demás');
+}
+
+console.log('CERRAR EL COMERCIO');
+{
+  const r = X.ordenar(m, c.id, 'cerrad el comercio con ' + o.nombre).respuesta;
+  comprobar(/Cerráis el comercio con/.test(r) && !V.comercian(m, c, o) && !V.sociosDe(m, c).includes(o), '«cerrad el comercio con X» lo corta: dejáis de ser socios');
+  let barcos = 0, carretas = 0;
+  for (let k = 0; k < 15; k++) { S.turno(m); barcos += barcosDe(o, c) + barcosDe(c, o); if (rutaActivaCon(o) && v.rutas.some(ru => ru.tipo === 'externa' && [ru.a, ru.b].includes(o.id) && [ru.a, ru.b].includes(c.id) && V.comercian(m, c, o))) carretas++; }
+  comprobar(barcos === 0 && carretas === 0, 'y ellos tampoco comercian contigo: ni barcos ni carretas (' + barcos + ', ' + carretas + ')');
+  comprobar(/No comerciáis con ningún reino|no hay a quién/.test(X.ordenar(m, c.id, 'comprad 10 de piedra').respuesta) || !V.sociosDe(m, c).includes(o), 'ni se les puede comprar');
+  X.ordenar(m, c.id, 'abrid una ruta comercial con ' + o.nombre);
+  comprobar(V.comercian(m, c, o), 'y se puede volver a abrir');
+}
+
+console.log('EN GUERRA NO HAY COMERCIO');
+{
+  S.declararGuerra(m, c, o, 'prueba');
+  comprobar(S.enGuerra(c, o) && !V.comercian(m, c, o) && !V.sociosDe(m, c).includes(o), 'en guerra se para el comercio, aunque haya tratado');
+  const a = S.vivas(m).find(x => x !== c && x !== o && !S.enGuerra(x, o)), b = o;
+  if (a) { S.declararGuerra(m, a, b, 'prueba'); comprobar(!V.comercian(m, a, b), 'también entre otros dos reinos en guerra'); }
+}
+
+console.log('LOS MERCADERES Y EL COMERCIO EXTERIOR');
+{
+  const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 150; k++) S.turno(g);
+  const r = S.vivas(g).find(x => g.vida.aldeanos.some(a => a.c === x.id && a.o === 5));
+  X.gobernar(g, r.id); r.plan.socios = []; r.plan.embargo = []; r.plan.comercioLibre = false;
+  const coms = g.vida.aldeanos.filter(a => a.c === r.id && a.o === 5 && !a.merc && !a.emp && a.gremio == null);
+  const gana = () => { const d0 = coms.map(a => a.dinero || 0); V.comercio(g, r, 0.25); const k = coms.reduce((s, a, i) => s + (a.dinero || 0) - d0[i], 0); coms.forEach((a, i) => { a.dinero = d0[i]; }); return k; };
+  const solos = gana();
+  const otros = S.vivas(g).filter(x => x !== r && !S.enGuerra(x, r)).slice(0, 2); r.plan.socios = otros.map(x => x.id);
+  const conSocios = gana();
+  comprobar(coms.length > 0 && otros.length && conSocios > solos * 1.3, 'sin socios, los comerciantes solo ganan el comercio de dentro; con socios, también el de fuera (' + solos.toFixed(2) + ' → ' + conSocios.toFixed(2) + ')');
+}
+
+console.log('QUIEN TOMA UN REINO A MITAD DE PARTIDA HEREDA SUS TRATADOS');
+{
+  const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 200; k++) S.turno(g);
+  const r = S.vivas(g).find(x => (g.vida.rutas || []).some(ru => ru.tipo === 'externa' && (ru.a === x.id || ru.b === x.id) && !S.enGuerra(S.civ(g, ru.a), S.civ(g, ru.b))));
+  if (r) { const antes = V.sociosDe(g, r).length; X.gobernar(g, r.id); comprobar(antes > 0 && V.sociosDe(g, r).length >= 1, 'las rutas que el reino ya tenía siguen (' + antes + ' → ' + V.sociosDe(g, r).length + ' socios)'); }
+}
+
+console.log('LOS CRÉDITOS A TU REINO, SOLO SI LOS PIDES');
+{
+  const g = S.crear(5, 5, { ritmo: 3 }); for (let k = 0; k < 220; k++) S.turno(g);
+  const yo = S.vivas(g)[0]; X.gobernar(g, yo.id);
+  for (const x of S.vivas(g)) if (x !== yo) { x.bancos = Math.max(x.bancos || 0, 1); x.banca = x.banca || { fondo: 0, prestado: 0, devuelto: 0, perdido: 0 }; x.banca.fondo = 200; x.rel[yo.id] = 90; }
+  let recibidos = 0;
+  for (let k = 0; k < 30; k++) { yo.oro = 0; yo.estab = 30; S.turno(g); recibidos += (g.creditos || []).filter(cr => cr.a === yo.id).length; }
+  comprobar(recibidos === 0, 'aunque vayas mal, nadie le presta a tu reino por su cuenta (' + recibidos + ')');
+}
+
+console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
+process.exit(fallos ? 1 : 0);

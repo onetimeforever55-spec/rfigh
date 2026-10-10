@@ -943,7 +943,9 @@
     const paz = /\b(paz|tregua|armisticio|acepto|aceptamos)\b/.test(n);
     const alianza = /\b(alianza|alia\w*|pacto de defensa)\b/.test(n) && !/\brompe\w*\b/.test(n);
     const romperAl = /\brompe\w* (la )?alianza\b/.test(n);
-    const tratado = !alianza && /\b(comerci\w* con|amistad|tratado|embajad\w*|regal\w* a|rutas? (comercial\w* |de comercio )?(con|hasta|a|hacia)|carretera\w* (con|hasta|a|hacia)|camino\w* (hasta|hacia)|abr\w* (una )?ruta)\b/.test(n);
+    // Cerrar el comercio con un reino: ni carretas, ni barcos, ni mercaderes, ni compras y ventas.
+    const cerrarCom = /\b(cerr\w*|cort\w*|prohib\w*|suspend\w*|romp\w*|cancel\w*|bloque\w*) (el |la |las |los |todo el )?(comercio|rutas?( comercial\w*| de comercio)?|tratado( comercial| de comercio)?|tratos)\b|\b(dej\w*|par\w*) de comerciar\b|\bno comerci\w* (mas )?con\b|\bembargo\b/.test(n);
+    const tratado = !alianza && !cerrarCom && /\b(comerci\w* con|amistad|tratado|embajad\w*|regal\w* a|rutas? (comercial\w* |de comercio )?(con|hasta|a|hacia)|carretera\w* (con|hasta|a|hacia)|camino\w* (hasta|hacia)|abr\w* (una )?ruta)\b/.test(n);
     // Preguntas: «¿cuántos leñadores tengo?», «¿cuánta madera hay?», «¿qué hace mi gente?».
     if (/\b(cuant[oa]s?|que hace mi gente|que hacen|en que trabaja\w*|reparto|oficios|cuadrillas|cupos)\b/.test(n) && !/\b(oro|dinero|tesoro|arcas|investig\w*|tecnolog\w*)\b/.test(n) && !/\b(quiero|pon\w*|mand\w*|que (se )?(vayan|pongan)|quit\w*|liber\w*|cancel\w*|anul\w*|solt\w*|suelt\w*)\b/.test(n) && !/\d/.test(n.replace(/\bcuant\w*/, ''))) { const of = NOMBRE_OF.find(([o, re]) => o >= 0 && new RegExp('\\b(' + re + ')\\b').test(n)); return [{ tipo: 'consulta', o: of ? of[0] : undefined }]; }
     // La técnica y el tesoro: «investigad la rueda», «¿qué investigamos?», «comprad 20 de madera», «guardad el oro».
@@ -979,6 +981,7 @@
     if (guerra) { const o = (/\b(mas debil|mas pequeno|el vecino|vecinos?)\b/.test(n) && vecinoMasDebil(m, c)) || otro(m, c, n) || vecinoMasDebil(m, c); acciones.push({ tipo: 'guerra', con: o ? o.id : null }); }
     else if (paz) { const o = otro(m, c, n) || (c.guerras[0] ? S().civ(m, c.guerras[0].con) : null); acciones.push({ tipo: 'paz', con: o ? o.id : null }); }
     else if (romperAl) { const o = otro(m, c, n); acciones.push({ tipo: 'romper', con: o ? o.id : null }); }
+    else if (cerrarCom) { const o = otro(m, c, n); acciones.push({ tipo: 'cerrar_comercio', con: o ? o.id : null }); }
     else if (alianza) { const o = otro(m, c, n); acciones.push({ tipo: 'alianza', con: o ? o.id : null }); }
     else if (tratado) { const o = otro(m, c, n); acciones.push({ tipo: 'comercio', con: o ? o.id : null }); }
 
@@ -999,7 +1002,7 @@
     for (const [k, re] of Object.entries(RECURSOS)) {
       if (conCuadrilla && (k !== 'ciencia' || acciones.some(x => x.o === 6 || x.a === 6))) continue;
       if (k === 'ejercito' && (guerra || paz) && !/\breclut/.test(n)) continue;
-      if (k === 'riqueza' && tratado) continue;
+      if (k === 'riqueza' && (tratado || cerrarCom)) continue;
       const mt = n.match(re);
       if (!mt) continue;
       const antes = n.slice(Math.max(0, mt.index - 16), mt.index);
@@ -1135,6 +1138,7 @@
         if (S().enGuerra(c, o)) { textos.push('Primero haced la paz con ' + o.nombre + '.'); continue; }
         if ((o.rel[c.id] || 0) < -40) { textos.push(o.nombre + ' expulsa a tus embajadores: os odian demasiado. Mejorad las cosas poco a poco.'); o.rel[c.id] = (o.rel[c.id] || 0) + 5; c.rel[o.id] = o.rel[c.id]; continue; }
         p.socios = [...new Set([...(p.socios || []), o.id])];
+        p.embargo = (p.embargo || []).filter(id => id !== o.id);
         c.rel[o.id] = o.rel[c.id] = Math.min(100, (o.rel[c.id] || 0) + 25);
         S().cronica(m, 'comercio', 'Tratado entre ' + c.nombre + ' y ' + o.nombre, 'Los embajadores de ' + c.nombre + ' vuelven con un tratado: caravanas, regalos y la promesa de no atacarse. Mientras dure.', c);
         // La carretera se traza ya, y los constructores la empiedran; los comerciantes salen en cuanto haya ruta.
@@ -1152,6 +1156,13 @@
         if ((o.rel[c.id] || 0) < 30 || S().aliadosDe(m, o).length >= 2) { textos.push(o.nombre + ' no se fía todavía (opinión ' + Math.round(o.rel[c.id] || 0) + '). Firmad antes un tratado de comercio y dejad pasar el tiempo.'); continue; }
         S().aliar(m, c, o, c.nombre + ' y ' + o.nombre + ' firman una alianza: si alguien ataca a uno, el otro irá a la guerra.');
         textos.push('Alianza con ' + o.nombre + '. Si os atacan, vendrán en vuestra ayuda; y tu gobierno irá a defenderlos a ellos.');
+      } else if (a.tipo === 'cerrar_comercio') {
+        if (!o || !o.viva || o.id === c.id) { textos.push('¿Con quién? Nombra al pueblo.'); continue; }
+        p.socios = (p.socios || []).filter(id => id !== o.id);
+        p.embargo = [...new Set([...(p.embargo || []), o.id])];
+        o.rel[c.id] = (o.rel[c.id] || 0) - 10; c.rel[o.id] = o.rel[c.id];
+        (m.vida && (m.vida.anuncios = m.vida.anuncios || [])) && m.vida.anuncios.push({ civ: c.id, texto: '⛔ Cerrado el comercio con ' + o.nombre });
+        textos.push('Cerráis el comercio con ' + o.nombre + ': ni carretas, ni barcos, ni compras ni ventas, y vuestros mercaderes tampoco tratan con ellos (ellos tampoco pueden comerciar con vosotros). No les gusta. Para volver: «abrid una ruta comercial con ' + o.nombre + '».');
       } else if (a.tipo === 'romper') {
         if (!o || !S().aliados(m, c, o)) { textos.push('No tenéis alianza con ' + (o ? o.nombre : 'ese pueblo') + '.'); continue; }
         S().romper(m, c, o, c.nombre + ' rompe su alianza con ' + o.nombre + '.');
@@ -1318,7 +1329,7 @@
       '\nPlazas (región, dueño): ' + JSON.stringify([...S().vivas(m).map(o => ({ region: o.capital, nombre: 'capital de ' + o.nombre, dueno: o.id })), ...(m.ciudades || []).map(x => ({ region: x.region, nombre: x.nombre, dueno: m.dueno[x.region] }))]) +
       '\n\nOrden del jugador: «' + texto + '»\n\nDevuelve solo el JSON.';
   }
-  const TIPOS = new Set(['banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'comercio_libre', 'exterminio', 'oferta', 'consulta_mercado', 'especialidad', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
+  const TIPOS = new Set(['cerrar_comercio', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'comercio_libre', 'exterminio', 'oferta', 'consulta_mercado', 'especialidad', 'edad', 'consulta_edad', 'edad_auto', 'ahorrar_edad', 'investigar', 'consulta_tec', 'comprar', 'vender', 'tesoro', 'consulta_oro', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar', 'consulta', 'cuadrilla', 'cupo', 'meta', 'liberar', 'objetivo', 'defender', 'prioridad', 'expandir', 'guerra', 'paz', 'comercio', 'alianza', 'romper', 'regimen', 'colonia', 'colonos', 'construir', 'informe', 'normal']);
   // Lo que venga de Claude se filtra: solo acciones conocidas, con valores dentro de lo permitido.
   function limpiar(acciones) {
     const out = [];
@@ -1363,7 +1374,7 @@
       else if (a.tipo === 'objetivo' || a.tipo === 'defender') { if (Number.isInteger(Number(a.region)) && Number(a.region) >= 0) out.push({ tipo: a.tipo, region: Number(a.region) }); }
       else if (a.tipo === 'expandir') out.push({ tipo: 'expandir', si: a.si !== false, rumbo: ['norte', 'sur', 'este', 'oeste'].includes(a.rumbo) ? a.rumbo : Number.isFinite(Number(a.rumbo)) && a.rumbo !== null ? Number(a.rumbo) : null });
       else if (a.tipo === 'regimen') { const r = REGIMENES.find(x => x[1] === a.a); if (r) out.push({ tipo: 'regimen', a: r[1], era: r[2] }); }
-      else if (['guerra', 'paz', 'comercio', 'alianza', 'romper'].includes(a.tipo)) out.push({ tipo: a.tipo, con: Number(a.con) });
+      else if (['guerra', 'paz', 'comercio', 'cerrar_comercio', 'alianza', 'romper'].includes(a.tipo)) out.push({ tipo: a.tipo, con: Number(a.con) });
       else if (a.tipo === 'colonos') out.push({ tipo: 'colonos', rumbo: ['norte', 'sur', 'este', 'oeste', 'costa'].includes(a.rumbo) ? a.rumbo : null });
       else if (a.tipo === 'construir') { if (['saber', 'templo', 'torre', 'puerto', 'molino', 'cuartel', 'arqueria', 'castillo', 'pozo', 'granero', 'fuente', 'parque', 'palacio', 'central', 'banco', 'fabrica', 'estacion', 'hospital', 'aerodromo', 'petroleo', 'mina'].includes(a.obra)) out.push({ tipo: 'construir', obra: a.obra }); }
       else out.push({ tipo: a.tipo });
@@ -1380,10 +1391,19 @@
 
   // ---------- Elegir pueblo ----------
   // En línea: otro jugador toma un pueblo (sin quitárselo a los demás jugadores).
-  function unirse(m, civId) { const c = S().civ(m, civId); if (c && c.viva) { c.jugador = true; plan(c); } return c; }
+  // Quien toma un reino a mitad de partida hereda sus tratados: las rutas de comercio que ya tenía siguen (las
+  // nuevas, solo si él las abre).
+  function heredarTratados(m, c) {
+    if (c.jugador || !m.vida) return;
+    const p = plan(c), ya = new Set(p.socios || []);
+    for (const ru of m.vida.rutas || []) if (ru.tipo === 'externa' && (ru.a === c.id || ru.b === c.id)) { const o = ru.a === c.id ? ru.b : ru.a; if (!S().enGuerra(c, S().civ(m, o) || { guerras: [] })) ya.add(o); }
+    p.socios = [...ya];
+  }
+  function unirse(m, civId) { const c = S().civ(m, civId); if (c && c.viva) { heredarTratados(m, c); c.jugador = true; plan(c); } return c; }
   function gobernar(m, civId) {
-    for (const c of m.civs) { c.jugador = false; }
     const c = civId != null ? S().civ(m, civId) : null;
+    if (c && c.viva) heredarTratados(m, c);
+    for (const x of m.civs) { x.jugador = false; }
     m.jugador = c && c.viva ? c.id : null;
     if (c && c.viva) { c.jugador = true; plan(c); if (!m.retos || m.retos.civ !== c.id) m.retos = { civ: c.id, hechos: {}, puntos: 0, conquistas: 0, desde: m.turno }; }
     return c;

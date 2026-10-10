@@ -25,6 +25,7 @@ console.log('LOS GREMIOS (Edad Media)');
   const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 60; k++) S.turno(g);
   const r = S.vivas(g)[0], w = g.vida; X.gobernar(g, r.id); g.modo = 'pueblo';
   r.nivel = 4; r.nivelMax = 4; r.madera = r.piedra = 300; r.oro = 300;
+  r.plan.comercioLibre = true; // (con socios: sin comercio exterior, los mercaderes ganan menos y tardan en hacerse ricos)
   X.ordenar(g, r.id, 'quiero 4 comerciantes');
   const av = []; let gremio = null, casona = null, conSueldo = false, oroDeObras = 0;
   for (let k = 0; k < 220 && !(gremio != null && casona != null && conSueldo); k++) {

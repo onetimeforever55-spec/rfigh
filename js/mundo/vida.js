@@ -779,7 +779,10 @@
   function comercio(m, c, impuesto) {
     const v = m.vida, mercs = mercaderesDe(m, c), porId = new Map(mercs.map(a => [a.id, a]));
     // Con plaza pública hay mercado: los tratos rinden un 10 % más. (El banco no da premio: solo trae la banca y el crédito.)
-    const mejor = c.fuentes > 0 ? 1.1 : 1;
+    // Lo de fuera solo se gana con reinos con los que se comercia de verdad (para el jugador, los que él abrió):
+    // el comercio de dentro da el 60 %; el de fuera, el resto (entero con dos socios o más).
+    const fuera = 0.6 + 0.4 * Math.min(1, sociosDe(m, c).length / 2);
+    const mejor = (c.fuentes > 0 ? 1.1 : 1) * fuera;
     const enGremio = new Map(mercs.map(a => [a.id, 0]));
     for (const a of v.aldeanos) {
       if (a.c !== c.id || a.o !== COMERCIANTE || a.emp || a.merc) continue;
@@ -1202,6 +1205,14 @@
   // El reino del jugador solo comercia con lo que él diga («comprad hierro», «vended madera»), salvo que
   // mande «comerciad libremente»; los de la IA, con todo lo que les sobra y les falta.
   const comercioLibre = x => !x.jugador || !!(x.plan && x.plan.comercioLibre);
+  /*
+   * ¿PUEDEN COMERCIAR c Y o? Nunca en guerra. Y los dos tienen que permitirlo: un reino de la IA comercia con quien
+   * quiera (salvo con quien le haya cerrado el comercio); el reino de un jugador, solo con quien él haya abierto
+   * comercio («abrid una ruta comercial con X»), o con todos si dijo «comerciad libremente», y nunca con quien haya
+   * prohibido («cerrad el comercio con X»). Vale para las carretas, los barcos, el mercado y los mercaderes.
+   */
+  const permiteComercio = (c, o) => { const p = c.plan || {}; if ((p.embargo || []).includes(o.id)) return false; return !c.jugador || !!p.comercioLibre || (p.socios || []).includes(o.id); };
+  const comercian = (m, c, o) => !!(c && o && c !== o && c.viva && o.viva && !S().enGuerra(c, o) && permiteComercio(c, o) && permiteComercio(o, c));
   const vendeBien = (x, k) => comercioLibre(x) || !!(x.plan && (x.plan.ventas || []).some(y => y.que === k));
   const compraBien = (x, k) => comercioLibre(x) || !!(x.plan && (x.plan.pedidos || []).some(y => y.que === k));
   // Con quién comercia un reino: rutas por tierra, tratados, puertos en el mismo mar y tratos recientes.
@@ -1213,7 +1224,7 @@
     for (const x of (m.mercado && m.mercado.tratos) || []) if (m.turno - (x.t || 0) <= 60 && (x.vende === c.id || x.compra === c.id)) ids.add(x.vende === c.id ? x.compra : x.vende);
     if ((c.puertos || 0) > 0) for (const o of S().vivas(m)) if (o.id !== c.id && !ids.has(o.id) && (o.puertos || 0) > 0 && (o.rel[c.id] || 0) >= 0 && porMar(m, c, o)) ids.add(o.id);
     ids.delete(c.id);
-    return [...ids].map(id => S().civ(m, id)).filter(o => o && o.viva && !S().enGuerra(c, o));
+    return [...ids].map(id => S().civ(m, id)).filter(o => comercian(m, c, o));
   }
   function cargar(m, a, c, o, bodega) {
     const mk = m.mercado; if (!mk || !c.balance || !o.balance) return;
@@ -2449,7 +2460,7 @@
         if (azar(v) < 0.45) { b.r.push(b.x, b.y); return; }
         // Solo a los puertos a los que se puede llegar por mar (mismo mar), de reinos en paz.
         const de = aguaJunto(m, b.puerto, ter), mr = maresDe(m, ter);
-        const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); if (!o || o.id === c.id || S().enGuerra(c, o)) return false; const a = aguaJunto(m, t, ter); return de != null && a != null && mr.comp[a] === mr.comp[de]; });
+        const otros = puertosDelTurno.filter(t => { if (t === b.puerto) return false; const o = S().civ(m, m.dueno[region(m, t)]); if (!o || o.id === c.id || !comercian(m, c, o)) return false; const a = aguaJunto(m, t, ter); return de != null && a != null && mr.comp[a] === mr.comp[de]; });
         if (!otros.length) { b.r.push(b.x, b.y); return; }
         const destino = otros[Math.floor(azar(v) * otros.length)];
         const a = aguaJunto(m, destino, ter);
@@ -2468,7 +2479,7 @@
         b.i = b.ruta.length - 1; b.vuelta = 1;
         const o = S().civ(m, m.dueno[region(m, b.destino)]);
         // En el puerto de destino vende la carga y compra lo que hace falta en casa, igual que una carreta.
-        if (o && !S().enGuerra(c, o)) { venderComprar(m, b, c, o, bodegaDe(c), 'mar'); c.riqueza += 2 + c.era * 0.5; o.riqueza += 2 + o.era * 0.5; c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1); }
+        if (o && comercian(m, c, o)) { venderComprar(m, b, c, o, bodegaDe(c), 'mar'); c.riqueza += 2 + c.era * 0.5; o.riqueza += 2 + o.era * 0.5; c.rel[o.id] = o.rel[c.id] = Math.min(100, (c.rel[o.id] || 0) + 1); }
       } else if (b.vuelta && b.i <= 0) { b.i = 0; b.ruta = null; descargar(m, b, c); }
       const t = b.ruta ? b.ruta[Math.max(0, Math.min(b.ruta.length - 1, b.i))] : aguaJunto(m, b.puerto, ter);
       if (t != null) { b.x = t % v.tw; b.y = t / v.tw | 0; }
@@ -3894,7 +3905,8 @@
     for (let d = -2; d <= 2; d++) { out.push(cy * v.tw + cx + d); out.push((cy + d) * v.tw + cx); }
     return [...new Set(out)].filter(t => t >= 0 && t < v.tw * v.th);
   }
-  const rutaActiva = (m, ru) => { const a = S().civ(m, ru.a), b = S().civ(m, ru.b); return a && a.viva && b && b.viva && (a === b || !S().enGuerra(a, b)); };
+  // (Una ruta entre dos reinos solo funciona si comercian: en guerra o sin permiso, las carretas no salen ni venden.)
+  const rutaActiva = (m, ru) => { const a = S().civ(m, ru.a), b = S().civ(m, ru.b); return a && a.viva && b && b.viva && (a === b || comercian(m, a, b)); };
   /*
    * ABRIR UNA RUTA A PETICIÓN («abrid una ruta comercial con X»): se traza en el acto la carretera entre las dos
    * capitales, por lejos que estén, y los constructores de los dos reinos empiezan a empedrarla. Si no hay
@@ -3948,8 +3960,9 @@
       if (a.id >= b.id || S().enGuerra(a, b) || S().distancia(a.capital, b.capital) > 22) continue;
       const tratado = (a.plan && (a.plan.socios || []).includes(b.id)) || (b.plan && (b.plan.socios || []).includes(a.id));
       if (!tratado && (a.rel[b.id] || 0) < 12) continue;
-      // El reino del jugador no abre rutas por su cuenta: se le avisa de quién quiere comerciar con él.
-      const jug = !tratado && [a, b].find(x => x.jugador && !comercioLibre(x));
+      // El reino del jugador no abre rutas por su cuenta (ni se las abren otros): se le avisa de quién quiere comerciar con él.
+      const jug = !comercian(m, a, b) && [a, b].find(x => x.jugador && !permiteComercio(x, x === a ? b : a) && !((x.plan && x.plan.embargo) || []).includes((x === a ? b : a).id));
+      if (!comercian(m, a, b) && !jug) continue;
       if (jug) {
         const otro = jug === a ? b : a, p = jug.plan = jug.plan || {};
         if (m.turno - ((p.propuestas || {})[otro.id] || -99) >= 40) { (p.propuestas = p.propuestas || {})[otro.id] = m.turno; (v.anuncios = v.anuncios || []).push({ civ: jug.id, region: otro.capital, texto: '🤝 ' + otro.nombre + ' quiere comerciar: di «abrid una ruta comercial con ' + otro.nombre + '»' }); }
@@ -4711,5 +4724,5 @@
     actualizarPoblacion(m);
   }
 
-  M.vida = { asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
