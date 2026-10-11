@@ -1163,6 +1163,28 @@
     e.capital = ban.dinero; ban.dinero = 0;
     if (pagado) { e.sede = t; anunciar(m, c, '🏦 ' + nombreDe(ban) + ' levanta su banco (paga ' + Math.round(pagado) + ' de oro al reino por la obra)'); }
   }
+  // EL QUE YA ES RICO monta su negocio con lo suyo (sin préstamo: el préstamo es para los que no llegan). Desde la
+  // Revolución Industrial, quien tiene ahorrado todo lo que cuesta una fábrica (o una mina) la levanta: le paga la obra
+  // al reino y se queda el resto para empezar. No debe nada a nadie. Valen el 4 % y el tope de fábricas.
+  function montarConLoSuyo(m, c) {
+    const v = m.vida, monto = 20 + 4 * c.era, obra = Math.round(monto * 0.7);
+    const adultos = v.aldeanos.filter(a => a.c === c.id && !esNino(a)).length;
+    const conNegocio = v.aldeanos.filter(a => a.c === c.id && a.emp).length;
+    if (conNegocio >= Math.max(1, Math.floor(adultos * 0.04))) return;
+    const privadas = Object.values(v.privados || {}).filter(p => p.civ === c.id && p.tipo === 'fabrica').length;
+    if (privadas >= 1 + Math.floor((c.aldeanos || 0) / 60)) return;
+    const rico = S().ordenarPor(v.aldeanos.filter(a => a.c === c.id && !a.emp && !a.merc && a.obrero == null && !esNino(a) && (a.edad || 0) <= VIEJO - 3 && a.o !== GUERRERO && !a.fijo && a.colono == null && a.aBordo == null && (a.dinero || 0) >= monto), x => -(x.dinero || 0) * 1000 + x.id)[0];
+    if (!rico) return;
+    let ind = elegirIndustria(m, c), t = ind === 'minera' ? sitioMina(m, c, terrenos(m)) : sitioFabrica(m, c);
+    if (t == null && ind === 'minera') { ind = 'aserradero'; t = sitioFabrica(m, c); }
+    if (t == null) return;
+    (v.privados = v.privados || {})[t] = { dueno: rico.id, civ: c.id, tipo: 'fabrica', ind };
+    const p = c.plan = c.plan || {}; (p.encargos = p.encargos || []).push({ t, o: obraIndustria(ind), clave: ind === 'minera' ? 'minapriv' : 'fabrica', privado: rico.id });
+    c.oro = (c.oro || 0) + obra;
+    rico.emp = { neg: 'fabrica', t, ind, monto: 0, deuda: 0, cuota: 0, caja: redondo((rico.dinero || 0) - obra), banquero: null, desde: m.turno, atraso: 0, propio: true };
+    rico.dinero = 0; mover(rico, COMERCIANTE);
+    anunciar(m, c, '🏭 ' + nombreDe(rico) + ' monta ' + (ind === 'minera' ? 'una compañía minera' : ({ textil: 'una fábrica textil', aserradero: 'un aserradero', fundicion: 'una fundición', conservera: 'una conservera' }[ind] || 'una fábrica')) + ' con su propio dinero, sin préstamo (paga ' + obra + ' de oro al reino por la obra)');
+  }
   function banca(m, c) {
     const v = m.vida;
     // Los negocios privados de quien ya no está (murió, se fue o el reino perdió la tierra) pasan al reino.
@@ -1183,7 +1205,45 @@
     // Los sueldos de la gente (con banco o sin él), y lo que quiere gastar: se lo compra a las fábricas privadas.
     const pueblo = pausada(m) && c.era >= ERA_SUELDO ? sueldos(m, c, impuesto) : null;
     if (pueblo) pueblo.fabricas = empresariosDe(m, c).filter(a => a.emp.neg === 'fabrica' && a.emp.ind !== 'minera' && v.obra[a.emp.t] === OBRA.fabrica).length;
-    if (!(c.bancos > 0) || c.era < 5) return;
+    // LOS NEGOCIOS (con banco o sin él: el que montó su fábrica con su dinero no depende del banco).
+    const negocios = (b, nivel) => {
+      // LOS EMPRESARIOS: su negocio les da; pagan impuestos y devuelven a su banquero (o al central).
+      // Venden dentro (el 60 %) y fuera, pero solo a los reinos con los que se comercia (para el jugador, los que él abrió):
+      // así decides si tu industria privada beneficia o no a otro reino.
+      const sociosFab = sociosDe(m, c), fueraE = 0.6 + 0.4 * Math.min(1, sociosFab.length / 2);
+      for (const a of empresariosDe(m, c)) {
+        const e = a.emp; if (e.neg === 'banco') continue;
+        let bruto = 0;
+        if (e.neg === 'fabrica') {
+          // Mientras se levanta no da nada; si la tiraron o se perdió, el negocio se acaba.
+          const encargada = e.t != null && ((c.plan && c.plan.encargos) || []).some(x => x.t === e.t);
+          if (e.t == null || (!encargada && !(v.andamios && v.andamios[e.t]) && !ES_INDUSTRIA.has(v.obra[e.t]))) { quiebra(m, c, a, e.ind === 'minera' ? 'perdió su mina' : 'perdió su fábrica'); continue; }
+          if (ES_INDUSTRIA.has(v.obra[e.t])) {
+            // (Ya no cobra del tesoro: gana lo que vende menos lo que paga; paga impuestos solo sobre lo que gana.)
+            const neto = industria(m, c, a, e, sociosFab, pueblo), imp = Math.max(0, neto) * impuesto;
+            c.oro = (c.oro || 0) + imp; e.caja = redondo(e.caja + neto - imp); e.impuestos = (e.impuestos || 0) + imp;
+            if (e.caja < -30 && !(e.deuda > 0)) { quiebra(m, c, a, 'perdía dinero'); continue; }
+          }
+        } else bruto = (1 + c.era * 0.25) * fueraE;
+        // Un mal año para el negocio, de vez en cuando (más si el dinero fue barato); no antes de abrir.
+        if (bruto > 0 && azar(v) < (nivel <= 0.5 ? 0.03 : 0.012)) e.caja -= 6 + c.era;
+        const imp = bruto * impuesto;
+        c.oro = (c.oro || 0) + imp; e.caja += bruto - imp; e.impuestos = (e.impuestos || 0) + imp;
+        // (Mientras la fábrica se levanta, el préstamo espera: se empieza a pagar cuando produce.)
+        if (e.deuda > 0 && !(e.neg === 'fabrica' && !ES_INDUSTRIA.has(v.obra[e.t]))) {
+          const q = Math.min(e.deuda, e.cuota), ban = acreedor(m, e);
+          if (e.caja >= q) {
+            e.caja -= q; e.deuda = Math.round((e.deuda - q) * 100) / 100; e.atraso = Math.max(0, (e.atraso || 0) - 1);
+            if (ban) { ban.emp.capital += q; ban.emp.cobrado = (ban.emp.cobrado || 0) + q; } else if (b) { b.fondo += q; b.devuelto += q; }
+            if (e.deuda <= 0.01) { e.deuda = 0; anunciar(m, c, '🏦 ' + nombreDe(a) + ' ha devuelto su préstamo' + (ban ? ' al banco de ' + nombreDe(ban) : '')); }
+          } else if ((e.atraso = (e.atraso || 0) + 1) > 24) quiebra(m, c, a, 'no podía pagar');
+        }
+        if (a.emp && a.o !== COMERCIANTE) mover(a, COMERCIANTE);
+      }
+      cobrarGasto(pueblo);
+    };
+    if (pausada(m) && c.era >= 6 && m.turno % 8 === (c.id + 4) % 8) montarConLoSuyo(m, c);
+    if (!(c.bancos > 0) || c.era < 5) { negocios(null, 1); return; }
     // EL BANCO CENTRAL: al abrir se lleva una parte del tesoro; luego, cada turno, un poco de los impuestos.
     let b = c.banca;
     if (!b) { b = c.banca = { fondo: 0, prestado: 0, devuelto: 0, quiebras: 0, perdido: 0, abierto: m.turno }; moverAlBanco(c, Math.min(40, Math.max(0, (c.oro || 0) * 0.3))); anunciar(m, c, '🏦 Abre el banco central de ' + c.nombre + ' con ' + Math.round(b.fondo) + ' de oro del tesoro: prestará a los banqueros'); }
@@ -1201,40 +1261,7 @@
       }
       if (a.o !== COMERCIANTE) mover(a, COMERCIANTE);
     }
-    // LOS EMPRESARIOS: su negocio les da; pagan impuestos y devuelven a su banquero (o al central).
-    // Venden dentro (el 60 %) y fuera, pero solo a los reinos con los que se comercia (para el jugador, los que él abrió):
-    // así decides si tu industria privada beneficia o no a otro reino.
-    const sociosFab = sociosDe(m, c), fueraE = 0.6 + 0.4 * Math.min(1, sociosFab.length / 2);
-    for (const a of empresariosDe(m, c)) {
-      const e = a.emp; if (e.neg === 'banco') continue;
-      let bruto = 0;
-      if (e.neg === 'fabrica') {
-        // Mientras se levanta no da nada; si la tiraron o se perdió, el negocio se acaba.
-        const encargada = e.t != null && ((c.plan && c.plan.encargos) || []).some(x => x.t === e.t);
-        if (e.t == null || (!encargada && !(v.andamios && v.andamios[e.t]) && !ES_INDUSTRIA.has(v.obra[e.t]))) { quiebra(m, c, a, e.ind === 'minera' ? 'perdió su mina' : 'perdió su fábrica'); continue; }
-        if (ES_INDUSTRIA.has(v.obra[e.t])) {
-          // (Ya no cobra del tesoro: gana lo que vende menos lo que paga; paga impuestos solo sobre lo que gana.)
-          const neto = industria(m, c, a, e, sociosFab, pueblo), imp = Math.max(0, neto) * impuesto;
-          c.oro = (c.oro || 0) + imp; e.caja = redondo(e.caja + neto - imp); e.impuestos = (e.impuestos || 0) + imp;
-          if (e.caja < -30 && !(e.deuda > 0)) { quiebra(m, c, a, 'perdía dinero'); continue; }
-        }
-      } else bruto = (1 + c.era * 0.25) * fueraE;
-      // Un mal año para el negocio, de vez en cuando (más si el dinero fue barato); no antes de abrir.
-      if (bruto > 0 && azar(v) < (nivel <= 0.5 ? 0.03 : 0.012)) e.caja -= 6 + c.era;
-      const imp = bruto * impuesto;
-      c.oro = (c.oro || 0) + imp; e.caja += bruto - imp; e.impuestos = (e.impuestos || 0) + imp;
-      // (Mientras la fábrica se levanta, el préstamo espera: se empieza a pagar cuando produce.)
-      if (e.deuda > 0 && !(e.neg === 'fabrica' && !ES_INDUSTRIA.has(v.obra[e.t]))) {
-        const q = Math.min(e.deuda, e.cuota), ban = acreedor(m, e);
-        if (e.caja >= q) {
-          e.caja -= q; e.deuda = Math.round((e.deuda - q) * 100) / 100; e.atraso = Math.max(0, (e.atraso || 0) - 1);
-          if (ban) { ban.emp.capital += q; ban.emp.cobrado = (ban.emp.cobrado || 0) + q; } else { b.fondo += q; b.devuelto += q; }
-          if (e.deuda <= 0.01) { e.deuda = 0; anunciar(m, c, '🏦 ' + nombreDe(a) + ' ha devuelto su préstamo' + (ban ? ' al banco de ' + nombreDe(ban) : '')); }
-        } else if ((e.atraso = (e.atraso || 0) + 1) > 24) quiebra(m, c, a, 'no podía pagar');
-      }
-      if (a.emp && a.o !== COMERCIANTE) mover(a, COMERCIANTE);
-    }
-    cobrarGasto(pueblo);
+    negocios(b, nivel);
     // Quien trabajaba en una fábrica que ya no está (quebró, se quemó, cambió de dueño o de reino) vuelve a su oficio.
     for (const x of v.aldeanos) if (x.obrero != null && x.c === c.id) { const pv = v.privados && v.privados[x.obrero], d = pv && v.aldeanos.find(y => y.id === pv.dueno); if (!ES_INDUSTRIA.has(v.obra[x.obrero]) || !d || !d.emp || d.emp.t !== x.obrero || m.dueno[region(m, x.obrero)] !== c.id) { delete x.obrero; x.e = LIBRE; } }
     const libres = () => v.aldeanos.filter(a => a.c === c.id && !a.emp && !a.merc && a.obrero == null && !esNino(a) && (a.edad || 0) <= VIEJO - (pausada(m) ? 3 : 7) && a.o !== GUERRERO && a.o !== ERUDITO && !a.fijo && a.colono == null && a.aBordo == null);
@@ -1243,7 +1270,9 @@
     // reino la obra). No llega con la era: hace falta el dinero y el préstamo. Sin banco central, o sin fondos, espera.
     const banqueros = banquerosDe(m, c), maxBancos = Math.min(3, 1 + Math.floor((m.ciudades || []).filter(x => x.civ === c.id).length / 2));
     const montoBanco = 25 + 5 * c.era, reforma = Math.round(precioObra(m, 'bancopriv') * 5) / 10, pide = montoBanco * 0.6 + reforma;
-    if (c.era >= ERA_BANQUERO && m.turno % 8 === c.id % 8 && banqueros.length < maxBancos) {
+    // (También cuenta para el 4 %: el primer banco del reino siempre puede abrir; los demás, si cabe otro capitalista.)
+    const tope4 = Math.max(1, Math.floor(v.aldeanos.filter(a => a.c === c.id && !esNino(a)).length * 0.04));
+    if (c.era >= ERA_BANQUERO && m.turno % 8 === c.id % 8 && banqueros.length < maxBancos && (!banqueros.length || empresariosDe(m, c).length < tope4)) {
       const fortuna = a => a.merc.caja + (a.dinero || 0);
       // (Un banco por familia: si alguien de la casa ya es banquero, su gremio sigue siendo gremio.)
       const conBanco = new Set(banqueros.map(a => a.familia).filter(Boolean));

@@ -325,6 +325,11 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   // LOS CAPITALISTAS: como mucho el 4 % de los adultos (y algo de holgura: los que heredan o la gente que muere).
   const topes = S.vivas(n).map(c => { const ad = n.vida.aldeanos.filter(a => a.c === c.id && a.edad >= V.ADULTO).length; return { emp: V.empresariosDe(n, c).filter(a => a.emp.neg !== 'banco').length, ban: V.banquerosDe(n, c).length, tope: Math.max(1, Math.floor(ad * 0.04)) }; });
   comprobar(topes.every(x => x.emp <= Math.max(0, x.tope - x.ban) + 1), 'los capitalistas no pasan del 4 % de los adultos (' + topes.map(x => (x.emp + x.ban) + '/' + x.tope).join(', ') + ')');
+  // EL QUE YA ES RICO monta su negocio con lo suyo: sin préstamo ni deuda (el préstamo es para los que no llegan).
+  const propios = S.vivas(n).flatMap(c => n.vida.aldeanos.filter(a => a.c === c.id && a.emp && a.emp.propio));
+  const montados = avisos2.filter(x => /con su propio dinero, sin préstamo/.test(x));
+  comprobar(montados.length > 0, 'los vecinos ricos montan su fábrica o su mina con su dinero, sin préstamo (' + montados.length + ': «' + (montados[0] || '').slice(0, 90) + '»)');
+  comprobar(propios.every(a => a.emp.banquero == null && !(a.emp.deuda > 0) && !(a.emp.monto > 0)), 'y no deben nada a ningún banco (' + propios.length + ' negocios propios ahora)');
   // LOS MUELLES PRIVADOS: uno por familia como mucho, con su barco mercante.
   const muelles = edif.filter(t => n.vida.obra[t] === O.muelle && n.vida.privados && n.vida.privados[t]);
   const porFam = {}; for (const t of muelles) { const d = n.vida.aldeanos.find(a => a.id === n.vida.privados[t].dueno); if (d) { const k = d.c + ':' + d.familia; porFam[k] = (porFam[k] || 0) + 1; } }
