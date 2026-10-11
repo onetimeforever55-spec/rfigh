@@ -249,6 +249,35 @@ console.log('LOS EDIFICIOS DE LOS MERCADERES CAMBIAN CON LAS ERAS (LOS REFORMAN 
   comprobar(w.edificios[tg] && w.edificios[tg].era >= 6, 'y se dibuja con su estilo nuevo (la reforma guarda la era: ' + (w.edificios[tg] && w.edificios[tg].era) + ')');
 }
 
+console.log('LA COMPAÑÍA MINERA Y EL COMERCIO ENTRE LAS INDUSTRIAS DE DOS REINOS SOCIOS');
+{
+  const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 60; k++) S.turno(g);
+  const [r, o] = S.vivas(g), w = g.vida; X.gobernar(g, r.id); X.ordenar(g, r.id, 'abrid una ruta comercial con ' + o.nombre);
+  r.era = o.era = 6;
+  comprobar(V.comercian(g, r, o), 'los dos reinos comercian (ruta abierta)');
+  // Una compañía minera en el reino socio, con metal en su almacén.
+  const ter = V.terrenos(g), tm = S.casillas(g, o).flatMap(q => V.parcelas(g, q)).find(t => ter[t] === 'montana' && !w.obra[t]) ?? S.casillas(g, o).flatMap(q => V.parcelas(g, q)).find(t => !w.obra[t]);
+  V.cambiar(g, 'obra', tm, V.OBRA.minapriv, 0);
+  const minero = w.aldeanos.find(x => x.c === o.id && x.edad >= V.ADULTO && !x.emp);
+  minero.emp = { neg: 'fabrica', ind: 'minera', t: tm, caja: 0, deuda: 0, stocks: { metal: 10, piedra: 0, carbon: 0 } }; (w.privados = w.privados || {})[tm] = { dueno: minero.id, civ: o.id, tipo: 'fabrica', ind: 'minera' };
+  // A la fundición de tu reino le falta metal: tu reino no tiene, así que lo compra a la minera del socio.
+  r.metal = 0; o.metal = 0; const caja0 = minero.emp.caja;
+  const c1 = V.comprarInsumo(g, r, 'metal', 4, [o]);
+  comprobar(c1.q === 4 && c1.fuera === 4 && minero.emp.caja > caja0 && minero.emp.stocks.metal === 6, 'si a tu fábrica le falta metal y tu reino no tiene, lo compra a la compañía minera del socio (4 de metal, la minera cobra ' + Math.round(minero.emp.caja - caja0) + ')');
+  // Y si la minera ya no tiene, al almacén del socio, que cobra (un poco más caro, por el transporte).
+  minero.emp.stocks.metal = 0; o.metal = 200; const oro0 = o.oro;
+  const c2 = V.comprarInsumo(g, r, 'metal', 3, [o]);
+  comprobar(c2.q === 3 && o.oro > oro0 && o.metal < 200, 'o al almacén del reino socio, que cobra el metal (' + Math.round(o.oro - oro0) + ' de oro)');
+  // Al revés también: las fábricas del socio compran a tu reino lo que te sobra.
+  r.metal = 300; const oroYo = r.oro; o.metal = 0;
+  const c3 = V.comprarInsumo(g, o, 'metal', 3, [r]);
+  comprobar(c3.q === 3 && r.oro > oroYo, 'y al revés: las fábricas del socio compran a tu reino lo que le sobra (y tu tesoro cobra ' + Math.round(r.oro - oroYo) + ')');
+  // Sin ruta (o en guerra), no hay comercio entre sus industrias.
+  X.ordenar(g, r.id, 'cerrad el comercio con ' + o.nombre); r.metal = 0; o.metal = 200;
+  comprobar(!V.sociosDe(g, r).includes(o), 'sin ruta, el socio no aparece: sus industrias no comercian con las tuyas');
+  comprobar(V.INDUSTRIAS.minera && V.INDUSTRIAS.minera.saca && V.OBRA.minapriv, 'la compañía minera saca metal, piedra y carbón de su mina (sin comprar materia prima)');
+}
+
 console.log('EL SUELDO DE LA GENTE, EL AHORRO Y QUIÉN PUEDE SER CAPITALISTA');
 {
   // Dos copias del mismo reino en la Edad Media: una con impuestos normales y otra con impuestos altos.

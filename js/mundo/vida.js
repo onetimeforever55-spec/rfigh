@@ -21,7 +21,7 @@
   const ADULTO = 2, VIEJO = 18;
   const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
   const esNino = a => (a.edad || 0) < ADULTO;
-  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18, central: 19, banco: 20, fabrica: 21, estacion: 22, hospital: 23, aerodromo: 24, campamento: 25, aduana: 26, petroleo: 27, mina: 28, gremio: 29, casona: 30, bancopriv: 31, muelle: 32 };
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18, central: 19, banco: 20, fabrica: 21, estacion: 22, hospital: 23, aerodromo: 24, campamento: 25, aduana: 26, petroleo: 27, mina: 28, gremio: 29, casona: 30, bancopriv: 31, muelle: 32, minapriv: 33 };
   // Hasta dónde llegan los campos de un molino (parcelas): más allá no se ara.
   const RANGO_MOLINO = 4;
   // En las partidas pausadas el molino alcanza menos (un rango medio): hacen falta varios molinos repartidos
@@ -449,7 +449,7 @@
       case OBRA.aerodromo: return 'Aeródromo de ' + sitio;
       case OBRA.campamento: return 'Campamento de ' + sitio;
       case OBRA.aduana: return 'Puesto fronterizo de ' + sitio;
-      case OBRA.mina: return 'Mina ' + de(v, ['de ' + sitio, 'La Esperanza', 'del Cerro', 'Honda', 'de San ' + santo, 'Vieja', 'de los ' + fam]);
+      case OBRA.minapriv: case OBRA.mina: return 'Mina ' + de(v, ['de ' + sitio, 'La Esperanza', 'del Cerro', 'Honda', 'de San ' + santo, 'Vieja', 'de los ' + fam]);
       case OBRA.petroleo: return 'Pozo de petróleo ' + de(v, ['Esperanza', 'Negro', 'de ' + sitio, 'del Llano', 'Número 1', 'de los ' + fam]);
       case OBRA.ayuntamiento: return 'Ayuntamiento de ' + sitio;
       case OBRA.centro: return 'Plaza mayor de ' + (c ? c.nombre : sitio);
@@ -476,7 +476,7 @@
     // (El nombre va con el estilo del edificio: cambia cuando los constructores lo reforman, no de golpe con la era.)
     const era = v.edificios[t].era != null ? v.edificios[t].era : c ? c.era : 0, quien = duenio.nombre + ' ' + (duenio.familia || ''), fam = duenio.familia || duenio.nombre;
     const etM = etapa(OBRA.muelle, era);
-    v.edificios[t].nombre = o === OBRA.gremio ? (etapa(OBRA.gremio, era) >= 1 ? 'Compañía ' + fam : 'Gremio de mercaderes ' + fam) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.bancopriv ? 'Banco ' + fam : o === OBRA.muelle ? (etM >= 3 ? 'Terminal de los ' : etM >= 2 ? 'Dársena de los ' : 'Muelle de los ') + fam : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : INDUSTRIAS[pv.ind] ? INDUSTRIAS[pv.ind].nombre + ' ' + fam : 'Fábrica de ' + quien;
+    v.edificios[t].nombre = o === OBRA.gremio ? (etapa(OBRA.gremio, era) >= 1 ? 'Compañía ' + fam : 'Gremio de mercaderes ' + fam) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.bancopriv ? 'Banco ' + fam : o === OBRA.muelle ? (etM >= 3 ? 'Terminal de los ' : etM >= 2 ? 'Dársena de los ' : 'Muelle de los ') + fam : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : INDUSTRIAS[pv.ind] ? (pv.ind === 'minera' ? 'Compañía minera ' : INDUSTRIAS[pv.ind].nombre + ' ') + fam : 'Fábrica de ' + quien;
     v.edificios[t].dueno = quien;
   }
   const SIN_REFORMA = new Set([OBRA.campamento, OBRA.centro, OBRA.campo, OBRA.ruina]);
@@ -681,8 +681,29 @@
     textil: { nombre: 'Textil', gasta: 'lana', hace: 'tela', precio: 1.7, rinde: 0.7 },
     aserradero: { nombre: 'Aserradero', gasta: 'madera', por: 2, hace: 'muebles', rinde: 0.8 },
     fundicion: { nombre: 'Fundición', gasta: 'metal', por: 1, hace: 'armas', rinde: 0.45 },
-    conservera: { nombre: 'Conservera', gasta: 'comida', por: 2, hace: 'conservas', precio: 1.6, rinde: 0.8 }
+    conservera: { nombre: 'Conservera', gasta: 'comida', por: 2, hace: 'conservas', precio: 1.6, rinde: 0.8 },
+    // La compañía minera no compra materia prima: saca de su mina metal y piedra (y carbón desde la Revolución
+    // Industrial) y lo vende a su reino, a los socios y a las fábricas de los dos lados.
+    minera: { nombre: 'Minera', saca: { metal: 0.4, piedra: 0.6, carbon: 0.3 }, rinde: 0.5 }
   };
+  const ES_INDUSTRIA = new Set([OBRA.fabrica, OBRA.minapriv]);
+  const obraIndustria = ind => (ind === 'minera' ? OBRA.minapriv : OBRA.fabrica);
+  // Las compañías mineras de un reino (con su mina abierta).
+  const minerasDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.emp && a.emp.neg === 'fabrica' && a.emp.ind === 'minera' && m.vida.obra[a.emp.t] === OBRA.minapriv);
+  /*
+   * COMPRAR MATERIA PRIMA: primero lo que le sobra al reino; luego a las compañías mineras del reino; y si falta, a los
+   * reinos con los que se comercia (a su almacén y a sus mineras), un poco más caro por el transporte. Cada vendedor
+   * cobra lo suyo. Así las fábricas de dos reinos socios se compran y se venden entre ellas.
+   */
+  function comprarInsumo(m, c, k, q, socios) {
+    const pr = (m.mercado && m.mercado.precio[k]) || PRECIO_BASE[k];
+    let falta = q, coste = 0, fuera = 0;
+    const deReino = (o, f) => { const sobra = Math.max(0, (o[k] || 0) - objetivo(o, k) * 0.6), x = Math.min(falta, sobra); if (x > 0) { o[k] -= x; o.oro = (o.oro || 0) + x * pr * f; coste += x * pr * f; falta -= x; if (o !== c) fuera += x; } };
+    const deMineras = (o, f) => { for (const mi of minerasDe(m, o)) { if (falta <= 0) break; const st = mi.emp.stocks || {}, x = Math.min(falta, st[k] || 0); if (x > 0) { st[k] = redondo(st[k] - x); mi.emp.caja = redondo(mi.emp.caja + x * pr * f); mi.emp.vendidoFab = redondo((mi.emp.vendidoFab || 0) + x); coste += x * pr * f; falta -= x; if (o !== c) fuera += x; } } };
+    deReino(c, 1); if (falta > 0) deMineras(c, 1);
+    for (const o of socios) { if (falta <= 0.05) break; deMineras(o, 1.1); if (falta > 0) deReino(o, 1.1); }
+    return { q: redondo(q - falta), coste, fuera };
+  }
   const PLAZAS_FABRICA = 4;
   /*
    * EL SUELDO DE LA GENTE (desde la Edad Media): cada adulto que trabaja para el reino (granjeros, leñadores, mineros,
@@ -710,7 +731,10 @@
   function elegirIndustria(m, c) {
     const v = m.vida, hay = new Set(Object.values(v.privados || {}).filter(p => p.civ === c.id && p.ind).map(p => p.ind));
     const sobra = k => (c[k] || 0) - objetivo(c, k);
-    const puntos = { textil: ovejasDe(m, c) * 1.5 - 4, aserradero: sobra('madera') / 2, fundicion: sobra('metal') * 2, conservera: sobra('comida') / 4 };
+    const falta = k => Math.max(0, objetivo(c, k) - (c[k] || 0));
+    const puntos = { textil: ovejasDe(m, c) * 1.5 - 4, aserradero: sobra('madera') / 2, fundicion: sobra('metal') * 2, conservera: sobra('comida') / 4,
+      // (La minera, al revés que las demás: se monta donde falta metal o piedra, si hay montaña libre.)
+      minera: sitioMina(m, c, terrenos(m)) != null ? falta('metal') * 1.5 + falta('piedra') / 3 + (c.era >= 6 ? falta('carbon') : 0) - 2 : -1e9 };
     let mejor = 'aserradero', mp = -1e9;
     for (const k of Object.keys(INDUSTRIAS)) { const p = puntos[k] * (hay.has(k) ? 0.4 : 1) - (hay.has(k) ? 5 : 0); if (p > mp) { mp = p; mejor = k; } }
     return mejor;
@@ -729,7 +753,7 @@
     // (Si la fábrica perdió su ficha de dueño, se le vuelve a poner: el edificio y el negocio siguen siendo suyos.)
     if (!(v.privados && v.privados[t])) { (v.privados = v.privados || {})[t] = { dueno: a.id, civ: c.id, tipo: 'fabrica', ind: INDUSTRIAS[e.ind] ? e.ind : undefined }; nombrarPrivado(m, t, c); }
     const pv = v.privados[t];
-    if (!INDUSTRIAS[e.ind]) { e.ind = (pv && INDUSTRIAS[pv.ind]) ? pv.ind : elegirIndustria(m, c); if (pv) { pv.ind = e.ind; nombrarPrivado(m, t, c); } }
+    if (!INDUSTRIAS[e.ind]) { e.ind = (pv && INDUSTRIAS[pv.ind]) ? pv.ind : v.obra[t] === OBRA.minapriv ? 'minera' : (x => (x === 'minera' ? 'aserradero' : x))(elegirIndustria(m, c)); if (pv) { pv.ind = e.ind; nombrarPrivado(m, t, c); } }
     const I = INDUSTRIAS[e.ind], obreros = v.aldeanos.filter(x => x.obrero === t), sueldo = Math.round((0.15 + 0.03 * c.era) * (c.plan && c.plan.salario ? c.plan.salario : 1) * 100) / 100;
     let gasto = 0, ingreso = 0, falta = null;
     for (const o of obreros) { o.dinero = redondo((o.dinero || 0) + sueldo); gasto += sueldo; }
@@ -738,15 +762,40 @@
     if (obreros.length && enMarcha(c, 'fabrica') && e.stock < 12) {
       let q = obreros.length * I.rinde * fuerza(c);
       if (I.gasta === 'lana') { const lana = ovejasDe(m, c) * 0.35; if (lana < q) { q = lana; if (q < 0.3) falta = 'ovejas para la lana'; } }
+      else if (I.saca) {
+        // La mina: saca de lo suyo (no compra nada); cada obrero, un poco de cada cosa.
+        const st = e.stocks = e.stocks || {}; q = 0;
+        for (const k of Object.keys(I.saca)) { if (k === 'carbon' && c.era < 6) continue; const x = Math.floor(obreros.length * I.saca[k] * fuerza(c) * 10) / 10; st[k] = redondo((st[k] || 0) + x); q += x; }
+      }
       else {
-        const pr = (m.mercado && m.mercado.precio[I.gasta]) || PRECIO_BASE[I.gasta], sobra = Math.max(0, (c[I.gasta] || 0) - objetivo(c, I.gasta) * 0.6);
-        if (sobra / I.por < q) { q = sobra / I.por; if (q < 0.3) falta = I.gasta === 'comida' ? 'comida que le sobre al reino' : I.gasta; }
-        q = Math.floor(q * 10) / 10;
-        const compra = q * I.por; c[I.gasta] -= compra; c.oro = (c.oro || 0) + compra * pr; gasto += compra * pr;
+        // La materia prima: del reino, de las mineras y, si falta, de los socios (comprarInsumo).
+        const r = comprarInsumo(m, c, I.gasta, Math.floor(q * I.por * 10) / 10, socios);
+        gasto += r.coste; e.importado = redondo((e.importado || 0) + r.fuera);
+        q = r.q / I.por;
+        if (q < 0.3) falta = I.gasta === 'comida' ? 'comida que le sobre al reino ni a los socios' : I.gasta;
       }
       q = Math.floor(q * 10) / 10; e.stock = redondo(e.stock + q); e.hecho = redondo((e.hecho || 0) + q);
     }
     if (falta && !(e.avisoParada > m.turno - 30)) { e.avisoParada = m.turno; anunciar(m, c, '🏭 ' + ((v.edificios[t] || {}).nombre || 'La fábrica') + ' está parada: no hay ' + falta + ' que comprar' + (I.gasta !== 'lana' ? ' («comprad ' + I.gasta + '»)' : '')); }
+    if (I.saca) {
+      // La minera vende al reino lo que le falta (lo paga el tesoro) y a los socios que lo necesiten (lo pagan ellos); el
+      // resto se lo compran las fábricas (de aquí y de los socios). Si se le amontona, despide.
+      const st = e.stocks = e.stocks || {};
+      for (const o of [c, ...socios.slice(0, 3)]) for (const k of Object.keys(st)) {
+        const pr = ((m.mercado && m.mercado.precio[k]) || PRECIO_BASE[k]) * (o === c ? 1 : 1.05), necesita = Math.max(0, objetivo(o, k) * 0.9 - (o[k] || 0));
+        const x = Math.min(st[k], necesita, Math.floor(Math.max(0, (o.oro || 0) - 5) / pr));
+        if (x > 0) { o.oro -= x * pr; o[k] = (o[k] || 0) + x; st[k] = redondo(st[k] - x); ingreso += x * pr; if (o === c) e.alReino = redondo((e.alReino || 0) + x); else e.exportado = redondo((e.exportado || 0) + x); }
+      }
+      e.stock = redondo(Object.values(st).reduce((p, q) => p + q, 0));
+      // (Lo que cobró de las fábricas ya entró en su caja al venderles: comprarInsumo.)
+      const hayVenta = Object.keys(st).some(k => objetivo(c, k) > (c[k] || 0)) || socios.length;
+      if (m.turno % 3 === a.id % 3) {
+        if (obreros.length > 1 && e.stock > 20) { const x = obreros[obreros.length - 1]; delete x.obrero; x.e = LIBRE; }
+        else if (obreros.length < PLAZAS_FABRICA && e.stock < 10 && hayVenta && (e.caja >= sueldo * 4 || obreros.length < 2)) { const x = candidatoObrero(m, c); if (x) { x.obrero = t; x.e = LIBRE; x.paseo = 0; if (!e.contratados) anunciar(m, c, '⛏ ' + ((v.edificios[t] || {}).nombre || 'La mina') + ' contrata a sus primeros mineros (' + sueldo + ' de oro de sueldo)'); e.contratados = (e.contratados || 0) + 1; } }
+      }
+      e.ultimo = redondo(ingreso - gasto);
+      return ingreso - gasto;
+    }
     // Ventas: a la gente del reino (según cuántos son), al reino si le falta y a los socios.
     const precio = precioDe(m, c, I);
     // (La gente compra con su sueldo: si no tiene dinero, la fábrica vende poco dentro.)
@@ -1133,7 +1182,7 @@
     comercio(m, c, impuesto);
     // Los sueldos de la gente (con banco o sin él), y lo que quiere gastar: se lo compra a las fábricas privadas.
     const pueblo = pausada(m) && c.era >= ERA_SUELDO ? sueldos(m, c, impuesto) : null;
-    if (pueblo) pueblo.fabricas = empresariosDe(m, c).filter(a => a.emp.neg === 'fabrica' && v.obra[a.emp.t] === OBRA.fabrica).length;
+    if (pueblo) pueblo.fabricas = empresariosDe(m, c).filter(a => a.emp.neg === 'fabrica' && a.emp.ind !== 'minera' && v.obra[a.emp.t] === OBRA.fabrica).length;
     if (!(c.bancos > 0) || c.era < 5) return;
     // EL BANCO CENTRAL: al abrir se lleva una parte del tesoro; luego, cada turno, un poco de los impuestos.
     let b = c.banca;
@@ -1162,8 +1211,8 @@
       if (e.neg === 'fabrica') {
         // Mientras se levanta no da nada; si la tiraron o se perdió, el negocio se acaba.
         const encargada = e.t != null && ((c.plan && c.plan.encargos) || []).some(x => x.t === e.t);
-        if (e.t == null || (!encargada && !(v.andamios && v.andamios[e.t]) && v.obra[e.t] !== OBRA.fabrica)) { quiebra(m, c, a, 'perdió su fábrica'); continue; }
-        if (v.obra[e.t] === OBRA.fabrica) {
+        if (e.t == null || (!encargada && !(v.andamios && v.andamios[e.t]) && !ES_INDUSTRIA.has(v.obra[e.t]))) { quiebra(m, c, a, e.ind === 'minera' ? 'perdió su mina' : 'perdió su fábrica'); continue; }
+        if (ES_INDUSTRIA.has(v.obra[e.t])) {
           // (Ya no cobra del tesoro: gana lo que vende menos lo que paga; paga impuestos solo sobre lo que gana.)
           const neto = industria(m, c, a, e, sociosFab, pueblo), imp = Math.max(0, neto) * impuesto;
           c.oro = (c.oro || 0) + imp; e.caja = redondo(e.caja + neto - imp); e.impuestos = (e.impuestos || 0) + imp;
@@ -1175,7 +1224,7 @@
       const imp = bruto * impuesto;
       c.oro = (c.oro || 0) + imp; e.caja += bruto - imp; e.impuestos = (e.impuestos || 0) + imp;
       // (Mientras la fábrica se levanta, el préstamo espera: se empieza a pagar cuando produce.)
-      if (e.deuda > 0 && !(e.neg === 'fabrica' && v.obra[e.t] !== OBRA.fabrica)) {
+      if (e.deuda > 0 && !(e.neg === 'fabrica' && !ES_INDUSTRIA.has(v.obra[e.t]))) {
         const q = Math.min(e.deuda, e.cuota), ban = acreedor(m, e);
         if (e.caja >= q) {
           e.caja -= q; e.deuda = Math.round((e.deuda - q) * 100) / 100; e.atraso = Math.max(0, (e.atraso || 0) - 1);
@@ -1187,7 +1236,7 @@
     }
     cobrarGasto(pueblo);
     // Quien trabajaba en una fábrica que ya no está (quebró, se quemó, cambió de dueño o de reino) vuelve a su oficio.
-    for (const x of v.aldeanos) if (x.obrero != null && x.c === c.id) { const pv = v.privados && v.privados[x.obrero], d = pv && v.aldeanos.find(y => y.id === pv.dueno); if (v.obra[x.obrero] !== OBRA.fabrica || !d || !d.emp || d.emp.t !== x.obrero || m.dueno[region(m, x.obrero)] !== c.id) { delete x.obrero; x.e = LIBRE; } }
+    for (const x of v.aldeanos) if (x.obrero != null && x.c === c.id) { const pv = v.privados && v.privados[x.obrero], d = pv && v.aldeanos.find(y => y.id === pv.dueno); if (!ES_INDUSTRIA.has(v.obra[x.obrero]) || !d || !d.emp || d.emp.t !== x.obrero || m.dueno[region(m, x.obrero)] !== c.id) { delete x.obrero; x.e = LIBRE; } }
     const libres = () => v.aldeanos.filter(a => a.c === c.id && !a.emp && !a.merc && a.obrero == null && !esNino(a) && (a.edad || 0) <= VIEJO - (pausada(m) ? 3 : 7) && a.o !== GUERRERO && a.o !== ERUDITO && !a.fijo && a.colono == null && a.aBordo == null);
     // UN BANQUERO NUEVO (desde la Revolución Industrial): el jefe de una casa comercial con gremio y dinero propio pide un
     // préstamo al banco central; si se lo dan, su GREMIO SE CONVIERTE EN SU BANCO (el mismo edificio, reformado: paga al
@@ -1235,10 +1284,17 @@
       const a = pausada(m) ? S().ordenarPor(cand.slice(), x => -(x.dinero || 0) * 1000 + x.id)[0] : (() => { const merc = cand.filter(a => a.o === COMERCIANTE); return (merc.length ? merc : cand)[Math.floor(azar(v) * (merc.length || cand.length))]; })();
       const privadas = Object.values(v.privados || {}).filter(p => p.civ === c.id && (p.tipo || 'fabrica') === 'fabrica').length;
       let neg = 'mercader', t = null;
-      if (c.era >= 6 && privadas < 1 + Math.floor((c.aldeanos || 0) / 60)) { t = sitioFabrica(m, c); if (t != null) neg = 'fabrica'; }
+      let ind = null;
+      if (c.era >= 6 && privadas < 1 + Math.floor((c.aldeanos || 0) / 60)) {
+        // La industria de lo que más le conviene al reino; la minera va en la montaña, las demás donde haya sitio.
+        ind = elegirIndustria(m, c);
+        t = ind === 'minera' ? sitioMina(m, c, terrenos(m)) : sitioFabrica(m, c);
+        if (t == null && ind !== 'minera') t = null; else if (t == null) { ind = 'aserradero'; t = sitioFabrica(m, c); }
+        if (t != null) neg = 'fabrica';
+      }
       if (neg === 'fabrica') {
-        (v.privados = v.privados || {})[t] = { dueno: a.id, civ: c.id, tipo: 'fabrica', ind: elegirIndustria(m, c) };
-        const p = c.plan = c.plan || {}; (p.encargos = p.encargos || []).push({ t, o: OBRA.fabrica, clave: 'fabrica', privado: a.id });
+        (v.privados = v.privados || {})[t] = { dueno: a.id, civ: c.id, tipo: 'fabrica', ind };
+        const p = c.plan = c.plan || {}; (p.encargos = p.encargos || []).push({ t, o: obraIndustria(ind), clave: ind === 'minera' ? 'minapriv' : 'fabrica', privado: a.id });
       }
       const deuda = Math.round(monto * (1 + (tipo + 0.05) * 2) * 10) / 10;
       // (El capitalista guarda una parte del préstamo para los primeros sueldos y la materia prima.)
@@ -1246,7 +1302,7 @@
       if (neg === 'fabrica') a.emp.ind = v.privados[t].ind;
       a.dinero = 0; ban.emp.capital -= monto; ban.emp.prestado += monto;
       mover(a, COMERCIANTE);
-      anunciar(m, c, '🏦 El banco de ' + nombreDe(ban) + ' presta ' + monto + ' de oro a ' + nombreDe(a) + (neg === 'fabrica' ? ': levantará ' + ({ textil: 'una fábrica textil', aserradero: 'un aserradero', fundicion: 'una fundición', conservera: 'una conservera' }[a.emp.ind] || 'una fábrica') + ' con su dinero' : ': se hace mercader'));
+      anunciar(m, c, '🏦 El banco de ' + nombreDe(ban) + ' presta ' + monto + ' de oro a ' + nombreDe(a) + (neg === 'fabrica' ? (a.emp.ind === 'minera' ? ': abrirá una compañía minera en la montaña' : ': levantará ' + ({ textil: 'una fábrica textil', aserradero: 'un aserradero', fundicion: 'una fundición', conservera: 'una conservera' }[a.emp.ind] || 'una fábrica') + ' con su dinero') : ': se hace mercader'));
     }
   }
   function mercado(m, recursosDe) {
@@ -1301,7 +1357,7 @@
       }
       banca(m, c);
       // La fábrica: forja en serie (sin cuartel) y convierte la madera que sobra en muebles que se venden por oro.
-      const fabReino = Math.max(0, (c.fabricas || 0) - Object.keys(v.privados || {}).filter(t => v.privados[t].civ === c.id && v.privados[t].tipo === 'fabrica' && v.obra[t] === OBRA.fabrica).length);
+      const fabReino = Math.max(0, (c.fabricas || 0) - Object.keys(v.privados || {}).filter(t => v.privados[t].civ === c.id && v.privados[t].tipo === 'fabrica' && v.privados[t].ind !== 'minera' && v.obra[t] === OBRA.fabrica).length);
       if (fabReino > 0 && enMarcha(c, 'fabrica')) {
         const q = Math.min(Math.round(2 * fabReino * fuerza(c)), Math.floor(Math.max(0, (c.metal || 0) - 4 - reserva)));
         if (q > 0 && (c.cartera && (c.cartera.armas || c.cartera.metal) || c.guerras.length)) { c.metal -= q; c.armas = (c.armas || 0) + q; }
@@ -2034,6 +2090,8 @@
   // mansión desde la Revolución Industrial): los paga su dueño, comprándole al reino la madera y la piedra.
   COSTES[OBRA.gremio] = [12, 6, 6]; TRABAJO[OBRA.gremio] = 7; NIVEL_OBRA[OBRA.gremio] = 2; ERA_OBRA[OBRA.gremio] = 4;
   COSTES[OBRA.casona] = [10, 8, 4]; TRABAJO[OBRA.casona] = 6; NIVEL_OBRA[OBRA.casona] = 2; ERA_OBRA[OBRA.casona] = 4;
+  // La mina de una compañía minera (Revolución Industrial): la abre un capitalista en la montaña, con sus obreros.
+  COSTES[OBRA.minapriv] = [6, 6, 4]; TRABAJO[OBRA.minapriv] = 6; NIVEL_OBRA[OBRA.minapriv] = 2; ERA_OBRA[OBRA.minapriv] = 6;
   COSTES[OBRA.muelle] = [12, 4, 6]; TRABAJO[OBRA.muelle] = 5; NIVEL_OBRA[OBRA.muelle] = 2; ERA_OBRA[OBRA.muelle] = 4;
   COSTES[OBRA.bancopriv] = [8, 10, 6]; TRABAJO[OBRA.bancopriv] = 6; NIVEL_OBRA[OBRA.bancopriv] = 2; ERA_OBRA[OBRA.bancopriv] = 6;
   const NOMBRE_ERA = ['el Neolítico', 'la Edad del Bronce', 'la Edad del Hierro', 'la Antigüedad clásica', 'la Edad Media', 'el Renacimiento', 'la Revolución Industrial', 'la Era Moderna', 'la II Guerra Mundial'];
@@ -2180,7 +2238,7 @@
     if (esVia(v, t)) return 'por ahí pasa la vía del tren';
     if (v.trinchera && v.trinchera[t]) return 'ahí hay una trinchera';
     if (!marcado && pausada(m) && v.plan && v.plan[t] === 1) return 'ahí va una calle del plano';
-    if (o === OBRA.mina) { if (ter[t] !== 'montana') return 'la mina solo se abre en la montaña'; }
+    if (o === OBRA.mina || o === OBRA.minapriv) { if (ter[t] !== 'montana') return 'la mina solo se abre en la montaña'; }
     else if (o === OBRA.puerto || o === OBRA.muelle ? !((ter[t] === 'arena' || CONSTRUIBLE.has(ter[t])) && !navegable(ter, t) && [1, -1, v.tw, -v.tw].some(d => ter[t + d] === 'agua' || ter[t + d] === 'bajo')) : !CONSTRUIBLE.has(ter[t])) return o === OBRA.puerto ? 'el puerto va en la arena, junto al mar' : 'ahí no se puede construir';
     if (c.era < (ERA_OBRA[o] || 0)) return 'aún no existe: llega con ' + NOMBRE_ERA[ERA_OBRA[o]];
     if (o === OBRA.petroleo && !(v.crudo && v.crudo[t])) return 'ahí no hay petróleo: busca las manchas negras';
@@ -2345,10 +2403,12 @@
   const enTrinchera = (v, a) => !!(v.trinchera && v.trinchera[a.y * v.tw + a.x]);
   function sitioMina(m, c, ter) {
     const v = m.vida, cap = centro(m, c.capital);
+    // (Tampoco pegada a la mina de una compañía, abierta o encargada.)
+    const otras = Object.keys(v.privados || {}).filter(t => v.privados[t].ind === 'minera').map(Number);
     let mejor = null, md = 1e9;
     for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) {
       if (ter[t] !== 'montana' || v.obra[t] || v.roca[t] || v.arbol[t] >= 2 || v.camino[t] || ocupada(v, t) || (v.andamios && v.andamios[t])) continue;
-      if ((c.minasT || []).some(u => dist(m, u, t) < 6)) continue;
+      if ((c.minasT || []).some(u => dist(m, u, t) < 6) || otras.some(u => dist(m, u, t) < 6)) continue;
       const d = dist(m, t, cap) - (ter[t] === 'montana' ? 2 : 0); if (d < md) { md = d; mejor = t; }
     }
     return mejor;
@@ -3529,7 +3589,7 @@
     }
     a.paseo = 0;
     // El obrero va a su fábrica a trabajar su jornada.
-    if (a.obrero != null) { if (v.obra[a.obrero] === OBRA.fabrica) { a.k = 0; ir(a, a.obrero, v.tw, IR); a.enFabrica = 1; return; } delete a.obrero; }
+    if (a.obrero != null) { if (ES_INDUSTRIA.has(v.obra[a.obrero])) { a.k = 0; ir(a, a.obrero, v.tw, IR); a.enFabrica = 1; return; } delete a.obrero; }
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
     if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) {
@@ -5085,5 +5145,5 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     actualizarPoblacion(m);
   }
 
-  M.vida = { INDUSTRIAS, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { INDUSTRIAS, minerasDe, comprarInsumo, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

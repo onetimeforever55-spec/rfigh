@@ -408,6 +408,7 @@
       if (nombre === 'aduana') return aduana(H, fase, col);
       if (nombre === 'petroleo') return pozoPetroleo(H, fase, col);
       if (nombre === 'mina') return mina(H, fase, col);
+      if (nombre === 'minapriv') return minaPrivada(H, fase, col);
       if (nombre === 'fab_textil') return fabTextil(H, fase, col);
       if (nombre === 'fab_aserradero') return fabAserradero(H, fase, col);
       if (nombre === 'fab_fundicion') return fabFundicion(H, fase, col);
@@ -807,6 +808,19 @@
     for (const x of [2, 5, 10, 13]) H.r(x, 9, 1, 2, LUZ);
     H.r(6, 10, 4, 5, '#4a4e58'); H.r(6, 10, 4, 1, '#2a2e38');
     for (const [x, y] of [[1, 13], [3, 13], [2, 11], [12, 13], [14, 13], [13, 11]]) { H.r(x, y, 2, 2, '#c8ccd4'); H.p(x, y, col); }
+    H.contorno(); return H.lienzo();
+  }
+  // La mina de una compañía minera: la boca en la roca con su entibado de madera, los raíles con la vagoneta cargada de
+  // mineral, la caseta de la compañía con su rótulo y, desde la Era Moderna, una torre de extracción de hierro.
+  function minaPrivada(H, fase, col) {
+    const roca = '#8a8478', osc = '#5a564e';
+    H.r(0, 4, 16, 11, roca); for (let k = 0; k < 4; k++) H.r(k, 4 - k, 16 - 2 * k, 1, k === 3 ? '#a8a296' : roca);
+    for (const [x, y] of [[2, 6], [12, 7], [4, 11], [13, 12]]) H.p(x, y, osc);
+    H.r(2, 7, 6, 8, '#1a1612'); H.r(2, 7, 1, 8, '#7a5232'); H.r(7, 7, 1, 8, '#7a5232'); H.r(2, 7, 6, 1, '#7a5232');
+    H.r(0, 14, 16, 1, '#5a3a22'); for (let x = 0; x < 16; x += 3) H.p(x, 13, '#6a4a2a');
+    H.r(4, 11, 4, 2, '#4a4e58'); H.r(4, 10, 4, 1, '#c87a3a'); H.p(5, 10, '#e0a060'); H.p(4, 13, '#2a2a2a'); H.p(7, 13, '#2a2a2a');
+    if (fase >= 3) { H.r(11, 0, 1, 8, '#3a3e48'); H.r(14, 0, 1, 8, '#3a3e48'); H.r(11, 0, 4, 1, '#3a3e48'); H.disco(12.5, 1, 1, '#6a6e78'); }
+    H.r(10, 8, 6, 5, '#9a6a3a'); H.r(10, 7, 6, 1, '#5a3a22'); H.r(11, 9, 4, 2, col); H.p(12, 9, '#f0c040'); H.p(13, 10, '#f0c040'); H.r(12, 11, 2, 2, '#3a2618');
     H.contorno(); return H.lienzo();
   }
   // La estación de tren: edificio con reloj, marquesina sobre el andén y las vías delante.
