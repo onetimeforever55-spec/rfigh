@@ -187,7 +187,9 @@
     }
     if (c.ultimaHuelga != null && m.turno - c.ultimaHuelga < 20) return;
     const hab = c.habitantes || c.aldeanos || 1, imp = (c.plan && c.plan.impuesto) || 1;
-    const malestar = Math.max(0, (40 - c.estab) / 40) + (imp > 1.2 ? 0.35 : 0) + contaminacion(c) * 0.8 + ((c.comida || 0) < hab * 0.3 ? 0.35 : 0);
+    // (Los salarios de los obreros: por debajo de lo normal dan malestar; por encima, lo calman.)
+    const sal = (c.plan && c.plan.salario) || 1;
+    const malestar = Math.max(0, (40 - c.estab) / 40) + (imp > 1.2 ? 0.35 : 0) + contaminacion(c) * 0.8 + ((c.comida || 0) < hab * 0.3 ? 0.35 : 0) + (sal < 1 ? (1 - sal) * 1.5 : -(sal - 1) * 0.5);
     const freno = c.regimen === 'dictadura' ? 0.5 : c.regimen === 'estado_obrero' ? 0.6 : 1;
     if (!(malestar > 0.15 && azar(v) < 0.05 * malestar * freno)) return;
     c.ultimaHuelga = m.turno; c.huelgasN = (c.huelgasN || 0) + 1;
@@ -1325,6 +1327,9 @@
       }
       cobrarGasto(pueblo);
     };
+    // Quien trabajaba en una fábrica que ya no está (quebró, se quemó, cambió de dueño o de reino) vuelve a su oficio
+    // (también en los reinos sin banco central, que salen antes de esta función).
+    for (const x of v.aldeanos) if (x.obrero != null && x.c === c.id) { const pv = v.privados && v.privados[x.obrero], d = pv && v.aldeanos.find(y => y.id === pv.dueno); if (!ES_INDUSTRIA.has(v.obra[x.obrero]) || !d || !d.emp || d.emp.t !== x.obrero || m.dueno[region(m, x.obrero)] !== c.id) { delete x.obrero; x.e = LIBRE; } }
     if (pausada(m) && c.era >= 6 && m.turno % 8 === (c.id + 4) % 8) montarConLoSuyo(m, c);
     if (!(c.bancos > 0) || c.era < 5) { negocios(null, 1); return; }
     // EL BANCO CENTRAL: al abrir se lleva una parte del tesoro; luego, cada turno, un poco de los impuestos.
@@ -1345,8 +1350,6 @@
       if (a.o !== COMERCIANTE) mover(a, COMERCIANTE);
     }
     negocios(b, nivel);
-    // Quien trabajaba en una fábrica que ya no está (quebró, se quemó, cambió de dueño o de reino) vuelve a su oficio.
-    for (const x of v.aldeanos) if (x.obrero != null && x.c === c.id) { const pv = v.privados && v.privados[x.obrero], d = pv && v.aldeanos.find(y => y.id === pv.dueno); if (!ES_INDUSTRIA.has(v.obra[x.obrero]) || !d || !d.emp || d.emp.t !== x.obrero || m.dueno[region(m, x.obrero)] !== c.id) { delete x.obrero; x.e = LIBRE; } }
     const libres = () => v.aldeanos.filter(a => a.c === c.id && !a.emp && !a.merc && a.obrero == null && !esNino(a) && (a.edad || 0) <= VIEJO - (pausada(m) ? 3 : 7) && a.o !== GUERRERO && a.o !== ERUDITO && !a.fijo && a.colono == null && a.aBordo == null);
     // UN BANQUERO NUEVO (desde la Revolución Industrial): el jefe de una casa comercial con gremio y dinero propio pide un
     // préstamo al banco central; si se lo dan, su GREMIO SE CONVIERTE EN SU BANCO (el mismo edificio, reformado: paga al
@@ -1766,7 +1769,9 @@
       const pr_ = (c.plan && c.plan.prioridad) || {}, w = i === 3 ? Math.max(prio(c, 'piedra'), pr_.metal != null ? pr_.metal : 0, c.era >= 6 && pr_.carbon != null ? pr_.carbon : 0) : prio(c, PRIO_OFICIO[i]);
       // Lo que el jugador pone al máximo pesa siempre, aunque el almacén esté lleno.
       if (w >= 2 && (i !== 0 || recursos.arboles) && (i !== 3 || recursos.rocas)) p[i] = Math.max(p[i], 0.25);
-      p[i] *= w === 0 ? 0.03 : w;
+      // (Con hambre, la gente vuelve al campo aunque se haya mandado «menos comida»: nadie se deja morir de hambre.)
+      const wc = i === 1 && w < 0.6 && (c.comida || 0) < (c.habitantes || c.aldeanos || 10) * 2 ? 0.6 : w;
+      p[i] *= wc === 0 ? 0.03 : wc;
     }
     const suma = p.reduce((k, x) => k + x, 0) || 1;
     return p.map(x => x / suma);
@@ -2017,8 +2022,10 @@
     if (Object.keys(cupos).length) { p = p.map((x, i) => (conCupo(i) ? 0 : x)); const sum = p.reduce((k, x) => k + x, 0) || 1; p = p.map(x => x / sum); }
     const fuera = libres.filter(a => !conCupo(a.o)).length;
     // 1. Cumplir los cupos: quitar a los que sobran y traer a los que faltan (primero de lo que más sobra).
-    // (Con el granero casi vacío, un cupo que no da de comer no se lleva a todos: el 40 % sigue en el campo.)
-    const hambre = pausada(m) && (c.comida || 0) < Math.max(3, todos.length * 0.3);
+    // (Si la comida no da ni para unos turnos, un cupo que no da de comer no se lleva a todos: el 40 % sigue en el campo.
+    // Antes solo se miraba con el granero casi vacío, y entonces ya era tarde: «quiero 8 soldados» con seis vecinos los
+    // hacía soldados a todos y el pueblo moría de hambre en quince turnos.)
+    const hambre = pausada(m) && (c.comida || 0) < Math.max(6, (c.aldeanos || todos.length) * 3);
     for (const k of Object.keys(cupos).map(Number)) {
       let meta = Math.max(0, Math.min(cupos[k].n, todos.length));
       if (hambre && k !== GRANJERO && meta > todos.length - Math.ceil(todos.length * 0.4)) {

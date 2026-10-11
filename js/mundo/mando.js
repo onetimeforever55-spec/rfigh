@@ -385,7 +385,7 @@
       if (/\b(parad|deten\w*|dejad de|basta|cancel\w*|perdon\w*|piedad|clemencia|suspend\w*)\b/.test(n)) return [{ tipo: 'exterminio', parar: true }];
       return [{ tipo: 'exterminio', con: o ? o.id : c.guerras.length ? c.guerras[0].con : null }];
     }
-    if (/\b(quem\w*|incendi\w*|arras\w*|sabote\w*|envenen\w*|destru\w* sus|talad sus|robad)\b/.test(n) && /\b(sus|enemig\w*|de \w+|su)\b/.test(n)) return [{ tipo: 'sabotaje', con: o ? o.id : c.guerras.length ? c.guerras[0].con : null }];
+    if ((/\b(quem\w*|incendi\w*|arras\w*|sabote\w*|envenen\w*|destru\w* sus|talad sus|robad)\b/.test(n) && /\b(sus|enemig\w*|de \w+|su)\b/.test(n)) || /\bsabote\w* (a|al) \w+/.test(n)) return [{ tipo: 'sabotaje', con: o ? o.id : c.guerras.length ? c.guerras[0].con : null }];
     if (/\b(saque[aoe]\w*|pillad\w*|asedi\w*|sitia\w*|asalt\w*)\b/.test(n)) { const r = plazaEnemiga(m, c, n); return r != null ? [{ tipo: 'objetivo', region: r }] : [{ tipo: 'atacar' }]; }
     // Cazar lobos: unos cuantos salen armados a por ellos (3 turnos).
     if (/\b(caz\w*|mat\w*|ahuyent\w*) (a )?(los )?lobos?\b/.test(n)) return [{ tipo: 'cuadrilla', n: numero1 >= 1 ? Math.round(numero1) : 4, de: -1, a: 4, hasta: { turnos: 3 } }];
@@ -393,10 +393,13 @@
     if (/\b(repar\w*|reconstru\w*|restaur\w*|apag\w*|extingu\w*|arregl\w* las casas|levant\w* las ruinas)\b/.test(n)) return [{ tipo: 'reparar' }];
     // El pueblo: impuestos, fiestas, rezar, curar, trabajar todos.
     if (/\bimpuestos?|tributos?|diezmo\b/.test(n) && !o) return [{ tipo: 'impuestos', sube: !/\b(baj\w*|quit\w*|elimin\w*|reduc\w*|perdon\w*|menos)\b/.test(n) }];
+    // «Trabajad sin descanso» es lo contrario de descansar: todos al trabajo (antes se leía «descanso» y les daba el día libre).
+    if (/\b(sin descanso|sin parar|sin tregua|a destajo|horas extra|trabajad mas|trabajad duro|a trabajar|al trabajo|manos a la obra|volved al trabajo)\b/.test(n)) return [{ tipo: 'trabajar' }];
     if (/\b(fiesta\w*|festej\w*|celebr\w*|banquete\w*|feria|carnaval|descans\w*|vacaciones|dia libre|que nadie trabaje|tomaos un respiro)\b/.test(n)) return [{ tipo: 'fiesta', descanso: /\b(descans\w*|vacaciones|dia libre|nadie trabaje|respiro)\b/.test(n) || undefined }];
     // Las huelgas obreras: ceder (subir salarios, negociar) o reprimir.
     if (/\b(huelg\w*|obreros|sindicat\w*|salarios?|sueldos? de los obreros|jornales?)\b/.test(n)) {
       if (/\b(reprim\w*|aplast\w*|disolv\w*|disuelv\w*|cargad|policia|porras|ejercito contra|soldados contra|esquiroles|despedid)\b/.test(n)) return [{ tipo: 'huelga', ceder: false }];
+      if (/\b(baj\w*|recort\w*|reduc\w*|rebaj\w*|menos sueldo|pagad menos)\b/.test(n)) return [{ tipo: 'salario', sube: false }];
       if (/\b(sub\w*|aument\w*|pag\w*|negoci\w*|acuerdo|ced\w*|dad\w* lo que piden|mejor\w*|escuch\w*)\b/.test(n)) return [{ tipo: 'huelga', ceder: true }];
     }
     if (/\b(rez\w*|orad|oren|plegarias?|misa|ofrendas?|sacrifici\w*|culto|procesion\w*|oracion\w*)\b/.test(n)) return [{ tipo: 'rezar' }];
@@ -413,7 +416,7 @@
     if (edad && /\b(que (nos )?falta|que necesit\w*|requisitos|cuando (llega|podemos)|como (llegamos|pasamos))\b/.test(n)) return [{ tipo: 'consulta_edad' }];
     if (edad && /\b(solos?|automatic\w*|cuando pueda\w*|por su cuenta)\b/.test(n) && /\b(avan[zc]\w*|sub\w*|pas\w*)\b/.test(n)) return [{ tipo: 'edad_auto', si: !/\b(no|nunca|dejad de)\b/.test(n) }];
     if (edad && /\b(ahorr\w*|guard\w*|junt\w*)\b/.test(n)) return [{ tipo: 'ahorrar_edad', si: !/\b(no|dejad de)\b/.test(n) }];
-    if (edad && /\b(avanz\w*|sub\w*|pas\w*|entr\w*|lleg\w*|adelant\w*|cambi\w*|ir a|vamos a)\b/.test(n)) return [{ tipo: 'edad' }];
+    if (edad && /\b(avanz\w*|sub\w*|pas\w*|pag\w*|compr\w*|entr\w*|lleg\w*|adelant\w*|cambi\w*|ir a|vamos a)\b/.test(n)) return [{ tipo: 'edad' }];
     // Una tecnología por su nombre (o por lo que da): «investigad la rueda», «quiero la imprenta», «estudiad el hierro».
     const quiereTec = /\b(investig\w*|estudi\w*|descubr\w*|invent\w*|desarroll\w*|aprend\w*|quiero|queremos|centr\w* en|prioriz\w*)\b/.test(n);
     const tec = M.TECNOLOGIAS.find(t => n.includes(norm(t.nombre))) || M.TECNOLOGIAS.find(t => n.includes(norm(t.invento).replace(/^(el|la|los|las) /, ''))) || M.TECNOLOGIAS.find(t => new RegExp('\\b' + t.id.replace('_', ' ') + '\\b').test(n));
@@ -780,12 +783,33 @@
       }
       return;
     }
+    // Los salarios de los obreros de las fábricas privadas (los paga su patrón): más bajos, más malestar y huelgas; más
+    // altos, obreros contentos y patrones que ganan menos. (Subirlos en plena huelga la termina, abajo.)
+    // El parte de guerra: con quién, quién es más fuerte, cuántos soldados, máquinas y aviones, y qué conviene.
+    if (a.tipo === 'consulta_guerra') {
+      if (!c.guerras.length) { textos.push('Estáis en paz con todos.' + ((c.guerreros || 0) ? ' Tenéis ' + c.guerreros + ' guerreros patrullando.' : '')); return; }
+      const yo = S().fuerza(m, c);
+      const partes = c.guerras.map(g => { const o = S().civ(m, g.con); if (!o) return null; const el = S().fuerza(m, o), r = el > yo * 1.4 ? 'son bastante más fuertes: mejor pedir la paz' : el > yo ? 'están algo por encima' : yo > el * 1.4 ? 'les superáis con creces' : 'vais parejos'; return 'con ' + o.nombre + ' (' + (o.guerreros || 0) + ' soldados suyos), ' + r; }).filter(Boolean);
+      const maq = Math.floor(c.vehiculos || 0), avi = Math.floor(c.aviones || 0);
+      textos.push('En guerra ' + partes.join('; ') + '. Vosotros: ' + (c.guerreros || 0) + ' soldados' + (maq ? ', ' + maq + ' máquinas de guerra' : '') + (avi ? ', ' + avi + ' aviones' : '') + ', ' + Math.floor(c.armas || 0) + ' armas en el almacén y ' + Math.floor(c.comida || 0) + ' de comida.' + ((c.comida || 0) < (c.habitantes || 10) ? ' Ojo: con el granero tan bajo, la gente pasará hambre.' : ''));
+      return;
+    }
+    if (a.tipo === 'salario' || (a.tipo === 'huelga' && a.ceder && !c.huelga)) {
+      const sube = a.tipo === 'huelga' || a.sube !== false;
+      if (c.era < 6) { textos.push('Aún no hay obreros a sueldo: llegan con las fábricas de la Revolución Industrial.'); return; }
+      const antes = p.salario || 1, nuevo = Math.round(Math.max(0.6, Math.min(1.6, antes + (sube ? 0.2 : -0.2))) * 10) / 10;
+      if (nuevo === antes) { textos.push(sube ? 'Los salarios ya están en lo más alto que los patrones pueden pagar.' : 'Los salarios ya están en lo más bajo: por menos, nadie trabaja.'); return; }
+      p.salario = nuevo;
+      an((sube ? '▲' : '▼') + ' Salarios de los obreros: ' + Math.round(nuevo * 100) + ' %');
+      textos.push((sube ? 'Subís' : 'Bajáis') + ' los salarios de los obreros al ' + Math.round(nuevo * 100) + ' % de lo normal. ' + (sube ? 'Los obreros están más contentos (menos huelgas) y los patrones ganan algo menos.' : 'Los patrones ganan más, pero los obreros se quejan: más riesgo de huelga.'));
+      return;
+    }
     if (a.tipo === 'huelga') {
       if (!c.huelga) { textos.push(c.era >= 6 && c.fabricas > 0 ? 'Ahora no hay ninguna huelga: los obreros trabajan.' : 'Aún no tenéis fábricas ni obreros.'); return; }
       if (a.ceder) {
         const coste = Math.round(6 + 6 * (c.fabricas || 1));
         if ((c.oro || 0) < coste) { textos.push('No hay oro para subir los salarios (hacen falta ' + coste + '). Podéis reprimir la huelga, o esperar a que se acabe sola.'); return; }
-        c.oro -= coste; delete c.huelga; c.estab = Math.min(100, c.estab + 6); c.huelgasN = Math.max(0, (c.huelgasN || 0) - 1);
+        c.oro -= coste; delete c.huelga; c.estab = Math.min(100, c.estab + 6); c.huelgasN = Math.max(0, (c.huelgasN || 0) - 1); p.salario = Math.min(1.6, Math.round(((p.salario || 1) + 0.2) * 10) / 10);
         an('🤝 Salarios subidos: fin de la huelga');
         textos.push('Subís los salarios (' + coste + ' de oro). Los obreros vuelven a las fábricas contentos: estabilidad +6.');
       } else {
@@ -869,7 +893,7 @@
     if (debo.length) l.push('Debéis: ' + debo.map(cr => (S().civ(m, cr.de) || {}).nombre + ' ' + Math.round(cr.resta)).join(', ') + '.');
     return l.join(' ');
   }
-  const TIPOS_EXTRA = ['banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
+  const TIPOS_EXTRA = ['consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
   /*
@@ -950,6 +974,7 @@
     if (!c || !c.viva || !n) return acciones;
     // Aquí no hay milagros: eres quien manda en un pueblo, no un dios.
     if (/\b(peste|plaga|diluvio|terremoto|llueva|lluvia de|milagro|rayos?|meteorito|que mueran|maldic\w*|bendic\w*|que aparezca)\b/.test(n)) return [{ tipo: 'milagro' }];
+    if (/\b(como va|como van|que tal (va|van)|parte de guerra|como esta el frente|como vamos en)\b/.test(n) && /\b(guerras?|frente|batallas?|contienda)\b/.test(n)) return [{ tipo: 'consulta_guerra' }];
     if (/\b(informe|como vamos|como estamos|estado|situacion|que tal|resumen)\b/.test(n)) acciones.push({ tipo: 'informe' });
     if (/\b(como antes|lo de siempre|normal|equilibr\w*|a vuestro aire|libres?)\b/.test(n)) { acciones.push({ tipo: 'normal' }); return acciones; }
 
@@ -999,7 +1024,7 @@
     else if (alianza) { const o = otro(m, c, n); acciones.push({ tipo: 'alianza', con: o ? o.id : null }); }
     else if (tratado) { const o = otro(m, c, n); acciones.push({ tipo: 'comercio', con: o ? o.id : null }); }
 
-    for (const [re, regimen, era] of REGIMENES) if (/\b(proclam\w*|revoluc\w*|instaur\w*|cambi\w* a|seamos|convert\w* en|hazte|haz\w* una?|coron\w*)\b/.test(n) && re.test(n)) { acciones.push({ tipo: 'regimen', a: regimen, era }); break; }
+    for (const [re, regimen, era] of REGIMENES) if (/\b(proclam\w*|revoluc\w*|instaur\w*|cambi\w* a|seamos|convert\w* en|hazte|haz\w* una?|coron\w*|queremos (ser )?una?|quiero (ser )?una?|que sea una?|establec\w*|implant\w*)\b/.test(n) && re.test(n)) { acciones.push({ tipo: 'regimen', a: regimen, era }); break; }
 
     const expandir = /\b(explor\w*|expand\w*|extiend\w*|coloniz\w*|ocupa\w*|nuevas tierras|ve hacia|id hacia|avanz\w* (hacia|al)|crec\w* hacia|hacia el)\b/.test(n);
     const quieto = /\b(no (os|te|nos) expand\w*|deja\w* de expandi\w*|quiet\w*|no crezc\w*|parad de crecer)\b/.test(n);
@@ -1095,7 +1120,7 @@
         if (M.vida && m.vida) M.vida.reasignar(m, c, null, true);
         const ahora = cuenta(), cambios = tocados.filter(k => OFICIO_DE[k] && ahora[OFICIO_DE[k][0]] !== antesOficios[OFICIO_DE[k][0]]).map(k => (ahora[OFICIO_DE[k][0]] > antesOficios[OFICIO_DE[k][0]] ? '▲ ' : '▼ ') + (OFICIO_DE[k][0] === 6 ? M.ERUDITO(c.era).varios : OFICIO_DE[k][1]) + ' ' + antesOficios[OFICIO_DE[k][0]] + ' → ' + ahora[OFICIO_DE[k][0]]);
         (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: cambios.length ? cambios.join('  ') : 'Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') });
-        textos.push('Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') + (a.solo ? ' (lo demás, baja)' : '') + (hp ? textoPlazo(m, hp) + '; luego vuelven a como estaban' : '') + '.' + (cambios.length ? ' Ya cambian de oficio: ' + cambios.map(x => x.slice(2)).join(', ') + '.' : oficiosNuevos(m, c, antesReparto, tocados)));
+        textos.push('Prioridades: ' + tocados.map(k => NOMBRE_RECURSO[k] + ' ' + NIVEL(pr[k])).join(', ') + (a.solo ? ' (lo demás, baja)' : '') + (hp ? textoPlazo(m, hp) + '; luego vuelven a como estaban' : '') + '.' + (cambios.length ? ' Ya cambian de oficio: ' + cambios.map(x => x.slice(2)).join(', ') + '.' : oficiosNuevos(m, c, antesReparto, tocados)) + (tocados.includes('comida') && pr.comida != null && pr.comida < 0.6 ? ' Ojo: si el granero baja mucho, la gente volverá al campo por su cuenta para no pasar hambre.' : ''));
       }
       else if (a.tipo === 'expandir') {
         p.expandir = a.si; p.rumbo = a.si ? (a.rumbo == null ? null : a.rumbo) : null;
@@ -1396,6 +1421,7 @@
         if (a.tipo === 'escuadron') { x.n = Math.max(1, Math.min(200, Math.round(Number(a.n) || 8))); x.arma = ['arqueros', 'tanques'].includes(a.arma) ? a.arma : null; x.region = Number.isInteger(Number(a.region)) && a.region !== null ? Number(a.region) : null; if (a.ataca) x.ataca = true; }
         if (a.tipo === 'vehiculos') x.cual = ['tanque', 'artilleria', 'aviones'].includes(a.cual) ? a.cual : 'artilleria';
         if (a.tipo === 'impuestos') x.sube = a.sube !== false;
+        if (a.tipo === 'salario') x.sube = a.sube !== false;
         if (a.tipo === 'fiesta' && a.descanso) x.descanso = true;
         if (a.tipo === 'huelga') x.ceder = a.ceder !== false;
         if (a.tipo === 'fabricar') { x.que = ['muebles', 'vehiculos', 'granadas'].includes(a.que) ? a.que : 'armas'; x.n = Math.max(1, Math.min(500, Math.round(Number(a.n) || 20))); }
