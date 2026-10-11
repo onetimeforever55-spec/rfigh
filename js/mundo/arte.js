@@ -408,6 +408,10 @@
       if (nombre === 'aduana') return aduana(H, fase, col);
       if (nombre === 'petroleo') return pozoPetroleo(H, fase, col);
       if (nombre === 'mina') return mina(H, fase, col);
+      if (nombre === 'fab_textil') return fabTextil(H, fase, col);
+      if (nombre === 'fab_aserradero') return fabAserradero(H, fase, col);
+      if (nombre === 'fab_fundicion') return fabFundicion(H, fase, col);
+      if (nombre === 'fab_conservera') return fabConservera(H, fase, col);
       if (nombre === 'gremio') return gremio(H, fase, col);
       if (nombre === 'bancopriv') return bancoPrivado(H, fase, col);
       if (nombre === 'muelle') return muelle(H, fase, col);
@@ -760,6 +764,49 @@
     for (const x of [1, 5, 9]) H.r(x, 10, 2, 2, LUZ);
     H.r(13, 1, 3, 14, '#7a3a2a'); H.r(13, 1, 3, 1, '#3a2a2a'); for (let y = 3; y < 15; y += 3) H.r(13, y, 3, 1, '#5a2a1e');
     H.r(4, 12, 3, 3, '#3a2a2a'); H.p(12, 14, col);
+    H.contorno(); return H.lienzo();
+  }
+  // LAS FÁBRICAS PRIVADAS de los capitalistas, cada una de su industria (fase 3: Era Moderna, más gris).
+  // La fábrica textil: nave larga de ladrillo con muchas ventanas, tejado de dientes de sierra y rollos de tela de colores.
+  function fabTextil(H, fase, col) {
+    const lad = fase >= 3 ? '#9a9ca4' : '#b06048', jun = oscuro(lad, 0.15);
+    H.r(0, 6, 16, 9, lad); for (let y = 7; y < 15; y += 2) for (let x = (y % 4 ? 0 : 1); x < 16; x += 3) H.p(x, y, jun);
+    for (const x0 of [0, 4, 8, 12]) for (let k = 0; k < 4; k++) H.r(x0 + k, 5 - k, 1, k + 1, k === 3 ? '#b8d0e0' : oscuro(lad, 0.25));
+    for (const x of [1, 4, 7, 10, 13]) H.r(x, 8, 2, 2, LUZ);
+    H.r(6, 11, 3, 4, '#3a2a2a');
+    for (const [x, c] of [[1, '#e8e0c8'], [3, col], [11, '#4a7ab8'], [13, '#c8a040']]) { H.r(x, 12, 2, 3, c); H.p(x, 12, claro(c, 0.3)); }
+    H.contorno(); return H.lienzo();
+  }
+  // El aserradero: cobertizo de madera con la sierra circular, la pila de troncos y una chimenea de vapor pequeña.
+  function fabAserradero(H, fase, col) {
+    const mad = fase >= 3 ? '#8a7a6a' : '#9a6a3a';
+    H.r(1, 6, 10, 9, mad); for (let x = 2; x < 11; x += 2) H.r(x, 6, 1, 9, oscuro(mad, 0.15));
+    for (let k = 0; k < 3; k++) H.r(k, 5 - k, 12 - 2 * k, 1, k === 2 ? '#5a3a22' : '#6a4424');
+    H.r(9, 0, 2, 4, '#5a5a5a'); H.r(9, 0, 2, 1, '#3a3a3a');
+    H.disco(5, 11, 2.2, '#c8ccd4'); H.p(5, 11, '#5a5e66'); H.r(3, 13, 5, 1, '#3a2618');
+    for (const [x, y] of [[12, 13], [14, 13], [13, 11], [12, 9], [14, 9]]) { H.r(x, y, 2, 2, '#8a5a2b'); H.p(x, y, '#d8b080'); }
+    H.p(2, 7, col); H.p(3, 7, col);
+    H.contorno(); return H.lienzo();
+  }
+  // La fundición: nave de ladrillo oscuro con la chimenea alta, la boca del horno encendida y lingotes de metal.
+  function fabFundicion(H, fase, col) {
+    const lad = fase >= 3 ? '#6a6e78' : '#6a3a30', jun = oscuro(lad, 0.2);
+    H.r(0, 6, 12, 9, lad); for (let y = 7; y < 15; y += 2) for (let x = (y % 4 ? 0 : 1); x < 12; x += 3) H.p(x, y, jun);
+    H.r(0, 5, 12, 1, '#2a2a30');
+    H.r(12, 0, 3, 15, '#4a2a24'); H.r(12, 0, 3, 1, '#2a1a18'); for (let y = 3; y < 15; y += 3) H.r(12, y, 3, 1, '#3a2018');
+    H.r(3, 9, 5, 6, '#2a1a14'); H.r(4, 10, 3, 5, '#e86a20'); H.r(5, 11, 1, 4, '#ffd040');
+    H.r(1, 7, 2, 1, LUZ); H.r(9, 7, 2, 1, LUZ);
+    for (const x of [9, 10]) H.r(x, 13, 1, 2, '#a8acb4'); H.r(9, 12, 2, 1, '#c8ccd4'); H.p(0, 13, col);
+    H.contorno(); return H.lienzo();
+  }
+  // La conservera: edificio claro de dos pisos con el rótulo de la lata, el muelle de carga y latas apiladas.
+  function fabConservera(H, fase, col) {
+    const muro = fase >= 3 ? '#d4d8de' : '#e4dcc8', som = oscuro(muro, 0.22);
+    H.r(1, 4, 14, 11, muro); H.r(1, 4, 14, 1, som); H.r(0, 3, 16, 1, '#5a5a62');
+    H.r(4, 5, 8, 3, col); H.r(7, 5, 2, 3, '#d8dce4'); H.p(7, 5, '#ffffff'); H.r(7, 7, 2, 1, '#8a8e96');
+    for (const x of [2, 5, 10, 13]) H.r(x, 9, 1, 2, LUZ);
+    H.r(6, 10, 4, 5, '#4a4e58'); H.r(6, 10, 4, 1, '#2a2e38');
+    for (const [x, y] of [[1, 13], [3, 13], [2, 11], [12, 13], [14, 13], [13, 11]]) { H.r(x, y, 2, 2, '#c8ccd4'); H.p(x, y, col); }
     H.contorno(); return H.lienzo();
   }
   // La estación de tren: edificio con reloj, marquesina sobre el andén y las vías delante.

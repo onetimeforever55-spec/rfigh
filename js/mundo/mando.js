@@ -189,7 +189,8 @@
     return '';
   }
   const adultosDe = (m, c) => (m.vida ? m.vida.aldeanos.filter(a => a.c === c.id && (a.edad || 0) >= M.vida.ADULTO && a.colono == null) : []);
-  function cuentaOficios(m, c) { const n = [0, 0, 0, 0, 0, 0, 0]; for (const a of adultosDe(m, c)) n[a.o]++; return n; }
+  // (Los obreros de las fábricas privadas no cuentan en su antiguo oficio: trabajan para su patrón.)
+  function cuentaOficios(m, c) { const n = [0, 0, 0, 0, 0, 0, 0]; for (const a of adultosDe(m, c)) if (a.obrero == null) n[a.o]++; return n; }
   // Vencer lo que tenía plazo (al empezar cada turno): las cuadrillas vuelven a su oficio, los cupos se quitan,
   // las prioridades vuelven a como estaban. Cada cosa se anuncia sobre el pueblo.
   function vencer(m) {
@@ -226,6 +227,8 @@
       return 'Tienes ' + n[o] + ' ' + (n[o] === 1 ? OFICIO_1[o] : OFICIOS_N[o]) + (enCq ? ' (' + enCq + ' en cuadrillas)' : '') + (p.cupos && p.cupos[o] ? ', con cupo de ' + p.cupos[o].n : '') + ' de ' + adultosDe(m, c).length + ' adultos.' + (o === 4 && c.guerras.length ? ' Estáis en guerra.' : '');
     }
     const partes = n.map((k, i) => k + ' ' + (k === 1 ? OFICIO_1[i] : OFICIOS_N[i]) + (p.cupos && p.cupos[i] ? ' (cupo ' + p.cupos[i].n + ')' : ''));
+    const obreros = adultosDe(m, c).filter(a => a.obrero != null).length;
+    if (obreros) partes.push(obreros + (obreros === 1 ? ' obrero' : ' obreros') + ' en las fábricas privadas');
     const cq = (p.cuadrillas || []).map(g => g.texto + (g.hasta ? ' (' + queda(m, c, g.hasta, m.vida.msTurno) + ')' : ''));
     return 'Tu gente: ' + partes.join(', ') + ' (' + adultosDe(m, c).length + ' adultos). Graneros: ' + Math.floor(c.comida || 0) + ' de comida, ' + Math.floor(c.madera || 0) + ' de madera, ' + Math.floor(c.piedra || 0) + ' de piedra, ' + Math.floor(c.metal || 0) + ' de metal. ' + (cq.length ? 'Cuadrillas: ' + cq.join('; ') + '.' : 'Sin cuadrillas.');
   }

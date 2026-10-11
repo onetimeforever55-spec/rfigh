@@ -83,7 +83,29 @@ const ban0 = V.banquerosDe(m, c)[0];
 comprobar(bancos > 0 && primeroBanco >= 0 && ban0 && eranGremio.has(ban0.emp.sede) && v.obra[ban0.emp.sede] === V.OBRA.bancopriv, 'en la industrialización, el mercader con gremio y dinero pide un préstamo al central y su gremio se convierte en su banco (' + (avisos[primeroBanco] || 'ninguno').slice(0, 150) + ')');
 comprobar(!sinBanquero && (primerPrestamo < 0 || primeroBanco < primerPrestamo), 'el banco central no presta a particulares: los préstamos a la gente llegan después, de los banqueros');
 comprobar(primerPrestamo >= 0 && avisos.some(x => /El banco de .* presta \d+ de oro a/.test(x)), 'los banqueros prestan de lo suyo a vecinos que montan negocios (' + avisos.filter(x => /El banco de .* presta/.test(x)).length + ' préstamos)');
-comprobar(fabrica != null && /^Fábrica de /.test((v.edificios[fabrica] || {}).nombre || ''), 'un empresario levanta su fábrica y lleva su nombre (' + ((v.edificios[fabrica] || {}).nombre || 'ninguna') + ')');
+comprobar(fabrica != null && /^(Textil|Aserradero|Fundición|Conservera) /.test((v.edificios[fabrica] || {}).nombre || ''), 'un empresario levanta su fábrica, de una industria, con el nombre de su familia (' + ((v.edificios[fabrica] || {}).nombre || 'ninguna') + ')');
+{
+  // LOS CAPITALISTAS: su fábrica contrata obreros a sueldo, compra la materia prima al reino y vende lo que hace.
+  const pv = v.privados[fabrica], due = v.aldeanos.find(x => x.id === pv.dueno), e = due && due.emp;
+  const tesoro0 = c.oro;
+  let obrerosMax = 0, sueldos = 0, movidos = 0, contados = true;
+  for (let k = 0; k < 40; k++) {
+    sostener(); c.madera = Math.max(c.madera, 200); c.metal = Math.max(c.metal || 0, 80); c.comida = Math.max(c.comida, 400);
+    const obr = v.aldeanos.filter(x => x.obrero === fabrica), din = new Map(obr.map(x => [x, x.dinero || 0])), oficio = new Map(obr.map(x => [x, x.o]));
+    turno();
+    for (const [x, d] of din) if (v.aldeanos.includes(x) && x.obrero === fabrica) { sueldos += (x.dinero || 0) - d; if (x.o !== oficio.get(x)) movidos++; }
+    obrerosMax = Math.max(obrerosMax, v.aldeanos.filter(x => x.obrero === fabrica).length);
+    const n = X.cuentaOficios(m, c), adultos = v.aldeanos.filter(x => x.c === c.id && x.edad >= V.ADULTO && x.colono == null).length, enFab = v.aldeanos.filter(x => x.c === c.id && x.obrero != null && x.edad >= V.ADULTO).length;
+    if (n.reduce((p, q) => p + q, 0) > adultos - enFab) contados = false;
+  }
+  const e2 = (v.aldeanos.find(x => x.id === pv.dueno) || {}).emp || e;
+  comprobar(e2 && V.INDUSTRIAS[e2.ind] && obrerosMax >= 1, 'la fábrica es de una industria (' + (e2 && e2.ind) + ') y contrata obreros (hasta ' + obrerosMax + ')');
+  comprobar(sueldos > 0, 'los obreros cobran su sueldo de la caja del patrón (' + Math.round(sueldos * 10) / 10 + ' de oro en 40 turnos)');
+  comprobar(e2 && e2.hecho > 0 && e2.vendido > 0, 'produce y vende (' + (e2 && e2.hecho) + ' hechos, ' + (e2 && e2.vendido) + ' vendidos dentro, ' + (e2 && (e2.exportado || 0)) + ' fuera)');
+  comprobar(movidos === 0 && contados, 'el gobernador no mueve a los obreros, y no cuentan en su antiguo oficio («¿qué hace mi gente?» los cuenta aparte)');
+  const ahora = v.aldeanos.filter(x => x.c === c.id && x.obrero != null && x.edad >= V.ADULTO).length, resp = X.ordenar(m, c.id, '¿qué hace mi gente?').respuesta;
+  comprobar(ahora === 0 ? !/fábricas privadas/.test(resp) : new RegExp(ahora + ' obreros? en las fábricas privadas').test(resp), '«¿qué hace mi gente?» dice cuántos trabajan en las fábricas privadas (' + ahora + ': «' + (resp.match(/\d+ obreros? en las fábricas privadas/) || ['ninguno'])[0] + '»)');
+}
 const cobrado = V.banquerosDe(m, c).reduce((k, a) => k + (a.emp.cobrado || 0), 0);
 comprobar(cobrado > 0 || c.banca.devuelto > 0, 'los empresarios devuelven a su banquero y el banquero al central (cobrado ' + Math.round(cobrado) + ', devuelto al central ' + Math.round(c.banca.devuelto) + ')');
 comprobar(V.empresariosDe(m, c).every(a => a.o === 5), 'banqueros y empresarios se dedican a su negocio (oficio de comerciante: sombrero y traje)');
