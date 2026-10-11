@@ -684,6 +684,27 @@
     conservera: { nombre: 'Conservera', gasta: 'comida', por: 2, hace: 'conservas', precio: 1.6, rinde: 0.8 }
   };
   const PLAZAS_FABRICA = 4;
+  /*
+   * EL SUELDO DE LA GENTE (desde la Edad Media): cada adulto que trabaja para el reino (granjeros, leñadores, mineros,
+   * constructores, soldados y eruditos) se queda una parte de lo que produce: un sueldo pequeño, menor cuanto más altos
+   * son los impuestos. Los comerciantes tienen su comisión, y los obreros de gremios y fábricas, el sueldo de su patrón.
+   * Cada uno gasta según su carácter (unos casi todo, otros ahorran); lo que gastan compra lo que hacen las fábricas
+   * privadas. Con lo ahorrado se puede pedir un préstamo y hacerse capitalista.
+   */
+  const ERA_SUELDO = 4, GASTA = [0.01, 0.04, 0.08, 0.12, 0.16];
+  const cobraSueldo = a => !esNino(a) && !a.merc && !a.emp && a.obrero == null && a.gremio == null && a.o !== COMERCIANTE && a.colono == null;
+  function sueldos(m, c, impuesto) {
+    const v = m.vida, base = (0.06 + 0.012 * c.era) * (1 - impuesto), quieren = [];
+    for (const a of v.aldeanos) {
+      if (a.c !== c.id) continue;
+      if (cobraSueldo(a)) a.dinero = redondo((a.dinero || 0) + base);
+      // Lo que cada uno querría gastar este turno (lo que pasa de un colchón de 5, según su carácter).
+      if (!a.emp && !a.merc && !esNino(a) && (a.dinero || 0) > 5) quieren.push([a, Math.min(0.15, ((a.dinero || 0) - 5) * GASTA[a.id % 5])]);
+    }
+    return { quieren, total: quieren.reduce((k, x) => k + x[1], 0), gastado: 0 };
+  }
+  // Lo que la gente gastó de verdad (lo que había en las fábricas): sale de sus ahorros, en proporción.
+  function cobrarGasto(p) { if (!p || !p.total || !p.gastado) return; const f = Math.min(1, p.gastado / p.total); for (const [a, g] of p.quieren) a.dinero = redondo(a.dinero - g * f); }
   const ovejasDe = (m, c) => m.vida.animales.filter(b => b.c === c.id && b.tipo === 'oveja').length;
   // Qué industria monta un capitalista: la de lo que más le sobra al reino (y mejor una que aún no haya).
   function elegirIndustria(m, c) {
@@ -703,7 +724,7 @@
     return S().ordenarPor(l.slice(), a => -n[a.o] * 1e7 + a.id)[0];
   }
   // Un turno de la fábrica: sueldos, producción, ventas y contratos. Devuelve lo que gana (antes de impuestos).
-  function industria(m, c, a, e, socios) {
+  function industria(m, c, a, e, socios, pueblo) {
     const v = m.vida, t = e.t;
     // (Si la fábrica perdió su ficha de dueño, se le vuelve a poner: el edificio y el negocio siguen siendo suyos.)
     if (!(v.privados && v.privados[t])) { (v.privados = v.privados || {})[t] = { dueno: a.id, civ: c.id, tipo: 'fabrica', ind: INDUSTRIAS[e.ind] ? e.ind : undefined }; nombrarPrivado(m, t, c); }
@@ -728,7 +749,9 @@
     if (falta && !(e.avisoParada > m.turno - 30)) { e.avisoParada = m.turno; anunciar(m, c, '🏭 ' + ((v.edificios[t] || {}).nombre || 'La fábrica') + ' está parada: no hay ' + falta + ' que comprar' + (I.gasta !== 'lana' ? ' («comprad ' + I.gasta + '»)' : '')); }
     // Ventas: a la gente del reino (según cuántos son), al reino si le falta y a los socios.
     const precio = precioDe(m, c, I);
-    const dentro = Math.min(e.stock, Math.max(0.4, (c.aldeanos || 0) * 0.012));
+    // (La gente compra con su sueldo: si no tiene dinero, la fábrica vende poco dentro.)
+    const dentro = pueblo ? Math.min(e.stock, Math.max(0, pueblo.total - pueblo.gastado) / precio) : Math.min(e.stock, Math.max(0.4, (c.aldeanos || 0) * 0.012));
+    if (pueblo) pueblo.gastado += dentro * precio;
     ingreso += dentro * precio; e.stock = redondo(e.stock - dentro); e.vendido = redondo((e.vendido || 0) + dentro);
     if (e.stock > 0.4 && (I.hace === 'armas' || I.hace === 'conservas')) {
       const necesita = I.hace === 'armas' ? Math.max(0, objetivo(c, 'armas') - (c.armas || 0)) : (c.comida || 0) < (c.habitantes || 10) * 0.6 ? e.stock : 0;
@@ -744,7 +767,7 @@
     }
     // Contrata los que necesita para lo que puede vender (a la gente, al reino y a los socios) y si tiene con qué pagar;
     // si le falta materia prima, se le acumula lo hecho o pierde dinero, despide.
-    const vendible = Math.max(0.4, (c.aldeanos || 0) * 0.012) + Math.min(3, socios.length) * 1.5 + (I.hace === 'armas' ? Math.max(0, objetivo(c, 'armas') - (c.armas || 0)) / 4 : 0);
+    const vendible = (pueblo ? Math.max(0.4, pueblo.total / Math.max(1, pueblo.fabricas || 1) / precio) : Math.max(0.4, (c.aldeanos || 0) * 0.012)) + Math.min(3, socios.length) * 1.5 + (I.hace === 'armas' ? Math.max(0, objetivo(c, 'armas') - (c.armas || 0)) / 4 : 0);
     const quiere = Math.max(1, Math.min(PLAZAS_FABRICA, Math.ceil(vendible / (I.rinde * fuerza(c)))));
     if (m.turno % 3 === a.id % 3) {
       if (obreros.length > 1 && (falta || obreros.length > quiere)) { const x = obreros[obreros.length - 1]; delete x.obrero; x.e = LIBRE; }
@@ -891,7 +914,7 @@
     const b = familia.filter(x => x.padre === a.id || x.madre === a.id).sort((x, y) => (x.edad || 0) - (y.edad || 0))[0] || familia[0];
     if (b) b.dinero = Math.round(((b.dinero || 0) + a.dinero) * 100) / 100;
     // El hijo de un comerciante con ahorros sigue con el oficio de su padre (así el dinero de la familia acaba en un gremio).
-    if (b && a.o === COMERCIANTE && a.dinero >= 3 && pausada(m) && b.o !== COMERCIANTE && !b.emp && !b.merc && !b.fijo && b.colono == null && b.aBordo == null && (b.edad || 0) < VIEJO) mover(b, COMERCIANTE);
+    if (b && a.o === COMERCIANTE && a.dinero >= 3 && pausada(m) && b.o !== COMERCIANTE && !b.emp && !b.merc && !b.fijo && b.obrero == null && b.colono == null && b.aBordo == null && (b.edad || 0) < VIEJO) mover(b, COMERCIANTE);
     a.dinero = 0;
   }
   // Pasar oro entre el tesoro y el banco central (orden del jugador; la IA lo hace sola).
@@ -1108,6 +1131,9 @@
     }
     const impuesto = Math.min(0.6, 0.25 * ((c.plan && c.plan.impuesto) || 1));
     comercio(m, c, impuesto);
+    // Los sueldos de la gente (con banco o sin él), y lo que quiere gastar: se lo compra a las fábricas privadas.
+    const pueblo = pausada(m) && c.era >= ERA_SUELDO ? sueldos(m, c, impuesto) : null;
+    if (pueblo) pueblo.fabricas = empresariosDe(m, c).filter(a => a.emp.neg === 'fabrica' && v.obra[a.emp.t] === OBRA.fabrica).length;
     if (!(c.bancos > 0) || c.era < 5) return;
     // EL BANCO CENTRAL: al abrir se lleva una parte del tesoro; luego, cada turno, un poco de los impuestos.
     let b = c.banca;
@@ -1139,7 +1165,7 @@
         if (e.t == null || (!encargada && !(v.andamios && v.andamios[e.t]) && v.obra[e.t] !== OBRA.fabrica)) { quiebra(m, c, a, 'perdió su fábrica'); continue; }
         if (v.obra[e.t] === OBRA.fabrica) {
           // (Ya no cobra del tesoro: gana lo que vende menos lo que paga; paga impuestos solo sobre lo que gana.)
-          const neto = industria(m, c, a, e, sociosFab), imp = Math.max(0, neto) * impuesto;
+          const neto = industria(m, c, a, e, sociosFab, pueblo), imp = Math.max(0, neto) * impuesto;
           c.oro = (c.oro || 0) + imp; e.caja = redondo(e.caja + neto - imp); e.impuestos = (e.impuestos || 0) + imp;
           if (e.caja < -30 && !(e.deuda > 0)) { quiebra(m, c, a, 'perdía dinero'); continue; }
         }
@@ -1159,9 +1185,10 @@
       }
       if (a.emp && a.o !== COMERCIANTE) mover(a, COMERCIANTE);
     }
+    cobrarGasto(pueblo);
     // Quien trabajaba en una fábrica que ya no está (quebró, se quemó, cambió de dueño o de reino) vuelve a su oficio.
     for (const x of v.aldeanos) if (x.obrero != null && x.c === c.id) { const pv = v.privados && v.privados[x.obrero], d = pv && v.aldeanos.find(y => y.id === pv.dueno); if (v.obra[x.obrero] !== OBRA.fabrica || !d || !d.emp || d.emp.t !== x.obrero || m.dueno[region(m, x.obrero)] !== c.id) { delete x.obrero; x.e = LIBRE; } }
-    const libres = () => v.aldeanos.filter(a => a.c === c.id && !a.emp && !a.merc && a.obrero == null && !esNino(a) && (a.edad || 0) <= VIEJO - 7 && a.o !== GUERRERO && a.o !== ERUDITO && !a.fijo && a.colono == null && a.aBordo == null);
+    const libres = () => v.aldeanos.filter(a => a.c === c.id && !a.emp && !a.merc && a.obrero == null && !esNino(a) && (a.edad || 0) <= VIEJO - (pausada(m) ? 3 : 7) && a.o !== GUERRERO && a.o !== ERUDITO && !a.fijo && a.colono == null && a.aBordo == null);
     // UN BANQUERO NUEVO (desde la Revolución Industrial): el jefe de una casa comercial con gremio y dinero propio pide un
     // préstamo al banco central; si se lo dan, su GREMIO SE CONVIERTE EN SU BANCO (el mismo edificio, reformado: paga al
     // reino la obra). No llega con la era: hace falta el dinero y el préstamo. Sin banco central, o sin fondos, espera.
@@ -1194,14 +1221,18 @@
     // Cada banquero tiene (o se levanta) su banco: un edificio suyo, pagado con su capital.
     if (m.turno % 8 === c.id % 8) for (const ban of banquerosDe(m, c)) sedeBanco(m, c, ban);
     // LOS BANQUEROS PRESTAN, de lo suyo, a vecinos que quieren montar un negocio (a un interés algo mayor).
-    const max = 1 + c.bancos + Math.floor((c.aldeanos || 0) / 40) + (nivel <= 0.5 ? 1 : 0) - (nivel >= 1.5 ? 1 : 0);
+    // Como mucho, el 4 % de los adultos tiene negocio propio (capitalistas: banqueros, empresarios y sus fábricas).
+    const adultos = v.aldeanos.filter(a => a.c === c.id && !esNino(a)).length, topeCapitalistas = Math.max(1, Math.floor(adultos * 0.04));
+    const max = Math.min(topeCapitalistas - banquerosDe(m, c).length, 1 + c.bancos + Math.floor((c.aldeanos || 0) / 40) + (nivel <= 0.5 ? 1 : 0) - (nivel >= 1.5 ? 1 : 0));
     for (const ban of banquerosDe(m, c)) {
       if (m.turno % 6 !== ban.id % 6) continue;
       const monto = 20 + 4 * c.era;
       if (empresariosDe(m, c).filter(a => a.emp.neg !== 'banco').length >= max || ban.emp.capital < monto + 5) continue;
       if (azar(v) > (nivel <= 0.5 ? 0.85 : nivel >= 1.5 ? 0.3 : 0.55) * (impuesto > 0.32 ? 0.5 : 1)) continue;
-      const cand = libres(); if (!cand.length) continue;
-      const merc = cand.filter(a => a.o === COMERCIANTE), a = (merc.length ? merc : cand)[Math.floor(azar(v) * (merc.length || cand.length))];
+      // El banquero solo presta a quien tiene ahorrado al menos la cuarta parte (es su garantía): el que más ahorró, primero.
+      const garantia = monto * 0.25;
+      const cand = libres().filter(a => (a.dinero || 0) >= garantia || !pausada(m)); if (!cand.length) continue;
+      const a = pausada(m) ? S().ordenarPor(cand.slice(), x => -(x.dinero || 0) * 1000 + x.id)[0] : (() => { const merc = cand.filter(a => a.o === COMERCIANTE); return (merc.length ? merc : cand)[Math.floor(azar(v) * (merc.length || cand.length))]; })();
       const privadas = Object.values(v.privados || {}).filter(p => p.civ === c.id && (p.tipo || 'fabrica') === 'fabrica').length;
       let neg = 'mercader', t = null;
       if (c.era >= 6 && privadas < 1 + Math.floor((c.aldeanos || 0) / 60)) { t = sitioFabrica(m, c); if (t != null) neg = 'fabrica'; }
@@ -1797,6 +1828,7 @@
   // vayan cargados, no solo los que estaban libres: la orden se ve obedecer enseguida.
   // Cambia de oficio a un aldeano (quien deja las armas, las entrega).
   function mover(a, k) {
+    if (a.obrero != null) { delete a.obrero; a.enFabrica = 0; } // (quien cambia de oficio deja la fábrica)
     if (a.o === GUERRERO && k !== GUERRERO) { a.arma = 0; a.armadura = 0; a.tirador = null; delete a.veh; if (a.pv != null) { a.pv = Math.min(a.pv, vidaMax(a)); a.pv0 = a.pv; } }
     a.o = k; a.e = LIBRE; a.k = 0; a.kt = 0; a.paseo = 0; a.tx = -1; a.ty = -1; a.pastor = null; a.caza = null; a.cantera = 0; a.siega = 0;
   }

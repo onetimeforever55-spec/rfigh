@@ -69,15 +69,19 @@ comprobar(/Banco central:/.test(X.ordenar(m, c.id, '¿cómo va el banco?').respu
 console.log('BANQUEROS Y EMPRESARIOS');
 let fabrica = null, sinBanquero = false, bancos = 0;
 const eranGremio = new Set();
+const garantias = [];
 for (let k = 0; k < 320 && !(fabrica != null && V.banquerosDe(m, c).length); k++) {
   for (const t of V.gremiosDe(m, c)) eranGremio.add(t);
+  const antes = new Map(v.aldeanos.filter(x => x.c === c.id && !x.emp).map(x => [x, x.dinero || 0]));
   sostener(); turno();
+  for (const [x, d] of antes) if (x.emp && x.emp.neg !== 'banco' && x.emp.desde >= m.turno - 1 && !garantias.some(g => g[0] === x)) garantias.push([x, d, x.emp.monto]);
   const emp = V.empresariosDe(m, c);
   bancos = Math.max(bancos, V.banquerosDe(m, c).length);
   if (emp.some(a => a.emp.neg !== 'banco' && a.emp.banquero == null && !V.banquerosDe(m, c).length && m.turno - a.emp.desde < 2)) sinBanquero = true;
   const t = Object.keys(v.privados || {}).find(t => v.privados[t].civ === c.id && v.obra[t] === V.OBRA.fabrica);
   if (t != null && fabrica == null) fabrica = +t;
 }
+comprobar(garantias.length > 0 && garantias.every(([x, d, monto]) => d >= monto * 0.25 - 0.01), 'el banquero solo presta a quien tiene ahorrada la cuarta parte (' + garantias.map(([x, d, monto]) => Math.round(d) + '/' + monto).join(', ') + ')');
 const primeroBanco = avisos.findIndex(x => /se convierte en su banco/.test(x)), primerPrestamo = avisos.findIndex(x => /presta \d+ de oro a/.test(x));
 const ban0 = V.banquerosDe(m, c)[0];
 comprobar(bancos > 0 && primeroBanco >= 0 && ban0 && eranGremio.has(ban0.emp.sede) && v.obra[ban0.emp.sede] === V.OBRA.bancopriv, 'en la industrialización, el mercader con gremio y dinero pide un préstamo al central y su gremio se convierte en su banco (' + (avisos[primeroBanco] || 'ninguno').slice(0, 150) + ')');
@@ -245,6 +249,20 @@ console.log('LOS EDIFICIOS DE LOS MERCADERES CAMBIAN CON LAS ERAS (LOS REFORMAN 
   comprobar(w.edificios[tg] && w.edificios[tg].era >= 6, 'y se dibuja con su estilo nuevo (la reforma guarda la era: ' + (w.edificios[tg] && w.edificios[tg].era) + ')');
 }
 
+console.log('EL SUELDO DE LA GENTE, EL AHORRO Y QUIÉN PUEDE SER CAPITALISTA');
+{
+  // Dos copias del mismo reino en la Edad Media: una con impuestos normales y otra con impuestos altos.
+  const prep = imp => { const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(g); const r = S.vivas(g).sort((p, q) => q.aldeanos - p.aldeanos)[0]; X.gobernar(g, r.id); r.plan.impuesto = imp; return { g, r }; };
+  const mide = ({ g, r }) => { const gente = g.vida.aldeanos.filter(a => a.c === r.id && a.edad >= V.ADULTO && a.o !== 5 && !a.merc && !a.emp); const d0 = new Map(gente.map(a => [a, a.dinero || 0])); for (let k = 0; k < 20; k++) { r.era = Math.max(r.era, 4); S.turno(g); } const vivos = gente.filter(a => g.vida.aldeanos.includes(a)); return vivos.reduce((k, a) => k + (a.dinero || 0) - d0.get(a), 0) / Math.max(1, vivos.length); };
+  const normal = mide(prep(1)), altos = mide(prep(2));
+  comprobar(normal > 0.5, 'desde la Edad Media, granjeros, leñadores, mineros, constructores, soldados y eruditos cobran un sueldo de lo que producen (' + normal.toFixed(2) + ' de oro cada uno en 20 turnos)');
+  comprobar(altos < normal * 0.85, 'con impuestos altos, la gente cobra menos (' + altos.toFixed(2) + ' frente a ' + normal.toFixed(2) + ')');
+  // Unos gastan casi todo y otros ahorran: con el tiempo, los ahorradores juntan bastante.
+  const { g, r } = prep(1); for (let k = 0; k < 150; k++) { r.era = Math.max(r.era, 4); S.turno(g); }
+  const din = g.vida.aldeanos.filter(a => a.c === r.id && a.edad >= V.ADULTO && !a.merc && !a.emp).map(a => a.dinero || 0).sort((p, q) => p - q);
+  comprobar(din[din.length - 1] > 11 && din[din.length >> 1] < din[din.length - 1] / 3, 'cada uno gasta según su carácter: unos ahorran mucho y la mayoría poco (mediana ' + (din[din.length >> 1] || 0).toFixed(1) + ', el que más ' + (din[din.length - 1] || 0).toFixed(1) + ')');
+}
+
 console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
 {
   // Sin ayudas: aunque la capital esté llena de calles y casas, el gremio busca sitio (otra ciudad, más lejos o un huerto).
@@ -275,6 +293,9 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   comprobar(central != null && /^Banco central de /.test(n.vida.edificios[central].nombre), 'el banco del reino es el banco central (' + (central != null ? n.vida.edificios[central].nombre : 'ninguno') + ')');
   const bq = S.vivas(n).flatMap(c => V.banquerosDe(n, c)), conSede = bq.filter(a => a.emp.sede != null && n.vida.obra[a.emp.sede] === O.bancopriv);
   comprobar(privados.length > 0 && conSede.length >= bq.length * 0.6 && conSede.every(a => /^Banco /.test((n.vida.edificios[a.emp.sede] || {}).nombre || '') && !/central/.test(n.vida.edificios[a.emp.sede].nombre)), 'cada banquero levanta su propio banco, con su nombre (' + conSede.length + ' de ' + bq.length + ': ' + (conSede[0] ? n.vida.edificios[conSede[0].emp.sede].nombre : '-') + ')');
+  // LOS CAPITALISTAS: como mucho el 4 % de los adultos (y algo de holgura: los que heredan o la gente que muere).
+  const topes = S.vivas(n).map(c => { const ad = n.vida.aldeanos.filter(a => a.c === c.id && a.edad >= V.ADULTO).length; return { emp: V.empresariosDe(n, c).filter(a => a.emp.neg !== 'banco').length, ban: V.banquerosDe(n, c).length, tope: Math.max(1, Math.floor(ad * 0.04)) }; });
+  comprobar(topes.every(x => x.emp <= Math.max(0, x.tope - x.ban) + 1), 'los capitalistas no pasan del 4 % de los adultos (' + topes.map(x => (x.emp + x.ban) + '/' + x.tope).join(', ') + ')');
   // LOS MUELLES PRIVADOS: uno por familia como mucho, con su barco mercante.
   const muelles = edif.filter(t => n.vida.obra[t] === O.muelle && n.vida.privados && n.vida.privados[t]);
   const porFam = {}; for (const t of muelles) { const d = n.vida.aldeanos.find(a => a.id === n.vida.privados[t].dueno); if (d) { const k = d.c + ':' + d.familia; porFam[k] = (porFam[k] || 0) + 1; } }
