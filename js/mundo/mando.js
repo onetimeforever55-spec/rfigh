@@ -850,11 +850,16 @@
   function informeBanca(m, c) {
     const l = [];
     if (c.bancos > 0 && c.banca) {
-      const b = c.banca, n = M.vida.nivelInteres(c), bancos = M.vida.banquerosDe(m, c), emp = M.vida.empresariosDe(m, c).filter(a => a.emp.neg !== 'banco');
+      const b = c.banca, n = M.vida.nivelInteres(c), bancos = M.vida.banquerosDe(m, c);
       l.push('Banco central: ' + Math.round(b.fondo) + ' de oro (prestado ' + Math.round(b.prestado) + ', devuelto ' + Math.round(b.devuelto) + (b.quiebras ? ', ' + b.quiebras + (b.quiebras === 1 ? ' quiebra' : ' quiebras') : '') + '). Interés ' + (n === 0.5 ? 'bajo' : n === 1.5 ? 'alto' : 'normal') + '. Solo presta a banqueros y a otros reinos.');
       l.push(bancos.length ? 'Bancos privados: ' + bancos.map(a => 'el de ' + a.nombre + ' ' + (a.familia || '') + ' (' + Math.round(a.emp.capital) + ' de capital' + (a.emp.deuda > 0 ? ', debe al central ' + Math.round(a.emp.deuda) : '') + ')').join(', ') + '.' : 'Aún no hay banqueros: el mercader más rico abrirá un banco en cuanto tenga fortuna (y el central oro que prestarle).');
-      if (emp.length) l.push('Empresarios: ' + emp.map(a => a.nombre + ' ' + (a.familia || '') + ' (' + (a.emp.neg === 'fabrica' ? 'fábrica' : 'mercader') + (a.emp.deuda > 0 ? ', debe ' + Math.round(a.emp.deuda) : ', sin deudas') + ')').join(', ') + '.');
-    } else l.push(c.era >= 5 ? 'Aún no tenéis banco central: «construid un banco central» (hace falta una villa o ciudad).' : 'El banco central llega con el Renacimiento. Mientras, vuestros mercaderes ahorran.');
+    }
+    // Los empresarios (con o sin banco: el que es rico monta su negocio con lo suyo), con su industria y lo que ha hecho.
+    const emp = M.vida.empresariosDe(m, c).filter(a => a.emp.neg !== 'banco'), I = M.vida.INDUSTRIAS;
+    const MAQ = { canon: 'cañones', artilleria: 'artillería', tanque: 'tanques', avion: 'aviones' };
+    const que = e => e.neg !== 'fabrica' ? 'mercader' : e.ind === 'ferrocarril' ? 'ferrocarril' + (e.viajeros ? ', ' + Math.round(e.viajeros + (e.fletes || 0)) + ' cobrado en billetes y fletes' : '') : e.ind && I[e.ind] ? I[e.ind].nombre.toLowerCase() + (e.maquinas ? ', ha hecho ' + Object.keys(e.maquinas).map(k => e.maquinas[k] + ' ' + MAQ[k]).join(' y ') : '') : 'fábrica';
+    if (emp.length) l.push('Empresarios: ' + emp.map(a => a.nombre + ' ' + (a.familia || '') + ' (' + que(a.emp) + (a.emp.propio ? ', con su dinero' : a.emp.deuda > 0 ? ', debe ' + Math.round(a.emp.deuda) : ', sin deudas') + ')').join(', ') + '.');
+    if (!(c.bancos > 0 && c.banca)) l.push(c.era >= 5 ? 'Aún no tenéis banco central: «construid un banco central» (hace falta una villa o ciudad).' : 'El banco central llega con el Renacimiento. Mientras, vuestros mercaderes ahorran.');
     const mercs = M.vida.mercaderesDe(m, c);
     if (c.era >= 4) l.push(mercs.length ? 'Casas comerciales: ' + mercs.filter(a => a.merc.de == null).map(a => { const n = mercs.filter(x => x.merc.de === a.id).length; return 'la de ' + a.nombre + ' ' + (a.familia || '') + ' (' + (n ? n + (n > 1 ? ' sucursales, ' : ' sucursal, ') : '') + 'caja ' + Math.round(a.merc.caja) + ')'; }).join(', ') + '.' : 'Aún no hay gremios: el comerciante que junte lo bastante fundará uno.');
     const ricos = m.vida.aldeanos.filter(a => a.c === c.id && !a.emp && (a.dinero || 0) >= 1).sort((x, y) => y.dinero - x.dinero).slice(0, 3);

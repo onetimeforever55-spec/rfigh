@@ -413,6 +413,7 @@
       if (nombre === 'fab_aserradero') return fabAserradero(H, fase, col);
       if (nombre === 'fab_fundicion') return fabFundicion(H, fase, col);
       if (nombre === 'fab_conservera') return fabConservera(H, fase, col);
+      if (nombre === 'fab_ferrocarril') return estacionPrivada(H, fase, col);
       if (nombre === 'gremio') return gremio(H, fase, col);
       if (nombre === 'bancopriv') return bancoPrivado(H, fase, col);
       if (nombre === 'muelle') return muelle(H, fase, col);
@@ -797,7 +798,9 @@
     H.r(12, 0, 3, 15, '#4a2a24'); H.r(12, 0, 3, 1, '#2a1a18'); for (let y = 3; y < 15; y += 3) H.r(12, y, 3, 1, '#3a2018');
     H.r(3, 9, 5, 6, '#2a1a14'); H.r(4, 10, 3, 5, '#e86a20'); H.r(5, 11, 1, 4, '#ffd040');
     H.r(1, 7, 2, 1, LUZ); H.r(9, 7, 2, 1, LUZ);
-    for (const x of [9, 10]) H.r(x, 13, 1, 2, '#a8acb4'); H.r(9, 12, 2, 1, '#c8ccd4'); H.p(0, 13, col);
+    // (Desde la Era Moderna también hace máquinas de guerra: un tanque espera en el patio.)
+    if (fase >= 3) { H.r(7, 13, 5, 2, '#5a6a48'); H.r(8, 12, 3, 1, '#6a7a56'); H.r(10, 11, 3, 1, '#4a5a3a'); H.r(7, 15, 5, 1, '#2a2a2a'); H.p(0, 13, col); }
+    else { for (const x of [9, 10]) H.r(x, 13, 1, 2, '#a8acb4'); H.r(9, 12, 2, 1, '#c8ccd4'); H.p(0, 13, col); }
     H.contorno(); return H.lienzo();
   }
   // La conservera: edificio claro de dos pisos con el rótulo de la lata, el muelle de carga y latas apiladas.
@@ -832,6 +835,21 @@
     H.r(0, 9, 16, 1, '#5a5e66'); for (const x of [1, 7, 14]) H.r(x, 10, 1, 2, '#5a5e66'); H.r(0, 10, 16, 2, null);
     H.r(0, 12, 16, 1, '#c8c4ba');
     for (let x = 0; x < 16; x += 2) H.r(x, 13, 1, 3, '#7a5530'); H.r(0, 13, 16, 1, '#8a8e96'); H.r(0, 15, 16, 1, '#8a8e96');
+    H.contorno(); return H.lienzo();
+  }
+  // La estación de una compañía de ferrocarril: de ladrillo, con el letrero de la compañía en su color, el reloj, el
+  // andén y una locomotora negra con su chimenea humeante (diésel, más moderna, desde la Era Moderna).
+  function estacionPrivada(H, fase, col) {
+    const muro = fase >= 3 ? '#b86a4a' : '#a8583a', jun = oscuro(muro, 0.25);
+    H.r(1, 3, 10, 7, muro); for (let y = 4; y < 10; y += 2) for (let x = (y % 4 ? 1 : 2); x < 11; x += 3) H.p(x, y, jun);
+    tejado(H, 0, 11, 0, 3, '#4a4e58'); H.r(2, 2, 8, 2, col); H.p(4, 2, '#f4f0e0'); H.p(6, 2, '#f4f0e0'); H.p(8, 2, '#f4f0e0');
+    H.disco(6, 6, 1.5, '#f4f4ec'); H.p(6, 6, '#2a2a2a'); H.p(6, 5, '#2a2a2a');
+    for (const x of [2, 9]) H.r(x, 6, 1, 3, CRISTAL); H.r(5, 8, 2, 2, '#3a2618');
+    H.r(0, 10, 16, 2, '#c8c4ba');
+    if (fase >= 3) { H.r(10, 9, 6, 4, col); H.r(10, 9, 6, 1, oscuro(col, 0.3)); H.r(11, 10, 2, 1, CRISTAL); }
+    else { H.r(11, 9, 5, 4, '#2a2a30'); H.r(12, 6, 1, 3, '#2a2a30'); H.p(12, 5, '#c8c8c8'); H.p(11, 4, '#e0e0e0'); H.r(14, 8, 2, 1, '#2a2a30'); H.p(11, 11, col); }
+    for (const x of [11, 14]) H.p(x, 13, '#d83a32');
+    for (let x = 0; x < 16; x += 2) H.r(x, 14, 1, 2, '#7a5530'); H.r(0, 14, 16, 1, '#8a8e96');
     H.contorno(); return H.lienzo();
   }
   // El hospital: edificio blanco de varias plantas con la cruz roja, ventanas y una ambulancia (o un carro) en la puerta.

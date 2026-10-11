@@ -278,6 +278,34 @@ console.log('LA COMPAÑÍA MINERA Y EL COMERCIO ENTRE LAS INDUSTRIAS DE DOS REIN
   comprobar(V.INDUSTRIAS.minera && V.INDUSTRIAS.minera.saca && V.OBRA.minapriv, 'la compañía minera saca metal, piedra y carbón de su mina (sin comprar materia prima)');
 }
 
+console.log('LA COMPAÑÍA DE FERROCARRIL Y LA FUNDICIÓN QUE HACE TANQUES Y AVIONES');
+{
+  const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 60; k++) S.turno(g);
+  const r = S.vivas(g).sort((p, q) => q.aldeanos - p.aldeanos)[0], w = g.vida, O = V.OBRA; X.gobernar(g, r.id);
+  r.era = 6; r.rutas = 2; r.oro = 300; r.carbon = 100; r.metal = 100; r.petroleo = 60; r.vehiculos = 0; r.aviones = 0; r.paradas = {};
+  const gente = w.aldeanos.filter(a => a.c === r.id && a.edad >= V.ADULTO && a.edad < V.VIEJO - 4 && !a.emp && !a.merc && a.obrero == null && a.o !== 5);
+  for (const a of gente) a.dinero = 6;
+  const libres = S.casillas(g, r).flatMap(q => V.parcelas(g, q)).filter(t => !w.obra[t]);
+  // Una compañía de ferrocarril con su estación y dos ferroviarios.
+  const [tf, tu] = libres, dueno = gente[0], dueno2 = gente[1];
+  V.cambiar(g, 'obra', tf, O.estacion, 0); (w.privados = w.privados || {})[tf] = { dueno: dueno.id, civ: r.id, tipo: 'fabrica', ind: 'ferrocarril' };
+  dueno.emp = { neg: 'fabrica', ind: 'ferrocarril', t: tf, caja: 10, deuda: 0, monto: 0, cuota: 0, desde: g.turno, atraso: 0, propio: true };
+  for (const a of gente.slice(2, 4)) a.obrero = tf;
+  // Una fundición con tres obreros, ya en la II Guerra Mundial y con aeródromo.
+  V.cambiar(g, 'obra', tu, O.fabrica, 0); w.privados[tu] = { dueno: dueno2.id, civ: r.id, tipo: 'fabrica', ind: 'fundicion' };
+  dueno2.emp = { neg: 'fabrica', ind: 'fundicion', t: tu, caja: 20, deuda: 0, monto: 0, cuota: 0, desde: g.turno, atraso: 0, propio: true };
+  for (const a of gente.slice(4, 7)) a.obrero = tu;
+  const caja0 = dueno.emp.caja, oro0 = r.oro;
+  for (let k = 0; k < 30; k++) { g.turno++; r.era = k < 12 ? 6 : 8; r.aldeanos = 90; if (k === 12) r.vehiculos = r.aviones = 0; r.aerodromos = 1; r.paradas = {}; r.metal = Math.max(r.metal, 60); r.petroleo = Math.max(r.petroleo, 30); r.oro = Math.max(r.oro, 200); V.banca(g, r); }
+  const e = dueno.emp;
+  comprobar(e.viajeros > 0 && e.fletes > 0, 'la compañía de ferrocarril cobra billetes a la gente y fletes por el comercio (' + Math.round(e.viajeros) + ' en billetes, ' + Math.round(e.fletes) + ' en fletes)');
+  comprobar(e.caja > caja0, 'y gana dinero aun pagando sueldos y el carbón (caja ' + caja0 + ' → ' + Math.round(e.caja) + ')');
+  const f = dueno2.emp.maquinas || {};
+  comprobar((f.canon || 0) + (f.artilleria || 0) > 0, 'la fundición hace cañones y artillería para el ejército antes de la II Guerra Mundial (' + JSON.stringify(f) + ')');
+  comprobar(f.tanque > 0 && f.avion > 0 && r.aviones >= 1, 'y en la II Guerra Mundial, tanques y aviones (' + (f.tanque || 0) + ' tanques, ' + (f.avion || 0) + ' aviones; el reino tiene ' + r.aviones + ' aviones y ' + Math.round(r.vehiculos) + ' máquinas)');
+  comprobar(r.vehiculos <= 2 + 8 - 5 + 1, 'solo hace las que su reino necesita, sin amontonarlas (' + Math.round(r.vehiculos) + ')');
+}
+
 console.log('EL SUELDO DE LA GENTE, EL AHORRO Y QUIÉN PUEDE SER CAPITALISTA');
 {
   // Dos copias del mismo reino en la Edad Media: una con impuestos normales y otra con impuestos altos.
@@ -301,7 +329,15 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   comprobar(conGremio.length >= 2, 'en la Edad Media los comerciantes ricos fundan gremios por su cuenta (' + conGremio.length + ' reinos con gremio)');
   // LAS CASAS COMERCIALES: el pariente de un mercader no funda un gremio aparte, abre una sucursal de la casa.
   const avisos2 = [];
-  for (let k = 0; k < 220; k++) { const n0 = (n.vida.anuncios || []).length; S.turno(n); avisos2.push(...(n.vida.anuncios || []).slice(n0).map(x => x.texto)); }
+  // (Y se mira cada turno que nadie abra un negocio nuevo si el reino ya pasa del 4 % de capitalistas. Dentro del turno
+  // los adultos cambian (niños que crecen, gente que muere), así que se mide con el mayor de los dos topes; y el primer
+  // banco del reino siempre puede abrir.)
+  let sobreTope = 0, abiertos = 0;
+  for (let k = 0; k < 220; k++) {
+    const antes = new Map(S.vivas(n).map(c => { const ad = n.vida.aldeanos.filter(a => a.c === c.id && a.edad >= V.ADULTO).length; return [c.id, { tope: Math.max(1, Math.floor(ad * 0.04)), ya: n.vida.aldeanos.filter(a => a.c === c.id && a.emp).length }]; }));
+    const n0 = (n.vida.anuncios || []).length; S.turno(n); avisos2.push(...(n.vida.anuncios || []).slice(n0).map(x => x.texto));
+    for (const a of n.vida.aldeanos) if (a.emp && a.emp.desde === n.turno && antes.has(a.c)) { abiertos++; const x = antes.get(a.c), ahora = Math.max(1, Math.floor(n.vida.aldeanos.filter(b => b.c === a.c && b.edad >= V.ADULTO).length * 0.04)); if (x.ya > Math.max(x.tope, ahora) && !(a.emp.neg === 'banco' && V.banquerosDe(n, S.civ(n, a.c)).length === 1)) sobreTope++; }
+  }
   const mercs = S.vivas(n).flatMap(c => V.mercaderesDe(n, c)), suc = mercs.filter(a => a.merc.de != null);
   comprobar(suc.length > 0 && avisos2.some(x => /abre una sucursal de la casa comercial/.test(x)), 'los parientes abren sucursales de la casa de la familia (' + suc.length + ' sucursales)');
   comprobar(suc.every(a => { const j = mercs.find(x => x.id === a.merc.de); return j && j.familia === a.familia && j.merc.de == null && a.merc.caja === 0; }), 'lo que gana cada sucursal sube a la caja del jefe de la familia');
@@ -324,7 +360,7 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   comprobar(privados.length > 0 && conSede.length >= bq.length * 0.6 && conSede.every(a => /^Banco /.test((n.vida.edificios[a.emp.sede] || {}).nombre || '') && !/central/.test(n.vida.edificios[a.emp.sede].nombre)), 'cada banquero levanta su propio banco, con su nombre (' + conSede.length + ' de ' + bq.length + ': ' + (conSede[0] ? n.vida.edificios[conSede[0].emp.sede].nombre : '-') + ')');
   // LOS CAPITALISTAS: como mucho el 4 % de los adultos (y algo de holgura: los que heredan o la gente que muere).
   const topes = S.vivas(n).map(c => { const ad = n.vida.aldeanos.filter(a => a.c === c.id && a.edad >= V.ADULTO).length; return { emp: V.empresariosDe(n, c).filter(a => a.emp.neg !== 'banco').length, ban: V.banquerosDe(n, c).length, tope: Math.max(1, Math.floor(ad * 0.04)) }; });
-  comprobar(topes.every(x => x.emp <= Math.max(0, x.tope - x.ban) + 1), 'los capitalistas no pasan del 4 % de los adultos (' + topes.map(x => (x.emp + x.ban) + '/' + x.tope).join(', ') + ')');
+  comprobar(abiertos > 0 && sobreTope === 0, 'nadie abre un negocio nuevo si ya hay un 4 % de capitalistas (' + abiertos + ' negocios abiertos, ' + sobreTope + ' pasado el tope; ahora ' + topes.map(x => (x.emp + x.ban) + '/' + x.tope).join(', ') + ', que puede pasarse si baja la población)');
   // EL QUE YA ES RICO monta su negocio con lo suyo: sin préstamo ni deuda (el préstamo es para los que no llegan).
   const propios = S.vivas(n).flatMap(c => n.vida.aldeanos.filter(a => a.c === c.id && a.emp && a.emp.propio));
   const montados = avisos2.filter(x => /con su propio dinero, sin préstamo/.test(x));
