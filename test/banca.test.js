@@ -202,6 +202,27 @@ console.log('EL GREMIO SE CONVIERTE EN BANCO: CON LA INDUSTRIALIZACIÓN, DINERO 
   comprobar(!ok.w.aldeanos.some(x => x.gremio != null && x.gremio === ok.mer.id) && (!ok.w.aldeanos.includes(ok.obrero) || ok.obrero.gremio == null) && ok.av.some(x => /se convierte en su banco/.test(x)) && ok.g.cronica.some(x => /^Nace el Banco/.test(x.titulo)), 'los comerciantes del gremio quedan libres, se avisa y lo cuenta la crónica');
 }
 
+console.log('LOS EDIFICIOS DE LOS MERCADERES CAMBIAN CON LAS ERAS (LOS REFORMAN LOS CONSTRUCTORES)');
+{
+  // Un gremio y un muelle de la Edad Media en un reino que llega a la Revolución Industrial (sin banco central: el gremio no
+  // se convierte en banco, así que pasa a compañía).
+  // (Un reino ya crecido, con varios constructores: en una aldea pequeña, la reforma espera a que acaben lo urgente.)
+  const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 150; k++) S.turno(g);
+  const r = S.vivas(g).sort((p, q) => q.aldeanos - p.aldeanos)[0], w = g.vida; X.gobernar(g, r.id);
+  const zona = [r.capital, ...S.vecinos(r.capital)].flatMap(q => V.parcelas(g, q));
+  const tg = zona.find(x => !w.obra[x] && !V.puedeColocar(g, r, x, 'casa'));
+  r.era = 4; V.cambiar(g, 'obra', tg, V.OBRA.gremio, 0);
+  const mer = w.aldeanos.filter(x => x.c === r.id && x.edad >= 3 && x.edad < 12 && !x.fijo).sort((p, q) => p.edad - q.edad)[0];
+  mer.merc = { t: tg, caja: 0, desde: g.turno }; (w.privados = w.privados || {})[tg] = { dueno: mer.id, civ: r.id, tipo: 'gremio' };
+  w.edificios[tg].era = 4;
+  comprobar(V.etapa(V.OBRA.gremio, 4) === 0 && V.etapa(V.OBRA.gremio, 6) === 1 && V.etapa(V.OBRA.gremio, 7) === 2 && V.etapa(V.OBRA.muelle, 5) === 1 && V.etapa(V.OBRA.muelle, 7) === 3 && V.etapa(V.OBRA.casona, 6) === 2, 'cada edificio tiene sus etapas: gremio → compañía (Revolución Industrial) → oficinas; muelle → piedra → dársena → terminal; casona → palacete → mansión');
+  const av = []; let nombre = '';
+  for (let k = 0; k < 250; k++) { r.era = 6; r.madera = Math.max(r.madera, 60); r.piedra = Math.max(r.piedra, 60); const n0 = (w.anuncios || []).length; S.turno(g); av.push(...(w.anuncios || []).slice(n0).filter(x => x.civ === r.id).map(x => x.texto)); const due = w.privados[tg] && w.aldeanos.find(a => a.id === w.privados[tg].dueno); nombre = (w.edificios[tg] || {}).nombre || ''; if (/^Compañía /.test(nombre)) break; if (!due) break; }
+  comprobar(/^Compañía /.test(nombre) && w.obra[tg] === V.OBRA.gremio, 'en la industrialización, los constructores reforman el gremio y pasa a ser una compañía (' + nombre + ')');
+  comprobar(av.some(x => /se moderniza: ahora es la Compañía/.test(x)) && g.cronica.some(x => /^El fin del gremio/.test(x.titulo)), 'se avisa y la crónica cuenta el fin del gremio');
+  comprobar(w.edificios[tg] && w.edificios[tg].era >= 6, 'y se dibuja con su estilo nuevo (la reforma guarda la era: ' + (w.edificios[tg] && w.edificios[tg].era) + ')');
+}
+
 console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
 {
   // Sin ayudas: aunque la capital esté llena de calles y casas, el gremio busca sitio (otra ciudad, más lejos o un huerto).
@@ -237,7 +258,7 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   const porFam = {}; for (const t of muelles) { const d = n.vida.aldeanos.find(a => a.id === n.vida.privados[t].dueno); if (d) { const k = d.c + ':' + d.familia; porFam[k] = (porFam[k] || 0) + 1; } }
   comprobar(muelles.length > 0 && Object.values(porFam).every(k => k === 1), 'las casas comerciales levantan su muelle, uno por familia como mucho (' + muelles.length + ' muelles: ' + JSON.stringify(porFam) + ')');
   comprobar(muelles.every(t => n.vida.barcos.some(b => b.puerto === t && b.privado === n.vida.privados[t].dueno)), 'y cada muelle tiene su barco mercante');
-  comprobar(muelles.every(t => /^Muelle de los /.test((n.vida.edificios[t] || {}).nombre || '')), 'que lleva el nombre de la familia (' + ((n.vida.edificios[muelles[0]] || {}).nombre || '-') + ')');
+  comprobar(muelles.every(t => /^(Muelle|Dársena|Terminal) de los /.test((n.vida.edificios[t] || {}).nombre || '')), 'que lleva el nombre de la familia (y cambia con las eras: muelle, dársena, terminal) (' + ((n.vida.edificios[muelles[0]] || {}).nombre || '-') + ')');
   const sucNombre = Object.keys(n.vida.privados || {}).filter(t => n.vida.privados[t].sucursal && n.vida.obra[t] === V.OBRA.gremio).map(t => (n.vida.edificios[t] || {}).nombre);
   comprobar(!sucNombre.length || sucNombre.every(x => / \(sucursal\)$/.test(x || '')), 'el letrero de la sucursal lo dice (' + (sucNombre[0] || 'aún sin terminar') + ')');
 }

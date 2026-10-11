@@ -153,10 +153,10 @@
       else if (obra === V.OBRA.arqueria) gl.drawImage(ARTE().edificio('arqueria', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.mina) gl.drawImage(ARTE().edificio('mina', color, V.fase(eraT)), x, y);
-      else if (obra === V.OBRA.gremio) gl.drawImage(ARTE().edificio('gremio', color, 0), x, y);
-      else if (obra === V.OBRA.bancopriv) gl.drawImage(ARTE().edificio('bancopriv', color, V.fase(eraT)), x, y);
-      else if (obra === V.OBRA.muelle) gl.drawImage(ARTE().edificio('muelle', color, V.fase(eraT)), x, y);
-      else if (obra === V.OBRA.casona) gl.drawImage(ARTE().edificio('casona', color, eraT >= 6 ? 2 : eraT >= 5 ? 1 : 0), x, y);
+      else if (obra === V.OBRA.gremio) gl.drawImage(ARTE().edificio('gremio', color, V.etapa(obra, eraT)), x, y);
+      else if (obra === V.OBRA.bancopriv) gl.drawImage(ARTE().edificio('bancopriv', color, V.etapa(obra, eraT)), x, y);
+      else if (obra === V.OBRA.muelle) gl.drawImage(ARTE().edificio('muelle', color, V.etapa(obra, eraT)), x, y);
+      else if (obra === V.OBRA.casona) gl.drawImage(ARTE().edificio('casona', color, V.etapa(obra, eraT)), x, y);
       else if (obra === V.OBRA.petroleo) gl.drawImage(ARTE().edificio('petroleo', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.aduana) gl.drawImage(ARTE().edificio('aduana', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.campamento) gl.drawImage(ARTE().edificio('campamento', color, V.fase(eraT)), x, y);

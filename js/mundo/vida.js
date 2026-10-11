@@ -29,6 +29,11 @@
   const rangoMolino = m => ((m.ritmo || 1) > 1 && !m.sinVidaPausada ? 3 : RANGO_MOLINO);
   const CAMPOS_POR_MOLINO = 10;
   const fase = era => (era <= 1 ? 0 : era <= 4 ? 1 : era <= 6 ? 2 : 3);
+  // Los edificios de los mercaderes cambian en sus propias eras (no con las fases generales): el gremio pasa a compañía con
+  // la industrialización y a sede de oficinas en la Era Moderna; el banco privado, a torre; el muelle, de madera a piedra,
+  // dársena y terminal; la casona, a palacete y mansión. ETAPAS: las eras en que cambian.
+  const ETAPAS = { 29: [6, 7], 31: [6, 7], 32: [5, 6, 7], 30: [5, 6] }; // gremio, bancopriv, muelle, casona
+  const etapa = (o, era) => { const l = ETAPAS[o]; if (!l) return fase(era); let k = 0; for (const e of l) if (era >= e) k++; return k; };
   /*
    * LA VIDA PAUSADA (partidas nuevas, m.ritmo > 1): días y noches, estaciones y obras que tardan.
    *  · Un día son 6 turnos; el último es de noche: la gente vuelve a casa, las calles se vacían y se duerme.
@@ -468,8 +473,10 @@
   function nombrarPrivado(m, t, c) {
     const v = m.vida, o = v.obra[t], pv = v.privados && v.privados[t], duenio = pv && v.aldeanos.find(x => x.id === pv.dueno);
     if (!duenio || !v.edificios[t]) return;
-    const era = c ? c.era : 0, quien = duenio.nombre + ' ' + (duenio.familia || '');
-    v.edificios[t].nombre = o === OBRA.gremio ? 'Gremio de mercaderes ' + (duenio.familia || duenio.nombre) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.bancopriv ? 'Banco ' + (duenio.familia || duenio.nombre) : o === OBRA.muelle ? 'Muelle de los ' + (duenio.familia || duenio.nombre) : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
+    // (El nombre va con el estilo del edificio: cambia cuando los constructores lo reforman, no de golpe con la era.)
+    const era = v.edificios[t].era != null ? v.edificios[t].era : c ? c.era : 0, quien = duenio.nombre + ' ' + (duenio.familia || ''), fam = duenio.familia || duenio.nombre;
+    const etM = etapa(OBRA.muelle, era);
+    v.edificios[t].nombre = o === OBRA.gremio ? (etapa(OBRA.gremio, era) >= 1 ? 'Compañía ' + fam : 'Gremio de mercaderes ' + fam) + (pv.sucursal ? ' (sucursal)' : '') : o === OBRA.bancopriv ? 'Banco ' + fam : o === OBRA.muelle ? (etM >= 3 ? 'Terminal de los ' : etM >= 2 ? 'Dársena de los ' : 'Muelle de los ') + fam : o === OBRA.casona ? (era >= 6 ? 'Mansión' : era >= 5 ? 'Palacete' : 'Casona') + ' de ' + quien : 'Fábrica de ' + quien;
     v.edificios[t].dueno = quien;
   }
   const SIN_REFORMA = new Set([OBRA.campamento, OBRA.centro, OBRA.campo, OBRA.ruina]);
@@ -1061,7 +1068,9 @@
     const montoBanco = 25 + 5 * c.era, reforma = Math.round(precioObra(m, 'bancopriv') * 5) / 10, pide = montoBanco * 0.6 + reforma;
     if (c.era >= ERA_BANQUERO && m.turno % 8 === c.id % 8 && banqueros.length < maxBancos) {
       const fortuna = a => a.merc.caja + (a.dinero || 0);
-      const conGremio = mercaderesDe(m, c).filter(a => !a.emp && a.merc.de == null && a.merc.t != null && v.obra[a.merc.t] === OBRA.gremio);
+      // (Un banco por familia: si alguien de la casa ya es banquero, su gremio sigue siendo gremio.)
+      const conBanco = new Set(banqueros.map(a => a.familia).filter(Boolean));
+      const conGremio = mercaderesDe(m, c).filter(a => !a.emp && a.merc.de == null && a.merc.t != null && v.obra[a.merc.t] === OBRA.gremio && !(a.familia && conBanco.has(a.familia)));
       const rico = conGremio.filter(a => fortuna(a) >= pide).sort((x, y) => fortuna(y) - fortuna(x) || x.id - y.id)[0];
       if (rico && b.fondo < montoBanco) {
         if (!(rico.merc.pidioBanco > m.turno - 40)) { rico.merc.pidioBanco = m.turno; anunciar(m, c, '🏦 ' + nombreDe(rico) + ' quiere convertir su gremio en banco y pide ' + montoBanco + ' de oro al banco central, pero no tiene fondos (tiene ' + Math.round(b.fondo) + '): «pasad oro al banco central»'); }
@@ -3481,9 +3490,10 @@
         let mejor = -1, md = 1e9;
         for (const r of zona) for (const u of parcelas(m, r)) {
           const rec = v.edificios[u];
-          if (!rec || rec.ruina || v.obra[u] !== rec.tipo || fase(rec.era) >= fase(c.era) || SIN_REFORMA.has(rec.tipo)) continue;
+          if (!rec || rec.ruina || v.obra[u] !== rec.tipo || etapa(rec.tipo, rec.era) >= etapa(rec.tipo, c.era) || SIN_REFORMA.has(rec.tipo)) continue;
           if (rec.reformando > m.turno - 3 || rec.turno > m.turno - 4) continue;
-          const d = dist(m, a.y * v.tw + a.x, u) + rec.era * 3;
+          // (Los edificios de los mercaderes van primero: la casa comercial se paga su reforma.)
+          const d = dist(m, a.y * v.tw + a.x, u) + rec.era * 3 - (v.privados && v.privados[u] ? 25 : 0);
           if (d < md) { md = d; mejor = u; }
         }
         if (mejor >= 0 && md < 60) { v.edificios[mejor].reformando = m.turno; a.reforma = mejor; ir(a, mejor, v.tw, IR); rec.reservadas.add(mejor); return; }
@@ -3925,11 +3935,17 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     }
     else if (a.o === CONSTRUCTOR && a.reforma === t && v.edificios && v.edificios[t]) {
       const rec = v.edificios[t];
-      if (c.madera >= 4 && c.piedra >= 2 && fase(rec.era) < fase(c.era)) {
+      if (c.madera >= 4 && c.piedra >= 2 && etapa(rec.tipo, rec.era) < etapa(rec.tipo, c.era)) {
         c.madera -= 4; c.piedra -= 2;
-        const antes = M.ERAS[rec.era].nombre;
+        // Si es de un mercader, él le paga al reino los materiales de la reforma (de su caja).
+        const pv = v.privados && v.privados[t], dueno = pv && v.aldeanos.find(x => x.id === pv.dueno);
+        if (dueno) { const precio = 4 * ((m.mercado && m.mercado.precio && m.mercado.precio.madera) || 1) + 2 * ((m.mercado && m.mercado.precio && m.mercado.precio.piedra) || 1); if (dueno.merc && dueno.merc.caja >= precio) { dueno.merc.caja = redondo(dueno.merc.caja - precio); c.oro = (c.oro || 0) + precio; } else if (dueno.emp && dueno.emp.capital >= precio) { dueno.emp.capital = redondo(dueno.emp.capital - precio); c.oro = (c.oro || 0) + precio; } }
+        if (v.privados && v.privados[t]) nombrarPrivado(m, t, c); // (el nombre de ahora, con su dueño de ahora)
+        const antes = M.ERAS[rec.era].nombre, nombreAntes = rec.nombre;
         rec.era = c.era; rec.historia.push({ anio: m.anio, texto: 'reformado al estilo de ' + M.ERAS[c.era].con + ' por ' + a.nombre + ' (era de ' + antes + ')' });
         v.cambios.push([2, t, v.obra[t], v.obra[t], paso]); // para que se vuelva a dibujar con el estilo nuevo
+        // Los edificios de los mercaderes cambian también de nombre (el gremio pasa a compañía, el muelle a dársena…).
+        if (v.privados && v.privados[t]) { nombrarPrivado(m, t, c); if (rec.nombre !== nombreAntes) { anunciar(m, c, '🏢 ' + nombreAntes + ' se moderniza: ahora es ' + (/^(Compañía|Terminal|Dársena|Mansión|Palacete)/.test(rec.nombre) ? 'la ' : 'el ') + rec.nombre); if (v.obra[t] === OBRA.gremio && etapa(OBRA.gremio, rec.era) === 1) S().cronica(m, 'banca', 'El fin del gremio: nace la ' + rec.nombre, 'Con las fábricas y el ferrocarril, la casa comercial de ' + (rec.dueno || 'la familia') + ' deja atrás el gremio: ahora es una compañía, con oficinas, almacén y empleados a sueldo.', c, region(m, t)); } }
       }
       a.reforma = null;
     }
@@ -4927,5 +4943,5 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     actualizarPoblacion(m);
   }
 
-  M.vida = { porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

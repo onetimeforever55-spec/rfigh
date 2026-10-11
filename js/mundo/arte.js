@@ -594,6 +594,30 @@
   // El gremio de mercaderes (Edad Media): casa de entramado de dos pisos con soportal, el cartel colgado del gremio,
   // fardos y toneles a la puerta.
   function gremio(H, fase, col) {
+    if (fase >= 2) {
+      // La sede de la compañía (Era Moderna): edificio de oficinas de cuatro pisos, cristal y hormigón, con el nombre arriba
+      // en el color del reino.
+      const hor = '#c4c8d0';
+      H.r(2, 1, 12, 14, hor); H.r(2, 1, 1, 14, '#dfe2e8'); H.r(13, 1, 1, 14, '#8a8e98');
+      H.r(2, 1, 12, 2, col); for (const x of [4, 6, 7, 9, 11]) H.p(x, 2, '#f0c040');
+      for (let y = 4; y < 12; y += 2) for (let x = 3; x < 13; x += 2) H.r(x, y, 1, 1, (x + y) % 6 === 1 ? LUZ : CRISTAL);
+      H.r(6, 12, 4, 3, '#3a4250'); H.r(7, 12, 2, 3, CRISTAL);
+      H.r(0, 15, 16, 1, '#6a6e78');
+      H.contorno(); return H.lienzo();
+    }
+    if (fase >= 1) {
+      // La compañía comercial (Revolución Industrial): almacén de ladrillo de dos pisos con oficinas, el portón de carga,
+      // el rótulo pintado y cajas a la puerta.
+      const lad = '#9a4a38', jun = oscuro(lad, 0.18);
+      H.r(1, 4, 14, 11, lad); for (let y = 5; y < 15; y += 2) for (let x = (y % 4 ? 1 : 2); x < 15; x += 3) H.p(x, y, jun);
+      H.r(0, 3, 16, 1, '#4a3a34'); H.r(1, 2, 14, 1, '#5a4a44');
+      H.r(2, 5, 12, 2, '#efe6d0'); for (const x of [3, 4, 6, 8, 9, 11, 12]) H.p(x, 6, '#3a2a24'); H.p(3, 5, '#3a2a24'); H.p(8, 5, '#3a2a24');
+      for (const x of [2, 5, 10, 13]) H.r(x, 8, 1, 2, LUZ);
+      H.r(6, 9, 4, 6, '#5a3a24'); H.r(6, 9, 4, 1, '#3a2618'); H.r(8, 10, 1, 5, '#3a2618');
+      H.r(11, 12, 3, 3, '#b08a54'); H.p(12, 13, '#7a5a34'); H.r(1, 13, 2, 2, '#b08a54'); H.p(13, 8, col); H.p(2, 8, col);
+      H.r(0, 15, 16, 1, oscuro(lad, 0.45));
+      H.contorno(); return H.lienzo();
+    }
     const muro = '#e8dcc0', viga = '#5a3a22', teja = '#8a3a2a';
     H.r(1, 5, 14, 9, muro);
     for (const x of [1, 5, 10, 14]) H.r(x, 5, 1, 9, viga);
@@ -658,6 +682,35 @@
   // El muelle de una casa comercial: tablones de madera sobre pilotes, una grúa de madera con su cuerda, cajas y
   // toneles, y el banderín de la casa.
   function muelle(H, fase, col) {
+    if (fase >= 3) {
+      // La terminal de mercancías (Era Moderna): muelle de hormigón, grúa pórtico y contenedores de colores apilados.
+      H.r(0, 9, 16, 5, '#9a9ea6'); H.r(0, 9, 16, 1, '#b8bcc4'); H.r(0, 13, 16, 1, '#6a6e76');
+      H.r(2, 1, 1, 8, '#d0a020'); H.r(9, 1, 1, 8, '#d0a020'); H.r(1, 1, 13, 1, '#d0a020'); H.r(12, 1, 1, 3, '#d0a020'); H.r(6, 2, 1, 3, '#3a3a40');
+      const cont = [col, '#3a7ab8', '#c84a3a', '#4a9a5a', '#e0a030'];
+      for (let i = 0; i < 4; i++) { H.r(3 + (i % 2) * 3, 7 - Math.floor(i / 2) * 2, 3, 2, cont[i]); H.p(3 + (i % 2) * 3, 7 - Math.floor(i / 2) * 2, '#ffffff'); }
+      H.r(10, 7, 3, 2, cont[4]); H.r(13, 7, 3, 2, cont[1]);
+      for (const x of [1, 8, 15]) H.r(x, 14, 1, 2, '#5a5e66');
+      H.contorno(); return H.lienzo();
+    }
+    if (fase >= 2) {
+      // La dársena (Revolución Industrial): muelle de piedra, grúa de hierro con su pluma, sacos y el almacén de ladrillo.
+      H.r(0, 9, 16, 5, '#a8a090'); for (let x = 0; x < 16; x += 4) H.r(x, 9, 1, 5, '#8a8274'); H.r(0, 9, 16, 1, '#c4bcac');
+      H.r(10, 3, 6, 6, '#9a4a38'); H.r(10, 2, 6, 1, '#4a3a34'); H.r(12, 5, 2, 4, '#3a2618'); H.p(11, 4, LUZ); H.p(14, 4, LUZ);
+      H.r(3, 1, 1, 8, '#3a3e48'); H.r(3, 1, 6, 1, '#3a3e48'); for (let k = 0; k < 3; k++) H.p(4 + k, 2 + k, '#3a3e48');
+      H.r(8, 2, 1, 4, '#8a8a8a'); H.r(7, 6, 3, 2, '#c8b890'); H.r(5, 7, 2, 2, '#c8b890');
+      H.r(0, 0, 1, 9, '#4a4a4a'); H.r(1, 0, 2, 2, col);
+      for (const x of [1, 6, 11, 15]) H.r(x, 14, 1, 2, '#6a6458');
+      H.contorno(); return H.lienzo();
+    }
+    if (fase >= 1) {
+      // El muelle de piedra con su almacén (Renacimiento): sillares, un almacén de madera con tejado y la grúa de madera.
+      H.r(0, 9, 16, 5, '#b0a48c'); for (let x = 2; x < 16; x += 4) H.r(x, 10, 1, 4, '#90846c'); H.r(0, 9, 16, 1, '#c8bca4'); H.r(0, 12, 16, 1, '#90846c');
+      H.r(9, 4, 7, 5, '#8a5a32'); for (let k = 0; k < 3; k++) H.r(9 + k, 3 - k, 7 - 2 * k, 1, '#7a3a2a'); H.r(11, 6, 2, 3, '#3a2618');
+      H.r(3, 1, 1, 8, '#5a3a1e'); H.r(3, 1, 5, 1, '#5a3a1e'); H.r(7, 2, 1, 4, '#c8b890'); H.r(6, 6, 3, 2, '#8a5a2b');
+      H.r(0, 0, 1, 9, '#4a4a4a'); H.r(1, 0, 2, 2, col);
+      for (const x of [1, 6, 11, 15]) H.r(x, 14, 1, 2, '#6a5e48');
+      H.contorno(); return H.lienzo();
+    }
     const tabla = '#9a6a3a', junta = '#6a4424';
     H.r(0, 9, 16, 5, tabla); for (let x = 1; x < 16; x += 3) H.r(x, 9, 1, 5, junta); H.r(0, 9, 16, 1, '#b07a44');
     for (const x of [1, 6, 11, 15]) H.r(x, 14, 1, 2, '#4a3018');
@@ -669,6 +722,28 @@
   // El banco de un banquero (privado): local de piedra más pequeño, con el letrero de letras doradas, rejas en las
   // ventanas y la puerta con la moneda.
   function bancoPrivado(H, fase, col) {
+    if (fase >= 2) {
+      // La torre del banco (Era Moderna): rascacielos estrecho de piedra clara y cristal, con la moneda dorada arriba.
+      const pie = '#d8d4cc';
+      H.r(4, 2, 8, 13, pie); H.r(4, 2, 1, 13, '#ecead4'); H.r(11, 2, 1, 13, '#a8a49c');
+      H.r(5, 0, 6, 2, '#b8b4ac'); H.disco(8, 1, 1.2, '#e0b040');
+      for (let y = 3; y < 12; y += 2) for (const x of [5, 7, 9]) H.r(x, y, 2, 1, (x + y) % 4 === 0 ? LUZ : CRISTAL);
+      H.r(2, 12, 12, 3, oscuro(pie, 0.1)); for (const x of [3, 5, 10, 12]) H.r(x, 12, 1, 3, '#f4f2ec');
+      H.r(7, 12, 2, 3, '#3a2a20'); H.r(6, 11, 4, 1, col);
+      H.r(0, 15, 16, 1, oscuro(pie, 0.4));
+      H.contorno(); return H.lienzo();
+    }
+    if (fase >= 1) {
+      // El banco (Revolución Industrial): fachada de piedra con frontón, cuatro columnas, el nombre en oro y la escalinata.
+      const pie = '#e2d8c4', som = oscuro(pie, 0.22);
+      for (let y = 2; y < 5; y++) H.r(8 - (y - 1) * 2.4, y, Math.round((y - 1) * 4.8), 1, y === 4 ? som : pie);
+      H.p(8, 3, '#e0b040'); H.r(1, 5, 14, 1, som);
+      H.r(1, 6, 14, 7, oscuro(pie, 0.08)); for (const x of [2, 5, 10, 13]) H.r(x, 6, 1, 7, '#f6f2e8');
+      H.r(3, 6, 10, 1, '#2a2a34'); for (const x of [4, 6, 8, 9, 11]) H.p(x, 6, '#f0c040');
+      H.r(7, 8, 2, 5, '#3a2618'); H.p(8, 10, '#e0b040'); H.r(6, 7, 4, 1, col);
+      H.r(0, 13, 16, 1, pie); H.r(0, 14, 16, 1, som); H.r(0, 15, 16, 1, oscuro(pie, 0.4));
+      H.contorno(); return H.lienzo();
+    }
     const muro = fase >= 3 ? '#cfc8bc' : '#d8c8a8';
     H.r(2, 4, 12, 11, muro); H.r(2, 4, 12, 1, oscuro(muro, 0.25)); H.r(1, 3, 14, 1, oscuro(muro, 0.35));
     H.r(3, 5, 10, 2, '#2a2a34'); for (const x of [4, 6, 8, 10, 11]) H.p(x, 6, '#f0c040'); H.p(4, 5, '#f0c040'); H.p(8, 5, '#f0c040'); H.p(11, 5, '#f0c040');
