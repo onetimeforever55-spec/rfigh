@@ -233,6 +233,8 @@ console.log('LOS EDIFICIOS DE LOS MERCADERES CAMBIAN CON LAS ERAS (LOS REFORMAN 
   // Un gremio y un muelle de la Edad Media en un reino que llega a la Revolución Industrial (sin banco central: el gremio no
   // se convierte en banco, así que pasa a compañía).
   // (Un reino ya crecido, con varios constructores: en una aldea pequeña, la reforma espera a que acaben lo urgente.)
+  // (Con la era forzada, cada turno son muchos años: si el dueño muere antes de la reforma, otro mercader se queda el
+  // gremio, como haría su heredero; si no, la prueba dependería de cuánto vive una persona.)
   const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 150; k++) S.turno(g);
   const r = S.vivas(g).sort((p, q) => q.aldeanos - p.aldeanos)[0], w = g.vida; X.gobernar(g, r.id);
   const zona = [r.capital, ...S.vecinos(r.capital)].flatMap(q => V.parcelas(g, q));
@@ -243,7 +245,7 @@ console.log('LOS EDIFICIOS DE LOS MERCADERES CAMBIAN CON LAS ERAS (LOS REFORMAN 
   w.edificios[tg].era = 4;
   comprobar(V.etapa(V.OBRA.gremio, 4) === 0 && V.etapa(V.OBRA.gremio, 6) === 1 && V.etapa(V.OBRA.gremio, 7) === 2 && V.etapa(V.OBRA.muelle, 5) === 1 && V.etapa(V.OBRA.muelle, 7) === 3 && V.etapa(V.OBRA.casona, 6) === 2, 'cada edificio tiene sus etapas: gremio → compañía (Revolución Industrial) → oficinas; muelle → piedra → dársena → terminal; casona → palacete → mansión');
   const av = []; let nombre = '';
-  for (let k = 0; k < 250; k++) { r.era = 6; r.madera = Math.max(r.madera, 60); r.piedra = Math.max(r.piedra, 60); const n0 = (w.anuncios || []).length; S.turno(g); av.push(...(w.anuncios || []).slice(n0).filter(x => x.civ === r.id).map(x => x.texto)); const due = w.privados[tg] && w.aldeanos.find(a => a.id === w.privados[tg].dueno); nombre = (w.edificios[tg] || {}).nombre || ''; if (/^Compañía /.test(nombre)) break; if (!due) break; }
+  for (let k = 0; k < 250; k++) { r.era = 6; r.madera = Math.max(r.madera, 60); r.piedra = Math.max(r.piedra, 60); const n0 = (w.anuncios || []).length; S.turno(g); av.push(...(w.anuncios || []).slice(n0).filter(x => x.civ === r.id).map(x => x.texto)); const due = w.privados[tg] && w.aldeanos.find(a => a.id === w.privados[tg].dueno); nombre = (w.edificios[tg] || {}).nombre || ''; if (/^Compañía /.test(nombre)) break; if (!due) { const otro = w.aldeanos.find(x => x.c === r.id && x.edad >= 3 && x.edad < 10 && !x.fijo && !x.emp && !x.merc); if (!otro) break; otro.merc = { t: tg, caja: 0, desde: g.turno }; w.privados[tg] = { dueno: otro.id, civ: r.id, tipo: 'gremio' }; } }
   comprobar(/^Compañía /.test(nombre) && w.obra[tg] === V.OBRA.gremio, 'en la industrialización, los constructores reforman el gremio y pasa a ser una compañía (' + nombre + ')');
   comprobar(av.some(x => /se moderniza: ahora es la Compañía/.test(x)) && g.cronica.some(x => /^El fin del gremio/.test(x.titulo)), 'se avisa y la crónica cuenta el fin del gremio');
   comprobar(w.edificios[tg] && w.edificios[tg].era >= 6, 'y se dibuja con su estilo nuevo (la reforma guarda la era: ' + (w.edificios[tg] && w.edificios[tg].era) + ')');
@@ -310,7 +312,8 @@ console.log('EL SUELDO DE LA GENTE, EL AHORRO Y QUIÉN PUEDE SER CAPITALISTA');
 {
   // Dos copias del mismo reino en la Edad Media: una con impuestos normales y otra con impuestos altos.
   const prep = imp => { const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(g); const r = S.vivas(g).sort((p, q) => q.aldeanos - p.aldeanos)[0]; X.gobernar(g, r.id); r.plan.impuesto = imp; return { g, r }; };
-  const mide = ({ g, r }) => { const gente = g.vida.aldeanos.filter(a => a.c === r.id && a.edad >= V.ADULTO && a.o !== 5 && !a.merc && !a.emp); const d0 = new Map(gente.map(a => [a, a.dinero || 0])); for (let k = 0; k < 20; k++) { r.era = Math.max(r.era, 4); S.turno(g); } const vivos = gente.filter(a => g.vida.aldeanos.includes(a)); return vivos.reduce((k, a) => k + (a.dinero || 0) - d0.get(a), 0) / Math.max(1, vivos.length); };
+  // (Se mide turno a turno, con quien sigue vivo: con la era forzada cada turno son muchos años y la gente envejece deprisa.)
+  const mide = ({ g, r }) => { let suma = 0, n = 0; for (let k = 0; k < 20; k++) { r.era = Math.max(r.era, 4); const gente = g.vida.aldeanos.filter(a => a.c === r.id && a.edad >= V.ADULTO && a.o !== 5 && !a.merc && !a.emp && a.obrero == null); const d0 = new Map(gente.map(a => [a, a.dinero || 0])); S.turno(g); for (const a of gente) if (g.vida.aldeanos.includes(a) && a.c === r.id) { suma += (a.dinero || 0) - d0.get(a); n++; } } return suma / Math.max(1, n) * 20; };
   const normal = mide(prep(1)), altos = mide(prep(2));
   comprobar(normal > 0.5, 'desde la Edad Media, granjeros, leñadores, mineros, constructores, soldados y eruditos cobran un sueldo de lo que producen (' + normal.toFixed(2) + ' de oro cada uno en 20 turnos)');
   comprobar(altos < normal * 0.85, 'con impuestos altos, la gente cobra menos (' + altos.toFixed(2) + ' frente a ' + normal.toFixed(2) + ')');

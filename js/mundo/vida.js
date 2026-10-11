@@ -1764,13 +1764,25 @@
       for (let i = 0; i < 4; i++) if (extra[i]) p[i] = p[i] * (1 + 0.8 * extra[i]) + 0.07 * extra[i];
       if ((c.rutas || 0) > 0) p[5] += 0.04;
     }
+    // Lo que aún se debe del paso de edad se saca primero (si no, el paso espera para siempre: en una partida, 300 turnos
+    // «pasando al Renacimiento» por 1 de metal, con 90 granjeros y ningún minero).
+    const debe = (c.subiendo && c.subiendo.debe) || {}, debeMina = (debe.metal > 0 || debe.piedra > 0) && recursos.rocas;
+    if (debeMina) p[3] += 0.35;
+    if (debe.madera > 0 && recursos.arboles) p[0] += 0.25;
+    if (debe.comida > 0) p[1] += 0.25;
+    const faltan = faltanCamas(c), maxW = Math.max(...PRIO_OFICIO.map(k => (k ? prio(c, k) : 0)));
     for (let i = 0; i < p.length; i++) {
       // Los mineros sacan piedra, metal y carbón: pesa la mayor de las tres prioridades.
       const pr_ = (c.plan && c.plan.prioridad) || {}, w = i === 3 ? Math.max(prio(c, 'piedra'), pr_.metal != null ? pr_.metal : 0, c.era >= 6 && pr_.carbon != null ? pr_.carbon : 0) : prio(c, PRIO_OFICIO[i]);
       // Lo que el jugador pone al máximo pesa siempre, aunque el almacén esté lleno.
       if (w >= 2 && (i !== 0 || recursos.arboles) && (i !== 3 || recursos.rocas)) p[i] = Math.max(p[i], 0.25);
       // (Con hambre, la gente vuelve al campo aunque se haya mandado «menos comida»: nadie se deja morir de hambre.)
-      const wc = i === 1 && w < 0.6 && (c.comida || 0) < (c.habitantes || c.aldeanos || 10) * 2 ? 0.6 : w;
+      // (Y si falta dónde dormir, se construyen casas aunque se hayan subido otras prioridades: si no, el pueblo no
+      // crece nunca. En una partida, con «más ciencia, comida, piedra y madera», no había constructores: 30 vecinos
+      // durante 300 turnos.)
+      const wc = i === 1 && w < 0.6 && (c.comida || 0) < (c.habitantes || c.aldeanos || 10) * 2 ? 0.6
+        : i === 2 && faltan && w > 0 ? Math.max(w, maxW * 0.8)
+        : i === 3 && debeMina ? Math.max(w, maxW * 0.8, 0.6) : w;
       p[i] *= wc === 0 ? 0.03 : wc;
     }
     const suma = p.reduce((k, x) => k + x, 0) || 1;
@@ -3417,7 +3429,7 @@
     if (a.aBordo != null) {
       const b = v.barcos.find(x => x.id === a.aBordo);
       if (b && !b.hundido) { a.x = b.x; a.y = b.y; a.e = ESPERAR; a.t = 2; a.r.push(a.x, a.y, ACC.andar); return; }
-      a.aBordo = null; a.e = LIBRE;
+      desembarcar(m, a);
     }
     if (a.e === LIBRE) elegirTarea(m, a, c, rec, ter);
     // Un guerrero que ve a un enemigo cerca carga contra él (los tiradores se quedan a distancia y disparan).
@@ -5012,6 +5024,22 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
   }
   // Los colonos que cruzan el mar: se reúnen en el puerto, embarcan en un barco, cruzan y desembarcan en la costa;
   // de ahí siguen andando hasta su tierra nueva. Si hunden el barco, se ahogan.
+  // La tierra más cercana a una casilla (para quien se queda sin barco en el mar): en espiral, hasta 40 casillas.
+  function tierraCerca(m, x0, y0) {
+    const v = m.vida, ter = terrenos(m);
+    for (let r = 0; r <= 40; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = x0 + dx, y = y0 + dy; if (x < 0 || y < 0 || x >= v.tw || y >= v.th) continue;
+      const t = y * v.tw + x; if (ter[t] !== 'agua' && ter[t] !== 'bajo') return t;
+    }
+    return null;
+  }
+  // Bajar a alguien de un barco: nunca en alta mar, sino en la tierra más cercana.
+  function desembarcar(m, a) {
+    const v = m.vida, ter = terrenos(m), t0 = a.y * v.tw + a.x;
+    a.aBordo = null; a.e = LIBRE;
+    if (ter[t0] === 'agua' || ter[t0] === 'bajo') { const t = tierraCerca(m, a.x, a.y); if (t != null) { a.x = t % v.tw; a.y = t / v.tw | 0; } }
+  }
   function expediciones(m) {
     const v = m.vida;
     if (!v.expediciones) return;
@@ -5019,8 +5047,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       const x = v.expediciones[id], c = S().civ(m, +id);
       const gente = v.aldeanos.filter(a => a.c === +id && a.colono === x.r);
       const barco = v.barcos.find(b => b.id === x.barco && !b.hundido);
-      const cancelar = () => { for (const a of gente) { a.colono = null; a.porMar = 0; if (a.aBordo != null) { a.aBordo = null; a.e = LIBRE; } } if (barco) barco.pv = 0; delete v.expediciones[id]; };
-      if (!c || !c.viva || !gente.length || (m.dueno[x.r] >= 0 && x.fase === 'reunion') || v.obra[x.puerto] !== OBRA.puerto || m.dueno[region(m, x.puerto)] !== +id) { cancelar(); continue; }
+      const cancelar = () => { for (const a of gente) { a.colono = null; a.porMar = 0; if (a.aBordo != null) desembarcar(m, a); } if (barco) barco.pv = 0; delete v.expediciones[id]; };
+      // (Ya en el mar, perder el puerto de salida no la cancela: el barco sigue su viaje.)
+      if (!c || !c.viva || !gente.length || (x.fase !== 'travesia' && ((m.dueno[x.r] >= 0 && x.fase === 'reunion') || v.obra[x.puerto] !== OBRA.puerto || m.dueno[region(m, x.puerto)] !== +id))) { cancelar(); continue; }
       if (x.fase === 'travesia') { if (!barco) { for (const a of gente) if (a.aBordo == null) { a.colono = null; a.porMar = 0; } delete v.expediciones[id]; } continue; }
       // En el puerto espera el barco; los que ya han llegado suben a bordo.
       let b = barco;

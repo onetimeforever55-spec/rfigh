@@ -83,5 +83,19 @@ console.log('EN LA GUERRA LOS ALDEANOS MUEREN LUCHANDO, NO DE GOLPE');
   comprobar(deGolpe === 0, 'ninguna baja «de guerra» sin pelea: las bajas son las de las batallas (' + deGolpe + ' quitadas de golpe)');
 }
 
+console.log('NADIE SE QUEDA EN ALTA MAR SI SU BARCO DESAPARECE');
+{
+  // (En una partida, el barco de unos colonos desapareció a mitad de travesía y los soltó en el mar: se ahogaron nadando.)
+  const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 30; k++) S.turno(m);
+  const w = m.vida, ter = V.terrenos(m);
+  const a = w.aldeanos.find(x => x.edad >= V.ADULTO && x.o !== 4);
+  let mar = null;
+  for (let t = 0; t < ter.length && mar == null; t++) if (ter[t] === 'agua') { const x = t % w.tw, y = t / w.tw | 0; let cerca = false; for (let d = 3; d <= 8 && !cerca; d++) for (const [dx, dy] of [[d, 0], [-d, 0], [0, d], [0, -d]]) { const u = (y + dy) * w.tw + x + dx; if (ter[u] && ter[u] !== 'agua' && ter[u] !== 'bajo') cerca = true; } if (cerca) mar = t; }
+  a.x = mar % w.tw; a.y = mar / w.tw | 0; a.aBordo = 987654321; a.colono = null;
+  S.turno(m);
+  const donde = ter[a.y * w.tw + a.x];
+  comprobar(a.aBordo == null && donde !== 'agua', 'baja a la tierra más cercana, no al agua honda (' + donde + ')');
+}
+
 console.log(fallos ? '\n' + fallos + ' FALLOS' : '\nTodo bien.');
 process.exitCode = fallos ? 1 : 0;
