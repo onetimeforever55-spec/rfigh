@@ -21,7 +21,7 @@
   const ADULTO = 2, VIEJO = 18;
   const limiteVida = a => 22 + (a.id % 12) + (a.rasgos && a.rasgos.includes('longevo') ? 8 : 0);
   const esNino = a => (a.edad || 0) < ADULTO;
-  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18, central: 19, banco: 20, fabrica: 21, estacion: 22, hospital: 23, aerodromo: 24, campamento: 25, aduana: 26, petroleo: 27, mina: 28, gremio: 29, casona: 30, bancopriv: 31, muelle: 32, minapriv: 33 };
+  const OBRA = { nada: 0, casa: 1, campo: 2, centro: 3, ruina: 4, ayuntamiento: 5, torre: 6, templo: 7, molino: 8, puerto: 9, cuartel: 10, arqueria: 11, castillo: 12, saber: 13, pozo: 14, granero: 15, fuente: 16, parque: 17, palacio: 18, central: 19, banco: 20, fabrica: 21, estacion: 22, hospital: 23, aerodromo: 24, campamento: 25, aduana: 26, petroleo: 27, mina: 28, gremio: 29, casona: 30, bancopriv: 31, muelle: 32, minapriv: 33, inmopriv: 34 };
   // Hasta dónde llegan los campos de un molino (parcelas): más allá no se ara.
   const RANGO_MOLINO = 4;
   // En las partidas pausadas el molino alcanza menos (un rango medio): hacen falta varios molinos repartidos
@@ -689,13 +689,16 @@
     minera: { nombre: 'Minera', saca: { metal: 0.4, piedra: 0.6, carbon: 0.3 }, rinde: 0.5 },
     // La compañía de ferrocarril: su estación es la estación de tren del reino (los trenes andan con ella), pero es suya:
     // cobra los billetes a la gente y los fletes del comercio, y paga al reino el carbón que queman sus trenes.
-    ferrocarril: { nombre: 'Ferrocarril', tren: true, rinde: 0 }
+    ferrocarril: { nombre: 'Ferrocarril', tren: true, rinde: 0 },
+    // La inmobiliaria (Era Moderna): desde su oficina, sus albañiles levantan las casas que faltan (la gente le paga un
+    // alquiler) y los edificios que el pueblo necesita (se los cobra al tesoro). Compra ella los materiales.
+    inmobiliaria: { nombre: 'Inmobiliaria', obra: true, rinde: 0 }
   };
-  const ES_INDUSTRIA = new Set([OBRA.fabrica, OBRA.minapriv, OBRA.estacion]);
-  const obraIndustria = ind => (ind === 'minera' ? OBRA.minapriv : ind === 'ferrocarril' ? OBRA.estacion : OBRA.fabrica);
-  const claveIndustria = ind => (ind === 'minera' ? 'minapriv' : ind === 'ferrocarril' ? 'estacion' : 'fabrica');
-  const suEdificio = e => (e.ind === 'ferrocarril' ? 'su estación' : e.ind === 'minera' ? 'su mina' : 'su fábrica');
-  const QUE_MONTA = { textil: 'una fábrica textil', aserradero: 'un aserradero', fundicion: 'una fundición', conservera: 'una conservera', minera: 'una compañía minera', ferrocarril: 'una compañía de ferrocarril' };
+  const ES_INDUSTRIA = new Set([OBRA.fabrica, OBRA.minapriv, OBRA.estacion, OBRA.inmopriv]);
+  const obraIndustria = ind => (ind === 'minera' ? OBRA.minapriv : ind === 'ferrocarril' ? OBRA.estacion : ind === 'inmobiliaria' ? OBRA.inmopriv : OBRA.fabrica);
+  const claveIndustria = ind => (ind === 'minera' ? 'minapriv' : ind === 'ferrocarril' ? 'estacion' : ind === 'inmobiliaria' ? 'inmopriv' : 'fabrica');
+  const suEdificio = e => (e.ind === 'ferrocarril' ? 'su estación' : e.ind === 'minera' ? 'su mina' : e.ind === 'inmobiliaria' ? 'su oficina' : 'su fábrica');
+  const QUE_MONTA = { textil: 'una fábrica textil', aserradero: 'un aserradero', fundicion: 'una fundición', conservera: 'una conservera', minera: 'una compañía minera', ferrocarril: 'una compañía de ferrocarril', inmobiliaria: 'una inmobiliaria' };
   // LA FUNDICIÓN TAMBIÉN HACE LAS MÁQUINAS DE GUERRA: cañones (desde la pólvora), artillería (Era Moderna), tanques y aviones
   // (II Guerra Mundial y Era Moderna), según la era, y solo por encargo: cuando su reino (o un socio) los necesita y puede
   // pagarlos. Gasta metal (y petróleo los tanques y los aviones), que compra como la demás materia prima.
@@ -759,9 +762,11 @@
       // (La minera, al revés que las demás: se monta donde falta metal o piedra, si hay montaña libre.)
       minera: sitioMina(m, c, terrenos(m)) != null ? falta('metal') * 1.5 + falta('piedra') / 3 + (c.era >= 6 ? falta('carbon') : 0) - 2 : -1e9,
       // (El ferrocarril, si el reino comercia y tiene gente que viaje: uno por reino, y mejor si aún no hay estación.)
+      // (La inmobiliaria, en la Era Moderna, si al pueblo le faltan casas o edificios: una por reino.)
+      inmobiliaria: c.era >= 7 && (c.aldeanos || 0) >= 60 && !hay.has('inmobiliaria') ? Math.min(30, 10 + (faltanCamas(c) ? 10 : 0) + (c.necesidades || []).filter(n => n.falta && OBRA_INMO.has(n.obra)).length * 4) : -1e9,
       ferrocarril: c.era >= 6 && (c.aldeanos || 0) >= 50 && (c.rutas || 0) + sociosDe(m, c).length >= 1 && !hay.has('ferrocarril') ? Math.min(30, 14 + (c.rutas || 0) * 3 + sociosDe(m, c).length * 2 - (c.estaciones || 0) * 5) : -1e9 };
     let mejor = 'aserradero', mp = -1e9;
-    for (const k of Object.keys(INDUSTRIAS)) { if (k === 'ferrocarril' && hay.has(k)) continue; const p = puntos[k] * (hay.has(k) ? 0.4 : 1) - (hay.has(k) ? 5 : 0); if (p > mp) { mp = p; mejor = k; } }
+    for (const k of Object.keys(INDUSTRIAS)) { if ((k === 'ferrocarril' || k === 'inmobiliaria') && hay.has(k)) continue; const p = puntos[k] * (hay.has(k) ? 0.4 : 1) - (hay.has(k) ? 5 : 0); if (p > mp) { mp = p; mejor = k; } }
     return mejor;
   }
   const precioDe = (m, c, I) => I.precio ? Math.round(I.precio * (1 + 0.12 * Math.max(0, c.era - 6)) * 100) / 100 : ((m.mercado && m.mercado.precio[I.hace]) || PRECIO_BASE[I.hace]);
@@ -828,6 +833,74 @@
     e.ultimo = redondo(ingreso - gasto);
     return ingreso - gasto;
   }
+  // LA INMOBILIARIA: cada vez, una obra. Primero lo que el pueblo necesita y el tesoro puede pagar (pozo, granero,
+  // plaza, parque, hospital, central); si no, casas donde falten camas. Compra los materiales, pone el andamio y sus
+  // albañiles la levantan. El edificio público se lo cobra al reino al entregarlo; las casas son suyas y la gente le
+  // paga un alquiler (de lo que gasta). Sin obra, se queda con un albañil.
+  const OBRA_INMO = new Set(['pozo', 'granero', 'fuente', 'parque', 'hospital', 'central']);
+  function inmobiliaria(m, c, a, e, socios, pueblo, obreros, sueldo, gasto) {
+    const v = m.vida, t = e.t, listo = v.obra[t] === OBRA.inmopriv;
+    let ingreso = 0;
+    // El alquiler de sus casas (las que siguen en pie y en el reino).
+    const casas = Object.keys(v.alquiler || {}).filter(k => v.alquiler[k] === t && v.obra[+k] === OBRA.casa && m.dueno[region(m, +k)] === c.id);
+    for (const k of Object.keys(v.alquiler || {})) if (v.alquiler[k] === t && v.obra[+k] !== OBRA.casa) delete v.alquiler[k];
+    if (casas.length) {
+      const renta = Math.min(pueblo ? Math.max(0, pueblo.total - pueblo.gastado) : 1e9, casas.length * 0.07 * (1 + 0.1 * Math.max(0, c.era - 7)));
+      if (pueblo) pueblo.gastado += renta;
+      ingreso += renta; e.alquileres = redondo((e.alquileres || 0) + renta);
+    }
+    e.casas = casas.length;
+    // La obra en marcha.
+    let pr = e.proy;
+    if (pr && (v.obra[pr.t] === pr.o || m.dueno[region(m, pr.t)] !== c.id || (!v.andamios || !v.andamios[pr.t]) && pr.empezada)) {
+      if (v.obra[pr.t] === pr.o) {
+        if (pr.o === OBRA.casa) { (v.alquiler = v.alquiler || {})[pr.t] = t; e.hechas = (e.hechas || 0) + 1; if (!e.avisoCasa) { e.avisoCasa = 1; anunciar(m, c, '🏗 ' + ((v.edificios[t] || {}).nombre || 'La inmobiliaria') + ' termina su primer bloque de viviendas: la gente que vive allí le paga un alquiler'); } }
+        else { const paga = Math.min(pr.precio, Math.max(0, c.oro || 0)); c.oro -= paga; ingreso += paga; e.publicas = (e.publicas || 0) + 1; anunciar(m, c, '🏗 ' + ((v.edificios[t] || {}).nombre || 'La inmobiliaria') + ' entrega ' + (NECESIDADES[pr.clave] ? NECESIDADES[pr.clave].edificio : 'un edificio') + ' al reino (cobra ' + Math.round(paga) + ' de oro)'); }
+      }
+      pr = e.proy = null;
+    }
+    if (listo && !pr && obreros.length) {
+      // Elegir la siguiente: lo que el pueblo necesita (si el tesoro llega), o casas.
+      const empezadas = new Set(Object.keys(v.andamios || {}).filter(k => v.andamios[k].civ === c.id).map(k => v.andamios[k].o));
+      const nec = (c.necesidades || []).find(n => n.falta && OBRA_INMO.has(n.obra) && !empezadas.has(OBRA[n.obra]) && c.era >= (ERA_OBRA[OBRA[n.obra]] || 0) && !((c.plan && c.plan.encargos) || []).some(x => x.o === OBRA[n.obra]));
+      const precioDeObra = clave => Math.round(precioObra(m, clave) * 1.3);
+      // (Casas: donde faltan camas, y también por adelantado si quedan pocas libres, como hace un promotor; como mucho
+      // una suya por cada cinco vecinos.)
+      const promover = (c.camas || 0) - (c.aldeanos || 0) < 10 && casas.length < (c.aldeanos || 0) / 5;
+      let clave = nec && (c.oro || 0) >= precioDeObra(nec.obra) + 15 ? nec.obra : faltanCamas(c) || promover ? 'casa' : null;
+      // (El edificio que pide una ciudad va en esa ciudad, o queda apuntado como suyo: si no, la ciudad lo seguiría
+      // pidiendo y la inmobiliaria levantaría uno tras otro.)
+      const sitio = clave === 'casa' ? sitioPara(m, c, 'casa') : clave ? sitioPara(m, c, clave, [nec.region]) : null;
+      if (sitio != null && clave !== 'casa') (v.sede = v.sede || {})[sitio] = nec.region;
+      if (sitio != null) {
+        const o = OBRA[clave], cs = COSTES[o] || [2, 0, 0];
+        const md = comprarInsumo(m, c, 'madera', cs[0], socios), pd = cs[1] ? comprarInsumo(m, c, 'piedra', cs[1], socios) : { q: 0, coste: 0 };
+        gasto += md.coste + pd.coste;
+        if (md.q >= cs[0] - 0.05 && pd.q >= (cs[1] || 0) - 0.05) {
+          cambiar(m, 'arbol', sitio, 0, 0);
+          (v.andamios = v.andamios || {})[sitio] = { o, falta: TRABAJO[o] || 2, total: TRABAJO[o] || 2, civ: c.id, coste: [0, 0, 0], inmo: t };
+          pr = e.proy = { t: sitio, o, clave, precio: clave === 'casa' ? 0 : precioDeObra(clave), empezada: 1 };
+        }
+      }
+    }
+    // Sus albañiles trabajan en la obra (más deprisa con las técnicas de construcción).
+    if (pr && v.andamios && v.andamios[pr.t] && obreros.length) {
+      const an = v.andamios[pr.t];
+      an.falta -= obreros.length * 0.35 * (1 + M.tec(c, 'obra'));
+      if (an.falta <= 0) { colocarObra(m, pr.t, an.o, 0); delete v.andamios[pr.t]; if (an.o === OBRA.casa) c.casas = (c.casas || 0) + 1; }
+    }
+    // Contrata albañiles si tiene obra (hasta 4) y puede pagarlos; sin obra, se queda con uno.
+    const quiere = pr ? PLAZAS_FABRICA : 1;
+    if (listo && m.turno % 3 === a.id % 3) {
+      if (obreros.length > 1 && (e.caja < -sueldo * 6 || obreros.length > quiere)) { const x = obreros[obreros.length - 1]; delete x.obrero; x.e = LIBRE; }
+      else if (obreros.length < quiere && (e.caja >= sueldo * 4 || obreros.length < 1)) {
+        const x = candidatoObrero(m, c);
+        if (x) { x.obrero = t; x.e = LIBRE; x.paseo = 0; if (!e.contratados) anunciar(m, c, '🏗 ' + ((v.edificios[t] || {}).nombre || 'La inmobiliaria') + ' contrata a sus primeros albañiles (' + sueldo + ' de oro de sueldo)'); e.contratados = (e.contratados || 0) + 1; }
+      }
+    }
+    e.ultimo = redondo(ingreso - gasto);
+    return ingreso - gasto;
+  }
   function industria(m, c, a, e, socios, pueblo) {
     const v = m.vida, t = e.t;
     // (Si la fábrica perdió su ficha de dueño, se le vuelve a poner: el edificio y el negocio siguen siendo suyos.)
@@ -839,6 +912,7 @@
     for (const o of obreros) { o.dinero = redondo((o.dinero || 0) + sueldo); gasto += sueldo; }
     e.stock = e.stock || 0;
     if (I.tren) return ferrocarril(m, c, a, e, socios, pueblo, obreros, sueldo, gasto);
+    if (I.obra) return inmobiliaria(m, c, a, e, socios, pueblo, obreros, sueldo, gasto);
     // Producción: cada obrero hace un poco (más con la central eléctrica), si hay materia prima y el almacén no está lleno.
     if (obreros.length && enMarcha(c, 'fabrica') && e.stock < 12) {
       let q = obreros.length * I.rinde * fuerza(c);
@@ -928,7 +1002,7 @@
     return null;
   }
   const sitioFabrica = (m, c) => sitioPara(m, c, 'fabrica');
-  const sitioIndustria = (m, c, ind) => (ind === 'minera' ? sitioMina(m, c, terrenos(m)) : ind === 'ferrocarril' ? sitioPara(m, c, 'estacion') : sitioFabrica(m, c));
+  const sitioIndustria = (m, c, ind) => (ind === 'minera' ? sitioMina(m, c, terrenos(m)) : ind === 'ferrocarril' ? sitioPara(m, c, 'estacion') : ind === 'inmobiliaria' ? sitioPara(m, c, 'inmopriv') : sitioFabrica(m, c));
   // Un edificio privado que el dueño paga comprándole al reino los materiales (a precio de mercado) y la mano de obra.
   function precioObra(m, clave) {
     const o = OBRA[clave], coste = COSTES[o], pr = (m.mercado && m.mercado.precio) || PRECIO_BASE;
@@ -1259,7 +1333,7 @@
     const rico = S().ordenarPor(v.aldeanos.filter(a => a.c === c.id && !a.emp && !a.merc && a.obrero == null && !esNino(a) && (a.edad || 0) <= VIEJO - 3 && a.o !== GUERRERO && !a.fijo && a.colono == null && a.aBordo == null && (a.dinero || 0) >= monto), x => -(x.dinero || 0) * 1000 + x.id)[0];
     if (!rico) return;
     let ind = elegirIndustria(m, c), t = sitioIndustria(m, c, ind);
-    if (t == null && (ind === 'minera' || ind === 'ferrocarril')) { ind = 'aserradero'; t = sitioFabrica(m, c); }
+    if (t == null && (ind === 'minera' || ind === 'ferrocarril' || ind === 'inmobiliaria')) { ind = 'aserradero'; t = sitioFabrica(m, c); }
     if (t == null) return;
     (v.privados = v.privados || {})[t] = { dueno: rico.id, civ: c.id, tipo: 'fabrica', ind };
     const p = c.plan = c.plan || {}; (p.encargos = p.encargos || []).push({ t, o: obraIndustria(ind), clave: claveIndustria(ind), privado: rico.id });
@@ -1300,6 +1374,24 @@
         if (e.neg === 'fabrica') {
           // Mientras se levanta no da nada; si la tiraron o se perdió, el negocio se acaba.
           const encargada = e.t != null && ((c.plan && c.plan.encargos) || []).some(x => x.t === e.t);
+          // (Si su obra lleva 60 turnos encargada y nadie la ha empezado —un solar al que los constructores no llegan—,
+          // el dueño la cambia de sitio.)
+          if (encargada && !(v.andamios && v.andamios[e.t]) && !v.obra[e.t]) {
+            e.esperaObra = (e.esperaObra || 0) + 1;
+            if (e.esperaObra > 60) {
+              const viejo = e.t, pv = v.privados && v.privados[viejo];
+              delete v.privados[viejo]; c.plan.encargos = c.plan.encargos.filter(x => x.t !== viejo);
+              let nuevo = sitioIndustria(m, c, e.ind);
+              e.esperaObra = 0;
+              // (Si vuelve a salir el mismo sitio —la montaña más cercana, para una mina—, monta otra industria en un solar normal.)
+              if ((nuevo == null || nuevo === viejo) && e.ind !== 'aserradero') { nuevo = sitioFabrica(m, c); if (nuevo != null) { e.ind = 'aserradero'; if (pv) pv.ind = 'aserradero'; } }
+              if (nuevo != null && nuevo !== viejo) {
+                v.privados[nuevo] = pv || { dueno: a.id, civ: c.id, tipo: 'fabrica', ind: e.ind }; v.privados[nuevo].dueno = a.id;
+                c.plan.encargos.push({ t: nuevo, o: obraIndustria(e.ind), clave: claveIndustria(e.ind), privado: a.id }); e.t = nuevo;
+              } else { v.privados[viejo] = pv; c.plan.encargos.push({ t: viejo, o: obraIndustria(e.ind), clave: claveIndustria(e.ind), privado: a.id }); }
+              continue;
+            }
+          } else e.esperaObra = 0;
           if (e.t == null || (!encargada && !(v.andamios && v.andamios[e.t]) && !ES_INDUSTRIA.has(v.obra[e.t]))) { quiebra(m, c, a, e.ind === 'minera' ? 'perdió su mina' : 'perdió su fábrica'); continue; }
           if (ES_INDUSTRIA.has(v.obra[e.t])) {
             // (Ya no cobra del tesoro: gana lo que vende menos lo que paga; paga impuestos solo sobre lo que gana.)
@@ -1404,7 +1496,7 @@
         // La industria de lo que más le conviene al reino; la minera va en la montaña, las demás donde haya sitio.
         ind = elegirIndustria(m, c);
         t = sitioIndustria(m, c, ind);
-        if (t == null && (ind === 'minera' || ind === 'ferrocarril')) { ind = 'aserradero'; t = sitioFabrica(m, c); }
+        if (t == null && (ind === 'minera' || ind === 'ferrocarril' || ind === 'inmobiliaria')) { ind = 'aserradero'; t = sitioFabrica(m, c); }
         if (t != null) neg = 'fabrica';
       }
       if (neg === 'fabrica') {
@@ -2223,6 +2315,7 @@
   COSTES[OBRA.casona] = [10, 8, 4]; TRABAJO[OBRA.casona] = 6; NIVEL_OBRA[OBRA.casona] = 2; ERA_OBRA[OBRA.casona] = 4;
   // La mina de una compañía minera (Revolución Industrial): la abre un capitalista en la montaña, con sus obreros.
   COSTES[OBRA.minapriv] = [6, 6, 4]; TRABAJO[OBRA.minapriv] = 6; NIVEL_OBRA[OBRA.minapriv] = 2; ERA_OBRA[OBRA.minapriv] = 6;
+  COSTES[OBRA.inmopriv] = [8, 8, 6]; TRABAJO[OBRA.inmopriv] = 7; NIVEL_OBRA[OBRA.inmopriv] = 3; ERA_OBRA[OBRA.inmopriv] = 7;
   COSTES[OBRA.muelle] = [12, 4, 6]; TRABAJO[OBRA.muelle] = 5; NIVEL_OBRA[OBRA.muelle] = 2; ERA_OBRA[OBRA.muelle] = 4;
   COSTES[OBRA.bancopriv] = [8, 10, 6]; TRABAJO[OBRA.bancopriv] = 6; NIVEL_OBRA[OBRA.bancopriv] = 2; ERA_OBRA[OBRA.bancopriv] = 6;
   const NOMBRE_ERA = ['el Neolítico', 'la Edad del Bronce', 'la Edad del Hierro', 'la Antigüedad clásica', 'la Edad Media', 'el Renacimiento', 'la Revolución Industrial', 'la Era Moderna', 'la II Guerra Mundial'];
@@ -2267,7 +2360,7 @@
   };
   const PUBLICAS = new Set([OBRA.pozo, OBRA.granero, OBRA.fuente, OBRA.parque, OBRA.palacio, OBRA.templo, OBRA.central, OBRA.banco, OBRA.fabrica, OBRA.estacion, OBRA.hospital, OBRA.aerodromo]);
   // Lo que se puede levantar sobre un huerto cuando no queda solar: las obras públicas y los edificios de los ricos.
-  const SOBRE_HUERTO = new Set([...PUBLICAS, OBRA.gremio, OBRA.casona, OBRA.bancopriv]);
+  const SOBRE_HUERTO = new Set([...PUBLICAS, OBRA.gremio, OBRA.casona, OBRA.bancopriv, OBRA.inmopriv]);
   const AGUAS = new Set(['rio', 'agua', 'bajo', 'lago']);
   /*
    * LOS CULTIVOS según la tierra: trigo en la llanura, maíz en la selva y la sabana, arroz en los pantanos y
@@ -2558,7 +2651,7 @@
     return mejor;
   }
   // Las obras de una ciudad que, por falta de sitio, se levantaron en una comarca de al lado (v.sede[t] = la ciudad).
-  const LEJOS_OK = new Set([OBRA.pozo, OBRA.granero, OBRA.fuente, OBRA.parque, OBRA.palacio, OBRA.central, OBRA.banco, OBRA.fabrica, OBRA.estacion, OBRA.hospital, OBRA.aerodromo, OBRA.templo, OBRA.saber, OBRA.cuartel, OBRA.arqueria, OBRA.castillo]);
+  const LEJOS_OK = new Set([OBRA.inmopriv, OBRA.pozo, OBRA.granero, OBRA.fuente, OBRA.parque, OBRA.palacio, OBRA.central, OBRA.banco, OBRA.fabrica, OBRA.estacion, OBRA.hospital, OBRA.aerodromo, OBRA.templo, OBRA.saber, OBRA.cuartel, OBRA.arqueria, OBRA.castillo]);
   const CLAVE_OBRA = Object.fromEntries(Object.entries(OBRA).map(([k, o]) => [o, k]));
   function enSede(m, r, o) {
     const sd = m.vida.sede; if (!sd) return false;
@@ -3724,7 +3817,14 @@
     }
     a.paseo = 0;
     // El obrero va a su fábrica a trabajar su jornada.
-    if (a.obrero != null) { if (ES_INDUSTRIA.has(v.obra[a.obrero])) { a.k = 0; ir(a, a.obrero, v.tw, IR); a.enFabrica = 1; return; } delete a.obrero; }
+    if (a.obrero != null) {
+      if (ES_INDUSTRIA.has(v.obra[a.obrero])) {
+        // (Los albañiles de una inmobiliaria van a su obra, no a la oficina.)
+        const pv = v.obra[a.obrero] === OBRA.inmopriv && v.privados && v.privados[a.obrero], due = pv && v.aldeanos.find(x => x.id === pv.dueno), pr = due && due.emp && due.emp.proy;
+        a.k = 0; ir(a, pr && v.andamios && v.andamios[pr.t] ? pr.t : a.obrero, v.tw, IR); a.enFabrica = 1; return;
+      }
+      delete a.obrero;
+    }
     if (a.k) { ir(a, centro(m, a.h), v.tw, VOLVER); return; }
     let t = -1;
     if (a.o === LENADOR && c.madera < (60 + 20 * c.era) * prio(c, 'madera') * 1.5) {
@@ -3809,6 +3909,11 @@
     }
     else if (a.o === CONSTRUCTOR) {
       a.obraCamino = 0; a.edificio = 0;
+      // Antes que nada, un edificio privado ya pagado que nadie ha empezado: uno va a poner el andamio (luego los demás
+      // ayudan, como en cualquier obra a medias). Si no, en un reino grande siempre hay alguna obra a medias cerca y la
+      // fábrica de un capitalista se quedaba esperando para siempre.
+      const privadaSinEmpezar = pausada(m) && ((c.plan && c.plan.encargos) || []).find(e => e.privado != null && !rec.reservadas.has(e.t) && !(v.andamios && v.andamios[e.t]) && !v.obra[e.t] && !puedeColocar(m, c, e.t, e.clave, true));
+      if (privadaSinEmpezar) { a.edificio = privadaSinEmpezar.o; ir(a, privadaSinEmpezar.t, v.tw, IR); rec.reservadas.add(privadaSinEmpezar.t); return; }
       // Lo primero, las obras a medias del pueblo: se va a ayudar a la más cercana.
       if (pausada(m) && v.andamios) {
         let mejor = -1, md = 40;

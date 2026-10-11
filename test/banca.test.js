@@ -308,6 +308,34 @@ console.log('LA COMPAÑÍA DE FERROCARRIL Y LA FUNDICIÓN QUE HACE TANQUES Y AVI
   comprobar(r.vehiculos <= 2 + 8 - 5 + 1, 'solo hace las que su reino necesita, sin amontonarlas (' + Math.round(r.vehiculos) + ')');
 }
 
+console.log('LA INMOBILIARIA: CONSTRUYE LO QUE EL PUEBLO NECESITA Y CASAS DE ALQUILER');
+{
+  const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(g);
+  const r = S.vivas(g).sort((p, q) => q.aldeanos - p.aldeanos)[0], w = g.vida, O = V.OBRA; X.gobernar(g, r.id);
+  r.era = 7; r.oro = 400; r.madera = r.piedra = 200; r.paradas = {};
+  const gente = w.aldeanos.filter(a => a.c === r.id && a.edad >= V.ADULTO && a.edad < V.VIEJO - 4 && !a.emp && !a.merc && a.obrero == null && a.o !== 5);
+  for (const a of gente) a.dinero = 8;
+  const zona = [r.capital, ...S.vecinos(r.capital)].flatMap(q => V.parcelas(g, q)).filter(t => !w.obra[t]);
+  const ti = zona[zona.length - 1], dueno = gente[0];
+  V.cambiar(g, 'obra', ti, O.inmopriv, 0); (w.privados = w.privados || {})[ti] = { dueno: dueno.id, civ: r.id, tipo: 'fabrica', ind: 'inmobiliaria' };
+  dueno.emp = { neg: 'fabrica', ind: 'inmobiliaria', t: ti, caja: 30, deuda: 0, monto: 0, cuota: 0, desde: g.turno, atraso: 0, propio: true };
+  for (const a of gente.slice(1, 4)) a.obrero = ti;
+  // La capital pide un pozo y el tesoro puede pagarlo.
+  let entregado = null;
+  for (let k = 0; k < 40 && !entregado; k++) {
+    g.turno++; r.era = 7; r.paradas = {}; r.necesidades = [{ obra: 'pozo', falta: true, region: r.capital }];
+    V.banca(g, r);
+    const t = Object.keys(w.sede || {}).find(t => w.obra[t] === O.pozo && w.sede[t] === r.capital); if (t && (dueno.emp.publicas || 0) > 0) entregado = +t;
+  }
+  const aviso = (w.anuncios || []).map(x => x.texto).find(x => /entrega un pozo al reino \(cobra \d+/.test(x));
+  comprobar(entregado != null && aviso, 'levanta el pozo que pide la capital, se lo cobra al tesoro y cuenta como de esa ciudad («' + (aviso || '').slice(2) + '»)');
+  // Luego, casas donde faltan camas: la gente le paga alquiler.
+  r.necesidades = []; let casa = false;
+  for (let k = 0; k < 40; k++) { g.turno++; r.era = 7; r.paradas = {}; r.necesidades = []; r.sinCama = 4; V.banca(g, r); if ((dueno.emp.alquileres || 0) > 0) { casa = true; break; } }
+  comprobar(casa && (dueno.emp.hechas || 0) >= 1 && Object.values(w.alquiler || {}).includes(ti), 'y donde faltan camas levanta casas suyas, por las que la gente le paga alquiler (' + (dueno.emp.hechas || 0) + ' casas, ' + (dueno.emp.alquileres || 0).toFixed(2) + ' cobrado)');
+  comprobar(V.INDUSTRIAS.inmobiliaria && V.OBRA.inmopriv && V.ERA_OBRA[V.OBRA.inmopriv] === 7, 'la inmobiliaria llega con la Era Moderna, con su oficina');
+}
+
 console.log('EL SUELDO DE LA GENTE, EL AHORRO Y QUIÉN PUEDE SER CAPITALISTA');
 {
   // Dos copias del mismo reino en la Edad Media: una con impuestos normales y otra con impuestos altos.

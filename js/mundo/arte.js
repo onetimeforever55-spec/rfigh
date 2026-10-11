@@ -414,6 +414,7 @@
       if (nombre === 'fab_fundicion') return fabFundicion(H, fase, col);
       if (nombre === 'fab_conservera') return fabConservera(H, fase, col);
       if (nombre === 'fab_ferrocarril') return estacionPrivada(H, fase, col);
+      if (nombre === 'inmopriv') return inmobiliaria(H, fase, col);
       if (nombre === 'gremio') return gremio(H, fase, col);
       if (nombre === 'bancopriv') return bancoPrivado(H, fase, col);
       if (nombre === 'muelle') return muelle(H, fase, col);
@@ -850,6 +851,18 @@
     else { H.r(11, 9, 5, 4, '#2a2a30'); H.r(12, 6, 1, 3, '#2a2a30'); H.p(12, 5, '#c8c8c8'); H.p(11, 4, '#e0e0e0'); H.r(14, 8, 2, 1, '#2a2a30'); H.p(11, 11, col); }
     for (const x of [11, 14]) H.p(x, 13, '#d83a32');
     for (let x = 0; x < 16; x += 2) H.r(x, 14, 1, 2, '#7a5530'); H.r(0, 14, 16, 1, '#8a8e96');
+    H.contorno(); return H.lienzo();
+  }
+  // La oficina de una inmobiliaria: un bloque moderno de cristal con el letrero de la empresa en su color, la puerta
+  // giratoria y, al lado, la grúa amarilla de obra con su gancho y un montón de ladrillos.
+  function inmobiliaria(H, fase, col) {
+    const muro = '#c8ccd4', som = oscuro(muro, 0.2);
+    H.r(1, 3, 9, 12, muro); H.r(9, 3, 1, 12, som); H.r(1, 3, 9, 1, '#8a8e96');
+    for (let y = 5; y < 12; y += 2) for (let x = 2; x < 9; x += 2) H.r(x, y, 1, 1, CRISTAL);
+    H.r(2, 1, 7, 2, col); H.p(3, 1, '#f4f0e0'); H.p(5, 1, '#f4f0e0'); H.p(7, 1, '#f4f0e0');
+    H.r(4, 12, 3, 3, '#3a3e48'); H.p(5, 12, '#8ab8d8');
+    H.r(12, 1, 1, 14, '#e0b020'); H.r(10, 1, 6, 1, '#e0b020'); H.p(12, 0, '#c89010'); H.r(15, 2, 1, 3, '#5a5a5a'); H.p(15, 5, '#3a3a3a');
+    for (const [x, y] of [[13, 13], [14, 13], [13, 14], [14, 14], [15, 14]]) H.p(x, y, '#b85a3a');
     H.contorno(); return H.lienzo();
   }
   // El hospital: edificio blanco de varias plantas con la cruz roja, ventanas y una ambulancia (o un carro) en la puerta.

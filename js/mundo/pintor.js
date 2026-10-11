@@ -154,6 +154,7 @@
       else if (obra === V.OBRA.castillo) gl.drawImage(ARTE().edificio('castillo', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.mina) gl.drawImage(ARTE().edificio('mina', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.minapriv) gl.drawImage(ARTE().edificio('minapriv', color, V.fase(eraT)), x, y);
+      else if (obra === V.OBRA.inmopriv) gl.drawImage(ARTE().edificio('inmopriv', color, V.fase(eraT)), x, y);
       else if (obra === V.OBRA.gremio) gl.drawImage(ARTE().edificio('gremio', color, V.etapa(obra, eraT)), x, y);
       else if (obra === V.OBRA.bancopriv) gl.drawImage(ARTE().edificio('bancopriv', color, V.etapa(obra, eraT)), x, y);
       else if (obra === V.OBRA.muelle) gl.drawImage(ARTE().edificio('muelle', color, V.etapa(obra, eraT)), x, y);
