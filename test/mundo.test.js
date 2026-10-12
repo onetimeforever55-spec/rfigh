@@ -480,8 +480,8 @@ console.log('FUEGO, AGUA Y MARCAS');
   comprobar(V2.prender(m, t0, 0, 4) && v.fuego[t0] > 0, 'el fuego prende en un árbol');
   const arboles0 = v.arbol.filter(x => x >= 1).length;
   for (let i = 0; i < 4 && v.fuego[t0]; i++) S.turno(m);
-  comprobar(!v.fuego[t0] && (v.arbol[t0] === 0 || (v.marcas[t0] && v.marcas[t0][0] === V2.MARCA.ceniza)), 'el fuego se consume (o lo apagan) y deja el árbol quemado o ceniza');
-  comprobar(Object.values(v.marcas || {}).some(x => x[0] === V2.MARCA.ceniza), 'y ceniza en el suelo');
+  comprobar(!v.fuego[t0] && (v.arbol[t0] === 0 || (v.marcas[t0] && (v.marcas[t0][0] === V2.MARCA.ceniza || v.marcas[t0][0] === V2.MARCA.tronco))), 'el fuego se consume (o lo apagan) y deja el árbol quemado o ceniza');
+  comprobar(Object.values(v.marcas || {}).some(x => x[0] === V2.MARCA.ceniza || x[0] === V2.MARCA.tronco), 'y ceniza en el suelo (o el tronco quemado, con su ceniza alrededor)');
   const n = V2.inundar(m, c, 3);
   comprobar(n > 0 && Object.keys(v.inundado).length >= n, 'el diluvio inunda tierras bajas junto al agua');
   for (let i = 0; i < 4; i++) S.turno(m);
@@ -1065,8 +1065,9 @@ console.log('MODO TROPAS Y MUNDOS DE 10 REINOS');
   const sold = m.vida.aldeanos.filter(a => a.c === yo.id && a.o === 4), ene = S.vecinosDe(m, yo)[0], t = V.centro(m, ene.capital), tw = m.vida.tw;
   const r = X.ordenar(m, yo.id, '#tropas ' + sold.map(a => a.id).join(',') + ' ' + t);
   const lejos = () => { const d = sold.filter(a => m.vida.aldeanos.includes(a)).map(a => Math.abs(a.x - t % tw) + Math.abs(a.y - (t / tw | 0))); return d.length ? d.reduce((p, q) => p + q, 0) / d.length : 0; };
-  const d0 = lejos(); for (let k = 0; k < 10; k++) S.turno(m);
-  comprobar(sold.length >= 3 && S.enGuerra(yo, ene) && /atacar/.test(r.respuesta) && lejos() < d0 * 0.6, 'en el modo tropas, los soldados elegidos van al sitio tocado y, si es de otro reino, le declaran la guerra y atacan (' + Math.round(d0) + ' → ' + Math.round(lejos()) + ' casillas)');
+  // (Lo que cuenta es que lleguen: luego pueden retirarse si la batalla va mal.)
+  const d0 = lejos(); let dMin = d0; for (let k = 0; k < 10; k++) { S.turno(m); const d = lejos(); if (d > 0) dMin = Math.min(dMin, d); }
+  comprobar(sold.length >= 3 && S.enGuerra(yo, ene) && /atacar/.test(r.respuesta) && dMin < d0 * 0.6, 'en el modo tropas, los soldados elegidos van al sitio tocado y, si es de otro reino, le declaran la guerra y atacan (' + Math.round(d0) + ' → ' + Math.round(dMin) + ' casillas)');
   X.ordenar(m, yo.id, '#tropas-libres ' + sold.map(a => a.id).join(','));
   comprobar(sold.filter(a => m.vida.aldeanos.includes(a)).every(a => !(a.fijo && a.fijo.rts)), 'y «Automático» los devuelve al ejército');
 }

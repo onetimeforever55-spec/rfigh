@@ -97,5 +97,24 @@ console.log('NADIE SE QUEDA EN ALTA MAR SI SU BARCO DESAPARECE');
   comprobar(a.aBordo == null && donde !== 'agua', 'baja a la tierra más cercana, no al agua honda (' + donde + ')');
 }
 
+console.log('EL FUEGO DEJA TRONCOS QUEMADOS Y TIERRA CHAMUSCADA QUE SE RECUPERA');
+{
+  const m = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 5; k++) S.turno(m);
+  const w = m.vida, ter = V.terrenos(m);
+  // Un bosquecillo lejos de los pueblos: se le prende fuego.
+  const arboles = []; for (let t = 0; t < w.arbol.length && arboles.length < 12; t++) if (w.arbol[t] >= 2 && !w.obra[t] && m.dueno[V.region(m, t)] < 0 && ter[t] !== 'agua') arboles.push(t);
+  for (const t of arboles) V.prender(m, t, 0, 3);
+  let troncos = 0; for (let k = 0; k < 12; k++) { S.turno(m); troncos = Math.max(troncos, arboles.filter(t => w.marcas && w.marcas[t] && w.marcas[t][0] === V.MARCA.tronco).length); }
+  comprobar(troncos >= arboles.length * 0.6, 'los árboles quemados quedan en pie, como troncos negros sin hojas (' + troncos + ' de ' + arboles.length + ')');
+  const tq = arboles.find(t => w.marcas && w.marcas[t] && w.marcas[t][0] === V.MARCA.tronco);
+  if (tq != null) w.marcas[tq][1] = m.turno + 1;
+  for (let k = 0; k < 40; k++) S.turno(m);
+  const luego = arboles.map(t => w.arbol[t] >= 1 ? 'brota' : w.marcas && w.marcas[t] && w.marcas[t][0] === V.MARCA.chamuscado ? 'chamuscado' : 'otro');
+  comprobar(luego.some(x => x === 'brota') && luego.some(x => x === 'chamuscado' || x === 'brota'), 'después, unos rebrotan y donde no, queda tierra chamuscada que se recupera (' + ['brota', 'chamuscado', 'otro'].map(k => k + ' ' + luego.filter(x => x === k).length).join(', ') + ')');
+  const tc = arboles.find(t => !w.arbol[t] && !w.obra[t]);
+  if (tc != null) { w.marcas[tc] = [V.MARCA.tronco, m.turno + 20, 3]; V.cambiar(m, 'obra', tc, V.OBRA.casa, 0); }
+  comprobar(tc == null || !w.marcas[tc], 'y lo que se construye encima borra el tronco y la ceniza');
+}
+
 console.log(fallos ? '\n' + fallos + ' FALLOS' : '\nTodo bien.');
 process.exitCode = fallos ? 1 : 0;

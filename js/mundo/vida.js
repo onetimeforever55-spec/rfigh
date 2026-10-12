@@ -407,6 +407,8 @@
     if (v[capa][t] === valor) return;
     v.cambios.push([capa === 'arbol' ? 0 : capa === 'roca' ? 1 : capa === 'obra' ? 2 : capa === 'cultivo' ? 4 : 5, t, v[capa][t], valor, paso]);
     v[capa][t] = valor;
+    // (Lo que se construye o se planta encima borra la ceniza, el tronco quemado y la tierra chamuscada.)
+    if (valor && (capa === 'obra' || capa === 'arbol') && v.marcas && v.marcas[t] && SUELO_QUEMADO.has(v.marcas[t][0])) delete v.marcas[t];
     if (capa === 'obra' && pausada(m)) registrar(m, t, valor);
   }
   /*
@@ -3163,13 +3165,16 @@
    * deja ceniza, tocones y ruinas. La gente de la aldea lo apaga; el agua y las inundaciones lo paran.
    * Las bombas dejan cráteres; las batallas, sangre; los derrumbes, escombros. Todo se va borrando con el tiempo.
    */
-  const MARCA = { ceniza: 1, crater: 2, sangre: 3, escombros: 4 };
+  // (El árbol quemado queda en pie: tronco negro sin ramas sobre la ceniza; al cabo de un tiempo rebrota o cae. Y la
+  // tierra quemada no vuelve a ser hierba de golpe: queda chamuscada y la hierba sale poco a poco.)
+  const MARCA = { ceniza: 1, crater: 2, sangre: 3, escombros: 4, tronco: 5, chamuscado: 6 };
+  const SUELO_QUEMADO = new Set([1, 5, 6]);
   const ardible = (v, t) => v.arbol[t] >= 1 || (v.obra[t] && v.obra[t] !== OBRA.ruina && v.obra[t] !== OBRA.puerto);
-  function marcar(m, t, tipo, turnos, paso) {
+  function marcar(m, t, tipo, turnos, paso, dato) {
     const v = m.vida, mk = v.marcas = v.marcas || {};
     const ya = mk[t];
     if (ya && ya[0] === MARCA.crater && tipo !== 'crater') return;
-    mk[t] = [MARCA[tipo], m.turno + turnos];
+    mk[t] = dato != null ? [MARCA[tipo], m.turno + turnos, dato] : [MARCA[tipo], m.turno + turnos];
     // El paso del turno en que aparece (la vista la enseña en ese momento).
     if (paso) (v.marcasPaso = v.marcasPaso || {})[t] = paso;
   }
@@ -3189,8 +3194,8 @@
   }
   // Lo que deja el fuego al consumirse.
   function quemado(m, t, paso) {
-    const v = m.vida;
-    if (v.arbol[t] >= 1) cambiar(m, 'arbol', t, 0, paso);
+    const v = m.vida, tam = v.arbol[t] || 0;
+    if (tam >= 1) cambiar(m, 'arbol', t, 0, paso);
     const o = v.obra[t];
     if (o === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
     else if (o && o !== OBRA.ruina) {
@@ -3198,7 +3203,8 @@
       if (v.torres && v.torres[t] != null) delete v.torres[t];
       marcar(m, t, 'escombros', 10, paso);
     }
-    marcar(m, t, 'ceniza', 8, paso);
+    // Donde había un árbol queda su tronco quemado (con su ceniza alrededor); si no, solo la ceniza.
+    if (tam >= 1 && !(o && o !== OBRA.campo)) marcar(m, t, 'tronco', 30, paso, tam); else marcar(m, t, 'ceniza', 8, paso);
   }
   // Un paso del fuego: arde, salta, quema a quien esté dentro, y la gente lo apaga.
   let pozosVistos = { m: null, turno: -1, set: null };
@@ -3275,7 +3281,19 @@
     v.llamas = {}; v.marcasPaso = {};
     for (const k of Object.keys(v.fuego || {})) v.llamas[k] = [0, TICKS + 1];
     for (const k of Object.keys(v.inundado || {})) if (--v.inundado[k] <= 0) delete v.inundado[k];
-    for (const k of Object.keys(v.marcas || {})) if (v.marcas[k][1] <= m.turno) delete v.marcas[k];
+    // Las marcas se borran con el tiempo. La ceniza y el tronco quemado dejan tierra chamuscada (y la hierba vuelve
+    // poco a poco); el tronco, cuatro de cada diez veces, rebrota en un arbolito. (Sin tirar dados: así no cambia nada más.)
+    const terM = terrenos(m);
+    for (const k of Object.keys(v.marcas || {})) {
+      const mk = v.marcas[k]; if (mk[1] > m.turno) continue;
+      const t = +k, tipo = mk[0];
+      delete v.marcas[k];
+      if (tipo !== MARCA.ceniza && tipo !== MARCA.tronco) continue;
+      if (v.obra[t] || v.arbol[t] || v.camino[t]) continue;
+      const rebrota = tipo === MARCA.tronco && (ARBOLES[terM[t]] || 0) > 0.05 && ((t * 2654435761 + m.turno * 40503) >>> 0) % 100 < 40;
+      if (rebrota) cambiar(m, 'arbol', t, 1, 0);
+      else v.marcas[k] = [MARCA.chamuscado, m.turno + 24];
+    }
     for (const c of S().vivas(m)) {
       if (!c.efectos.some(e => e.sequia) || azar(v) > 0.25) continue;
       const cs = S().casillas(m, c), r = cs[Math.floor(azar(v) * cs.length)];
@@ -3704,7 +3722,7 @@
     for (const [t, f] of casillas) {
       const golpe = fuerza * f * (0.6 + azar(v) * 0.8), o = v.obra[t];
       if (f === 1 || azar(v) < 0.4) marcar(m, t, 'crater', Math.max(3, Math.round(fuerza / 8 * f)), cae);
-      if (v.arbol[t] >= 1 && azar(v) < 0.5 * f + fuerza / 300) cambiar(m, 'arbol', t, 0, cae);
+      if (v.arbol[t] >= 1 && azar(v) < 0.5 * f + fuerza / 300) { cambiar(m, 'arbol', t, 0, cae); marcar(m, t, 'tronco', 16, cae, -1); }
       if (v.camino[t] && !o && azar(v) < fuerza * f / 160) cambiar(m, 'camino', t, 0, cae);
       if (v.trinchera && v.trinchera[t] && azar(v) < fuerza * f / 120) { v.trinchera[t]--; v.trincheraVer = (v.trincheraVer || 0) + 1; }
       if (o && o !== OBRA.ruina && o !== OBRA.centro) {
@@ -4876,7 +4894,11 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       if (!base) continue;
       const x = t % tw, y = t / tw | 0;
       const junto = (x > 0 && v.arbol[t - 1]) || (x < tw - 1 && v.arbol[t + 1]) || (y > 0 && v.arbol[t - tw]) || (y < v.th - 1 && v.arbol[t + tw]);
-      if (azar(v) < base * (junto ? 1 : 0.12)) cambiar(m, 'arbol', t, 1, F);
+      // (En la tierra recién quemada no brota nada hasta que la hierba ha vuelto a medias: si no, el bosque cerraba la
+      // quemadura en pocos turnos. La tirada se hace igual, para no cambiar el resto de la partida.)
+      const tira = azar(v), mq = v.marcas && v.marcas[t];
+      if (mq && (mq[0] === MARCA.ceniza || mq[0] === MARCA.tronco || (mq[0] === MARCA.chamuscado && mq[1] - m.turno > 12))) continue;
+      if (tira < base * (junto ? 1 : 0.12)) cambiar(m, 'arbol', t, 1, F);
     }
     // Un bosque sin árboles ya no es bosque (y deja de dar madera, aunque sí da campos): la selva talada
     // se queda en sabana, la taiga en tundra. Si se deja crecer, el bosque vuelve.

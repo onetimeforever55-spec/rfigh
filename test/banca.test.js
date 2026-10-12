@@ -70,7 +70,8 @@ console.log('BANQUEROS Y EMPRESARIOS');
 let fabrica = null, sinBanquero = false, bancos = 0;
 const eranGremio = new Set();
 const garantias = [];
-for (let k = 0; k < 320 && !(fabrica != null && V.banquerosDe(m, c).length); k++) {
+// (Hasta que haya banquero, fábrica y un primer préstamo: la fábrica puede montarla antes un rico con su dinero.)
+for (let k = 0; k < 320 && !(fabrica != null && V.banquerosDe(m, c).length && avisos.some(x => /El banco de .* presta \d+ de oro a/.test(x))); k++) {
   for (const t of V.gremiosDe(m, c)) eranGremio.add(t);
   const antes = new Map(v.aldeanos.filter(x => x.c === c.id && !x.emp).map(x => [x, x.dinero || 0]));
   sostener(); turno();
@@ -340,8 +341,9 @@ console.log('EL SUELDO DE LA GENTE, EL AHORRO Y QUIÉN PUEDE SER CAPITALISTA');
 {
   // Dos copias del mismo reino en la Edad Media: una con impuestos normales y otra con impuestos altos.
   const prep = imp => { const g = S.crear(7, 5, { ritmo: 3 }); for (let k = 0; k < 120; k++) S.turno(g); const r = S.vivas(g).sort((p, q) => q.aldeanos - p.aldeanos)[0]; X.gobernar(g, r.id); r.plan.impuesto = imp; return { g, r }; };
-  // (Se mide turno a turno, con quien sigue vivo: con la era forzada cada turno son muchos años y la gente envejece deprisa.)
-  const mide = ({ g, r }) => { let suma = 0, n = 0; for (let k = 0; k < 20; k++) { r.era = Math.max(r.era, 4); const gente = g.vida.aldeanos.filter(a => a.c === r.id && a.edad >= V.ADULTO && a.o !== 5 && !a.merc && !a.emp && a.obrero == null); const d0 = new Map(gente.map(a => [a, a.dinero || 0])); S.turno(g); for (const a of gente) if (g.vida.aldeanos.includes(a) && a.c === r.id) { suma += (a.dinero || 0) - d0.get(a); n++; } } return suma / Math.max(1, n) * 20; };
+  // (Se mide turno a turno, con quien sigue vivo: con la era forzada cada turno son muchos años y la gente envejece deprisa.
+  // Y solo el sueldo: se les deja sin dinero antes del turno, así no gastan y lo que se ve es lo que cobran.)
+  const mide = ({ g, r }) => { let suma = 0, n = 0; for (let k = 0; k < 20; k++) { r.era = Math.max(r.era, 4); const gente = g.vida.aldeanos.filter(a => a.c === r.id && a.edad >= V.ADULTO && a.o !== 5 && !a.merc && !a.emp && a.obrero == null); for (const a of gente) a.dinero = 0; const d0 = new Map(gente.map(a => [a, 0])); S.turno(g); for (const a of gente) if (g.vida.aldeanos.includes(a) && a.c === r.id) { suma += (a.dinero || 0) - d0.get(a); n++; } } return suma / Math.max(1, n) * 20; };
   const normal = mide(prep(1)), altos = mide(prep(2));
   comprobar(normal > 0.5, 'desde la Edad Media, granjeros, leñadores, mineros, constructores, soldados y eruditos cobran un sueldo de lo que producen (' + normal.toFixed(2) + ' de oro cada uno en 20 turnos)');
   comprobar(altos < normal * 0.85, 'con impuestos altos, la gente cobra menos (' + altos.toFixed(2) + ' frente a ' + normal.toFixed(2) + ')');

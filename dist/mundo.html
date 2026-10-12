@@ -724,6 +724,7 @@ body.limpio .tropas-barra { display: none; }
           <details><summary>Capitales, independencias y exterminio</summary>
             <p>Si cae tu capital y te queda otra ciudad, la corte huye allí, saqueada y revuelta; si no te queda ninguna, el reino cae. Las regiones que se independizan conservan la técnica de su reino. «Exterminad a la gente de Nombre» ordena a tus soldados matar también a sus civiles: todo el mundo os odiará durante mucho tiempo. «Parad el exterminio» lo cancela. Saqueos, independencias y caídas salen en grande arriba: tócalo y verás dónde pasa. Si una ciudad tuya empieza a conspirar, te avisa con el motivo y lo que puedes hacer para calmarla.</p></details>
           <details><summary>Trincheras y uniformes</summary>
+            <p>El fuego deja huella: los árboles quemados quedan en pie, negros y sin hojas, sobre la ceniza; con el tiempo unos rebrotan y donde no, queda tierra chamuscada en la que la hierba vuelve poco a poco. Las bombas dejan cráteres, tocones astillados y una nube de polvo.</p>
             <p>En la Segunda Guerra Mundial los soldados cavan trincheras en la frontera con los reinos rivales: zanja con sacos terreros y, delante, alambre de espino. En guerra se meten dentro: cuesta más acertarles y reciben menos daño. Desde la Revolución Industrial cada ejército viste uniforme del color de su reino. Los cañones salen con el Renacimiento, y en la Segunda Guerra Mundial los soldados lanzan granadas, que caen dentro de las trincheras. Obuses, granadas y bombas hieren a todo el que pillan, agrietan y derriban edificios, revientan caminos y dejan cráteres. Cañones y granadas se fabrican («fabricad 30 granadas», «fabricad 5 cañones») y se compran y venden en el mercado.</p></details>
           <details><summary>Comercio y mercado</summary>
             <p>Los reinos en paz que se llevan bien abren rutas, y los comerciantes van en carreta de un sitio a otro. Hay un mercado global con precios que suben y bajan: cada reino se especializa en lo que le da más dinero. Para comerciar con un reino concreto, escribe «abrid una ruta comercial con Nombre»: se traza la carretera y tus constructores la empiedran. En la Era Moderna la carga va en camión o en tren si hay vía. Los barcos mercantes también compran y venden de puerto a puerto, y cargan mucho más. «Fabricad 20 fusiles» pone a la forja a hacer armas, «fabricad muebles» a la fábrica y «fabricad 5 tanques» al cuartel. Todo se puede vender y comprar: «vended tanques», «comprad carbón». Desde la Revolución Industrial, cada carretera que cruza una frontera tiene un puesto fronterizo que revisa las carretas y cobra arancel al comerciante extranjero. Por mar, los mercantes van de puerto a puerto: los puertos se levantan en la costa de mar abierto (no en lagos), y todos los mares abiertos son un mismo océano: un mercante puede ir a un puerto de otro mar por lejos que esté (sale por el borde del mapa, cruza en alta mar y entra por el otro lado). Los lagos no comunican. Tu reino solo compra y vende lo que mandes («comprad 20 de piedra», «vended madera»), y no abre rutas por su cuenta: te avisa cuando otro reino quiere comerciar. Si prefieres que comercie solo, di «comerciad libremente» («comerciad solo lo que yo diga» lo vuelve a dejar en tus manos). Se puede comprar a cualquier socio: por carretera, por tratado o por mar. Tu reino solo comercia con quien tú digas: «abrid una ruta comercial con X». Con tus socios, tus comerciantes compran y venden solos lo que os conviene (sin ofertas que aceptar); si prefieres controlarlo todo, «comerciad solo lo que yo diga» (y «comerciad libremente» para volver). Desde la Edad Media, cada casa comercial puede levantar un muelle con su propio barco mercante (uno por familia como mucho): comercia con tus socios, gana el flete y paga su parte al reino. «Cerrad el comercio con X» lo corta del todo: ni carretas, ni barcos, ni compras, y ellos tampoco pueden comerciar contigo. En guerra no hay comercio con el enemigo (con los demás, sí), y la guerra rompe el tratado: tras la paz hay que volver a abrir la ruta. Tus comerciantes y empresarios venden dentro del reino y, fuera, solo a los reinos con los que tú comercias: tú decides si tu industria beneficia a otro reino. Para comprar: abre la ruta con quien lo tenga y di «comprad 10 de hierro». El consejero te dice quién te lo puede vender y cómo llega (en carreta si hay carretera; en barco si los dos tenéis puerto en mar abierto, aunque sea otro mar). Lo encargado te lo venden aunque no les sobre, de su reserva y algo más caro, y solo lo que pediste; cuando llega, se avisa. Nadie le presta oro a tu reino si no lo pides («pedid un préstamo a X»). Si tomas un reino que ya estaba en marcha, no hereda sus tratados: te dice con quién comerciaba y decides tú.</p></details>
@@ -2673,6 +2674,8 @@ body.limpio .tropas-barra { display: none; }
     if (v[capa][t] === valor) return;
     v.cambios.push([capa === 'arbol' ? 0 : capa === 'roca' ? 1 : capa === 'obra' ? 2 : capa === 'cultivo' ? 4 : 5, t, v[capa][t], valor, paso]);
     v[capa][t] = valor;
+    // (Lo que se construye o se planta encima borra la ceniza, el tronco quemado y la tierra chamuscada.)
+    if (valor && (capa === 'obra' || capa === 'arbol') && v.marcas && v.marcas[t] && SUELO_QUEMADO.has(v.marcas[t][0])) delete v.marcas[t];
     if (capa === 'obra' && pausada(m)) registrar(m, t, valor);
   }
   /*
@@ -5429,13 +5432,16 @@ body.limpio .tropas-barra { display: none; }
    * deja ceniza, tocones y ruinas. La gente de la aldea lo apaga; el agua y las inundaciones lo paran.
    * Las bombas dejan cráteres; las batallas, sangre; los derrumbes, escombros. Todo se va borrando con el tiempo.
    */
-  const MARCA = { ceniza: 1, crater: 2, sangre: 3, escombros: 4 };
+  // (El árbol quemado queda en pie: tronco negro sin ramas sobre la ceniza; al cabo de un tiempo rebrota o cae. Y la
+  // tierra quemada no vuelve a ser hierba de golpe: queda chamuscada y la hierba sale poco a poco.)
+  const MARCA = { ceniza: 1, crater: 2, sangre: 3, escombros: 4, tronco: 5, chamuscado: 6 };
+  const SUELO_QUEMADO = new Set([1, 5, 6]);
   const ardible = (v, t) => v.arbol[t] >= 1 || (v.obra[t] && v.obra[t] !== OBRA.ruina && v.obra[t] !== OBRA.puerto);
-  function marcar(m, t, tipo, turnos, paso) {
+  function marcar(m, t, tipo, turnos, paso, dato) {
     const v = m.vida, mk = v.marcas = v.marcas || {};
     const ya = mk[t];
     if (ya && ya[0] === MARCA.crater && tipo !== 'crater') return;
-    mk[t] = [MARCA[tipo], m.turno + turnos];
+    mk[t] = dato != null ? [MARCA[tipo], m.turno + turnos, dato] : [MARCA[tipo], m.turno + turnos];
     // El paso del turno en que aparece (la vista la enseña en ese momento).
     if (paso) (v.marcasPaso = v.marcasPaso || {})[t] = paso;
   }
@@ -5455,8 +5461,8 @@ body.limpio .tropas-barra { display: none; }
   }
   // Lo que deja el fuego al consumirse.
   function quemado(m, t, paso) {
-    const v = m.vida;
-    if (v.arbol[t] >= 1) cambiar(m, 'arbol', t, 0, paso);
+    const v = m.vida, tam = v.arbol[t] || 0;
+    if (tam >= 1) cambiar(m, 'arbol', t, 0, paso);
     const o = v.obra[t];
     if (o === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
     else if (o && o !== OBRA.ruina) {
@@ -5464,7 +5470,8 @@ body.limpio .tropas-barra { display: none; }
       if (v.torres && v.torres[t] != null) delete v.torres[t];
       marcar(m, t, 'escombros', 10, paso);
     }
-    marcar(m, t, 'ceniza', 8, paso);
+    // Donde había un árbol queda su tronco quemado (con su ceniza alrededor); si no, solo la ceniza.
+    if (tam >= 1 && !(o && o !== OBRA.campo)) marcar(m, t, 'tronco', 30, paso, tam); else marcar(m, t, 'ceniza', 8, paso);
   }
   // Un paso del fuego: arde, salta, quema a quien esté dentro, y la gente lo apaga.
   let pozosVistos = { m: null, turno: -1, set: null };
@@ -5541,7 +5548,19 @@ body.limpio .tropas-barra { display: none; }
     v.llamas = {}; v.marcasPaso = {};
     for (const k of Object.keys(v.fuego || {})) v.llamas[k] = [0, TICKS + 1];
     for (const k of Object.keys(v.inundado || {})) if (--v.inundado[k] <= 0) delete v.inundado[k];
-    for (const k of Object.keys(v.marcas || {})) if (v.marcas[k][1] <= m.turno) delete v.marcas[k];
+    // Las marcas se borran con el tiempo. La ceniza y el tronco quemado dejan tierra chamuscada (y la hierba vuelve
+    // poco a poco); el tronco, cuatro de cada diez veces, rebrota en un arbolito. (Sin tirar dados: así no cambia nada más.)
+    const terM = terrenos(m);
+    for (const k of Object.keys(v.marcas || {})) {
+      const mk = v.marcas[k]; if (mk[1] > m.turno) continue;
+      const t = +k, tipo = mk[0];
+      delete v.marcas[k];
+      if (tipo !== MARCA.ceniza && tipo !== MARCA.tronco) continue;
+      if (v.obra[t] || v.arbol[t] || v.camino[t]) continue;
+      const rebrota = tipo === MARCA.tronco && (ARBOLES[terM[t]] || 0) > 0.05 && ((t * 2654435761 + m.turno * 40503) >>> 0) % 100 < 40;
+      if (rebrota) cambiar(m, 'arbol', t, 1, 0);
+      else v.marcas[k] = [MARCA.chamuscado, m.turno + 24];
+    }
     for (const c of S().vivas(m)) {
       if (!c.efectos.some(e => e.sequia) || azar(v) > 0.25) continue;
       const cs = S().casillas(m, c), r = cs[Math.floor(azar(v) * cs.length)];
@@ -5970,7 +5989,7 @@ body.limpio .tropas-barra { display: none; }
     for (const [t, f] of casillas) {
       const golpe = fuerza * f * (0.6 + azar(v) * 0.8), o = v.obra[t];
       if (f === 1 || azar(v) < 0.4) marcar(m, t, 'crater', Math.max(3, Math.round(fuerza / 8 * f)), cae);
-      if (v.arbol[t] >= 1 && azar(v) < 0.5 * f + fuerza / 300) cambiar(m, 'arbol', t, 0, cae);
+      if (v.arbol[t] >= 1 && azar(v) < 0.5 * f + fuerza / 300) { cambiar(m, 'arbol', t, 0, cae); marcar(m, t, 'tronco', 16, cae, -1); }
       if (v.camino[t] && !o && azar(v) < fuerza * f / 160) cambiar(m, 'camino', t, 0, cae);
       if (v.trinchera && v.trinchera[t] && azar(v) < fuerza * f / 120) { v.trinchera[t]--; v.trincheraVer = (v.trincheraVer || 0) + 1; }
       if (o && o !== OBRA.ruina && o !== OBRA.centro) {
@@ -7142,7 +7161,11 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       if (!base) continue;
       const x = t % tw, y = t / tw | 0;
       const junto = (x > 0 && v.arbol[t - 1]) || (x < tw - 1 && v.arbol[t + 1]) || (y > 0 && v.arbol[t - tw]) || (y < v.th - 1 && v.arbol[t + tw]);
-      if (azar(v) < base * (junto ? 1 : 0.12)) cambiar(m, 'arbol', t, 1, F);
+      // (En la tierra recién quemada no brota nada hasta que la hierba ha vuelto a medias: si no, el bosque cerraba la
+      // quemadura en pocos turnos. La tirada se hace igual, para no cambiar el resto de la partida.)
+      const tira = azar(v), mq = v.marcas && v.marcas[t];
+      if (mq && (mq[0] === MARCA.ceniza || mq[0] === MARCA.tronco || (mq[0] === MARCA.chamuscado && mq[1] - m.turno > 12))) continue;
+      if (tira < base * (junto ? 1 : 0.12)) cambiar(m, 'arbol', t, 1, F);
     }
     // Un bosque sin árboles ya no es bosque (y deja de dar madera, aunque sí da campos): la selva talada
     // se queda en sabana, la taiga en tundra. Si se deja crecer, el bosque vuelve.
@@ -12938,6 +12961,10 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
           emitir(bx, by, 16, { v: 50, g: 20, vida: 380, cols: ['#ffd84a', '#ff8a1e', '#ff4b1a', '#fff6c0'], tipo: 'chispa', tam: 1.6, tamAzar: 1 });
           emitir(bx, by, 14, { v: 55, g: 120, vida: 1400, cols: ['#4a3a2a', '#6a5a46', '#2a221a', '#7a746c'], tipo: 'solido', tam: 1.2, tamAzar: 1, dy: -40 });
           emitir(bx, by - 2, 10, { v: 16, g: -8, vida: 2600, cols: [HUMO_GRIS, 'rgba(40,36,34,A)'], tipo: 'humo', tam: 4, tamAzar: 1 });
+          // (Y el polvo que levanta en el suelo, que se abre en anillo, y una columna de humo que tarda en irse.)
+          emitir(bx, by + 3, 12, { v: 30, ang: 0, cono: Math.PI * 2, plano: 1, g: -2, vida: 1600, cols: [POLVO, 'rgba(150,130,104,A)'], tipo: 'humo', tam: 2.6, tamAzar: 1 });
+          emitir(bx, by - 6, 4, { v: 5, g: -14, vida: 4200, cols: ['rgba(46,42,40,A)', HUMO_GRIS], tipo: 'humo', tam: 5, tamAzar: 1 });
+          polvo(Math.round(by / P) * m.vida.tw + Math.round(bx / P), true);
         } else if (tipo === 1) {
           emitir(bx, by + 2, 5, { v: 22, g: 80, vida: 500, cols: ['#a89070', '#8a7458', '#c8b090'], tipo: 'solido', tam: 0.8, dy: -18 });
           emitir(bx, by + 1, 2, { v: 8, g: -4, vida: 700, cols: [POLVO], tipo: 'humo', tam: 2 });
@@ -12981,6 +13008,45 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
         g.fillStyle = 'rgba(120,14,14,0.75)';
         g.fillRect(x + 5 + h(1) * 5, y + 8 + h(2) * 4, 3, 2); g.fillRect(x + 4 + h(3) * 7, y + 7 + h(4) * 5, 1, 1); g.fillRect(x + 7 + h(5) * 5, y + 10 + h(6) * 3, 2, 1);
         g.fillStyle = 'rgba(80,6,6,0.8)'; g.fillRect(x + 6 + h(7) * 4, y + 9 + h(8) * 3, 1, 1);
+      } else if (tipo === 5) {
+        // El árbol quemado: ceniza alrededor y el tronco negro, sin hojas, con dos o tres ramas peladas (más alto cuanto
+        // más grande era el árbol). Recién apagado echa un hilo de humo y le quedan brasas. Si lo partió una
+        // explosión, solo queda el tocón astillado.
+        g.globalAlpha = Math.max(0.5, desv);
+        // (La ceniza tapa casi toda la parcela: suelo gris oscuro con motas, sin hierba ni flores.)
+        g.fillStyle = 'rgba(52,46,42,0.7)'; g.beginPath(); g.ellipse(x + 8, y + 10, 7.5, 5.5, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(30,26,24,0.6)';
+        for (let q = 0; q < 6; q++) g.fillRect(x + 1 + h(q) * 12, y + 5 + h(q + 9) * 9, 2 + h(q + 3) * 3, 2);
+        g.fillStyle = 'rgba(120,112,104,0.7)'; for (let q = 0; q < 5; q++) g.fillRect(x + 2 + h(q + 20) * 12, y + 6 + h(q + 30) * 8, 1, 1);
+        const tam = mk[key][2] || 2, cx = x + 7 + Math.round(h(60) * 2), base = y + 13;
+        if (tam < 0) {
+          g.fillStyle = '#2a221c'; g.fillRect(cx, base - 3, 3, 3);
+          g.fillStyle = '#3a2e24'; g.fillRect(cx, base - 4, 1, 1); g.fillRect(cx + 2, base - 5, 1, 2);
+          g.fillStyle = '#c8b08a'; g.fillRect(cx + 1, base - 3, 1, 1);
+        } else {
+          const alto = tam >= 3 ? 11 : tam === 2 ? 8 : 5;
+          g.fillStyle = '#1e1a18'; g.fillRect(cx, base - alto, 2, alto);
+          g.fillStyle = '#2e2622'; g.fillRect(cx + 1, base - alto + 1, 1, alto - 1);
+          // Las ramas peladas: tramos de un píxel hacia arriba y a los lados.
+          g.fillStyle = '#1e1a18';
+          const ramas = tam >= 3 ? 3 : tam === 2 ? 2 : 1;
+          for (let q = 0; q < ramas; q++) {
+            const yy = base - alto + 2 + q * 3, lado = (q + Math.round(h(70) * 2)) % 2 ? 1 : -1;
+            for (let p = 1; p <= 3; p++) g.fillRect(cx + (lado > 0 ? 1 + p : -p), yy - p + 1, 1, 1);
+          }
+          if (quedan > 14 && Math.floor(ahora / 250 + t) % 4 === 0) { g.fillStyle = '#ff7a2a'; g.fillRect(cx + (h(80) < 0.5 ? 0 : 1), base - 2 - Math.round(h(81) * (alto - 3)), 1, 1); }
+          if (quedan > 16 && Math.random() < 0.04) emitir(cx + 1, base - alto, 1, { v: 4, g: -10, vida: 1800, cols: ['rgba(60,56,54,A)', HUMO_GRIS], tipo: 'humo', tam: 1.6 });
+        }
+      } else if (tipo === 6) {
+        // Tierra chamuscada: una mancha parda que se va aclarando, con brotes verdes que salen poco a poco.
+        const cura = Math.max(0, Math.min(1, 1 - quedan / 24));
+        g.globalAlpha = 1;
+        g.fillStyle = 'rgba(78,60,44,' + (0.6 * (1 - cura * 0.75)).toFixed(2) + ')'; g.beginPath(); g.ellipse(x + 8, y + 9, 7.5, 6, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(60,46,34,' + (0.4 * (1 - cura)).toFixed(2) + ')';
+        for (let q = 0; q < 6; q++) g.fillRect(x + 1 + h(q) * 10, y + 2 + h(q + 9) * 10, 4 + h(q + 3) * 3, 3 + h(q + 5) * 2);
+        g.fillStyle = '#5a9a3a';
+        const brotes = Math.round(cura * 9);
+        for (let q = 0; q < brotes; q++) { const bx = x + 1 + Math.round(h(q + 40) * 13), by = y + 2 + Math.round(h(q + 50) * 12); g.fillRect(bx, by, 1, 1); if (q % 3 === 0) g.fillRect(bx, by - 1, 1, 1); }
       } else if (tipo === 4) {
         // Escombros: piedras, vigas y tejas por el suelo.
         for (let q = 0; q < 9; q++) { g.fillStyle = ['#7a746c', '#5a544c', '#6b4a2b', '#9a8a78', '#a04a3a'][q % 5]; g.fillRect(x + h(q) * 14, y + 4 + h(q + 11) * 11, 1 + (h(q + 22) < 0.4 ? 1 : 0), 1); }

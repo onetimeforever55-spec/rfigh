@@ -1868,6 +1868,10 @@
           emitir(bx, by, 16, { v: 50, g: 20, vida: 380, cols: ['#ffd84a', '#ff8a1e', '#ff4b1a', '#fff6c0'], tipo: 'chispa', tam: 1.6, tamAzar: 1 });
           emitir(bx, by, 14, { v: 55, g: 120, vida: 1400, cols: ['#4a3a2a', '#6a5a46', '#2a221a', '#7a746c'], tipo: 'solido', tam: 1.2, tamAzar: 1, dy: -40 });
           emitir(bx, by - 2, 10, { v: 16, g: -8, vida: 2600, cols: [HUMO_GRIS, 'rgba(40,36,34,A)'], tipo: 'humo', tam: 4, tamAzar: 1 });
+          // (Y el polvo que levanta en el suelo, que se abre en anillo, y una columna de humo que tarda en irse.)
+          emitir(bx, by + 3, 12, { v: 30, ang: 0, cono: Math.PI * 2, plano: 1, g: -2, vida: 1600, cols: [POLVO, 'rgba(150,130,104,A)'], tipo: 'humo', tam: 2.6, tamAzar: 1 });
+          emitir(bx, by - 6, 4, { v: 5, g: -14, vida: 4200, cols: ['rgba(46,42,40,A)', HUMO_GRIS], tipo: 'humo', tam: 5, tamAzar: 1 });
+          polvo(Math.round(by / P) * m.vida.tw + Math.round(bx / P), true);
         } else if (tipo === 1) {
           emitir(bx, by + 2, 5, { v: 22, g: 80, vida: 500, cols: ['#a89070', '#8a7458', '#c8b090'], tipo: 'solido', tam: 0.8, dy: -18 });
           emitir(bx, by + 1, 2, { v: 8, g: -4, vida: 700, cols: [POLVO], tipo: 'humo', tam: 2 });
@@ -1911,6 +1915,45 @@
         g.fillStyle = 'rgba(120,14,14,0.75)';
         g.fillRect(x + 5 + h(1) * 5, y + 8 + h(2) * 4, 3, 2); g.fillRect(x + 4 + h(3) * 7, y + 7 + h(4) * 5, 1, 1); g.fillRect(x + 7 + h(5) * 5, y + 10 + h(6) * 3, 2, 1);
         g.fillStyle = 'rgba(80,6,6,0.8)'; g.fillRect(x + 6 + h(7) * 4, y + 9 + h(8) * 3, 1, 1);
+      } else if (tipo === 5) {
+        // El árbol quemado: ceniza alrededor y el tronco negro, sin hojas, con dos o tres ramas peladas (más alto cuanto
+        // más grande era el árbol). Recién apagado echa un hilo de humo y le quedan brasas. Si lo partió una
+        // explosión, solo queda el tocón astillado.
+        g.globalAlpha = Math.max(0.5, desv);
+        // (La ceniza tapa casi toda la parcela: suelo gris oscuro con motas, sin hierba ni flores.)
+        g.fillStyle = 'rgba(52,46,42,0.7)'; g.beginPath(); g.ellipse(x + 8, y + 10, 7.5, 5.5, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(30,26,24,0.6)';
+        for (let q = 0; q < 6; q++) g.fillRect(x + 1 + h(q) * 12, y + 5 + h(q + 9) * 9, 2 + h(q + 3) * 3, 2);
+        g.fillStyle = 'rgba(120,112,104,0.7)'; for (let q = 0; q < 5; q++) g.fillRect(x + 2 + h(q + 20) * 12, y + 6 + h(q + 30) * 8, 1, 1);
+        const tam = mk[key][2] || 2, cx = x + 7 + Math.round(h(60) * 2), base = y + 13;
+        if (tam < 0) {
+          g.fillStyle = '#2a221c'; g.fillRect(cx, base - 3, 3, 3);
+          g.fillStyle = '#3a2e24'; g.fillRect(cx, base - 4, 1, 1); g.fillRect(cx + 2, base - 5, 1, 2);
+          g.fillStyle = '#c8b08a'; g.fillRect(cx + 1, base - 3, 1, 1);
+        } else {
+          const alto = tam >= 3 ? 11 : tam === 2 ? 8 : 5;
+          g.fillStyle = '#1e1a18'; g.fillRect(cx, base - alto, 2, alto);
+          g.fillStyle = '#2e2622'; g.fillRect(cx + 1, base - alto + 1, 1, alto - 1);
+          // Las ramas peladas: tramos de un píxel hacia arriba y a los lados.
+          g.fillStyle = '#1e1a18';
+          const ramas = tam >= 3 ? 3 : tam === 2 ? 2 : 1;
+          for (let q = 0; q < ramas; q++) {
+            const yy = base - alto + 2 + q * 3, lado = (q + Math.round(h(70) * 2)) % 2 ? 1 : -1;
+            for (let p = 1; p <= 3; p++) g.fillRect(cx + (lado > 0 ? 1 + p : -p), yy - p + 1, 1, 1);
+          }
+          if (quedan > 14 && Math.floor(ahora / 250 + t) % 4 === 0) { g.fillStyle = '#ff7a2a'; g.fillRect(cx + (h(80) < 0.5 ? 0 : 1), base - 2 - Math.round(h(81) * (alto - 3)), 1, 1); }
+          if (quedan > 16 && Math.random() < 0.04) emitir(cx + 1, base - alto, 1, { v: 4, g: -10, vida: 1800, cols: ['rgba(60,56,54,A)', HUMO_GRIS], tipo: 'humo', tam: 1.6 });
+        }
+      } else if (tipo === 6) {
+        // Tierra chamuscada: una mancha parda que se va aclarando, con brotes verdes que salen poco a poco.
+        const cura = Math.max(0, Math.min(1, 1 - quedan / 24));
+        g.globalAlpha = 1;
+        g.fillStyle = 'rgba(78,60,44,' + (0.6 * (1 - cura * 0.75)).toFixed(2) + ')'; g.beginPath(); g.ellipse(x + 8, y + 9, 7.5, 6, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(60,46,34,' + (0.4 * (1 - cura)).toFixed(2) + ')';
+        for (let q = 0; q < 6; q++) g.fillRect(x + 1 + h(q) * 10, y + 2 + h(q + 9) * 10, 4 + h(q + 3) * 3, 3 + h(q + 5) * 2);
+        g.fillStyle = '#5a9a3a';
+        const brotes = Math.round(cura * 9);
+        for (let q = 0; q < brotes; q++) { const bx = x + 1 + Math.round(h(q + 40) * 13), by = y + 2 + Math.round(h(q + 50) * 12); g.fillRect(bx, by, 1, 1); if (q % 3 === 0) g.fillRect(bx, by - 1, 1, 1); }
       } else if (tipo === 4) {
         // Escombros: piedras, vigas y tejas por el suelo.
         for (let q = 0; q < 9; q++) { g.fillStyle = ['#7a746c', '#5a544c', '#6b4a2b', '#9a8a78', '#a04a3a'][q % 5]; g.fillRect(x + h(q) * 14, y + 4 + h(q + 11) * 11, 1 + (h(q + 22) < 0.4 ? 1 : 0), 1); }
