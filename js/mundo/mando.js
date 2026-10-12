@@ -795,6 +795,21 @@
     // altos, obreros contentos y patrones que ganan menos. (Subirlos en plena huelga la termina, abajo.)
     // Comprar o encargar a las empresas del país (la compañía minera, la fundición, el aserradero, la conservera): lo
     // fabrican o lo sacan, se lo venden al reino y el tesoro paga al recibirlo.
+    // Las defensas de frontera: el reino levanta torres a lo largo de la raya con los vecinos (también en paz).
+    if (a.tipo === 'fortificar') {
+      const V = M.vida, v = m.vida, p = (c.plan = c.plan || {});
+      if (a.parar) { p.fortificar = false; textos.push('Ya no se levantan más torres en la frontera salvo frente a quien esté en guerra o mal avenido con vosotros. Las que hay siguen en pie.'); return; }
+      if (c.era < 1) { textos.push('Aún no sabéis levantar torres: llegan con la Edad del Bronce.'); return; }
+      const vecinos = S().vecinosDe(m, c).filter(o => o && o.viva);
+      if (!vecinos.length) { textos.push('No tenéis frontera por tierra con ningún reino: no hay raya que fortificar (para la costa, «construid un puerto» y barcos de guerra).'); return; }
+      p.fortificar = true;
+      const regiones = new Set(vecinos.flatMap(o => S().frontera(m, o, c)));
+      let hay = 0; for (const r of regiones) for (const t of V.parcelas(m, r)) if (v.obra[t] === V.OBRA.torre) hay++;
+      const tope = Math.min(regiones.size, 1 + Math.floor(c.era / 2) + 3), f = V.fase(c.era);
+      const tipo = ['empalizadas de troncos', 'torres de piedra', 'torres artilladas', 'búnkeres de hormigón con ametralladora'][f];
+      textos.push('Fortificáis la frontera con ' + vecinos.map(o => o.nombre).join(', ') + ': los constructores levantarán ' + tipo + ' a lo largo de la raya, separadas entre sí y mejor junto a los caminos que entran (hasta ' + tope + '; ya hay ' + hay + '). Cada una cuesta 6 de madera, 4 de piedra y 4 de oro (tenéis ' + Math.floor(c.madera || 0) + ', ' + Math.floor(c.piedra || 0) + ' y ' + Math.floor(c.oro || 0) + '). Disparan a los soldados enemigos que se acercan y el enemigo tiene que derribarlas. «Dejad de fortificar la frontera» lo para.');
+      return;
+    }
     if (a.tipo === 'empresas') {
       const V = M.vida, I = V.INDUSTRIAS, emp = V.empresariosDe(m, c).filter(x => x.emp.neg === 'fabrica' && x.emp.ind);
       const quien = ind => emp.filter(x => x.emp.ind === ind);
@@ -970,7 +985,7 @@
     if (debo.length) l.push('Debéis: ' + debo.map(cr => (S().civ(m, cr.de) || {}).nombre + ' ' + Math.round(cr.resta)).join(', ') + '.');
     return l.join(' ');
   }
-  const TIPOS_EXTRA = ['empresas', 'ministro', 'consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
+  const TIPOS_EXTRA = ['fortificar', 'empresas', 'ministro', 'consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
   /*
@@ -1051,6 +1066,9 @@
     if (!c || !c.viva || !n) return acciones;
     // Aquí no hay milagros: eres quien manda en un pueblo, no un dios.
     if (/\b(peste|plaga|diluvio|terremoto|llueva|lluvia de|milagro|rayos?|meteorito|que mueran|maldic\w*|bendic\w*|que aparezca)\b/.test(n)) return [{ tipo: 'milagro' }];
+    // «Fortificad la frontera», «poned torres en la frontera», «búnkeres en la raya»: torres a lo largo de la frontera.
+    if (/\b(fronteras?|raya|limites?|lindes?)\b/.test(n) && /\b(defens\w*|defend\w*|fortific\w*|torres?|atalayas?|bunker\w*|fortin\w*|fuertes?|murallas?|muros?|proteg\w*|blind\w*|vigil\w*)\b/.test(n) && !/\b(patrull\w*|soldados|guerreros|escuadron\w*|aduanas?|puestos?)\b/.test(n))
+      return [{ tipo: 'fortificar', parar: /\b(dejad|deja|basta|no hagais|no construyais|parad)\b/.test(n) }];
     // Comprar o encargar a las empresas del país: «comprad 10 de hierro a mis empresas», «encargad a la fundición 3 tanques».
     // (Antes que nada: «fundición» se tomaba por «fundar» una aldea y «empresas» por comprar a otro reino.)
     {
@@ -1519,6 +1537,7 @@
         if (a.tipo === 'vehiculos') x.cual = ['tanque', 'artilleria', 'aviones'].includes(a.cual) ? a.cual : 'artilleria';
         if (a.tipo === 'impuestos') x.sube = a.sube !== false;
         if (a.tipo === 'salario') x.sube = a.sube !== false;
+        if (a.tipo === 'fortificar' && a.parar) x.parar = true;
         if (a.tipo === 'empresas') { const ok = ['tanque', 'avion', 'canon', 'artilleria', 'metal', 'armas', 'muebles', 'comida', 'piedra', 'carbon']; x.que = ok.includes(a.que) ? a.que : 'metal'; x.maq = ['tanque', 'avion', 'canon', 'artilleria'].includes(x.que); x.n = Number(a.n) > 0 ? Math.min(200, Math.round(Number(a.n))) : null; }
         if (a.tipo === 'ministro') { x.que = ['nombrar', 'modo', 'despedir', 'consulta'].includes(a.que) ? a.que : 'consulta'; if (['equilibrio', 'crecimiento', 'guerra', 'ahorro'].includes(a.modo)) x.modo = a.modo; }
         if (a.tipo === 'fiesta' && a.descanso) x.descanso = true;

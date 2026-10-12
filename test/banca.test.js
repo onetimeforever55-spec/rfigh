@@ -31,21 +31,22 @@ console.log('LOS GREMIOS (Edad Media)');
     r.plan.comercioLibre = true; // (con socios: sin comercio exterior, los mercaderes ganan menos y tardan en hacerse ricos)
     for (const o of S.vivas(g)) if (o !== r && !S.enGuerra(r, o)) X.ordenar(g, r.id, 'abrid una ruta comercial con ' + o.nombre);
     X.ordenar(g, r.id, 'quiero 4 comerciantes');
-    const av = []; let gremio = null, casona = null, conSueldo = false;
+    const av = []; let gremio = null, casona = null, conSueldo = false, nombreGremio = '';
     for (let k = 0; k < 220 && !(gremio != null && casona != null && conSueldo); k++) {
       r.era = Math.max(r.era, 4); r.oro = Math.max(r.oro, 100); r.madera = Math.max(r.madera, 100); r.piedra = Math.max(r.piedra, 100);
       const n0 = (w.anuncios || []).length; S.turno(g);
       av.push(...(w.anuncios || []).slice(n0).filter(x => x.civ === r.id).map(x => x.texto));
-      for (const t of Object.keys(w.privados || {})) { if (w.obra[t] === V.OBRA.gremio && gremio == null) gremio = +t; if (w.obra[t] === V.OBRA.casona && casona == null) casona = +t; }
+      for (const t of Object.keys(w.privados || {})) { if (w.obra[t] === V.OBRA.gremio && gremio == null) { gremio = +t; nombreGremio = (w.edificios[t] || {}).nombre || ''; } if (w.obra[t] === V.OBRA.casona && casona == null) casona = +t; }
       if (w.aldeanos.some(a => a.gremio != null && a.o === 5 && V.mercaderesDe(g, r).some(x => x.id === a.gremio))) conSueldo = true;
     }
-    return { g, r, w, av, gremio, casona, conSueldo, sd };
+    return { g, r, w, av, gremio, casona, conSueldo, sd, nombreGremio };
   };
   let p = null;
   for (const sd of [7, 11, 3]) { p = probar(sd); if (p.gremio != null && p.casona != null && p.conSueldo) break; }
   const { g, r, w, av, gremio, casona, conSueldo } = p; let oroDeObras = 0;
   for (const x of av) { const q = x.match(/paga (\d+) de oro al reino/); if (q) oroDeObras += +q[1]; }
-  comprobar(av.some(x => /funda un gremio de mercaderes/.test(x)) && gremio != null && /^Gremio de mercaderes /.test((w.edificios[gremio] || {}).nombre || ''), 'un comerciante que ahorró funda un gremio con su dinero (' + ((w.edificios[gremio] || {}).nombre || 'ninguno') + ', semilla ' + p.sd + ')');
+  // (El nombre, al fundarlo: más tarde, en la industrialización, el gremio puede pasar a compañía o a fábrica.)
+  comprobar(av.some(x => /funda un gremio de mercaderes/.test(x)) && gremio != null && /^Gremio de mercaderes /.test(p.nombreGremio), 'un comerciante que ahorró funda un gremio con su dinero (' + (p.nombreGremio || 'ninguno') + ', semilla ' + p.sd + ')');
   comprobar(conSueldo, 'los comerciantes del gremio trabajan para el mercader');
   comprobar(casona != null && /^Casona de /.test((w.edificios[casona] || {}).nombre || ''), 'el mercader que gana lo bastante se hace su casona (' + ((w.edificios[casona] || {}).nombre || 'ninguna') + ')');
   comprobar(oroDeObras > 0, 'gremio y casona se pagan al reino: materiales y obra (' + oroDeObras + ' de oro)');
@@ -109,7 +110,7 @@ comprobar(fabrica != null && /^(Textil|Aserradero|Fundición|Conservera) /.test(
   comprobar(e2 && V.INDUSTRIAS[e2.ind] && obrerosMax >= 1, 'la fábrica es de una industria (' + (e2 && e2.ind) + ') y contrata obreros (hasta ' + obrerosMax + ')');
   comprobar(sueldos > 0, 'los obreros cobran su sueldo de la caja del patrón (' + Math.round(sueldos * 10) / 10 + ' de oro en 40 turnos)');
   comprobar(e2 && e2.hecho > 0 && e2.vendido > 0, 'produce y vende (' + (e2 && e2.hecho) + ' hechos, ' + (e2 && e2.vendido) + ' vendidos dentro, ' + (e2 && (e2.exportado || 0)) + ' fuera)');
-  comprobar(movidos === 0 && contados, 'el gobernador no mueve a los obreros, y no cuentan en su antiguo oficio («¿qué hace mi gente?» los cuenta aparte)');
+  comprobar(movidos === 0 && contados, '(' + movidos + ' movidos, contados ' + contados + ') el gobernador no mueve a los obreros, y no cuentan en su antiguo oficio («¿qué hace mi gente?» los cuenta aparte)');
   const ahora = v.aldeanos.filter(x => x.c === c.id && x.obrero != null && x.edad >= V.ADULTO).length, resp = X.ordenar(m, c.id, '¿qué hace mi gente?').respuesta;
   comprobar(ahora === 0 ? !/fábricas privadas/.test(resp) : new RegExp(ahora + ' obreros? en las fábricas privadas').test(resp), '«¿qué hace mi gente?» dice cuántos trabajan en las fábricas privadas (' + ahora + ': «' + (resp.match(/\d+ obreros? en las fábricas privadas/) || ['ninguno'])[0] + '»)');
 }

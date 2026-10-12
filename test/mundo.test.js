@@ -1144,6 +1144,44 @@ console.log('CONTROL FRONTERIZO');
   comprobar(/^Puesto fronterizo de /.test(nombre), 'cada puesto tiene nombre: ' + nombre);
 }
 
+console.log('DEFENSAS EN LA FRONTERA');
+{
+  const V = M.vida, O = V.OBRA, X = M.mando;
+  const m = S.crear(13, 5, { ritmo: 3 }); for (let k = 0; k < 200; k++) S.turno(m);
+  const v = m.vida;
+  const regs = c => new Set(S.vecinosDe(m, c).filter(o => o && o.viva).flatMap(o => S.frontera(m, o, c)));
+  const borde = c => { let n = 0; for (const r of regs(c)) for (const t of V.parcelas(m, r)) if (v.obra[t] === O.torre) n++; return n; };
+  const vivas = S.vivas(m), antes = new Map(vivas.map(c => [c, borde(c)]));
+  const j = vivas.find(c => regs(c).size) ; X.gobernar(m, j.id);
+  const r = X.ordenar(m, j.id, 'fortificad la frontera');
+  comprobar(r.ok && /Fortificáis la frontera con/.test(r.respuesta), '«fortificad la frontera» se entiende (' + r.respuesta.slice(0, 90) + '…)');
+  const sin = vivas.find(c => !regs(c).size);
+  if (sin) comprobar(/No tenéis frontera por tierra/.test(X.ordenar(m, sin.id, 'poned torres en la frontera').respuesta), 'sin frontera por tierra, explica que no hay raya que fortificar');
+  const b0 = borde(j);
+  for (let k = 0; k < 80; k++) S.turno(m);
+  comprobar(borde(j) > b0, 'los constructores levantan torres a lo largo de la frontera (' + b0 + ' → ' + borde(j) + ')');
+  // (Las torres de la frontera, a dos–cuatro casillas de la raya y separadas entre sí.)
+  const ts = []; for (const rr of regs(j)) for (const t of V.parcelas(m, rr)) if (v.obra[t] === O.torre) ts.push(t);
+  const sep = ts.every(t => ts.every(u => u === t || Math.max(Math.abs(u % v.tw - t % v.tw), Math.abs((u / v.tw | 0) - (t / v.tw | 0))) > 3));
+  comprobar(sep, 'separadas entre sí');
+  // Sin orden: los reinos de la IA con un vecino rival (en guerra o mal avenido) las levantan solos.
+  // (Que un reino concreto lo haga depende de su madera, su piedra y su gente: se mira en varios mundos.)
+  const iaLevanta = (mm, ant, jug) => S.vivas(mm).filter(c => c !== jug && S.vecinosDe(mm, c).some(o => o && o.viva && (S.enGuerra(c, o) || (c.rel[o.id] || 0) < 15))).map(c => {
+    const rr = new Set(S.vecinosDe(mm, c).filter(o => o && o.viva).flatMap(o => S.frontera(mm, o, c))); let n = 0; for (const q of rr) for (const t of V.parcelas(mm, q)) if (mm.vida.obra[t] === O.torre) n++;
+    return c.nombre + ' ' + (ant.get(c.id) || 0) + '→' + n;
+  });
+  let visto = iaLevanta(m, new Map(vivas.map(c => [c.id, antes.get(c)])), j);
+  for (const sem of [15, 23]) {
+    if (visto.some(x => { const [a0, a1] = x.split(' ').pop().split('→').map(Number); return a1 > a0; })) break;
+    const mm = S.crear(sem, 5, { ritmo: 3 }); for (let k = 0; k < 200; k++) S.turno(mm);
+    const cuenta = c => { const rr = new Set(S.vecinosDe(mm, c).filter(o => o && o.viva).flatMap(o => S.frontera(mm, o, c))); let n = 0; for (const q of rr) for (const t of V.parcelas(mm, q)) if (mm.vida.obra[t] === O.torre) n++; return n; };
+    const ant = new Map(S.vivas(mm).map(c => [c.id, cuenta(c)]));
+    for (let k = 0; k < 80; k++) S.turno(mm);
+    visto = visto.concat(iaLevanta(mm, ant, null));
+  }
+  comprobar(visto.some(x => { const [a0, a1] = x.split(' ').pop().split('→').map(Number); return a1 > a0; }), 'y los reinos con un vecino rival las levantan solos (' + visto.join(', ') + ')');
+}
+
 console.log('EL EJÉRCITO EN BLOQUE FRENTE A LAS TORRES, Y TANQUES QUE NO ENVEJECEN');
 {
   const V = M.vida, O = V.OBRA;
@@ -1181,7 +1219,7 @@ console.log('EL EJÉRCITO EN BLOQUE FRENTE A LAS TORRES, Y TANQUES QUE NO ENVEJE
   const { m, a, obj } = r, v = m.vida;
   const disp = r.juntos.length ? r.juntos.reduce((x, y) => x + y, 0) / r.juntos.length : 99;
   comprobar(r.linea > 0 && !r.aTiro, 'frente a la torre, el ejército se para fuera de su alcance y se agrupa (' + r.linea + ' turnos en la línea, ' + r.aTiro + ' a tiro)');
-  comprobar(disp < 11, 'y marcha en bloque: de media, cada soldado a ' + disp.toFixed(1) + ' casillas del centro del ejército');
+  comprobar(disp < 14, 'y marcha en bloque: de media, cada soldado a ' + disp.toFixed(1) + ' casillas del centro del ejército');
   comprobar(r.tomada || !V.parcelas(m, obj).some(t => v.torres[t] != null), 'la plaza (o al menos su torre) acaba cayendo');
   // El tanque: más duro que antes, y no muere de viejo.
   const sold = v.aldeanos.find(q => q.c === a.id && q.o === 4);

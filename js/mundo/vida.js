@@ -2398,22 +2398,34 @@
     const enTierra = suyos.filter(a => a.aBordo == null);
     if (!enTierra.length) return;
     const fx = e.frente % tw, fy = e.frente / tw | 0, ox = obj % tw, oy = obj / tw | 0;
-    const juntos = enTierra.filter(a => Math.abs(a.x - fx) + Math.abs(a.y - fy) <= 4).length / enTierra.length;
+    // (El grupo del frente: los refuerzos que aún esperan en el punto de reunión no cuentan.)
+    const activos = enTierra.filter(a => Math.abs(a.x - fx) + Math.abs(a.y - fy) <= 14), grupo = activos.length ? activos : enTierra;
+    const juntos = grupo.filter(a => Math.abs(a.x - fx) + Math.abs(a.y - fy) <= 4).length / grupo.length;
     // Las torres enemigas cerca del camino: su alcance, más el ancho de la formación de margen.
-    const fuertes = Object.keys(v.torres || {}).map(Number).filter(u => c.guerras.some(g => g.con === m.dueno[region(m, u)]) && Math.abs(u % tw - ox) + Math.abs((u / tw | 0) - oy) <= 8);
+    // (Las de la plaza y las que hay de camino: las torres de frontera que el ejército se encuentra al avanzar.)
+    const fuertes = Object.keys(v.torres || {}).map(Number).filter(u => c.guerras.some(g => g.con === m.dueno[region(m, u)]) && (Math.abs(u % tw - ox) + Math.abs((u / tw | 0) - oy) <= 8 || Math.max(Math.abs(u % tw - fx), Math.abs((u / tw | 0) - fy)) <= 10));
     const alcance = u => (v.obra[u] === OBRA.castillo ? 6 : 4) + 3, lejosDe = (x, y) => fuertes.every(u => Math.max(Math.abs(u % tw - x), Math.abs((u / tw | 0) - y)) > alcance(u)); // (la torre tira en un cuadrado)
     const pesados = enTierra.some(a => a.veh);
     const espera = m.turno - (e.esperaT || m.turno);
+    // Los refuerzos que van llegando esperan en el punto de reunión y salen hacia el frente en grupo (de tres o más):
+    // de uno en uno, por tierra enemiga, las torres los van matando.
+    if (e.reunion != null) {
+      const rc = centro(m, e.reunion), rx = rc % tw, ry = rc / tw | 0;
+      const enReunion = enTierra.filter(a => Math.abs(a.x - rx) + Math.abs(a.y - ry) <= 6 && Math.abs(a.x - fx) + Math.abs(a.y - fy) > 12).length;
+      if (enReunion >= 3) e.ola = m.turno;
+    }
     // La torre más cercana: el blanco de la artillería y los tanques mientras la infantería espera.
     e.blancoT = fuertes.length ? fuertes.sort((p, q) => Math.abs(p % tw - fx) + Math.abs((p / tw | 0) - fy) - Math.abs(q % tw - fx) - Math.abs((q / tw | 0) - fy))[0] : null;
     e.blancoR = e.blancoT != null ? (v.obra[e.blancoT] === OBRA.castillo ? 6 : 4) : 0;
     // Una carga que se queda sin gente (los refuerzos llegan de uno en uno) se repliega a la línea: nadie va solo contra la torre.
-    if (e.carga && fuertes.length && e.lineaT != null && m.turno - (e.cargaT || 0) >= 3 && enTierra.length < 4) {
+    if (e.carga && fuertes.length && e.lineaT != null && m.turno - (e.cargaT || 0) >= 3 && grupo.length < 4) {
       e.carga = false; e.linea = true; e.frente = e.lineaT; e.esperaT = m.turno;
       if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '↩ Quedan pocos soldados: se repliegan fuera del alcance de la torre a esperar refuerzos', region: e.obj });
       return;
     }
-    if (e.carga || (!fuertes.length && Math.abs(fx - ox) + Math.abs(fy - oy) <= 3)) { e.frente = obj; e.linea = false; return; }
+    // Cae la torre contra la que cargaban: siguen avanzando (y si hay otra en el camino, otra vez a la línea).
+    if (e.carga && e.cargaContra != null && v.torres[e.cargaContra] == null) { e.carga = false; e.cargaContra = null; e.linea = false; e.esperaT = m.turno; }
+    if (e.carga || (!fuertes.length && Math.abs(fx - ox) + Math.abs(fy - oy) <= 3)) { e.frente = e.carga && e.cargaContra != null ? e.cargaContra : obj; e.linea = false; return; }
     const d = Math.max(1, Math.abs(ox - fx) + Math.abs(oy - fy)), k = Math.min(4, d);
     const nx = Math.round(fx + (ox - fx) * k / d), ny = Math.round(fy + (oy - fy) * k / d);
     e.dir = Math.sign(oy - fy) || 1;
@@ -2429,17 +2441,19 @@
           const ter = terrenos(m);
           // (La casilla segura más cercana, en tierra; entre las de igual distancia, la más lejos del objetivo.)
           let mejor = -1, md = 1e9;
-          for (let dy = -12; dy <= 12; dy++) for (let dx = -12; dx <= 12; dx++) {
+          for (let dy = -20; dy <= 20; dy++) for (let dx = -20; dx <= 20; dx++) {
             const bx = fx + dx, by = fy + dy, bt = by * tw + bx;
             if (bx < 0 || by < 0 || bx >= tw || by >= v.th || ter[bt] === 'agua' || ter[bt] === 'bajo' || ter[bt] === 'montana' || !lejosDe(bx, by)) continue;
             const dd = Math.abs(dx) + Math.abs(dy) - (Math.abs(bx - ox) + Math.abs(by - oy)) * 0.01;
             if (dd < md) { md = dd; mejor = bt; }
           }
           if (mejor >= 0) e.frente = mejor;
+          // (Sin ningún sitio a salvo cerca, esperar debajo es lo peor: si son bastantes, al asalto ya.)
+          else if (grupo.length >= 4) { e.carga = true; e.cargaT = m.turno; e.linea = false; e.cargaContra = e.blancoT; e.frente = e.blancoT; return; }
         }
         const nueva = !e.linea; e.linea = true; e.lineaT = e.frente; if (!nueva) return; e.esperaT = m.turno; if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🛡 El ejército se para fuera del alcance de la torre enemiga y se agrupa' + (pesados ? '; la artillería la bombardea' : '') + (c.era >= 8 ? ' (cavan trincheras)' : ''), region: e.obj }); return; }
       const lista = juntos >= 0.8 && (!pesados || espera >= 6);
-      if (enTierra.length >= 4 && (lista || espera >= 12)) { e.carga = true; e.cargaT = m.turno; e.linea = false; e.frente = obj; if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚔ ¡Al asalto! El ejército carga todo junto contra la torre', region: e.obj }); }
+      if (grupo.length >= 4 && (lista || espera >= 12)) { e.carga = true; e.cargaT = m.turno; e.linea = false; e.cargaContra = e.blancoT; e.frente = e.blancoT != null ? e.blancoT : obj; if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚔ ¡Al asalto! El ejército carga todo junto contra la torre', region: e.obj }); }
       return;
     }
     const nt = ny * tw + nx, ter = terrenos(m)[nt];
@@ -2784,6 +2798,38 @@
     }
     return mejor;
   }
+  /*
+   * LAS DEFENSAS DE FRONTERA: frente a un vecino en guerra o mal avenido (o si el jugador manda «fortificad la
+   * frontera»), el reino levanta torres a lo largo de la raya —empalizada, torre de piedra, torre artillada o búnker,
+   * según la época—, separadas entre sí y mejor junto a los caminos que entran. Más torres con las edades.
+   */
+  function sitioDefensa(m, c, ter) {
+    const v = m.vida, tw = v.tw, p = c.plan || {};
+    const vecinos = S().vecinosDe(m, c).filter(o => o && o.viva);
+    const rivales = vecinos.filter(o => S().enGuerra(c, o) || (c.rel[o.id] || 0) < 15 || p.fortificar);
+    if (!rivales.length || c.era < 1) return null;
+    const regiones = new Set(rivales.flatMap(o => S().frontera(m, o, c)));
+    if (!regiones.size) return null;
+    const defensa = t => v.obra[t] === OBRA.torre || v.obra[t] === OBRA.castillo || v.obra[t] === OBRA.aduana || (v.andamios && v.andamios[t] && v.andamios[t].o === OBRA.torre);
+    const puestas = [];
+    for (const r of regiones) for (const t of parcelas(m, r)) if (defensa(t)) puestas.push(t);
+    const tope = Math.min(regiones.size, 1 + Math.floor(c.era / 2) + (p.fortificar ? 3 : 0));
+    if (puestas.filter(t => v.obra[t] === OBRA.torre || (v.andamios && v.andamios[t])).length >= tope) return null;
+    const cerca = (t, d) => { const x = t % tw, y = t / tw | 0; for (let j = -d; j <= d; j++) for (let i = -d; i <= d; i++) { const u = (y + j) * tw + x + i; if (u >= 0 && u < v.obra.length && defensa(u)) return true; } return false; };
+    const deRival = u => { const d = m.dueno[region(m, u)]; return rivales.some(o => o.id === d); };
+    const guerra = u => { const d = m.dueno[region(m, u)]; return rivales.some(o => o.id === d && S().enGuerra(c, o)); };
+    let mejor = null, mp = -1e9;
+    for (const r of regiones) for (const t of parcelas(m, r)) {
+      if (!CONSTRUIBLE.has(ter[t]) || v.obra[t] || v.roca[t] || v.camino[t] || ocupada(v, t) || (v.andamios && v.andamios[t]) || cerca(t, 5)) continue;
+      // A dos o tres casillas de la raya (no encima): mirando al rival.
+      const x = t % tw, y = t / tw | 0; let raya = 9, enGuerra = false, caminos = 0;
+      for (let j = -4; j <= 4; j++) for (let i = -4; i <= 4; i++) { const u = (y + j) * tw + x + i; if (u < 0 || u >= v.obra.length) continue; if (deRival(u)) { raya = Math.min(raya, Math.max(Math.abs(i), Math.abs(j))); if (guerra(u)) enGuerra = true; } if (v.camino[u]) caminos++; }
+      if (raya < 2 || raya > 4) continue;
+      const pt = (enGuerra ? 20 : 0) + Math.min(6, caminos) * 2 - Math.abs(raya - 3) * 3 - dist(m, t, centro(m, c.capital)) * 0.05;
+      if (pt > mp) { mp = pt; mejor = t; }
+    }
+    return mejor;
+  }
   function sitioPetroleo(m, c, ter) {
     const v = m.vida;
     if (!v.crudo) return null;
@@ -2834,6 +2880,8 @@
       // El control fronterizo (desde la Revolución Industrial): un puesto con barrera y guardias donde cada
       // carretera de comercio sale de su tierra.
       if (r === c.capital && c.era >= ERA_OBRA[OBRA.aduana]) { const pf = pasoSinPuesto(m, c, ter); if (pf) pide.push([OBRA.aduana, () => pf.sitio]); }
+      // Las torres de la frontera, frente a los rivales (en guerra, antes que casi todo).
+      if (r === c.capital && c.era >= 1 && m.turno % 2 === c.id % 2) { const sd = sitioDefensa(m, c, ter); if (sd != null) pide.splice(Math.min(c.guerras.length || (c.plan && c.plan.fortificar) ? 1 : 3, pide.length), 0, [OBRA.torre, () => sd]); }
       // La mina: en la montaña más cercana (solo ahí), una galería que no se agota (pero da poco a poco).
       // (Una más cada dos edades, hasta cuatro: la mina es de donde sale el metal de verdad.)
       if (r === c.capital && c.era >= ERA_OBRA[OBRA.mina] && (c.minas || 0) < (pausada(m) ? Math.min(4, 1 + Math.floor(c.era / 2)) : 1 + (c.era >= 4 ? 1 : 0)) && (c.aldeanos || 0) >= 12) {
@@ -2884,7 +2932,7 @@
         const pideEdad = M.EDADES[c.era + 1] && M.EDADES[c.era + 1].pide.obra && OBRA[M.EDADES[c.era + 1].pide.obra] === obra;
         const necesaria = (c.necesidades || []).some(n => n.falta && OBRA[n.obra] === obra);
         // (Los pozos de petróleo y las minas no esperan: dan lo que hace falta para todo lo demás.)
-        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && obra !== OBRA.petroleo && obra !== OBRA.mina && obra !== OBRA.puerto && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
+        if (S().ahorrando(m, c) && (coste[2] || 0) > 0 && !pideEdad && !necesaria && obra !== OBRA.petroleo && obra !== OBRA.mina && obra !== OBRA.puerto && !(obra === OBRA.torre && (c.guerras.length || (c.plan && c.plan.fortificar))) && !(c.plan && c.plan.obra && OBRA[c.plan.obra] === obra)) continue;
         let t = donde();
         // Ciudad llena: las obras públicas se levantan más lejos (hasta dos comarcas), y siguen siendo de esta ciudad.
         if (t == null && pausada(m) && LEJOS_OK.has(obra)) { t = sitioPara(m, c, CLAVE_OBRA[obra], [r]); if (t != null) (v.sede = v.sede || {})[t] = r; }
@@ -4191,7 +4239,9 @@
       // En formación detrás del capitán: primero al punto de reunión, luego a por el objetivo.
       const e = v.ejercitos[c.id];
       let base = e.defiende != null ? centro(m, e.defiende) : e.fase === 'reunion' ? centro(m, e.reunion) : e.frente != null ? e.frente : centro(m, e.obj);
-      if (e.linea && a.veh && e.blancoT != null && e.defiende == null) {
+      // (Un refuerzo lejos del frente va antes al punto de reunión, y sale con su grupo.)
+      if (e.fase === 'marcha' && e.defiende == null && e.reunion != null && e.frente != null && dist(m, a.y * v.tw + a.x, e.frente) > 12 && !(e.ola != null && m.turno - e.ola <= 8)) base = centro(m, e.reunion);
+      else if (e.linea && a.veh && e.blancoT != null && e.defiende == null) {
         // Mientras la infantería espera en la línea, el tanque (blindado) va a por la torre, y el cañón o la
         // artillería se pone justo fuera de su alcance, en línea recta, para bombardearla.
         const bx = e.blancoT % v.tw, by = e.blancoT / v.tw | 0, fx = e.frente % v.tw, fy = e.frente / v.tw | 0, R = e.blancoR + 1;
@@ -5155,7 +5205,7 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     // Mientras es campamento, cada pocos turnos se muda alguien de la capital (se le ve llegar andando).
     if (vecinos < 10 && m.turno % 3 === x.region % 3 && v.aldeanos.filter(a => a.c === c.id && a.colono === x.region).length < 2) {
       const sitio = v.aldeanos.filter(a => a.c === c.id && a.h === c.capital && (a.edad || 0) >= ADULTO && (a.edad || 0) < VIEJO && a.o !== GUERRERO && a.colono == null && !a.fijo);
-      if (sitio.length > 6) { const a = sitio[Math.floor(azar(v) * sitio.length)]; a.colono = x.region; a.e = LIBRE; a.paseo = 0; a.edificio = 0; a.obraCamino = 0; if (a.o !== CONSTRUCTOR && casas < 2 && azar(v) < 0.5) mover(a, CONSTRUCTOR); }
+      if (sitio.length > 6) { const a = sitio[Math.floor(azar(v) * sitio.length)]; a.colono = x.region; if (a.obrero != null) { delete a.obrero; a.enFabrica = 0; } a.e = LIBRE; a.paseo = 0; a.edificio = 0; a.obraCamino = 0; if (a.o !== CONSTRUCTOR && casas < 2 && azar(v) < 0.5) mover(a, CONSTRUCTOR); }
     }
     if (x.fase === 'campamento') {
       if (!v.obra[t] && !(v.andamios && v.andamios[t])) cambiar(m, 'obra', t, OBRA.campamento, TICKS);
@@ -5257,7 +5307,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       if (elegidos.length < 2) continue;
       c.ultimaColonia = m.turno;
       if (pedido) c.plan.colonos = null;
-      for (const a of elegidos) { a.colono = r; a.e = LIBRE; a.paseo = 0; a.edificio = 0; a.obraCamino = 0; if (via.mar) a.porMar = 1; }
+      for (const a of elegidos) { if (a.obrero != null) { delete a.obrero; a.enFabrica = 0; } // (quien se va de colono deja la fábrica)
+        a.colono = r; a.e = LIBRE; a.paseo = 0; a.edificio = 0; a.obraCamino = 0; if (via.mar) a.porMar = 1; }
       if (via.mar) {
         c.madera -= 8;
         (v.expediciones = v.expediciones || {})[c.id] = Object.assign({ r, fase: 'reunion', desde: m.turno }, via.mar);
@@ -5598,5 +5649,5 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     actualizarPoblacion(m);
   }
 
-  M.vida = { MODOS_ECO, ministroEconomia, INDUSTRIAS, minerasDe, comprarInsumo, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { MODOS_ECO, ministroEconomia, INDUSTRIAS, minerasDe, comprarInsumo, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, sitioDefensa, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
