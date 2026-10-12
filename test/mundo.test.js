@@ -1144,5 +1144,53 @@ console.log('CONTROL FRONTERIZO');
   comprobar(/^Puesto fronterizo de /.test(nombre), 'cada puesto tiene nombre: ' + nombre);
 }
 
+console.log('EL EJÉRCITO EN BLOQUE FRENTE A LAS TORRES, Y TANQUES QUE NO ENVEJECEN');
+{
+  const V = M.vida, O = V.OBRA;
+  // Una guerra entre dos vecinos de verdad; el atacante va a por la plaza enemiga más cercana, que tiene torre.
+  const guerra = sem => {
+    const m = S.crear(sem, 5, { ritmo: 3 }); for (let k = 0; k < 200; k++) S.turno(m);
+    const par = S.vivas(m).flatMap(c => S.vecinosDe(m, c).map(o => [c, o])).filter(([c, o]) => S.frontera(m, c, o).length).sort((p, q) => S.frontera(m, q[0], q[1]).length - S.frontera(m, p[0], p[1]).length)[0];
+    if (!par) return null;
+    const [a, o] = par, v = m.vida;
+    for (const c of [a, o]) M.mando.ordenar(m, c.id, 'quiero 14 soldados');
+    const fr = S.frontera(m, a, o), plazas = [o.capital, ...(m.ciudades || []).filter(x => x.civ === o.id).map(x => x.region)];
+    const obj = plazas.sort((p, q) => Math.min(...fr.map(f => S.distancia(f, p))) - Math.min(...fr.map(f => S.distancia(f, q))))[0];
+    if (!V.parcelas(m, obj).some(t => v.obra[t] === O.torre || v.obra[t] === O.castillo)) { const t = V.parcelas(m, obj).find(t => !v.obra[t] && !v.arbol[t]) || V.parcelas(m, obj)[0]; V.cambiar(m, 'obra', t, O.torre, 0); v.torres[t] = 12; }
+    const r = { m, a, o, obj, linea: 0, aTiro: 0, juntos: [], tomada: false };
+    for (let k = 0; k < 50; k++) {
+      for (const c of [a, o]) { c.era = 4; c.comida = Math.max(c.comida || 0, 80); }
+      if (k >= 3 && m.dueno[obj] === o.id) { a.rel[o.id] = o.rel[a.id] = -80; if (!S.enGuerra(a, o)) S.declararGuerra(m, a, o, 'prueba'); a.plan = a.plan || {}; a.plan.objetivo = obj; }
+      S.turno(m);
+      if (m.dueno[obj] === a.id) r.tomada = true;
+      const e = v.ejercitos[a.id];
+      if (!e || e.fase !== 'marcha' || e.defiende != null) continue;
+      if (e.linea) {
+        r.linea++;
+        // (Mientras esperan en la línea, el frente queda fuera del alcance de toda torre enemiga cercana.)
+        const fx = e.frente % v.tw, fy = e.frente / v.tw | 0;
+        if (Object.keys(v.torres).map(Number).some(u => S.enGuerra(a, S.civ(m, m.dueno[V.region(m, u)]) || { guerras: [] }) && Math.max(Math.abs(u % v.tw - fx), Math.abs((u / v.tw | 0) - fy)) <= 4)) r.aTiro++;
+      }
+      const s = v.aldeanos.filter(q => q.c === a.id && q.o === 4 && q.aBordo == null);
+      if (s.length >= 4) { const mx = s.reduce((p, q) => p + q.x, 0) / s.length, my = s.reduce((p, q) => p + q.y, 0) / s.length; r.juntos.push(s.reduce((p, q) => p + Math.abs(q.x - mx) + Math.abs(q.y - my), 0) / s.length); }
+    }
+    return r;
+  };
+  let r = null;
+  for (const sem of [13, 21, 15, 23]) { r = guerra(sem); if (r && r.linea) break; }
+  const { m, a, obj } = r, v = m.vida;
+  const disp = r.juntos.length ? r.juntos.reduce((x, y) => x + y, 0) / r.juntos.length : 99;
+  comprobar(r.linea > 0 && !r.aTiro, 'frente a la torre, el ejército se para fuera de su alcance y se agrupa (' + r.linea + ' turnos en la línea, ' + r.aTiro + ' a tiro)');
+  comprobar(disp < 11, 'y marcha en bloque: de media, cada soldado a ' + disp.toFixed(1) + ' casillas del centro del ejército');
+  comprobar(r.tomada || !V.parcelas(m, obj).some(t => v.torres[t] != null), 'la plaza (o al menos su torre) acaba cayendo');
+  // El tanque: más duro que antes, y no muere de viejo.
+  const sold = v.aldeanos.find(q => q.c === a.id && q.o === 4);
+  comprobar(V.VEHICULOS.tanque.vida >= 500 && V.VEHICULOS.tanque.blindaje >= 0.8, 'el tanque aguanta más (' + V.VEHICULOS.tanque.vida + ' de vida, blindaje ' + V.VEHICULOS.tanque.blindaje + ')');
+  sold.veh = 'tanque'; sold.tirador = true; sold.pv = sold.pv0 = V.VEHICULOS.tanque.vida; sold.edad = 60;
+  const antes = a.vehiculos || 0;
+  for (let k = 0; k < 30 && v.aldeanos.includes(sold); k++) S.turno(m);
+  comprobar(!v.aldeanos.includes(sold) && ((a.vehiculos || 0) > antes || v.aldeanos.some(q => q !== sold && q.c === a.id && q.veh === 'tanque')), 'si el tanquista muere de viejo, el tanque vuelve al cuartel para otro soldado');
+}
+
 console.log(fallos ? fallos + ' comprobaciones fallidas' : 'Todo bien');
 process.exit(fallos ? 1 : 0);

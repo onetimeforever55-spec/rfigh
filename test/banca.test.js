@@ -74,11 +74,13 @@ const garantias = [];
 for (let k = 0; k < 320 && !(fabrica != null && V.banquerosDe(m, c).length && avisos.some(x => /El banco de .* presta \d+ de oro a/.test(x))); k++) {
   for (const t of V.gremiosDe(m, c)) eranGremio.add(t);
   const antes = new Map(v.aldeanos.filter(x => x.c === c.id && !x.emp).map(x => [x, x.dinero || 0]));
+  const habia = V.banquerosDe(m, c).length > 0;
   sostener(); turno();
   for (const [x, d] of antes) if (x.emp && x.emp.neg !== 'banco' && x.emp.desde >= m.turno - 1 && !garantias.some(g => g[0] === x)) garantias.push([x, d, x.emp.monto]);
   const emp = V.empresariosDe(m, c);
   bancos = Math.max(bancos, V.banquerosDe(m, c).length);
-  if (emp.some(a => a.emp.neg !== 'banco' && a.emp.banquero == null && !V.banquerosDe(m, c).length && m.turno - a.emp.desde < 2)) sinBanquero = true;
+  // (Un préstamo cuyo banquero muere o cierra ese mismo turno pasa al central: cuenta si ya no había banquero antes.)
+  if (!habia && emp.some(a => a.emp.neg !== 'banco' && a.emp.banquero == null && !a.emp.propio && !V.banquerosDe(m, c).length && m.turno - a.emp.desde < 2)) sinBanquero = true;
   const t = Object.keys(v.privados || {}).find(t => v.privados[t].civ === c.id && v.obra[t] === V.OBRA.fabrica);
   if (t != null && fabrica == null) fabrica = +t;
 }

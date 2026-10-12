@@ -80,7 +80,7 @@
   const VEHICULOS = {
     canon: { nombre: 'cañón de campaña', vida: 100, dano: 42, perfora: 0.6, alcance: 6, metal: 4, area: true, era: 5 },
     artilleria: { nombre: 'artillería', vida: 115, dano: 58, perfora: 0.7, alcance: 7, metal: 5, area: true, era: 7 },
-    tanque: { nombre: 'tanque', vida: 330, blindaje: 0.7, dano: 62, perfora: 0.85, alcance: 4, metal: 8, era: 7 }
+    tanque: { nombre: 'tanque', vida: 520, blindaje: 0.8, dano: 62, perfora: 0.85, alcance: 4, metal: 8, era: 7 }
   };
   // La armadura de cada era (con la pólvora las placas ya no sirven y se aligeran).
   const armaduraDeEra = era => (era <= 0 ? 1 : era === 1 ? 2 : era <= 3 ? 3 : era === 4 ? 4 : era <= 6 ? 5 : 6);
@@ -2119,7 +2119,7 @@
       if (objetivo < lista.length) {
         const tipo = c.guerras.length ? 'batalla' : 'vejez';
         // (Los que van embarcados y los colonos que van a fundar, los últimos: las bajas caen antes entre los de casa.)
-        const lejos = a => (a.aBordo != null || a.colono != null || a.emp) ? 1 : 0;
+        const lejos = a => (a.aBordo != null || a.colono != null || a.emp || a.veh) ? 1 : 0;
         for (const a of lista.slice().sort((x, y) => (lejos(x) - lejos(y)) || (y.edad || 0) - (x.edad || 0)).slice(0, lista.length - Math.max(1, objetivo))) { quitar.add(a); v.muertos.push([a.x, a.y, a.c, tipo, 0]); }
       } else if (objetivo > lista.length) {
         // Los que llegan también necesitan cama (salvo un pueblo que casi no tiene a nadie).
@@ -2181,6 +2181,8 @@
       }
     }
     for (const a of quitar) { if (a.emp || a.merc) heredar(m, a, quitar); else if ((a.dinero || 0) >= 1) legar(m, a, quitar); }
+    // El tanque o el cañón no envejece: si su tripulante muere de viejo o de enfermedad, vuelve al cuartel para otro.
+    for (const a of quitar) if (a.veh) { const c = S().civ(m, a.c); if (c && c.viva) c.vehiculos = (c.vehiculos || 0) + 1; }
     if (quitar.size) v.aldeanos = v.aldeanos.filter(a => !quitar.has(a));
     // Oficios: los libres cambian de oficio para cubrir lo que falta en su pueblo.
     for (const c of vivas) reasignar(m, c, recursosDe ? recursosDe[c.id] : null, false);
@@ -2191,7 +2193,7 @@
   // Cambia de oficio a un aldeano (quien deja las armas, las entrega).
   function mover(a, k) {
     if (a.obrero != null) { delete a.obrero; a.enFabrica = 0; } // (quien cambia de oficio deja la fábrica)
-    if (a.o === GUERRERO && k !== GUERRERO) { a.arma = 0; a.armadura = 0; a.tirador = null; delete a.veh; if (a.pv != null) { a.pv = Math.min(a.pv, vidaMax(a)); a.pv0 = a.pv; } }
+    if (a.o === GUERRERO && k !== GUERRERO) { a.arma = 0; a.armadura = 0; a.tirador = null; if (a.veh) a.vehSuelto = 1; delete a.veh; if (a.pv != null) { a.pv = Math.min(a.pv, vidaMax(a)); a.pv0 = a.pv; } }
     a.o = k; a.e = LIBRE; a.k = 0; a.kt = 0; a.paseo = 0; a.tx = -1; a.ty = -1; a.pastor = null; a.caza = null; a.cantera = 0; a.siega = 0;
   }
   // Las órdenes concretas del jugador mandan sobre el gobernador automático:
@@ -2260,7 +2262,7 @@
   function equipar(m) {
     const v = m.vida;
     for (const a of v.aldeanos) {
-      if (a.o !== GUERRERO) { if (a.veh) { delete a.veh; a.pv = Math.min(a.pv || 0, vidaMax(a)); a.pv0 = a.pv; } continue; }
+      if (a.o !== GUERRERO) { if (a.veh || a.vehSuelto) { const c = S().civ(m, a.c); if (c) c.vehiculos = (c.vehiculos || 0) + 1; delete a.vehSuelto; } if (a.veh) { delete a.veh; a.pv = Math.min(a.pv || 0, vidaMax(a)); a.pv0 = a.pv; } continue; }
       const c = S().civ(m, a.c);
       if (!c) continue;
       if (a.tirador == null) a.tirador = c.era >= 5 ? a.id % 3 !== 0 : a.id % 3 === 0;
@@ -2365,6 +2367,7 @@
       if (p.defender != null) { if (m.dueno[p.defender] === c.id) { e.defiende = p.defender; e.fase = 'marcha'; } else p.defender = null; }
       if (e.defiende != null && m.dueno[e.defiende] !== c.id) e.defiende = null;
       e.capitan = suyos.length ? Math.min(...suyos.map(a => a.id)) : null;
+      if (e.fase === 'marcha' && e.defiende == null) frente(m, c, e, suyos);
       if (e.fase === 'reunion' && e.mar) {
         // Por mar: el transporte espera en el puerto; cuando el ejército está reunido (o al cabo de unos turnos), embarca.
         let tr = v.barcos.find(b => b.tipo === 'transporte' && !b.colonia && b.c === c.id && !b.hundido && b.estado === 'espera');
@@ -2379,9 +2382,68 @@
       } else if (e.fase === 'reunion') {
         const base = centro(m, e.reunion);
         const juntos = suyos.filter(a => dist(m, a.y * v.tw + a.x, base) <= 5).length;
-        if (juntos >= suyos.length * 0.5 || m.turno - e.desde >= 2) { e.fase = 'marcha'; for (const a of suyos) if (a.e === ESPERAR || a.paseo) a.e = LIBRE; }
+        if (juntos >= suyos.length * 0.7 || m.turno - e.desde >= 5) { e.fase = 'marcha'; e.frente = base; e.esperaT = m.turno; for (const a of suyos) if (a.e === ESPERAR || a.paseo) a.e = LIBRE; }
       }
     }
+  }
+
+  /*
+   * EL FRENTE: el ejército no va cada uno por su lado; avanza en bloque hacia el objetivo, unas casillas cada vez,
+   * cuando casi todos han llegado. Si hay una torre o un castillo enemigo en pie, se para fuera de su alcance
+   * (e.linea) hasta estar todos juntos y, si trae artillería o tanques, deja que la bombardeen antes de cargar.
+   */
+  function frente(m, c, e, suyos) {
+    const v = m.vida, tw = v.tw, obj = centro(m, e.obj);
+    if (e.frente == null) { e.frente = suyos.length ? suyos[0].y * tw + suyos[0].x : obj; e.esperaT = m.turno; }
+    const enTierra = suyos.filter(a => a.aBordo == null);
+    if (!enTierra.length) return;
+    const fx = e.frente % tw, fy = e.frente / tw | 0, ox = obj % tw, oy = obj / tw | 0;
+    const juntos = enTierra.filter(a => Math.abs(a.x - fx) + Math.abs(a.y - fy) <= 4).length / enTierra.length;
+    // Las torres enemigas cerca del camino: su alcance, más el ancho de la formación de margen.
+    const fuertes = Object.keys(v.torres || {}).map(Number).filter(u => c.guerras.some(g => g.con === m.dueno[region(m, u)]) && Math.abs(u % tw - ox) + Math.abs((u / tw | 0) - oy) <= 8);
+    const alcance = u => (v.obra[u] === OBRA.castillo ? 6 : 4) + 3, lejosDe = (x, y) => fuertes.every(u => Math.max(Math.abs(u % tw - x), Math.abs((u / tw | 0) - y)) > alcance(u)); // (la torre tira en un cuadrado)
+    const pesados = enTierra.some(a => a.veh);
+    const espera = m.turno - (e.esperaT || m.turno);
+    // La torre más cercana: el blanco de la artillería y los tanques mientras la infantería espera.
+    e.blancoT = fuertes.length ? fuertes.sort((p, q) => Math.abs(p % tw - fx) + Math.abs((p / tw | 0) - fy) - Math.abs(q % tw - fx) - Math.abs((q / tw | 0) - fy))[0] : null;
+    e.blancoR = e.blancoT != null ? (v.obra[e.blancoT] === OBRA.castillo ? 6 : 4) : 0;
+    // Una carga que se queda sin gente (los refuerzos llegan de uno en uno) se repliega a la línea: nadie va solo contra la torre.
+    if (e.carga && fuertes.length && e.lineaT != null && m.turno - (e.cargaT || 0) >= 3 && enTierra.length < 4) {
+      e.carga = false; e.linea = true; e.frente = e.lineaT; e.esperaT = m.turno;
+      if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '↩ Quedan pocos soldados: se repliegan fuera del alcance de la torre a esperar refuerzos', region: e.obj });
+      return;
+    }
+    if (e.carga || (!fuertes.length && Math.abs(fx - ox) + Math.abs(fy - oy) <= 3)) { e.frente = obj; e.linea = false; return; }
+    const d = Math.max(1, Math.abs(ox - fx) + Math.abs(oy - fy)), k = Math.min(4, d);
+    const nx = Math.round(fx + (ox - fx) * k / d), ny = Math.round(fy + (oy - fy) * k / d);
+    e.dir = Math.sign(oy - fy) || 1;
+    // (Si el frente ya está a tiro de una torre, no esperan ahí a juntarse: primero, salir de su alcance.)
+    const aTiro = fuertes.length && !lejosDe(fx, fy);
+    if (!aTiro && juntos < 0.65 && espera < 6) return;
+    // Un paso de cuatro casillas hacia el objetivo (sin meterse en el agua).
+    if (fuertes.length && (aTiro || !lejosDe(nx, ny))) {
+      // En la línea, fuera de su alcance: esperan a estar todos y, con artillería o tanques, a que la bombardeen.
+      if (!e.linea || aTiro) {
+        // Si ya están a tiro (el punto de reunión queda cerca de la torre), la línea retrocede hasta salir de su alcance.
+        if (!lejosDe(fx, fy)) {
+          const ter = terrenos(m);
+          // (La casilla segura más cercana, en tierra; entre las de igual distancia, la más lejos del objetivo.)
+          let mejor = -1, md = 1e9;
+          for (let dy = -12; dy <= 12; dy++) for (let dx = -12; dx <= 12; dx++) {
+            const bx = fx + dx, by = fy + dy, bt = by * tw + bx;
+            if (bx < 0 || by < 0 || bx >= tw || by >= v.th || ter[bt] === 'agua' || ter[bt] === 'bajo' || ter[bt] === 'montana' || !lejosDe(bx, by)) continue;
+            const dd = Math.abs(dx) + Math.abs(dy) - (Math.abs(bx - ox) + Math.abs(by - oy)) * 0.01;
+            if (dd < md) { md = dd; mejor = bt; }
+          }
+          if (mejor >= 0) e.frente = mejor;
+        }
+        const nueva = !e.linea; e.linea = true; e.lineaT = e.frente; if (!nueva) return; e.esperaT = m.turno; if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '🛡 El ejército se para fuera del alcance de la torre enemiga y se agrupa' + (pesados ? '; la artillería la bombardea' : '') + (c.era >= 8 ? ' (cavan trincheras)' : ''), region: e.obj }); return; }
+      const lista = juntos >= 0.8 && (!pesados || espera >= 6);
+      if (enTierra.length >= 4 && (lista || espera >= 12)) { e.carga = true; e.cargaT = m.turno; e.linea = false; e.frente = obj; if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: '⚔ ¡Al asalto! El ejército carga todo junto contra la torre', region: e.obj }); }
+      return;
+    }
+    const nt = ny * tw + nx, ter = terrenos(m)[nt];
+    e.frente = ter === 'agua' || ter === 'bajo' ? obj : nt; e.esperaT = m.turno; e.linea = false;
   }
 
   /*
@@ -3453,25 +3515,25 @@
       for (let dy = -alcance; dy <= alcance; dy++) for (let dx = -alcance; dx <= alcance; dx++) {
         const lista = guerreros.get((ty + dy) * v.tw + tx + dx);
         if (!lista) continue;
-        for (const b of lista) if (c.guerras.some(g => g.con === b.c)) { blancos.push(b); if (Math.abs(dx) + Math.abs(dy) <= 1) cerca++; }
+        for (const b of lista) if (c.guerras.some(g => g.con === b.c)) { blancos.push(b); if (Math.abs(dx) + Math.abs(dy) <= 1) cerca += b.veh === 'tanque' ? 4 : 1; }
       }
       if (blancos.length) {
         // Los arqueros de las almenas: el castillo suelta varias flechas por paso (la torre, una o dos), cada una a
         // un blanco; desde la pólvora, además, su cañón o su ametralladora.
-        const f = fase(c.era), arm = b => ARMADURAS[b.armadura || 0] || ARMADURAS[0];
+        const f = fase(c.era), arm = b => b.veh ? { reduce: VEHICULOS[b.veh].blindaje || 0 } : ARMADURAS[b.armadura || 0] || ARMADURAS[0];
         const disparo = (b, tiro, bala) => {
           v.disparos.push([tx, ty, b.x, b.y, paso, bala ? 1 : 0]);
-          if (azar(v) < 0.5 && golpear(v, null, b, Math.max(1, Math.round(tiro.dano * (0.8 + azar(v) * 0.4) * (1 - arm(b).reduce * (1 - (tiro.perfora || 0))))), paso + 0.5, tx, ty)) {
+          if (azar(v) < (enTrinchera(v, b) ? 0.3 : 0.5) && golpear(v, null, b, Math.max(1, Math.round(tiro.dano * (0.8 + azar(v) * 0.4) * (enTrinchera(v, b) ? 0.6 : 1) * (1 - arm(b).reduce * (1 - (tiro.perfora || 0))))), paso + 0.5, tx, ty)) {
             v.aldeanos = v.aldeanos.filter(a => a !== b); v.muertos.push([b.x, b.y, b.c, 'torre', paso + 0.5, b]); apuntarBaja(m, c.id, b);
             const i = blancos.indexOf(b); if (i >= 0) blancos.splice(i, 1);
           }
         };
         // Desde la pólvora, los defensores de las almenas ya no tiran flechas: disparan arcabuces, mosquetes y
         // rifles (balas con fogonazo y humo); en la Era Moderna, fusiles de repetición.
-        const fuego = f >= 2, flechas = castillo ? 3 : 1 + (f >= 1 ? 1 : 0) + (f >= 3 ? 1 : 0);
+        const fuego = f >= 2, flechas = castillo ? 2 + (f >= 3 ? 1 : 0) : 1 + (f >= 3 ? 1 : 0);
         const flecha = fuego ? { dano: (castillo ? 30 : 24) + (f >= 3 ? 8 : 0), perfora: f >= 3 ? 0.65 : 0.5 } : { dano: castillo ? 14 : 11, perfora: f >= 1 ? 0.1 : 0 };
         for (let q = 0; q < flechas && blancos.length; q++) if (azar(v) < 0.7) disparo(blancos[Math.floor(azar(v) * blancos.length)], flecha, fuego);
-        if (f >= 2 && blancos.length && azar(v) < (castillo ? 0.6 : 0.35)) disparo(blancos[0], f === 2 ? { dano: castillo ? 40 : 30, perfora: 0.6 } : { dano: castillo ? 48 : 40, perfora: 0.7 }, true);
+        if (f >= 2 && blancos.length && azar(v) < (castillo ? 0.45 : 0.25)) disparo(blancos[0], f === 2 ? { dano: castillo ? 40 : 30, perfora: 0.6 } : { dano: castillo ? 48 : 40, perfora: 0.7 }, true);
       }
       if (cerca) { v.torres[k] -= cerca * 0.4; if (v.torres[k] <= 0) { cambiar(m, 'obra', t, OBRA.ruina, paso); delete v.torres[k]; } }
     }
@@ -3727,6 +3789,20 @@
           acc = ACC.luchar;
           // El tirador se para a disparar: deshace el paso de este turno si iba andando.
           if (a.e === IR) { a.x = a.r[a.r.length - 3]; a.y = a.r[a.r.length - 2]; }
+        } else if (!blanco && a.veh) {
+          // Sin soldados a tiro, la artillería y los tanques bombardean la torre o el castillo enemigo a su alcance.
+          const alc = VEHICULOS[a.veh].alcance;
+          let tt = -1;
+          for (const k of Object.keys(v.torres || {})) { const u = +k; if (Math.abs(u % v.tw - a.x) + Math.abs((u / v.tw | 0) - a.y) <= alc && c.guerras.some(g => g.con === m.dueno[region(m, u)])) { tt = u; break; } }
+          if (tt >= 0 && azar(v) < 0.6) {
+            const bx = tt % v.tw, by = tt / v.tw | 0;
+            v.disparos.push([a.x, a.y, bx, by, paso, 2, a.id]);
+            v.torres[tt] -= VEHICULOS[a.veh].dano / 16;
+            marcar(m, tt, 'escombros', 6, paso + 0.5);
+            if (v.torres[tt] <= 0) { cambiar(m, 'obra', tt, OBRA.ruina, paso + 0.5); delete v.torres[tt]; marcar(m, tt, 'escombros', 12, paso + 0.5); }
+            acc = ACC.luchar;
+            if (a.e === IR) { a.x = a.r[a.r.length - 3]; a.y = a.r[a.r.length - 2]; }
+          }
         }
       }
       if (muertos.has(a)) return;
@@ -4113,11 +4189,24 @@
     }
     else if (a.o === GUERRERO && v.ejercitos[c.id]) {
       // En formación detrás del capitán: primero al punto de reunión, luego a por el objetivo.
-      const e = v.ejercitos[c.id], base = centro(m, e.defiende != null ? e.defiende : e.fase === 'reunion' ? e.reunion : e.obj);
-      const dx = (a.id % 3) - 1, dy = (Math.floor(a.id / 3) % 3) - 1;
+      const e = v.ejercitos[c.id];
+      let base = e.defiende != null ? centro(m, e.defiende) : e.fase === 'reunion' ? centro(m, e.reunion) : e.frente != null ? e.frente : centro(m, e.obj);
+      if (e.linea && a.veh && e.blancoT != null && e.defiende == null) {
+        // Mientras la infantería espera en la línea, el tanque (blindado) va a por la torre, y el cañón o la
+        // artillería se pone justo fuera de su alcance, en línea recta, para bombardearla.
+        const bx = e.blancoT % v.tw, by = e.blancoT / v.tw | 0, fx = e.frente % v.tw, fy = e.frente / v.tw | 0, R = e.blancoR + 1;
+        base = a.veh === 'tanque' ? e.blancoT + (Math.sign(fy - by) || 1) * v.tw : Math.abs(fx - bx) >= Math.abs(fy - by) ? by * v.tw + bx + (Math.sign(fx - bx) || 1) * R : (by + (Math.sign(fy - by) || 1) * R) * v.tw + bx;
+        if (base < 0 || base >= ter.length || !andable(ter[base])) base = e.frente;
+      }
+      // En filas de cinco: los tanques y la artillería, detrás de la infantería.
+      const ix = a.id % 15, suelto = e.linea && a.veh && e.blancoT != null, dx = suelto ? 0 : (ix % 5) - 2, dy = suelto ? 0 : (ix / 5 | 0) - 1 + (a.veh ? (e.dir || 1) * -1 : 0);
       t = base + dx + dy * v.tw;
       if (t < 0 || t >= ter.length || !andable(ter[t])) t = base;
-      if (a.x === t % v.tw && a.y === (t / v.tw | 0)) { a.e = ESPERAR; a.t = 2; return; }
+      if (a.x === t % v.tw && a.y === (t / v.tw | 0)) {
+        // Frente a una torre, en la Segunda Guerra Mundial, cavan una zanja rápida donde esperan.
+        if (e.linea && c.era >= 8 && !v.obra[t] && ter[t] !== 'agua' && ter[t] !== 'bajo') { v.trinchera = v.trinchera || new Array(v.tw * v.th).fill(0); if (!v.trinchera[t]) { v.trinchera[t] = 1; v.trincheraVer = (v.trincheraVer || 0) + 1; } }
+        a.e = ESPERAR; a.t = 2; return;
+      }
     }
     else if (a.o === GUERRERO && c.era >= 8 && (c.trincheraPlan || []).length && (a.id % 2 === 0 || c.guerras.length)) {
       // En la Segunda Guerra Mundial: cavar la trinchera (y ponerle alambre); en guerra, ocuparla y esperar.
