@@ -1372,8 +1372,9 @@
         if (falta.length) { if ((c.madera || 0) < COSTE[0]) p.prioridad.madera = Math.max(p.prioridad.madera, 1.5); if ((c.piedra || 0) < COSTE[1]) p.prioridad.piedra = Math.max(p.prioridad.piedra, 1.5); }
         textos.push('Tus constructores levantarán ' + NOMBRE[a.obra] + ' en la plaza ' + (falta.length ? 'en cuanto junten lo que falta (' + falta.join(' y ') + '); mientras, más gente a por ello.' : 'ya: tenéis la madera y la piedra.') + (a.obra === 'puerto' ? ' Necesita costa junto a la plaza.' : ''));
       } else if (a.tipo === 'colonos') {
-        const suyas = (m.ciudades || []).filter(x => x.civ === c.id).length;
-        if (suyas >= S().maxCiudades(c)) { textos.push('Tu reino ya tiene todas las ciudades que puede gobernar (' + suyas + '). Avanzad de era para poder fundar más.'); continue; }
+        const CC = M.vida.COSTE_COLONIA, suyas = (m.ciudades || []).filter(x => x.civ === c.id).length;
+        if (suyas >= S().maxCiudades(c, m)) { textos.push('Tu reino ya tiene todas las ciudades que puede gobernar (' + suyas + '). Avanzad de era para poder fundar más.'); continue; }
+        if (M.vida.pausada(m) && !M.vida.puedeColonia(c)) { textos.push('Los colonos necesitan ' + CC.comida + ' de comida y ' + CC.madera + ' de madera para el viaje y el primer invierno (y que quede algo de comida en casa): tenéis ' + Math.floor(c.comida || 0) + ' de comida y ' + Math.floor(c.madera || 0) + ' de madera. Saldrán en cuanto lo juntéis.'); }
         p.colonos = a.rumbo || true;
         (m.vida && (m.vida.anuncios = m.vida.anuncios || [])).push({ civ: c.id, texto: 'Colonos en camino' + (a.rumbo ? ' hacia el ' + a.rumbo : '') });
         textos.push('Tres familias recogen sus cosas y salen ' + (a.rumbo === 'costa' ? 'hacia la costa' : a.rumbo ? 'hacia el ' + a.rumbo : 'hacia la mejor tierra libre cercana') + ' a fundar una aldea. Las verás caminar por el mapa.');

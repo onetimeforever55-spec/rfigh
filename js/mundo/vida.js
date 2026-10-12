@@ -826,7 +826,7 @@
       const fuerzaTren = Math.min(1, 0.55 + 0.15 * obreros.length) * (1 + 0.1 * Math.max(0, c.era - 6));
       const billetes = Math.min(pueblo ? Math.max(0, pueblo.total - pueblo.gastado) : 1e9, Math.min(1.8, (c.aldeanos || 0) * 0.01) * fuerzaTren);
       if (pueblo) pueblo.gastado += billetes;
-      const flete = Math.min(Math.max(0, (c.oro || 0) - 5), 0.16 * Math.min(6, (c.rutas || 0) + socios.length) * fuerzaTren);
+      const flete = Math.min(Math.max(0, (c.oro || 0) - 5), 0.24 * Math.min(6, (c.rutas || 0) + socios.length) * fuerzaTren);
       c.oro -= flete;
       let deSocios = 0;
       for (const o of socios.slice(0, 3)) { const x = 0.12 * fuerzaTren; if ((o.oro || 0) > x + 10) { o.oro -= x; deSocios += x; } }
@@ -3126,19 +3126,33 @@
     if (!puertos.length) return null;
     if (travesias.mundo !== m) travesias = { mundo: m };
     const mr = maresDe(m, ter);
+    // (Dos mares que dan al océano abierto se juntan por fuera del mapa, como para los mercantes.)
+    const mismoMar = (x, y) => mr.comp[x] === mr.comp[y] || (oceanica(m, ter, x) && oceanica(m, ter, y));
     const nuestros = puertos.slice(0, 3).map(p => [p, aguaJunto(m, p, ter)]).filter(([, w]) => w != null);
     // Las tierras del enemigo, de la más cercana a su corazón a la más lejana; solo las que dan al mismo mar que
     // alguno de nuestros puertos (así no se intenta desembarcar en la orilla de un lago).
     const regiones = S().casillas(m, o).sort((p, q) => S().distancia(p, preferida != null ? preferida : o.capital) - S().distancia(q, preferida != null ? preferida : o.capital));
     let intentos = 0;
     for (const r of regiones) {
-      const costa = parcelas(m, r).find(t => andable(ter[t]) && !navegable(ter, t) && aguaJunto(m, t, ter) != null && nuestros.some(([, w]) => mr.comp[w] === mr.comp[aguaJunto(m, t, ter)]));
+      const costa = parcelas(m, r).find(t => andable(ter[t]) && !navegable(ter, t) && aguaJunto(m, t, ter) != null && nuestros.some(([, w]) => mismoMar(w, aguaJunto(m, t, ter))));
       if (costa == null) continue;
       if (++intentos > 4) break;
       const a = aguaJunto(m, costa, ter);
       for (const [p, de] of nuestros) {
-        if (mr.comp[de] !== mr.comp[a]) continue;
-        const clave = de + '>' + a; if (!(clave in travesias)) travesias[clave] = rutaPorMar(m, de, a, ter);
+        if (!mismoMar(de, a)) continue;
+        const clave = 'o' + de + '>' + a; if (!(clave in travesias)) travesias[clave] = rutaOceano(m, de, a, ter);
+        const ruta = travesias[clave];
+        if (ruta && ruta.length > 1) return { obj: preferida != null && m.dueno[preferida] === o.id ? preferida : r, puerto: p, de, a, tierra: costa, ruta };
+      }
+    }
+    // (Si ninguna costa cerca de su capital sirve, se desembarca junto a uno de sus puertos: por ahí se llega seguro.)
+    for (const q of puertosDelTurno.filter(t => m.dueno[region(m, t)] === o.id).slice(0, 3)) {
+      const r = region(m, q), costa = parcelas(m, r).find(t => andable(ter[t]) && !navegable(ter, t) && aguaJunto(m, t, ter) != null && nuestros.some(([, w]) => mismoMar(w, aguaJunto(m, t, ter))));
+      if (costa == null) continue;
+      const a = aguaJunto(m, costa, ter);
+      for (const [p, de] of nuestros) {
+        if (!mismoMar(de, a)) continue;
+        const clave = 'o' + de + '>' + a; if (!(clave in travesias)) travesias[clave] = rutaOceano(m, de, a, ter);
         const ruta = travesias[clave];
         if (ruta && ruta.length > 1) return { obj: preferida != null && m.dueno[preferida] === o.id ? preferida : r, puerto: p, de, a, tierra: costa, ruta };
       }
@@ -3150,7 +3164,7 @@
   function navegarTransporte(m, b, c, ter, paso) {
     const v = m.vida, e = v.ejercitos[c.id];
     if (b.estado === 'zarpa' && b.ruta) {
-      b.i = Math.min(b.ruta.length - 1, b.i + 2); const t = b.ruta[b.i]; b.x = t % v.tw; b.y = t / v.tw | 0;
+      b.i = Math.min(b.ruta.length - 1, b.i + 2); const t = b.ruta[b.i]; if (t < 0) { b.altaMar = 1; b.x = -20; b.y = -20; } else { b.altaMar = 0; b.x = t % v.tw; b.y = t / v.tw | 0; }
       if (b.i >= b.ruta.length - 1) {
         // Desembarco: los soldados saltan a la playa (y a las casillas de tierra de alrededor).
         const tierra = b.tierra, abordo = v.aldeanos.filter(a => a.aBordo === b.id);
@@ -3168,7 +3182,7 @@
         b.estado = 'vuelve'; b.ruta = b.ruta.slice().reverse(); b.i = 0;
       }
     } else if (b.estado === 'vuelve' && b.ruta) {
-      b.i = Math.min(b.ruta.length - 1, b.i + 2); const t = b.ruta[b.i]; b.x = t % v.tw; b.y = t / v.tw | 0;
+      b.i = Math.min(b.ruta.length - 1, b.i + 2); const t = b.ruta[b.i]; if (t < 0) { b.altaMar = 1; b.x = -20; b.y = -20; } else { b.altaMar = 0; b.x = t % v.tw; b.y = t / v.tw | 0; }
       if (b.i >= b.ruta.length - 1) { b.hundido = 0; b.pv = 0; } // de vuelta en casa: se amarra (y desaparece)
     }
   }
@@ -5277,7 +5291,15 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
         const no = razonColonia(m, c, sitio);
         if (no) { c.plan.colonos = null; if (c.jugador) (v.anuncios = v.anuncios || []).push({ civ: c.id, region: sitio, texto: '🏕 No se puede fundar allí: ' + no }); continue; }
       }
-      if ((!lleno && !pedido) || suyas >= S().maxCiudades(c) || m.turno - (c.ultimaColonia || -99) < (pedido ? 1 : 4)) continue;
+      // (Lo que se llevan los colonos para el viaje y el primer invierno: sin eso, no salen.)
+      if ((!lleno && !pedido) || suyas >= S().maxCiudades(c, m) || (pausada(m) && !puedeColonia(c)) || m.turno - (c.ultimaColonia || -99) < (pedido ? 1 : 4)) continue;
+      // Sin tope de ciudades, pero la IA no funda otra hasta que las que tiene ya tienen vecinos (ocho o más):
+      // un reino no se desparrama en campamentos. (El jugador funda cuando quiere, si tiene con qué.)
+      if (pausada(m) && !pedido && !c.jugador) {
+        const mias = (m.ciudades || []).filter(x => x.civ === c.id);
+        const vecinos = x => v.aldeanos.reduce((n, a) => n + (a.c === c.id && a.h === x.region ? 1 : 0), 0);
+        if (m.turno - (c.ultimaColonia || -99) < 6 || mias.some(x => vecinos(x) < 8)) continue;
+      }
       const propias = [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)];
       const conPuerto = (c.puertos || 0) > 0;
       const destino = [];
@@ -5305,7 +5327,7 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       // Salen los adultos más jóvenes (los que aguantan el viaje y tendrán hijos en la tierra nueva).
       const elegidos = v.aldeanos.filter(a => a.c === c.id && !esNino(a) && (a.edad || 0) < VIEJO && a.o !== GUERRERO && !a.k && a.e !== VIAJAR && a.aBordo == null && masa[region(m, a.y * v.tw + a.x)] === deTierra).sort((x, y) => (x.edad || 0) - (y.edad || 0)).slice(0, 3);
       if (elegidos.length < 2) continue;
-      c.ultimaColonia = m.turno;
+      c.ultimaColonia = m.turno; if (pausada(m)) { c.comida -= COSTE_COLONIA.comida; c.madera -= COSTE_COLONIA.madera; }
       if (pedido) c.plan.colonos = null;
       for (const a of elegidos) { if (a.obrero != null) { delete a.obrero; a.enFabrica = 0; } // (quien se va de colono deja la fábrica)
         a.colono = r; a.e = LIBRE; a.paseo = 0; a.edificio = 0; a.obraCamino = 0; if (via.mar) a.porMar = 1; }
@@ -5369,7 +5391,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     const andando = propias.some(p => masaDe(m)[p] === masaDe(m)[r]);
     if (lejos > (andando ? 14 : 28)) return 'demasiado lejos ' + (andando ? 'para ir andando' : 'para cruzar el mar') + ' (' + lejos + ' tierras; como mucho ' + (andando ? 14 : 28) + ')';
     const suyas = (m.ciudades || []).filter(x => x.civ === c.id).length;
-    if (suyas >= S().maxCiudades(c)) return 'ya tienes ' + suyas + ' ciudades (en esta era, como mucho ' + S().maxCiudades(c) + ')';
+    if (suyas >= S().maxCiudades(c, m)) return 'ya tienes ' + suyas + ' ciudades (en esta era, como mucho ' + S().maxCiudades(c, m) + ')';
+    if (pausada(m) && !puedeColonia(c)) return 'los colonos necesitan ' + COSTE_COLONIA.comida + ' de comida y ' + COSTE_COLONIA.madera + ' de madera para el viaje (tenéis ' + Math.floor(c.comida || 0) + ' y ' + Math.floor(c.madera || 0) + ')';
     const via = viaColonia(m, c, r, false);
     if (!via) return (c.puertos || 0) > 0 ? 'no se llega: ningún puerto tuyo da a ese mar' : 'está al otro lado del mar: hace falta un puerto';
     return null;
@@ -5377,6 +5400,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
   // Los colonos que cruzan el mar: se reúnen en el puerto, embarcan en un barco, cruzan y desembarcan en la costa;
   // de ahí siguen andando hasta su tierra nueva. Si hunden el barco, se ahogan.
   // La tierra más cercana a una casilla (para quien se queda sin barco en el mar): en espiral, hasta 40 casillas.
+  // Lo que se llevan tres familias que salen a fundar una aldea (sin tope de ciudades: solo hace falta esto).
+  const COSTE_COLONIA = { comida: 20, madera: 10 };
+  const puedeColonia = c => (c.comida || 0) >= COSTE_COLONIA.comida + 10 && (c.madera || 0) >= COSTE_COLONIA.madera;
   function tierraCerca(m, x0, y0) {
     const v = m.vida, ter = terrenos(m);
     for (let r = 0; r <= 40; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
@@ -5649,5 +5675,5 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     actualizarPoblacion(m);
   }
 
-  M.vida = { MODOS_ECO, ministroEconomia, INDUSTRIAS, minerasDe, comprarInsumo, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, sitioDefensa, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { MODOS_ECO, ministroEconomia, INDUSTRIAS, minerasDe, comprarInsumo, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, sitioDefensa, COSTE_COLONIA, puedeColonia, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

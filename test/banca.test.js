@@ -173,9 +173,10 @@ console.log('EL PASO DE EDAD SE PAGA COMO LAS OBRAS');
   const e = S.crear(9, 5, { ritmo: 3 }); for (let k = 0; k < 20; k++) S.turno(e);
   const [c1, c2] = S.vivas(e), req = M.EDADES[c1.era + 1], ks = ['comida', 'madera', 'piedra', 'oro', 'metal'].filter(k => req[k]);
   // Con todo: de golpe.
-  for (const k of ks) c1[k] = req[k] + 5;
+  // (De sobra: la comida que hace falta para dar de comer a la gente no se gasta en la edad.)
+  for (const k of ks) c1[k] = req[k] + 200;
   S.empezarSubida(e, c1);
-  comprobar(!c1.subiendo.debe && ks.every(k => Math.round(c1[k]) === 5), 'con todo el precio, se paga de golpe');
+  comprobar(!c1.subiendo.debe && ks.every(k => Math.round(c1[k]) === 200), 'con todo el precio, se paga de golpe');
   // Con un tercio: la cuarta parte ahora y el resto poco a poco; si falta, espera; al tener, termina.
   // (De la comida, siempre queda en el granero la que necesita la gente: eso no se gasta en la edad.)
   const reserva = Math.max(4, (c2.habitantes || 0) * 0.8);

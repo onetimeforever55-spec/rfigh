@@ -55,7 +55,8 @@ console.log('LA HISTORIA SIGUE EL CALENDARIO REAL');
   comprobar(med(bronce) <= -2600 && med(bronce) >= -3600, 'la Edad del Bronce llega hacia el 3000 a. C. (mediana ' + S.anioTexto(med(bronce)) + ')');
   comprobar(med(renac) >= 1000 && med(renac) <= 1800, 'el Renacimiento, entre los años 1000 y 1800 (mediana ' + S.anioTexto(med(renac)) + ')');
   // (Subir de edad cuesta y tarda, como en Age of Empires: los más rápidos llegan algo después de la fecha mínima.)
-  comprobar(renac.some(a => a < 1550) && renac.some(a => a > 1700), 'pero cada mundo tiene su propia historia: unos se adelantan y otros se estancan (' + renac.join(', ') + ')');
+  // (Que unos lleguen siglos antes que otros: la fecha exacta de cada mundo cambia con cualquier ajuste del juego.)
+  comprobar(renac.some(a => a < 1550) && Math.max(...renac) - Math.min(...renac) >= 200, 'pero cada mundo tiene su propia historia: unos se adelantan y otros se estancan (' + renac.join(', ') + ')');
 }
 
 console.log('PASA DE TODO, Y SE EXPLICA');
@@ -280,7 +281,7 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
   let turnos = 0;
   while (!S.enGuerra(x, y) && turnos < 12 && (g.complots || []).includes(p)) { S.turno(g); x.rel[y.id] = y.rel[x.id] = -80; turnos++; }
   comprobar(p && (S.enGuerra(x, y) || !x.viva || !y.viva) && turnos >= 2, 'una guerra se trama durante unos turnos (con su progreso) y luego estalla (' + turnos + ' turnos)');
-  // Lealtad: demasiadas ciudades, lejos y con un alcalde ambicioso → rebelión.
+  // Lealtad (mundo libre): demasiadas ciudades, lejos y con un alcalde ambicioso → rebelión.
   const w = hasta(S.crear(1, 5), 1300);
   const c = S.vivas(w).find(o => (w.ciudades || []).some(z => z.civ === o.id));
   if (c) {
@@ -289,7 +290,7 @@ console.log('NIVELADO COMO WORLDBOX: OPINIÓN, COMPLOTS, LEALTAD, ASEDIOS, EDIFI
     for (let k = 0; k < 6; k++) w.ciudades.push({ region: -1000 - k, nombre: 'Fantasma' + k, civ: c.id, alcalde: 'X', rasgo: 'tranquilo' });
     const mot2 = S.motivosLealtad(w, c, ciudad);
     w.ciudades = w.ciudades.filter(z => z.region > -1000);
-    comprobar(mot2.some(z => /demasiadas ciudades/.test(z[0]) && z[1] <= -25) && mot2.some(z => /ambicioso/.test(z[0])), 'la lealtad baja con demasiadas ciudades (−25 cada una) y con un alcalde ambicioso');
+    comprobar(mot2.some(z => /demasiadas ciudades/.test(z[0]) && z[1] <= -25) && mot2.some(z => /ambicioso/.test(z[0])), 'en el mundo libre, la lealtad baja con demasiadas ciudades (−25 cada una) y con un alcalde ambicioso');
   } else comprobar(false, 'hace falta un pueblo con ciudades');
   // Se cuentan durante toda la partida (la crónica solo guarda los últimos sucesos).
   const ind = [4, 6, 7, 9].reduce((k, sd) => { const w = S.crear(sd, 5); let n = 0; while (w.anio < 2000) { const antes = w.cronica[0]; S.turno(w); for (const e of w.cronica) { if (e === antes) break; if (/se independiza/.test(e.titulo)) n++; } } return k + n; }, 0);
@@ -718,6 +719,7 @@ console.log('CARBÓN, PETRÓLEO Y BARCOS MODERNOS');
   comprobar(V.bienesDe(cs[0]).includes('carbon') && V.bienesDe(cs[0]).includes('petroleo') && m.mercado.precio.carbon > 0 && m.mercado.precio.petroleo > 0, 'el carbón y el petróleo se compran y se venden en el mercado global');
   // Sin carbón se paran las fábricas y los trenes; con carbón, vuelven.
   const c = cs[0], g = { fabricas: c.fabricas, estaciones: c.estaciones, centrales: c.centrales, carbon: c.carbon, petroleo: c.petroleo };
+  c.huelga = null; // (una huelga obrera también para las fábricas: aquí solo se mira el carbón)
   c.fabricas = 2; c.estaciones = 1; c.centrales = 1; c.carbon = 0; c.petroleo = 0; V.quemar(m, c);
   const parada = c.paradas.fabrica && c.paradas.tren && c.paradas.central && !V.enMarcha(c, 'fabrica');
   c.carbon = 50; V.quemar(m, c);
@@ -1066,8 +1068,9 @@ console.log('MODO TROPAS Y MUNDOS DE 10 REINOS');
   const r = X.ordenar(m, yo.id, '#tropas ' + sold.map(a => a.id).join(',') + ' ' + t);
   const lejos = () => { const d = sold.filter(a => m.vida.aldeanos.includes(a)).map(a => Math.abs(a.x - t % tw) + Math.abs(a.y - (t / tw | 0))); return d.length ? d.reduce((p, q) => p + q, 0) / d.length : 0; };
   // (Lo que cuenta es que lleguen: luego pueden retirarse si la batalla va mal.)
+  const guerra0 = S.enGuerra(yo, ene); // (al dar la orden: luego el enemigo puede pedir la paz)
   const d0 = lejos(); let dMin = d0; for (let k = 0; k < 10; k++) { S.turno(m); const d = lejos(); if (d > 0) dMin = Math.min(dMin, d); }
-  comprobar(sold.length >= 3 && S.enGuerra(yo, ene) && /atacar/.test(r.respuesta) && dMin < d0 * 0.6, 'en el modo tropas, los soldados elegidos van al sitio tocado y, si es de otro reino, le declaran la guerra y atacan (' + Math.round(d0) + ' → ' + Math.round(dMin) + ' casillas)');
+  comprobar(sold.length >= 3 && guerra0 && /atacar/.test(r.respuesta) && dMin < d0 * 0.6, 'en el modo tropas, los soldados elegidos van al sitio tocado y, si es de otro reino, le declaran la guerra y atacan (' + sold.length + ' soldados, guerra ' + guerra0 + ', ' + Math.round(d0) + ' → ' + Math.round(dMin) + ' casillas)');
   X.ordenar(m, yo.id, '#tropas-libres ' + sold.map(a => a.id).join(','));
   comprobar(sold.filter(a => m.vida.aldeanos.includes(a)).every(a => !(a.fijo && a.fijo.rts)), 'y «Automático» los devuelve al ejército');
 }
@@ -1142,6 +1145,26 @@ console.log('CONTROL FRONTERIZO');
   comprobar(puestos.every(p => v.torres[p] > 0), 'en guerra el puesto se defiende como una torre');
   const nombre = V.nombreEdificio(m, V.OBRA.aduana, puestos[0]);
   comprobar(/^Puesto fronterizo de /.test(nombre), 'cada puesto tiene nombre: ' + nombre);
+}
+
+console.log('SIN TOPE DE CIUDADES: SOLO HACEN FALTA RECURSOS');
+{
+  const V = M.vida, X = M.mando;
+  const m = S.crear(4, 5, { ritmo: 3 }); for (let k = 0; k < 40; k++) S.turno(m);
+  const c = S.vivas(m).sort((p, q) => S.casillas(m, q).length - S.casillas(m, p).length)[0]; X.gobernar(m, c.id);
+  comprobar(S.maxCiudades(c, m) === Infinity && !S.motivosLealtad(m, c, { region: c.capital, civ: c.id, rasgo: 'tranquilo' }).some(z => /demasiadas/.test(z[0])), 'jugando no hay tope de ciudades por era, ni resta lealtad tener muchas');
+  c.comida = 5; c.madera = 0;
+  const r1 = X.ordenar(m, c.id, 'fundad una aldea nueva');
+  comprobar(/necesitan 20 de comida y 10 de madera/.test(r1.respuesta), 'sin comida ni madera, los colonos esperan y lo dice (' + r1.respuesta.slice(0, 90) + '…)');
+  const ciud0 = (m.ciudades || []).filter(x => x.civ === c.id).length;
+  // Con recursos de sobra, el reino puede fundar una tras otra (más que el viejo tope de 2 + era/2).
+  let fundadas = 0;
+  for (let k = 0; k < 160 && fundadas < 5; k++) {
+    c.comida = Math.max(c.comida, 200); c.madera = Math.max(c.madera, 120); c.era = Math.min(c.era, 1);
+    if (!c.plan.colonos && !m.vida.aldeanos.some(a => a.c === c.id && a.colono != null)) X.ordenar(m, c.id, 'fundad una aldea nueva');
+    S.turno(m); fundadas = (m.ciudades || []).filter(x => x.civ === c.id).length - ciud0;
+  }
+  comprobar(fundadas + ciud0 > 2 + Math.floor(c.era / 2), 'con comida y madera se fundan más ciudades que el antiguo tope (' + (ciud0 + fundadas) + ' ciudades en la ' + (c.era) + 'ª edad; antes, como mucho ' + (2 + Math.floor(c.era / 2)) + ')');
 }
 
 console.log('DEFENSAS EN LA FRONTERA');

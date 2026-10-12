@@ -860,13 +860,15 @@
    * LA LEALTAD DE LAS CIUDADES, como en WorldBox: cada ciudad (no la capital) tiene una lealtad hecha de
    * motivos. Si baja de cero, su alcalde conspira; si el complot llega al 100 %, la ciudad se independiza.
    */
-  const maxCiudades = c => 2 + Math.floor(c.era / 2) + (c.rey && c.rey.rasgo === 'constructor' ? 1 : 0);
+  // Jugando (partidas pausadas) no hay tope de ciudades: un reino funda tantas como pueda pagar (los colonos se llevan
+  // comida y madera); más ciudades no lo hacen más fuerte por sí solas. En el mundo libre, el de siempre: 2 + era/2.
+  const maxCiudades = (c, m) => (m && M.vida && M.vida.pausada(m)) ? Infinity : 2 + Math.floor(c.era / 2) + (c.rey && c.rey.rasgo === 'constructor' ? 1 : 0);
   function motivosLealtad(m, c, x) {
     const out = [['base', 35]];
     const d = distancia(x.region, c.capital);
     if (d > 8) out.push(['lejos de la capital', -Math.round((d - 8) * 1.2)]);
-    const suyas = (m.ciudades || []).filter(y => y.civ === c.id).length;
-    if (suyas > maxCiudades(c)) out.push(['demasiadas ciudades (' + suyas + ' de ' + maxCiudades(c) + ')', -15 * (suyas - maxCiudades(c))]);
+    const suyas = (m.ciudades || []).filter(y => y.civ === c.id).length, tope = maxCiudades(c, m);
+    if (suyas > tope) out.push(['demasiadas ciudades (' + suyas + ' de ' + tope + ')', -15 * (suyas - tope)]);
     const rey = c.rey ? propio({ justo: 10, sabio: 5, constructor: 5, cruel: -15, loco: -20, codicioso: -5 }, c.rey.rasgo) : 0;
     if (rey) out.push(['su ' + titulo(c) + ' es ' + M.RASGOS[c.rey.rasgo].nombre, rey]);
     const alcalde = propio({ leal: 15, ambicioso: -15, codicioso: -5 }, x.rasgo);
