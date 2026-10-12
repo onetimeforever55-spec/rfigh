@@ -1344,8 +1344,72 @@
     rico.dinero = 0; mover(rico, COMERCIANTE);
     anunciar(m, c, (ind === 'ferrocarril' ? '🚂 ' : '🏭 ') + nombreDe(rico) + ' monta ' + (QUE_MONTA[ind] || 'una fábrica') + ' con su propio dinero, sin préstamo (paga ' + obra + ' de oro al reino por la obra)');
   }
+  /*
+   * EL MINISTRO DE ECONOMÍA (con el banco central): un erudito que trabaja en el banco y, cada pocos turnos, encarga lo que
+   * le falta al reino y pone a la venta lo que le sobra (son pedidos y ventas como los del jugador, marcados como
+   * suyos: los llevan las carretas y los barcos a los socios). Cuánto quiere de cada cosa depende del modo:
+   *  · equilibrio: lo normal; · crecimiento: madera, piedra y comida para crecer, y vende armas y máquinas de más;
+   *  · guerra: armas, metal, máquinas, granadas, petróleo y comida de reserva, y vende muebles y madera de más;
+   *  · ahorro: solo compra lo imprescindible, vende lo que sobra y guarda más oro.
+   */
+  const MODOS_ECO = {
+    equilibrio: { nombre: 'equilibrio', peso: {}, guarda: 0.3 },
+    crecimiento: { nombre: 'crecimiento', peso: { madera: 1.5, piedra: 1.5, comida: 1.3, metal: 1.1, armas: 0.6, vehiculos: 0.4, granadas: 0.4, muebles: 0.8 }, guarda: 0.2 },
+    guerra: { nombre: 'economía de guerra', peso: { armas: 2, metal: 1.6, vehiculos: 2, granadas: 2, petroleo: 1.6, comida: 1.4, carbon: 1.3, madera: 0.8, muebles: 0.4 }, guarda: 0.15 },
+    ahorro: { nombre: 'ahorro', peso: { madera: 0.9, piedra: 0.9, metal: 0.9, armas: 0.8, muebles: 0.6, vehiculos: 0.6, granadas: 0.6 }, guarda: 0.6, compraBajo: 0.5, vendeSobre: 1.3 }
+  };
+  const BIENES_MINISTRO = ['comida', 'madera', 'piedra', 'metal', 'armas', 'carbon', 'petroleo', 'muebles', 'vehiculos', 'granadas'];
+  function ministroEconomia(m, c) {
+    const v = m.vida, eco = c.plan.economia, M_ = MODOS_ECO[eco.modo] || MODOS_ECO.equilibrio;
+    // Sin banco central no hay ministerio; si el ministro murió o se fue, entra otro.
+    let min = v.aldeanos.find(a => a.id === eco.ministro && a.c === c.id);
+    if (!(c.bancos > 0)) { if (min) delete min.ministro; return; }
+    if (!min) {
+      const otro = S().ordenarPor(v.aldeanos.filter(a => a.c === c.id && !esNino(a) && (a.edad || 0) <= VIEJO - 3 && !a.emp && !a.merc && a.obrero == null && a.colono == null && a.o !== GUERRERO), a => (a.o === ERUDITO ? 0 : 1000) + (a.edad || 0) + a.id / 1e6)[0];
+      if (!otro) return;
+      const antes = eco.ministro != null; eco.ministro = otro.id; otro.ministro = 1; mover(otro, ERUDITO);
+      if (antes) anunciar(m, c, '🏛 ' + nombreDe(otro) + ' es el nuevo ministro de economía (' + M_.nombre + ')');
+      min = otro;
+    }
+    min.ministro = 1;
+    if (!sociosDe(m, c).length) { if (!(eco.avisoSinSocios > m.turno - 40)) { eco.avisoSinSocios = m.turno; anunciar(m, c, '🏛 El ministro ' + nombreDe(min) + ' no tiene con quién comerciar: abrid una ruta comercial'); } return; }
+    const p = c.plan, mk = m.mercado; if (!mk) return;
+    p.pedidos = (p.pedidos || []).filter(x => !(x.ministro && m.turno - x.desde > 24));
+    p.ventas = (p.ventas || []).filter(x => !(x.ministro && m.turno - x.desde > 24));
+    // El oro que puede gastar: lo que pasa de su reserva (más alta en modo ahorro).
+    let presupuesto = Math.max(0, (c.oro || 0) - Math.max(15, (c.oro || 0) * M_.guarda) - p.pedidos.filter(x => x.ministro).reduce((q, x) => q + x.n * (mk.precio[x.que] || 1), 0));
+    const hechos = [];
+    // Primero lo que más falta (por lo que le cuesta al reino no tenerlo).
+    const falta = k => { const meta = objetivo(c, k) * (M_.peso[k] || 1); return meta > 0 ? 1 - (c[k] || 0) / meta : 0; };
+    for (const k of S().ordenarPor(BIENES_MINISTRO.slice(), k => -falta(k))) {
+      if ((k === 'carbon' && c.era < 6) || (k === 'petroleo' && c.era < 7) || (k === 'vehiculos' && c.era < 5) || (k === 'granadas' && c.era < 8)) continue;
+      const meta = objetivo(c, k) * (M_.peso[k] || 1), tiene = c[k] || 0, precio = mk.precio[k] || PRECIO_BASE[k] || 1;
+      if (meta <= 0) continue;
+      const ped = p.pedidos.filter(x => x.que === k).reduce((q, x) => q + x.n, 0), ven = p.ventas.filter(x => x.que === k).reduce((q, x) => q + x.n, 0);
+      // (Un pedido y una venta por cosa: si ya tiene uno suyo, lo pone al día en vez de añadir otro.)
+      const suyoP = p.pedidos.find(x => x.ministro && x.que === k), suyoV = p.ventas.find(x => x.ministro && x.que === k);
+      const pedOtros = ped - (suyoP ? suyoP.n : 0), venOtros = ven - (suyoV ? suyoV.n : 0);
+      if (tiene + pedOtros < meta * (M_.compraBajo || 0.7)) {
+        const n = Math.min(Math.ceil(meta - tiene - pedOtros), Math.floor((presupuesto + (suyoP ? suyoP.n * precio : 0)) / precio));
+        if (suyoV) p.ventas = p.ventas.filter(x => x !== suyoV);
+        if (n >= 1) { if (suyoP) { presupuesto -= (n - suyoP.n) * precio; suyoP.n = n; } else { p.pedidos.push({ que: k, n, desde: m.turno, ministro: 1 }); presupuesto -= n * precio; } hechos.push('compra ' + n + ' de ' + (NOMBRE_BIEN[k] || k)); }
+      } else if (tiene - venOtros > meta * (M_.vendeSobre || 1.6) && !pedOtros) {
+        const n = Math.floor(tiene - venOtros - meta * 1.2);
+        if (suyoP) p.pedidos = p.pedidos.filter(x => x !== suyoP);
+        if (n >= 2) { if (suyoV) suyoV.n = n; else p.ventas.push({ que: k, n, desde: m.turno, ministro: 1 }); hechos.push('vende ' + n + ' de ' + (NOMBRE_BIEN[k] || k)); }
+      } else {
+        // Ya está bien de eso: se retira lo que tenía puesto.
+        if (suyoP && tiene >= meta) p.pedidos = p.pedidos.filter(x => x !== suyoP);
+        if (suyoV && tiene <= meta * 1.2) p.ventas = p.ventas.filter(x => x !== suyoV);
+      }
+    }
+    eco.ultimo = { turno: m.turno, hechos };
+    if (hechos.length && !(eco.avisoUltimo > m.turno - 12)) { eco.avisoUltimo = m.turno; anunciar(m, c, '🏛 El ministro ' + nombreDe(min) + ' (' + M_.nombre + '): ' + hechos.slice(0, 3).join(', ')); }
+  }
   function banca(m, c) {
     const v = m.vida;
+    // (Dónde está su banco central: allí trabaja el ministro de economía.)
+    if (c.bancoT == null || v.obra[c.bancoT] !== OBRA.banco || m.dueno[region(m, c.bancoT)] !== c.id) { c.bancoT = null; if (c.bancos > 0) for (let t = 0; t < v.obra.length; t++) if (v.obra[t] === OBRA.banco && m.dueno[region(m, t)] === c.id) { c.bancoT = t; break; } }
     // Los negocios privados de quien ya no está (murió, se fue o el reino perdió la tierra) pasan al reino.
     if (v.privados) for (const t of Object.keys(v.privados)) { const p = v.privados[t], a = v.aldeanos.find(x => x.id === p.dueno); if (p.civ === c.id && (!a || (p.tipo === 'gremio' || p.tipo === 'muelle' ? !a.merc : p.tipo === 'casona' ? false : !a.emp) || a.c !== c.id || m.dueno[region(m, +t)] !== c.id)) olvidarPrivado(m, c, +t); }
     // Un muelle por familia, pase lo que pase (herencias, relevos, ventas): si una familia acaba con dos, se queda el primero
@@ -1424,6 +1488,7 @@
     // Quien trabajaba en una fábrica que ya no está (quebró, se quemó, cambió de dueño o de reino) vuelve a su oficio
     // (también en los reinos sin banco central, que salen antes de esta función).
     for (const x of v.aldeanos) if (x.obrero != null && x.c === c.id) { const pv = v.privados && v.privados[x.obrero], d = pv && v.aldeanos.find(y => y.id === pv.dueno); if (!ES_INDUSTRIA.has(v.obra[x.obrero]) || !d || !d.emp || d.emp.t !== x.obrero || m.dueno[region(m, x.obrero)] !== c.id) { delete x.obrero; x.e = LIBRE; } }
+    if (pausada(m) && c.jugador && c.plan && c.plan.economia && m.turno % 3 === c.id % 3) ministroEconomia(m, c);
     if (pausada(m) && c.era >= 6 && m.turno % 8 === (c.id + 4) % 8) montarConLoSuyo(m, c);
     if (!(c.bancos > 0) || c.era < 5) { negocios(null, 1); return; }
     // EL BANCO CENTRAL: al abrir se lleva una parte del tesoro; luego, cada turno, un poco de los impuestos.
@@ -2122,7 +2187,7 @@
     const conCupo = i => cupos[i] != null;
     const tiene = [0, 0, 0, 0, 0, 0, 0];
     for (const a of todos) tiene[a.o]++;
-    const libres = todos.filter(a => !a.fijo && !a.emp && !a.merc);
+    const libres = todos.filter(a => !a.fijo && !a.emp && !a.merc && !a.ministro);
     let p = reparto(c, recursos || { arboles: 1, rocas: 1 });
     // Los oficios con cupo salen del reparto automático; lo demás se reparte en proporción.
     if (Object.keys(cupos).length) { p = p.map((x, i) => (conCupo(i) ? 0 : x)); const sum = p.reduce((k, x) => k + x, 0) || 1; p = p.map(x => x / sum); }
@@ -3835,6 +3900,8 @@
     }
     a.paseo = 0;
     // El obrero va a su fábrica a trabajar su jornada.
+    // El ministro de economía trabaja en el banco central.
+    if (a.ministro) { const tb = c.bancoT; if (tb != null && v.obra[tb] === OBRA.banco) { a.k = 0; ir(a, tb, v.tw, IR); a.enFabrica = 1; return; } }
     if (a.obrero != null) {
       if (ES_INDUSTRIA.has(v.obra[a.obrero])) {
         // (Los albañiles de una inmobiliaria van a su obra, no a la oficina.)
@@ -5424,5 +5491,5 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     actualizarPoblacion(m);
   }
 
-  M.vida = { INDUSTRIAS, minerasDe, comprarInsumo, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { MODOS_ECO, ministroEconomia, INDUSTRIAS, minerasDe, comprarInsumo, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});

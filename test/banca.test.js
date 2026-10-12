@@ -337,6 +337,33 @@ console.log('LA INMOBILIARIA: CONSTRUYE LO QUE EL PUEBLO NECESITA Y CASAS DE ALQ
   comprobar(V.INDUSTRIAS.inmobiliaria && V.OBRA.inmopriv && V.ERA_OBRA[V.OBRA.inmopriv] === 7, 'la inmobiliaria llega con la Era Moderna, con su oficina');
 }
 
+console.log('EL MINISTRO DE ECONOMÍA: COMPRA LO QUE FALTA Y VENDE LO QUE SOBRA, SEGÚN EL MODO');
+{
+  const g = S.crear(7, 5, { ritmo: 3 }); g.modo = 'pueblo'; for (let k = 0; k < 150; k++) S.turno(g);
+  const r = S.vivas(g).sort((p, q) => q.aldeanos - p.aldeanos)[0], w = g.vida; X.gobernar(g, r.id);
+  const o = S.vivas(g).find(x => x !== r && !S.enGuerra(r, x));
+  X.ordenar(g, r.id, 'abrid una ruta comercial con ' + o.nombre);
+  comprobar(/banco central/.test(X.ordenar(g, r.id, 'nombrad un ministro de economía').respuesta) && !r.plan.economia, 'sin banco central no hay ministro: trabaja en el banco');
+  r.era = Math.max(r.era, 5);
+  const tb = [r.capital, ...S.vecinos(r.capital)].flatMap(q => V.parcelas(g, q)).find(t => !w.obra[t]);
+  V.cambiar(g, 'obra', tb, V.OBRA.banco, 0); r.bancos = 1; r.banca = r.banca || { fondo: 40, prestado: 0, devuelto: 0 };
+  r.metal = 0; r.madera = 900; r.oro = 300; o.metal = 200; o.oro = 300;
+  const resp = X.ordenar(g, r.id, 'nombrad un ministro de economía').respuesta;
+  const min = w.aldeanos.find(a => a.id === r.plan.economia.ministro);
+  comprobar(min && min.ministro && min.o === 6 && /ministro de economía/.test(resp), 'se nombra un ministro de economía, un erudito del reino (' + resp.slice(0, 70) + '…)');
+  comprobar(r.plan.pedidos.some(x => x.ministro && x.que === 'metal') && r.plan.ventas.some(x => x.ministro && x.que === 'madera'), 'encarga lo que falta (metal) y pone a la venta lo que sobra (madera)');
+  X.ordenar(g, r.id, 'economía de guerra');
+  comprobar(r.plan.economia.modo === 'guerra' && r.plan.prioridad.ejercito >= 1.5 && r.plan.pedidos.filter(x => x.ministro && x.que === 'metal').length === 1, 'en economía de guerra compra más para el ejército (y sin pedidos repetidos)');
+  const metal0 = r.metal, madera0 = r.madera;
+  for (let k = 0; k < 30; k++) { r.bancos = 1; S.turno(g); }
+  comprobar(r.metal > metal0 && r.madera < madera0, 'y las carretas lo traen y se lo llevan: metal ' + metal0 + ' → ' + Math.round(r.metal) + ', madera ' + madera0 + ' → ' + Math.round(r.madera));
+  const m2 = w.aldeanos.find(a => a.id === r.plan.economia.ministro);
+  comprobar(m2 && Math.abs(m2.x - tb % w.tw) + Math.abs(m2.y - (tb / w.tw | 0)) <= 2, 'el ministro trabaja en el banco central');
+  comprobar(/Ministro de economía: .* en modo economía de guerra/.test(X.ordenar(g, r.id, '¿cómo va la economía?').respuesta), '«¿cómo va la economía?» cuenta qué compra y vende');
+  X.ordenar(g, r.id, 'despedid al ministro');
+  comprobar(!r.plan.economia && !(r.plan.pedidos || []).some(x => x.ministro), 'y «despedid al ministro» anula sus compras y ventas');
+}
+
 console.log('EL SUELDO DE LA GENTE, EL AHORRO Y QUIÉN PUEDE SER CAPITALISTA');
 {
   // Dos copias del mismo reino en la Edad Media: una con impuestos normales y otra con impuestos altos.

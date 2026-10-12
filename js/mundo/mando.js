@@ -785,6 +785,42 @@
     }
     // Los salarios de los obreros de las fábricas privadas (los paga su patrón): más bajos, más malestar y huelgas; más
     // altos, obreros contentos y patrones que ganan menos. (Subirlos en plena huelga la termina, abajo.)
+    // El ministro de economía: trabaja en el banco central y compra y vende por el reino según el modo.
+    if (a.tipo === 'ministro') {
+      const V = M.vida, eco = p.economia, MOD = V.MODOS_ECO;
+      const ministro = eco && m.vida.aldeanos.find(x => x.id === eco.ministro && x.c === c.id);
+      const nom = x => x.nombre + ' ' + (x.familia || '');
+      if (a.que === 'despedir') {
+        if (!eco) { textos.push('No tenéis ministro de economía.'); return; }
+        if (ministro) delete ministro.ministro;
+        p.pedidos = (p.pedidos || []).filter(x => !x.ministro); p.ventas = (p.ventas || []).filter(x => !x.ministro);
+        delete p.economia; an('🏛 Sin ministro de economía');
+        textos.push('Despedís al ministro' + (ministro ? ' ' + nom(ministro) : '') + ': se anulan sus compras y ventas, y el comercio vuelve a ser solo lo que encarguéis.');
+        return;
+      }
+      if (a.que === 'consulta') {
+        if (!eco) { textos.push(c.bancos > 0 ? 'No tenéis ministro de economía: «nombrad un ministro de economía» y elegid el modo (crecimiento, economía de guerra, ahorro o equilibrio).' : 'El ministro de economía trabaja en el banco central: primero «construid un banco central» (desde el Renacimiento).'); return; }
+        const ped = (p.pedidos || []).filter(x => x.ministro).map(x => x.n + ' de ' + NB(x.que)), ven = (p.ventas || []).filter(x => x.ministro).map(x => x.n + ' de ' + NB(x.que));
+        textos.push('Ministro de economía: ' + (ministro ? nom(ministro) : 'aún por nombrar') + ', en modo ' + (MOD[eco.modo] || MOD.equilibrio).nombre + '. ' + (ped.length ? 'Ha encargado ' + ped.join(', ') + '. ' : 'No tiene compras pendientes. ') + (ven.length ? 'Ha puesto a la venta ' + ven.join(', ') + '. ' : '') + 'Tesoro: ' + Math.round(c.oro || 0) + ' de oro.');
+        return;
+      }
+      if (!(c.bancos > 0)) { textos.push('El ministro de economía trabaja en el banco central, y aún no tenéis: «construid un banco central» (desde el Renacimiento).'); return; }
+      const modo = a.modo || (eco && eco.modo) || 'equilibrio';
+      const nuevo = !eco;
+      p.economia = Object.assign(eco || {}, { modo });
+      // Al nombrarlo o cambiar de modo, deshace las compras y ventas del modo anterior y trabaja enseguida.
+      p.pedidos = (p.pedidos || []).filter(x => !x.ministro); p.ventas = (p.ventas || []).filter(x => !x.ministro);
+      V.ministroEconomia(m, c);
+      const min = m.vida.aldeanos.find(x => x.id === p.economia.ministro);
+      // El modo empuja también lo que produce el pueblo.
+      const pr = p.prioridad = p.prioridad || {};
+      if (modo === 'guerra') pr.ejercito = Math.max(pr.ejercito || 1, 1.5); else if (modo === 'crecimiento') pr.casas = Math.max(pr.casas || 1, 1.5); else if (modo === 'ahorro') pr.riqueza = Math.max(pr.riqueza || 1, 1.5);
+      const desc = { equilibrio: 'compra lo que falta y vende lo que sobra, sin más', crecimiento: 'compra madera, piedra y comida para crecer y vende las armas y máquinas de más (y se construyen más casas)', guerra: 'compra armas, metal, máquinas, granadas, petróleo y comida de reserva, y vende muebles y madera de más (y más gente al ejército)', ahorro: 'solo compra lo imprescindible, vende lo que sobra y guarda más oro en el tesoro (y se busca más riqueza)' }[modo];
+      const hizo = p.economia.ultimo && p.economia.ultimo.hechos && p.economia.ultimo.hechos.length ? ' Para empezar: ' + p.economia.ultimo.hechos.slice(0, 4).join(', ') + '.' : '';
+      an('🏛 ' + (nuevo ? 'Ministro de economía: ' : 'Modo de la economía: ') + (MOD[modo] || MOD.equilibrio).nombre);
+      textos.push((nuevo ? (min ? nom(min) + ' es vuestro ministro de economía: trabajará en el banco central. ' : 'Se nombra un ministro de economía. ') : 'El ministro cambia de modo. ') + 'Modo ' + (MOD[modo] || MOD.equilibrio).nombre + ': ' + desc + '.' + hizo + (V.sociosDe(m, c).length ? '' : ' Ojo: sin socios no tiene con quién comerciar; abrid una ruta comercial.'));
+      return;
+    }
     // El parte de guerra: con quién, quién es más fuerte, cuántos soldados, máquinas y aviones, y qué conviene.
     if (a.tipo === 'consulta_guerra') {
       if (!c.guerras.length) { textos.push('Estáis en paz con todos.' + ((c.guerreros || 0) ? ' Tenéis ' + c.guerreros + ' guerreros patrullando.' : '')); return; }
@@ -893,7 +929,7 @@
     if (debo.length) l.push('Debéis: ' + debo.map(cr => (S().civ(m, cr.de) || {}).nombre + ' ' + Math.round(cr.resta)).join(', ') + '.');
     return l.join(' ');
   }
-  const TIPOS_EXTRA = ['consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
+  const TIPOS_EXTRA = ['ministro', 'consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
   /*
@@ -975,6 +1011,14 @@
     // Aquí no hay milagros: eres quien manda en un pueblo, no un dios.
     if (/\b(peste|plaga|diluvio|terremoto|llueva|lluvia de|milagro|rayos?|meteorito|que mueran|maldic\w*|bendic\w*|que aparezca)\b/.test(n)) return [{ tipo: 'milagro' }];
     if (/\b(como va|como van|que tal (va|van)|parte de guerra|como esta el frente|como vamos en)\b/.test(n) && /\b(guerras?|frente|batallas?|contienda)\b/.test(n)) return [{ tipo: 'consulta_guerra' }];
+    // El ministro de economía: nombrarlo, su modo, despedirlo y su informe (antes que «equilibrado», que es otra orden).
+    if (/\bministr\w*\b/.test(n) || /\beconomia\b/.test(n) || /\bmodo (crecimiento|guerra|ahorro|austeridad|equilibr\w*)\b/.test(n)) {
+      const modo = /\bguerra\b/.test(n) ? 'guerra' : /\b(crecimiento|crecer|desarroll\w*|expansion)\b/.test(n) ? 'crecimiento' : /\b(ahorr\w*|austeridad|austera|recort\w*)\b/.test(n) ? 'ahorro' : /\b(equilibr\w*|normal|mixta)\b/.test(n) ? 'equilibrio' : null;
+      if (/\b(despedi\w*|ces\w*|quit\w*|destitu\w*|echad|fuera)\b/.test(n) && /\bministr/.test(n)) return [{ tipo: 'ministro', que: 'despedir' }];
+      if (/\b(como va|como van|que tal|informe|como anda|como esta)\b/.test(n) && !modo) return [{ tipo: 'ministro', que: 'consulta' }];
+      if (modo) return [{ tipo: 'ministro', que: 'modo', modo }];
+      if (/\bministr/.test(n)) return [{ tipo: 'ministro', que: 'nombrar' }];
+    }
     if (/\b(informe|como vamos|como estamos|estado|situacion|que tal|resumen)\b/.test(n)) acciones.push({ tipo: 'informe' });
     if (/\b(como antes|lo de siempre|normal|equilibr\w*|a vuestro aire|libres?)\b/.test(n)) { acciones.push({ tipo: 'normal' }); return acciones; }
 
@@ -1375,6 +1419,7 @@
     '{"tipo":"expandir","si":true|false,"rumbo":null|"norte"|"sur"|"este"|"oeste"|id_de_pueblo};',
     '{"tipo":"anexar","con":id} (conquistar o anexionarse un reino entero); {"tipo":"comercio_libre","si":true|false} (que los comerciantes comercien solos o solo lo que se mande);',
     '{"tipo":"guerra","con":id}; {"tipo":"paz","con":id}; {"tipo":"comercio","con":id}; {"tipo":"alianza","con":id}; {"tipo":"romper","con":id} (romper una alianza);',
+    '{"tipo":"ministro","que":"nombrar"|"modo"|"despedir"|"consulta","modo":"equilibrio"|"crecimiento"|"guerra"|"ahorro"} (el ministro de economía, en el banco central, compra lo que falta y vende lo que sobra según el modo);',
     '{"tipo":"regimen","a":"reino"|"imperio"|"republica"|"teocracia"|"democracia"|"dictadura","era":era_minima}; {"tipo":"colonia"} (flota al otro lado del mar, desde el Renacimiento); {"tipo":"colonos","rumbo":null|"norte"|"sur"|"este"|"oeste"|"costa"} (tres familias salen a pie a fundar una aldea); {"tipo":"construir","obra":"saber"|"templo"|"torre"|"puerto"|"molino"|"cuartel"|"arqueria"|"castillo"|"pozo"|"granero"|"fuente"|"parque"|"palacio"|"central"|"banco"|"fabrica"|"estacion"|"hospital"|"aerodromo"|"petroleo"|"mina"} (mina = galería, solo en la montaña, que da piedra, metal, carbón y algo de oro sin agotarse; petroleo = pozo de petróleo, en la Era Moderna y sobre una bolsa de crudo; banco desde el Renacimiento; fábrica y estación de tren desde la Revolución Industrial; hospital desde la Era Moderna; aeródromo en la II Guerra Mundial; fuente = plaza pública; central = central eléctrica, solo en la Era Moderna y en ciudades; templo = iglesia o catedral según la era; saber = la casa de los eruditos: cabaña del chamán, academia, monasterio, universidad o laboratorio); {"tipo":"cuadrilla","n":numero|"todos"|0.5,"de":oficio_origen|-1,"a":oficio_destino,"hasta":plazo} (aldeanos concretos cambian de tarea; oficios: 0 leñador, 1 granjero, 2 constructor, 3 minero, 4 guerrero, 5 comerciante, 6 erudito (chamán, filósofo, monje, científico); -1 cualquiera); {"tipo":"cupo","o":oficio,"n":numero,"hasta":plazo} (fija cuántos hay de un oficio); {"tipo":"meta","cosa":"arboles"|"casas"|"piedra"|"madera"|"metal"|"campos"|"comida","n":numero,"o":oficio} (producir eso y volver a lo de antes); {"tipo":"liberar"} (quitar cuadrillas y cupos); {"tipo":"investigar","id":"hachas|agricultura|ceramica|pastoreo|rueda|escritura|bronce|adobe|hierro|moneda|arado|murallas|acueducto|filosofia|derecho|hormigon|molino_agua|universidad|estribo|gremios|imprenta|polvora|banca|carabela|vapor|ferrocarril|fabrica|abonos|electricidad|vacunas|radio|aviacion|ametralladora|tanque|radar"}; {"tipo":"consulta_tec"}; {"tipo":"comprar"|"vender","que":"madera"|"comida"|"piedra"|"metal"|"armas"|"carbon"|"petroleo"|"muebles"|"vehiculos"|"semillas"|"granadas","n":numero|null} (solo con reinos con los que hay ruta de comercio: el comerciante lo trae o lo lleva); {"tipo":"especialidad","que":"madera"|"comida"|"piedra"|"metal"|"armas"|"carbon"|"petroleo"|"muebles"|"vehiculos"|null} (a qué se dedica el pueblo para vender); {"tipo":"consulta_mercado"}; {"tipo":"oferta","si":bool} (aceptar o rechazar el trato que ofrece un mercader); {"tipo":"tesoro","guardar":true|false} (guardar el oro o invertirlo en ciencia); {"tipo":"consulta_oro"}; {"tipo":"edad"} (pasar a la edad siguiente, como en Age of Empires: cuesta recursos y pide edificios); {"tipo":"consulta_edad"} (qué falta para la próxima edad); {"tipo":"edad_auto","si":bool}; {"tipo":"ahorrar_edad","si":bool}; {"tipo":"escuadron","n":numero,"arma":null|"arqueros"|"tanques","region":r|null,"ataca":true_si_va_contra_plaza_enemiga} (grupo de soldados con misión: guardar una plaza propia o atacar una enemiga); {"tipo":"vehiculos","cual":"tanque"|"artilleria"|"aviones"}; {"tipo":"atacar"} (salir al ataque en la guerra actual); {"tipo":"defender","region":r,"postura":"esperar"|"emboscada"|"alto"}; {"tipo":"rendicion","con":id}; {"tipo":"espiar","con":id}; {"tipo":"insultar","con":id}; {"tipo":"regalo","con":id}; {"tipo":"sabotaje","con":id} (quemar sus campos en guerra); {"tipo":"exterminio","con":id,"parar":bool} (los soldados matan también a los civiles de ese pueblo; parar:true lo cancela); {"tipo":"impuestos","sube":true|false}; {"tipo":"fiesta","descanso":true|false}; {"tipo":"reforestar"} (los leñadores plantan árboles con las semillas); {"tipo":"fabricar","que":"armas"|"muebles"|"vehiculos"|"granadas","n":numero} (fabricar armas de la época en la forja o la fábrica, o muebles con la madera en la fábrica); {"tipo":"huelga","ceder":true|false} (huelga obrera: subir salarios o reprimirla); {"tipo":"rezar"}; {"tipo":"curar"}; {"tipo":"trabajar"}; plazo = null | {"ms":milisegundos} | {"turnos":n} | {"anios":n} | {"cosa":"madera"|"comida"|"piedra"|"metal"|"casas"|"arboles","n":numero,"nuevo":true_si_es_producir_n_mas}; {"tipo":"objetivo","region":r} (el ejército marcha sobre esa plaza enemiga; declara la guerra si hace falta); {"tipo":"defender","region":r} (el ejército defiende esa plaza propia; para «retirada», la capital); {"tipo":"informe"}; {"tipo":"normal"}.',
     'Responde SOLO con JSON: {"acciones":[...], "respuesta":"una o dos frases de consejero, en español, que digan qué se hace y, si la orden pedía algo imposible, por qué no"}. Sin markdown. Usa solo los id que te doy.'
   ].join('\n');
@@ -1422,6 +1467,7 @@
         if (a.tipo === 'vehiculos') x.cual = ['tanque', 'artilleria', 'aviones'].includes(a.cual) ? a.cual : 'artilleria';
         if (a.tipo === 'impuestos') x.sube = a.sube !== false;
         if (a.tipo === 'salario') x.sube = a.sube !== false;
+        if (a.tipo === 'ministro') { x.que = ['nombrar', 'modo', 'despedir', 'consulta'].includes(a.que) ? a.que : 'consulta'; if (['equilibrio', 'crecimiento', 'guerra', 'ahorro'].includes(a.modo)) x.modo = a.modo; }
         if (a.tipo === 'fiesta' && a.descanso) x.descanso = true;
         if (a.tipo === 'huelga') x.ceder = a.ceder !== false;
         if (a.tipo === 'fabricar') { x.que = ['muebles', 'vehiculos', 'granadas'].includes(a.que) ? a.que : 'armas'; x.n = Math.max(1, Math.min(500, Math.round(Number(a.n) || 20))); }
