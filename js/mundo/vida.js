@@ -782,12 +782,21 @@
   // Un turno de la fábrica: sueldos, producción, ventas y contratos. Devuelve lo que gana (antes de impuestos).
   // La fundición, por encargo: cada obrero avanza un poco la máquina; cuando está, se la vende a su reino o a un socio
   // que la necesite (y pueda pagarla). Primero se busca comprador, luego se compra el metal: nunca se amontonan.
+  // Lo que el reino tiene pedido a sus empresas de una cosa, y apuntar lo que le llega.
+  const pedidoEmp = (c, k) => (c.plan && c.plan.pedidoEmp && c.plan.pedidoEmp[k]) || 0;
+  function servidoEmp(m, c, k, q, a) {
+    const p = c.plan; if (!p || !p.pedidoEmp || !p.pedidoEmp[k]) return;
+    p.pedidoEmp[k] = Math.max(0, Math.round((p.pedidoEmp[k] - q) * 10) / 10);
+    if (p.pedidoEmp[k] < 0.5) { delete p.pedidoEmp[k]; anunciar(m, c, '🏭 Las empresas del país entregan el pedido de ' + (NOMBRE_BIEN[k] || k) + (a ? ' (lo último, ' + nombreDe(a) + ')' : '')); }
+  }
   function maquinas(m, c, a, e, socios, obreros) {
     let ingreso = 0, gasto = 0;
     e.taller = redondo((e.taller || 0) + obreros.length * 0.12 * fuerza(c));
     if (e.taller < 1) return { ingreso, gasto };
+    const enc = c.plan && (c.plan.encargosMaq || []).find(x => x.hechos < x.n) || null;
     for (const o of [c, ...socios.slice(0, 3)]) {
-      const k = pideMaquina(m, o); if (!k) continue;
+      // (Lo que el reino encargó a la fundición va antes que nada.)
+      const k = o === c && enc ? enc.k : pideMaquina(m, o); if (!k) continue;
       const Q = MAQUINA[k], pm = (m.mercado && m.mercado.precio.metal) || PRECIO_BASE.metal, pp = (m.mercado && m.mercado.precio.petroleo) || PRECIO_BASE.petroleo;
       const precio = Math.round(((m.mercado && m.mercado.precio.vehiculos) || PRECIO_BASE.vehiculos) * (k === 'avion' ? 1.3 : k === 'tanque' ? 1.15 : 0.8) * (o === c ? 1 : 1.05));
       if ((o.oro || 0) < precio + 10 || (e.caja || 0) + 0 < Q.metal * pm * 0.5 - 20) continue;
@@ -798,6 +807,7 @@
       if (k === 'avion') o.aviones = (o.aviones || 0) + 1; else o.vehiculos = (o.vehiculos || 0) + 1;
       const hechas = e.maquinas = e.maquinas || {}; hechas[k] = (hechas[k] || 0) + 1;
       if (o === c) e.alReino = redondo((e.alReino || 0) + 1); else e.exportado = redondo((e.exportado || 0) + 1);
+      if (o === c && enc && k === enc.k) { enc.hechos++; if (enc.hechos >= enc.n) { anunciar(m, c, '🏭 ' + ((m.vida.edificios[e.t] || {}).nombre || 'La fundición') + ' entrega el encargo: ' + enc.n + ' ' + ({ tanque: 'tanques', avion: 'aviones', canon: 'cañones', artilleria: 'piezas de artillería' }[k]) + ' para el reino'); c.plan.encargosMaq = c.plan.encargosMaq.filter(x => x !== enc); } }
       if (hechas[k] === 1) anunciar(m, c, (k === 'avion' ? '✈ ' : '🛡 ') + ((m.vida.edificios[e.t] || {}).nombre || 'La fundición') + ' entrega ' + (k === 'artilleria' ? 'su primera pieza de artillería' : 'su primer ' + Q.nombre) + (o === c ? ' al ejército' : ' a ' + o.nombre) + ' (' + precio + ' de oro)');
       break;
     }
@@ -939,9 +949,11 @@
       // resto se lo compran las fábricas (de aquí y de los socios). Si se le amontona, despide.
       const st = e.stocks = e.stocks || {};
       for (const o of [c, ...socios.slice(0, 3)]) for (const k of Object.keys(st)) {
-        const pr = ((m.mercado && m.mercado.precio[k]) || PRECIO_BASE[k]) * (o === c ? 1 : 1.05), necesita = Math.max(0, objetivo(o, k) * 0.9 - (o[k] || 0));
-        const x = Math.min(st[k], necesita, Math.floor(Math.max(0, (o.oro || 0) - 5) / pr));
-        if (x > 0) { o.oro -= x * pr; o[k] = (o[k] || 0) + x; st[k] = redondo(st[k] - x); ingreso += x * pr; if (o === c) e.alReino = redondo((e.alReino || 0) + x); else e.exportado = redondo((e.exportado || 0) + x); }
+        // (Lo que el reino le pide a sus empresas cuenta como lo que necesita.)
+        const pedido = o === c ? pedidoEmp(c, k) : 0;
+        const pr = ((m.mercado && m.mercado.precio[k]) || PRECIO_BASE[k]) * (o === c ? 1 : 1.05), necesita = Math.max(0, objetivo(o, k) * 0.9 - (o[k] || 0), pedido);
+        const x = Math.floor(Math.min(st[k], necesita, Math.max(0, (o.oro || 0) - 5) / pr) * 10) / 10;
+        if (x > 0) { o.oro -= x * pr; o[k] = (o[k] || 0) + x; st[k] = redondo(st[k] - x); ingreso += x * pr; if (o === c) { e.alReino = redondo((e.alReino || 0) + x); if (pedido) servidoEmp(m, c, k, x, a); } else e.exportado = redondo((e.exportado || 0) + x); }
       }
       e.stock = redondo(Object.values(st).reduce((p, q) => p + q, 0));
       // (Lo que cobró de las fábricas ya entró en su caja al venderles: comprarInsumo.)
@@ -964,6 +976,12 @@
       const q = Math.min(e.stock, necesita, Math.floor(Math.max(0, c.oro || 0) / precio));
       if (q > 0) { c.oro -= q * precio; ingreso += q * precio; e.stock = redondo(e.stock - q); if (I.hace === 'armas') c.armas = (c.armas || 0) + q; else alimento(c, 'carne', q * 2); e.alReino = redondo((e.alReino || 0) + q); }
     }
+    // Lo que el reino le ha pedido a las empresas del país («comprad 10 de armas a mis empresas»).
+    { const kb = I.hace === 'conservas' ? 'comida' : I.hace, ped = pedidoEmp(c, kb);
+      if (ped > 0 && e.stock > 0.3) {
+        const q = Math.floor(Math.min(e.stock, kb === 'comida' ? ped / 2 : ped, Math.max(0, (c.oro || 0) - 5) / precio) * 10) / 10;
+        if (q > 0) { c.oro -= q * precio; ingreso += q * precio; e.stock = redondo(e.stock - q); if (kb === 'comida') alimento(c, 'carne', q * 2); else c[kb] = (c[kb] || 0) + q; e.alReino = redondo((e.alReino || 0) + q); servidoEmp(m, c, kb, kb === 'comida' ? q * 2 : q, a); }
+      } }
     for (const o of socios.slice(0, 3)) {
       if (e.stock < 0.5) break;
       const q = Math.min(e.stock, 1.5), pago = q * precio * 0.95;

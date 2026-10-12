@@ -364,6 +364,29 @@ console.log('EL MINISTRO DE ECONOMÍA: COMPRA LO QUE FALTA Y VENDE LO QUE SOBRA,
   comprobar(!r.plan.economia && !(r.plan.pedidos || []).some(x => x.ministro), 'y «despedid al ministro» anula sus compras y ventas');
 }
 
+console.log('COMPRAR Y ENCARGAR A LAS EMPRESAS DEL PAÍS');
+{
+  const g = S.crear(7, 5, { ritmo: 3 }); g.modo = 'pueblo'; for (let k = 0; k < 60; k++) S.turno(g);
+  const r = S.vivas(g).sort((p, q) => q.aldeanos - p.aldeanos)[0], w = g.vida, O = V.OBRA; X.gobernar(g, r.id); r.era = 8;
+  const ord = t => X.ordenar(g, r.id, t);
+  comprobar(/Ninguna empresa del país hace metal/.test(ord('comprad hierro a mis empresas').respuesta) && /fundición privada/.test(ord('encargad a la fundición 3 tanques').respuesta), 'sin empresas, explica qué hace falta (y «fundición» ya no se confunde con fundar una aldea)');
+  const gente = w.aldeanos.filter(a => a.c === r.id && a.edad >= V.ADULTO && a.edad < V.VIEJO - 4 && !a.emp && !a.merc && a.obrero == null && a.o !== 5);
+  const [tf, tm] = [r.capital, ...S.vecinos(r.capital)].flatMap(q => V.parcelas(g, q)).filter(t => !w.obra[t]);
+  V.cambiar(g, 'obra', tf, O.fabrica, 0); w.privados = w.privados || {}; w.privados[tf] = { dueno: gente[0].id, civ: r.id, tipo: 'fabrica', ind: 'fundicion' };
+  gente[0].emp = { neg: 'fabrica', ind: 'fundicion', t: tf, caja: 20, deuda: 0, monto: 0, cuota: 0, desde: g.turno, atraso: 0, propio: true };
+  V.cambiar(g, 'obra', tm, O.minapriv, 0); w.privados[tm] = { dueno: gente[1].id, civ: r.id, tipo: 'fabrica', ind: 'minera' };
+  gente[1].emp = { neg: 'fabrica', ind: 'minera', t: tm, caja: 20, deuda: 0, monto: 0, cuota: 0, desde: g.turno, atraso: 0, propio: true, stocks: { metal: 30, piedra: 0, carbon: 0 } };
+  for (const a of gente.slice(2, 5)) a.obrero = tf; for (const a of gente.slice(5, 7)) a.obrero = tm;
+  r.metal = 0; r.oro = 600; r.petroleo = 40; r.vehiculos = 0; r.paradas = {};
+  comprobar(/Pedís 12 de metal/.test(ord('comprad 12 de hierro a mis empresas').respuesta) && r.plan.pedidoEmp.metal === 12, '«comprad 12 de hierro a mis empresas» se lo pide a la compañía minera del país');
+  comprobar(/Encargáis 3 tanques/.test(ord('encargad a la fundición 3 tanques').respuesta) && /después de 3 tanques/.test(ord('que mis fábricas hagan 2 aviones').respuesta), '«encargad a la fundición 3 tanques» y «que mis fábricas hagan 2 aviones» van en cola');
+  comprobar(/Encargáis 2 tanques/.test(ord('fabricad 2 tanques').respuesta), 'sin cuartel, «fabricad tanques» se lo encarga a la fundición');
+  for (let k = 0; k < 40; k++) { g.turno++; r.era = 8; r.paradas = {}; r.oro = Math.max(r.oro, 300); V.banca(g, r); }
+  comprobar(r.metal >= 12 && !(r.plan.pedidoEmp || {}).metal, 'la mina entrega el metal y el tesoro lo paga (' + Math.round(r.metal) + ' de metal)');
+  comprobar((gente[0].emp.maquinas || {}).tanque >= 2 && r.vehiculos >= 2, 'y la fundición hace los tanques encargados antes que nada (' + ((gente[0].emp.maquinas || {}).tanque || 0) + ')');
+  comprobar(/Pedido a las empresas del país/.test(ord('¿cómo va el banco?').respuesta), '«¿cómo va el banco?» cuenta lo que falta por entregar');
+}
+
 console.log('EL SUELDO DE LA GENTE, EL AHORRO Y QUIÉN PUEDE SER CAPITALISTA');
 {
   // Dos copias del mismo reino en la Edad Media: una con impuestos normales y otra con impuestos altos.

@@ -473,7 +473,12 @@
       // Solo se compra y se vende con un reino con el que se comercia: el pedido lo trae (o lo lleva) la carreta.
       if (!PRECIO[a.que]) { textos.push('Eso no se compra ni se vende.'); return; }
       const socios = sociosDe(m, c), precio = mk ? mk.precio[a.que] : PRECIO[a.que];
-      if (!socios.length) { textos.push('No comerciáis con ningún reino: no hay a quién ' + (a.tipo === 'comprar' ? 'comprar' : 'vender') + '. Abrid una («abrid una ruta comercial con X») o producidlo vosotros.'); return; }
+      if (!socios.length) {
+        // (Sin socios, si lo hace una empresa del país, se le compra a ella.)
+        const IND = { metal: ['minera'], piedra: ['minera'], carbon: ['minera'], armas: ['fundicion'], muebles: ['aserradero'], comida: ['conservera'] }[a.que];
+        if (a.tipo === 'comprar' && IND && M.vida.empresariosDe(m, c).some(x => x.emp.neg === 'fabrica' && IND.includes(x.emp.ind))) return aplicarExtra(m, c, { tipo: 'empresas', que: a.que, maq: false, n: a.n }, textos);
+        textos.push('No comerciáis con ningún reino: no hay a quién ' + (a.tipo === 'comprar' ? 'comprar' : 'vender') + '. Abrid una («abrid una ruta comercial con X») o producidlo vosotros.'); return;
+      }
       const nq = a.n || (a.tipo === 'comprar' ? Math.max(5, Math.floor((c.oro || 0) * 0.5 / precio)) : Math.floor((c[a.que] || 0) * 0.5));
       if (nq <= 0) { textos.push(a.tipo === 'comprar' ? 'No hay oro para comprar ' + NB(a.que) + '.' : 'No tenéis ' + NB(a.que) + ' que vender.'); return; }
       const lista = a.tipo === 'comprar' ? (p.pedidos = p.pedidos || []) : (p.ventas = p.ventas || []);
@@ -753,7 +758,10 @@
       const V = M.vida;
       if (a.que === 'vehiculos') {
         if (c.era < 5) { textos.push('Los cañones llegan con la pólvora (Renacimiento); antes no hay vehículos de guerra que fabricar.'); return; }
-        if (!(c.cuarteles > 0)) { textos.push('Hace falta un cuartel para fabricarlos: «construid un cuartel».'); return; }
+        if (!(c.cuarteles > 0)) {
+          if (M.vida.empresariosDe(m, c).some(x => x.emp.ind === 'fundicion')) return aplicarExtra(m, c, { tipo: 'empresas', que: c.era >= 8 ? 'tanque' : c.era >= 7 ? 'artilleria' : 'canon', maq: true, n: a.n }, textos);
+          textos.push('Hace falta un cuartel para fabricarlos: «construid un cuartel» (o que los haga una fundición privada).'); return;
+        }
         const t = c.era >= 8 ? 'tanques (10 de metal y 3 de petróleo cada uno)' : c.era >= 7 ? 'piezas de artillería (5 de metal)' : 'cañones (4 de metal)';
         p.fabricar = { que: 'vehiculos', n: Math.max(1, Math.min(60, a.n || 3)), hechos: 0, desde: m.turno };
         an('⚙ Fabricando ' + p.fabricar.n + ' vehículos de guerra');
@@ -785,6 +793,37 @@
     }
     // Los salarios de los obreros de las fábricas privadas (los paga su patrón): más bajos, más malestar y huelgas; más
     // altos, obreros contentos y patrones que ganan menos. (Subirlos en plena huelga la termina, abajo.)
+    // Comprar o encargar a las empresas del país (la compañía minera, la fundición, el aserradero, la conservera): lo
+    // fabrican o lo sacan, se lo venden al reino y el tesoro paga al recibirlo.
+    if (a.tipo === 'empresas') {
+      const V = M.vida, I = V.INDUSTRIAS, emp = V.empresariosDe(m, c).filter(x => x.emp.neg === 'fabrica' && x.emp.ind);
+      const quien = ind => emp.filter(x => x.emp.ind === ind);
+      const nombreEmp = x => (m.vida.edificios[x.emp.t] || {}).nombre || (I[x.emp.ind] ? I[x.emp.ind].nombre + ' ' + (x.familia || '') : 'su empresa');
+      if (a.maq) {
+        const MQ = { tanque: ['tanques', 7], avion: ['aviones', 7], artilleria: ['piezas de artillería', 7], canon: ['cañones', 5] }[a.que];
+        if (c.era < MQ[1]) { textos.push('Aún no se hacen ' + MQ[0] + ': llegan con ' + (MQ[1] >= 7 ? 'la Era Moderna' : 'la pólvora (Renacimiento)') + '.'); return; }
+        const fund = quien('fundicion');
+        if (!fund.length) { textos.push('No tenéis ninguna fundición privada que haga ' + MQ[0] + '. La abre un capitalista (con préstamo de un banco privado o con su dinero) cuando al reino le sobra metal' + (c.cuarteles > 0 ? '; mientras, el cuartel puede: «fabricad ' + (a.n || 3) + ' ' + MQ[0] + '».' : '.')); return; }
+        const n = Math.max(1, Math.min(30, a.n || 3));
+        // (Los encargos van en cola: uno detrás de otro, en el orden en que se piden.)
+        const cola = p.encargosMaq = (p.encargosMaq || []).filter(x => x.hechos < x.n);
+        const igual = cola.find(x => x.k === a.que);
+        if (igual) igual.n += n; else cola.push({ k: a.que, n, hechos: 0, desde: m.turno });
+        an('🏭 Encargo a la fundición: ' + n + ' ' + MQ[0]);
+        const pos = cola.findIndex(x => x.k === a.que), antes = cola.slice(0, pos).map(x => (x.n - x.hechos) + ' ' + ({ tanque: 'tanques', avion: 'aviones', canon: 'cañones', artilleria: 'piezas de artillería' }[x.k]));
+        textos.push('Encargáis ' + n + ' ' + MQ[0] + ' a ' + fund.map(nombreEmp).join(' y ') + (antes.length ? ' (después de ' + antes.join(' y ') + ')' : '') + ': los hará antes que nada y os los venderá según los termine (el tesoro paga cada uno al recibirlo; necesita metal' + (a.que === 'tanque' || a.que === 'avion' ? ' y petróleo' : '') + ').' + (a.que === 'avion' && !(c.aerodromos > 0) ? ' Ojo: sin aeródromo, los aviones no tienen de dónde despegar.' : ''));
+        return;
+      }
+      const IND = { metal: ['minera'], piedra: ['minera'], carbon: ['minera'], armas: ['fundicion'], muebles: ['aserradero'], comida: ['conservera'] }[a.que];
+      const prov = emp.filter(x => IND.includes(x.emp.ind));
+      if (!prov.length) { textos.push('Ninguna empresa del país hace ' + NB(a.que) + ': ' + ({ minera: 'hace falta una compañía minera', fundicion: 'hace falta una fundición', aserradero: 'hace falta un aserradero', conservera: 'hace falta una conservera' }[IND[0]]) + ', y la abre un capitalista.' + (V.sociosDe(m, c).length ? ' También podéis comprarlo fuera: «comprad ' + NB(a.que) + '».' : '')); return; }
+      const n = Math.max(1, Math.min(500, a.n || 10));
+      p.pedidoEmp = p.pedidoEmp || {}; p.pedidoEmp[a.que] = (p.pedidoEmp[a.que] || 0) + n;
+      an('🏭 Pedido a las empresas: ' + n + ' de ' + NB(a.que));
+      const precio = (m.mercado && m.mercado.precio[a.que]) || PRECIO[a.que] || 1;
+      textos.push('Pedís ' + n + ' de ' + NB(a.que) + ' a ' + prov.map(nombreEmp).join(' y ') + ', a unas ' + precio.toFixed(2) + ' de oro cada una: os lo venden según lo tengan, y el tesoro paga al recibirlo (ahora tenéis ' + Math.round(c.oro || 0) + ' de oro).');
+      return;
+    }
     // El ministro de economía: trabaja en el banco central y compra y vende por el reino según el modo.
     if (a.tipo === 'ministro') {
       const V = M.vida, eco = p.economia, MOD = V.MODOS_ECO;
@@ -918,6 +957,8 @@
     const emp = M.vida.empresariosDe(m, c).filter(a => a.emp.neg !== 'banco'), I = M.vida.INDUSTRIAS;
     const MAQ = { canon: 'cañones', artilleria: 'artillería', tanque: 'tanques', avion: 'aviones' };
     const que = e => e.neg !== 'fabrica' ? 'mercader' : e.ind === 'inmobiliaria' ? 'inmobiliaria' + (e.hechas || e.publicas ? ', ha levantado ' + [e.hechas ? e.hechas + (e.hechas === 1 ? ' casa' : ' casas') + ' de alquiler' : '', e.publicas ? e.publicas + (e.publicas === 1 ? ' edificio' : ' edificios') + ' para el reino' : ''].filter(Boolean).join(' y ') : '') : e.ind === 'ferrocarril' ? 'ferrocarril' + (e.viajeros ? ', ' + Math.round(e.viajeros + (e.fletes || 0)) + ' cobrado en billetes y fletes' : '') : e.ind && I[e.ind] ? I[e.ind].nombre.toLowerCase() + (e.maquinas ? ', ha hecho ' + Object.keys(e.maquinas).map(k => e.maquinas[k] + ' ' + MAQ[k]).join(' y ') : '') : 'fábrica';
+    const pe = (c.plan && c.plan.pedidoEmp) || {}, em = ((c.plan && c.plan.encargosMaq) || []).filter(x => x.hechos < x.n);
+    if (Object.keys(pe).length || em.length) l.push('Pedido a las empresas del país: ' + [...Object.keys(pe).map(k => Math.ceil(pe[k]) + ' de ' + NB(k)), ...em.map(x => (x.n - x.hechos) + ' ' + ({ tanque: 'tanques', avion: 'aviones', canon: 'cañones', artilleria: 'piezas de artillería' }[x.k]))].join(', ') + '.');
     if (emp.length) l.push('Empresarios: ' + emp.map(a => a.nombre + ' ' + (a.familia || '') + ' (' + que(a.emp) + (a.emp.propio ? ', con su dinero' : a.emp.deuda > 0 ? ', debe ' + Math.round(a.emp.deuda) : ', sin deudas') + ')').join(', ') + '.');
     if (!(c.bancos > 0 && c.banca)) l.push(c.era >= 5 ? 'Aún no tenéis banco central: «construid un banco central» (hace falta una villa o ciudad).' : 'El banco central llega con el Renacimiento. Mientras, vuestros mercaderes ahorran.');
     const mercs = M.vida.mercaderesDe(m, c);
@@ -929,7 +970,7 @@
     if (debo.length) l.push('Debéis: ' + debo.map(cr => (S().civ(m, cr.de) || {}).nombre + ' ' + Math.round(cr.resta)).join(', ') + '.');
     return l.join(' ');
   }
-  const TIPOS_EXTRA = ['ministro', 'consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
+  const TIPOS_EXTRA = ['empresas', 'ministro', 'consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
   /*
@@ -1010,6 +1051,17 @@
     if (!c || !c.viva || !n) return acciones;
     // Aquí no hay milagros: eres quien manda en un pueblo, no un dios.
     if (/\b(peste|plaga|diluvio|terremoto|llueva|lluvia de|milagro|rayos?|meteorito|que mueran|maldic\w*|bendic\w*|que aparezca)\b/.test(n)) return [{ tipo: 'milagro' }];
+    // Comprar o encargar a las empresas del país: «comprad 10 de hierro a mis empresas», «encargad a la fundición 3 tanques».
+    // (Antes que nada: «fundición» se tomaba por «fundar» una aldea y «empresas» por comprar a otro reino.)
+    {
+      const aEmp = /\b(mis|nuestras?|del pais|del reino|privadas?|nacionales?) (empresas?|fabricas?|industrias?|compan\w*|fundicion\w*|mineras?)\b/.test(n) || /\b(empresas?|industria privada|capitalistas?|fundicion\w*|compania minera|companias? mineras?|minera privada|aserradero|conservera)\b/.test(n);
+      if (aEmp && /\b(compr\w*|encarg\w*|pedi\w*|pide\w*|haced|hacer|hagan|fabric\w*|produc\w*|quiero|queremos|necesit\w*|traed|dadme|que nos (vendan|den))\b/.test(n)) {
+        const maq = /\btanques?\b/.test(n) ? 'tanque' : /\b(aviones?|avion|bombarderos?)\b/.test(n) ? 'avion' : /\bcanones?\b/.test(n) ? 'canon' : /\bartilleria\b/.test(n) ? 'artilleria' : null;
+        const bien = /\b(hierro|metal\w*|acero)\b/.test(n) ? 'metal' : /\barmas?\b/.test(n) ? 'armas' : /\bmuebles?\b/.test(n) ? 'muebles' : /\b(comida|conservas?|alimentos?|latas?)\b/.test(n) ? 'comida' : /\bpiedras?\b/.test(n) ? 'piedra' : /\bcarbon\b/.test(n) ? 'carbon' : null;
+        const mt = n.match(new RegExp('\\b' + NUM + '\\b'));
+        if (maq || bien) return [{ tipo: 'empresas', que: maq || bien, maq: !!maq, n: mt ? Math.max(1, Math.round(numero(mt[1]) || 0)) : null }];
+      }
+    }
     if (/\b(como va|como van|que tal (va|van)|parte de guerra|como esta el frente|como vamos en)\b/.test(n) && /\b(guerras?|frente|batallas?|contienda)\b/.test(n)) return [{ tipo: 'consulta_guerra' }];
     // El ministro de economía: nombrarlo, su modo, despedirlo y su informe (antes que «equilibrado», que es otra orden).
     if (/\bministr\w*\b/.test(n) || /\beconomia\b/.test(n) || /\bmodo (crecimiento|guerra|ahorro|austeridad|equilibr\w*)\b/.test(n)) {
@@ -1467,6 +1519,7 @@
         if (a.tipo === 'vehiculos') x.cual = ['tanque', 'artilleria', 'aviones'].includes(a.cual) ? a.cual : 'artilleria';
         if (a.tipo === 'impuestos') x.sube = a.sube !== false;
         if (a.tipo === 'salario') x.sube = a.sube !== false;
+        if (a.tipo === 'empresas') { const ok = ['tanque', 'avion', 'canon', 'artilleria', 'metal', 'armas', 'muebles', 'comida', 'piedra', 'carbon']; x.que = ok.includes(a.que) ? a.que : 'metal'; x.maq = ['tanque', 'avion', 'canon', 'artilleria'].includes(x.que); x.n = Number(a.n) > 0 ? Math.min(200, Math.round(Number(a.n))) : null; }
         if (a.tipo === 'ministro') { x.que = ['nombrar', 'modo', 'despedir', 'consulta'].includes(a.que) ? a.que : 'consulta'; if (['equilibrio', 'crecimiento', 'guerra', 'ahorro'].includes(a.modo)) x.modo = a.modo; }
         if (a.tipo === 'fiesta' && a.descanso) x.descanso = true;
         if (a.tipo === 'huelga') x.ceder = a.ceder !== false;
