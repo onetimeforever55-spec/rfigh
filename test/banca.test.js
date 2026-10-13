@@ -309,7 +309,9 @@ console.log('LA COMPAÑÍA DE FERROCARRIL Y LA FUNDICIÓN QUE HACE TANQUES Y AVI
   comprobar(e.caja > caja0, 'y gana dinero aun pagando sueldos y el carbón (caja ' + caja0 + ' → ' + Math.round(e.caja) + ')');
   const f = dueno2.emp.maquinas || {};
   comprobar((f.canon || 0) + (f.artilleria || 0) > 0, 'la fundición hace cañones y artillería para el ejército antes de la II Guerra Mundial (' + JSON.stringify(f) + ')');
-  comprobar(f.tanque > 0 && f.avion > 0 && r.aviones >= 1, 'y en la II Guerra Mundial, tanques y aviones (' + (f.tanque || 0) + ' tanques, ' + (f.avion || 0) + ' aviones; el reino tiene ' + r.aviones + ' aviones y ' + Math.round(r.vehiculos) + ' máquinas)');
+  // (Con la aviación apagada, la fundición no hace aviones: solo tanques y artillería.)
+  if (V.AVIACION) comprobar(f.tanque > 0 && f.avion > 0 && r.aviones >= 1, 'y en la II Guerra Mundial, tanques y aviones (' + (f.tanque || 0) + ' tanques, ' + (f.avion || 0) + ' aviones; el reino tiene ' + r.aviones + ' aviones y ' + Math.round(r.vehiculos) + ' máquinas)');
+  else comprobar(f.tanque > 0 && !f.avion && !(r.aviones > 0), 'y en la II Guerra Mundial, tanques (' + (f.tanque || 0) + '); aviones no, que están apagados por ahora');
   comprobar(r.vehiculos <= 2 + 8 - 5 + 1, 'solo hace las que su reino necesita, sin amontonarlas (' + Math.round(r.vehiculos) + ')');
 }
 
@@ -383,7 +385,8 @@ console.log('COMPRAR Y ENCARGAR A LAS EMPRESAS DEL PAÍS');
   for (const a of gente.slice(2, 5)) a.obrero = tf; for (const a of gente.slice(5, 7)) a.obrero = tm;
   r.metal = 0; r.oro = 600; r.petroleo = 40; r.vehiculos = 0; r.paradas = {};
   comprobar(/Pedís 12 de metal/.test(ord('comprad 12 de hierro a mis empresas').respuesta) && r.plan.pedidoEmp.metal === 12, '«comprad 12 de hierro a mis empresas» se lo pide a la compañía minera del país');
-  comprobar(/Encargáis 3 tanques/.test(ord('encargad a la fundición 3 tanques').respuesta) && /después de 3 tanques/.test(ord('que mis fábricas hagan 2 aviones').respuesta), '«encargad a la fundición 3 tanques» y «que mis fábricas hagan 2 aviones» van en cola');
+  comprobar(/Encargáis 3 tanques/.test(ord('encargad a la fundición 3 tanques').respuesta) && /después de 3 tanques/.test(ord('que mis fábricas hagan 2 cañones').respuesta), '«encargad a la fundición 3 tanques» y «que mis fábricas hagan 2 cañones» van en cola');
+  if (!V.AVIACION) comprobar(/desactivados por ahora/.test(ord('que mis fábricas hagan 2 aviones').respuesta) && /desactivados por ahora/.test(ord('fabricad aviones').respuesta), 'los aviones están apagados por ahora y las órdenes lo explican');
   comprobar(/Encargáis 2 tanques/.test(ord('fabricad 2 tanques').respuesta), 'sin cuartel, «fabricad tanques» se lo encarga a la fundición');
   for (let k = 0; k < 40; k++) { g.turno++; r.era = 8; r.paradas = {}; r.oro = Math.max(r.oro, 300); V.banca(g, r); }
   comprobar(r.metal >= 12 && !(r.plan.pedidoEmp || {}).metal, 'la mina entrega el metal y el tesoro lo paga (' + Math.round(r.metal) + ' de metal)');

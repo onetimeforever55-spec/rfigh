@@ -598,6 +598,7 @@
       return;
     }
     if (a.tipo === 'vehiculos') {
+      if (a.cual === 'aviones' && !M.vida.AVIACION) { textos.push('Los aviones están desactivados por ahora, hasta que haya defensas antiaéreas. Para la guerra moderna tenéis tanques, artillería, trincheras y búnkeres en la frontera.'); return; }
       if (a.cual === 'aviones') { textos.push(c.era >= 8 ? 'Tus bombarderos ya despegan solos en cada guerra si hay metal (3 por salida) y un cuartel. Metal: ' + Math.floor(c.metal || 0) + '.' + (c.guerras.length ? '' : ' Ahora estáis en paz.') : 'Los aviones llegan con la Segunda Guerra Mundial.'); if (c.era >= 8) p.prioridad.piedra = Math.max(p.prioridad.piedra, 1.5); return; }
       const era = a.cual === 'tanque' ? 8 : 5;
       if (c.era < era) { textos.push(a.cual === 'tanque' ? 'Los tanques llegan con la Segunda Guerra Mundial.' : 'Los cañones llegan con la pólvora.'); return; }
@@ -815,6 +816,7 @@
       const quien = ind => emp.filter(x => x.emp.ind === ind);
       const nombreEmp = x => (m.vida.edificios[x.emp.t] || {}).nombre || (I[x.emp.ind] ? I[x.emp.ind].nombre + ' ' + (x.familia || '') : 'su empresa');
       if (a.maq) {
+        if (a.que === 'avion' && !M.vida.AVIACION) { textos.push('Los aviones están desactivados por ahora, hasta que haya defensas antiaéreas. Para la guerra moderna tenéis tanques, artillería, trincheras y búnkeres en la frontera.'); return; }
         const MQ = { tanque: ['tanques', 7], avion: ['aviones', 7], artilleria: ['piezas de artillería', 7], canon: ['cañones', 5] }[a.que];
         if (c.era < MQ[1]) { textos.push('Aún no se hacen ' + MQ[0] + ': llegan con ' + (MQ[1] >= 7 ? 'la Era Moderna' : 'la pólvora (Renacimiento)') + '.'); return; }
         const fund = quien('fundicion');

@@ -704,12 +704,15 @@
   // LA FUNDICIÓN TAMBIÉN HACE LAS MÁQUINAS DE GUERRA: cañones (desde la pólvora), artillería (Era Moderna), tanques y aviones
   // (II Guerra Mundial y Era Moderna), según la era, y solo por encargo: cuando su reino (o un socio) los necesita y puede
   // pagarlos. Gasta metal (y petróleo los tanques y los aviones), que compra como la demás materia prima.
+  // LA AVIACIÓN, apagada por ahora (faltan las defensas antiaéreas): no despegan aviones, la fundición no los hace y las
+  // ciudades no piden aeródromo. Para volver a ponerla, true.
+  const AVIACION = false;
   const MAQUINA = { canon: { metal: 4, petroleo: 0, nombre: 'cañón', un: 'un cañón' }, artilleria: { metal: 5, petroleo: 0, nombre: 'pieza de artillería', un: 'una pieza de artillería' }, tanque: { metal: 8, petroleo: 3, nombre: 'tanque', un: 'un tanque' }, avion: { metal: 4, petroleo: 2, nombre: 'avión', un: 'un avión' } };
   const maquinaDeEra = era => (era >= 8 ? 'tanque' : era >= 7 ? 'artilleria' : 'canon');
   function pideMaquina(m, o) {
     if (!o || o.era < 5) return null;
     const guerra = o.guerras && o.guerras.length;
-    if (o.era >= 7 && (o.aerodromos > 0 || !pausada(m)) && (o.aviones || 0) < (guerra ? 3 : 1)) return 'avion';
+    if (AVIACION && o.era >= 7 && (o.aerodromos > 0 || !pausada(m)) && (o.aviones || 0) < (guerra ? 3 : 1)) return 'avion';
     if ((o.vehiculos || 0) < (guerra ? 2 + o.era - 5 : 1)) return maquinaDeEra(o.era);
     return null;
   }
@@ -2568,7 +2571,7 @@
       if (cap && nivel >= 3 && c.era >= ERA_OBRA[OBRA.fabrica]) pon('fabrica', !hay('fabrica'));
       if (cap && nivel >= 3 && c.era >= ERA_OBRA[OBRA.estacion] && (c.rutas || 0) >= 1) pon('estacion', !hay('estacion'));
       if (nivel >= 3 && (cap || nivel >= 4) && c.era >= ERA_OBRA[OBRA.hospital]) pon('hospital', !hay('hospital'));
-      if (cap && nivel >= 3 && c.era >= ERA_OBRA[OBRA.aerodromo] && (c.guerras.length || c.cuarteles > 0)) pon('aerodromo', !hay('aerodromo'));
+      if (AVIACION && cap && nivel >= 3 && c.era >= ERA_OBRA[OBRA.aerodromo] && (c.guerras.length || c.cuarteles > 0)) pon('aerodromo', !hay('aerodromo'));
     }
     c.necesidades = out;
     // Cada carencia cuenta una vez (la de la capital entera; la de otra ciudad, la mitad).
@@ -3518,6 +3521,7 @@
   function aviones(m, paso, guerreros) {
     const v = m.vida;
     v.aviones = [];
+    if (!AVIACION) return;
     for (const c of S().vivas(m)) {
       // Desde la Era Moderna (biplanos) y en la II Guerra Mundial (bombarderos), con un aeródromo y combustible.
       // (Con aviones comprados a la fundición no gasta metal y salen más; si no, los improvisa con 2 de metal.)
@@ -5675,5 +5679,5 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     actualizarPoblacion(m);
   }
 
-  M.vida = { MODOS_ECO, ministroEconomia, INDUSTRIAS, minerasDe, comprarInsumo, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, sitioDefensa, COSTE_COLONIA, puedeColonia, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
+  M.vida = { AVIACION, MODOS_ECO, ministroEconomia, INDUSTRIAS, minerasDe, comprarInsumo, etapa, porMar, vendible, comercian, permiteComercio, asignarCasas, camasDe, fuerza, comarcasConPozo, banca, comercio, mercaderesDe, gremiosDe, empresariosDe, banquerosDe, moverAlBanco, TIPO_INTERES, nivelInteres, VUELO, sociosDe, comercioLibre, razonColonia, viaColonia, masaDe, sitioPuerto, enMarAbierto, NAVAL, claseNaval, porMar, planNaval, ALIMENTOS, alimento, desglose, turnoPorPasos, SUB, TICKS, ADULTO, VIEJO, escala, anos: a => Math.round((a.edad || 0) < ADULTO ? (a.edad || 0) * 8 : 16 + ((a.edad || 0) - ADULTO) * 2.6), OBRA, RANGO_MOLINO, rangoMolino, planUrbano, fase, OFICIOS, ACC, trazar, calles, islas, reasignar, ERUDITO, salud, riesgoAnual, registrar, nombreEdificio, lugarDe, cultivoTipo, regadio, RINDE, aceptarOferta, BIENES, PRECIO_BASE, NOMBRE_BIEN, objetivo, balance, mercado, ERA_OBRA, NOMBRE_ERA, saquear, planTrincheras, MAX_TRINCHERA, sitioDefensa, COSTE_COLONIA, puedeColonia, danoContra, GRANADA, buscaGranada, estallido, RESISTE, sitioMina, abrirRuta, TIRO, planificarVias, esVia, pasosFronterizos, pasoSinPuesto, subsuelo, quemar, huelgas, enMarcha, contaminacion, bienesDe, sitioPetroleo, GASTO, alumbradoDe, EDIFICABLES, puedeColocar, encargar, COSTES, NIVEL_OBRA, NECESIDADES, necesidades, edificioPendiente, animoDe, topeComida, pausada, esNoche, estacion, ESTACIONES, DIA_TURNOS, ESTACION_TURNOS, mover, cambiar, prender, inundar, marcar, MARCA, ARMAS, TIROS, ARMADURAS, VEHICULOS, armaduraDeEra, armaDe, poder, vidaMax, reparto, crear, turno, terrenos, region, centro, parcelas, plaza, contar, tierrasPagables, pagarTierra, incendio, plantar, castigo, ajustar };
 })(globalThis.RF = globalThis.RF || {});
