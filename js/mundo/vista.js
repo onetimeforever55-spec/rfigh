@@ -2014,6 +2014,9 @@
     $('ayuda').addEventListener('click', ev => { if (ev.target === $('ayuda')) ayuda(false); });
     // El sonido empieza apagado (los navegadores solo dejan sonar tras un gesto); se recuerda la preferencia.
     const pintarSonido = () => { const on = M.sonido.activo(); $('sonido').textContent = on ? '🔊 Sonido' : '🔈 Sonido'; $('sonido').setAttribute('aria-pressed', on ? 'true' : 'false'); };
+    // Gráficos: con la tarjeta gráfica (WebGL) o el dibujo clásico. Se aplica al volver a abrir el juego (la partida se guarda sola).
+    const pintarGraficos = () => { const b = $('graficos'); if (!b) return; const usa = M.pintor.gpu && M.pintor.gpu(); let pref = null; try { pref = localStorage.getItem('genesis.gpu'); } catch (e) { /* sin preferencia */ } const quiere = pref !== '0'; const d = M.gpu && M.gpu.disponible ? M.gpu.disponible() : { si: false }; b.disabled = !d.si && !usa; b.textContent = '🎮 Gráficos: ' + (b.disabled ? 'clásico' : (quiere ? 'tarjeta gráfica' : 'clásico') + (quiere !== !!usa ? ' (al recargar)' : '')); b.title = usa ? 'Se dibuja con la tarjeta gráfica (WebGL): menos trabajo para el procesador y la batería.' : 'Se dibuja con el dibujo clásico (2D)' + (d.si ? '.' : ': este aparato no tiene WebGL de verdad (' + (d.por || '') + ').'); };
+    if ($('graficos')) { pintarGraficos(); $('graficos').addEventListener('click', () => { let pref = null; try { pref = localStorage.getItem('genesis.gpu'); localStorage.setItem('genesis.gpu', pref === '0' ? '1' : '0'); } catch (e) { /* sin guardado */ } pintarGraficos(); }); }
     $('sonido').addEventListener('click', () => { const on = M.sonido.alternar(); try { localStorage.setItem('genesis.sonido', on ? '1' : '0'); } catch (e) { /* sin guardado */ } pintarSonido(); });
     pintarSonido();
     $('zoom-mas').addEventListener('click', () => P.zoom(1.5));

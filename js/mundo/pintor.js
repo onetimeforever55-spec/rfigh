@@ -46,7 +46,14 @@
   function modoTropas(o) { tropas = o ? Object.assign({ sel: new Set() }, o) : null; caja = null; }
 
   function iniciar(canvas, opciones) {
-    cv = canvas; g = cv.getContext('2d');
+    cv = canvas;
+    // Con la tarjeta gráfica (WebGL) si el aparato la tiene; si no (o con ?gpu=0 / genesis.gpu=0), el 2D de siempre.
+    // (?gpu=forzar la usa aunque el WebGL sea por software: para probar.)
+    let sinGpu = false, forzar = false;
+    try { sinGpu = /[?&]gpu=0/.test(location.search) || (localStorage.getItem('genesis.gpu') === '0' && !/[?&]gpu=/.test(location.search)); forzar = /[?&]gpu=forzar/.test(location.search); } catch (e) { /* sin preferencia */ }
+    g = null;
+    if (!sinGpu && M.gpu) { try { g = M.gpu.crear(cv, forzar); } catch (e) { g = null; } }
+    if (!g) g = cv.getContext('2d');
     alClicar = (opciones && opciones.alClicar) || null;
     alClicarAldeano = (opciones && opciones.alClicarAldeano) || null;
     alClicarCorte = (opciones && opciones.alClicarCorte) || null;
@@ -95,6 +102,7 @@
     m = nuevo; regionDe = null; gente = null;
     if (!m.vida) V.crear(m);
     const v = m.vida;
+    if (g && g.olvidar) { if (lienzo) g.olvidar(lienzo); if (capa) g.olvidar(capa); }
     lienzo = document.createElement('canvas'); lienzo.width = v.tw * A; lienzo.height = v.th * A; gl = lienzo.getContext('2d');
     capa = document.createElement('canvas'); capa.width = v.tw * CA; capa.height = v.th * CA; gc = capa.getContext('2d');
     subVisto = v.subsueloVer || 0;
@@ -121,6 +129,8 @@
 
   function parcela(t) {
     const v = m.vida, x = (t % v.tw) * A, y = Math.floor(t / v.tw) * A, ter = tierra[t], h = (Math.imul(t, 2654435761) >>> 0);
+    // (Con la tarjeta gráfica, se vuelve a subir solo esta parcela y las de al lado, por si el dibujo se sale.)
+    if (g && g.sucio) g.sucio(lienzo, x - A, y - A, A * 3, A * 3);
     gl.clearRect(x, y, A, A);
     gl.drawImage(ARTE().suelo(ter, h % 4), x, y);
     // Una bolsa de petróleo: manchas negras y brillantes en el suelo (hasta que se levanta el pozo).
@@ -274,6 +284,7 @@
     // La región de cada parcela no cambia nunca: se calcula una vez.
     if (!regionDe || regionDe.length !== n) { regionDe = new Int32Array(n); for (let t = 0; t < n; t++) regionDe[t] = V.region(m, t); }
     gc.clearRect(0, 0, capa.width, capa.height);
+    if (g && g.todoSucio) g.todoSucio(capa);
     const color = {}; for (const c of m.civs) color[c.id] = c.color;
     const guerra = new Set(); for (const c of S.vivas(m)) for (const x of c.guerras) guerra.add(Math.min(c.id, x.con) + ':' + Math.max(c.id, x.con));
     const zona = new Int16Array(n).fill(-1), dist = new Uint8Array(n).fill(255), cola = [];
@@ -423,6 +434,10 @@
   }
   function fotograma(ahora) {
     requestAnimationFrame(fotograma);
+    // (Con la tarjeta gráfica, lo dibujado se manda en lotes: al terminar el fotograma se manda lo que quede.)
+    try { dibujarFotograma(ahora); } finally { if (g && g.fin) g.fin(); }
+  }
+  function dibujarFotograma(ahora) {
     if (!m || !listo) return;
     medirRitmo(ahora);
     const k = progreso();
@@ -2377,5 +2392,5 @@
   function seguir(id) { siguiendo = id; elegido = id; if (id != null && cam.z < 2.5) cam.z = Math.min(4, Math.max(zMin(), 3)); }
   const siguiendoA = () => siguiendo;
 
-  M.pintor = { camara: () => ({ x: cam.x, y: cam.y, z: cam.z }), dibujados: () => [...dibujados], modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
+  M.pintor = { gpu: () => !!(g && g.gpu), camara: () => ({ x: cam.x, y: cam.y, z: cam.z }), dibujados: () => [...dibujados], modoTropas, tropasElegidas: () => (tropas ? [...tropas.sel] : []), elegirTropas: ids => { if (tropas) { tropas.sel = new Set(ids); if (tropas.alCambiar) tropas.alCambiar(tropas.sel); } }, trenes: () => ultimosTrenes.slice(), P, centrarEnParcela, batallas: () => (m ? listaBatallas() : []), arquitecto, anunciar, elegirAldeano, seguir, siguiendoA, iniciar, mundo, turno, refrescar, seleccionar, marcar, centrarEn, zoom, verTodo, efecto };
 })(globalThis.RF = globalThis.RF || {});
