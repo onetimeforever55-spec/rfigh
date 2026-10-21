@@ -94,6 +94,11 @@ comprobar(primerPrestamo >= 0 && avisos.some(x => /El banco de .* presta \d+ de 
 comprobar(fabrica != null && /^(Textil|Aserradero|Fundición|Conservera) /.test((v.edificios[fabrica] || {}).nombre || ''), 'un empresario levanta su fábrica, de una industria, con el nombre de su familia (' + ((v.edificios[fabrica] || {}).nombre || 'ninguna') + ')');
 {
   // LOS CAPITALISTAS: su fábrica contrata obreros a sueldo, compra la materia prima al reino y vende lo que hace.
+  // (Si la primera fábrica ya cerró —quebró o su dueño murió sin herederos—, se mira la que haya ahora.)
+  // (Y si no hay ninguna en marcha —el dueño murió sin herederos y pasó al reino—, se juega hasta que otro monte la suya.)
+  const otraFabrica = () => Object.keys(v.privados || {}).find(t => v.privados[t].civ === c.id && v.obra[t] === V.OBRA.fabrica && v.privados[t].ind !== 'ferrocarril' && v.aldeanos.some(x => x.id === v.privados[t].dueno && x.emp));
+  for (let k = 0; k < 120 && !v.privados[fabrica] && otraFabrica() == null; k++) { sostener(); turno(); }
+  if (!v.privados[fabrica] && otraFabrica() != null) fabrica = +otraFabrica();
   const pv = v.privados[fabrica], due = v.aldeanos.find(x => x.id === pv.dueno), e = due && due.emp;
   const tesoro0 = c.oro;
   let obrerosMax = 0, sueldos = 0, movidos = 0, contados = true;
@@ -361,10 +366,12 @@ console.log('EL MINISTRO DE ECONOMÍA: COMPRA LO QUE FALTA Y VENDE LO QUE SOBRA,
   X.ordenar(g, r.id, 'economía de guerra');
   comprobar(r.plan.economia.modo === 'guerra' && r.plan.prioridad.ejercito >= 1.5 && r.plan.pedidos.filter(x => x.ministro && x.que === 'metal').length === 1, 'en economía de guerra compra más para el ejército (y sin pedidos repetidos)');
   const metal0 = r.metal, madera0 = r.madera;
-  for (let k = 0; k < 30; k++) { r.bancos = 1; S.turno(g); }
+  // (Va y viene: de noche duerme en casa. Se mira si trabaja en el banco algún turno.)
+  let enBanco = false;
+  for (let k = 0; k < 30; k++) { r.bancos = 1; S.turno(g); const mm = w.aldeanos.find(a => a.id === r.plan.economia.ministro); if (mm && Math.abs(mm.x - tb % w.tw) + Math.abs(mm.y - (tb / w.tw | 0)) <= 2) enBanco = true; }
   comprobar(r.metal > metal0 && r.madera < madera0, 'y las carretas lo traen y se lo llevan: metal ' + metal0 + ' → ' + Math.round(r.metal) + ', madera ' + madera0 + ' → ' + Math.round(r.madera));
   const m2 = w.aldeanos.find(a => a.id === r.plan.economia.ministro);
-  comprobar(m2 && Math.abs(m2.x - tb % w.tw) + Math.abs(m2.y - (tb / w.tw | 0)) <= 2, 'el ministro trabaja en el banco central');
+  comprobar(m2 && enBanco, 'el ministro trabaja en el banco central');
   comprobar(/Ministro de economía: .* en modo economía de guerra/.test(X.ordenar(g, r.id, '¿cómo va la economía?').respuesta), '«¿cómo va la economía?» cuenta qué compra y vende');
   X.ordenar(g, r.id, 'despedid al ministro');
   comprobar(!r.plan.economia && !(r.plan.pedidos || []).some(x => x.ministro), 'y «despedid al ministro» anula sus compras y ventas');
@@ -433,7 +440,8 @@ console.log('LOS GREMIOS SALEN SOLOS EN UNA PARTIDA NORMAL');
   comprobar(suc.every(a => { const j = mercs.find(x => x.id === a.merc.de); return j && j.familia === a.familia && j.merc.de == null && a.merc.caja === 0; }), 'lo que gana cada sucursal sube a la caja del jefe de la familia');
   comprobar(S.vivas(n).every(c => { const jefes = V.mercaderesDe(n, c).filter(a => a.merc.de == null).map(a => a.familia); return jefes.length === new Set(jefes).size; }), 'cada familia tiene una sola casa comercial en su reino');
   // Ni gremios de más ni vacíos que se acumulen: uno por ciudad como mucho, y ninguna familia con más de 4.
-  const cuenta = S.vivas(n).map(c => { let g = 0; for (let t = 0; t < n.vida.obra.length; t++) if (n.vida.obra[t] === V.OBRA.gremio && n.dueno[V.region(n, t)] === c.id) g++; return { g, ciudades: 1 + (n.ciudades || []).filter(x => x.civ === c.id).length }; });
+  // (Cuentan los gremios con dueño: el edificio de uno que quedó en tierra conquistada, sin mercader, no es un gremio de más.)
+  const cuenta = S.vivas(n).map(c => { let g = 0; for (let t = 0; t < n.vida.obra.length; t++) if (n.vida.obra[t] === V.OBRA.gremio && n.dueno[V.region(n, t)] === c.id && (n.vida.privados || {})[t]) g++; return { g, ciudades: 1 + (n.ciudades || []).filter(x => x.civ === c.id).length }; });
   comprobar(cuenta.every(x => x.g <= x.ciudades), 'como mucho un gremio por ciudad (' + cuenta.map(x => x.g + '/' + x.ciudades).join(', ') + ')');
   const porFamilia = S.vivas(n).flatMap(c => { const f = {}; for (const a of V.mercaderesDe(n, c)) f[a.familia] = (f[a.familia] || 0) + 1; return Object.values(f); });
   comprobar(porFamilia.every(k => k <= 4), 'ninguna familia tiene más de una casa y 3 sucursales (máximo ' + Math.max(0, ...porFamilia) + ')');

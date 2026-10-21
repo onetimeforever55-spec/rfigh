@@ -465,7 +465,7 @@
     animales(k, ahora, x0, y0, x1, y1);
     edificiosVivos(ahora, x0, y0, x1, y1);
     danados(ahora, x0, y0, x1, y1);
-    if (civPorId.size) { vias(x0, y0, x1, y1, ahora); trincheras(x0, y0, x1, y1); if (!reducido && !ligero) trafico(ahora, x0, y0, x1, y1); }
+    if (civPorId.size) { vias(x0, y0, x1, y1, ahora); trincheras(x0, y0, x1, y1); corrales(x0, y0, x1, y1); murallas(x0, y0, x1, y1); if (!reducido && !ligero) trafico(ahora, x0, y0, x1, y1); }
     andamios(ahora, x0, y0, x1, y1);
     progresos(x0, y0, x1, y1);
     if (!ligero) humo(ahora, x0, y0, x1, y1);
@@ -622,6 +622,70 @@
     }
   }
   const civPorId = new Map(), rutaPorId = new Map();
+  // Los corrales: tierra pisada dentro y una cerca de postes y dos travesaños alrededor, con su portillo.
+  function corrales(x0, y0, x1, y1) {
+    const v = m.vida; if (!v.corrales || !v.corralT) return;
+    const tw = v.tw;
+    for (const k of v.corrales) {
+      const t0 = k.tiles[0], tN = k.tiles[k.tiles.length - 1];
+      const ax = (t0 % tw) * P, ay = Math.floor(t0 / tw) * P, bx = (tN % tw + 1) * P, by = (Math.floor(tN / tw) + 1) * P;
+      if (bx < x0 || by < y0 || ax > x1 || ay > y1) continue;
+      // Tierra pisada, a manchas.
+      for (const t of k.tiles) { const x = (t % tw) * P, y = Math.floor(t / tw) * P, h = (Math.imul(t, 2654435761) >>> 0); g.fillStyle = 'rgba(120,92,56,0.32)'; g.fillRect(x + (h % 5), y + ((h >> 3) % 6), 9, 7); g.fillStyle = 'rgba(96,74,44,0.25)'; g.fillRect(x + 8 - (h >> 5) % 5, y + 7 + (h >> 7) % 4, 6, 5); }
+      // La cerca: postes cada 4 píxeles y dos travesaños; el portillo, abierto en el lado de abajo.
+      const cx = (ax + bx) / 2;
+      const travesano = (x, y, w, h) => { g.fillStyle = '#6b4a28'; g.fillRect(x, y, w, h); };
+      for (const y of [ay + 1, by - 2]) { travesano(ax, y, bx - ax, 1); travesano(ax, y + 1.2, bx - ax, 0.6); }
+      for (const x of [ax + 1, bx - 2]) { travesano(x, ay, 1, by - ay); }
+      g.fillStyle = '#4a3218';
+      for (let x = ax; x <= bx - 1; x += 4) { g.fillRect(x, ay - 1, 1.2, 3.5); if (Math.abs(x - cx) > 3) g.fillRect(x, by - 3, 1.2, 3.5); }
+      for (let y = ay; y <= by - 1; y += 4) { g.fillRect(ax, y, 1.2, 3); g.fillRect(bx - 1.2, y, 1.2, 3); }
+      g.fillStyle = '#8a6438'; g.fillRect(cx - 3, by - 2, 1, 2); g.fillRect(cx + 2, by - 2, 1, 2);
+    }
+  }
+  // Las murallas: empalizada de troncos afilados (primeras edades) o muralla de piedra con almenas; puertas de madera donde
+  // la cruza un camino; con grietas y huecos si está dañada.
+  function murallas(x0, y0, x1, y1) {
+    const v = m.vida, W = v.muro; if (!W) return;
+    const tw = v.tw, tx0 = Math.max(0, Math.floor(x0 / P)), ty0 = Math.max(0, Math.floor(y0 / P)), tx1 = Math.min(tw - 1, Math.ceil(x1 / P)), ty1 = Math.min(v.th - 1, Math.ceil(y1 / P));
+    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+      const t = ty * tw + tx; if (!(W[t] > 0)) continue;
+      const x = tx * P, y = ty * P, c = civPorId.get(m.dueno[V.region(m, t)]), era = c ? c.era : 1, piedra = era > 1, max = V.muroVida(c || { era: 1 }), roto = W[t] / max;
+      const con = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => { const n = t + dx + dy * tw; return tx + dx >= 0 && tx + dx < tw && n >= 0 && n < W.length && W[n] > 0; });
+      const horiz = con.some(([dx]) => dx) || !con.length, vert = con.some(([, dy]) => dy);
+      const puerta = v.puerta && v.puerta[t];
+      if (!piedra) {
+        // Empalizada: troncos verticales con la punta afilada, en fila por donde sigue la cerca.
+        const tronco = (px, py, h) => { g.fillStyle = '#7a5530'; g.fillRect(px, py + 1.5, 2.4, h - 1.5); g.fillStyle = '#9a7040'; g.fillRect(px + 0.4, py + 2, 0.8, h - 3); g.fillStyle = '#5a3c1e'; g.fillRect(px + 0.6, py, 1.2, 1.6); };
+        if (horiz) { for (const [dx] of con.filter(([dx]) => dx).length ? con.filter(([dx]) => dx) : [[1, 0], [-1, 0]]) for (let q = dx > 0 ? 8 : 0; q < (dx > 0 ? 16 : 8); q += 2.6) tronco(x + q, y + 3, 10); }
+        if (vert) { for (const [, dy] of con.filter(([, dy]) => dy)) for (let q = dy > 0 ? 8 : 0; q < (dy > 0 ? 16 : 8); q += 3) { g.fillStyle = '#7a5530'; g.fillRect(x + 6, y + q, 4, 2.6); g.fillStyle = '#5a3c1e'; g.fillRect(x + 6, y + q + 2.2, 4, 0.5); } }
+        g.fillStyle = '#5a3c1e'; g.fillRect(x + 5.5, y + 2, 5, 3); // el poste grueso del cruce
+      } else {
+        // Muralla de piedra: un lienzo gris con hiladas, almenas arriba y sombra abajo.
+        const tramo = (dx, dy) => {
+          const rx = x + (dx > 0 ? 8 : dx < 0 ? 0 : 4), ry = y + (dy > 0 ? 8 : dy < 0 ? 0 : 3), rw = dx ? 8 : 8, rh = dy ? 8 : 9;
+          g.fillStyle = '#8e8a84'; g.fillRect(rx, ry, rw, rh);
+          g.fillStyle = '#a6a29a'; g.fillRect(rx, ry, rw, 1.2);
+          g.fillStyle = '#6e6a64'; for (let q = 3; q < rh; q += 3) g.fillRect(rx, ry + q, rw, 0.5);
+        };
+        for (const [dx, dy] of con.length ? con : [[1, 0], [-1, 0]]) tramo(dx, dy);
+        g.fillStyle = '#8e8a84'; g.fillRect(x + 4, y + 3, 8, 9);
+        g.fillStyle = '#a6a29a'; for (let q = 0; q < 16; q += 4) if (horiz) g.fillRect(x + q, y + 1.5, 2.2, 1.8); // almenas
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x + (vert && !horiz ? 12 : 0), y + 12, vert && !horiz ? 1.5 : 16, vert && !horiz ? 4 : 1.5);
+      }
+      if (puerta) {
+        // La puerta: dos hojas de madera con herrajes bajo un arco.
+        g.fillStyle = piedra ? '#5a5650' : '#4a3218'; g.fillRect(x + 4, y + 3, 8, 10);
+        g.fillStyle = '#7a5a34'; g.fillRect(x + 5, y + 5, 2.8, 8); g.fillRect(x + 8.2, y + 5, 2.8, 8);
+        g.fillStyle = '#3a2a1a'; g.fillRect(x + 5, y + 7, 6, 0.6); g.fillRect(x + 5, y + 10.5, 6, 0.6);
+      }
+      if (roto < 0.6) {
+        // Dañada: grietas, y si está casi caída, un hueco con cascotes.
+        g.fillStyle = 'rgba(30,24,20,0.7)'; g.fillRect(x + 6, y + 4, 1, 4); g.fillRect(x + 7, y + 7, 2, 1); g.fillRect(x + 9, y + 8, 1, 3);
+        if (roto < 0.3) { g.fillStyle = piedra ? '#77736d' : '#6a4a28'; g.fillRect(x + 5, y + 3, 5, 3); g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(x + 4, y + 13, 7, 1.5); }
+      }
+    }
+  }
   // Las trincheras de la Segunda Guerra Mundial: una zanja de tierra oscura que sigue la frontera, con sacos
   // terreros en los bordes y, delante (hacia el rival), postes y alambre de espino.
   function trincheras(x0, y0, x1, y1) {

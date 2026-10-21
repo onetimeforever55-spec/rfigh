@@ -358,7 +358,8 @@ console.log('GOBERNAR UN PUEBLO: TUS ÓRDENES SOLO MANDAN EN EL TUYO');
   const antesTala = proporcion();
   X.ordenar(m, yo.id, 'que todos talen');
   for (let k = 0; k < 6; k++) S.turno(m);
-  const lenadores = m.vida.aldeanos.filter(a => a.c === yo.id && M.vida.OFICIOS[a.o] === 'lenador').length, total = m.vida.aldeanos.filter(a => a.c === yo.id && a.edad >= M.vida.ADULTO).length;
+  // (Sobre la gente de paz: si el reino está en guerra, la orden no saca a los soldados del ejército.)
+  const lenadores = m.vida.aldeanos.filter(a => a.c === yo.id && M.vida.OFICIOS[a.o] === 'lenador').length, total = m.vida.aldeanos.filter(a => a.c === yo.id && a.edad >= M.vida.ADULTO && M.vida.OFICIOS[a.o] !== 'guerrero').length;
   comprobar(lenadores / total >= Math.max(0.3, antesTala * 1.6), '"que todos talen" pone a mucha más gente a talar (' + Math.round(antesTala * 100) + '% → ' + lenadores + ' de ' + total + ')');
   const c1 = S.crear(4, 5), c2 = S.crear(4, 5);
   hasta(c1, -2000); hasta(c2, -2000);
@@ -1167,6 +1168,23 @@ console.log('SIN TOPE DE CIUDADES: SOLO HACEN FALTA RECURSOS');
   comprobar(fundadas + ciud0 > 2 + Math.floor(c.era / 2), 'con comida y madera se fundan más ciudades que el antiguo tope (' + (ciud0 + fundadas) + ' ciudades en la ' + (c.era) + 'ª edad; antes, como mucho ' + (2 + Math.floor(c.era / 2)) + ')');
 }
 
+console.log('CORRALES, MURALLAS Y EJÉRCITO EN FORMACIÓN');
+{
+  const V = M.vida, X = M.mando;
+  const m = S.crear(15, 5, { ritmo: 3 }); for (let k = 0; k < 260; k++) S.turno(m);
+  const v = m.vida, ganado = v.animales.filter(b => b.c != null && (b.tipo === 'oveja' || b.tipo === 'vaca'));
+  const dentro = ganado.filter(b => v.corralT && v.corralT[b.y * v.tw + b.x]).length;
+  comprobar((v.corrales || []).length >= 3 && dentro >= ganado.length * 0.8, 'el ganado vive en corrales cercados junto al pueblo (' + (v.corrales || []).length + ' corrales, ' + dentro + ' de ' + ganado.length + ' reses dentro)');
+  const pastoresEnCorral = v.aldeanos.filter(a => a.pastor != null && v.corralT[a.y * v.tw + a.x]).length;
+  comprobar(pastoresEnCorral <= (v.corrales || []).length * 3, 'y no se llena de pastores (' + pastoresEnCorral + ' en ' + (v.corrales || []).length + ' corrales)');
+  const muros = v.muro ? v.muro.filter(x => x > 0).length : 0, puertas = v.puerta ? v.puerta.filter(Boolean).length : 0;
+  const malSitio = v.muro ? v.muro.filter((x, t) => x > 0 && (v.obra[t] && v.obra[t] !== V.OBRA.campo)).length : 0;
+  comprobar(muros >= 20 && puertas >= 1 && !malSitio, 'frente a vecinos rivales se levantan murallas con puertas en los caminos (' + muros + ' tramos, ' + puertas + ' puertas, ' + malSitio + ' sobre casas)');
+  const t = v.muro.findIndex((x, i) => x > 0 && !v.puerta[i]), dueno = S.civ(m, m.dueno[V.region(m, t)]), antes = v.muro[t];
+  comprobar(antes > 0 && V.muroVida({ era: 1 }) === 25 && V.muroVida({ era: 3 }) === 50, 'empalizada en las primeras edades (25) y muralla de piedra después (50)');
+  comprobar(/Los constructores levantarán|muy pequeñas/.test(X.ordenar(m, dueno.id, 'levantad murallas').respuesta), '«levantad murallas» se entiende');
+}
+
 console.log('DEFENSAS EN LA FRONTERA');
 {
   const V = M.vida, O = V.OBRA, X = M.mando;
@@ -1216,7 +1234,9 @@ console.log('EL EJÉRCITO EN BLOQUE FRENTE A LAS TORRES, Y TANQUES QUE NO ENVEJE
     const [a, o] = par, v = m.vida;
     for (const c of [a, o]) M.mando.ordenar(m, c.id, 'quiero 14 soldados');
     const fr = S.frontera(m, a, o), plazas = [o.capital, ...(m.ciudades || []).filter(x => x.civ === o.id).map(x => x.region)];
-    const obj = plazas.sort((p, q) => Math.min(...fr.map(f => S.distancia(f, p))) - Math.min(...fr.map(f => S.distancia(f, q))))[0];
+    // (Una plaza a dos o más comarcas de la raya: las pegadas a la frontera pueden cambiar de manos sin asedio.)
+    const lejos = p => Math.min(...fr.map(f => S.distancia(f, p)));
+    const obj = plazas.filter(p => lejos(p) >= 2).sort((p, q) => lejos(p) - lejos(q))[0] ?? plazas.sort((p, q) => lejos(q) - lejos(p))[0];
     if (!V.parcelas(m, obj).some(t => v.obra[t] === O.torre || v.obra[t] === O.castillo)) { const t = V.parcelas(m, obj).find(t => !v.obra[t] && !v.arbol[t]) || V.parcelas(m, obj)[0]; V.cambiar(m, 'obra', t, O.torre, 0); v.torres[t] = 12; }
     const r = { m, a, o, obj, linea: 0, aTiro: 0, juntos: [], tomada: false };
     for (let k = 0; k < 50; k++) {
@@ -1238,7 +1258,7 @@ console.log('EL EJÉRCITO EN BLOQUE FRENTE A LAS TORRES, Y TANQUES QUE NO ENVEJE
     return r;
   };
   let r = null;
-  for (const sem of [13, 21, 15, 23]) { r = guerra(sem); if (r && r.linea) break; }
+  for (const sem of [13, 21, 15, 23, 25, 27]) { r = guerra(sem); if (r && r.linea) break; }
   const { m, a, obj } = r, v = m.vida;
   const disp = r.juntos.length ? r.juntos.reduce((x, y) => x + y, 0) / r.juntos.length : 99;
   comprobar(r.linea > 0 && !r.aTiro, 'frente a la torre, el ejército se para fuera de su alcance y se agrupa (' + r.linea + ' turnos en la línea, ' + r.aTiro + ' a tiro)');

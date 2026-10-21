@@ -796,6 +796,16 @@
     // altos, obreros contentos y patrones que ganan menos. (Subirlos en plena huelga la termina, abajo.)
     // Comprar o encargar a las empresas del país (la compañía minera, la fundición, el aserradero, la conservera): lo
     // fabrican o lo sacan, se lo venden al reino y el tesoro paga al recibirlo.
+    // Las murallas: los constructores las levantan alrededor de cada plaza (empalizada o piedra según la edad).
+    if (a.tipo === 'murallas') {
+      const V = M.vida, p = (c.plan = c.plan || {});
+      if (a.parar) { p.murallas = false; textos.push('Ya no se levantan más murallas salvo frente a quien esté en guerra o mal avenido con vosotros. Las que hay siguen en pie.'); return; }
+      if (c.era < 1) { textos.push('Aún no sabéis levantar murallas: la empalizada llega con la Edad del Bronce.'); return; }
+      p.murallas = true; V.planMuros(m, c, V.terrenos(m));
+      const tramos = (c.muros || []).length, hechos = (c.muros || []).filter(t => m.vida.muro && m.vida.muro[t] > 0).length, piedra = c.era > 1;
+      textos.push(tramos ? 'Los constructores levantarán ' + (piedra ? 'una muralla de piedra' : 'una empalizada de troncos') + ' alrededor de vuestras plazas, con puertas donde la cruzan los caminos (' + tramos + ' tramos; ya hay ' + hechos + '). Cada tramo cuesta 1 de ' + (piedra ? 'piedra' : 'madera') + ' (tenéis ' + Math.floor(c[piedra ? 'piedra' : 'madera'] || 0) + '). El enemigo tendrá que abrir brecha para entrar, y quien la defienda desde arriba estará a cubierto.' : 'Vuestras plazas aún son muy pequeñas para amurallarlas (hacen falta unas cuantas casas): en cuanto crezcan, se levantará.');
+      return;
+    }
     // Las defensas de frontera: el reino levanta torres a lo largo de la raya con los vecinos (también en paz).
     if (a.tipo === 'fortificar') {
       const V = M.vida, v = m.vida, p = (c.plan = c.plan || {});
@@ -987,7 +997,7 @@
     if (debo.length) l.push('Debéis: ' + debo.map(cr => (S().civ(m, cr.de) || {}).nombre + ' ' + Math.round(cr.resta)).join(', ') + '.');
     return l.join(' ');
   }
-  const TIPOS_EXTRA = ['fortificar', 'empresas', 'ministro', 'consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
+  const TIPOS_EXTRA = ['murallas', 'fortificar', 'empresas', 'ministro', 'consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
   // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
   /*
@@ -1068,6 +1078,9 @@
     if (!c || !c.viva || !n) return acciones;
     // Aquí no hay milagros: eres quien manda en un pueblo, no un dios.
     if (/\b(peste|plaga|diluvio|terremoto|llueva|lluvia de|milagro|rayos?|meteorito|que mueran|maldic\w*|bendic\w*|que aparezca)\b/.test(n)) return [{ tipo: 'milagro' }];
+    // «Levantad murallas», «poned una empalizada», «amurallad la ciudad»: la muralla alrededor de cada plaza.
+    if (/\b(murallas?|empalizadas?|amurall\w*|muros?|cerca de troncos|estacada)\b/.test(n) && !/\b(fronteras?|raya)\b/.test(n))
+      return [{ tipo: 'murallas', parar: /\b(dejad|deja|basta|no hagais|no construyais|parad|quitad)\b/.test(n) }];
     // «Fortificad la frontera», «poned torres en la frontera», «búnkeres en la raya»: torres a lo largo de la frontera.
     if (/\b(fronteras?|raya|limites?|lindes?)\b/.test(n) && /\b(defens\w*|defend\w*|fortific\w*|torres?|atalayas?|bunker\w*|fortin\w*|fuertes?|murallas?|muros?|proteg\w*|blind\w*|vigil\w*)\b/.test(n) && !/\b(patrull\w*|soldados|guerreros|escuadron\w*|aduanas?|puestos?)\b/.test(n))
       return [{ tipo: 'fortificar', parar: /\b(dejad|deja|basta|no hagais|no construyais|parad)\b/.test(n) }];
@@ -1541,6 +1554,7 @@
         if (a.tipo === 'impuestos') x.sube = a.sube !== false;
         if (a.tipo === 'salario') x.sube = a.sube !== false;
         if (a.tipo === 'fortificar' && a.parar) x.parar = true;
+        if (a.tipo === 'murallas' && a.parar) x.parar = true;
         if (a.tipo === 'empresas') { const ok = ['tanque', 'avion', 'canon', 'artilleria', 'metal', 'armas', 'muebles', 'comida', 'piedra', 'carbon']; x.que = ok.includes(a.que) ? a.que : 'metal'; x.maq = ['tanque', 'avion', 'canon', 'artilleria'].includes(x.que); x.n = Number(a.n) > 0 ? Math.min(200, Math.round(Number(a.n))) : null; }
         if (a.tipo === 'ministro') { x.que = ['nombrar', 'modo', 'despedir', 'consulta'].includes(a.que) ? a.que : 'consulta'; if (['equilibrio', 'crecimiento', 'guerra', 'ahorro'].includes(a.modo)) x.modo = a.modo; }
         if (a.tipo === 'fiesta' && a.descanso) x.descanso = true;
