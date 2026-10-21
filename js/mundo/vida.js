@@ -1047,6 +1047,8 @@
     if (t == null) return;
     if (v.privados) delete v.privados[t];
     if (c && c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(x => !(x.t === t && x.privado != null));
+    // (Sus obreros, si los tenía, vuelven en el acto a su oficio.)
+    for (const x of v.aldeanos) if (x.obrero === t) { delete x.obrero; x.enFabrica = 0; x.e = LIBRE; }
   }
   // Quien prestó a un empresario: su banquero, o el banco central si el banquero ya no está.
   const acreedor = (m, e) => (e.banquero != null ? m.vida.aldeanos.find(x => x.id === e.banquero && x.emp && x.emp.neg === 'banco') : null);
@@ -2851,7 +2853,7 @@
     for (const t of out) {
       if (t < 0 || t >= ter.length || m.dueno[region(m, t)] !== c.id) continue;
       // (El agua y la montaña ya cierran solas; una casa en la raya deja un hueco.)
-      if (!(v.muro && v.muro[t] > 0) && (!andable(ter[t]) || ter[t] === 'agua' || ter[t] === 'bajo' || ter[t] === 'montana' || (v.obra[t] && v.obra[t] !== OBRA.campo) || (v.trinchera && v.trinchera[t]) || (v.corralT && v.corralT[t]))) continue;
+      if (!(v.muro && v.muro[t] > 0) && (!andable(ter[t]) || ter[t] === 'agua' || ter[t] === 'bajo' || ter[t] === 'montana' || (v.obra[t] && v.obra[t] !== OBRA.campo) || (v.andamios && v.andamios[t]) || (v.trinchera && v.trinchera[t]) || (v.corralT && v.corralT[t]))) continue;
       c.muros.push(t);
     }
   }
@@ -2867,7 +2869,7 @@
     let mejor = null, md = 1e9;
     for (const t of lista) {
       if (rec.reservadas.has(t) || (v.muro && v.muro[t] >= hp * 0.8)) continue;
-      if (v.obra[t] && v.obra[t] !== OBRA.campo) continue;
+      if ((v.obra[t] && v.obra[t] !== OBRA.campo) || (v.andamios && v.andamios[t])) continue;
       const d = dist(m, aqui, t); if (d < md) { md = d; mejor = t; }
     }
     return mejor;
@@ -2962,7 +2964,7 @@
     const cap = centro(m, c.capital);
     let mejor = null, md = 1e9;
     for (const r of S().casillas(m, c)) for (const t of parcelas(m, r)) {
-      if (!v.crudo[t] || v.obra[t] || v.roca[t] || v.camino[t] || !CONSTRUIBLE.has(ter[t]) || (v.andamios && v.andamios[t])) continue;
+      if (!v.crudo[t] || v.obra[t] || v.roca[t] || v.camino[t] || ocupada(v, t) || !CONSTRUIBLE.has(ter[t]) || (v.andamios && v.andamios[t])) continue;
       // Uno por bolsa: si ya hay un pozo pegado, esa bolsa está tomada.
       if ([1, -1, v.tw, -v.tw, v.tw + 1, v.tw - 1, -v.tw + 1, -v.tw - 1].some(d => v.obra[t + d] === OBRA.petroleo)) continue;
       const d = dist(m, t, cap); if (d < md) { md = d; mejor = t; }
@@ -4331,7 +4333,9 @@
       let yaMirado = false;
       // (Y lo que mandó construir el jugador va siempre antes que empedrar, aunque la carretera también la pidiera él.)
       const mandada = pausada(m) && c.plan && c.plan.obra;
-      if (pend.length && (mandada || (!urge && azar(v) < 0.5))) { yaMirado = true; const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
+      // (Aunque la carretera la pidiera el jugador, una de cada tres veces se mira antes: si no, con muchas rutas
+      // abiertas y un solo constructor, el templo o la casa del saber no llegan nunca y el reino no sube de edad.)
+      if (pend.length && (mandada || azar(v) < (urge ? 0.35 : 0.5))) { yaMirado = true; const ed = edificioPendiente(m, a, c, ter); if (ed) { t = ed[0]; a.edificio = ed[1]; } }
       if (t < 0 && pend.length && (!faltanCamas(c) || azar(v) < (urge ? 0.75 : 0.4))) {
         const aqui = a.y * v.tw + a.x;
         // Se empiedra de dentro afuera: el tramo sin hacer más cercano, aunque la carretera vaya muy lejos.
@@ -4682,7 +4686,7 @@
     }
     else if (a.o === CONSTRUCTOR && a.reforma === t && v.edificios && v.edificios[t]) { a.e = TRABAJAR; a.t = 4; }
     else if (a.o === CONSTRUCTOR && a.obraCamino) { if (!v.camino[t] && !v.obra[t]) { a.e = TRABAJAR; a.t = 1; } else { a.e = LIBRE; a.obraCamino = 0; } }
-    else if (a.o === CONSTRUCTOR && a.obraMuro) { if ((!v.obra[t] || v.obra[t] === OBRA.campo) && m.dueno[region(m, t)] === c.id) { a.e = TRABAJAR; a.t = 2; } else { a.e = LIBRE; a.obraMuro = 0; } }
+    else if (a.o === CONSTRUCTOR && a.obraMuro) { if ((!v.obra[t] || v.obra[t] === OBRA.campo) && !(v.andamios && v.andamios[t]) && m.dueno[region(m, t)] === c.id) { a.e = TRABAJAR; a.t = 2; } else { a.e = LIBRE; a.obraMuro = 0; } }
     else if (a.o === CONSTRUCTOR) {
       const piedra = c.era >= 2 && c.piedra >= 1;
       if (v.obra[t] === OBRA.campo && pausada(m) && v.plan && v.plan[t] === 2) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); c.campos = Math.max(0, (c.campos || 0) - 1); }
@@ -4795,7 +4799,7 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       // (Una jornada da para el tramo y, si siguen pendientes, los dos de al lado por la misma raya.)
       const tramos = [t, ...[1, -1, v.tw, -v.tw].map(d => t + d).filter(n => plan.has(n) && !(v.muro[n] >= hp * 0.8))].slice(0, 3);
       for (const u of tramos) {
-        if ((c[cuesta[0]] || 0) < cuesta[1] || (v.obra[u] && v.obra[u] !== OBRA.campo) || m.dueno[region(m, u)] !== c.id) continue;
+        if ((c[cuesta[0]] || 0) < cuesta[1] || (v.obra[u] && v.obra[u] !== OBRA.campo) || (v.andamios && v.andamios[u]) || m.dueno[region(m, u)] !== c.id) continue;
         c[cuesta[0]] -= cuesta[1];
         if (v.obra[u] === OBRA.campo) { cambiar(m, 'obra', u, 0, paso); cambiar(m, 'cultivo', u, 0, paso); c.campos = Math.max(0, (c.campos || 0) - 1); }
         if (v.arbol[u]) cambiar(m, 'arbol', u, 0, paso); if (v.roca[u]) cambiar(m, 'roca', u, 0, paso);
