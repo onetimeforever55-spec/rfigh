@@ -1,13 +1,14 @@
-/*
- * GÉNESIS · EL MUNDO
- * Un mapa de casillas con relieve, ríos y desiertos, y unos pocos pueblos que viven solos la historia
- * humana: crecen mientras la tierra les da de comer, se extienden, inventan, comercian, se copian los
- * inventos, guerrean, se rebelan y se hunden. Cada cosa que pasa queda en la crónica con su porqué.
- *
- * Todo es reproducible: el mundo guarda su semilla y el estado del azar, así que la misma semilla y las
- * mismas órdenes dan la misma historia.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/sim/ (00-mapa.js, 01-reinos.js, 02-turno.js, 03-tecnica-y-edades.js, 04-capital-opinion-y-creditos.js, 05-lealtad-y-guerras.js).
 (function (RF) {
+  /*
+   * GÉNESIS · EL MUNDO
+   * Un mapa de casillas con relieve, ríos y desiertos, y unos pocos pueblos que viven solos la historia
+   * humana: crecen mientras la tierra les da de comer, se extienden, inventan, comercian, se copian los
+   * inventos, guerrean, se rebelan y se hunden. Cada cosa que pasa queda en la crónica con su porqué.
+   *
+   * Todo es reproducible: el mundo guarda su semilla y el estado del azar, así que la misma semilla y las
+   * mismas órdenes dan la misma historia.
+   */
   'use strict';
   const M = RF.MUNDO;
   const W = 48, H = 30;
@@ -128,6 +129,8 @@
     }
     m.rio = rio;
   }
+
+  // ── GÉNESIS · EL MUNDO · Los pueblos, sus gobernantes, alianzas y fronteras ──
 
   // ---------- Los pueblos ----------
   function nombre(m) {
@@ -260,6 +263,8 @@
     if (c.era === 3 && (car === 'mercader' || car === 'sabio') && n < 25) return 'republica';
     return n >= 35 ? 'imperio' : 'reino';
   }
+
+  // ── GÉNESIS · EL MUNDO · La crónica, crear el mundo y el turno de cada reino ──
 
   // ---------- La crónica ----------
   function cronica(m, tipo, titulo, texto, c, casilla, extra) {
@@ -462,6 +467,8 @@
     const o = civ(m, rumbo);
     return o && o.viva ? o.capital : null;
   }
+
+  // ── GÉNESIS · EL MUNDO · La técnica que se paga, el tesoro, el paso de edad, anexiones y sucesos ──
 
   // ---------- La técnica: se investiga una tecnología cada vez ----------
   // El ritmo pausado (partidas nuevas): turnos de menos años en cada era. La técnica avanza en proporción, así
@@ -712,6 +719,9 @@
     nueva.tecs = M.tecsDe(c).slice();
     if (c.metal != null) repartirAlmacen(c, nueva, Math.min(0.5, parte));
   }
+
+  // ── GÉNESIS · EL MUNDO · Cae la capital, la opinión entre reinos y los créditos ──
+
   /*
    * CAE LA CAPITAL. Un reino no se reinventa en mitad del campo: si le queda otra ciudad, la corte huye allí
    * (saqueada, revuelta y con las demás ciudades pensando en irse); si no le queda ninguna, el reino cae y el
@@ -855,6 +865,8 @@
     }
     avanzarComplots(m);
   }
+
+  // ── GÉNESIS · EL MUNDO · Lealtad de las ciudades, rebeliones, complots, guerras y lo que pasa solo ──
 
   /*
    * LA LEALTAD DE LAS CIUDADES, como en WorldBox: cada ciudad (no la capital) tiene una lealtad hecha de

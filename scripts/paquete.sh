@@ -3,6 +3,7 @@
 # sh scripts/paquete.sh  →  paquete/Genesis.html
 set -e
 cd "$(dirname "$0")/.."
+node scripts/unir.js >/dev/null
 node scripts/empaquetar.js --entrada mundo.html >/dev/null
 rm -rf paquete
 mkdir -p paquete

@@ -3,6 +3,7 @@
 # sh scripts/pwa.sh
 set -e
 cd "$(dirname "$0")/.."
+node scripts/unir.js >/dev/null
 node scripts/empaquetar.js --entrada mundo.html >/dev/null
 rm -rf docs && mkdir -p docs
 cp dist/mundo.html docs/index.html

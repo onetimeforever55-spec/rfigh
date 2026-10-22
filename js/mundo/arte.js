@@ -1,11 +1,12 @@
-/*
- * GÉNESIS · EL ARTE
- * Los dibujos del mundo a 16×16 píxeles por parcela (32×32 las plazas), hechos con código: suelos con textura,
- * flores y adornos, árboles de cada bioma, rocas, campos, caminos y los edificios de cada era con el tejado del
- * color de su pueblo. Todo lleva sombreado (luz arriba a la izquierda) y un contorno oscuro, como WorldBox.
- * Cada dibujo se hace una vez y se guarda.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/arte/ (00-base-y-naturaleza.js, 01-edificios.js, 02-publicos-y-negocios.js, 03-fases.js, 04-gente-vehiculos-e-iconos.js).
 (function (RF) {
+  /*
+   * GÉNESIS · EL ARTE
+   * Los dibujos del mundo a 16×16 píxeles por parcela (32×32 las plazas), hechos con código: suelos con textura,
+   * flores y adornos, árboles de cada bioma, rocas, campos, caminos y los edificios de cada era con el tejado del
+   * color de su pueblo. Todo lleva sombreado (luz arriba a la izquierda) y un contorno oscuro, como WorldBox.
+   * Cada dibujo se hace una vez y se guarda.
+   */
   'use strict';
   const M = RF.MUNDO = RF.MUNDO || {};
   const T = 16;
@@ -330,6 +331,8 @@
     });
   }
 
+  // ── GÉNESIS · EL ARTE · Edificios: casas por época y la casa del saber ──
+
   // ---------- Edificios ----------
   const PARED = '#e8d8b4', MADERA = '#7a5232', PIEDRA = '#a8a49a', CRISTAL = '#4a6a9a', LUZ = '#ffe08a';
   // Un tejado a dos aguas: tejas en filas, la mitad izquierda iluminada.
@@ -524,6 +527,9 @@
     const h = ((anillo * 73856093) ^ (seg * 19349663)) >>> 0;
     return L[h % 3];
   }
+
+  // ── GÉNESIS · EL ARTE · El adoquín, los edificios públicos y los negocios privados ──
+
   // ---------- Los edificios públicos (cada uno con su porqué en vida.js), de cada fase ----------
   function pozo(H, fase, col) {
     if (fase === 3) {
@@ -977,6 +983,9 @@
     H.r(8, 10, 1, 2, CRISTAL); H.r(2, 10, 1, 2, CRISTAL); H.r(12, 9, 2, 2, CRISTAL);
     H.contorno(); return H.lienzo();
   }
+
+  // ── GÉNESIS · EL ARTE · Templo, molino, puerto, ayuntamiento, torre, cuartel, castillo y plaza de cada fase ──
+
   // ---------- Templo, molino, puerto y ayuntamiento de cada fase (0 tribal, 2 pólvora, 3 moderna) ----------
   function temploDeFase(H, fase, col) {
     if (fase === 0) {
@@ -1186,6 +1195,8 @@
       return H.lienzo();
     });
   }
+
+  // ── GÉNESIS · EL ARTE · Aldeanos, tiradores, vehículos, barcos e iconos ──
 
   // ---------- Aldeanos (12×14, los pies abajo en el centro) ----------
   // o: oficio; edad: 'nino' | 'adulto' | 'viejo'; paso: 0/1 (piernas); alto: -1/0/1 (herramienta arriba o abajo);

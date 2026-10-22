@@ -1,15 +1,16 @@
-/*
- * GÉNESIS · EL MANDO DE UN PUEBLO
- * En el modo "Gobernar un pueblo" no eres un dios: eres quien manda en un solo pueblo y lo gobiernas
- * escribiendo órdenes ("talad el bosque", "construid casas", "expandíos hacia el norte", "atacad a
- * Karenia", "haced la paz con Ishan", "invertid en ciencia", "proclamad la república"). Los demás pueblos
- * siguen solos, como siempre.
- *
- * Cada orden se traduce a ACCIONES pequeñas y serializables ({ tipo: 'guerra', con: 3 }...). Así, un día,
- * en multijugador, cada jugador enviará sus acciones y todos los mundos las aplicarán igual, en el mismo
- * turno (el mundo es reproducible).
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/mando/ (00-base-y-cuadrillas.js, 01-ordenes-especiales.js, 02-aplicar-extra.js, 03-tropas-y-entender.js, 04-aplicar.js, 05-consejero-e-ia.js, 06-pueblos-guia-y-retos.js).
 (function (RF) {
+  /*
+   * GÉNESIS · EL MANDO DE UN PUEBLO
+   * En el modo "Gobernar un pueblo" no eres un dios: eres quien manda en un solo pueblo y lo gobiernas
+   * escribiendo órdenes ("talad el bosque", "construid casas", "expandíos hacia el norte", "atacad a
+   * Karenia", "haced la paz con Ishan", "invertid en ciencia", "proclamad la república"). Los demás pueblos
+   * siguen solos, como siempre.
+   *
+   * Cada orden se traduce a ACCIONES pequeñas y serializables ({ tipo: 'guerra', con: 3 }...). Así, un día,
+   * en multijugador, cada jugador enviará sus acciones y todos los mundos las aplicarán igual, en el mismo
+   * turno (el mundo es reproducible).
+   */
   'use strict';
   const M = RF.MUNDO, S = () => M.sim, D = () => M.dios;
   const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ\s-]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -295,6 +296,7 @@
     textos.push('Encargado: ' + textoPlazo(m, h).trim().replace(/^hasta /, '') + '. Los ' + OFICIOS_N[a.o] + ' pasan de ' + n0 + ' a ' + n1 + ' y, al terminar, todo vuelve a como estaba.');
   }
 
+  // ── GÉNESIS · EL MANDO · Más órdenes: escuadrones, posturas de guerra, diplomacia y economía ──
 
   // ---------- Más órdenes: escuadrones, posturas de guerra, diplomacia menuda, el ánimo del pueblo ----------
   const sinTildes = n => n;
@@ -565,6 +567,9 @@
       textos.push('Tesoro: ' + Math.round(c.oro || 0) + ' de oro. Por turno entran ' + (c.ingresos || 0).toFixed(1) + ' (impuestos y comercio) y salen ' + (c.gastos || 0).toFixed(1) + ' (sueldos de ' + (c.guerreros || 0) + ' soldados y mantenimiento)' + (c.mecenazgo ? ', y ' + c.mecenazgo.toFixed(1) + ' van a los sabios' : '') + '. Los edificios cuestan oro; sin oro, los soldados desertan.');
     }
   }
+
+  // ── GÉNESIS · EL MANDO · Aplicar las órdenes especiales y el informe de la banca ──
+
   function aplicarExtra(m, c, a, textos) {
     const p = plan(c), v = m.vida, an = (t, r) => (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t, region: r });
     const o = a.con != null ? S().civ(m, Number(a.con)) : null;
@@ -1001,6 +1006,8 @@
   }
   const TIPOS_EXTRA = ['murallas', 'fortificar', 'empresas', 'ministro', 'consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
+  // ── GÉNESIS · EL MANDO · El modo tropas y del texto a las acciones ──
+
   // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
   /*
    * Los soldados elegidos van al punto tocado (en formación) y se quedan allí: pelean solos con lo que se les
@@ -1212,6 +1219,8 @@
     }
     return acciones;
   }
+
+  // ── GÉNESIS · EL MANDO · Aplicar las acciones (igual en local que en línea) e informe ──
 
   // ---------- Aplicar las acciones (igual para un jugador local que para uno remoto) ----------
   function aplicar(m, civId, acciones) {
@@ -1440,6 +1449,8 @@
       (enemigos.length ? 'En guerra con ' + enemigos.join(', ') + '. ' : 'En paz. ') + (cambiadas.length ? 'Prioridades: ' + cambiadas.join(', ') + '.' : 'Todas las prioridades en normal.');
   }
 
+  // ── GÉNESIS · EL MANDO · El consejero y lo que traduce Claude ──
+
   // ---------- El consejero: lo más urgente de tu pueblo ahora mismo, y la orden que lo arregla ----------
   function consejo(m, civId) {
     const c = S().civ(m, civId);
@@ -1582,6 +1593,8 @@
     m.registro = (m.registro || []).concat([{ turno: m.turno, civ: civId, acciones }]).slice(-200);
     return { ok: true, acciones, respuesta: (f.respuesta ? String(f.respuesta).slice(0, 300) + ' ' : '') + textos.filter(t => !/^¿/.test(t)).join(' ') };
   }
+
+  // ── GÉNESIS · EL MANDO · Elegir pueblo, la guía de los primeros pasos y los retos ──
 
   // ---------- Elegir pueblo ----------
   // En línea: otro jugador toma un pueblo (sin quitárselo a los demás jugadores).

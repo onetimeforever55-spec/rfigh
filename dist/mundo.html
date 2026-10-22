@@ -1138,16 +1138,17 @@ body.limpio .tropas-barra { display: none; }
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/sim.js
-/*
- * GÉNESIS · EL MUNDO
- * Un mapa de casillas con relieve, ríos y desiertos, y unos pocos pueblos que viven solos la historia
- * humana: crecen mientras la tierra les da de comer, se extienden, inventan, comercian, se copian los
- * inventos, guerrean, se rebelan y se hunden. Cada cosa que pasa queda en la crónica con su porqué.
- *
- * Todo es reproducible: el mundo guarda su semilla y el estado del azar, así que la misma semilla y las
- * mismas órdenes dan la misma historia.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/sim/ (00-mapa.js, 01-reinos.js, 02-turno.js, 03-tecnica-y-edades.js, 04-capital-opinion-y-creditos.js, 05-lealtad-y-guerras.js).
 (function (RF) {
+  /*
+   * GÉNESIS · EL MUNDO
+   * Un mapa de casillas con relieve, ríos y desiertos, y unos pocos pueblos que viven solos la historia
+   * humana: crecen mientras la tierra les da de comer, se extienden, inventan, comercian, se copian los
+   * inventos, guerrean, se rebelan y se hunden. Cada cosa que pasa queda en la crónica con su porqué.
+   *
+   * Todo es reproducible: el mundo guarda su semilla y el estado del azar, así que la misma semilla y las
+   * mismas órdenes dan la misma historia.
+   */
   'use strict';
   const M = RF.MUNDO;
   const W = 48, H = 30;
@@ -1268,6 +1269,8 @@ body.limpio .tropas-barra { display: none; }
     }
     m.rio = rio;
   }
+
+  // ── GÉNESIS · EL MUNDO · Los pueblos, sus gobernantes, alianzas y fronteras ──
 
   // ---------- Los pueblos ----------
   function nombre(m) {
@@ -1400,6 +1403,8 @@ body.limpio .tropas-barra { display: none; }
     if (c.era === 3 && (car === 'mercader' || car === 'sabio') && n < 25) return 'republica';
     return n >= 35 ? 'imperio' : 'reino';
   }
+
+  // ── GÉNESIS · EL MUNDO · La crónica, crear el mundo y el turno de cada reino ──
 
   // ---------- La crónica ----------
   function cronica(m, tipo, titulo, texto, c, casilla, extra) {
@@ -1602,6 +1607,8 @@ body.limpio .tropas-barra { display: none; }
     const o = civ(m, rumbo);
     return o && o.viva ? o.capital : null;
   }
+
+  // ── GÉNESIS · EL MUNDO · La técnica que se paga, el tesoro, el paso de edad, anexiones y sucesos ──
 
   // ---------- La técnica: se investiga una tecnología cada vez ----------
   // El ritmo pausado (partidas nuevas): turnos de menos años en cada era. La técnica avanza en proporción, así
@@ -1852,6 +1859,9 @@ body.limpio .tropas-barra { display: none; }
     nueva.tecs = M.tecsDe(c).slice();
     if (c.metal != null) repartirAlmacen(c, nueva, Math.min(0.5, parte));
   }
+
+  // ── GÉNESIS · EL MUNDO · Cae la capital, la opinión entre reinos y los créditos ──
+
   /*
    * CAE LA CAPITAL. Un reino no se reinventa en mitad del campo: si le queda otra ciudad, la corte huye allí
    * (saqueada, revuelta y con las demás ciudades pensando en irse); si no le queda ninguna, el reino cae y el
@@ -1995,6 +2005,8 @@ body.limpio .tropas-barra { display: none; }
     }
     avanzarComplots(m);
   }
+
+  // ── GÉNESIS · EL MUNDO · Lealtad de las ciudades, rebeliones, complots, guerras y lo que pasa solo ──
 
   /*
    * LA LEALTAD DE LAS CIUDADES, como en WorldBox: cada ciudad (no la capital) tiene una lealtad hecha de
@@ -2271,21 +2283,22 @@ body.limpio .tropas-barra { display: none; }
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vida.js
-/*
- * GÉNESIS · LA VIDA
- * Cada región del mapa se parte en 4×4 parcelas con su árbol, su roca o su obra, y por ellas caminan los
- * aldeanos de cada pueblo: leñadores que talan, granjeros que siembran, constructores que levantan casas,
- * mineros que pican piedra y guerreros que marchan a la frontera cuando hay guerra.
- *
- * Lo que hacen mueve la economía: la madera y la piedra pagan las tierras nuevas y las casas, las casas y
- * los campos dan sitio a más gente, las batallas que ganan los guerreros inclinan la guerra, y un bosque
- * talado hasta el último árbol se queda en llanura.
- *
- * Todo pasa dentro del turno (TICKS pasos) con un azar propio guardado en el mundo: sigue siendo
- * reproducible. Cada aldeano guarda su recorrido del turno y cada parcela que cambia queda anotada con el
- * paso en que cambió, para que la vista lo anime sin adelantarse.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/vida/ (00-base.js, 01-terreno.js, 02-obras-y-nombres.js, 03-gobernador-y-mercado.js, 04-industria.js, 05-comercio.js, 06-banca.js, 07-sucesos-y-cargas.js, 08-gente.js, 09-ejercito.js, 10-edificios-y-necesidades.js, 11-defensas.js, 12-mar.js, 13-asedios-y-fuego.js, 14-turno.js, 15-tareas.js, 16-andar.js, 17-caminos.js, 18-comida-y-fauna.js, 19-ciudades-y-colonos.js, 20-hogares.js).
 (function (RF) {
+  /*
+   * GÉNESIS · LA VIDA
+   * Cada región del mapa se parte en 4×4 parcelas con su árbol, su roca o su obra, y por ellas caminan los
+   * aldeanos de cada pueblo: leñadores que talan, granjeros que siembran, constructores que levantan casas,
+   * mineros que pican piedra y guerreros que marchan a la frontera cuando hay guerra.
+   *
+   * Lo que hacen mueve la economía: la madera y la piedra pagan las tierras nuevas y las casas, las casas y
+   * los campos dan sitio a más gente, las batallas que ganan los guerreros inclinan la guerra, y un bosque
+   * talado hasta el último árbol se queda en llanura.
+   *
+   * Todo pasa dentro del turno (TICKS pasos) con un azar propio guardado en el mundo: sigue siendo
+   * reproducible. Cada aldeano guarda su recorrido del turno y cada parcela que cambia queda anotada con el
+   * paso en que cambió, para que la vista lo anime sin adelantarse.
+   */
   'use strict';
   const M = RF.MUNDO;
   const S = () => M.sim;
@@ -2519,6 +2532,8 @@ body.limpio .tropas-barra { display: none; }
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
 
+  // ── GÉNESIS · LA VIDA · El suelo de cada parcela: ríos, lagos, islas, y crear la vida de un mundo ──
+
   // ---------- El suelo de cada parcela ----------
   const esAgua = t => t === 'mar' || t === 'costa';
   /*
@@ -2676,6 +2691,8 @@ body.limpio .tropas-barra { display: none; }
     return v;
   }
 
+  // ── GÉNESIS · LA VIDA · Cambiar parcelas, la ficha de cada edificio, nombres, plazas y centros ──
+
   // Anota un cambio de parcela con el paso en que ocurre (la vista lo aplica en ese momento).
   function cambiar(m, capa, t, valor, paso) {
     const v = m.vida;
@@ -2795,6 +2812,8 @@ body.limpio .tropas-barra { display: none; }
     }
   }
   function plaza(m, r) { const tw = m.W * SUB, x = (r % m.W) * SUB + 1, y = (r / m.W | 0) * SUB + 1; return [y * tw + x, y * tw + x + 1, (y + 1) * tw + x, (y + 1) * tw + x + 1]; }
+
+  // ── GÉNESIS · LA VIDA · El gobernador automático, el mercado global y la cartera de cada reino ──
 
   // ---------- Los aldeanos de cada pueblo ----------
   const cuantos = c => Math.max(4, Math.min(60, Math.round(3 + Math.sqrt(Math.max(0, c.pob)) * 2)));
@@ -2925,6 +2944,9 @@ body.limpio .tropas-barra { display: none; }
     }
     c.especialidad = principal;
   }
+
+  // ── GÉNESIS · LA VIDA · Las industrias, la materia prima, los sueldos, negocios privados, quiebras y herencias ──
+
   /*
    * EL COMERCIO Y LA BANCA, como en la vida real:
    *  · LOS COMERCIANTES existen desde siempre (el comercio primitivo del reino): trabajan para el reino y se quedan
@@ -3437,6 +3459,9 @@ body.limpio .tropas-barra { display: none; }
   const mercaderesDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.merc);
   const gremiosDe = (m, c) => Object.keys(m.vida.privados || {}).filter(t => m.vida.privados[t].civ === c.id && m.vida.privados[t].tipo === 'gremio' && m.vida.obra[t] === OBRA.gremio).map(Number);
   const redondo = x => Math.round(x * 100) / 100;
+
+  // ── GÉNESIS · LA VIDA · El comercio de los mercaderes y las sedes de los bancos ──
+
   function comercio(m, c, impuesto) {
     const v = m.vida, mercs = mercaderesDe(m, c), porId = new Map(mercs.map(a => [a.id, a]));
     // Con plaza pública hay mercado: los tratos rinden un 10 % más. (El banco no da premio: solo trae la banca y el crédito.)
@@ -3644,6 +3669,9 @@ body.limpio .tropas-barra { display: none; }
     rico.dinero = 0; mover(rico, COMERCIANTE);
     anunciar(m, c, (ind === 'ferrocarril' ? '🚂 ' : '🏭 ') + nombreDe(rico) + ' monta ' + (QUE_MONTA[ind] || 'una fábrica') + ' con su propio dinero, sin préstamo (paga ' + obra + ' de oro al reino por la obra)');
   }
+
+  // ── GÉNESIS · LA VIDA · El ministro de economía, la banca y el mercado mundial ──
+
   /*
    * EL MINISTRO DE ECONOMÍA (con el banco central): un erudito que trabaja en el banco y, cada pocos turnos, encarga lo que
    * le falta al reino y pone a la venta lo que le sobra (son pedidos y ventas como los del jugador, marcados como
@@ -3962,6 +3990,9 @@ body.limpio .tropas-barra { display: none; }
       for (const k of BIENES) c.importa[k] = (c.importa[k] || 0) * 0.9;
     }
   }
+
+  // ── GÉNESIS · LA VIDA · Sucesos del campo y del mercado, ofertas, carretas y el reparto del trabajo ──
+
   /*
    * EL CAMPO TIENE SORPRESAS:
    *  · plaga de langostas en verano: devoran los campos sin madurar de un pueblo (y se ven pasar);
@@ -4288,6 +4319,8 @@ body.limpio .tropas-barra { display: none; }
     return cs[Math.floor(azar(v) * cs.length)];
   }
 
+  // ── GÉNESIS · LA VIDA · Cada aldeano es un agente: casas, salud, nacer, oficios y equipo ──
+
   /*
    * CADA ALDEANO ES UN AGENTE, como en WorldBox: tiene nombre, familia, edad, rasgos, casa e historia.
    * La población del pueblo son sus aldeanos: nacen de otros aldeanos (si hay cama, comida y tierra que los
@@ -4575,6 +4608,8 @@ body.limpio .tropas-barra { display: none; }
     }
   }
 
+  // ── GÉNESIS · LA VIDA · Los ejércitos y el frente ──
+
   /*
    * LOS EJÉRCITOS: en guerra, los guerreros de un pueblo se reúnen junto a la frontera tras su capitán y
    * marchan juntos hacia una región del enemigo (la más cercana a su capital, para llegar al corazón del reino).
@@ -4760,6 +4795,8 @@ body.limpio .tropas-barra { display: none; }
     const nt = ny * tw + nx, ter = terrenos(m)[nt];
     e.frente = ter === 'agua' || ter === 'bajo' ? obj : nt; e.esperaT = m.turno; e.linea = false;
   }
+
+  // ── GÉNESIS · LA VIDA · Los edificios de cada plaza: alumbrado, necesidades, cultivos y el arquitecto ──
 
   /*
    * LOS EDIFICIOS DE CADA PLAZA (capital y ciudades), como en WorldBox: una torre de vigilancia, un templo,
@@ -5063,6 +5100,9 @@ body.limpio .tropas-barra { display: none; }
     }
     return null;
   }
+
+  // ── GÉNESIS · LA VIDA · Trincheras, murallas, corrales, defensas de frontera y qué edificio toca ──
+
   /*
    * LAS TRINCHERAS (Segunda Guerra Mundial): los soldados cavan una zanja con sacos terreros a lo largo de la
    * frontera con los vecinos en guerra o mal avenidos, y le ponen alambre de espino delante. Quien está dentro
@@ -5353,6 +5393,8 @@ body.limpio .tropas-barra { display: none; }
     }
     return null;
   }
+
+  // ── GÉNESIS · LA VIDA · Los barcos y la marina de guerra ──
 
   /*
    * LOS BARCOS: cada puerto tiene un barco de pesca (trae comida) y, desde la Antigüedad, un mercante que
@@ -5724,6 +5766,8 @@ body.limpio .tropas-barra { display: none; }
     b.r.push(b.x, b.y);
   }
 
+  // ── GÉNESIS · LA VIDA · El asedio, el fuego y el agua, los aviones y las torres ──
+
   /*
    * EL ASEDIO, como en WorldBox: si el capitán está en la plaza enemiga, sin defensores y sin torre en pie,
    * la captura avanza; al llegar a 100, la plaza y sus tierras cambian de bandera.
@@ -6014,6 +6058,8 @@ body.limpio .tropas-barra { display: none; }
     }
   }
 
+  // ── GÉNESIS · LA VIDA · Lo que hay al alcance de cada pueblo y un turno de vida ──
+
   // ---------- Lo que hay al alcance de cada pueblo ----------
   function recursos(m) {
     const v = m.vida, out = {}, reservadas = new Set();
@@ -6284,6 +6330,8 @@ body.limpio .tropas-barra { display: none; }
     }
     a.r.push(a.x, a.y, acc);
   }
+
+  // ── GÉNESIS · LA VIDA · El exterminio, las explosiones y elegir la tarea de cada aldeano ──
 
   /*
    * EL EXTERMINIO (orden del jugador): los soldados de un reino con esa orden matan también a los civiles del
@@ -6807,6 +6855,9 @@ body.limpio .tropas-barra { display: none; }
     for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { if (Math.abs(dx) + Math.abs(dy) > R) continue; const u = (ty + dy) * v.tw + tx + dx; if (u >= 0 && u < v.obra.length && v.obra[u] === OBRA.campo) n++; }
     return n;
   }
+
+  // ── GÉNESIS · LA VIDA · El plan urbano, andar, llegar y terminar el trabajo ──
+
   /*
    * EL PLAN URBANO (partidas pausadas): cada pueblo y cada ciudad crece con orden alrededor de su plaza.
    *  · Calles en cuadrícula cada tres parcelas, alineadas con la plaza: entre ellas quedan manzanas de 2×2.
@@ -7180,6 +7231,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     a.e = LIBRE;
   }
 
+  // ── GÉNESIS · LA VIDA · Caminos, vías del tren y rutas comerciales a petición ──
+
   /*
    * CAMINOS Y RUTAS COMERCIALES. Cada ciudad se une a su capital por un camino trazado por el terreno más
    * fácil (evita el agua, las montañas y las casas, y aprovecha los caminos que ya hay); las capitales de
@@ -7388,6 +7441,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     }
     for (const c of m.civs) c.rutas = v.rutas.filter(ru => ru.tipo !== 'calle' && (ru.a === c.id || ru.b === c.id) && rutaActiva(m, ru)).length;
   }
+
+  // ── GÉNESIS · LA VIDA · Comer, los animales y lo que pasa solo ──
 
   /*
    * COMER: cada aldeano se come su ración del granero (los niños, media). Si el granero se vacía, la gente
@@ -7666,6 +7721,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       }
     }
   }
+
+  // ── GÉNESIS · LA VIDA · Las ciudades, sus fases, abandonos, colonos y expediciones ──
 
   /*
    * LAS CIUDADES: una región con muchas casas, lejos de la capital y de otras ciudades, se convierte en
@@ -7969,6 +8026,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     }
     for (const b of v.aldeanos) if (b.colono === r && b.c === c.id) { b.colono = null; b.h = r; }
   }
+
+  // ── GÉNESIS · LA VIDA · Cada familia en su casa, el recuento, las tierras y los poderes del dios ──
 
   /*
    * CADA FAMILIA EN SU CASA: las casas tienen camas (3, más con la técnica; la casona 5; el ayuntamiento y el
@@ -8496,18 +8555,19 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/mando.js
-/*
- * GÉNESIS · EL MANDO DE UN PUEBLO
- * En el modo "Gobernar un pueblo" no eres un dios: eres quien manda en un solo pueblo y lo gobiernas
- * escribiendo órdenes ("talad el bosque", "construid casas", "expandíos hacia el norte", "atacad a
- * Karenia", "haced la paz con Ishan", "invertid en ciencia", "proclamad la república"). Los demás pueblos
- * siguen solos, como siempre.
- *
- * Cada orden se traduce a ACCIONES pequeñas y serializables ({ tipo: 'guerra', con: 3 }...). Así, un día,
- * en multijugador, cada jugador enviará sus acciones y todos los mundos las aplicarán igual, en el mismo
- * turno (el mundo es reproducible).
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/mando/ (00-base-y-cuadrillas.js, 01-ordenes-especiales.js, 02-aplicar-extra.js, 03-tropas-y-entender.js, 04-aplicar.js, 05-consejero-e-ia.js, 06-pueblos-guia-y-retos.js).
 (function (RF) {
+  /*
+   * GÉNESIS · EL MANDO DE UN PUEBLO
+   * En el modo "Gobernar un pueblo" no eres un dios: eres quien manda en un solo pueblo y lo gobiernas
+   * escribiendo órdenes ("talad el bosque", "construid casas", "expandíos hacia el norte", "atacad a
+   * Karenia", "haced la paz con Ishan", "invertid en ciencia", "proclamad la república"). Los demás pueblos
+   * siguen solos, como siempre.
+   *
+   * Cada orden se traduce a ACCIONES pequeñas y serializables ({ tipo: 'guerra', con: 3 }...). Así, un día,
+   * en multijugador, cada jugador enviará sus acciones y todos los mundos las aplicarán igual, en el mismo
+   * turno (el mundo es reproducible).
+   */
   'use strict';
   const M = RF.MUNDO, S = () => M.sim, D = () => M.dios;
   const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ\s-]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -8793,6 +8853,7 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     textos.push('Encargado: ' + textoPlazo(m, h).trim().replace(/^hasta /, '') + '. Los ' + OFICIOS_N[a.o] + ' pasan de ' + n0 + ' a ' + n1 + ' y, al terminar, todo vuelve a como estaba.');
   }
 
+  // ── GÉNESIS · EL MANDO · Más órdenes: escuadrones, posturas de guerra, diplomacia y economía ──
 
   // ---------- Más órdenes: escuadrones, posturas de guerra, diplomacia menuda, el ánimo del pueblo ----------
   const sinTildes = n => n;
@@ -9063,6 +9124,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       textos.push('Tesoro: ' + Math.round(c.oro || 0) + ' de oro. Por turno entran ' + (c.ingresos || 0).toFixed(1) + ' (impuestos y comercio) y salen ' + (c.gastos || 0).toFixed(1) + ' (sueldos de ' + (c.guerreros || 0) + ' soldados y mantenimiento)' + (c.mecenazgo ? ', y ' + c.mecenazgo.toFixed(1) + ' van a los sabios' : '') + '. Los edificios cuestan oro; sin oro, los soldados desertan.');
     }
   }
+
+  // ── GÉNESIS · EL MANDO · Aplicar las órdenes especiales y el informe de la banca ──
+
   function aplicarExtra(m, c, a, textos) {
     const p = plan(c), v = m.vida, an = (t, r) => (v.anuncios = v.anuncios || []).push({ civ: c.id, texto: t, region: r });
     const o = a.con != null ? S().civ(m, Number(a.con)) : null;
@@ -9499,6 +9563,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
   }
   const TIPOS_EXTRA = ['murallas', 'fortificar', 'empresas', 'ministro', 'consulta_guerra', 'salario', 'banco_central', 'interes', 'perdonar', 'pedir_prestamo', 'prestar', 'consulta_banca', 'anexar', 'exterminio', 'reforestar', 'fabricar', 'huelga', 'reparar', 'escuadron', 'vehiculos', 'atacar', 'rendicion', 'espiar', 'insultar', 'regalo', 'sabotaje', 'impuestos', 'fiesta', 'rezar', 'curar', 'trabajar'];
 
+  // ── GÉNESIS · EL MANDO · El modo tropas y del texto a las acciones ──
+
   // ---------- El modo tropas: seleccionas soldados y los mandas a un sitio, como en Age of Empires ----------
   /*
    * Los soldados elegidos van al punto tocado (en formación) y se quedan allí: pelean solos con lo que se les
@@ -9710,6 +9776,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     }
     return acciones;
   }
+
+  // ── GÉNESIS · EL MANDO · Aplicar las acciones (igual en local que en línea) e informe ──
 
   // ---------- Aplicar las acciones (igual para un jugador local que para uno remoto) ----------
   function aplicar(m, civId, acciones) {
@@ -9938,6 +10006,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       (enemigos.length ? 'En guerra con ' + enemigos.join(', ') + '. ' : 'En paz. ') + (cambiadas.length ? 'Prioridades: ' + cambiadas.join(', ') + '.' : 'Todas las prioridades en normal.');
   }
 
+  // ── GÉNESIS · EL MANDO · El consejero y lo que traduce Claude ──
+
   // ---------- El consejero: lo más urgente de tu pueblo ahora mismo, y la orden que lo arregla ----------
   function consejo(m, civId) {
     const c = S().civ(m, civId);
@@ -10081,6 +10151,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     return { ok: true, acciones, respuesta: (f.respuesta ? String(f.respuesta).slice(0, 300) + ' ' : '') + textos.filter(t => !/^¿/.test(t)).join(' ') };
   }
 
+  // ── GÉNESIS · EL MANDO · Elegir pueblo, la guía de los primeros pasos y los retos ──
+
   // ---------- Elegir pueblo ----------
   // En línea: otro jugador toma un pueblo (sin quitárselo a los demás jugadores).
   // Quien toma un reino a mitad de partida no hereda sus tratados: el comercio lo decide él. Se le avisa de con quién
@@ -10179,14 +10251,15 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/arte.js
-/*
- * GÉNESIS · EL ARTE
- * Los dibujos del mundo a 16×16 píxeles por parcela (32×32 las plazas), hechos con código: suelos con textura,
- * flores y adornos, árboles de cada bioma, rocas, campos, caminos y los edificios de cada era con el tejado del
- * color de su pueblo. Todo lleva sombreado (luz arriba a la izquierda) y un contorno oscuro, como WorldBox.
- * Cada dibujo se hace una vez y se guarda.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/arte/ (00-base-y-naturaleza.js, 01-edificios.js, 02-publicos-y-negocios.js, 03-fases.js, 04-gente-vehiculos-e-iconos.js).
 (function (RF) {
+  /*
+   * GÉNESIS · EL ARTE
+   * Los dibujos del mundo a 16×16 píxeles por parcela (32×32 las plazas), hechos con código: suelos con textura,
+   * flores y adornos, árboles de cada bioma, rocas, campos, caminos y los edificios de cada era con el tejado del
+   * color de su pueblo. Todo lleva sombreado (luz arriba a la izquierda) y un contorno oscuro, como WorldBox.
+   * Cada dibujo se hace una vez y se guarda.
+   */
   'use strict';
   const M = RF.MUNDO = RF.MUNDO || {};
   const T = 16;
@@ -10511,6 +10584,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     });
   }
 
+  // ── GÉNESIS · EL ARTE · Edificios: casas por época y la casa del saber ──
+
   // ---------- Edificios ----------
   const PARED = '#e8d8b4', MADERA = '#7a5232', PIEDRA = '#a8a49a', CRISTAL = '#4a6a9a', LUZ = '#ffe08a';
   // Un tejado a dos aguas: tejas en filas, la mitad izquierda iluminada.
@@ -10705,6 +10780,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     const h = ((anillo * 73856093) ^ (seg * 19349663)) >>> 0;
     return L[h % 3];
   }
+
+  // ── GÉNESIS · EL ARTE · El adoquín, los edificios públicos y los negocios privados ──
+
   // ---------- Los edificios públicos (cada uno con su porqué en vida.js), de cada fase ----------
   function pozo(H, fase, col) {
     if (fase === 3) {
@@ -11158,6 +11236,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     H.r(8, 10, 1, 2, CRISTAL); H.r(2, 10, 1, 2, CRISTAL); H.r(12, 9, 2, 2, CRISTAL);
     H.contorno(); return H.lienzo();
   }
+
+  // ── GÉNESIS · EL ARTE · Templo, molino, puerto, ayuntamiento, torre, cuartel, castillo y plaza de cada fase ──
+
   // ---------- Templo, molino, puerto y ayuntamiento de cada fase (0 tribal, 2 pólvora, 3 moderna) ----------
   function temploDeFase(H, fase, col) {
     if (fase === 0) {
@@ -11367,6 +11448,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       return H.lienzo();
     });
   }
+
+  // ── GÉNESIS · EL ARTE · Aldeanos, tiradores, vehículos, barcos e iconos ──
 
   // ---------- Aldeanos (12×14, los pies abajo en el centro) ----------
   // o: oficio; edad: 'nino' | 'adulto' | 'viejo'; paso: 0/1 (piernas); alto: -1/0/1 (herramienta arriba o abajo);
@@ -12140,17 +12223,18 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/pintor.js
-/*
- * GÉNESIS · EL PINTOR
- * Dibuja el mundo como un juego de píxeles visto desde arriba: cada parcela de 16×16 píxeles (arte.js) con su suelo,
- * sus árboles, sus rocas, sus campos y sus casas (con el tejado del color de su pueblo y el estilo de su
- * era), y encima los aldeanos andando, talando, sembrando y luchando.
- *
- * El suelo y las obras se pintan una vez en un lienzo grande y solo se retocan las parcelas que cambian;
- * cada fotograma se recorta lo que ve la cámara (arrastrar, rueda, pellizco y botones) y se dibujan los
- * aldeanos interpolando su recorrido del turno.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/pintor/ (00-base.js, 01-suelo-y-obras.js, 02-turno-y-fotograma.js, 03-golpes-y-figuras.js, 04-aldeanos.js, 05-batallas-y-poderes.js, 06-noche-y-edificios.js, 07-ambiente.js, 08-particulas-y-sucesos.js, 09-fuego-disparos-y-tumbas.js, 10-camara.js).
 (function (RF) {
+  /*
+   * GÉNESIS · EL PINTOR
+   * Dibuja el mundo como un juego de píxeles visto desde arriba: cada parcela de 16×16 píxeles (arte.js) con su suelo,
+   * sus árboles, sus rocas, sus campos y sus casas (con el tejado del color de su pueblo y el estilo de su
+   * era), y encima los aldeanos andando, talando, sembrando y luchando.
+   *
+   * El suelo y las obras se pintan una vez en un lienzo grande y solo se retocan las parcelas que cambian;
+   * cada fotograma se recorta lo que ve la cámara (arrastrar, rueda, pellizco y botones) y se dibujan los
+   * aldeanos interpolando su recorrido del turno.
+   */
   'use strict';
   const M = RF.MUNDO;
   // A: píxeles de arte por parcela (el suelo, las casas y los árboles); P: píxeles del mundo por parcela.
@@ -12237,6 +12321,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     cam.x = ancho() <= w / cam.z ? ancho() / 2 : Math.max(mx, Math.min(ancho() - mx, cam.x));
     cam.y = alto() <= h / cam.z ? alto() / 2 : Math.max(my, Math.min(alto() - my, cam.y));
   }
+
+  // ── GÉNESIS · EL PINTOR · Pintar el suelo, los caminos y el territorio ──
 
   // ---------- Pintar el suelo y las obras ----------
   let subVisto = 0;
@@ -12496,6 +12582,7 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     gc.globalAlpha = 1;
   }
 
+  // ── GÉNESIS · EL PINTOR · Un turno nuevo y cada fotograma ──
 
   // ---------- Un turno nuevo: dejar al día lo pintado y preparar la animación ----------
   function aplicar(hasta) {
@@ -12668,6 +12755,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       g.fillStyle = mezclar(c.color, '#000000', 0.3); g.fillRect(x + 6, y + (fase ? 1 : 0), 2, 4);
     }
   }
+
+  // ── GÉNESIS · EL PINTOR · Golpes, figuras, estaciones, andamios, corrales, murallas, trincheras, vías y tráfico ──
 
   // Los aldeanos: 3×5 píxeles, con el color de su pueblo y la herramienta de su oficio.
   // ---------- Golpes como en WorldBox: destello rojo y blanco, retroceso, embestida, sangre y barra de vida ----------
@@ -12968,6 +13057,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
   // (Los soldados van al compás exacto, para que los golpes y los disparos casen con quien los recibe.)
   const rVisto = new WeakMap(), rAntes = new WeakMap();
   const desfase = a => (a.o === 4 ? 0 : 0.15 + ((a.id * 0.6180339) % 1) * 0.8);
+
+  // ── GÉNESIS · EL PINTOR · Los aldeanos y los anuncios ──
+
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     civPorId.clear(); for (const c of m.civs) civPorId.set(c.id, c);
     rutaPorId.clear(); for (const ru of m.vida.rutas || []) rutaPorId.set(ru.id, ru);
@@ -13243,6 +13335,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     g.fillStyle = '#05070e'; g.font = 'bold ' + Math.round(16 * dpr) + 'px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(corteAviso === '⏫' ? '▲' : '?', sx, sy + 1 * dpr); g.textBaseline = 'alphabetic';
   }
+
+  // ── GÉNESIS · EL PINTOR · Las batallas, los nombres y los poderes del dios a la vista ──
+
   // ---------- Las batallas: dónde se está luchando, para que no pasen sin verse ----------
   // Se agrupan los golpes y las muertes en combate del turno por zonas de 10×10 parcelas; una batalla dura en
   // pantalla un par de turnos después del último golpe.
@@ -13466,6 +13561,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       g.globalAlpha = 1;
     }
   }
+
+  // ── GÉNESIS · EL PINTOR · El día y la noche, las farolas, edificios que se mueven, barcos y asedios ──
+
   // ---------- El día y la noche: cada minuto y medio cae la noche y se encienden las ventanas ----------
   const DIA = 90000;
   let luces = [], lucesHasta = 0;
@@ -13695,6 +13793,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       }
     }
   }
+
+  // ── GÉNESIS · EL PINTOR · El ambiente: agua, humo, nieve, pájaros, nubes, animales y gestos ──
 
   // ---------- El ambiente: lo que se mueve aunque nadie lo mande ----------
   const azarV = n => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul(n ^ (n >>> 12), 0x297a2d39); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
@@ -13941,6 +14041,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     // Los que cargan en la batalla gritan.
     for (const w of gritos) { if (n > 60) break; if (hash(w.a.id + slot * 13) < 0.25 && dentro < 0.45) { bocadillo(w.px + 2, w.py - 9, DIBUJOS.grito, '#d02a2a'); n++; } }
   }
+
+  // ── GÉNESIS · EL PINTOR · Partículas y los grandes sucesos en el mapa ──
+
   // ---------- Partículas: sangre, chispas, humo, fogonazos, astillas, cascotes, salpicaduras ----------
   // Todo lo que salta, cae o sube durante unos instantes. Son solo para la vista (no tocan el mundo).
   let parts = [], ultimoCuadro = 0;
@@ -14104,6 +14207,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       }
     }
   }
+
+  // ── GÉNESIS · EL PINTOR · Fuego, huellas, polvo, aviones, disparos, tumbas y carteles ──
 
   // ---------- Fuego, agua y marcas del suelo ----------
   const enVista = (t, x0, y0, x1, y1) => { const x = (t % m.vida.tw) * P, y = Math.floor(t / m.vida.tw) * P; return x + P >= x0 && y + P >= y0 && x <= x1 && y <= y1; };
@@ -14440,6 +14545,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     g.globalAlpha = 1;
   }
 
+  // ── GÉNESIS · EL PINTOR · La cámara, la entrada y los planos del arquitecto ──
+
   // ---------- La cámara ----------
   // Centra la cámara en una parcela concreta (tx, ty) y acerca.
   function centrarEnParcela(tx, ty, acercar) {
@@ -14680,13 +14787,14 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vista.js
-/*
- * GÉNESIS · LA VISTA
- * Dibuja el mapa en un canvas de píxeles, la lista de pueblos, la ficha del pueblo elegido y la crónica;
- * hace pasar el tiempo, recibe la voluntad del dios y, si se juega dentro de claude.ai, le pregunta a Claude
- * lo que el intérprete local no entiende y le pide crónicas de época.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/vista/ (00-guardado-y-modos.js, 01-numeros-y-paneles.js, 02-mercado-y-fichas.js, 03-tiempo-y-retos.js, 04-en-linea.js, 05-online-carga-y-chat.js, 06-dios-y-arranque.js).
 (function (RF) {
+  /*
+   * GÉNESIS · LA VISTA
+   * Dibuja el mapa en un canvas de píxeles, la lista de pueblos, la ficha del pueblo elegido y la crónica;
+   * hace pasar el tiempo, recibe la voluntad del dios y, si se juega dentro de claude.ai, le pregunta a Claude
+   * lo que el intérprete local no entiende y le pide crónicas de época.
+   */
   'use strict';
   const M = RF.MUNDO, S = M.sim, D = M.dios, P = M.pintor, X = M.mando;
   const $ = id => document.getElementById(id);
@@ -14814,6 +14922,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     if (centrar && c) P.centrarEn(c.capital);
     pintarPueblos(); if (m.guia) pintarConsejo();
   }
+
+  // ── GÉNESIS · LA VISTA · Los números, la ficha, la corte, el arquitecto y las tropas ──
 
   // ---------- Los números ----------
   const habitantes = c => { const n = c.habitantes != null ? c.habitantes : (m.vida ? m.vida.aldeanos.filter(a => a.c === c.id).length : 0); return n + (n === 1 ? ' aldeano' : ' aldeanos'); };
@@ -15125,6 +15235,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
   }
   function salirTropas() { tropasActivas = false; P.modoTropas(null); const el = $('tropas-barra'); if (el) el.hidden = true; $('tropas-btn').setAttribute('aria-pressed', 'false'); document.body.classList.remove('tropas-abierto'); }
   function salirArquitecto() { document.body.classList.remove('arqui-abierto'); arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
+
+  // ── GÉNESIS · LA VISTA · Mercado, ciudades, técnica, fichas, crónica, consejo y guerra ──
+
   // ---------- La pestaña Mercado: precios del mundo, a qué se dedica el reino, sus socios y sus tratos ----------
   const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡', semillas: '🌰', granadas: '💣' })[k] });
   function curva(h, col) {
@@ -15605,6 +15718,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
   }
   function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarGuerra(); pintarCuadrillas(); pintarRetos(); pintarRecursos(); }
 
+  // ── GÉNESIS · LA VISTA · El tiempo, las batallas, los retos y el final ──
+
   // ---------- El tiempo ----------
   // El año del reloj avanza poco a poco durante el turno, en vez de saltar.
   let anioAntes = null, inicioTurno = 0;
@@ -15767,6 +15882,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     const oferta = recientes.find(e => / te ofrece la paz$/.test(e.titulo));
     if (oferta) responder(oferta.titulo + '. Escribe «acepto la paz con ' + oferta.titulo.replace(/ te ofrece la paz$/, '') + '» si la quieres.', 'duda');
   }
+
+  // ── GÉNESIS · LA VISTA · En línea: varios jugadores en el mismo mundo ──
 
   // ---------- EN LÍNEA: varios jugadores en el mismo mundo ----------
   /*
@@ -16121,6 +16238,9 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     clearTimeout(red.botonYa); red.botonYa = setTimeout(() => { if (red.cargando) $('carga-ya').hidden = false; }, 6000);
     revisarCarga();
   }
+
+  // ── GÉNESIS · LA VISTA · La carga online, el chat y la partida persistente ──
+
   // ---------- La pantalla de carga online ----------
   function mostrarCarga(texto, avance) {
     $('carga').hidden = false; $('carga-texto').textContent = texto;
@@ -16483,6 +16603,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     if (red.modo === 'anfitrion') difundir({ t: 'estado', corriendo, vel });
     pintarCabecera();
   }
+
+  // ── GÉNESIS · LA VISTA · La voluntad del dios, las órdenes y el arranque ──
 
   // ---------- La voluntad del dios ----------
   function responder(texto, tipo) {

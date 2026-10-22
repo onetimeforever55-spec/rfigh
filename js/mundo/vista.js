@@ -1,10 +1,11 @@
-/*
- * GÉNESIS · LA VISTA
- * Dibuja el mapa en un canvas de píxeles, la lista de pueblos, la ficha del pueblo elegido y la crónica;
- * hace pasar el tiempo, recibe la voluntad del dios y, si se juega dentro de claude.ai, le pregunta a Claude
- * lo que el intérprete local no entiende y le pide crónicas de época.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/vista/ (00-guardado-y-modos.js, 01-numeros-y-paneles.js, 02-mercado-y-fichas.js, 03-tiempo-y-retos.js, 04-en-linea.js, 05-online-carga-y-chat.js, 06-dios-y-arranque.js).
 (function (RF) {
+  /*
+   * GÉNESIS · LA VISTA
+   * Dibuja el mapa en un canvas de píxeles, la lista de pueblos, la ficha del pueblo elegido y la crónica;
+   * hace pasar el tiempo, recibe la voluntad del dios y, si se juega dentro de claude.ai, le pregunta a Claude
+   * lo que el intérprete local no entiende y le pide crónicas de época.
+   */
   'use strict';
   const M = RF.MUNDO, S = M.sim, D = M.dios, P = M.pintor, X = M.mando;
   const $ = id => document.getElementById(id);
@@ -132,6 +133,8 @@
     if (centrar && c) P.centrarEn(c.capital);
     pintarPueblos(); if (m.guia) pintarConsejo();
   }
+
+  // ── GÉNESIS · LA VISTA · Los números, la ficha, la corte, el arquitecto y las tropas ──
 
   // ---------- Los números ----------
   const habitantes = c => { const n = c.habitantes != null ? c.habitantes : (m.vida ? m.vida.aldeanos.filter(a => a.c === c.id).length : 0); return n + (n === 1 ? ' aldeano' : ' aldeanos'); };
@@ -443,6 +446,9 @@
   }
   function salirTropas() { tropasActivas = false; P.modoTropas(null); const el = $('tropas-barra'); if (el) el.hidden = true; $('tropas-btn').setAttribute('aria-pressed', 'false'); document.body.classList.remove('tropas-abierto'); }
   function salirArquitecto() { document.body.classList.remove('arqui-abierto'); arquiClave = null; P.arquitecto(null); $('arquitecto').hidden = true; $('arquitecto-btn').setAttribute('aria-pressed', 'false'); }
+
+  // ── GÉNESIS · LA VISTA · Mercado, ciudades, técnica, fichas, crónica, consejo y guerra ──
+
   // ---------- La pestaña Mercado: precios del mundo, a qué se dedica el reino, sus socios y sus tratos ----------
   const ICONO_BIEN = new Proxy({}, { get: (o, k) => px(k) || ({ comida: '🌾', madera: '🪵', piedra: '🪨', metal: '⛓', armas: '⚔', carbon: '⚫', petroleo: '🛢', muebles: '🪑', vehiculos: '🛡', semillas: '🌰', granadas: '💣' })[k] });
   function curva(h, col) {
@@ -923,6 +929,8 @@
   }
   function pintarTodo() { pintarCabecera(); pintarPueblos(); pintarCronica(); pintarConsejo(); pintarGuerra(); pintarCuadrillas(); pintarRetos(); pintarRecursos(); }
 
+  // ── GÉNESIS · LA VISTA · El tiempo, las batallas, los retos y el final ──
+
   // ---------- El tiempo ----------
   // El año del reloj avanza poco a poco durante el turno, en vez de saltar.
   let anioAntes = null, inicioTurno = 0;
@@ -1085,6 +1093,8 @@
     const oferta = recientes.find(e => / te ofrece la paz$/.test(e.titulo));
     if (oferta) responder(oferta.titulo + '. Escribe «acepto la paz con ' + oferta.titulo.replace(/ te ofrece la paz$/, '') + '» si la quieres.', 'duda');
   }
+
+  // ── GÉNESIS · LA VISTA · En línea: varios jugadores en el mismo mundo ──
 
   // ---------- EN LÍNEA: varios jugadores en el mismo mundo ----------
   /*
@@ -1439,6 +1449,9 @@
     clearTimeout(red.botonYa); red.botonYa = setTimeout(() => { if (red.cargando) $('carga-ya').hidden = false; }, 6000);
     revisarCarga();
   }
+
+  // ── GÉNESIS · LA VISTA · La carga online, el chat y la partida persistente ──
+
   // ---------- La pantalla de carga online ----------
   function mostrarCarga(texto, avance) {
     $('carga').hidden = false; $('carga-texto').textContent = texto;
@@ -1801,6 +1814,8 @@
     if (red.modo === 'anfitrion') difundir({ t: 'estado', corriendo, vel });
     pintarCabecera();
   }
+
+  // ── GÉNESIS · LA VISTA · La voluntad del dios, las órdenes y el arranque ──
 
   // ---------- La voluntad del dios ----------
   function responder(texto, tipo) {

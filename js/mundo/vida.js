@@ -1,18 +1,19 @@
-/*
- * GÉNESIS · LA VIDA
- * Cada región del mapa se parte en 4×4 parcelas con su árbol, su roca o su obra, y por ellas caminan los
- * aldeanos de cada pueblo: leñadores que talan, granjeros que siembran, constructores que levantan casas,
- * mineros que pican piedra y guerreros que marchan a la frontera cuando hay guerra.
- *
- * Lo que hacen mueve la economía: la madera y la piedra pagan las tierras nuevas y las casas, las casas y
- * los campos dan sitio a más gente, las batallas que ganan los guerreros inclinan la guerra, y un bosque
- * talado hasta el último árbol se queda en llanura.
- *
- * Todo pasa dentro del turno (TICKS pasos) con un azar propio guardado en el mundo: sigue siendo
- * reproducible. Cada aldeano guarda su recorrido del turno y cada parcela que cambia queda anotada con el
- * paso en que cambió, para que la vista lo anime sin adelantarse.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/vida/ (00-base.js, 01-terreno.js, 02-obras-y-nombres.js, 03-gobernador-y-mercado.js, 04-industria.js, 05-comercio.js, 06-banca.js, 07-sucesos-y-cargas.js, 08-gente.js, 09-ejercito.js, 10-edificios-y-necesidades.js, 11-defensas.js, 12-mar.js, 13-asedios-y-fuego.js, 14-turno.js, 15-tareas.js, 16-andar.js, 17-caminos.js, 18-comida-y-fauna.js, 19-ciudades-y-colonos.js, 20-hogares.js).
 (function (RF) {
+  /*
+   * GÉNESIS · LA VIDA
+   * Cada región del mapa se parte en 4×4 parcelas con su árbol, su roca o su obra, y por ellas caminan los
+   * aldeanos de cada pueblo: leñadores que talan, granjeros que siembran, constructores que levantan casas,
+   * mineros que pican piedra y guerreros que marchan a la frontera cuando hay guerra.
+   *
+   * Lo que hacen mueve la economía: la madera y la piedra pagan las tierras nuevas y las casas, las casas y
+   * los campos dan sitio a más gente, las batallas que ganan los guerreros inclinan la guerra, y un bosque
+   * talado hasta el último árbol se queda en llanura.
+   *
+   * Todo pasa dentro del turno (TICKS pasos) con un azar propio guardado en el mundo: sigue siendo
+   * reproducible. Cada aldeano guarda su recorrido del turno y cada parcela que cambia queda anotada con el
+   * paso en que cambió, para que la vista lo anime sin adelantarse.
+   */
   'use strict';
   const M = RF.MUNDO;
   const S = () => M.sim;
@@ -246,6 +247,8 @@
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
 
+  // ── GÉNESIS · LA VIDA · El suelo de cada parcela: ríos, lagos, islas, y crear la vida de un mundo ──
+
   // ---------- El suelo de cada parcela ----------
   const esAgua = t => t === 'mar' || t === 'costa';
   /*
@@ -403,6 +406,8 @@
     return v;
   }
 
+  // ── GÉNESIS · LA VIDA · Cambiar parcelas, la ficha de cada edificio, nombres, plazas y centros ──
+
   // Anota un cambio de parcela con el paso en que ocurre (la vista lo aplica en ese momento).
   function cambiar(m, capa, t, valor, paso) {
     const v = m.vida;
@@ -522,6 +527,8 @@
     }
   }
   function plaza(m, r) { const tw = m.W * SUB, x = (r % m.W) * SUB + 1, y = (r / m.W | 0) * SUB + 1; return [y * tw + x, y * tw + x + 1, (y + 1) * tw + x, (y + 1) * tw + x + 1]; }
+
+  // ── GÉNESIS · LA VIDA · El gobernador automático, el mercado global y la cartera de cada reino ──
 
   // ---------- Los aldeanos de cada pueblo ----------
   const cuantos = c => Math.max(4, Math.min(60, Math.round(3 + Math.sqrt(Math.max(0, c.pob)) * 2)));
@@ -652,6 +659,9 @@
     }
     c.especialidad = principal;
   }
+
+  // ── GÉNESIS · LA VIDA · Las industrias, la materia prima, los sueldos, negocios privados, quiebras y herencias ──
+
   /*
    * EL COMERCIO Y LA BANCA, como en la vida real:
    *  · LOS COMERCIANTES existen desde siempre (el comercio primitivo del reino): trabajan para el reino y se quedan
@@ -1164,6 +1174,9 @@
   const mercaderesDe = (m, c) => m.vida.aldeanos.filter(a => a.c === c.id && a.merc);
   const gremiosDe = (m, c) => Object.keys(m.vida.privados || {}).filter(t => m.vida.privados[t].civ === c.id && m.vida.privados[t].tipo === 'gremio' && m.vida.obra[t] === OBRA.gremio).map(Number);
   const redondo = x => Math.round(x * 100) / 100;
+
+  // ── GÉNESIS · LA VIDA · El comercio de los mercaderes y las sedes de los bancos ──
+
   function comercio(m, c, impuesto) {
     const v = m.vida, mercs = mercaderesDe(m, c), porId = new Map(mercs.map(a => [a.id, a]));
     // Con plaza pública hay mercado: los tratos rinden un 10 % más. (El banco no da premio: solo trae la banca y el crédito.)
@@ -1371,6 +1384,9 @@
     rico.dinero = 0; mover(rico, COMERCIANTE);
     anunciar(m, c, (ind === 'ferrocarril' ? '🚂 ' : '🏭 ') + nombreDe(rico) + ' monta ' + (QUE_MONTA[ind] || 'una fábrica') + ' con su propio dinero, sin préstamo (paga ' + obra + ' de oro al reino por la obra)');
   }
+
+  // ── GÉNESIS · LA VIDA · El ministro de economía, la banca y el mercado mundial ──
+
   /*
    * EL MINISTRO DE ECONOMÍA (con el banco central): un erudito que trabaja en el banco y, cada pocos turnos, encarga lo que
    * le falta al reino y pone a la venta lo que le sobra (son pedidos y ventas como los del jugador, marcados como
@@ -1689,6 +1705,9 @@
       for (const k of BIENES) c.importa[k] = (c.importa[k] || 0) * 0.9;
     }
   }
+
+  // ── GÉNESIS · LA VIDA · Sucesos del campo y del mercado, ofertas, carretas y el reparto del trabajo ──
+
   /*
    * EL CAMPO TIENE SORPRESAS:
    *  · plaga de langostas en verano: devoran los campos sin madurar de un pueblo (y se ven pasar);
@@ -2015,6 +2034,8 @@
     return cs[Math.floor(azar(v) * cs.length)];
   }
 
+  // ── GÉNESIS · LA VIDA · Cada aldeano es un agente: casas, salud, nacer, oficios y equipo ──
+
   /*
    * CADA ALDEANO ES UN AGENTE, como en WorldBox: tiene nombre, familia, edad, rasgos, casa e historia.
    * La población del pueblo son sus aldeanos: nacen de otros aldeanos (si hay cama, comida y tierra que los
@@ -2302,6 +2323,8 @@
     }
   }
 
+  // ── GÉNESIS · LA VIDA · Los ejércitos y el frente ──
+
   /*
    * LOS EJÉRCITOS: en guerra, los guerreros de un pueblo se reúnen junto a la frontera tras su capitán y
    * marchan juntos hacia una región del enemigo (la más cercana a su capital, para llegar al corazón del reino).
@@ -2487,6 +2510,8 @@
     const nt = ny * tw + nx, ter = terrenos(m)[nt];
     e.frente = ter === 'agua' || ter === 'bajo' ? obj : nt; e.esperaT = m.turno; e.linea = false;
   }
+
+  // ── GÉNESIS · LA VIDA · Los edificios de cada plaza: alumbrado, necesidades, cultivos y el arquitecto ──
 
   /*
    * LOS EDIFICIOS DE CADA PLAZA (capital y ciudades), como en WorldBox: una torre de vigilancia, un templo,
@@ -2790,6 +2815,9 @@
     }
     return null;
   }
+
+  // ── GÉNESIS · LA VIDA · Trincheras, murallas, corrales, defensas de frontera y qué edificio toca ──
+
   /*
    * LAS TRINCHERAS (Segunda Guerra Mundial): los soldados cavan una zanja con sacos terreros a lo largo de la
    * frontera con los vecinos en guerra o mal avenidos, y le ponen alambre de espino delante. Quien está dentro
@@ -3080,6 +3108,8 @@
     }
     return null;
   }
+
+  // ── GÉNESIS · LA VIDA · Los barcos y la marina de guerra ──
 
   /*
    * LOS BARCOS: cada puerto tiene un barco de pesca (trae comida) y, desde la Antigüedad, un mercante que
@@ -3451,6 +3481,8 @@
     b.r.push(b.x, b.y);
   }
 
+  // ── GÉNESIS · LA VIDA · El asedio, el fuego y el agua, los aviones y las torres ──
+
   /*
    * EL ASEDIO, como en WorldBox: si el capitán está en la plaza enemiga, sin defensores y sin torre en pie,
    * la captura avanza; al llegar a 100, la plaza y sus tierras cambian de bandera.
@@ -3741,6 +3773,8 @@
     }
   }
 
+  // ── GÉNESIS · LA VIDA · Lo que hay al alcance de cada pueblo y un turno de vida ──
+
   // ---------- Lo que hay al alcance de cada pueblo ----------
   function recursos(m) {
     const v = m.vida, out = {}, reservadas = new Set();
@@ -4011,6 +4045,8 @@
     }
     a.r.push(a.x, a.y, acc);
   }
+
+  // ── GÉNESIS · LA VIDA · El exterminio, las explosiones y elegir la tarea de cada aldeano ──
 
   /*
    * EL EXTERMINIO (orden del jugador): los soldados de un reino con esa orden matan también a los civiles del
@@ -4534,6 +4570,9 @@
     for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { if (Math.abs(dx) + Math.abs(dy) > R) continue; const u = (ty + dy) * v.tw + tx + dx; if (u >= 0 && u < v.obra.length && v.obra[u] === OBRA.campo) n++; }
     return n;
   }
+
+  // ── GÉNESIS · LA VIDA · El plan urbano, andar, llegar y terminar el trabajo ──
+
   /*
    * EL PLAN URBANO (partidas pausadas): cada pueblo y cada ciudad crece con orden alrededor de su plaza.
    *  · Calles en cuadrícula cada tres parcelas, alineadas con la plaza: entre ellas quedan manzanas de 2×2.
@@ -4907,6 +4946,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     a.e = LIBRE;
   }
 
+  // ── GÉNESIS · LA VIDA · Caminos, vías del tren y rutas comerciales a petición ──
+
   /*
    * CAMINOS Y RUTAS COMERCIALES. Cada ciudad se une a su capital por un camino trazado por el terreno más
    * fácil (evita el agua, las montañas y las casas, y aprovecha los caminos que ya hay); las capitales de
@@ -5115,6 +5156,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     }
     for (const c of m.civs) c.rutas = v.rutas.filter(ru => ru.tipo !== 'calle' && (ru.a === c.id || ru.b === c.id) && rutaActiva(m, ru)).length;
   }
+
+  // ── GÉNESIS · LA VIDA · Comer, los animales y lo que pasa solo ──
 
   /*
    * COMER: cada aldeano se come su ración del granero (los niños, media). Si el granero se vacía, la gente
@@ -5393,6 +5436,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       }
     }
   }
+
+  // ── GÉNESIS · LA VIDA · Las ciudades, sus fases, abandonos, colonos y expediciones ──
 
   /*
    * LAS CIUDADES: una región con muchas casas, lejos de la capital y de otras ciudades, se convierte en
@@ -5696,6 +5741,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     }
     for (const b of v.aldeanos) if (b.colono === r && b.c === c.id) { b.colono = null; b.h = r; }
   }
+
+  // ── GÉNESIS · LA VIDA · Cada familia en su casa, el recuento, las tierras y los poderes del dios ──
 
   /*
    * CADA FAMILIA EN SU CASA: las casas tienen camas (3, más con la técnica; la casona 5; el ayuntamiento y el

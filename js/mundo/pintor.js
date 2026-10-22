@@ -1,14 +1,15 @@
-/*
- * GÉNESIS · EL PINTOR
- * Dibuja el mundo como un juego de píxeles visto desde arriba: cada parcela de 16×16 píxeles (arte.js) con su suelo,
- * sus árboles, sus rocas, sus campos y sus casas (con el tejado del color de su pueblo y el estilo de su
- * era), y encima los aldeanos andando, talando, sembrando y luchando.
- *
- * El suelo y las obras se pintan una vez en un lienzo grande y solo se retocan las parcelas que cambian;
- * cada fotograma se recorta lo que ve la cámara (arrastrar, rueda, pellizco y botones) y se dibujan los
- * aldeanos interpolando su recorrido del turno.
- */
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/pintor/ (00-base.js, 01-suelo-y-obras.js, 02-turno-y-fotograma.js, 03-golpes-y-figuras.js, 04-aldeanos.js, 05-batallas-y-poderes.js, 06-noche-y-edificios.js, 07-ambiente.js, 08-particulas-y-sucesos.js, 09-fuego-disparos-y-tumbas.js, 10-camara.js).
 (function (RF) {
+  /*
+   * GÉNESIS · EL PINTOR
+   * Dibuja el mundo como un juego de píxeles visto desde arriba: cada parcela de 16×16 píxeles (arte.js) con su suelo,
+   * sus árboles, sus rocas, sus campos y sus casas (con el tejado del color de su pueblo y el estilo de su
+   * era), y encima los aldeanos andando, talando, sembrando y luchando.
+   *
+   * El suelo y las obras se pintan una vez en un lienzo grande y solo se retocan las parcelas que cambian;
+   * cada fotograma se recorta lo que ve la cámara (arrastrar, rueda, pellizco y botones) y se dibujan los
+   * aldeanos interpolando su recorrido del turno.
+   */
   'use strict';
   const M = RF.MUNDO;
   // A: píxeles de arte por parcela (el suelo, las casas y los árboles); P: píxeles del mundo por parcela.
@@ -95,6 +96,8 @@
     cam.x = ancho() <= w / cam.z ? ancho() / 2 : Math.max(mx, Math.min(ancho() - mx, cam.x));
     cam.y = alto() <= h / cam.z ? alto() / 2 : Math.max(my, Math.min(alto() - my, cam.y));
   }
+
+  // ── GÉNESIS · EL PINTOR · Pintar el suelo, los caminos y el territorio ──
 
   // ---------- Pintar el suelo y las obras ----------
   let subVisto = 0;
@@ -354,6 +357,7 @@
     gc.globalAlpha = 1;
   }
 
+  // ── GÉNESIS · EL PINTOR · Un turno nuevo y cada fotograma ──
 
   // ---------- Un turno nuevo: dejar al día lo pintado y preparar la animación ----------
   function aplicar(hasta) {
@@ -526,6 +530,8 @@
       g.fillStyle = mezclar(c.color, '#000000', 0.3); g.fillRect(x + 6, y + (fase ? 1 : 0), 2, 4);
     }
   }
+
+  // ── GÉNESIS · EL PINTOR · Golpes, figuras, estaciones, andamios, corrales, murallas, trincheras, vías y tráfico ──
 
   // Los aldeanos: 3×5 píxeles, con el color de su pueblo y la herramienta de su oficio.
   // ---------- Golpes como en WorldBox: destello rojo y blanco, retroceso, embestida, sangre y barra de vida ----------
@@ -826,6 +832,9 @@
   // (Los soldados van al compás exacto, para que los golpes y los disparos casen con quien los recibe.)
   const rVisto = new WeakMap(), rAntes = new WeakMap();
   const desfase = a => (a.o === 4 ? 0 : 0.15 + ((a.id * 0.6180339) % 1) * 0.8);
+
+  // ── GÉNESIS · EL PINTOR · Los aldeanos y los anuncios ──
+
   function aldeanos(k, ahora, x0, y0, x1, y1) {
     civPorId.clear(); for (const c of m.civs) civPorId.set(c.id, c);
     rutaPorId.clear(); for (const ru of m.vida.rutas || []) rutaPorId.set(ru.id, ru);
@@ -1101,6 +1110,9 @@
     g.fillStyle = '#05070e'; g.font = 'bold ' + Math.round(16 * dpr) + 'px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(corteAviso === '⏫' ? '▲' : '?', sx, sy + 1 * dpr); g.textBaseline = 'alphabetic';
   }
+
+  // ── GÉNESIS · EL PINTOR · Las batallas, los nombres y los poderes del dios a la vista ──
+
   // ---------- Las batallas: dónde se está luchando, para que no pasen sin verse ----------
   // Se agrupan los golpes y las muertes en combate del turno por zonas de 10×10 parcelas; una batalla dura en
   // pantalla un par de turnos después del último golpe.
@@ -1324,6 +1336,9 @@
       g.globalAlpha = 1;
     }
   }
+
+  // ── GÉNESIS · EL PINTOR · El día y la noche, las farolas, edificios que se mueven, barcos y asedios ──
+
   // ---------- El día y la noche: cada minuto y medio cae la noche y se encienden las ventanas ----------
   const DIA = 90000;
   let luces = [], lucesHasta = 0;
@@ -1553,6 +1568,8 @@
       }
     }
   }
+
+  // ── GÉNESIS · EL PINTOR · El ambiente: agua, humo, nieve, pájaros, nubes, animales y gestos ──
 
   // ---------- El ambiente: lo que se mueve aunque nadie lo mande ----------
   const azarV = n => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul(n ^ (n >>> 12), 0x297a2d39); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
@@ -1799,6 +1816,9 @@
     // Los que cargan en la batalla gritan.
     for (const w of gritos) { if (n > 60) break; if (hash(w.a.id + slot * 13) < 0.25 && dentro < 0.45) { bocadillo(w.px + 2, w.py - 9, DIBUJOS.grito, '#d02a2a'); n++; } }
   }
+
+  // ── GÉNESIS · EL PINTOR · Partículas y los grandes sucesos en el mapa ──
+
   // ---------- Partículas: sangre, chispas, humo, fogonazos, astillas, cascotes, salpicaduras ----------
   // Todo lo que salta, cae o sube durante unos instantes. Son solo para la vista (no tocan el mundo).
   let parts = [], ultimoCuadro = 0;
@@ -1962,6 +1982,8 @@
       }
     }
   }
+
+  // ── GÉNESIS · EL PINTOR · Fuego, huellas, polvo, aviones, disparos, tumbas y carteles ──
 
   // ---------- Fuego, agua y marcas del suelo ----------
   const enVista = (t, x0, y0, x1, y1) => { const x = (t % m.vida.tw) * P, y = Math.floor(t / m.vida.tw) * P; return x + P >= x0 && y + P >= y0 && x <= x1 && y <= y1; };
@@ -2297,6 +2319,8 @@
     g.fillText(cartel.texto, x, y, ancho - 16 * dpr);
     g.globalAlpha = 1;
   }
+
+  // ── GÉNESIS · EL PINTOR · La cámara, la entrada y los planos del arquitecto ──
 
   // ---------- La cámara ----------
   // Centra la cámara en una parcela concreta (tx, ty) y acerca.
