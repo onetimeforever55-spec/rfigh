@@ -479,8 +479,10 @@
         if (a.tipo === 'comprar' && IND && M.vida.empresariosDe(m, c).some(x => x.emp.neg === 'fabrica' && IND.includes(x.emp.ind))) return aplicarExtra(m, c, { tipo: 'empresas', que: a.que, maq: false, n: a.n }, textos);
         textos.push('No comerciáis con ningún reino: no hay a quién ' + (a.tipo === 'comprar' ? 'comprar' : 'vender') + '. Abrid una («abrid una ruta comercial con X») o producidlo vosotros.'); return;
       }
-      const nq = a.n || (a.tipo === 'comprar' ? Math.max(5, Math.floor((c.oro || 0) * 0.5 / precio)) : Math.floor((c[a.que] || 0) * 0.5));
-      if (nq <= 0) { textos.push(a.tipo === 'comprar' ? 'No hay oro para comprar ' + NB(a.que) + '.' : 'No tenéis ' + NB(a.que) + ' que vender.'); return; }
+      // (La comida se vende de lo que sobra: lo que come la gente no sale en la carreta, salvo que se diga cuánto.)
+      const guarda = a.tipo === 'vender' && a.que === 'comida' && !a.n ? (c.aldeanos || 0) * 2 : 0;
+      const nq = a.n || (a.tipo === 'comprar' ? Math.max(5, Math.floor((c.oro || 0) * 0.5 / precio)) : Math.floor(Math.max(0, (c[a.que] || 0) - guarda) * 0.5));
+      if (nq <= 0) { textos.push(a.tipo === 'comprar' ? 'No hay oro para comprar ' + NB(a.que) + '.' : guarda && (c.comida || 0) > 0 ? 'No sobra comida que vender: la que hay (' + Math.floor(c.comida) + ') hace falta para la gente.' : 'No tenéis ' + NB(a.que) + ' que vender.'); return; }
       const lista = a.tipo === 'comprar' ? (p.pedidos = p.pedidos || []) : (p.ventas = p.ventas || []);
       lista.push({ que: a.que, n: nq, desde: m.turno });
       const tienen = socios.filter(o => o.balance && (a.tipo === 'comprar' ? M.vida.vendible(m, o, c, a.que) >= 1 : o.balance.falta[a.que] >= 1));

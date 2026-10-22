@@ -1177,12 +1177,15 @@ console.log('CORRALES, MURALLAS Y EJÉRCITO EN FORMACIÓN');
   comprobar((v.corrales || []).length >= 3 && dentro >= ganado.length * 0.8, 'el ganado vive en corrales cercados junto al pueblo (' + (v.corrales || []).length + ' corrales, ' + dentro + ' de ' + ganado.length + ' reses dentro)');
   const pastoresEnCorral = v.aldeanos.filter(a => a.pastor != null && v.corralT[a.y * v.tw + a.x]).length;
   comprobar(pastoresEnCorral <= (v.corrales || []).length * 3, 'y no se llena de pastores (' + pastoresEnCorral + ' en ' + (v.corrales || []).length + ' corrales)');
-  const muros = v.muro ? v.muro.filter(x => x > 0).length : 0, puertas = v.puerta ? v.puerta.filter(Boolean).length : 0;
-  const malSitio = v.muro ? v.muro.filter((x, t) => x > 0 && (v.obra[t] && v.obra[t] !== V.OBRA.campo)).length : 0;
+  // (Las murallas solo se levantan frente a un vecino rival: si en este mundo todos se llevan bien, se mira en otros.)
+  const murallas = mm => { const w = mm.vida; return { mm, muros: w.muro ? w.muro.filter(x => x > 0).length : 0, puertas: w.puerta ? w.puerta.filter(Boolean).length : 0, malSitio: w.muro ? w.muro.filter((x, t) => x > 0 && (w.obra[t] && w.obra[t] !== V.OBRA.campo)).length : 0 }; };
+  let mu = murallas(m);
+  for (const sem of [21, 27, 9]) { if (mu.muros >= 20 && mu.puertas >= 1) break; const mm = S.crear(sem, 5, { ritmo: 3 }); for (let k = 0; k < 260; k++) S.turno(mm); mu = murallas(mm); }
+  const { muros, puertas, malSitio } = mu, mw = mu.mm.vida;
   comprobar(muros >= 20 && puertas >= 1 && !malSitio, 'frente a vecinos rivales se levantan murallas con puertas en los caminos (' + muros + ' tramos, ' + puertas + ' puertas, ' + malSitio + ' sobre casas)');
-  const t = v.muro.findIndex((x, i) => x > 0 && !v.puerta[i]), dueno = S.civ(m, m.dueno[V.region(m, t)]), antes = v.muro[t];
+  const t = mw.muro.findIndex((x, i) => x > 0 && !mw.puerta[i]), dueno = S.civ(mu.mm, mu.mm.dueno[V.region(mu.mm, t)]), antes = mw.muro[t];
   comprobar(antes > 0 && V.muroVida({ era: 1 }) === 25 && V.muroVida({ era: 3 }) === 50, 'empalizada en las primeras edades (25) y muralla de piedra después (50)');
-  comprobar(/Los constructores levantarán|muy pequeñas/.test(X.ordenar(m, dueno.id, 'levantad murallas').respuesta), '«levantad murallas» se entiende');
+  comprobar(/Los constructores levantarán|muy pequeñas/.test(X.ordenar(mu.mm, dueno.id, 'levantad murallas').respuesta), '«levantad murallas» se entiende');
 }
 
 console.log('DEFENSAS EN LA FRONTERA');

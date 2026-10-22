@@ -2686,6 +2686,8 @@
   function colocarObra(m, t, o, paso) {
     const v = m.vida;
     cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, o, paso);
+    // (Si por lo que sea quedaba un tramo de muralla debajo, el edificio lo sustituye: nunca hay muro y casa en la misma casilla.)
+    if (v.muro && v.muro[t] > 0) { v.muro[t] = 0; if (v.puerta) v.puerta[t] = 0; v.muroVer = (v.muroVer || 0) + 1; }
     if (o === OBRA.torre) (v.torres = v.torres || {})[t] = 12;
     if (o === OBRA.castillo) (v.torres = v.torres || {})[t] = 40;
     if (o === OBRA.aduana) (v.torres = v.torres || {})[t] = 20;
@@ -2983,6 +2985,15 @@
     const v = m.vida;
     // Con un encargo del jugador pendiente, la madera y la piedra se guardan para él (en la capital).
     const plazas = c.plan && c.plan.obra ? [c.capital] : [c.capital, ...(m.ciudades || []).filter(x => x.civ === c.id).map(x => x.region)].sort((p, q) => S().distancia(p, a.h) - S().distancia(q, a.h));
+    // La torre de la frontera frente a un vecino hostil (relación por debajo de -20): una cada pocos turnos, la pida la
+    // plaza que la pida (si no, en un reino con varias ciudades siempre hay antes un molino o un pozo y nunca se levanta).
+    if (pausada(m) && c.era >= 1 && !(c.plan && c.plan.obra) && !(c.enCurso && c.enCurso.fronteraT > m.turno - 6) && S().vecinosDe(m, c).some(o => o && o.viva && (c.rel[o.id] || 0) < -20)) {
+      const cs = COSTES[OBRA.torre], res = S().reservaMejora(m, c) || {};
+      if (c.madera - (res.madera || 0) >= cs[0] && c.piedra - (res.piedra || 0) >= cs[1] && (c.oro || 0) - (res.oro || 0) >= cs[2] && (c.nivel || 0) >= (NIVEL_OBRA[OBRA.torre] || 0)) {
+        const sd = sitioDefensa(m, c, ter);
+        if (sd != null) { (c.enCurso = c.enCurso || {}).fronteraT = m.turno; return [sd, OBRA.torre]; }
+      }
+    }
     for (const r of plazas.slice(0, 3)) {
       const zona = [r, ...S().vecinos(r).filter(w => m.dueno[w] === c.id)];
       const tiles = zona.flatMap(z => parcelas(m, z));
@@ -4285,7 +4296,11 @@
       // Antes que nada, un edificio privado ya pagado que nadie ha empezado: uno va a poner el andamio (luego los demás
       // ayudan, como en cualquier obra a medias). Si no, en un reino grande siempre hay alguna obra a medias cerca y la
       // fábrica de un capitalista se quedaba esperando para siempre.
-      const privadaSinEmpezar = pausada(m) && ((c.plan && c.plan.encargos) || []).find(e => e.privado != null && !rec.reservadas.has(e.t) && !(v.andamios && v.andamios[e.t]) && !v.obra[e.t] && !puedeColocar(m, c, e.t, e.clave, true));
+      // (Va el constructor más cercano: si va uno de la otra punta del reino, se hace de noche o le sale otra cosa por
+      // el camino y la obra no empieza nunca. Si en veinte turnos no ha ido nadie, va cualquiera.)
+      const aqui0 = a.y * v.tw + a.x;
+      const cerca = e => { if (e.desde == null) e.desde = m.turno; if (m.turno - e.desde > 20) return true; const k = 'privCerca:' + c.id + ':' + e.t; if (!memo.has(k)) { let md = 1e9; for (const x of v.aldeanos) if (x.c === c.id && x.o === CONSTRUCTOR && x.x >= 0) md = Math.min(md, dist(m, x.y * v.tw + x.x, e.t)); memo.set(k, md); } return dist(m, aqui0, e.t) <= memo.get(k) + 6; };
+      const privadaSinEmpezar = pausada(m) && ((c.plan && c.plan.encargos) || []).find(e => e.privado != null && !rec.reservadas.has(e.t) && !(v.andamios && v.andamios[e.t]) && !v.obra[e.t] && cerca(e) && !puedeColocar(m, c, e.t, e.clave, true));
       if (privadaSinEmpezar) { a.edificio = privadaSinEmpezar.o; ir(a, privadaSinEmpezar.t, v.tw, IR); rec.reservadas.add(privadaSinEmpezar.t); return; }
       // Lo primero, las obras a medias del pueblo: se va a ayudar a la más cercana.
       if (pausada(m) && v.andamios) {
@@ -4674,6 +4689,7 @@
     else if (a.o === CONSTRUCTOR && a.edificio) {
       const an = v.andamios && v.andamios[t];
       if (an && an.civ === c.id) { a.e = TRABAJAR; a.t = 3; }
+      else if (v.muro && v.muro[t] > 0) { a.edificio = 0; a.e = LIBRE; } // (mientras iba, ahí se levantó la muralla)
       else if (!v.obra[t] && !pausada(m)) { colocarObra(m, t, a.edificio, paso); if (a.edificio === OBRA.casa) c.casas++; if (c.plan && c.plan.encargos) c.plan.encargos = c.plan.encargos.filter(e => e.t !== t); a.edificio = 0; }
       else if ((!v.obra[t] || (v.obra[t] === OBRA.campo && SOBRE_HUERTO.has(a.edificio))) && (privada(v, t, c) || pagarAndamio(c, { coste: COSTES[a.edificio] || [0, 0, 0], pagado: 0 }, 0.25))) {
         if (v.obra[t] === OBRA.campo) { cambiar(m, 'obra', t, 0, paso); cambiar(m, 'cultivo', t, 0, paso); }
@@ -4844,13 +4860,13 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
       if (an.falta <= 0) { colocarObra(m, t, an.o, paso); delete v.andamios[t]; if (an.o === OBRA.casa) { c.casas++; c.hecho = c.hecho || {}; c.hecho.casas = (c.hecho.casas || 0) + 1; } a.edificio = 0; }
       else { a.e = TRABAJAR; a.t = 3; return; }
     }
-    else if (a.o === CONSTRUCTOR && !v.obra[t] && pausada(m)) {
+    else if (a.o === CONSTRUCTOR && !v.obra[t] && pausada(m) && !(v.muro && v.muro[t] > 0)) {
       // La casa también lleva su andamio: la primera jornada levanta los muros; la segunda, el tejado.
       cambiar(m, 'arbol', t, 0, paso);
       (v.andamios = v.andamios || {})[t] = { o: OBRA.casa, falta: TRABAJO[OBRA.casa] - 1, total: TRABAJO[OBRA.casa], civ: c.id };
       a.edificio = OBRA.casa; a.e = TRABAJAR; a.t = 3; return;
     }
-    else if (a.o === CONSTRUCTOR && !v.obra[t]) { apuntarObrero(m, t, a); cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.casa, paso); c.casas++; c.hecho = c.hecho || {}; c.hecho.casas = (c.hecho.casas || 0) + 1; }
+    else if (a.o === CONSTRUCTOR && !v.obra[t] && !(v.muro && v.muro[t] > 0)) { apuntarObrero(m, t, a); cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'obra', t, OBRA.casa, paso); c.casas++; c.hecho = c.hecho || {}; c.hecho.casas = (c.hecho.casas || 0) + 1; }
     else if (a.o === COMERCIANTE && a.comercio) {
       // Llega la carreta: se vende, se compra, y los dos lados ganan (más si el camino está terminado).
       const ru = v.rutas.find(x => x.id === a.ruta);
@@ -5624,6 +5640,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
   function desembarcar(m, a) {
     const v = m.vida, ter = terrenos(m), t0 = a.y * v.tw + a.x;
     a.aBordo = null; a.e = LIBRE;
+    // (Si el barco iba por alta mar, fuera del mapa, vuelve a su casa o a la capital de su reino.)
+    if (a.x < 0 || a.y < 0 || a.x >= v.tw || a.y >= v.th) { const c = S().civ(m, a.c), t = a.casa != null ? a.casa : c && c.capital != null ? centro(m, c.capital) : null; if (t != null) { a.x = t % v.tw; a.y = t / v.tw | 0; } return; }
     if (ter[t0] === 'agua' || ter[t0] === 'bajo') { const t = tierraCerca(m, a.x, a.y); if (t != null) { a.x = t % v.tw; a.y = t / v.tw | 0; } }
   }
   function expediciones(m) {
