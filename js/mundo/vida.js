@@ -412,6 +412,8 @@
     // (Lo que se construye o se planta encima borra la ceniza, el tronco quemado y la tierra chamuscada.)
     if (valor && (capa === 'obra' || capa === 'arbol') && v.marcas && v.marcas[t] && SUELO_QUEMADO.has(v.marcas[t][0])) delete v.marcas[t];
     if (capa === 'obra' && pausada(m)) registrar(m, t, valor);
+    // (Y un edificio nunca comparte casilla con la muralla: si quedaba un tramo debajo, desaparece.)
+    if (capa === 'obra' && valor && valor !== OBRA.campo && valor !== OBRA.ruina && v.muro && v.muro[t] > 0) { v.muro[t] = 0; if (v.puerta) v.puerta[t] = 0; v.muroVer = (v.muroVer || 0) + 1; }
   }
   /*
    * LA FICHA DE CADA EDIFICIO (partidas pausadas): v.edificios[t] = { tipo, nombre, anio, era, civ, por, historia }.
@@ -2686,8 +2688,6 @@
   function colocarObra(m, t, o, paso) {
     const v = m.vida;
     cambiar(m, 'arbol', t, 0, paso); cambiar(m, 'roca', t, 0, paso); cambiar(m, 'camino', t, 0, paso); cambiar(m, 'obra', t, o, paso);
-    // (Si por lo que sea quedaba un tramo de muralla debajo, el edificio lo sustituye: nunca hay muro y casa en la misma casilla.)
-    if (v.muro && v.muro[t] > 0) { v.muro[t] = 0; if (v.puerta) v.puerta[t] = 0; v.muroVer = (v.muroVer || 0) + 1; }
     if (o === OBRA.torre) (v.torres = v.torres || {})[t] = 12;
     if (o === OBRA.castillo) (v.torres = v.torres || {})[t] = 40;
     if (o === OBRA.aduana) (v.torres = v.torres || {})[t] = 20;
