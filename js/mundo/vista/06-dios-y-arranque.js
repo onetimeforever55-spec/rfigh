@@ -182,11 +182,11 @@
     for (const id of ['consejo', 'respuesta']) { const e = $(id); if (e) e.addEventListener('click', ev => { if (ev.target.closest('button')) return; e.classList.toggle('entero'); }); }
     // Instalado como app (o abierto desde un servidor): se guarda para jugar sin internet.
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* sin modo sin internet */ });
-    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; edificioSel = null; P.elegirAldeano(null); const d = m.dueno[region]; if (tuPueblo() && d === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarEdificio: t => { if (tuPueblo() && m.dueno[M.vida.region(m, t)] === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; aldeanoSel = null; P.elegirAldeano(null); edificioSel = t; pintarFicha(); abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
+    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; edificioSel = null; P.elegirAldeano(null); const d = m.dueno[region]; if (tuPueblo() && d === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); }, alClicarAldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarEdificio: t => { if (tuPueblo() && m.dueno[M.vida.region(m, t)] === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; aldeanoSel = null; P.elegirAldeano(null); edificioSel = t; pintarFicha(); abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);
     if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
-    pintarModo(); pintarTodo();
+    pintarModo(); pintarTodo(); atarBarra();
     $('play').addEventListener('click', () => { corriendo = !corriendo; programar(); });
     $('vel').addEventListener('click', () => { vel = (vel + 1) % VELOCIDADES.length; programar(); });
     $('nuevo').addEventListener('click', () => {
@@ -234,7 +234,8 @@
     $('limpio').addEventListener('click', () => { const on = document.body.classList.toggle('limpio'); $('limpio').setAttribute('aria-pressed', on ? 'true' : 'false'); $('limpio').textContent = on ? '👁‍🗨' : '👁'; });
     // El panel lateral (abajo en el móvil): pestañas, abrir y cerrar. En pantallas pequeñas empieza cerrado.
     const panelAbierto = abierto => { document.body.classList.toggle('sin-panel', !abierto); $('ver-panel').setAttribute('aria-expanded', abierto ? 'true' : 'false'); };
-    panelAbierto(window.innerWidth >= 900);
+    // (En el PC, como las ventanas de WorldBox: cerrado hasta que se toca un pueblo o se abre desde la barra de abajo.)
+    panelAbierto(false);
     $('ver-panel').addEventListener('click', () => panelAbierto(document.body.classList.contains('sin-panel')));
     $('cerrar-panel').addEventListener('click', () => panelAbierto(false));
     for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.addEventListener('click', () => abrirHoja(b.dataset.panel));

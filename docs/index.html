@@ -619,6 +619,80 @@ body.limpio .tropas-barra { display: none; }
 /* Las pantallas de inicio, sala y carga se desplazan si no caben (móviles pequeños, salas de 10). */
 .inicio { overflow-y: auto; align-items: safe center; }
 .online-volver[hidden] { display: none; }
+
+/* ===== EL PC, CON LA FORMA DE WORLDBOX =====
+   Arriba, a la izquierda, el tiempo (año, pausa y velocidad); en el centro, los recursos de tu pueblo. Abajo en el
+   centro, la barra de botones cuadrados con sus pestañas encima. Las fichas, la crónica y los retos son una ventana
+   en el centro que se abre al tocar un pueblo o desde la barra. Los botones son los de siempre (vista/07-barra-pc.js). */
+.wb { display: none; }
+@media (min-width: 900px) {
+  /* -- Arriba: el tiempo a la izquierda y los recursos en el centro, en cajas sueltas (sin franja de lado a lado) -- */
+  .g-cab { left: 8px; right: 8px; padding: 0; border: 0 !important; border-image: none !important; background: none !important; box-shadow: none !important; backdrop-filter: none; -webkit-backdrop-filter: none;
+    display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: 'tiempo recursos retos'; align-items: start; gap: 8px; pointer-events: none; }
+  .g-cab > * { pointer-events: auto; }
+  .marca, .mandos .menu-movil, #ver-panel, #mas-menu, .camara, .abrir-ordenes { display: none !important; }
+  .reloj { grid-area: tiempo; grid-row: 1; margin: 0; padding: 6px 12px 7px; padding-right: 112px; min-width: 300px; }
+  .reloj .anio { font-size: 20px; white-space: nowrap; }
+  .mandos { grid-area: tiempo; grid-row: 1; justify-self: end; align-self: center; margin-right: 8px; gap: 4px; flex-wrap: nowrap; }
+  .mandos .mando { width: 44px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; overflow: hidden; white-space: nowrap; }
+  #play .txt { display: none; }
+  .recursos { grid-area: recursos; justify-self: center; max-width: 100%; padding: 7px 12px; gap: 4px 12px; }
+  .recursos[hidden] { display: none; }
+  .marcador { grid-area: retos; align-self: start; padding: 8px 12px; }
+  /* El marco de píxeles de siempre para cada caja de arriba (el mismo de los paneles). */
+  .reloj, .recursos { border: 8px solid transparent; border-image: var(--wb-marco) 4 fill / 8px stretch; box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.35); }
+  :root { --wb-marco: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2712%27%20height%3D%2712%27%20shape-rendering%3D%27crispEdges%27%3E%3Cpath%20fill%3D%27%2305070e%27%20d%3D%27M1%200h10v1h1v10h-1v1h-10v-1h-1v-10h1z%27/%3E%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2710%27%20height%3D%2710%27%20fill%3D%27%230f1628%27%20fill-opacity%3D%270.93%27/%3E%3Cpath%20fill%3D%27%233a4a76%27%20d%3D%27M1%201h10v1h-9v9h-1z%27/%3E%3Cpath%20fill%3D%27%23161d33%27%20d%3D%27M10%202h1v9h-10v-1h9z%27/%3E%3C/svg%3E"); }
+  .reloj { margin: 0; } .reloj, .mandos { grid-column: 1; }
+
+  /* -- Abajo en el centro: la barra de botones, con las pestañas pegadas encima, como la de WorldBox -- */
+  .wb { display: flex; flex-direction: column; align-items: flex-start; position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: max(8px, env(safe-area-inset-bottom)); }
+  .wb-pestanas { display: flex; gap: 4px; margin-left: 10px; position: relative; z-index: 1; }
+  .wb-pestana { width: 40px; height: 34px; padding: 0; display: grid; place-items: center; border: 0; background: #141c31; margin-bottom: -2px;
+    box-shadow: inset 2px 2px 0 #2a3658, inset -2px 0 0 #0b1120, 0 0 0 2px var(--px-negro); }
+  .wb-pestana.activa { background: #1c2642; height: 38px; margin-top: -4px; box-shadow: inset 2px 2px 0 var(--px-luz), inset -2px 0 0 var(--px-sombra), 0 -2px 0 var(--px-negro), 2px 0 0 var(--px-negro), -2px 0 0 var(--px-negro); }
+  .wb-pestana:hover .wb-ico { filter: brightness(1.25); }
+  .wb-pestana[hidden], .wb-boton[hidden], .wb-grupo[hidden] { display: none; }
+  .wb-pestana .wb-ico { width: 24px; height: 24px; }
+  .wb-barra { display: flex; padding: 8px 10px; min-width: 300px; background: #1c2642;
+    box-shadow: inset 2px 2px 0 var(--px-luz), inset -2px -2px 0 var(--px-sombra), 0 0 0 2px var(--px-negro), 4px 4px 0 rgba(0, 0, 0, 0.35); }
+  .wb-grupo { display: flex; gap: 6px; }
+  .wb-boton { width: 52px; height: 52px; padding: 0; display: grid; place-items: center; border: 0; background: #26324f; cursor: pointer;
+    box-shadow: inset -3px -3px 0 #141c31, inset 3px 3px 0 #44568a, 0 0 0 2px var(--px-negro); }
+  .wb-boton:hover { background: #2e3c60; }
+  .wb-boton:active { box-shadow: inset 3px 3px 0 #141c31, inset -3px -3px 0 #44568a, 0 0 0 2px var(--px-negro); }
+  .wb-boton.activo { background: #3a3a2a; box-shadow: inset -3px -3px 0 #6a5420, inset 3px 3px 0 #f0d070, 0 0 0 2px var(--px-negro), 0 0 0 4px var(--oro); }
+  .wb-boton:disabled { opacity: 0.45; cursor: default; }
+  .wb-ico { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; }
+  /* El cartel con el nombre y lo que hace cada botón, encima de la barra. */
+  .wb-pista { position: absolute; bottom: calc(100% + 8px); max-width: 320px; padding: 6px 10px; background: #070b16; color: var(--pergamino); font-family: var(--f-pixel); font-size: 13px; line-height: 1.35; pointer-events: none; white-space: normal;
+    box-shadow: 0 0 0 2px var(--px-negro), inset 0 0 0 2px #3a4a76, 4px 4px 0 rgba(0, 0, 0, 0.4); }
+  .wb-pista b { display: block; color: var(--oro); font-weight: 600; }
+  .wb-pista span { display: block; color: var(--tenue); font-size: 12px; }
+  .wb-pista[hidden] { display: none; }
+
+  /* -- Las órdenes, justo encima de la barra (se abren y cierran con el botón de la pestaña «Tu pueblo») -- */
+  .g-voluntad, body:not(.sin-panel) .g-voluntad { left: 50%; transform: translateX(-50%); width: min(680px, calc(100% - 32px)); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 110px); padding: 8px 12px; }
+  .g-voluntad { width: min(620px, calc(100% - 32px)); padding: 6px 10px 8px; }
+  .g-voluntad .voluntad-cab { margin-bottom: 2px; }
+  .g-voluntad .etiqueta { font-size: 11px; }
+  .g-voluntad .respuesta { max-height: 2.9em; font-size: 12.5px; line-height: 1.4; margin-top: 5px; }
+  .g-voluntad .consejo { font-size: 12.5px; line-height: 1.4; margin-top: 5px; }
+  .g-voluntad input#orden { height: 38px; font-size: 14px; }
+  .g-voluntad .obrar { font-size: 15px; }
+
+  /* -- La ventana del centro: pueblos y fichas, crónica y retos, con su barra de título arriba -- */
+  .panel { top: 72px; right: auto; left: 50%; transform: translateX(-50%); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 104px); width: min(620px, calc(100% - 32px)); height: auto; z-index: 7; padding: 0 14px 14px; }
+  /* (Con la ventana abierta, las órdenes se apartan hasta cerrarla.) */
+  body:not(.sin-panel) .g-voluntad { display: none; }
+  .panel-pestanas { justify-content: center; margin: 0 -14px; padding: 8px 14px 6px; background: #141c31; border-bottom: 0; box-shadow: 0 2px 0 var(--px-negro), inset 0 -2px 0 #26324f; }
+  .panel-pestanas .pestana { font-family: var(--f-pixel); font-size: 15px; letter-spacing: 0.04em; padding: 6px 14px; }
+  .panel-pestanas .cerrar { position: absolute; right: 10px; top: 6px; width: 30px; height: 30px; font-size: 20px; display: grid; place-items: center; color: #ffd2c8; background: #8a2a22; box-shadow: inset -2px -2px 0 #5a1a14, inset 2px 2px 0 #d85a48, 0 0 0 2px var(--px-negro); }
+  .panel-pestanas .cerrar:hover { background: #a8342a; }
+  .corte { top: 72px !important; }
+
+  /* Con la interfaz oculta (👁) queda la barra de abajo, para poder volver a mostrarla. */
+  body.limpio .wb { display: flex !important; }
+}
 </style>
 </head>
 <body>
@@ -11791,7 +11865,37 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     return guardado('ico' + nombre, () => { const H = hoja(12, 12); (ICONOS[nombre] || ICONOS.mas)(H); H.contorno(0.75); return H.lienzo(); });
   }
   const iconoURL = nombre => guardado('icourl' + nombre, () => icono(nombre).toDataURL());
-  M.arte = { tiradorEnPose, BOCA, T, icono, iconoURL, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  // Los iconos de la barra de abajo en el PC (16×16, como los botones de WorldBox): uno por cada botón que ya existe.
+  const linea = (H, x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) || 1; for (let k = 0; k <= n; k++) H.p(x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n, c); };
+  const BARRA = {
+    pausa: H => { H.r(4, 3, 3, 10, '#e8e4dc'); H.r(9, 3, 3, 10, '#e8e4dc'); H.r(4, 3, 1, 10, '#ffffff'); H.r(9, 3, 1, 10, '#ffffff'); },
+    seguir: H => { for (let y = 0; y < 11; y++) { const w = 6 - Math.abs(y - 5); H.r(5, 3 + y, w + 1, 1, '#8ee070'); } H.r(5, 3, 1, 11, '#c8f8a8'); },
+    velocidad: H => { H.disco(8, 8, 6.4, '#e8e4dc', true); H.disco(8, 8, 4.8, '#3a4a6a'); linea(H, 8, 8, 8, 4, '#ffd24a'); linea(H, 8, 8, 11, 9, '#ffd24a'); H.p(8, 8, '#ffffff'); H.r(7, 0, 3, 2, '#c8c4bc'); },
+    acercar: H => { H.disco(6.5, 6.5, 5, '#cfe4f4', true); H.disco(6.5, 6.5, 3.4, '#4a7ab0'); H.r(4, 6, 6, 1, '#ffffff'); H.r(6, 4, 1, 6, '#ffffff'); linea(H, 10, 10, 14, 14, '#8a6a3a'); linea(H, 11, 10, 14, 13, '#6a4a2a'); },
+    alejar: H => { H.disco(6.5, 6.5, 5, '#cfe4f4', true); H.disco(6.5, 6.5, 3.4, '#4a7ab0'); H.r(4, 6, 6, 1, '#ffffff'); linea(H, 10, 10, 14, 14, '#8a6a3a'); linea(H, 11, 10, 14, 13, '#6a4a2a'); },
+    todo: H => { H.r(2, 3, 12, 10, '#5aa040'); H.r(2, 3, 4, 10, '#4a8ad0'); H.r(9, 3, 1, 10, '#3a7a30'); H.p(11, 6, '#c84a3a'); H.p(12, 7, '#c84a3a'); for (const [x, y, dx, dy] of [[1, 1, 1, 1], [14, 1, -1, 1], [1, 14, 1, -1], [14, 14, -1, -1]]) { H.p(x, y, '#ffd24a'); H.p(x + dx, y, '#ffd24a'); H.p(x, y + dy, '#ffd24a'); } },
+    casa: H => { for (let y = 0; y < 6; y++) H.r(8 - y - 1, 2 + y, y * 2 + 2, 1, y < 2 ? '#e05a4a' : '#c84a3a'); H.r(3, 8, 10, 6, '#e8d8b4'); H.r(3, 8, 10, 1, '#f8ecd0'); H.r(7, 10, 2, 4, '#7a4a22'); H.r(4, 9, 2, 2, '#8ac0e8'); H.r(10, 9, 2, 2, '#8ac0e8'); },
+    batalla: H => { linea(H, 2, 2, 12, 12, '#e8ecf4'); linea(H, 3, 2, 13, 12, '#9aa0aa'); linea(H, 13, 2, 3, 12, '#e8ecf4'); linea(H, 12, 2, 2, 12, '#9aa0aa'); H.r(1, 12, 4, 1, '#c8a040'); H.r(11, 12, 4, 1, '#c8a040'); H.r(2, 13, 2, 2, '#7a4a22'); H.r(12, 13, 2, 2, '#7a4a22'); },
+    ojo: H => { for (let x = 1; x < 15; x++) { const h = Math.round(Math.sin((x - 1) / 13 * Math.PI) * 4); H.r(x, 8 - h, 1, h * 2 + 1, '#f4f0e8'); } H.disco(8, 8, 3, '#4a8ad0'); H.disco(8, 8, 1.6, '#1a2030'); H.p(7, 7, '#ffffff'); },
+    corte: H => { H.r(2, 13, 12, 2, '#c8c0ac'); H.r(1, 3, 14, 2, '#e8dcc0'); for (let y = 0; y < 2; y++) H.r(5 - y * 2, 1 - y + 1, 6 + y * 4, 1, '#f0c040'); for (const x of [3, 7, 11]) { H.r(x, 5, 2, 8, '#f4eee0'); H.p(x, 5, '#ffffff'); } },
+    tropas: H => { H.disco(8, 8, 6, '#9aa4b4', true); H.r(2, 9, 12, 2, '#7a8494'); H.r(7, 1, 2, 4, '#c84a3a'); H.r(6, 11, 4, 3, '#f0c8a0'); H.r(3, 7, 10, 1, '#c8d0dc'); },
+    fundar: H => { H.r(3, 2, 1, 13, '#7a4a22'); for (let y = 0; y < 6; y++) H.r(4, 2 + y, 9 - Math.abs(y - 3) * 2, 1, y < 2 ? '#ff7a5a' : '#e0503a'); H.r(1, 14, 12, 1, '#5aa040'); },
+    arquitecto: H => { H.r(2, 13, 12, 2, '#a8a49a'); H.r(5, 8, 6, 5, '#c8a878'); H.r(5, 8, 6, 1, '#e0c898'); H.r(3, 2, 1, 11, '#7a5530'); H.r(12, 2, 1, 11, '#7a5530'); H.r(3, 5, 10, 1, '#7a5530'); H.r(13, 1, 1, 5, '#f0c040'); H.r(13, 1, 3, 1, '#f0c040'); },
+    ordenes: H => { H.r(2, 2, 10, 12, '#efe2b8'); H.r(2, 2, 10, 1, '#fff4d0'); for (const y of [5, 7, 9]) H.r(4, y, 6, 1, '#9a8a6a'); for (let k = 0; k < 8; k++) { H.p(7 + k * 0.9, 13 - k, '#f4f0e4'); H.p(8 + k * 0.9, 13 - k, '#c84a3a'); } },
+    pueblos: H => { for (let y = 0; y < 4; y++) H.r(4 - y, 4 + y, y * 2 + 1, 1, '#c84a3a'); H.r(1, 8, 7, 6, '#e8d8b4'); for (let y = 0; y < 5; y++) H.r(11 - y, 2 + y, y * 2 + 1, 1, '#4a8ad0'); H.r(7, 7, 8, 7, '#d8c8a4'); H.r(3, 10, 2, 4, '#7a4a22'); H.r(10, 10, 2, 4, '#7a4a22'); },
+    cronica: H => { H.r(3, 2, 10, 12, '#efe2b8'); H.r(1, 1, 14, 3, '#d8c890'); H.r(1, 12, 14, 3, '#d8c890'); H.r(1, 1, 14, 1, '#f0e0b0'); for (const y of [5, 7, 9]) H.r(4, y, 8, 1, '#9a8a6a'); },
+    retos: H => { H.r(4, 1, 8, 7, '#f0c040'); H.r(4, 1, 3, 7, '#ffe080'); H.r(2, 2, 2, 3, '#f0c040'); H.r(12, 2, 2, 3, '#f0c040'); H.r(7, 8, 2, 3, '#c89020'); H.r(4, 11, 8, 3, '#8a5a2a'); H.r(4, 11, 8, 1, '#a8743a'); },
+    sonido: H => { H.r(2, 6, 3, 4, '#e8e4dc'); for (let k = 0; k < 4; k++) H.r(5 + k, 6 - k, 1, 4 + k * 2, '#e8e4dc'); for (let y = 0; y < 7; y++) H.p(11 + Math.round(Math.sin(y / 6 * Math.PI) * 1.5), 5 + y, '#8ac0e8'); for (let y = 0; y < 11; y++) H.p(13 + Math.round(Math.sin(y / 10 * Math.PI) * 1.5), 3 + y, '#8ac0e8'); },
+    graficos: H => { H.r(1, 2, 14, 10, '#3a4a6a'); H.r(2, 3, 12, 8, '#5aa040'); H.r(2, 3, 5, 8, '#4a8ad0'); H.p(9, 6, '#c84a3a'); H.p(10, 7, '#c84a3a'); H.r(6, 12, 4, 2, '#8a94a8'); H.r(4, 14, 8, 1, '#8a94a8'); },
+    modo: H => { for (let k = 0; k < 9; k++) H.p(3 + k, 4, '#ffd24a'); H.r(10, 2, 1, 5, '#ffd24a'); H.r(11, 3, 1, 3, '#ffd24a'); for (let k = 0; k < 9; k++) H.p(4 + k, 11, '#8ac0e8'); H.r(5, 9, 1, 5, '#8ac0e8'); H.r(4, 10, 1, 3, '#8ac0e8'); },
+    ayuda: H => { H.disco(8, 8, 6.5, '#4a8ad0', true); H.r(6, 4, 4, 1, '#ffffff'); H.r(10, 5, 1, 2, '#ffffff'); H.r(8, 7, 2, 1, '#ffffff'); H.r(8, 8, 1, 2, '#ffffff'); H.r(8, 11, 1, 1, '#ffffff'); H.p(5, 5, '#ffffff'); },
+    nuevo: H => { H.disco(8, 8, 6.5, '#4a8ad0', true); H.r(4, 4, 4, 3, '#5aa040'); H.r(3, 6, 3, 3, '#5aa040'); H.r(9, 8, 4, 4, '#5aa040'); H.r(10, 7, 2, 1, '#6ab850'); H.p(6, 11, '#5aa040'); },
+  };
+  function iconoBarra(nombre) {
+    return guardado('icob' + nombre, () => { const H = hoja(16, 16); (BARRA[nombre] || ICONOS.mas)(H); H.contorno(0.7); return H.lienzo(); });
+  }
+  const iconoBarraURL = nombre => guardado('icoburl' + nombre, () => iconoBarra(nombre).toDataURL());
+  M.arte = { tiradorEnPose, BOCA, T, icono, iconoURL, iconoBarra, iconoBarraURL, BARRA, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/gpu.js
@@ -14787,7 +14891,7 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
 })(globalThis.RF = globalThis.RF || {});
 
 // js/mundo/vista.js
-// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/vista/ (00-guardado-y-modos.js, 01-numeros-y-paneles.js, 02-mercado-y-fichas.js, 03-tiempo-y-retos.js, 04-en-linea.js, 05-online-carga-y-chat.js, 06-dios-y-arranque.js).
+// ARCHIVO GENERADO por scripts/unir.js: no lo edites aquí, edita sus partes en js/mundo/vista/ (00-guardado-y-modos.js, 01-numeros-y-paneles.js, 02-mercado-y-fichas.js, 03-tiempo-y-retos.js, 04-en-linea.js, 05-online-carga-y-chat.js, 06-dios-y-arranque.js, 07-barra-pc.js).
 (function (RF) {
   /*
    * GÉNESIS · LA VISTA
@@ -16788,11 +16892,11 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     for (const id of ['consejo', 'respuesta']) { const e = $(id); if (e) e.addEventListener('click', ev => { if (ev.target.closest('button')) return; e.classList.toggle('entero'); }); }
     // Instalado como app (o abierto desde un servidor): se guarda para jugar sin internet.
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* sin modo sin internet */ });
-    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; edificioSel = null; P.elegirAldeano(null); const d = m.dueno[region]; if (tuPueblo() && d === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (movil()) { if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); } }, alClicarAldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarEdificio: t => { if (tuPueblo() && m.dueno[M.vida.region(m, t)] === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; aldeanoSel = null; P.elegirAldeano(null); edificioSel = t; pintarFicha(); abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
+    P.iniciar($('mapa'), { reducido, alClicar: region => { aldeanoSel = null; edificioSel = null; P.elegirAldeano(null); const d = m.dueno[region]; if (tuPueblo() && d === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; elegir(d >= 0 ? (sel === d ? null : d) : null, false); if (sel != null) abrirHoja('pueblos'); else document.body.classList.add('sin-panel'); }, alClicarAldeano: id => { edificioSel = null; aldeanoSel = id; P.elegirAldeano(id); pintarFicha(); if (movil()) abrirHoja('pueblos'); }, alClicarEdificio: t => { if (tuPueblo() && m.dueno[M.vida.region(m, t)] === tuPueblo().id) (m.guia = m.guia || {}).vioFicha = 1; aldeanoSel = null; P.elegirAldeano(null); edificioSel = t; pintarFicha(); abrirHoja('pueblos'); }, alClicarCorte: (civ) => { elegir(civ, false); abrirCorte(civ); } });
     m = (datos && datos.mundo && datos.mundo.vida && datos.mundo.W === S.W ? datos.mundo : null) || cargar();
     if (!m) mundoNuevo(); else P.mundo(m);
     if (datos && datos.sel != null) { sel = datos.sel; P.seleccionar(sel); }
-    pintarModo(); pintarTodo();
+    pintarModo(); pintarTodo(); atarBarra();
     $('play').addEventListener('click', () => { corriendo = !corriendo; programar(); });
     $('vel').addEventListener('click', () => { vel = (vel + 1) % VELOCIDADES.length; programar(); });
     $('nuevo').addEventListener('click', () => {
@@ -16840,7 +16944,8 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
     $('limpio').addEventListener('click', () => { const on = document.body.classList.toggle('limpio'); $('limpio').setAttribute('aria-pressed', on ? 'true' : 'false'); $('limpio').textContent = on ? '👁‍🗨' : '👁'; });
     // El panel lateral (abajo en el móvil): pestañas, abrir y cerrar. En pantallas pequeñas empieza cerrado.
     const panelAbierto = abierto => { document.body.classList.toggle('sin-panel', !abierto); $('ver-panel').setAttribute('aria-expanded', abierto ? 'true' : 'false'); };
-    panelAbierto(window.innerWidth >= 900);
+    // (En el PC, como las ventanas de WorldBox: cerrado hasta que se toca un pueblo o se abre desde la barra de abajo.)
+    panelAbierto(false);
     $('ver-panel').addEventListener('click', () => panelAbierto(document.body.classList.contains('sin-panel')));
     $('cerrar-panel').addEventListener('click', () => panelAbierto(false));
     for (const b of document.querySelectorAll('.panel-pestanas .pestana')) b.addEventListener('click', () => abrirHoja(b.dataset.panel));
@@ -16911,6 +17016,103 @@ const pm = pausada(m); a.kt = azar(v) < (ter[t] === 'montana' ? (a.buscaMetal ? 
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
   else arrancar();
+
+  // ── GÉNESIS · LA VISTA · La barra de abajo en el PC, con la forma de la de WorldBox ──
+
+  // En el PC los botones de siempre se ven en una barra abajo en el centro, con pestañas encima y botones cuadrados
+  // con su icono. No hay nada nuevo: cada botón de la barra pulsa el botón de siempre (que sigue en la página, oculto
+  // en el PC) y copia de él si se ve, si está desactivado y si está pulsado. En el móvil no se usa.
+  const BARRA_PC = [
+    { id: 'mundo', titulo: 'Mundo', icono: 'todo', botones: [
+      { de: 'zoom-mas', icono: 'acercar', nombre: 'Acercar' },
+      { de: 'zoom-menos', icono: 'alejar', nombre: 'Alejar' },
+      { de: 'ver-todo', icono: 'todo', nombre: 'Ver todo el mundo' },
+      { de: 'ir-mio', icono: 'casa', nombre: 'Ir a tu pueblo' },
+      { de: 'ir-batalla', icono: 'batalla', nombre: 'Ir a la batalla' },
+      { de: 'limpio', icono: 'ojo', nombre: 'Ocultar la interfaz' },
+    ] },
+    { id: 'pueblo', titulo: 'Tu pueblo', icono: 'corte', botones: [
+      { hace: 'ordenes', icono: 'ordenes', nombre: 'Órdenes', pista: 'Abrir o cerrar la ventana de órdenes' },
+      { de: 'corte-btn', icono: 'corte', nombre: 'La corte' },
+      { de: 'tropas-btn', icono: 'tropas', nombre: 'Modo tropas' },
+      { de: 'fundar-btn', icono: 'fundar', nombre: 'Fundar pueblo' },
+      { de: 'arquitecto-btn', icono: 'arquitecto', nombre: 'Modo arquitecto' },
+    ] },
+    { id: 'info', titulo: 'Información', icono: 'cronica', botones: [
+      { hoja: 'pueblos', icono: 'pueblos', nombre: 'Pueblos', pista: 'Los pueblos del mundo y la ficha del elegido' },
+      { hoja: 'cronica', icono: 'cronica', nombre: 'Crónica', pista: 'Lo que va pasando en el mundo' },
+      { hoja: 'retos', icono: 'retos', nombre: 'Retos', pista: 'Tus metas y tu puntuación' },
+    ] },
+    { id: 'ajustes', titulo: 'Ajustes', icono: 'modo', botones: [
+      { de: 'sonido', icono: 'sonido', nombre: 'Sonido' },
+      { de: 'graficos', icono: 'graficos', nombre: 'Gráficos' },
+      { de: 'cambiar-modo', icono: 'modo', nombre: 'Cambiar de modo' },
+      { de: 'ayuda-abrir', icono: 'ayuda', nombre: 'Cómo se juega' },
+      { de: 'nuevo', icono: 'nuevo', nombre: 'Nuevo mundo' },
+    ] },
+  ];
+  let barraPestana = 'mundo';
+  const icoBarra = n => M.arte && M.arte.iconoBarraURL ? '<img class="wb-ico" alt="" src="' + M.arte.iconoBarraURL(n) + '">' : '';
+  // La hoja del panel que está abierta (o null si el panel está cerrado).
+  const hojaAbierta = () => document.body.classList.contains('sin-panel') ? null : ((document.querySelector('.panel-hoja:not([hidden])') || {}).dataset || {}).hoja || null;
+  function atarBarra() {
+    if ($('wb')) return;
+    const wb = document.createElement('div');
+    wb.id = 'wb'; wb.className = 'wb';
+    wb.innerHTML = '<div class="wb-pista" id="wb-pista" hidden></div>' +
+      '<div class="wb-pestanas" role="tablist">' + BARRA_PC.map(p => '<button type="button" class="wb-pestana" role="tab" data-p="' + p.id + '" aria-label="' + p.titulo + '">' + icoBarra(p.icono) + '</button>').join('') + '</div>' +
+      '<div class="wb-barra" role="toolbar">' + BARRA_PC.map(p => '<div class="wb-grupo" data-p="' + p.id + '">' + p.botones.map((b, i) => '<button type="button" class="wb-boton" data-p="' + p.id + '" data-i="' + i + '" aria-label="' + b.nombre + '">' + icoBarra(b.icono) + '</button>').join('') + '</div>').join('') + '</div>';
+    document.querySelector('.g').appendChild(wb);
+    const de = el => BARRA_PC.find(p => p.id === el.dataset.p).botones[+el.dataset.i];
+    for (const t of wb.querySelectorAll('.wb-pestana')) t.addEventListener('click', () => { barraPestana = t.dataset.p; pintarBarra(); });
+    for (const el of wb.querySelectorAll('.wb-boton')) {
+      el.addEventListener('click', () => {
+        const b = de(el);
+        if (b.de) { const o = $(b.de); if (o && !o.disabled) o.click(); }
+        else if (b.hoja) { if (hojaAbierta() === b.hoja) $('cerrar-panel').click(); else abrirHoja(b.hoja); }
+        else if (b.hace === 'ordenes') { if (document.body.classList.contains('sin-ordenes')) { $('abrir-ordenes').click(); } else $('cerrar-ordenes').click(); }
+        pintarBarra(); mostrarPista(el);
+      });
+      el.addEventListener('mouseenter', () => mostrarPista(el));
+      el.addEventListener('mouseleave', () => { $('wb-pista').hidden = true; });
+    }
+    for (const t of wb.querySelectorAll('.wb-pestana')) {
+      t.addEventListener('mouseenter', () => { const p = BARRA_PC.find(x => x.id === t.dataset.p); pista(t, p.id === 'pueblo' && !tuPueblo() ? 'Tu voluntad' : p.titulo, ''); });
+      t.addEventListener('mouseleave', () => { $('wb-pista').hidden = true; });
+    }
+    pintarBarra();
+    setInterval(pintarBarra, 500);
+  }
+  // El cartel que sale encima del botón: su nombre y lo que hace (lo mismo que dice el botón de siempre).
+  function pista(el, titulo, texto) {
+    const p = $('wb-pista'), caja = el.getBoundingClientRect(), wb = $('wb').getBoundingClientRect();
+    p.innerHTML = '<b>' + esc(titulo) + '</b>' + (texto ? '<span>' + esc(texto) + '</span>' : '');
+    p.hidden = false;
+    p.style.left = Math.max(0, Math.min(wb.width - p.offsetWidth, caja.left - wb.left + caja.width / 2 - p.offsetWidth / 2)) + 'px';
+  }
+  function mostrarPista(el) {
+    const b = BARRA_PC.find(p => p.id === el.dataset.p).botones[+el.dataset.i], o = b.de && $(b.de);
+    const texto = o ? (o.title || o.getAttribute('aria-label') || '') : b.pista || '';
+    const titulo = o && /Sonido|Gráficos|Seguro|Nuevo mundo|Cambiar/.test(o.textContent) ? o.textContent.replace(/^[^\wÁÉÍÓÚáéíóú¿?]+/, '').trim() : b.nombre;
+    pista(el, titulo, texto && texto !== titulo ? texto : '');
+  }
+  function pintarBarra() {
+    const wb = $('wb'); if (!wb) return;
+    const visible = b => { if (b.de) { const o = $(b.de); return !!o && !o.hidden; } if (b.hace === 'ordenes') return !!$('voluntad'); return true; };
+    // Una pestaña sin ningún botón a la vista (el pueblo, en el modo dios sin órdenes) no se enseña.
+    for (const p of BARRA_PC) { const t = wb.querySelector('.wb-pestana[data-p="' + p.id + '"]'); t.hidden = !p.botones.some(visible); }
+    if (wb.querySelector('.wb-pestana[data-p="' + barraPestana + '"]').hidden) barraPestana = 'mundo';
+    for (const t of wb.querySelectorAll('.wb-pestana')) { const on = t.dataset.p === barraPestana; t.classList.toggle('activa', on); t.setAttribute('aria-selected', on ? 'true' : 'false'); }
+    for (const g of wb.querySelectorAll('.wb-grupo')) g.hidden = g.dataset.p !== barraPestana;
+    const hoja = hojaAbierta();
+    for (const el of wb.querySelectorAll('.wb-boton')) {
+      const b = BARRA_PC.find(p => p.id === el.dataset.p).botones[+el.dataset.i], o = b.de && $(b.de);
+      el.hidden = !visible(b);
+      el.disabled = !!(o && o.disabled);
+      const pulsado = o ? o.getAttribute('aria-pressed') === 'true' || o.getAttribute('aria-expanded') === 'true' : b.hoja ? hoja === b.hoja : b.hace === 'ordenes' ? !document.body.classList.contains('sin-ordenes') : false;
+      el.classList.toggle('activo', pulsado);
+    }
+  }
 })(globalThis.RF = globalThis.RF || {});
 </script>
 </body>

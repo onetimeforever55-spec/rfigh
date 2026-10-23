@@ -598,3 +598,77 @@ body.limpio .tropas-barra { display: none; }
 /* Las pantallas de inicio, sala y carga se desplazan si no caben (móviles pequeños, salas de 10). */
 .inicio { overflow-y: auto; align-items: safe center; }
 .online-volver[hidden] { display: none; }
+
+/* ===== EL PC, CON LA FORMA DE WORLDBOX =====
+   Arriba, a la izquierda, el tiempo (año, pausa y velocidad); en el centro, los recursos de tu pueblo. Abajo en el
+   centro, la barra de botones cuadrados con sus pestañas encima. Las fichas, la crónica y los retos son una ventana
+   en el centro que se abre al tocar un pueblo o desde la barra. Los botones son los de siempre (vista/07-barra-pc.js). */
+.wb { display: none; }
+@media (min-width: 900px) {
+  /* -- Arriba: el tiempo a la izquierda y los recursos en el centro, en cajas sueltas (sin franja de lado a lado) -- */
+  .g-cab { left: 8px; right: 8px; padding: 0; border: 0 !important; border-image: none !important; background: none !important; box-shadow: none !important; backdrop-filter: none; -webkit-backdrop-filter: none;
+    display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: 'tiempo recursos retos'; align-items: start; gap: 8px; pointer-events: none; }
+  .g-cab > * { pointer-events: auto; }
+  .marca, .mandos .menu-movil, #ver-panel, #mas-menu, .camara, .abrir-ordenes { display: none !important; }
+  .reloj { grid-area: tiempo; grid-row: 1; margin: 0; padding: 6px 12px 7px; padding-right: 112px; min-width: 300px; }
+  .reloj .anio { font-size: 20px; white-space: nowrap; }
+  .mandos { grid-area: tiempo; grid-row: 1; justify-self: end; align-self: center; margin-right: 8px; gap: 4px; flex-wrap: nowrap; }
+  .mandos .mando { width: 44px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; overflow: hidden; white-space: nowrap; }
+  #play .txt { display: none; }
+  .recursos { grid-area: recursos; justify-self: center; max-width: 100%; padding: 7px 12px; gap: 4px 12px; }
+  .recursos[hidden] { display: none; }
+  .marcador { grid-area: retos; align-self: start; padding: 8px 12px; }
+  /* El marco de píxeles de siempre para cada caja de arriba (el mismo de los paneles). */
+  .reloj, .recursos { border: 8px solid transparent; border-image: var(--wb-marco) 4 fill / 8px stretch; box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.35); }
+  :root { --wb-marco: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2712%27%20height%3D%2712%27%20shape-rendering%3D%27crispEdges%27%3E%3Cpath%20fill%3D%27%2305070e%27%20d%3D%27M1%200h10v1h1v10h-1v1h-10v-1h-1v-10h1z%27/%3E%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2710%27%20height%3D%2710%27%20fill%3D%27%230f1628%27%20fill-opacity%3D%270.93%27/%3E%3Cpath%20fill%3D%27%233a4a76%27%20d%3D%27M1%201h10v1h-9v9h-1z%27/%3E%3Cpath%20fill%3D%27%23161d33%27%20d%3D%27M10%202h1v9h-10v-1h9z%27/%3E%3C/svg%3E"); }
+  .reloj { margin: 0; } .reloj, .mandos { grid-column: 1; }
+
+  /* -- Abajo en el centro: la barra de botones, con las pestañas pegadas encima, como la de WorldBox -- */
+  .wb { display: flex; flex-direction: column; align-items: flex-start; position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); bottom: max(8px, env(safe-area-inset-bottom)); }
+  .wb-pestanas { display: flex; gap: 4px; margin-left: 10px; position: relative; z-index: 1; }
+  .wb-pestana { width: 40px; height: 34px; padding: 0; display: grid; place-items: center; border: 0; background: #141c31; margin-bottom: -2px;
+    box-shadow: inset 2px 2px 0 #2a3658, inset -2px 0 0 #0b1120, 0 0 0 2px var(--px-negro); }
+  .wb-pestana.activa { background: #1c2642; height: 38px; margin-top: -4px; box-shadow: inset 2px 2px 0 var(--px-luz), inset -2px 0 0 var(--px-sombra), 0 -2px 0 var(--px-negro), 2px 0 0 var(--px-negro), -2px 0 0 var(--px-negro); }
+  .wb-pestana:hover .wb-ico { filter: brightness(1.25); }
+  .wb-pestana[hidden], .wb-boton[hidden], .wb-grupo[hidden] { display: none; }
+  .wb-pestana .wb-ico { width: 24px; height: 24px; }
+  .wb-barra { display: flex; padding: 8px 10px; min-width: 300px; background: #1c2642;
+    box-shadow: inset 2px 2px 0 var(--px-luz), inset -2px -2px 0 var(--px-sombra), 0 0 0 2px var(--px-negro), 4px 4px 0 rgba(0, 0, 0, 0.35); }
+  .wb-grupo { display: flex; gap: 6px; }
+  .wb-boton { width: 52px; height: 52px; padding: 0; display: grid; place-items: center; border: 0; background: #26324f; cursor: pointer;
+    box-shadow: inset -3px -3px 0 #141c31, inset 3px 3px 0 #44568a, 0 0 0 2px var(--px-negro); }
+  .wb-boton:hover { background: #2e3c60; }
+  .wb-boton:active { box-shadow: inset 3px 3px 0 #141c31, inset -3px -3px 0 #44568a, 0 0 0 2px var(--px-negro); }
+  .wb-boton.activo { background: #3a3a2a; box-shadow: inset -3px -3px 0 #6a5420, inset 3px 3px 0 #f0d070, 0 0 0 2px var(--px-negro), 0 0 0 4px var(--oro); }
+  .wb-boton:disabled { opacity: 0.45; cursor: default; }
+  .wb-ico { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; }
+  /* El cartel con el nombre y lo que hace cada botón, encima de la barra. */
+  .wb-pista { position: absolute; bottom: calc(100% + 8px); max-width: 320px; padding: 6px 10px; background: #070b16; color: var(--pergamino); font-family: var(--f-pixel); font-size: 13px; line-height: 1.35; pointer-events: none; white-space: normal;
+    box-shadow: 0 0 0 2px var(--px-negro), inset 0 0 0 2px #3a4a76, 4px 4px 0 rgba(0, 0, 0, 0.4); }
+  .wb-pista b { display: block; color: var(--oro); font-weight: 600; }
+  .wb-pista span { display: block; color: var(--tenue); font-size: 12px; }
+  .wb-pista[hidden] { display: none; }
+
+  /* -- Las órdenes, justo encima de la barra (se abren y cierran con el botón de la pestaña «Tu pueblo») -- */
+  .g-voluntad, body:not(.sin-panel) .g-voluntad { left: 50%; transform: translateX(-50%); width: min(680px, calc(100% - 32px)); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 110px); padding: 8px 12px; }
+  .g-voluntad { width: min(620px, calc(100% - 32px)); padding: 6px 10px 8px; }
+  .g-voluntad .voluntad-cab { margin-bottom: 2px; }
+  .g-voluntad .etiqueta { font-size: 11px; }
+  .g-voluntad .respuesta { max-height: 2.9em; font-size: 12.5px; line-height: 1.4; margin-top: 5px; }
+  .g-voluntad .consejo { font-size: 12.5px; line-height: 1.4; margin-top: 5px; }
+  .g-voluntad input#orden { height: 38px; font-size: 14px; }
+  .g-voluntad .obrar { font-size: 15px; }
+
+  /* -- La ventana del centro: pueblos y fichas, crónica y retos, con su barra de título arriba -- */
+  .panel { top: 72px; right: auto; left: 50%; transform: translateX(-50%); bottom: calc(max(8px, env(safe-area-inset-bottom)) + 104px); width: min(620px, calc(100% - 32px)); height: auto; z-index: 7; padding: 0 14px 14px; }
+  /* (Con la ventana abierta, las órdenes se apartan hasta cerrarla.) */
+  body:not(.sin-panel) .g-voluntad { display: none; }
+  .panel-pestanas { justify-content: center; margin: 0 -14px; padding: 8px 14px 6px; background: #141c31; border-bottom: 0; box-shadow: 0 2px 0 var(--px-negro), inset 0 -2px 0 #26324f; }
+  .panel-pestanas .pestana { font-family: var(--f-pixel); font-size: 15px; letter-spacing: 0.04em; padding: 6px 14px; }
+  .panel-pestanas .cerrar { position: absolute; right: 10px; top: 6px; width: 30px; height: 30px; font-size: 20px; display: grid; place-items: center; color: #ffd2c8; background: #8a2a22; box-shadow: inset -2px -2px 0 #5a1a14, inset 2px 2px 0 #d85a48, 0 0 0 2px var(--px-negro); }
+  .panel-pestanas .cerrar:hover { background: #a8342a; }
+  .corte { top: 72px !important; }
+
+  /* Con la interfaz oculta (👁) queda la barra de abajo, para poder volver a mostrarla. */
+  body.limpio .wb { display: flex !important; }
+}

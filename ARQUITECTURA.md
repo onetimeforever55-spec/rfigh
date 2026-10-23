@@ -69,6 +69,7 @@ Cada archivo es un módulo `(function () { … })()` que se cuelga de `RF.MUNDO`
 | Cómo se ve un edificio o un barco | `arte/01-edificios.js`, `arte/02-publicos-y-negocios.js`, `arte/03-fases.js`, `arte/04-gente-vehiculos-e-iconos.js` |
 | Animaciones, golpes, sucesos en el mapa | `pintor/03-golpes-y-figuras.js`, `pintor/04-aldeanos.js`, `pintor/08-particulas-y-sucesos.js` |
 | Botones, paneles, ventana de órdenes, online | `vista/` (y `mundo.html`, `css/mundo.css`) |
+| La barra de abajo del PC (forma de WorldBox) | `vista/07-barra-pc.js` (qué botón va en cada pestaña; cada uno pulsa el botón de siempre), sus iconos en `arte/04-gente-vehiculos-e-iconos.js` (`BARRA`) y la disposición al final de `css/mundo.css` |
 
 ## Pruebas y publicación
 

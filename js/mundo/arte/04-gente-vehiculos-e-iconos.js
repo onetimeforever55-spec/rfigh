@@ -340,4 +340,34 @@
     return guardado('ico' + nombre, () => { const H = hoja(12, 12); (ICONOS[nombre] || ICONOS.mas)(H); H.contorno(0.75); return H.lienzo(); });
   }
   const iconoURL = nombre => guardado('icourl' + nombre, () => icono(nombre).toDataURL());
-  M.arte = { tiradorEnPose, BOCA, T, icono, iconoURL, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
+  // Los iconos de la barra de abajo en el PC (16×16, como los botones de WorldBox): uno por cada botón que ya existe.
+  const linea = (H, x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) || 1; for (let k = 0; k <= n; k++) H.p(x0 + (x1 - x0) * k / n, y0 + (y1 - y0) * k / n, c); };
+  const BARRA = {
+    pausa: H => { H.r(4, 3, 3, 10, '#e8e4dc'); H.r(9, 3, 3, 10, '#e8e4dc'); H.r(4, 3, 1, 10, '#ffffff'); H.r(9, 3, 1, 10, '#ffffff'); },
+    seguir: H => { for (let y = 0; y < 11; y++) { const w = 6 - Math.abs(y - 5); H.r(5, 3 + y, w + 1, 1, '#8ee070'); } H.r(5, 3, 1, 11, '#c8f8a8'); },
+    velocidad: H => { H.disco(8, 8, 6.4, '#e8e4dc', true); H.disco(8, 8, 4.8, '#3a4a6a'); linea(H, 8, 8, 8, 4, '#ffd24a'); linea(H, 8, 8, 11, 9, '#ffd24a'); H.p(8, 8, '#ffffff'); H.r(7, 0, 3, 2, '#c8c4bc'); },
+    acercar: H => { H.disco(6.5, 6.5, 5, '#cfe4f4', true); H.disco(6.5, 6.5, 3.4, '#4a7ab0'); H.r(4, 6, 6, 1, '#ffffff'); H.r(6, 4, 1, 6, '#ffffff'); linea(H, 10, 10, 14, 14, '#8a6a3a'); linea(H, 11, 10, 14, 13, '#6a4a2a'); },
+    alejar: H => { H.disco(6.5, 6.5, 5, '#cfe4f4', true); H.disco(6.5, 6.5, 3.4, '#4a7ab0'); H.r(4, 6, 6, 1, '#ffffff'); linea(H, 10, 10, 14, 14, '#8a6a3a'); linea(H, 11, 10, 14, 13, '#6a4a2a'); },
+    todo: H => { H.r(2, 3, 12, 10, '#5aa040'); H.r(2, 3, 4, 10, '#4a8ad0'); H.r(9, 3, 1, 10, '#3a7a30'); H.p(11, 6, '#c84a3a'); H.p(12, 7, '#c84a3a'); for (const [x, y, dx, dy] of [[1, 1, 1, 1], [14, 1, -1, 1], [1, 14, 1, -1], [14, 14, -1, -1]]) { H.p(x, y, '#ffd24a'); H.p(x + dx, y, '#ffd24a'); H.p(x, y + dy, '#ffd24a'); } },
+    casa: H => { for (let y = 0; y < 6; y++) H.r(8 - y - 1, 2 + y, y * 2 + 2, 1, y < 2 ? '#e05a4a' : '#c84a3a'); H.r(3, 8, 10, 6, '#e8d8b4'); H.r(3, 8, 10, 1, '#f8ecd0'); H.r(7, 10, 2, 4, '#7a4a22'); H.r(4, 9, 2, 2, '#8ac0e8'); H.r(10, 9, 2, 2, '#8ac0e8'); },
+    batalla: H => { linea(H, 2, 2, 12, 12, '#e8ecf4'); linea(H, 3, 2, 13, 12, '#9aa0aa'); linea(H, 13, 2, 3, 12, '#e8ecf4'); linea(H, 12, 2, 2, 12, '#9aa0aa'); H.r(1, 12, 4, 1, '#c8a040'); H.r(11, 12, 4, 1, '#c8a040'); H.r(2, 13, 2, 2, '#7a4a22'); H.r(12, 13, 2, 2, '#7a4a22'); },
+    ojo: H => { for (let x = 1; x < 15; x++) { const h = Math.round(Math.sin((x - 1) / 13 * Math.PI) * 4); H.r(x, 8 - h, 1, h * 2 + 1, '#f4f0e8'); } H.disco(8, 8, 3, '#4a8ad0'); H.disco(8, 8, 1.6, '#1a2030'); H.p(7, 7, '#ffffff'); },
+    corte: H => { H.r(2, 13, 12, 2, '#c8c0ac'); H.r(1, 3, 14, 2, '#e8dcc0'); for (let y = 0; y < 2; y++) H.r(5 - y * 2, 1 - y + 1, 6 + y * 4, 1, '#f0c040'); for (const x of [3, 7, 11]) { H.r(x, 5, 2, 8, '#f4eee0'); H.p(x, 5, '#ffffff'); } },
+    tropas: H => { H.disco(8, 8, 6, '#9aa4b4', true); H.r(2, 9, 12, 2, '#7a8494'); H.r(7, 1, 2, 4, '#c84a3a'); H.r(6, 11, 4, 3, '#f0c8a0'); H.r(3, 7, 10, 1, '#c8d0dc'); },
+    fundar: H => { H.r(3, 2, 1, 13, '#7a4a22'); for (let y = 0; y < 6; y++) H.r(4, 2 + y, 9 - Math.abs(y - 3) * 2, 1, y < 2 ? '#ff7a5a' : '#e0503a'); H.r(1, 14, 12, 1, '#5aa040'); },
+    arquitecto: H => { H.r(2, 13, 12, 2, '#a8a49a'); H.r(5, 8, 6, 5, '#c8a878'); H.r(5, 8, 6, 1, '#e0c898'); H.r(3, 2, 1, 11, '#7a5530'); H.r(12, 2, 1, 11, '#7a5530'); H.r(3, 5, 10, 1, '#7a5530'); H.r(13, 1, 1, 5, '#f0c040'); H.r(13, 1, 3, 1, '#f0c040'); },
+    ordenes: H => { H.r(2, 2, 10, 12, '#efe2b8'); H.r(2, 2, 10, 1, '#fff4d0'); for (const y of [5, 7, 9]) H.r(4, y, 6, 1, '#9a8a6a'); for (let k = 0; k < 8; k++) { H.p(7 + k * 0.9, 13 - k, '#f4f0e4'); H.p(8 + k * 0.9, 13 - k, '#c84a3a'); } },
+    pueblos: H => { for (let y = 0; y < 4; y++) H.r(4 - y, 4 + y, y * 2 + 1, 1, '#c84a3a'); H.r(1, 8, 7, 6, '#e8d8b4'); for (let y = 0; y < 5; y++) H.r(11 - y, 2 + y, y * 2 + 1, 1, '#4a8ad0'); H.r(7, 7, 8, 7, '#d8c8a4'); H.r(3, 10, 2, 4, '#7a4a22'); H.r(10, 10, 2, 4, '#7a4a22'); },
+    cronica: H => { H.r(3, 2, 10, 12, '#efe2b8'); H.r(1, 1, 14, 3, '#d8c890'); H.r(1, 12, 14, 3, '#d8c890'); H.r(1, 1, 14, 1, '#f0e0b0'); for (const y of [5, 7, 9]) H.r(4, y, 8, 1, '#9a8a6a'); },
+    retos: H => { H.r(4, 1, 8, 7, '#f0c040'); H.r(4, 1, 3, 7, '#ffe080'); H.r(2, 2, 2, 3, '#f0c040'); H.r(12, 2, 2, 3, '#f0c040'); H.r(7, 8, 2, 3, '#c89020'); H.r(4, 11, 8, 3, '#8a5a2a'); H.r(4, 11, 8, 1, '#a8743a'); },
+    sonido: H => { H.r(2, 6, 3, 4, '#e8e4dc'); for (let k = 0; k < 4; k++) H.r(5 + k, 6 - k, 1, 4 + k * 2, '#e8e4dc'); for (let y = 0; y < 7; y++) H.p(11 + Math.round(Math.sin(y / 6 * Math.PI) * 1.5), 5 + y, '#8ac0e8'); for (let y = 0; y < 11; y++) H.p(13 + Math.round(Math.sin(y / 10 * Math.PI) * 1.5), 3 + y, '#8ac0e8'); },
+    graficos: H => { H.r(1, 2, 14, 10, '#3a4a6a'); H.r(2, 3, 12, 8, '#5aa040'); H.r(2, 3, 5, 8, '#4a8ad0'); H.p(9, 6, '#c84a3a'); H.p(10, 7, '#c84a3a'); H.r(6, 12, 4, 2, '#8a94a8'); H.r(4, 14, 8, 1, '#8a94a8'); },
+    modo: H => { for (let k = 0; k < 9; k++) H.p(3 + k, 4, '#ffd24a'); H.r(10, 2, 1, 5, '#ffd24a'); H.r(11, 3, 1, 3, '#ffd24a'); for (let k = 0; k < 9; k++) H.p(4 + k, 11, '#8ac0e8'); H.r(5, 9, 1, 5, '#8ac0e8'); H.r(4, 10, 1, 3, '#8ac0e8'); },
+    ayuda: H => { H.disco(8, 8, 6.5, '#4a8ad0', true); H.r(6, 4, 4, 1, '#ffffff'); H.r(10, 5, 1, 2, '#ffffff'); H.r(8, 7, 2, 1, '#ffffff'); H.r(8, 8, 1, 2, '#ffffff'); H.r(8, 11, 1, 1, '#ffffff'); H.p(5, 5, '#ffffff'); },
+    nuevo: H => { H.disco(8, 8, 6.5, '#4a8ad0', true); H.r(4, 4, 4, 3, '#5aa040'); H.r(3, 6, 3, 3, '#5aa040'); H.r(9, 8, 4, 4, '#5aa040'); H.r(10, 7, 2, 1, '#6ab850'); H.p(6, 11, '#5aa040'); },
+  };
+  function iconoBarra(nombre) {
+    return guardado('icob' + nombre, () => { const H = hoja(16, 16); (BARRA[nombre] || ICONOS.mas)(H); H.contorno(0.7); return H.lienzo(); });
+  }
+  const iconoBarraURL = nombre => guardado('icoburl' + nombre, () => iconoBarra(nombre).toDataURL());
+  M.arte = { tiradorEnPose, BOCA, T, icono, iconoURL, iconoBarra, iconoBarraURL, BARRA, ICONOS, piedraPlaza, pico, barco, vehiculo: (t, c, p) => conId(vehiculo(t, c, p)), avion, aldeano: o => conId(aldeano(o)), tenido, suelo, adorno, arbol, roca, campo, casa, edificio, plaza, mezcla, oscuro, claro, hoja, HIERBA };
